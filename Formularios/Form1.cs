@@ -11,10 +11,13 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Comercio.NET.Formularios
-
 {
     public partial class frmAgregarProducto : Form
     {
+        public enum ModoFormulario { Agregar, Modificar }
+        public ModoFormulario Modo { get; set; } = ModoFormulario.Agregar;
+        public string CodigoOriginal { get; set; } // Para identificar el registro a modificar
+
         public frmAgregarProducto()
         {
             InitializeComponent();
@@ -41,7 +44,7 @@ namespace Comercio.NET.Formularios
 
         private void btnGuardar_Click(object sender, EventArgs e)
         {
-            // Validación básica (puedes mejorarla según tus necesidades)
+            // Validación básica
             if (string.IsNullOrWhiteSpace(txtCodigo.Text) ||
                 string.IsNullOrWhiteSpace(txtDescripcion.Text))
             {
@@ -49,7 +52,6 @@ namespace Comercio.NET.Formularios
                 return;
             }
 
-            // Obtener la cadena de conexión (ajusta si usas otra forma)
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json")
@@ -58,31 +60,48 @@ namespace Comercio.NET.Formularios
 
             using (var connection = new SqlConnection(connectionString))
             {
-                var query = @"INSERT INTO Productos 
-            (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor)
-            VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor)";
+                connection.Open();
+                SqlCommand cmd;
 
-                using (var cmd = new SqlCommand(query, connection))
+                if (Modo == ModoFormulario.Agregar)
                 {
-                    cmd.Parameters.AddWithValue("@codigo", txtCodigo.Text.Trim());
-                    cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
-                    cmd.Parameters.AddWithValue("@rubro", txtRubro.Text.Trim());
-                    cmd.Parameters.AddWithValue("@marca", txtMarca.Text.Trim());
-                    cmd.Parameters.AddWithValue("@precio", decimal.TryParse(txtPrecio.Text, out var precio) ? precio : 0);
-                    cmd.Parameters.AddWithValue("@costo", decimal.TryParse(txtCosto.Text, out var costo) ? costo : 0);
-                    cmd.Parameters.AddWithValue("@porcentaje", decimal.TryParse(txtPorcentaje.Text, out var porcentaje) ? porcentaje : 0);
-                    cmd.Parameters.AddWithValue("@cantidad", int.TryParse(txtCantidad.Text, out var cantidad) ? cantidad : 0);
-                    cmd.Parameters.AddWithValue("@proveedor", txtProveedor.Text.Trim());
-
-                    connection.Open();
-                    cmd.ExecuteNonQuery();
+                    var query = @"INSERT INTO Productos 
+                        (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor)
+                        VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor)";
+                    cmd = new SqlCommand(query, connection);
                 }
+                else // Modificar
+                {
+                    var query = @"UPDATE Productos SET
+                        codigo = @codigo,
+                        descripcion = @descripcion,
+                        rubro = @rubro,
+                        marca = @marca,
+                        precio = @precio,
+                        costo = @costo,
+                        porcentaje = @porcentaje,
+                        cantidad = @cantidad,
+                        proveedor = @proveedor
+                        WHERE codigo = @codigoOriginal";
+                    cmd = new SqlCommand(query, connection);
+                    cmd.Parameters.AddWithValue("@codigoOriginal", CodigoOriginal);
+                }
+
+                cmd.Parameters.AddWithValue("@codigo", txtCodigo.Text.Trim());
+                cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
+                cmd.Parameters.AddWithValue("@rubro", txtRubro.Text.Trim());
+                cmd.Parameters.AddWithValue("@marca", txtMarca.Text.Trim());
+                cmd.Parameters.AddWithValue("@precio", decimal.TryParse(txtPrecio.Text, out var precio) ? precio : 0);
+                cmd.Parameters.AddWithValue("@costo", decimal.TryParse(txtCosto.Text, out var costo) ? costo : 0);
+                cmd.Parameters.AddWithValue("@porcentaje", decimal.TryParse(txtPorcentaje.Text, out var porcentaje) ? porcentaje : 0);
+                cmd.Parameters.AddWithValue("@cantidad", int.TryParse(txtCantidad.Text, out var cantidad) ? cantidad : 0);
+                cmd.Parameters.AddWithValue("@proveedor", txtProveedor.Text.Trim());
+
+                cmd.ExecuteNonQuery();
             }
 
-            // Mensaje de éxito
-            MessageBox.Show("Producto agregado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(Modo == ModoFormulario.Agregar ? "Producto agregado correctamente." : "Producto modificado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-            // Indicar éxito y cerrar el formulario modal
             this.DialogResult = DialogResult.OK;
             CodigoAgregado = txtCodigo.Text.Trim();
             this.Close();
@@ -128,6 +147,11 @@ namespace Comercio.NET.Formularios
                 e.SuppressKeyPress = true; // Evita el beep y el salto de línea
                 this.SelectNextControl((Control)sender, true, true, true, true);
             }
+        }
+
+        private void frmAgregarProducto_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -32,6 +32,8 @@ namespace Comercio.NET.Formularios
 
         private void CargarProductos()
         {
+            string textoFiltro = txtFiltroDescripcion.Text;
+
             // Cargar configuración desde appsettings.json
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -46,70 +48,67 @@ namespace Comercio.NET.Formularios
                 var adapter = new SqlDataAdapter(query, connection);
                 productosTable = new DataTable();
                 adapter.Fill(productosTable);
-                GrillaProductos.DataSource = productosTable;
-                //GrillaProductos.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-
-                // Asignar ancho fijo a cada columna (ajusta los valores según tu preferencia)
-                GrillaProductos.Columns["codigo"].Width = 90;
-                GrillaProductos.Columns["descripcion"].Width = 200;
-                GrillaProductos.Columns["rubro"].Width = 110;
-                GrillaProductos.Columns["marca"].Width = 110;
-                GrillaProductos.Columns["costo"].Width = 90;
-                GrillaProductos.Columns["porcentaje"].Width = 40;
-                GrillaProductos.Columns["precio"].Width = 90;
-                GrillaProductos.Columns["cantidad"].Width = 40;
-                GrillaProductos.Columns["proveedor"].Width = 90;
-
-                // Formatear la columna "precio" como moneda y alinear a la derecha
-                if (GrillaProductos.Columns["precio"] != null)
-                {
-                    GrillaProductos.Columns["precio"].DefaultCellStyle.Format = "C2";
-                    GrillaProductos.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                }
-
-                if (GrillaProductos.Columns["costo"] != null)
-                {
-                    GrillaProductos.Columns["costo"].DefaultCellStyle.Format = "C2";
-                    GrillaProductos.Columns["costo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                }
-
-                // Encabezados en mayúsculas y centrados
-                foreach (DataGridViewColumn col in GrillaProductos.Columns)
-                {
-                    col.HeaderText = col.HeaderText.ToUpper();
-                    col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-                GrillaProductos.Columns["porcentaje"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                GrillaProductos.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                GrillaProductos.Columns["porcentaje"].HeaderText = "%";
-                GrillaProductos.Columns["cantidad"].HeaderText = "CANT.";
-
-                // Actualizar contador de registros
-                lblContador.Text = $"Registros: {productosTable.Rows.Count}";
             }
+
+            GrillaProductos.DataSource = productosTable;
+            GrillaProductos.Refresh();
+            Application.DoEvents();
+
+            // Formatear la columna "precio" como moneda y alinear a la derecha
+            if (GrillaProductos.Columns["precio"] != null)
+            {
+                GrillaProductos.Columns["precio"].DefaultCellStyle.Format = "C2";
+                GrillaProductos.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
+
+            if (GrillaProductos.Columns["costo"] != null)
+            {
+                GrillaProductos.Columns["costo"].DefaultCellStyle.Format = "C2";
+                GrillaProductos.Columns["costo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
+
+            // Encabezados en mayúsculas y centrados
+            foreach (DataGridViewColumn col in GrillaProductos.Columns)
+            {
+                col.HeaderText = col.HeaderText.ToUpper();
+                col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+            GrillaProductos.Columns["porcentaje"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaProductos.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            GrillaProductos.Columns["porcentaje"].HeaderText = "%";
+            GrillaProductos.Columns["cantidad"].HeaderText = "CANT.";
+
+            // Actualizar contador de registros
+            lblContador.Text = $"Registros: {productosTable.Rows.Count}";
+
+            // Reaplicar el filtro usando el texto actual de búsqueda
+            AplicarFiltroDescripcion(textoFiltro);
+        }
+
+        // Nuevo método para aplicar el filtro
+        private void AplicarFiltroDescripcion(string texto)
+        {
+            if (productosTable == null) return;
+            texto = texto.Replace("'", "''").Trim();
+            if (string.IsNullOrEmpty(texto))
+            {
+                productosTable.DefaultView.RowFilter = "";
+            }
+            else
+            {
+                var palabras = texto.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var filtros = palabras.Select(palabra => $"descripcion LIKE '%{palabra}%'");
+                string filtroFinal = string.Join(" AND ", filtros);
+                productosTable.DefaultView.RowFilter = filtroFinal;
+            }
+            // Actualizar contador de registros filtrados
+            lblContador.Text = $"Registros: {productosTable.DefaultView.Count}";
         }
 
         // Evento para filtrar
         private void txtFiltroDescripcion_TextChanged(object sender, EventArgs e)
         {
-            if (productosTable == null) return;
-            string texto = txtFiltroDescripcion.Text.Replace("'", "''").Trim();
-            if (string.IsNullOrEmpty(texto))
-            {
-                (GrillaProductos.DataSource as DataTable).DefaultView.RowFilter = "";
-            }
-            else
-            {
-                // Separar por espacios y armar filtro para todas las palabras
-                var palabras = texto.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                var filtros = palabras
-                    .Select(palabra => $"descripcion LIKE '%{palabra}%'");
-                string filtroFinal = string.Join(" AND ", filtros);
-                (GrillaProductos.DataSource as DataTable).DefaultView.RowFilter = filtroFinal;
-            }
-
-            // Actualizar contador de registros filtrados
-            lblContador.Text = $"Registros: {(GrillaProductos.DataSource as DataTable).DefaultView.Count}";
+            AplicarFiltroDescripcion(txtFiltroDescripcion.Text);
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -125,13 +124,15 @@ namespace Comercio.NET.Formularios
                 if (result == DialogResult.OK && !string.IsNullOrEmpty(form.CodigoAgregado))
                 {
                     CargarProductos();
-                    foreach (DataGridViewRow row in GrillaProductos.Rows)
+
+                    // Selecciona y posiciona la fila agregada
+                    foreach (DataGridViewRow r in GrillaProductos.Rows)
                     {
-                        if (row.Cells["codigo"].Value?.ToString() == form.CodigoAgregado)
+                        if (r.Cells["codigo"].Value?.ToString() == form.CodigoAgregado)
                         {
-                            row.Selected = true;
-                            GrillaProductos.CurrentCell = row.Cells["codigo"];
-                            GrillaProductos.FirstDisplayedScrollingRowIndex = row.Index;
+                            r.Selected = true;
+                            GrillaProductos.CurrentCell = r.Cells["codigo"];
+                            GrillaProductos.FirstDisplayedScrollingRowIndex = r.Index;
                             break;
                         }
                     }
@@ -146,6 +147,9 @@ namespace Comercio.NET.Formularios
             var row = GrillaProductos.CurrentRow;
             using (var form = new frmAgregarProducto())
             {
+                form.Modo = frmAgregarProducto.ModoFormulario.Modificar;
+                form.CodigoOriginal = row.Cells["codigo"].Value?.ToString();
+
                 // Precargar los datos en los controles del formulario
                 form.Controls["txtCodigo"].Text = row.Cells["codigo"].Value?.ToString();
                 form.Controls["txtDescripcion"].Text = row.Cells["descripcion"].Value?.ToString();
@@ -160,7 +164,10 @@ namespace Comercio.NET.Formularios
                 var result = form.ShowDialog(this);
                 if (result == DialogResult.OK && !string.IsNullOrEmpty(form.CodigoAgregado))
                 {
-                    CargarProductos();
+                    CargarProductos(); // Recarga la grilla
+                    AplicarFiltroDescripcion(txtFiltroDescripcion.Text); // Reaplica el filtro actual
+
+                    // Selecciona y posiciona la fila modificada
                     foreach (DataGridViewRow r in GrillaProductos.Rows)
                     {
                         if (r.Cells["codigo"].Value?.ToString() == form.CodigoAgregado)

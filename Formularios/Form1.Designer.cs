@@ -1,4 +1,5 @@
-﻿namespace Comercio.NET.Formularios
+﻿
+namespace Comercio.NET.Formularios
 {
     partial class frmAgregarProducto
     {
@@ -29,15 +30,6 @@
         private void InitializeComponent()
         {
             btnGuardar = new Button();
-
-            // 2. En InitializeComponent, reemplaza las instancias y usos de 'txtCodigo' y 'txtProveedor' por 'txtCodigoField' y 'txtProveedorField':
-            txtCodigo = new TextBox();
-            txtCodigo.Location = new Point(195, 12);
-            txtCodigo.Name = "txtCodigo";
-            txtCodigo.Size = new Size(139, 23);
-            txtCodigo.TabIndex = 1;
-            // ...
-            Controls.Add(txtCodigo);
             txtCodigo = new TextBox();
             txtDescripcion = new TextBox();
             txtMarca = new TextBox();
@@ -60,76 +52,76 @@
             // 
             // btnGuardar
             // 
-            btnGuardar.Location = new Point(392, 243);
+            btnGuardar.Location = new Point(366, 244);
             btnGuardar.Name = "btnGuardar";
             btnGuardar.Size = new Size(75, 23);
-            btnGuardar.TabIndex = 10;
+            btnGuardar.TabIndex = 9;
             btnGuardar.Text = "Guardar";
             btnGuardar.UseVisualStyleBackColor = true;
-            btnGuardar.Click += this.btnGuardar_Click;
+            btnGuardar.Click += btnGuardar_Click;
             // 
             // txtCodigo
             // 
             txtCodigo.Location = new Point(195, 12);
             txtCodigo.Name = "txtCodigo";
             txtCodigo.Size = new Size(139, 23);
-            txtCodigo.TabIndex = 1;
+            txtCodigo.TabIndex = 0;
             // 
             // txtDescripcion
             // 
             txtDescripcion.Location = new Point(195, 41);
             txtDescripcion.Name = "txtDescripcion";
             txtDescripcion.Size = new Size(139, 23);
-            txtDescripcion.TabIndex = 2;
+            txtDescripcion.TabIndex = 1;
             // 
             // txtMarca
             // 
             txtMarca.Location = new Point(195, 99);
             txtMarca.Name = "txtMarca";
             txtMarca.Size = new Size(139, 23);
-            txtMarca.TabIndex = 4;
+            txtMarca.TabIndex = 3;
             // 
             // txtRubro
             // 
             txtRubro.Location = new Point(195, 70);
             txtRubro.Name = "txtRubro";
             txtRubro.Size = new Size(139, 23);
-            txtRubro.TabIndex = 3;
+            txtRubro.TabIndex = 2;
             // 
             // txtProveedor
             // 
             txtProveedor.Location = new Point(195, 244);
             txtProveedor.Name = "txtProveedor";
             txtProveedor.Size = new Size(139, 23);
-            txtProveedor.TabIndex = 9;
+            txtProveedor.TabIndex = 8;
             // 
             // txtCantidad
             // 
             txtCantidad.Location = new Point(195, 215);
             txtCantidad.Name = "txtCantidad";
             txtCantidad.Size = new Size(139, 23);
-            txtCantidad.TabIndex = 8;
+            txtCantidad.TabIndex = 7;
             // 
             // txtPorcentaje
             // 
             txtPorcentaje.Location = new Point(195, 157);
             txtPorcentaje.Name = "txtPorcentaje";
             txtPorcentaje.Size = new Size(139, 23);
-            txtPorcentaje.TabIndex = 6;
+            txtPorcentaje.TabIndex = 5;
             // 
             // txtCosto
             // 
             txtCosto.Location = new Point(195, 128);
             txtCosto.Name = "txtCosto";
             txtCosto.Size = new Size(139, 23);
-            txtCosto.TabIndex = 5;
+            txtCosto.TabIndex = 4;
             // 
             // txtPrecio
             // 
             txtPrecio.Location = new Point(195, 186);
             txtPrecio.Name = "txtPrecio";
             txtPrecio.Size = new Size(139, 23);
-            txtPrecio.TabIndex = 7;
+            txtPrecio.TabIndex = 6;
             // 
             // lbCodigo
             // 
@@ -226,15 +218,6 @@
             Controls.Add(lbMarca);
             Controls.Add(lbRubro);
             Controls.Add(lbDescripción);
-
-            // En InitializeComponent, reemplaza:
-            txtProveedor = new TextBox();
-            txtProveedor.Location = new Point(195, 244);
-            txtProveedor.Name = "txtProveedor";
-            txtProveedor.Size = new Size(139, 23);
-            txtProveedor.TabIndex = 9;
-            // ...
-            Controls.Add(txtProveedor);
             Controls.Add(lbCodigo);
             Controls.Add(txtPrecio);
             Controls.Add(txtProveedor);
@@ -248,6 +231,7 @@
             Controls.Add(btnGuardar);
             Name = "frmAgregarProducto";
             Text = "Agregar Producto";
+            Load += frmAgregarProducto_Load;
             ResumeLayout(false);
             PerformLayout();
         }
@@ -273,15 +257,5 @@
         private Label lbCosto;
         private Label lbPrecio;
         private Label lbProveedor;
-        // Reemplaza todas las declaraciones y usos de 'txtCodigo' y 'txtProveedor' como campos privados por 'txtCodigoField' y 'txtProveedorField' respectivamente.
-        // Mantén el Name del control como "txtCodigo" y "txtProveedor" para que coincida con el diseñador, pero usa los nuevos nombres de campo para evitar la ambigüedad CS0229.
-
-        // 1. Cambia las declaraciones de campos privados:
-        //private TextBox txtCodigoField;
-        // Cambia el nombre del campo privado 'txtProveedor' a 'txtProveedorField' para evitar la ambigüedad CS0229
-
-        // Reemplaza todas las apariciones de 'txtProveedor' por 'txtProveedorField' en la declaración y en InitializeComponent, excepto en el Name del control.
-
-        //private TextBox txtProveedorField;
     }
 }
