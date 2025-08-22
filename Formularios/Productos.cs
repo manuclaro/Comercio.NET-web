@@ -51,6 +51,17 @@ namespace Comercio.NET.Formularios
             }
 
             GrillaProductos.DataSource = productosTable;
+
+            // Asignar ancho fijo a cada columna (ajusta los valores según tu preferencia)
+            GrillaProductos.Columns["codigo"].Width = 90;
+            GrillaProductos.Columns["descripcion"].Width = 200;
+            GrillaProductos.Columns["rubro"].Width = 110;
+            GrillaProductos.Columns["marca"].Width = 110;
+            GrillaProductos.Columns["costo"].Width = 90;
+            GrillaProductos.Columns["porcentaje"].Width = 40;
+            GrillaProductos.Columns["precio"].Width = 90;
+            GrillaProductos.Columns["cantidad"].Width = 40;
+            GrillaProductos.Columns["proveedor"].Width = 90;
             GrillaProductos.Refresh();
             Application.DoEvents();
 
