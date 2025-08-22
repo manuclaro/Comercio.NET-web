@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             dataGridView1 = new DataGridView();
             lblCantidadProductos = new Label();
             lbTotal = new Label();
@@ -44,26 +45,36 @@
             // 
             dataGridView1.AllowUserToAddRows = false;
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new Point(12, 144);
+            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = SystemColors.Window;
+            dataGridViewCellStyle1.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle1.ForeColor = SystemColors.ControlText;
+            dataGridViewCellStyle1.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.False;
+            dataGridView1.DefaultCellStyle = dataGridViewCellStyle1;
+            dataGridView1.Location = new Point(2, 144);
             dataGridView1.Name = "dataGridView1";
-            dataGridView1.Size = new Size(719, 274);
+            dataGridView1.Size = new Size(754, 274);
             dataGridView1.TabIndex = 8;
             // 
             // lblCantidadProductos
             // 
             lblCantidadProductos.AutoSize = true;
+            lblCantidadProductos.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
             lblCantidadProductos.Location = new Point(73, 439);
             lblCantidadProductos.Name = "lblCantidadProductos";
-            lblCantidadProductos.Size = new Size(61, 15);
+            lblCantidadProductos.Size = new Size(70, 17);
             lblCantidadProductos.TabIndex = 9;
             lblCantidadProductos.Text = "Productos";
             // 
             // lbTotal
             // 
             lbTotal.AutoSize = true;
+            lbTotal.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
             lbTotal.Location = new Point(572, 438);
             lbTotal.Name = "lbTotal";
-            lbTotal.Size = new Size(33, 15);
+            lbTotal.Size = new Size(39, 17);
             lbTotal.TabIndex = 10;
             lbTotal.Text = "Total";
             // 
@@ -127,7 +138,7 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.LightBlue;
-            ClientSize = new Size(739, 462);
+            ClientSize = new Size(757, 462);
             Controls.Add(btnFinalizarVenta);
             Controls.Add(lbDescripcionProducto);
             Controls.Add(btnSalir);
@@ -137,7 +148,7 @@
             Controls.Add(lbTotal);
             Controls.Add(lblCantidadProductos);
             Controls.Add(dataGridView1);
-            MinimumSize = new Size(755, 501);
+            MinimumSize = new Size(773, 501);
             Name = "Ventas";
             Text = "Ventas";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
