@@ -285,15 +285,9 @@ namespace Comercio.NET
         {
             remitoIncrementado = false;
 
-            // Imprimir remito antes de limpiar
             if (remitoActual != null && remitoActual.Rows.Count > 0)
             {
-                PrintDialog printDialog = new PrintDialog();
-                printDialog.Document = printDocumentRemito;
-                if (printDialog.ShowDialog() == DialogResult.OK)
-                {
-                    printDocumentRemito.Print();
-                }
+                ImprimirTicket();
             }
 
             Ventas_Load(null, null);
@@ -455,8 +449,386 @@ namespace Comercio.NET
             e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
 
             // Firma (opcional)
-            y += rowHeight * 2;
-            e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
+            //y += rowHeight * 2;
+            //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
+        }
+
+        private void ImprimirA4()
+        {
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
+            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageA4;
+            PrintDialog printDialog = new PrintDialog();
+            printDialog.Document = printDocumentRemito;
+            if (printDialog.ShowDialog() == DialogResult.OK)
+            {
+                printDocumentRemito.Print();
+            }
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageA4;
+        }
+
+        private void ImprimirTicket()
+        {
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
+            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageTicket;
+            // Configura el tamaño del papel a 8cm de ancho (80mm)
+            PaperSize ticketSize = new PaperSize("Ticket", 315, 800); // 315 = 8cm en centésimas de pulgada
+            printDocumentRemito.DefaultPageSettings.PaperSize = ticketSize;
+            PrintDialog printDialog = new PrintDialog();
+            printDialog.Document = printDocumentRemito;
+            if (printDialog.ShowDialog() == DialogResult.OK)
+            {
+                printDocumentRemito.Print();
+            }
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageTicket;
+        }
+
+        private void printDocumentRemito_PrintPageA4(object sender, PrintPageEventArgs e)
+        {
+            if (remitoActual == null) return;
+
+            // Márgenes y fuentes
+            float leftMargin = e.MarginBounds.Left + 20;
+            float topMargin = e.MarginBounds.Top + 20;
+            float rowHeight = 22;
+            Font font = new Font("Arial", 10);
+            Font fontBold = new Font("Arial", 10, FontStyle.Bold);
+            Font fontTitulo = new Font("Arial", 18, FontStyle.Bold);
+            Pen linePen = new Pen(Color.Black, 1);
+
+            // Definir anchos de columnas (ajustados)
+            float colCodigo = 120;
+            float colDescripcion = 240;
+            float colCantidad = 70;
+            float colPrecio = 90;
+            float colTotal = 120;
+
+            float[] colX = {
+                leftMargin,
+                leftMargin + colCodigo,
+                leftMargin + colCodigo + colDescripcion,
+                leftMargin + colCodigo + colDescripcion + colCantidad,
+                leftMargin + colCodigo + colDescripcion + colCantidad + colPrecio
+            };
+
+            float tablaRight = colX[4] + colTotal; // Límite derecho de la tabla
+
+            float y = topMargin;
+
+            // Título principal "Comercio" centrado y grande
+            string nombreComercio = "Comercio";
+            SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
+            e.Graphics.DrawString(
+                nombreComercio,
+                fontTitulo,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
+                y
+            );
+
+            // Fecha y hora alineadas con el borde derecho de la columna "TOTAL"
+            string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
+            string horaStr = $"Hora: {DateTime.Now:HH:mm}";
+            SizeF fechaSize = e.Graphics.MeasureString(fechaStr, font);
+            SizeF horaSize = e.Graphics.MeasureString(horaStr, font);
+            float fechaX = tablaRight - fechaSize.Width;
+            float horaX = tablaRight - horaSize.Width;
+            e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
+            e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
+
+            y += Math.Max(nombreComercioSize.Height, fechaSize.Height + horaSize.Height) + 10;
+
+            // Título Remito centrado
+            string titulo = $"REMITO N°: {nroRemitoActual}";
+            SizeF tituloSize = e.Graphics.MeasureString(titulo, fontBold);
+            e.Graphics.DrawString(
+                titulo,
+                fontBold,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
+                y
+            );
+            y += tituloSize.Height + 10;
+
+            // Encabezados de columnas
+            string[] headers = { "CÓDIGO", "DESCRIPCIÓN", "CANT.", "PRECIO", "TOTAL" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                float headerX = colX[i];
+                float colWidth = (i == 0) ? colCodigo :
+                                 (i == 1) ? colDescripcion :
+                                 (i == 2) ? colCantidad :
+                                 (i == 3) ? colPrecio : colTotal;
+
+                // Centrar encabezados de CANT., PRECIO y TOTAL
+                if (i >= 2)
+                {
+                    SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
+                    headerX += (colWidth - headerSize.Width) / 2;
+                }
+                e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
+            }
+
+            y += rowHeight - 6;
+            // Línea debajo del encabezado (hasta el borde de la columna TOTAL)
+            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 4;
+
+            // Detalle productos
+            int cantidadTotal = 0;
+            foreach (DataRow row in remitoActual.Rows)
+            {
+                // Código
+                e.Graphics.DrawString(row["codigo"].ToString(), font, Brushes.Black, colX[0], y);
+
+                // Descripción
+                e.Graphics.DrawString(row["descripcion"].ToString(), font, Brushes.Black, colX[1], y);
+
+                // Cantidad (centrado)
+                string cantidadStr = row["cantidad"].ToString();
+                SizeF cantidadSize = e.Graphics.MeasureString(cantidadStr, font);
+                float cantidadX = colX[2] + (colCantidad - cantidadSize.Width) / 2;
+                e.Graphics.DrawString(cantidadStr, font, Brushes.Black, cantidadX, y);
+
+                // Sumar cantidad total
+                if (int.TryParse(cantidadStr, out int cantVal))
+                    cantidadTotal += cantVal;
+
+                // Precio (alineado a la derecha)
+                string precioStr = Convert.ToDecimal(row["precio"]).ToString("C2");
+                SizeF precioSize = e.Graphics.MeasureString(precioStr, font);
+                float precioX = colX[3] + colPrecio - precioSize.Width;
+                e.Graphics.DrawString(precioStr, font, Brushes.Black, precioX, y);
+
+                // Total (alineado a la derecha)
+                string totalStr = Convert.ToDecimal(row["total"]).ToString("C2");
+                SizeF totalSize = e.Graphics.MeasureString(totalStr, font);
+                float totalX = colX[4] + colTotal - totalSize.Width;
+                e.Graphics.DrawString(totalStr, font, Brushes.Black, totalX, y);
+
+                y += rowHeight - 2;
+            }
+
+            // Línea encima del total (hasta el borde de la columna TOTAL)
+            y += 6;
+            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 6;
+
+            // Total general, alineado a la derecha, en línea con la columna TOTAL
+            decimal sumaTotal = 0;
+            foreach (DataRow row in remitoActual.Rows)
+            {
+                if (decimal.TryParse(row["total"].ToString(), out decimal valor))
+                    sumaTotal += valor;
+            }
+            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
+            SizeF totalGeneralSize = e.Graphics.MeasureString(totalGeneralStr, fontBold);
+            float totalGeneralX = colX[4] + colTotal - totalGeneralSize.Width;
+            e.Graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
+
+            // Total cantidad de productos, alineado a la izquierda, a la misma altura que el total general
+            string cantidadTotalStr = $"CANTIDAD TOTAL DE PRODUCTOS: {cantidadTotal}";
+            e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
+
+            // Firma (opcional)
+            //y += rowHeight * 2;
+            //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
+        }
+
+        private void printDocumentRemito_PrintPageTicket(object sender, PrintPageEventArgs e)
+        {
+            if (remitoActual == null) return;
+
+            // Márgenes y fuentes
+            float leftMargin = e.MarginBounds.Left; // Margen izquierdo 0
+            float topMargin = e.MarginBounds.Top + 1; // Margen superior más chico
+            float rowHeight = 18;
+            Font font = new Font("Arial", 9);
+            Font fontBold = new Font("Arial", 9, FontStyle.Bold);
+            Font fontTitulo = new Font("Arial", 16, FontStyle.Bold);
+            Pen linePen = new Pen(Color.Black, 1);
+
+            // Definir anchos de columnas (ajustados)
+            float colCantidad = 20;
+            float colDescripcion = 120;
+            float colPrecio = 50;
+            float colTotal = 70;
+
+            float[] colX = {
+                leftMargin,
+                leftMargin + colCantidad,
+                leftMargin + colCantidad + colDescripcion,
+                leftMargin + colCantidad + colDescripcion + colPrecio
+            };
+
+            float tablaRight = colX[3] + colTotal; // Límite derecho de la tabla
+
+            float y = topMargin;
+
+            // Fecha y hora alineadas con el borde derecho de la columna "TOTAL"
+            string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
+            string horaStr = $"Hora: {DateTime.Now:HH:mm}";
+            SizeF fechaSize = e.Graphics.MeasureString(fechaStr, font);
+            SizeF horaSize = e.Graphics.MeasureString(horaStr, font);
+            float fechaX = tablaRight - fechaSize.Width;
+            float horaX = tablaRight - horaSize.Width;
+            e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
+            e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
+
+            // Subir el título "Comercio" (menos espacio después de la fecha/hora)
+            y += Math.Max(fechaSize.Height + horaSize.Height, 10) + 6;
+            string nombreComercio = "Comercio";
+            SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
+            e.Graphics.DrawString(
+                nombreComercio,
+                fontTitulo,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
+                y
+            );
+            y += nombreComercioSize.Height + 6; // Menos espacio debajo del título
+
+            // Título Remito centrado
+            string titulo = $"REMITO N°: {nroRemitoActual}";
+            SizeF tituloSize = e.Graphics.MeasureString(titulo, fontBold);
+            e.Graphics.DrawString(
+                titulo,
+                fontBold,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
+                y
+            );
+            y += tituloSize.Height + 8;
+
+            // Encabezados de columnas
+            string[] headers = { "C", "DESCRIPCIÓN", "PRECIO", "TOTAL" };
+            float[] colWidths = { colCantidad, colDescripcion, colPrecio, colTotal };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                float headerX = colX[i];
+                float colWidth = colWidths[i];
+                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
+
+                if (i == 0)
+                {
+                    // Centrar encabezado de cantidad
+                    headerX += (colWidth - headerSize.Width) / 2;
+                }
+                else if (i == 1)
+                {
+                    // "DESCRIPCIÓN" alineado a la izquierda (sin ajuste)
+                }
+                else
+                {
+                    // Alinear encabezados de PRECIO y TOTAL a la derecha
+                    headerX += colWidth - headerSize.Width;
+                }
+                e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
+            }
+
+            y += rowHeight - 2; // Más espacio debajo de los encabezados
+            // Línea debajo del encabezado (hasta el borde de la columna TOTAL)
+            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 4;
+
+            // Detalle productos
+            int cantidadTotal = 0;
+            foreach (DataRow row in remitoActual.Rows)
+            {
+                float filaY = y;
+
+                // Descripción (corte y salto de línea si es necesario)
+                string descripcion = row["descripcion"].ToString();
+                float maxDescripcionWidth = colDescripcion - 2;
+                List<string> lineasDescripcion = new List<string>();
+                string resto = descripcion;
+                while (!string.IsNullOrEmpty(resto))
+                {
+                    int len = resto.Length;
+                    string linea = resto;
+                    SizeF descSize = e.Graphics.MeasureString(linea, font);
+                    while (descSize.Width > maxDescripcionWidth && len > 0)
+                    {
+                        len--;
+                        linea = resto.Substring(0, len);
+                        descSize = e.Graphics.MeasureString(linea + "...", font);
+                    }
+                    if (len < resto.Length)
+                    {
+                        linea = resto.Substring(0, len) + "...";
+                        lineasDescripcion.Add(linea);
+                        resto = resto.Substring(len);
+                    }
+                    else
+                    {
+                        lineasDescripcion.Add(linea);
+                        break;
+                    }
+                }
+
+                // Cantidad (centrado vertical y horizontal en cada línea)
+                string cantidadStr = row["cantidad"].ToString();
+                SizeF cantidadSize = e.Graphics.MeasureString(cantidadStr, font);
+                float cantidadX = colX[0] + (colCantidad - cantidadSize.Width) / 2;
+                float cantidadY = filaY + ((rowHeight - cantidadSize.Height) / 2);
+
+                // Sumar cantidad total
+                if (int.TryParse(cantidadStr, out int cantVal))
+                    cantidadTotal += cantVal;
+
+                // Precio y Total (solo en la primera línea de la descripción)
+                string precioStr = Convert.ToDecimal(row["precio"]).ToString("C2");
+                SizeF precioSize = e.Graphics.MeasureString(precioStr, font);
+                float precioX = colX[2] + colPrecio - precioSize.Width;
+
+                string totalStr = Convert.ToDecimal(row["total"]).ToString("C2");
+                SizeF totalSize = e.Graphics.MeasureString(totalStr, font);
+                float totalX = colX[3] + colTotal - totalSize.Width;
+
+                // Imprimir líneas de descripción y datos
+                for (int i = 0; i < lineasDescripcion.Count; i++)
+                {
+                    // Centrar cantidad en cada línea (vertical y horizontal)
+                    float cantidadYLinea = filaY + ((rowHeight - cantidadSize.Height) / 2);
+                    if (i == 0)
+                        e.Graphics.DrawString(cantidadStr, font, Brushes.Black, cantidadX, cantidadYLinea);
+
+                    e.Graphics.DrawString(lineasDescripcion[i], font, Brushes.Black, colX[1], filaY);
+
+                    if (i == 0)
+                    {
+                        e.Graphics.DrawString(precioStr, font, Brushes.Black, precioX, filaY);
+                        e.Graphics.DrawString(totalStr, font, Brushes.Black, totalX, filaY);
+                    }
+                    filaY += rowHeight - 2;
+                }
+
+                y = filaY;
+            }
+
+            // Línea encima del total (hasta el borde de la columna TOTAL)
+            y += 6;
+            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 6;
+
+            // Total general, alineado a la derecha, en línea con la columna TOTAL
+            decimal sumaTotal = 0;
+            foreach (DataRow row in remitoActual.Rows)
+            {
+                if (decimal.TryParse(row["total"].ToString(), out decimal valor))
+                    sumaTotal += valor;
+            }
+            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
+            SizeF totalGeneralSize = e.Graphics.MeasureString(totalGeneralStr, fontBold);
+            float totalGeneralX = colX[3] + colTotal - totalGeneralSize.Width;
+            e.Graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
+
+            // Total cantidad de productos, alineado a la izquierda, a la misma altura que el total general
+            string cantidadTotalStr = $"PRODUCTOS: {cantidadTotal}";
+            e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
+
+            // Firma (opcional)
+            //y += rowHeight * 2;
+            //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
         }
     }
 }
