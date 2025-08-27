@@ -54,6 +54,20 @@ namespace Comercio.NET
                 .Build();
             nombreComercio = config["Comercio:Nombre"] ?? "Comercio";
             domicilioComercio = config["Comercio:Domicilio"] ?? "domicilio";
+
+            this.Font = new Font("Segoe UI", 10F);
+            this.BackColor = Color.WhiteSmoke;
+            btnAgregar.FlatStyle = FlatStyle.Flat;
+            btnAgregar.BackColor = Color.FromArgb(0, 120, 215); // Azul moderno
+            btnAgregar.ForeColor = Color.White;
+            btnAgregar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            //btnAgregar.Image = Properties.Resources.add_32; // Si tienes un recurso de imagen
+            btnAgregar.ImageAlign = ContentAlignment.MiddleLeft;
+            btnAgregar.TextAlign = ContentAlignment.MiddleRight;
+
+            txtBuscarProducto.BorderStyle = BorderStyle.FixedSingle;
+            cbnombreCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbnombreCtaCte.FlatStyle = FlatStyle.Flat;
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -85,7 +99,7 @@ namespace Comercio.NET
                     cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
                     connection.Open();
                     var result = cmd.ExecuteScalar();
-                    lbDescripcionProducto.Text = result != null ? result.ToString() : " Producto no encontrado";
+                    Text = result != null ? result.ToString() : " Producto no encontrado";
                 }
             }
         }
@@ -263,6 +277,19 @@ namespace Comercio.NET
 
             lblCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
+
+            // Personalizar estilo de DataGridView
+            dataGridView1.EnableHeadersVisualStyles = false;
+            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 120, 215);
+            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dataGridView1.DefaultCellStyle.BackColor = Color.White;
+            dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
+            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
+            dataGridView1.DefaultCellStyle.SelectionForeColor = Color.Black;
+            dataGridView1.BorderStyle = BorderStyle.None;
+            dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            dataGridView1.RowHeadersVisible = false;
         }
 
         private void CargarVentasActuales()

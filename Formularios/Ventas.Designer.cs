@@ -59,6 +59,11 @@
             dataGridView1.Name = "dataGridView1";
             dataGridView1.Size = new Size(754, 274);
             dataGridView1.TabIndex = 8;
+            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dataGridView1.BorderStyle = BorderStyle.None;
+            dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            dataGridView1.RowHeadersVisible = false;
             // 
             // lblCantidadProductos
             // 
@@ -99,27 +104,35 @@
             // 
             // btnAgregar
             // 
+            btnAgregar.Image = Properties.Resources.Add;
+            btnAgregar.ImageAlign = ContentAlignment.TopLeft;
             btnAgregar.Location = new Point(339, 41);
+            btnAgregar.MinimumSize = new Size(120, 40);
             btnAgregar.Name = "btnAgregar";
-            btnAgregar.Size = new Size(75, 23);
+            btnAgregar.Size = new Size(120, 40);
             btnAgregar.TabIndex = 1;
             btnAgregar.Text = "Agregar";
+            btnAgregar.TextAlign = ContentAlignment.MiddleRight;
             btnAgregar.UseVisualStyleBackColor = true;
             // 
             // btnSalir
             // 
-            btnSalir.Location = new Point(638, 41);
+            btnSalir.Image = Properties.Resources.exit_door;
+            btnSalir.ImageAlign = ContentAlignment.MiddleLeft;
+            btnSalir.Location = new Point(645, 41);
+            btnSalir.MinimumSize = new Size(100, 40);
             btnSalir.Name = "btnSalir";
-            btnSalir.Size = new Size(75, 23);
+            btnSalir.Size = new Size(100, 40);
             btnSalir.TabIndex = 3;
             btnSalir.Text = "Salir";
+            btnSalir.TextAlign = ContentAlignment.MiddleRight;
             btnSalir.UseVisualStyleBackColor = true;
             btnSalir.Click += btnSalir_Click;
             // 
             // lbDescripcionProducto
             // 
             lbDescripcionProducto.AutoSize = true;
-            lbDescripcionProducto.Location = new Point(138, 94);
+            lbDescripcionProducto.Location = new Point(131, 104);
             lbDescripcionProducto.Name = "lbDescripcionProducto";
             lbDescripcionProducto.Size = new Size(118, 15);
             lbDescripcionProducto.TabIndex = 8;
@@ -127,17 +140,21 @@
             // 
             // btnFinalizarVenta
             // 
-            btnFinalizarVenta.Location = new Point(439, 41);
+            btnFinalizarVenta.Image = Properties.Resources.PrintManager;
+            btnFinalizarVenta.ImageAlign = ContentAlignment.MiddleLeft;
+            btnFinalizarVenta.Location = new Point(482, 40);
+            btnFinalizarVenta.MinimumSize = new Size(140, 40);
             btnFinalizarVenta.Name = "btnFinalizarVenta";
-            btnFinalizarVenta.Size = new Size(100, 23);
+            btnFinalizarVenta.Size = new Size(140, 40);
             btnFinalizarVenta.TabIndex = 2;
             btnFinalizarVenta.Text = "Finalizar Venta";
+            btnFinalizarVenta.TextAlign = ContentAlignment.MiddleRight;
             btnFinalizarVenta.UseVisualStyleBackColor = true;
             // 
             // chkEsCtaCte
             // 
             chkEsCtaCte.AutoSize = true;
-            chkEsCtaCte.Location = new Point(346, 90);
+            chkEsCtaCte.Location = new Point(339, 100);
             chkEsCtaCte.Name = "chkEsCtaCte";
             chkEsCtaCte.Size = new Size(68, 19);
             chkEsCtaCte.TabIndex = 12;
@@ -148,7 +165,7 @@
             // cbnombreCtaCte
             // 
             cbnombreCtaCte.FormattingEnabled = true;
-            cbnombreCtaCte.Location = new Point(439, 86);
+            cbnombreCtaCte.Location = new Point(432, 96);
             cbnombreCtaCte.Name = "cbnombreCtaCte";
             cbnombreCtaCte.Size = new Size(121, 23);
             cbnombreCtaCte.TabIndex = 13;
