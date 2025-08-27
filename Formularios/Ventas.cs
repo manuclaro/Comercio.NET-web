@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using System.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using System.Drawing.Printing;
+using System.IO;
 
 namespace Comercio.NET
 {
@@ -19,6 +20,8 @@ namespace Comercio.NET
         private bool remitoIncrementado = false;
         private DataTable remitoActual = null;
         private PrintDocument printDocumentRemito = new PrintDocument();
+        private string nombreComercio = "Comercio";
+        private string domicilioComercio = "domicilio";
 
         public Ventas()
         {
@@ -27,6 +30,7 @@ namespace Comercio.NET
             btnAgregar.Click += btnAgregar_Click;
             this.Load += Ventas_Load;
             btnFinalizarVenta.Click += btnFinalizarVenta_Click;
+            cbnombreCtaCte.SelectedIndexChanged += cbnombreCtaCte_SelectedIndexChanged;
 
             // Selecciona todo el texto al recibir foco
             txtBuscarProducto.Enter += (s, e) => txtBuscarProducto.SelectAll();
@@ -42,6 +46,14 @@ namespace Comercio.NET
             };
 
             printDocumentRemito.PrintPage += printDocumentRemito_PrintPage;
+
+            // Leer desde appsettings.json
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+            nombreComercio = config["Comercio:Nombre"] ?? "Comercio";
+            domicilioComercio = config["Comercio:Domicilio"] ?? "domicilio";
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -73,7 +85,7 @@ namespace Comercio.NET
                     cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
                     connection.Open();
                     var result = cmd.ExecuteScalar();
-                    lbDescripcionProducto.Text = result != null ? result.ToString() : "Producto no encontrado";
+                    lbDescripcionProducto.Text = result != null ? result.ToString() : " Producto no encontrado";
                 }
             }
         }
@@ -84,6 +96,7 @@ namespace Comercio.NET
             if (string.IsNullOrEmpty(codigoBuscado))
             {
                 MessageBox.Show("Ingrese un código de producto válido.");
+                txtBuscarProducto.Focus();
                 return;
             }
 
@@ -137,7 +150,9 @@ namespace Comercio.NET
                     if (dt.Rows.Count == 0)
                     {
                         MessageBox.Show("Producto no encontrado.");
+                        txtBuscarProducto.Focus();
                         return;
+
                     }
                     producto = dt.Rows[0];
                 }
@@ -147,8 +162,8 @@ namespace Comercio.NET
             using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"INSERT INTO Ventas 
-                    (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura)
-                    VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura)";
+                    (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte)
+                    VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte)";
                 using (var cmd = new SqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
@@ -163,6 +178,7 @@ namespace Comercio.NET
                     cmd.Parameters.AddWithValue("@cantidad", 1);
                     cmd.Parameters.AddWithValue("@total", producto["precio"]);
                     cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                    cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
 
                     connection.Open();
                     cmd.ExecuteNonQuery();
@@ -237,11 +253,16 @@ namespace Comercio.NET
                 }
             }
 
+            
+
             // Deja la grilla vacía al abrir el formulario
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear(); // Opcional, asegura que no queden filas
 
             txtBuscarProducto.Focus();
+
+            lblCantidadProductos.Text = "Productos: 0";
+            lbTotal.Text = "Total: $0,00";
         }
 
         private void CargarVentasActuales()
@@ -288,18 +309,18 @@ namespace Comercio.NET
             if (remitoActual != null && remitoActual.Rows.Count > 0)
             {
                 ImprimirTicket();
+                //ImprimirA4();
             }
 
             Ventas_Load(null, null);
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear();
+            lblCantidadProductos.Text = "Productos: 0";
+            lbTotal.Text = "Total: $0,00";
+            chkEsCtaCte.Checked = false;
             MessageBox.Show("Venta finalizada. Se generó un nuevo remito.");
         }
 
-        private void btnAgregar_Click_1(object sender, EventArgs e)
-        {
-
-        }
 
         private void printDocumentRemito_PrintPage(object sender, PrintPageEventArgs e)
         {
@@ -333,8 +354,8 @@ namespace Comercio.NET
 
             float y = topMargin;
 
-            // Título principal "Comercio" centrado y grande
-            string nombreComercio = "Comercio";
+            // Título principal (variable)
+            //string nombreComercio = "Comercio";
             SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
             e.Graphics.DrawString(
                 nombreComercio,
@@ -343,6 +364,18 @@ namespace Comercio.NET
                 leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
                 y
             );
+
+            // Domicilio debajo del título, centrado y con fuente más pequeña
+            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
+            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
+            e.Graphics.DrawString(
+                domicilioComercio,
+                fontDomicilio,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
+                y + nombreComercioSize.Height
+            );
+            y += nombreComercioSize.Height + domicilioSize.Height + 6;
 
             // Fecha y hora alineadas con el borde derecho de la columna "TOTAL"
             string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
@@ -378,12 +411,20 @@ namespace Comercio.NET
                                  (i == 2) ? colCantidad :
                                  (i == 3) ? colPrecio : colTotal;
 
-                // Centrar encabezados de CANT., PRECIO y TOTAL
-                if (i >= 2)
+                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
+
+                if (i == 3 || i == 4)
                 {
-                    SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
+                    // Alinear a la derecha PRECIO y TOTAL
+                    headerX += colWidth - headerSize.Width;
+                }
+                else if (i == 2)
+                {
+                    // Centrar CANT.
                     headerX += (colWidth - headerSize.Width) / 2;
                 }
+                // CÓDIGO y DESCRIPCIÓN quedan alineados a la izquierda
+
                 e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
             }
 
@@ -457,12 +498,14 @@ namespace Comercio.NET
         {
             printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
             printDocumentRemito.PrintPage += printDocumentRemito_PrintPageA4;
-            PrintDialog printDialog = new PrintDialog();
-            printDialog.Document = printDocumentRemito;
-            if (printDialog.ShowDialog() == DialogResult.OK)
+
+            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
             {
-                printDocumentRemito.Print();
+                previewDialog.Document = printDocumentRemito;
+                previewDialog.WindowState = FormWindowState.Maximized;
+                previewDialog.ShowDialog();
             }
+
             printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageA4;
         }
 
@@ -470,15 +513,24 @@ namespace Comercio.NET
         {
             printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
             printDocumentRemito.PrintPage += printDocumentRemito_PrintPageTicket;
-            // Configura el tamaño del papel a 8cm de ancho (80mm)
-            PaperSize ticketSize = new PaperSize("Ticket", 315, 800); // 315 = 8cm en centésimas de pulgada
+
+            // 8 cm = 80 mm = 315 centésimas de pulgada (1 pulgada = 25,4 mm)
+            int anchoTicket = (int)(75 / 25.4 * 100); // 80mm a centésimas de pulgada
+            int altoTicket = (int)(200 / 25.4 * 100); // 200mm de alto (ajustable)
+
+            PaperSize ticketSize = new PaperSize("Ticket", anchoTicket, altoTicket);
             printDocumentRemito.DefaultPageSettings.PaperSize = ticketSize;
-            PrintDialog printDialog = new PrintDialog();
-            printDialog.Document = printDocumentRemito;
-            if (printDialog.ShowDialog() == DialogResult.OK)
+
+            // Márgenes mínimos (2 mm)
+            printDocumentRemito.DefaultPageSettings.Margins = new Margins(8, 8, 8, 8); // 8 centésimas de pulgada ≈ 2 mm
+
+            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
             {
-                printDocumentRemito.Print();
+                previewDialog.Document = printDocumentRemito;
+                previewDialog.WindowState = FormWindowState.Maximized;
+                previewDialog.ShowDialog();
             }
+
             printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageTicket;
         }
 
@@ -514,8 +566,8 @@ namespace Comercio.NET
 
             float y = topMargin;
 
-            // Título principal "Comercio" centrado y grande
-            string nombreComercio = "Comercio";
+            // Título principal (variable)
+            //string nombreComercio = "Comercio";
             SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
             e.Graphics.DrawString(
                 nombreComercio,
@@ -524,6 +576,18 @@ namespace Comercio.NET
                 leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
                 y
             );
+
+            // Domicilio debajo del título, centrado y con fuente más pequeña
+            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
+            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
+            e.Graphics.DrawString(
+                domicilioComercio,
+                fontDomicilio,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
+                y + nombreComercioSize.Height
+            );
+            y += nombreComercioSize.Height + domicilioSize.Height + 6;
 
             // Fecha y hora alineadas con el borde derecho de la columna "TOTAL"
             string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
@@ -559,12 +623,20 @@ namespace Comercio.NET
                                  (i == 2) ? colCantidad :
                                  (i == 3) ? colPrecio : colTotal;
 
-                // Centrar encabezados de CANT., PRECIO y TOTAL
-                if (i >= 2)
+                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
+
+                if (i == 3 || i == 4)
                 {
-                    SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
+                    // Alinear a la derecha PRECIO y TOTAL
+                    headerX += colWidth - headerSize.Width;
+                }
+                else if (i == 2)
+                {
+                    // Centrar CANT.
                     headerX += (colWidth - headerSize.Width) / 2;
                 }
+                // CÓDIGO y DESCRIPCIÓN quedan alineados a la izquierda
+
                 e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
             }
 
@@ -674,9 +746,10 @@ namespace Comercio.NET
             e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
             e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
 
-            // Subir el título "Comercio" (menos espacio después de la fecha/hora)
+            // Subir el título (menos espacio después de la fecha/hora)
             y += Math.Max(fechaSize.Height + horaSize.Height, 10) + 6;
-            string nombreComercio = "Comercio";
+
+            // Título principal (variable)
             SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
             e.Graphics.DrawString(
                 nombreComercio,
@@ -685,7 +758,18 @@ namespace Comercio.NET
                 leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
                 y
             );
-            y += nombreComercioSize.Height + 6; // Menos espacio debajo del título
+
+            // Domicilio debajo del título, centrado y con fuente más pequeña
+            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
+            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
+            e.Graphics.DrawString(
+                domicilioComercio,
+                fontDomicilio,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
+                y + nombreComercioSize.Height
+            );
+            y += nombreComercioSize.Height + domicilioSize.Height + 6;
 
             // Título Remito centrado
             string titulo = $"REMITO N°: {nroRemitoActual}";
@@ -829,6 +913,42 @@ namespace Comercio.NET
             // Firma (opcional)
             //y += rowHeight * 2;
             //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
+        }
+
+        private void chkEsCtaCte_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkEsCtaCte.Checked)
+            {
+                // Cargar nombres de CtaCte desde archivo de texto
+                string rutaArchivo = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ctacte_nombres.txt");
+                if (File.Exists(rutaArchivo))
+                {
+                    var nombres = File.ReadAllLines(rutaArchivo)
+                                      .Select(l => l.Trim())
+                                      .Where(l => !string.IsNullOrEmpty(l))
+                                      .ToList();
+                    cbnombreCtaCte.Items.Clear();
+                    cbnombreCtaCte.Items.AddRange(nombres.ToArray());
+                    if (cbnombreCtaCte.Items.Count > 0)
+                        cbnombreCtaCte.SelectedIndex = 0;
+                }
+                cbnombreCtaCte.Enabled = true;
+                cbnombreCtaCte.Visible = true;
+                cbnombreCtaCte.Focus();
+            }
+            else
+            {
+                cbnombreCtaCte.Items.Clear();
+                cbnombreCtaCte.Text = "";
+                cbnombreCtaCte.Enabled = false;
+                cbnombreCtaCte.Visible = false;
+                txtBuscarProducto.Focus();
+            }
+        }
+
+        private void cbnombreCtaCte_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            txtBuscarProducto.Focus();
         }
     }
 }

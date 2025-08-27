@@ -38,6 +38,8 @@
             btnSalir = new Button();
             lbDescripcionProducto = new Label();
             btnFinalizarVenta = new Button();
+            chkEsCtaCte = new CheckBox();
+            cbnombreCtaCte = new ComboBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
@@ -103,7 +105,6 @@
             btnAgregar.TabIndex = 1;
             btnAgregar.Text = "Agregar";
             btnAgregar.UseVisualStyleBackColor = true;
-            btnAgregar.Click += btnAgregar_Click_1;
             // 
             // btnSalir
             // 
@@ -126,12 +127,32 @@
             // 
             // btnFinalizarVenta
             // 
-            btnFinalizarVenta.Location = new Point(442, 42);
+            btnFinalizarVenta.Location = new Point(439, 41);
             btnFinalizarVenta.Name = "btnFinalizarVenta";
             btnFinalizarVenta.Size = new Size(100, 23);
             btnFinalizarVenta.TabIndex = 2;
             btnFinalizarVenta.Text = "Finalizar Venta";
             btnFinalizarVenta.UseVisualStyleBackColor = true;
+            // 
+            // chkEsCtaCte
+            // 
+            chkEsCtaCte.AutoSize = true;
+            chkEsCtaCte.Location = new Point(346, 90);
+            chkEsCtaCte.Name = "chkEsCtaCte";
+            chkEsCtaCte.Size = new Size(68, 19);
+            chkEsCtaCte.TabIndex = 12;
+            chkEsCtaCte.Text = "Cta.Cte.";
+            chkEsCtaCte.UseVisualStyleBackColor = true;
+            chkEsCtaCte.CheckedChanged += chkEsCtaCte_CheckedChanged;
+            // 
+            // cbnombreCtaCte
+            // 
+            cbnombreCtaCte.FormattingEnabled = true;
+            cbnombreCtaCte.Location = new Point(439, 86);
+            cbnombreCtaCte.Name = "cbnombreCtaCte";
+            cbnombreCtaCte.Size = new Size(121, 23);
+            cbnombreCtaCte.TabIndex = 13;
+            cbnombreCtaCte.Visible = false;
             // 
             // Ventas
             // 
@@ -139,6 +160,8 @@
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.LightBlue;
             ClientSize = new Size(757, 462);
+            Controls.Add(cbnombreCtaCte);
+            Controls.Add(chkEsCtaCte);
             Controls.Add(btnFinalizarVenta);
             Controls.Add(lbDescripcionProducto);
             Controls.Add(btnSalir);
@@ -167,5 +190,7 @@
         private Button btnSalir;
         private Label lbDescripcionProducto;
         private Button btnFinalizarVenta;
+        private CheckBox chkEsCtaCte;
+        private ComboBox cbnombreCtaCte;
     }
 }
