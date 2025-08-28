@@ -68,6 +68,29 @@ namespace Comercio.NET
             txtBuscarProducto.BorderStyle = BorderStyle.FixedSingle;
             cbnombreCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
             cbnombreCtaCte.FlatStyle = FlatStyle.Flat;
+
+            Panel panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = Color.FromArgb(0, 120, 215)
+            };
+            Label lblTitulo = new Label
+            {
+                Text = "Ventas",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            panelHeader.Controls.Add(lblTitulo);
+            this.Controls.Add(panelHeader);
+            this.Controls.SetChildIndex(panelHeader, 0);
+
+            // Ubicación de los controles
+            //txtBuscarProducto.Location = new Point(txtBuscarProducto.Location.X, 80);
+            //btnAgregar.Location = new Point(btnAgregar.Location.X, 80);
+            // ... y así con los demás controles principales
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -267,11 +290,17 @@ namespace Comercio.NET
                 }
             }
 
-            
+           
 
             // Deja la grilla vacía al abrir el formulario
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear(); // Opcional, asegura que no queden filas
+
+            lblCantidadProductos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            lbTotal.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+
+            lblCantidadProductos.Location = new Point(20, ClientSize.Height - 30);
+            lbTotal.Location = new Point(ClientSize.Width - lbTotal.Width - 80, ClientSize.Height - 30);
 
             txtBuscarProducto.Focus();
 

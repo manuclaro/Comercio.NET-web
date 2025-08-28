@@ -46,6 +46,10 @@
             // dataGridView1
             // 
             dataGridView1.AllowUserToAddRows = false;
+            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridView1.BorderStyle = BorderStyle.None;
+            dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle1.BackColor = SystemColors.Window;
@@ -55,21 +59,18 @@
             dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
             dataGridViewCellStyle1.WrapMode = DataGridViewTriState.False;
             dataGridView1.DefaultCellStyle = dataGridViewCellStyle1;
-            dataGridView1.Location = new Point(2, 144);
+            dataGridView1.Location = new Point(1, 186);
             dataGridView1.Name = "dataGridView1";
-            dataGridView1.Size = new Size(754, 274);
-            dataGridView1.TabIndex = 8;
-            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dataGridView1.BorderStyle = BorderStyle.None;
-            dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             dataGridView1.RowHeadersVisible = false;
+            dataGridView1.Size = new Size(754, 289);
+            dataGridView1.TabIndex = 8;
             // 
             // lblCantidadProductos
             // 
             lblCantidadProductos.AutoSize = true;
             lblCantidadProductos.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
-            lblCantidadProductos.Location = new Point(73, 439);
+            lblCantidadProductos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            lblCantidadProductos.Location = new Point(20, 490); // Ajusta el valor Y según el alto del formulario
             lblCantidadProductos.Name = "lblCantidadProductos";
             lblCantidadProductos.Size = new Size(70, 17);
             lblCantidadProductos.TabIndex = 9;
@@ -79,7 +80,8 @@
             // 
             lbTotal.AutoSize = true;
             lbTotal.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
-            lbTotal.Location = new Point(572, 438);
+            lbTotal.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            lbTotal.Location = new Point(650, 490); // Ajusta el valor X e Y según el ancho/alto del formulario
             lbTotal.Name = "lbTotal";
             lbTotal.Size = new Size(39, 17);
             lbTotal.TabIndex = 10;
@@ -89,7 +91,7 @@
             // 
             lbBuscarProducto.AutoSize = true;
             lbBuscarProducto.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lbBuscarProducto.Location = new Point(31, 45);
+            lbBuscarProducto.Location = new Point(27, 101);
             lbBuscarProducto.Name = "lbBuscarProducto";
             lbBuscarProducto.Size = new Size(101, 15);
             lbBuscarProducto.TabIndex = 11;
@@ -97,7 +99,7 @@
             // 
             // txtBuscarProducto
             // 
-            txtBuscarProducto.Location = new Point(138, 42);
+            txtBuscarProducto.Location = new Point(134, 98);
             txtBuscarProducto.Name = "txtBuscarProducto";
             txtBuscarProducto.Size = new Size(161, 23);
             txtBuscarProducto.TabIndex = 0;
@@ -106,7 +108,7 @@
             // 
             btnAgregar.Image = Properties.Resources.Add;
             btnAgregar.ImageAlign = ContentAlignment.TopLeft;
-            btnAgregar.Location = new Point(339, 41);
+            btnAgregar.Location = new Point(335, 97);
             btnAgregar.MinimumSize = new Size(120, 40);
             btnAgregar.Name = "btnAgregar";
             btnAgregar.Size = new Size(120, 40);
@@ -119,7 +121,7 @@
             // 
             btnSalir.Image = Properties.Resources.exit_door;
             btnSalir.ImageAlign = ContentAlignment.MiddleLeft;
-            btnSalir.Location = new Point(645, 41);
+            btnSalir.Location = new Point(641, 97);
             btnSalir.MinimumSize = new Size(100, 40);
             btnSalir.Name = "btnSalir";
             btnSalir.Size = new Size(100, 40);
@@ -128,11 +130,12 @@
             btnSalir.TextAlign = ContentAlignment.MiddleRight;
             btnSalir.UseVisualStyleBackColor = true;
             btnSalir.Click += btnSalir_Click;
+            btnSalir.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             // 
             // lbDescripcionProducto
             // 
             lbDescripcionProducto.AutoSize = true;
-            lbDescripcionProducto.Location = new Point(131, 104);
+            lbDescripcionProducto.Location = new Point(127, 160);
             lbDescripcionProducto.Name = "lbDescripcionProducto";
             lbDescripcionProducto.Size = new Size(118, 15);
             lbDescripcionProducto.TabIndex = 8;
@@ -142,7 +145,7 @@
             // 
             btnFinalizarVenta.Image = Properties.Resources.PrintManager;
             btnFinalizarVenta.ImageAlign = ContentAlignment.MiddleLeft;
-            btnFinalizarVenta.Location = new Point(482, 40);
+            btnFinalizarVenta.Location = new Point(478, 96);
             btnFinalizarVenta.MinimumSize = new Size(140, 40);
             btnFinalizarVenta.Name = "btnFinalizarVenta";
             btnFinalizarVenta.Size = new Size(140, 40);
@@ -154,7 +157,7 @@
             // chkEsCtaCte
             // 
             chkEsCtaCte.AutoSize = true;
-            chkEsCtaCte.Location = new Point(339, 100);
+            chkEsCtaCte.Location = new Point(335, 156);
             chkEsCtaCte.Name = "chkEsCtaCte";
             chkEsCtaCte.Size = new Size(68, 19);
             chkEsCtaCte.TabIndex = 12;
@@ -165,7 +168,7 @@
             // cbnombreCtaCte
             // 
             cbnombreCtaCte.FormattingEnabled = true;
-            cbnombreCtaCte.Location = new Point(432, 96);
+            cbnombreCtaCte.Location = new Point(428, 152);
             cbnombreCtaCte.Name = "cbnombreCtaCte";
             cbnombreCtaCte.Size = new Size(121, 23);
             cbnombreCtaCte.TabIndex = 13;
@@ -176,7 +179,7 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.LightBlue;
-            ClientSize = new Size(757, 462);
+            ClientSize = new Size(757, 514);
             Controls.Add(cbnombreCtaCte);
             Controls.Add(chkEsCtaCte);
             Controls.Add(btnFinalizarVenta);
