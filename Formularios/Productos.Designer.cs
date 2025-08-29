@@ -44,7 +44,7 @@
             GrillaProductos.AllowUserToDeleteRows = false;
             GrillaProductos.AllowUserToResizeRows = false;
             GrillaProductos.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            GrillaProductos.Location = new Point(12, 47);
+            //GrillaProductos.Location = new Point(12, 47);
             GrillaProductos.Name = "GrillaProductos";
             GrillaProductos.ReadOnly = true;
             GrillaProductos.Size = new Size(927, 366);

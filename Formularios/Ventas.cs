@@ -65,32 +65,61 @@ namespace Comercio.NET
             btnAgregar.ImageAlign = ContentAlignment.MiddleLeft;
             btnAgregar.TextAlign = ContentAlignment.MiddleRight;
 
+            btnFinalizarVenta.FlatStyle = FlatStyle.Flat;
+            btnFinalizarVenta.BackColor = Color.FromArgb(0, 150, 136); // Verde azulado moderno
+            btnFinalizarVenta.ForeColor = Color.White;
+            btnFinalizarVenta.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnAgregar.ImageAlign = ContentAlignment.MiddleLeft;
+            btnAgregar.TextAlign = ContentAlignment.MiddleRight;
+
+            btnSalir.FlatStyle = FlatStyle.Flat;
+            btnSalir.BackColor = Color.FromArgb(220, 53, 69); // Rojo para acciones destructivas o de advertencia
+            btnSalir.ForeColor = Color.White;
+            btnSalir.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+
             txtBuscarProducto.BorderStyle = BorderStyle.FixedSingle;
             cbnombreCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
             cbnombreCtaCte.FlatStyle = FlatStyle.Flat;
 
-            Panel panelHeader = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 70,
-                BackColor = Color.FromArgb(0, 120, 215)
-            };
+            // Panel superior
+            panelHeader.Dock = DockStyle.Top;
+            panelHeader.Height = 70;
+            panelHeader.BackColor = Color.FromArgb(0, 120, 215);
+
             Label lblTitulo = new Label
             {
                 Text = "Ventas",
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft
             };
             panelHeader.Controls.Add(lblTitulo);
-            this.Controls.Add(panelHeader);
-            this.Controls.SetChildIndex(panelHeader, 0);
 
-            // Ubicación de los controles
-            //txtBuscarProducto.Location = new Point(txtBuscarProducto.Location.X, 80);
-            //btnAgregar.Location = new Point(btnAgregar.Location.X, 80);
-            // ... y así con los demás controles principales
+            // Panel inferior para el total y cantidad de productos
+            panelFooter = new Panel();
+            panelFooter.Dock = DockStyle.Bottom;
+            panelFooter.Height = 36;
+            panelFooter.BackColor = Color.FromArgb(0, 120, 215);
+
+            // Label de cantidad de productos (izquierda)
+            lbCantidadProductos.AutoSize = false;
+            lbCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
+            lbCantidadProductos.Dock = DockStyle.Left;
+            lbCantidadProductos.Width = 200;
+            lbCantidadProductos.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+            lbCantidadProductos.ForeColor = Color.White;
+            lbCantidadProductos.Text = "Productos: 0";
+
+            // Label de total (derecha)
+            lbTotal.AutoSize = false;
+            lbTotal.TextAlign = ContentAlignment.MiddleRight;
+            lbTotal.Dock = DockStyle.Right;
+            lbTotal.Width = 600; // Aumenta el ancho, por ejemplo 300
+            lbTotal.Font = new Font("Segoe UI", 32F, FontStyle.Bold);
+            lbTotal.ForeColor = Color.White;
+            lbTotal.Text = "Total: $0,00";
+            lbTotal.Padding = new Padding(0, 0, 20, 0); // 20px de margen derecho
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -290,21 +319,15 @@ namespace Comercio.NET
                 }
             }
 
-           
+
 
             // Deja la grilla vacía al abrir el formulario
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear(); // Opcional, asegura que no queden filas
 
-            lblCantidadProductos.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            lbTotal.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-
-            lblCantidadProductos.Location = new Point(20, ClientSize.Height - 30);
-            lbTotal.Location = new Point(ClientSize.Width - lbTotal.Width - 80, ClientSize.Height - 30);
-
             txtBuscarProducto.Focus();
 
-            lblCantidadProductos.Text = "Productos: 0";
+            lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
 
             // Personalizar estilo de DataGridView
@@ -319,6 +342,7 @@ namespace Comercio.NET
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             dataGridView1.RowHeadersVisible = false;
+            //dataGridView1.Dock = DockStyle.Fill;
         }
 
         private void CargarVentasActuales()
@@ -345,10 +369,8 @@ namespace Comercio.NET
                 }
             }
 
-            // Contar la cantidad de productos
-            lblCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
+            lbCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
 
-            // Sumar el total acumulado
             decimal sumaTotal = 0;
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
@@ -371,7 +393,7 @@ namespace Comercio.NET
             Ventas_Load(null, null);
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear();
-            lblCantidadProductos.Text = "Productos: 0";
+            lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
             chkEsCtaCte.Checked = false;
             MessageBox.Show("Venta finalizada. Se generó un nuevo remito.");
@@ -411,7 +433,6 @@ namespace Comercio.NET
             float y = topMargin;
 
             // Título principal (variable)
-            //string nombreComercio = "Comercio";
             SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
             e.Graphics.DrawString(
                 nombreComercio,
