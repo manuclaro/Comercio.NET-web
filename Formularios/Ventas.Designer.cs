@@ -103,7 +103,7 @@
             btnSalir.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnSalir.Image = Properties.Resources.exit_door;
             btnSalir.ImageAlign = ContentAlignment.MiddleLeft;
-            btnSalir.Location = new Point(654, 103);
+            btnSalir.Location = new Point(631, 103);
             btnSalir.MinimumSize = new Size(100, 40);
             btnSalir.Name = "btnSalir";
             btnSalir.Size = new Size(100, 40);
@@ -121,15 +121,16 @@
             lbDescripcionProducto.Size = new Size(118, 15);
             lbDescripcionProducto.TabIndex = 8;
             lbDescripcionProducto.Text = "DescripcionProducto";
+            lbDescripcionProducto.Visible = false;
             // 
             // btnFinalizarVenta
             // 
             btnFinalizarVenta.Image = Properties.Resources.PrintManager;
             btnFinalizarVenta.ImageAlign = ContentAlignment.MiddleLeft;
-            btnFinalizarVenta.Location = new Point(464, 102);
+            btnFinalizarVenta.Location = new Point(455, 103);
             btnFinalizarVenta.MinimumSize = new Size(140, 40);
             btnFinalizarVenta.Name = "btnFinalizarVenta";
-            btnFinalizarVenta.Size = new Size(159, 42);
+            btnFinalizarVenta.Size = new Size(159, 40);
             btnFinalizarVenta.TabIndex = 2;
             btnFinalizarVenta.Text = "Finalizar Venta";
             btnFinalizarVenta.TextAlign = ContentAlignment.MiddleRight;
@@ -149,7 +150,7 @@
             // cbnombreCtaCte
             // 
             cbnombreCtaCte.FormattingEnabled = true;
-            cbnombreCtaCte.Location = new Point(464, 154);
+            cbnombreCtaCte.Location = new Point(455, 154);
             cbnombreCtaCte.Name = "cbnombreCtaCte";
             cbnombreCtaCte.Size = new Size(121, 23);
             cbnombreCtaCte.TabIndex = 13;

@@ -199,14 +199,14 @@ namespace Comercio.NET
             // ventasToolStripMenuItem
             // 
             ventasToolStripMenuItem.Name = "ventasToolStripMenuItem";
-            ventasToolStripMenuItem.Size = new Size(128, 22);
+            ventasToolStripMenuItem.Size = new Size(180, 22);
             ventasToolStripMenuItem.Text = "Ventas";
             ventasToolStripMenuItem.Click += ventasToolStripMenuItem_Click;
             // 
             // productosToolStripMenuItem
             // 
             productosToolStripMenuItem.Name = "productosToolStripMenuItem";
-            productosToolStripMenuItem.Size = new Size(128, 22);
+            productosToolStripMenuItem.Size = new Size(180, 22);
             productosToolStripMenuItem.Text = "Productos";
             productosToolStripMenuItem.Click += productosToolStripMenuItem_Click;
             // 
@@ -466,6 +466,7 @@ namespace Comercio.NET
             printPreviewToolStripButton.Name = "printPreviewToolStripButton";
             printPreviewToolStripButton.Size = new Size(23, 22);
             printPreviewToolStripButton.Text = "Vista previa de impresión";
+            printPreviewToolStripButton.Click += printPreviewToolStripButton_Click;
             // 
             // toolStripSeparator2
             // 

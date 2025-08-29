@@ -118,5 +118,12 @@ namespace Comercio.NET
             productosForm.MdiParent = this;
             productosForm.Show();
         }
+
+        private void printPreviewToolStripButton_Click(object sender, EventArgs e)
+        {
+            var ventasForm = new Ventas();
+            ventasForm.MdiParent = this;
+            ventasForm.Show();
+        }
     }
 }

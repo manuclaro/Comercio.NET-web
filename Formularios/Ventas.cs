@@ -76,6 +76,7 @@ namespace Comercio.NET
             btnSalir.BackColor = Color.FromArgb(220, 53, 69); // Rojo para acciones destructivas o de advertencia
             btnSalir.ForeColor = Color.White;
             btnSalir.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnSalir.Padding = new Padding(0, 0, 20, 0); // 20px de margen derecho
 
             txtBuscarProducto.BorderStyle = BorderStyle.FixedSingle;
             cbnombreCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -330,19 +331,37 @@ namespace Comercio.NET
             lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
 
+            // Inicialización de dataGridView1 si no usas el diseñador
+            //if (dataGridView1 == null)
+            //{
+            //    dataGridView1 = new DataGridView();
+            //    this.Controls.Add(dataGridView1);
+            //}
+
+            // Configuración general
+            dataGridView1.AllowUserToAddRows = false;
+            dataGridView1.AllowUserToDeleteRows = false;
+            dataGridView1.ReadOnly = true;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGridView1.MultiSelect = false;
+            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // <-- Esto hace que las columnas ocupen todo el ancho
+
             // Personalizar estilo de DataGridView
             dataGridView1.EnableHeadersVisualStyles = false;
-            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 120, 215);
-            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dataGridView1.DefaultCellStyle.BackColor = Color.White;
+            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250); // Blanco suave
+            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black; // Blanco para el texto
+            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
+            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.Black;
+            //dataGridView1.DefaultCellStyle.BackColor = Color.White;
             dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
-            dataGridView1.DefaultCellStyle.SelectionForeColor = Color.Black;
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            dataGridView1.RowHeadersVisible = false;
-            //dataGridView1.Dock = DockStyle.Fill;
+
+            //Color suave para filas alternas
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255); // AliceBlue
+            dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
         }
 
         private void CargarVentasActuales()
