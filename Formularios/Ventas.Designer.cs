@@ -61,17 +61,17 @@
             dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
             dataGridViewCellStyle1.WrapMode = DataGridViewTriState.False;
             dataGridView1.DefaultCellStyle = dataGridViewCellStyle1;
-            dataGridView1.Location = new Point(0, 192);
+            dataGridView1.Location = new Point(0, 171);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowHeadersVisible = false;
-            dataGridView1.Size = new Size(757, 311);
+            dataGridView1.Size = new Size(757, 344);
             dataGridView1.TabIndex = 8;
             // 
             // lbBuscarProducto
             // 
             lbBuscarProducto.AutoSize = true;
             lbBuscarProducto.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lbBuscarProducto.Location = new Point(27, 114);
+            lbBuscarProducto.Location = new Point(28, 92);
             lbBuscarProducto.Name = "lbBuscarProducto";
             lbBuscarProducto.Size = new Size(101, 15);
             lbBuscarProducto.TabIndex = 11;
@@ -80,7 +80,7 @@
             // txtBuscarProducto
             // 
             txtBuscarProducto.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            txtBuscarProducto.Location = new Point(134, 103);
+            txtBuscarProducto.Location = new Point(135, 81);
             txtBuscarProducto.Name = "txtBuscarProducto";
             txtBuscarProducto.Size = new Size(161, 33);
             txtBuscarProducto.TabIndex = 0;
@@ -89,7 +89,7 @@
             // 
             btnAgregar.Image = Properties.Resources.Add;
             btnAgregar.ImageAlign = ContentAlignment.TopLeft;
-            btnAgregar.Location = new Point(316, 101);
+            btnAgregar.Location = new Point(317, 79);
             btnAgregar.MinimumSize = new Size(120, 40);
             btnAgregar.Name = "btnAgregar";
             btnAgregar.Size = new Size(120, 42);
@@ -103,7 +103,7 @@
             btnSalir.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnSalir.Image = Properties.Resources.exit_door;
             btnSalir.ImageAlign = ContentAlignment.MiddleLeft;
-            btnSalir.Location = new Point(631, 103);
+            btnSalir.Location = new Point(632, 81);
             btnSalir.MinimumSize = new Size(100, 40);
             btnSalir.Name = "btnSalir";
             btnSalir.Size = new Size(100, 40);
@@ -116,7 +116,7 @@
             // lbDescripcionProducto
             // 
             lbDescripcionProducto.AutoSize = true;
-            lbDescripcionProducto.Location = new Point(134, 157);
+            lbDescripcionProducto.Location = new Point(135, 135);
             lbDescripcionProducto.Name = "lbDescripcionProducto";
             lbDescripcionProducto.Size = new Size(118, 15);
             lbDescripcionProducto.TabIndex = 8;
@@ -127,7 +127,7 @@
             // 
             btnFinalizarVenta.Image = Properties.Resources.PrintManager;
             btnFinalizarVenta.ImageAlign = ContentAlignment.MiddleLeft;
-            btnFinalizarVenta.Location = new Point(455, 103);
+            btnFinalizarVenta.Location = new Point(456, 81);
             btnFinalizarVenta.MinimumSize = new Size(140, 40);
             btnFinalizarVenta.Name = "btnFinalizarVenta";
             btnFinalizarVenta.Size = new Size(159, 40);
@@ -139,7 +139,7 @@
             // chkEsCtaCte
             // 
             chkEsCtaCte.AutoSize = true;
-            chkEsCtaCte.Location = new Point(368, 158);
+            chkEsCtaCte.Location = new Point(369, 136);
             chkEsCtaCte.Name = "chkEsCtaCte";
             chkEsCtaCte.Size = new Size(68, 19);
             chkEsCtaCte.TabIndex = 12;
@@ -150,7 +150,7 @@
             // cbnombreCtaCte
             // 
             cbnombreCtaCte.FormattingEnabled = true;
-            cbnombreCtaCte.Location = new Point(455, 154);
+            cbnombreCtaCte.Location = new Point(456, 132);
             cbnombreCtaCte.Name = "cbnombreCtaCte";
             cbnombreCtaCte.Size = new Size(121, 23);
             cbnombreCtaCte.TabIndex = 13;
@@ -189,6 +189,7 @@
             // 
             // panelHeader
             // 
+            panelHeader.BackColor = SystemColors.Highlight;
             panelHeader.Dock = DockStyle.Top;
             panelHeader.Location = new Point(0, 0);
             panelHeader.Name = "panelHeader";
@@ -199,7 +200,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.LightBlue;
+            BackColor = Color.WhiteSmoke;
             ClientSize = new Size(757, 591);
             Controls.Add(panelHeader);
             Controls.Add(cbnombreCtaCte);
@@ -212,7 +213,7 @@
             Controls.Add(txtBuscarProducto);
             Controls.Add(dataGridView1);
             Controls.Add(panelFooter);
-            MinimumSize = new Size(773, 501);
+            MinimumSize = new Size(773, 630);
             Name = "Ventas";
             Text = "Ventas";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

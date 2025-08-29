@@ -326,6 +326,18 @@ namespace Comercio.NET
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear(); // Opcional, asegura que no queden filas
 
+            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dataGridView1.ClearSelection();
+            dataGridView1.CurrentCell = null;
+            dataGridView1.Enabled = true; // Permite scroll y visualización, pero no selección
+
+// Evento para evitar cualquier selección por el usuario
+dataGridView1.SelectionChanged += (s, e) =>
+{
+    dataGridView1.ClearSelection();
+};
+
             txtBuscarProducto.Focus();
 
             lbCantidadProductos.Text = "Productos: 0";
@@ -360,7 +372,7 @@ namespace Comercio.NET
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
             //Color suave para filas alternas
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255); // AliceBlue
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255); // AliceBlue
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
         }
 
