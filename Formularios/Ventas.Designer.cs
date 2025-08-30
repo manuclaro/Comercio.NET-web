@@ -42,8 +42,11 @@
             lbTotal = new Label();
             lbCantidadProductos = new Label();
             panelHeader = new Panel();
+            lbPrecio = new Label();
+            txtPrecio = new TextBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             panelFooter.SuspendLayout();
+            panelHeader.SuspendLayout();
             SuspendLayout();
             // 
             // dataGridView1
@@ -64,7 +67,7 @@
             dataGridView1.Location = new Point(0, 171);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowHeadersVisible = false;
-            dataGridView1.Size = new Size(757, 344);
+            dataGridView1.Size = new Size(757, 257);
             dataGridView1.TabIndex = 8;
             // 
             // lbBuscarProducto
@@ -93,7 +96,7 @@
             btnAgregar.MinimumSize = new Size(120, 40);
             btnAgregar.Name = "btnAgregar";
             btnAgregar.Size = new Size(120, 42);
-            btnAgregar.TabIndex = 1;
+            btnAgregar.TabIndex = 2;
             btnAgregar.Text = "Agregar";
             btnAgregar.TextAlign = ContentAlignment.MiddleRight;
             btnAgregar.UseVisualStyleBackColor = true;
@@ -107,7 +110,7 @@
             btnSalir.MinimumSize = new Size(100, 40);
             btnSalir.Name = "btnSalir";
             btnSalir.Size = new Size(100, 40);
-            btnSalir.TabIndex = 3;
+            btnSalir.TabIndex = 4;
             btnSalir.Text = "Salir";
             btnSalir.TextAlign = ContentAlignment.MiddleRight;
             btnSalir.UseVisualStyleBackColor = true;
@@ -116,12 +119,13 @@
             // lbDescripcionProducto
             // 
             lbDescripcionProducto.AutoSize = true;
-            lbDescripcionProducto.Location = new Point(28, 63);
+            lbDescripcionProducto.Dock = DockStyle.Right;
+            lbDescripcionProducto.Font = new Font("Segoe UI", 27.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lbDescripcionProducto.Location = new Point(370, 0);
             lbDescripcionProducto.Name = "lbDescripcionProducto";
-            lbDescripcionProducto.Size = new Size(118, 15);
+            lbDescripcionProducto.Size = new Size(387, 50);
             lbDescripcionProducto.TabIndex = 8;
             lbDescripcionProducto.Text = "DescripcionProducto";
-            lbDescripcionProducto.Visible = false;
             // 
             // btnFinalizarVenta
             // 
@@ -131,7 +135,7 @@
             btnFinalizarVenta.MinimumSize = new Size(140, 40);
             btnFinalizarVenta.Name = "btnFinalizarVenta";
             btnFinalizarVenta.Size = new Size(159, 40);
-            btnFinalizarVenta.TabIndex = 2;
+            btnFinalizarVenta.TabIndex = 3;
             btnFinalizarVenta.Text = "Finalizar Venta";
             btnFinalizarVenta.TextAlign = ContentAlignment.MiddleRight;
             btnFinalizarVenta.UseVisualStyleBackColor = true;
@@ -162,7 +166,7 @@
             panelFooter.Controls.Add(lbTotal);
             panelFooter.Controls.Add(lbCantidadProductos);
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Location = new Point(0, 521);
+            panelFooter.Location = new Point(0, 432);
             panelFooter.Name = "panelFooter";
             panelFooter.Size = new Size(757, 70);
             panelFooter.TabIndex = 14;
@@ -190,35 +194,59 @@
             // panelHeader
             // 
             panelHeader.BackColor = SystemColors.Highlight;
+            panelHeader.Controls.Add(lbDescripcionProducto);
             panelHeader.Dock = DockStyle.Top;
             panelHeader.Location = new Point(0, 0);
             panelHeader.Name = "panelHeader";
             panelHeader.Size = new Size(757, 58);
             panelHeader.TabIndex = 15;
             // 
+            // lbPrecio
+            // 
+            lbPrecio.AutoSize = true;
+            lbPrecio.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lbPrecio.Location = new Point(84, 135);
+            lbPrecio.Name = "lbPrecio";
+            lbPrecio.Size = new Size(45, 15);
+            lbPrecio.TabIndex = 17;
+            lbPrecio.Text = "Precio:";
+            // 
+            // txtPrecio
+            // 
+            txtPrecio.Enabled = false;
+            txtPrecio.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            txtPrecio.Location = new Point(135, 122);
+            txtPrecio.MaxLength = 9;
+            txtPrecio.Name = "txtPrecio";
+            txtPrecio.Size = new Size(161, 33);
+            txtPrecio.TabIndex = 1;
+            txtPrecio.TextAlign = HorizontalAlignment.Center;
+            // 
             // Ventas
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.WhiteSmoke;
-            ClientSize = new Size(757, 591);
+            ClientSize = new Size(757, 502);
+            Controls.Add(lbPrecio);
+            Controls.Add(txtPrecio);
             Controls.Add(panelHeader);
             Controls.Add(cbnombreCtaCte);
             Controls.Add(chkEsCtaCte);
             Controls.Add(btnFinalizarVenta);
-            Controls.Add(lbDescripcionProducto);
             Controls.Add(btnSalir);
             Controls.Add(btnAgregar);
             Controls.Add(lbBuscarProducto);
             Controls.Add(txtBuscarProducto);
             Controls.Add(dataGridView1);
             Controls.Add(panelFooter);
-            MinimumSize = new Size(773, 630);
             Name = "Ventas";
             Text = "Ventas";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             panelFooter.ResumeLayout(false);
             panelFooter.PerformLayout();
+            panelHeader.ResumeLayout(false);
+            panelHeader.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -238,5 +266,7 @@
         private Panel panelHeader;
         private Label lbTotal;
         private Label lbCantidadProductos;
+        private Label lbPrecio;
+        private TextBox txtPrecio;
     }
 }

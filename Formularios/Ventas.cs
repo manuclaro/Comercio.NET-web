@@ -14,7 +14,6 @@ using System.Net.Http;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -129,6 +128,107 @@ namespace Comercio.NET
             lbTotal.ForeColor = Color.White;
             lbTotal.Text = "Total: $0,00";
             lbTotal.Padding = new Padding(0, 0, 20, 0); // 20px de margen derecho
+
+            txtPrecio.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    this.SelectNextControl(txtPrecio, true, true, true, true);
+                }
+            };
+            txtPrecio.Enter += (s, e) => txtPrecio.SelectAll();
+
+            txtPrecio.KeyPress += (s, e) =>
+{
+    // Si se presiona el punto, lo convertimos en coma
+    if (e.KeyChar == '.')
+    {
+        e.KeyChar = ',';
+    }
+
+    // Permitir teclas de control (backspace, delete, etc.)
+    if (char.IsControl(e.KeyChar))
+        return;
+
+    // Permitir solo dígitos y una coma
+    if (!char.IsDigit(e.KeyChar) && e.KeyChar != ',')
+    {
+        e.Handled = true;
+        return;
+    }
+
+    var txt = ((TextBox)s).Text;
+    int selStart = ((TextBox)s).SelectionStart;
+    int selLength = ((TextBox)s).SelectionLength;
+
+    // Simular el texto resultante si se acepta la tecla
+    string newText = txt.Substring(0, selStart) + e.KeyChar + txt.Substring(selStart + selLength);
+
+    // Solo una coma
+    if (e.KeyChar == ',' && txt.Contains(","))
+    {
+        e.Handled = true;
+        return;
+    }
+
+    // Validar formato: máximo 6 dígitos antes de la coma y 2 después
+    string[] partes = newText.Split(',');
+    if (partes[0].Length > 6)
+    {
+        e.Handled = true;
+        return;
+    }
+    if (partes.Length > 1 && partes[1].Length > 2)
+    {
+        e.Handled = true;
+        return;
+    }
+};
+            txtPrecio.Leave += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(txtPrecio.Text))
+                {
+                    if (!decimal.TryParse(txtPrecio.Text, out decimal valor))
+                    {
+                        MessageBox.Show("Ingrese un precio válido (solo números y hasta 2 decimales).");
+                        txtPrecio.Focus();
+                    }
+                    else
+                    {
+                        txtPrecio.Text = valor.ToString("N2");
+                    }
+                }
+};
+            txtPrecio.TextChanged += (s, e) =>
+            {
+                // Solo actualizar si el control está habilitado (es editable)
+                if (!txtPrecio.Enabled) return;
+
+                string codigoBuscado = txtBuscarProducto.Text.Trim();
+                if (string.IsNullOrEmpty(codigoBuscado)) return;
+
+                if (decimal.TryParse(txtPrecio.Text, out decimal nuevoPrecio))
+                {
+                    var config = new ConfigurationBuilder()
+                        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                        .AddJsonFile("appsettings.json")
+                        .Build();
+                    string connectionString = config.GetConnectionString("DefaultConnection");
+
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
+                            cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
+                            connection.Open();
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+};
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -143,6 +243,8 @@ namespace Comercio.NET
             if (string.IsNullOrEmpty(codigoBuscado))
             {
                 lbDescripcionProducto.Text = "";
+                txtPrecio.Text = "";
+                txtPrecio.Enabled = false;
                 return;
             }
 
@@ -154,13 +256,28 @@ namespace Comercio.NET
 
             using (var connection = new SqlConnection(connectionString))
             {
-                var query = "SELECT descripcion FROM Productos WHERE codigo = @codigo";
+                var query = "SELECT descripcion, precio, EditarPrecio FROM Productos WHERE codigo = @codigo";
                 using (var cmd = new SqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
                     connection.Open();
-                    var result = cmd.ExecuteScalar();
-                    Text = result != null ? result.ToString() : " Producto no encontrado";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            lbDescripcionProducto.Text = reader["descripcion"].ToString();
+                            txtPrecio.Text = Convert.ToDecimal(reader["precio"]).ToString("N2");
+                            // Habilita o deshabilita txtPrecio según EditarPrecio
+                            bool editarPrecio = reader["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(reader["EditarPrecio"]);
+                            txtPrecio.Enabled = editarPrecio;
+                        }
+                        else
+                        {
+                            lbDescripcionProducto.Text = "Producto no encontrado";
+                            txtPrecio.Text = "";
+                            txtPrecio.Enabled = false;
+                        }
+                    }
                 }
             }
         }
@@ -211,11 +328,12 @@ namespace Comercio.NET
                 remitoIncrementado = true;
             }
 
-            // 2. Obtener los datos del producto
+            // 2. Obtener los datos del producto, incluyendo PermiteAcumular
             DataRow producto = null;
+            bool permiteAcumular = false;
             using (var connection = new SqlConnection(connectionString))
             {
-                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo 
+                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular 
                               FROM Productos WHERE codigo = @codigo";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
@@ -229,13 +347,22 @@ namespace Comercio.NET
                         return;
                     }
                     producto = dt.Rows[0];
+                    permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
                 }
             }
 
             // 3. Verificar si el producto ya está en la venta actual
             bool productoYaAgregado = false;
             int cantidadActual = 0;
-            decimal precioUnitario = Convert.ToDecimal(producto["precio"]);
+            decimal precioUnitario;
+            if (txtPrecio.Enabled && decimal.TryParse(txtPrecio.Text, out decimal precioEditado))
+            {
+                precioUnitario = precioEditado;
+            }
+            else
+            {
+                precioUnitario = Convert.ToDecimal(producto["precio"]);
+            }
             using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
@@ -252,9 +379,9 @@ namespace Comercio.NET
                 }
             }
 
-            if (productoYaAgregado)
+            if (productoYaAgregado && permiteAcumular)
             {
-                // 4a. Si ya existe, hacer UPDATE sumando cantidad y recalculando total
+                // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total
                 using (var connection = new SqlConnection(connectionString))
                 {
                     var query = @"UPDATE Ventas 
@@ -273,17 +400,17 @@ namespace Comercio.NET
             }
             else
             {
-                // 4b. Si no existe, hacer INSERT
+                // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
                 using (var connection = new SqlConnection(connectionString))
                 {
                     var query = @"INSERT INTO Ventas 
-                (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte)
-                VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte)";
+    (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte)
+    VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte)";
                     using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
                         cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
-                        cmd.Parameters.AddWithValue("@precio", producto["precio"]);
+                        cmd.Parameters.AddWithValue("@precio", precioUnitario);
                         cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
                         cmd.Parameters.AddWithValue("@marca", producto["marca"]);
                         cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
@@ -291,9 +418,10 @@ namespace Comercio.NET
                         cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
                         cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
                         cmd.Parameters.AddWithValue("@cantidad", 1);
-                        cmd.Parameters.AddWithValue("@total", producto["precio"]);
+                        cmd.Parameters.AddWithValue("@total", precioUnitario);
                         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+                        cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
                         connection.Open();
                         cmd.ExecuteNonQuery();
@@ -377,13 +505,6 @@ namespace Comercio.NET
             lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
 
-            // Inicialización de dataGridView1 si no usas el diseñador
-            //if (dataGridView1 == null)
-            //{
-            //    dataGridView1 = new DataGridView();
-            //    this.Controls.Add(dataGridView1);
-            //}
-
             // Configuración general
             dataGridView1.AllowUserToAddRows = false;
             dataGridView1.AllowUserToDeleteRows = false;
@@ -445,147 +566,32 @@ namespace Comercio.NET
             lbTotal.Text = $"Total: {sumaTotal:C2}";
         }
 
-        // Cambia la firma del método btnFinalizarVenta_Click para que sea async Task en vez de void
+        // Reemplaza la llamada incorrecta a CrearFacturaBAsync con parámetros por la llamada correcta sin parámetros
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
 
             if (remitoActual != null && remitoActual.Rows.Count > 0)
             {
-                ImprimirTicket();
+                //ImprimirTicket();
                 //ImprimirA4();
             }
 
-            Ventas_Load(null, null);
-            dataGridView1.DataSource = null;
-            dataGridView1.Rows.Clear();
-            lbCantidadProductos.Text = "Productos: 0";
-            lbTotal.Text = "Total: $0,00";
-            chkEsCtaCte.Checked = false;
-            MessageBox.Show("Venta finalizada. Se generó un nuevo remito.");
+            bool exito = await CrearFacturaBAsync();
+            //bool exito = await CrearFacturaAAsync("27270733145"); // Para Factura A
 
-            // Integración con ARCA
-            string cuit = "20280694739";
-            string service = "wsfe";
-            string pfxPath = @"C:\Certificados\certificado.pfx";
-            string pfxPassword = "Micertificado";
-            string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-
-            // Usa la versión asíncrona correctamente
-            var (token, sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
-
-            // Llamar al método (usa await si es async)
-            var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
-
-            // Autenticación (usa los valores reales de token y sign obtenidos con WSAA)
-            var auth = new ArcaWS.FEAuthRequest
+            if (exito)
             {
-                Token = token, // variable string con el token obtenido
-                Sign = sign,   // variable string con el sign obtenido
-                Cuit = Convert.ToInt64(cuit) // tu CUIT como long
-            };
-        
-            // Parámetros para la consulta
-            int ptoVta = 1;      // Punto de venta
-            int cbteTipo = 6;    // Tipo de comprobante (por ejemplo, 6 = Factura B)
-
-            // Consulta a AFIP el último número autorizado
-            var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
-            int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
-            int nuevoNroComprobante = ultimoNroAfip + 1;
-
-            // Encabezado
-            var feCabReq = new ArcaWS.FECAECabRequest
-            {
-                CantReg = 1,
-                PtoVta = ptoVta,
-                CbteTipo = cbteTipo
-            };
-
-            // Crear la alícuota de IVA 21%
-            var iva21 = new ArcaWS.AlicIva
-            {
-                Id = 5, // Código para IVA 21%
-                BaseImp = 100.00, // Neto gravado
-                Importe = 21.00   // IVA calculado
-            };
-
-            // Detalle único con los totales de la venta
-            var feDetReq = new ArcaWS.FECAEDetRequest
-            {
-                Concepto = 1,
-                DocTipo = 99, // Consumidor final
-                DocNro = 0,
-                CbteDesde = nuevoNroComprobante,
-                CbteHasta = nuevoNroComprobante,
-                CbteFch = DateTime.Now.ToString("yyyyMMdd"),
-                ImpTotal = 121,    // Total de la venta
-                ImpNeto = 100,     // Neto gravado
-                ImpIVA = 21,       // IVA total
-                MonId = "PES",
-                MonCotiz = 1,
-                CondicionIVAReceptorId = 5,
-                ImpTrib = 0,
-                ImpOpEx = 0,
-                Iva = new ArcaWS.AlicIva[] { iva21 } // <-- Aquí asignas el array de alícuotas
-                // ...otros campos requeridos
-            };
-
-            // Armar el request principal
-            var feCAEReq = new ArcaWS.FECAERequest
-            {
-                FeCabReq = feCabReq,
-                FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
-            };
-
-            
-            var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
-
-            // Acceso típico a la estructura de la respuesta
-            var resultado = respuesta?.Body?.FECAESolicitarResult;
-
-            if (resultado != null && resultado.FeDetResp != null && resultado.FeDetResp.Length > 0)
-            {
-                var detalle = resultado.FeDetResp[0];
-                if (detalle.Resultado == "A")
-                {
-                    string cae = detalle.CAE;
-                    string nroComprobante = detalle.CbteDesde.ToString();
-                    MessageBox.Show($"Factura Aprobada.\nCAE: {cae}\nComprobante: {nroComprobante}");
-                }
-                else if (detalle.Resultado == "R")
-                {
-                    // Factura rechazada, mostrar motivos
-                    string mensaje = "La factura fue RECHAZADA.\n";
-                    if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
-                    {
-                        foreach (var obs in detalle.Observaciones)
-                        {
-                            mensaje += $"Código: {obs.Code} - {obs.Msg}\n";
-                        }
-                    }
-                    else
-                    {
-                        mensaje += "No se recibieron observaciones de AFIP.";
-                    }
-                    MessageBox.Show(mensaje, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                else
-                {
-                    MessageBox.Show($"Resultado desconocido: {detalle.Resultado}");
-                }
+                Ventas_Load(null, null);
+                dataGridView1.DataSource = null;
+                dataGridView1.Rows.Clear();
+                lbCantidadProductos.Text = "Productos: 0";
+                lbTotal.Text = "Total: $0,00";
+                chkEsCtaCte.Checked = false;
+                //MessageBox.Show("Venta finalizada. Se generó un nuevo remito.");
             }
-            else if (resultado?.Errors != null && resultado.Errors.Length > 0)
-            {
-                var error = resultado.Errors[0];
-                MessageBox.Show($"Error {error.Code}: {error.Msg}");
-            }
-            else
-            {
-                MessageBox.Show("No se obtuvo respuesta válida de ARCA.");
-            }
+            // Si no fue exitosa, no se limpia nada y el usuario puede corregir el CUIT o los datos.
         }
-
 
         private void printDocumentRemito_PrintPage(object sender, PrintPageEventArgs e)
         {
@@ -1045,7 +1051,7 @@ namespace Comercio.NET
                 leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
                 y
             );
-            y += tituloSize.Height + 8;
+            y += tituloSize.Height + 10;
 
             // Encabezados de columnas
             string[] headers = { "C", "DESCRIPCIÓN", "PRECIO", "TOTAL" };
@@ -1179,6 +1185,147 @@ namespace Comercio.NET
             //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
         }
 
+        private async Task<bool> CrearFacturaBAsync()
+        {
+            return await CrearFacturaAfipAsync(
+                cbteTipo: 6,
+                condicionIVAReceptor: 5,
+                docTipo: 99,
+                docNro: 0,
+                alicuotaIVA: 21m
+            );
+        }
+
+        private async Task<bool> CrearFacturaAfipAsync(int cbteTipo, int condicionIVAReceptor, int docTipo, long docNro, decimal alicuotaIVA)
+        {
+            string cuit = "20280694739";
+            string service = "wsfe";
+            string pfxPath = @"C:\Certificados\certificado.pfx";
+            string pfxPassword = "Micertificado";
+            string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+
+            var (token, sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+            var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
+
+            var auth = new ArcaWS.FEAuthRequest
+            {
+                Token = token,
+                Sign = sign,
+                Cuit = Convert.ToInt64(cuit)
+            };
+
+            int ptoVta = 1;
+            var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
+            int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
+            int nuevoNroComprobante = ultimoNroAfip + 1;
+
+            // Calcular totales
+            decimal impTotal = 0;
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
+                    impTotal += valor;
+            }
+            decimal impIVA = Math.Round(impTotal - (impTotal / (1 + (alicuotaIVA / 100m))), 2);
+            decimal impNeto = Math.Round(impTotal - impIVA, 2);
+
+            var iva = new ArcaWS.AlicIva
+            {
+                Id = (alicuotaIVA == 21m) ? 5 : 4, // 5=21%, 4=10.5%
+                BaseImp = (double)impNeto,
+                Importe = (double)impIVA
+            };
+
+            var feCabReq = new ArcaWS.FECAECabRequest
+            {
+                CantReg = 1,
+                PtoVta = ptoVta,
+                CbteTipo = cbteTipo
+            };
+
+            var feDetReq = new ArcaWS.FECAEDetRequest
+            {
+                Concepto = 1,
+                DocTipo = docTipo,
+                DocNro = docNro,
+                CbteDesde = nuevoNroComprobante,
+                CbteHasta = nuevoNroComprobante,
+                CbteFch = DateTime.Now.ToString("yyyyMMdd"),
+                ImpTotal = (double)impTotal,
+                ImpNeto = (double)impNeto,
+                ImpIVA = (double)impIVA,
+                MonId = "PES",
+                MonCotiz = 1,
+                CondicionIVAReceptorId = condicionIVAReceptor,
+                ImpTrib = 0,
+                ImpOpEx = 0,
+                Iva = new ArcaWS.AlicIva[] { iva }
+            };
+
+            var feCAEReq = new ArcaWS.FECAERequest
+            {
+                FeCabReq = feCabReq,
+                FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
+            };
+
+            var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
+            var resultado = respuesta?.Body?.FECAESolicitarResult;
+
+            if (resultado != null && resultado.FeDetResp != null && resultado.FeDetResp.Length > 0)
+            {
+                var detalle = resultado.FeDetResp[0];
+                if (detalle.Resultado == "A")
+                {
+                    string cae = detalle.CAE;
+                    string nroComprobante = detalle.CbteDesde.ToString();
+                    MessageBox.Show($"Factura Aprobada.\nCAE: {cae}\nComprobante: {nroComprobante}");
+                    return true;
+                }
+                else if (detalle.Resultado == "R")
+                {
+                    // Factura rechazada, mostrar motivos
+                    string mensaje = "La factura fue RECHAZADA.\n";
+                    if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
+                    {
+                        foreach (var obs in detalle.Observaciones)
+                        {
+                            mensaje += $"Código: {obs.Code} - {obs.Msg}\n";
+                        }
+                    }
+                    else if (resultado?.Errors != null && resultado.Errors.Length > 0)
+                    {
+                        foreach (var error in resultado.Errors)
+                        {
+                            mensaje += $"Error {error.Code}: {error.Msg}\n";
+                        }
+                    }
+                    else
+                    {
+                        mensaje += "No se recibieron observaciones de AFIP.\n";
+                    }
+                    mensaje += "\nVerifique los datos ingresados o intente nuevamente.";
+                    MessageBox.Show(mensaje, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+                else
+                {
+                    MessageBox.Show($"Resultado desconocido: {detalle.Resultado}");
+                    return false;
+                }
+            }
+            else if (resultado?.Errors != null && resultado.Errors.Length > 0)
+            {
+                var error = resultado.Errors[0];
+                MessageBox.Show($"Error {error.Code}: {error.Msg}");
+                return false;
+            }
+            else
+            {
+                MessageBox.Show("No se obtuvo respuesta válida de ARCA.");
+                return false;
+            }
+        }
+
         private void chkEsCtaCte_CheckedChanged(object sender, EventArgs e)
         {
             if (chkEsCtaCte.Checked)
@@ -1214,6 +1361,44 @@ namespace Comercio.NET
         {
             txtBuscarProducto.Focus();
         }
+
+        private async Task<bool> CrearFacturaAAsync(string cuitReceptor)
+        {
+            // Factura A: Responsable Inscripto, DocNro = CUIT válido, IVA 21%
+            if (!long.TryParse(cuitReceptor, out long cuitValido) || cuitReceptor.Length != 11)
+            {
+                MessageBox.Show("Debe ingresar un CUIT válido de 11 dígitos para la Factura A.");
+                return false;
+            }
+            if (!EsCuitValido(cuitReceptor))
+            {
+                MessageBox.Show("Debe ingresar un CUIT válido para la Factura A.");
+                return false;
+            }
+            return await CrearFacturaAfipAsync(
+                cbteTipo: 1, // Factura A
+                condicionIVAReceptor: 1, // Responsable Inscripto
+                docTipo: 80, // CUIT
+                docNro: cuitValido,
+                alicuotaIVA: 21
+            );
+        }
+
+        private bool EsCuitValido(string cuit)
+        {
+            if (cuit.Length != 11 || !long.TryParse(cuit, out _))
+                return false;
+
+            int[] coef = { 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
+            int suma = 0;
+            for (int i = 0; i < 10; i++)
+                suma += int.Parse(cuit[i].ToString()) * coef[i];
+
+            int resto = suma % 11;
+            int digitoVerificador = resto == 0 ? 0 : resto == 1 ? 9 : 11 - resto;
+
+            return digitoVerificador == int.Parse(cuit[10].ToString());
+        }
     }
 
     public class WSAAHelper
@@ -1225,13 +1410,13 @@ namespace Comercio.NET
             var expirationTime = DateTime.UtcNow.AddMinutes(+10).ToString("yyyy-MM-ddTHH:mm:ssZ");
 
             return $@"<loginTicketRequest version=""1.0"">
-  <header>
-    <uniqueId>{uniqueId}</uniqueId>
-    <generationTime>{generationTime}</generationTime>
-    <expirationTime>{expirationTime}</expirationTime>
-  </header>
-  <service>{service}</service>
-</loginTicketRequest>";
+                  <header>
+                    <uniqueId>{uniqueId}</uniqueId>
+                    <generationTime>{generationTime}</generationTime>
+                    <expirationTime>{expirationTime}</expirationTime>
+                  </header>
+                  <service>{service}</service>
+                </loginTicketRequest>";
         }
 
         public static byte[] FirmarTRA(string traXml, string pfxPath, string pfxPassword)
@@ -1249,14 +1434,14 @@ namespace Comercio.NET
             string cmsBase64 = Convert.ToBase64String(cms);
 
             string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
-  <soap:Header/>
-  <soap:Body>
-    <wsaa:loginCms>
-      <wsaa:in0>{cmsBase64}</wsaa:in0>
-    </wsaa:loginCms>
-  </soap:Body>
-</soap:Envelope>";
+            <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
+              <soap:Header/>
+              <soap:Body>
+                <wsaa:loginCms>
+                  <wsaa:in0>{cmsBase64}</wsaa:in0>
+                </wsaa:loginCms>
+              </soap:Body>
+            </soap:Envelope>";
 
 using var client = new HttpClient();
 var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");

@@ -47,6 +47,7 @@ namespace Comercio.NET
             modulosToolStripMenuItem = new ToolStripMenuItem();
             ventasToolStripMenuItem = new ToolStripMenuItem();
             productosToolStripMenuItem = new ToolStripMenuItem();
+            controlFacturasToolStripMenuItem = new ToolStripMenuItem();
             viewMenu = new ToolStripMenuItem();
             toolBarToolStripMenuItem = new ToolStripMenuItem();
             statusBarToolStripMenuItem = new ToolStripMenuItem();
@@ -74,7 +75,6 @@ namespace Comercio.NET
             statusStrip = new StatusStrip();
             toolStripStatusLabel = new ToolStripStatusLabel();
             toolTip = new ToolTip(components);
-            controlFacturasToolStripMenuItem = new ToolStripMenuItem();
             menuStrip.SuspendLayout();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
@@ -190,16 +190,23 @@ namespace Comercio.NET
             // ventasToolStripMenuItem
             // 
             ventasToolStripMenuItem.Name = "ventasToolStripMenuItem";
-            ventasToolStripMenuItem.Size = new Size(180, 22);
+            ventasToolStripMenuItem.Size = new Size(161, 22);
             ventasToolStripMenuItem.Text = "Ventas";
             ventasToolStripMenuItem.Click += ventasToolStripMenuItem_Click;
             // 
             // productosToolStripMenuItem
             // 
             productosToolStripMenuItem.Name = "productosToolStripMenuItem";
-            productosToolStripMenuItem.Size = new Size(180, 22);
+            productosToolStripMenuItem.Size = new Size(161, 22);
             productosToolStripMenuItem.Text = "Productos";
             productosToolStripMenuItem.Click += productosToolStripMenuItem_Click;
+            // 
+            // controlFacturasToolStripMenuItem
+            // 
+            controlFacturasToolStripMenuItem.Name = "controlFacturasToolStripMenuItem";
+            controlFacturasToolStripMenuItem.Size = new Size(161, 22);
+            controlFacturasToolStripMenuItem.Text = "Control Facturas";
+            controlFacturasToolStripMenuItem.Click += controlFacturasToolStripMenuItem_Click;
             // 
             // viewMenu
             // 
@@ -385,7 +392,7 @@ namespace Comercio.NET
             // statusStrip
             // 
             statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabel });
-            statusStrip.Location = new Point(0, 702);
+            statusStrip.Location = new Point(0, 597);
             statusStrip.Name = "statusStrip";
             statusStrip.Padding = new Padding(1, 0, 16, 0);
             statusStrip.Size = new Size(1056, 22);
@@ -398,18 +405,11 @@ namespace Comercio.NET
             toolStripStatusLabel.Size = new Size(42, 17);
             toolStripStatusLabel.Text = "Estado";
             // 
-            // controlFacturasToolStripMenuItem
-            // 
-            controlFacturasToolStripMenuItem.Name = "controlFacturasToolStripMenuItem";
-            controlFacturasToolStripMenuItem.Size = new Size(180, 22);
-            controlFacturasToolStripMenuItem.Text = "Control Facturas";
-            controlFacturasToolStripMenuItem.Click += controlFacturasToolStripMenuItem_Click;
-            // 
             // MenuPrincipal
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1056, 724);
+            ClientSize = new Size(1056, 619);
             Controls.Add(statusStrip);
             Controls.Add(toolStrip);
             Controls.Add(menuStrip);
