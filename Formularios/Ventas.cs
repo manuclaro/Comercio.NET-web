@@ -1,16 +1,24 @@
-﻿using System;
+﻿using ArcaWS;
+using Microsoft.Extensions.Configuration;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
+using System.Drawing.Printing;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Security.Cryptography.Pkcs;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
-using System.Drawing.Printing;
-using System.IO;
+using System.Xml;
 
 namespace Comercio.NET
 {
@@ -219,55 +227,84 @@ namespace Comercio.NET
                         MessageBox.Show("Producto no encontrado.");
                         txtBuscarProducto.Focus();
                         return;
-
                     }
                     producto = dt.Rows[0];
                 }
             }
 
-            // 3. Insertar en la tabla Ventas
+            // 3. Verificar si el producto ya está en la venta actual
+            bool productoYaAgregado = false;
+            int cantidadActual = 0;
+            decimal precioUnitario = Convert.ToDecimal(producto["precio"]);
             using (var connection = new SqlConnection(connectionString))
             {
-                var query = @"INSERT INTO Ventas 
-                    (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte)
-                    VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte)";
+                var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
                 using (var cmd = new SqlCommand(query, connection))
                 {
-                    cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                    cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
-                    cmd.Parameters.AddWithValue("@precio", producto["precio"]);
-                    cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
-                    cmd.Parameters.AddWithValue("@marca", producto["marca"]);
-                    cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
-                    cmd.Parameters.AddWithValue("@costo", producto["costo"]);
-                    cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
-                    cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
-                    cmd.Parameters.AddWithValue("@cantidad", 1);
-                    cmd.Parameters.AddWithValue("@total", producto["precio"]);
                     cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                    cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
-
+                    cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
                     connection.Open();
-                    cmd.ExecuteNonQuery();
+                    var result = cmd.ExecuteScalar();
+                    if (result != null && int.TryParse(result.ToString(), out cantidadActual))
+                    {
+                        productoYaAgregado = true;
+                    }
                 }
             }
 
-            // 4. Mostrar todas las ventas del remito actual
+            if (productoYaAgregado)
+            {
+                // 4a. Si ya existe, hacer UPDATE sumando cantidad y recalculando total
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"UPDATE Ventas 
+                          SET cantidad = cantidad + 1, 
+                              total = (cantidad + 1) * @precio
+                          WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                        cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                        connection.Open();
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            else
+            {
+                // 4b. Si no existe, hacer INSERT
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"INSERT INTO Ventas 
+                (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte)
+                VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte)";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                        cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
+                        cmd.Parameters.AddWithValue("@precio", producto["precio"]);
+                        cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
+                        cmd.Parameters.AddWithValue("@marca", producto["marca"]);
+                        cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
+                        cmd.Parameters.AddWithValue("@costo", producto["costo"]);
+                        cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
+                        cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
+                        cmd.Parameters.AddWithValue("@cantidad", 1);
+                        cmd.Parameters.AddWithValue("@total", producto["precio"]);
+                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                        cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+
+                        connection.Open();
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+
+            // 5. Mostrar todas las ventas del remito actual
             CargarVentasActuales();
 
-            // Ajustar el ancho de las columnas
-            if (dataGridView1.Columns["codigo"] != null)
-                dataGridView1.Columns["codigo"].Width = 130;
-            if (dataGridView1.Columns["descripcion"] != null)
-                dataGridView1.Columns["descripcion"].Width = 250;
-            if (dataGridView1.Columns["precio"] != null)
-                dataGridView1.Columns["precio"].Width = 110;
-            if (dataGridView1.Columns["cantidad"] != null)
-                dataGridView1.Columns["cantidad"].Width = 60;
-            if (dataGridView1.Columns["total"] != null)
-                dataGridView1.Columns["total"].Width = 130;
-
-            // Formatear columnas numéricas
+            // Formatear columnas y encabezados (igual que antes)
             if (dataGridView1.Columns["precio"] != null)
             {
                 dataGridView1.Columns["precio"].DefaultCellStyle.Format = "C2";
@@ -284,8 +321,6 @@ namespace Comercio.NET
                 dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 dataGridView1.Columns["cantidad"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
-
-            // Encabezados en mayúsculas y centrados
             foreach (DataGridViewColumn col in dataGridView1.Columns)
             {
                 col.HeaderText = col.HeaderText.ToUpper();
@@ -296,7 +331,6 @@ namespace Comercio.NET
             txtBuscarProducto.Text = "";
             txtBuscarProducto.Focus();
         }
-
         private void Ventas_Load(object sender, EventArgs e)
         {
             var config = new ConfigurationBuilder()
@@ -332,11 +366,11 @@ namespace Comercio.NET
             dataGridView1.CurrentCell = null;
             dataGridView1.Enabled = true; // Permite scroll y visualización, pero no selección
 
-// Evento para evitar cualquier selección por el usuario
-dataGridView1.SelectionChanged += (s, e) =>
-{
-    dataGridView1.ClearSelection();
-};
+            // Evento para evitar cualquier selección por el usuario
+            dataGridView1.SelectionChanged += (s, e) =>
+            {
+                dataGridView1.ClearSelection();
+            };
 
             txtBuscarProducto.Focus();
 
@@ -411,7 +445,8 @@ dataGridView1.SelectionChanged += (s, e) =>
             lbTotal.Text = $"Total: {sumaTotal:C2}";
         }
 
-        private void btnFinalizarVenta_Click(object sender, EventArgs e)
+        // Cambia la firma del método btnFinalizarVenta_Click para que sea async Task en vez de void
+        private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
 
@@ -428,6 +463,127 @@ dataGridView1.SelectionChanged += (s, e) =>
             lbTotal.Text = "Total: $0,00";
             chkEsCtaCte.Checked = false;
             MessageBox.Show("Venta finalizada. Se generó un nuevo remito.");
+
+            // Integración con ARCA
+            string cuit = "20280694739";
+            string service = "wsfe";
+            string pfxPath = @"C:\Certificados\certificado.pfx";
+            string pfxPassword = "Micertificado";
+            string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+
+            // Usa la versión asíncrona correctamente
+            var (token, sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+
+            // Llamar al método (usa await si es async)
+            var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
+
+            // Autenticación (usa los valores reales de token y sign obtenidos con WSAA)
+            var auth = new ArcaWS.FEAuthRequest
+            {
+                Token = token, // variable string con el token obtenido
+                Sign = sign,   // variable string con el sign obtenido
+                Cuit = Convert.ToInt64(cuit) // tu CUIT como long
+            };
+        
+            // Parámetros para la consulta
+            int ptoVta = 1;      // Punto de venta
+            int cbteTipo = 6;    // Tipo de comprobante (por ejemplo, 6 = Factura B)
+
+            // Consulta a AFIP el último número autorizado
+            var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
+            int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
+            int nuevoNroComprobante = ultimoNroAfip + 1;
+
+            // Encabezado
+            var feCabReq = new ArcaWS.FECAECabRequest
+            {
+                CantReg = 1,
+                PtoVta = ptoVta,
+                CbteTipo = cbteTipo
+            };
+
+            // Crear la alícuota de IVA 21%
+            var iva21 = new ArcaWS.AlicIva
+            {
+                Id = 5, // Código para IVA 21%
+                BaseImp = 100.00, // Neto gravado
+                Importe = 21.00   // IVA calculado
+            };
+
+            // Detalle único con los totales de la venta
+            var feDetReq = new ArcaWS.FECAEDetRequest
+            {
+                Concepto = 1,
+                DocTipo = 99, // Consumidor final
+                DocNro = 0,
+                CbteDesde = nuevoNroComprobante,
+                CbteHasta = nuevoNroComprobante,
+                CbteFch = DateTime.Now.ToString("yyyyMMdd"),
+                ImpTotal = 121,    // Total de la venta
+                ImpNeto = 100,     // Neto gravado
+                ImpIVA = 21,       // IVA total
+                MonId = "PES",
+                MonCotiz = 1,
+                CondicionIVAReceptorId = 5,
+                ImpTrib = 0,
+                ImpOpEx = 0,
+                Iva = new ArcaWS.AlicIva[] { iva21 } // <-- Aquí asignas el array de alícuotas
+                // ...otros campos requeridos
+            };
+
+            // Armar el request principal
+            var feCAEReq = new ArcaWS.FECAERequest
+            {
+                FeCabReq = feCabReq,
+                FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
+            };
+
+            
+            var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
+
+            // Acceso típico a la estructura de la respuesta
+            var resultado = respuesta?.Body?.FECAESolicitarResult;
+
+            if (resultado != null && resultado.FeDetResp != null && resultado.FeDetResp.Length > 0)
+            {
+                var detalle = resultado.FeDetResp[0];
+                if (detalle.Resultado == "A")
+                {
+                    string cae = detalle.CAE;
+                    string nroComprobante = detalle.CbteDesde.ToString();
+                    MessageBox.Show($"Factura Aprobada.\nCAE: {cae}\nComprobante: {nroComprobante}");
+                }
+                else if (detalle.Resultado == "R")
+                {
+                    // Factura rechazada, mostrar motivos
+                    string mensaje = "La factura fue RECHAZADA.\n";
+                    if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
+                    {
+                        foreach (var obs in detalle.Observaciones)
+                        {
+                            mensaje += $"Código: {obs.Code} - {obs.Msg}\n";
+                        }
+                    }
+                    else
+                    {
+                        mensaje += "No se recibieron observaciones de AFIP.";
+                    }
+                    MessageBox.Show(mensaje, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    MessageBox.Show($"Resultado desconocido: {detalle.Resultado}");
+                }
+            }
+            else if (resultado?.Errors != null && resultado.Errors.Length > 0)
+            {
+                var error = resultado.Errors[0];
+                MessageBox.Show($"Error {error.Code}: {error.Msg}");
+            }
+            else
+            {
+                MessageBox.Show("No se obtuvo respuesta válida de ARCA.");
+            }
         }
 
 
@@ -1002,7 +1158,7 @@ dataGridView1.SelectionChanged += (s, e) =>
             e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
             y += 6;
 
-            // Total general, alineado a la derecha, en línea con la columna TOTAL
+            // Total general, alineado a la derecha, in línea con la columna TOTAL
             decimal sumaTotal = 0;
             foreach (DataRow row in remitoActual.Rows)
             {
@@ -1057,6 +1213,222 @@ dataGridView1.SelectionChanged += (s, e) =>
         private void cbnombreCtaCte_SelectedIndexChanged(object sender, EventArgs e)
         {
             txtBuscarProducto.Focus();
+        }
+    }
+
+    public class WSAAHelper
+    {
+        public static string CrearTRA(string service)
+        {
+            var uniqueId = ((int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds).ToString();
+            var generationTime = DateTime.UtcNow.AddMinutes(-10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var expirationTime = DateTime.UtcNow.AddMinutes(+10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+            return $@"<loginTicketRequest version=""1.0"">
+  <header>
+    <uniqueId>{uniqueId}</uniqueId>
+    <generationTime>{generationTime}</generationTime>
+    <expirationTime>{expirationTime}</expirationTime>
+  </header>
+  <service>{service}</service>
+</loginTicketRequest>";
+        }
+
+        public static byte[] FirmarTRA(string traXml, string pfxPath, string pfxPassword)
+        {
+            var cert = new X509Certificate2(pfxPath, pfxPassword, X509KeyStorageFlags.MachineKeySet);
+            var contentInfo = new ContentInfo(Encoding.UTF8.GetBytes(traXml));
+            var signedCms = new SignedCms(contentInfo);
+            var cmsSigner = new CmsSigner(cert);
+            signedCms.ComputeSignature(cmsSigner);  
+            return signedCms.Encode();
+        }
+
+        public static async Task<string> LlamarWSAA(byte[] cms, string wsaaUrl)
+        {
+            string cmsBase64 = Convert.ToBase64String(cms);
+
+            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
+  <soap:Header/>
+  <soap:Body>
+    <wsaa:loginCms>
+      <wsaa:in0>{cmsBase64}</wsaa:in0>
+    </wsaa:loginCms>
+  </soap:Body>
+</soap:Envelope>";
+
+using var client = new HttpClient();
+var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
+content.Headers.Add("SOAPAction", "\"\""); // Add this line
+var response = await client.PostAsync(wsaaUrl, content);
+var responseBody = await response.Content.ReadAsStringAsync();
+
+if (!response.IsSuccessStatusCode)
+{
+    // Aquí puedes loguear o mostrar el contenido para diagnóstico
+    throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
+}
+
+       return responseBody;
+   }
+
+        public static (string Token, string Sign) ExtraerTokenSign(string soapResponse)
+        {
+            var xml = new XmlDocument();
+            xml.LoadXml(soapResponse);
+
+            var nsmgr = new XmlNamespaceManager(xml.NameTable);
+            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+
+            // Verificar si hay un error SOAP
+            var fault = xml.SelectSingleNode("//soap:Fault", nsmgr);
+            if (fault != null)
+                throw new Exception("Respuesta de error de WSAA: " + fault.InnerXml);
+
+            // Buscar el nodo con namespace
+            var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
+            if (loginCmsReturn == null || string.IsNullOrEmpty(loginCmsReturn.InnerText))
+                throw new Exception("La respuesta del servicio WSAA fue nula o vacía, pero no arrojó un FaultException.");
+
+            var taXml = new XmlDocument();
+            taXml.LoadXml(loginCmsReturn.InnerText);
+
+            var token = taXml.SelectSingleNode("//token")?.InnerText;
+            var sign = taXml.SelectSingleNode("//sign")?.InnerText;
+
+            return (token, sign);
+        }
+    }
+
+    public class AfipAuthenticator
+    {
+        private static string _token;
+        private static string _sign;
+        private static DateTime _expiration;
+
+        private static readonly string TaPath = "ta.xml";
+
+        public static (string token, string sign) GetTA(string service, string pfxPath, string pfxPassword, string wsaaUrl)
+        {
+            // Intenta leer el TA guardado
+            if (File.Exists(TaPath))
+            {
+                var taXml = new XmlDocument();
+                taXml.Load(TaPath);
+                _token = taXml.SelectSingleNode("//token")?.InnerText;
+                _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+                var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+                _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
+
+                // LOG para depuración
+                Console.WriteLine($"TA encontrado. Expira: {_expiration}, Token: {_token}, Sign: {_sign}");
+
+                if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
+                {
+                    return (_token, _sign);
+                }
+                else
+                {
+                    Console.WriteLine("TA inválido o vencido, se solicitará uno nuevo.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No existe ta.xml, se solicitará un nuevo TA.");
+            }
+
+            string traXml = WSAAHelper.CrearTRA(service);
+            byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
+            string soapResponse = WSAAHelper.LlamarWSAA(cms, wsaaUrl).GetAwaiter().GetResult();
+
+            var xml = new XmlDocument();
+            xml.LoadXml(soapResponse);
+            var nsmgr = new XmlNamespaceManager(xml.NameTable);
+            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+            var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
+            if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
+            {
+                File.WriteAllText(TaPath, loginCmsReturn.InnerText);
+                var taXml = new XmlDocument();
+                taXml.LoadXml(loginCmsReturn.InnerText);
+                _token = taXml.SelectSingleNode("//token")?.InnerText;
+                _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+                var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+                _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
+            }
+
+            return (_token, _sign);
+        }
+
+        // Cambia la firma:
+        public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
+        {
+            if (File.Exists(TaPath))
+            {
+                try
+                {
+                    var taXml = new XmlDocument();
+                    taXml.Load(TaPath);
+                    _token = taXml.SelectSingleNode("//token")?.InnerText;
+                    _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+                    var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+
+                    // Validar formato de fecha
+                    if (!DateTime.TryParse(expirationStr, out _expiration))
+                    {
+                        Console.WriteLine($"[WSAA] Formato de fecha inválido en ta.xml: '{expirationStr}'");
+                        File.Delete(TaPath); // Elimina el archivo corrupto
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[WSAA] TA encontrado. Expira: {_expiration}, Token: {_token}, Sign: {_sign}");
+
+                        if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
+                        {
+                            return (_token, _sign);
+                        }
+                        else
+                        {
+                            Console.WriteLine("[WSAA] TA inválido o vencido, se solicitará uno nuevo.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WSAA] Error leyendo ta.xml: {ex.Message}");
+                    File.Delete(TaPath); // Elimina el archivo corrupto
+                }
+            }
+            else
+            {
+                Console.WriteLine("[WSAA] No existe ta.xml, se solicitará un nuevo TA.");
+            }
+
+            string traXml = WSAAHelper.CrearTRA(service);
+            byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
+            string soapResponse = await WSAAHelper.LlamarWSAA(cms, wsaaUrl);
+
+            var xml = new XmlDocument();
+            xml.LoadXml(soapResponse);
+            var nsmgr = new XmlNamespaceManager(xml.NameTable);
+            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+            var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
+            if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
+            {
+                File.WriteAllText(TaPath, loginCmsReturn.InnerText);
+                var taXml = new XmlDocument();
+                taXml.LoadXml(loginCmsReturn.InnerText);
+                _token = taXml.SelectSingleNode("//token")?.InnerText;
+                _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+                var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+                _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
+            }
+
+            return (_token, _sign);
         }
     }
 }

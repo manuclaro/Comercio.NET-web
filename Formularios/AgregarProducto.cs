@@ -52,6 +52,11 @@ namespace Comercio.NET.Formularios
                 return;
             }
 
+            // Validar el prefijo del código
+            string codigo = txtCodigo.Text.Trim();
+            string[] prefijos = { "72", "75", "77", "78", "79" };
+            int PermiteAcumular = prefijos.Any(p => codigo.StartsWith(p)) ? 1 : 0;
+
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json")
@@ -66,8 +71,8 @@ namespace Comercio.NET.Formularios
                 if (Modo == ModoFormulario.Agregar)
                 {
                     var query = @"INSERT INTO Productos 
-                        (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor)
-                        VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor)";
+                        (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor, PermiteAcumular)
+                        VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor, @PermiteAcumular)";
                     cmd = new SqlCommand(query, connection);
                 }
                 else // Modificar
@@ -81,13 +86,14 @@ namespace Comercio.NET.Formularios
                         costo = @costo,
                         porcentaje = @porcentaje,
                         cantidad = @cantidad,
-                        proveedor = @proveedor
+                        proveedor = @proveedor,
+                        PermiteAcumular = @PermiteAcumular
                         WHERE codigo = @codigoOriginal";
                     cmd = new SqlCommand(query, connection);
                     cmd.Parameters.AddWithValue("@codigoOriginal", CodigoOriginal);
                 }
 
-                cmd.Parameters.AddWithValue("@codigo", txtCodigo.Text.Trim());
+                cmd.Parameters.AddWithValue("@codigo", codigo);
                 cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
                 cmd.Parameters.AddWithValue("@rubro", txtRubro.Text.Trim());
                 cmd.Parameters.AddWithValue("@marca", txtMarca.Text.Trim());
@@ -96,6 +102,7 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@porcentaje", decimal.TryParse(txtPorcentaje.Text, out var porcentaje) ? porcentaje : 0);
                 cmd.Parameters.AddWithValue("@cantidad", int.TryParse(txtCantidad.Text, out var cantidad) ? cantidad : 0);
                 cmd.Parameters.AddWithValue("@proveedor", txtProveedor.Text.Trim());
+                cmd.Parameters.AddWithValue("@PermiteAcumular", PermiteAcumular);
 
                 cmd.ExecuteNonQuery();
             }
@@ -103,7 +110,7 @@ namespace Comercio.NET.Formularios
             MessageBox.Show(Modo == ModoFormulario.Agregar ? "Producto agregado correctamente." : "Producto modificado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             this.DialogResult = DialogResult.OK;
-            CodigoAgregado = txtCodigo.Text.Trim();
+            CodigoAgregado = codigo;
             this.Close();
         }
 

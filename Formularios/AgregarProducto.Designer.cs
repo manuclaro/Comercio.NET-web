@@ -52,7 +52,7 @@ namespace Comercio.NET.Formularios
             // 
             // btnGuardar
             // 
-            btnGuardar.Location = new Point(366, 244);
+            btnGuardar.Location = new Point(438, 244);
             btnGuardar.Name = "btnGuardar";
             btnGuardar.Size = new Size(75, 23);
             btnGuardar.TabIndex = 9;
@@ -71,7 +71,7 @@ namespace Comercio.NET.Formularios
             // 
             txtDescripcion.Location = new Point(195, 41);
             txtDescripcion.Name = "txtDescripcion";
-            txtDescripcion.Size = new Size(139, 23);
+            txtDescripcion.Size = new Size(250, 23);
             txtDescripcion.TabIndex = 1;
             // 
             // txtMarca

@@ -1,0 +1,55 @@
+{
+  "ExtendedData": {
+    "inputs": [
+      "https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL"
+    ],
+    "collectionTypes": [
+      "System.Array",
+      "System.Collections.Generic.Dictionary`2"
+    ],
+    "namespaceMappings": [
+      "*, ArcaWS"
+    ],
+    "references": [
+      "Architecture.Core.Foundation.DataAccessor, {AF.DataAccessor, 2.0.2}",
+      "Google.Protobuf, {Google.Protobuf, 3.21.5}",
+      "Grpc.Core.Api, {Grpc.Core.Api, 2.49.0}",
+      "Grpc.Net.Client, {Grpc.Net.Client, 2.49.0}",
+      "Grpc.Net.ClientFactory, {Grpc.Net.ClientFactory, 2.49.0}",
+      "Grpc.Net.Common, {Grpc.Net.Common, 2.49.0}",
+      "Microsoft.Extensions.Configuration, {Microsoft.Extensions.Configuration, 7.0.0}",
+      "Microsoft.Extensions.Configuration.Abstractions, {Microsoft.Extensions.Configuration.Abstractions, 9.0.8}",
+      "Microsoft.Extensions.Configuration.Binder, {Microsoft.Extensions.Configuration.Binder, 9.0.8}",
+      "Microsoft.Extensions.Configuration.FileExtensions, {Microsoft.Extensions.Configuration.FileExtensions, 7.0.0}",
+      "Microsoft.Extensions.Configuration.Json, {Microsoft.Extensions.Configuration.Json, 7.0.0}",
+      "Microsoft.Extensions.DependencyInjection, {Microsoft.Extensions.DependencyInjection, 3.0.3}",
+      "Microsoft.Extensions.DependencyInjection.Abstractions, {Microsoft.Extensions.DependencyInjection.Abstractions, 3.0.3}",
+      "Microsoft.Extensions.FileProviders.Abstractions, {Microsoft.Extensions.FileProviders.Abstractions, 7.0.0}",
+      "Microsoft.Extensions.FileProviders.Physical, {Microsoft.Extensions.FileProviders.Physical, 7.0.0}",
+      "Microsoft.Extensions.FileSystemGlobbing, {Microsoft.Extensions.FileSystemGlobbing, 7.0.0}",
+      "Microsoft.Extensions.Http, {Microsoft.Extensions.Http, 3.0.3}",
+      "Microsoft.Extensions.Logging, {Microsoft.Extensions.Logging, 3.0.3}",
+      "Microsoft.Extensions.Logging.Abstractions, {Microsoft.Extensions.Logging.Abstractions, 3.0.3}",
+      "Microsoft.Extensions.Options, {Microsoft.Extensions.Options, 3.0.3}",
+      "Microsoft.Extensions.Primitives, {Microsoft.Extensions.Primitives, 9.0.8}",
+      "Microsoft.Win32.SystemEvents, {Microsoft.Win32.SystemEvents, 7.0.0}",
+      "Newtonsoft.Json, {Newtonsoft.Json, 13.0.1}",
+      "System.Configuration.ConfigurationManager, {System.Configuration.ConfigurationManager, 7.0.0}",
+      "System.Data.Common, {System.Data.Common, 4.3.0}",
+      "System.Data.SqlClient, {System.Data.SqlClient, 4.8.5}",
+      "System.Diagnostics.EventLog, {System.Diagnostics.EventLog, 7.0.0}",
+      "System.Drawing.Common, {System.Drawing.Common, 7.0.0}",
+      "System.IO, {System.IO, 4.3.0}",
+      "System.Runtime, {System.Runtime, 4.3.0}",
+      "System.Security.Cryptography.ProtectedData, {System.Security.Cryptography.ProtectedData, 7.0.0}",
+      "System.Security.Permissions, {System.Security.Permissions, 7.0.0}",
+      "System.Text.Encoding, {System.Text.Encoding, 4.3.0}",
+      "System.Text.Encodings.Web, {System.Text.Encodings.Web, 7.0.0}",
+      "System.Text.Json, {System.Text.Json, 7.0.0}",
+      "System.Threading.Tasks, {System.Threading.Tasks, 4.3.0}",
+      "System.Windows.Extensions, {System.Windows.Extensions, 7.0.0}"
+    ],
+    "targetFramework": "net8.0-windows",
+    "typeReuseMode": "All"
+  }
+}

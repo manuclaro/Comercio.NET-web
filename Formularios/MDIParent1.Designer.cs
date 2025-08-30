@@ -47,15 +47,6 @@ namespace Comercio.NET
             modulosToolStripMenuItem = new ToolStripMenuItem();
             ventasToolStripMenuItem = new ToolStripMenuItem();
             productosToolStripMenuItem = new ToolStripMenuItem();
-            editMenu = new ToolStripMenuItem();
-            undoToolStripMenuItem = new ToolStripMenuItem();
-            redoToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator6 = new ToolStripSeparator();
-            cutToolStripMenuItem = new ToolStripMenuItem();
-            copyToolStripMenuItem = new ToolStripMenuItem();
-            pasteToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator7 = new ToolStripSeparator();
-            selectAllToolStripMenuItem = new ToolStripMenuItem();
             viewMenu = new ToolStripMenuItem();
             toolBarToolStripMenuItem = new ToolStripMenuItem();
             statusBarToolStripMenuItem = new ToolStripMenuItem();
@@ -76,7 +67,6 @@ namespace Comercio.NET
             toolStrip = new ToolStrip();
             newToolStripButton = new ToolStripButton();
             openToolStripButton = new ToolStripButton();
-            saveToolStripButton = new ToolStripButton();
             toolStripSeparator1 = new ToolStripSeparator();
             printToolStripButton = new ToolStripButton();
             printPreviewToolStripButton = new ToolStripButton();
@@ -84,6 +74,7 @@ namespace Comercio.NET
             statusStrip = new StatusStrip();
             toolStripStatusLabel = new ToolStripStatusLabel();
             toolTip = new ToolTip(components);
+            controlFacturasToolStripMenuItem = new ToolStripMenuItem();
             menuStrip.SuspendLayout();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
@@ -91,12 +82,12 @@ namespace Comercio.NET
             // 
             // menuStrip
             // 
-            menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, modulosToolStripMenuItem, editMenu, viewMenu, toolsMenu, windowsMenu, helpMenu });
+            menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, modulosToolStripMenuItem, viewMenu, toolsMenu, windowsMenu, helpMenu });
             menuStrip.Location = new Point(0, 0);
             menuStrip.MdiWindowListItem = windowsMenu;
             menuStrip.Name = "menuStrip";
             menuStrip.Padding = new Padding(7, 2, 0, 2);
-            menuStrip.Size = new Size(981, 24);
+            menuStrip.Size = new Size(1056, 24);
             menuStrip.TabIndex = 0;
             menuStrip.Text = "MenuStrip";
             // 
@@ -191,7 +182,7 @@ namespace Comercio.NET
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem });
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";
@@ -209,79 +200,6 @@ namespace Comercio.NET
             productosToolStripMenuItem.Size = new Size(180, 22);
             productosToolStripMenuItem.Text = "Productos";
             productosToolStripMenuItem.Click += productosToolStripMenuItem_Click;
-            // 
-            // editMenu
-            // 
-            editMenu.DropDownItems.AddRange(new ToolStripItem[] { undoToolStripMenuItem, redoToolStripMenuItem, toolStripSeparator6, cutToolStripMenuItem, copyToolStripMenuItem, pasteToolStripMenuItem, toolStripSeparator7, selectAllToolStripMenuItem });
-            editMenu.Name = "editMenu";
-            editMenu.Size = new Size(49, 20);
-            editMenu.Text = "&Editar";
-            // 
-            // undoToolStripMenuItem
-            // 
-            undoToolStripMenuItem.Image = (Image)resources.GetObject("undoToolStripMenuItem.Image");
-            undoToolStripMenuItem.ImageTransparentColor = Color.Black;
-            undoToolStripMenuItem.Name = "undoToolStripMenuItem";
-            undoToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.Z;
-            undoToolStripMenuItem.Size = new Size(204, 22);
-            undoToolStripMenuItem.Text = "&Deshacer";
-            undoToolStripMenuItem.Click += undoToolStripMenuItem_Click;
-            // 
-            // redoToolStripMenuItem
-            // 
-            redoToolStripMenuItem.Image = (Image)resources.GetObject("redoToolStripMenuItem.Image");
-            redoToolStripMenuItem.ImageTransparentColor = Color.Black;
-            redoToolStripMenuItem.Name = "redoToolStripMenuItem";
-            redoToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.Y;
-            redoToolStripMenuItem.Size = new Size(204, 22);
-            redoToolStripMenuItem.Text = "&Rehacer";
-            // 
-            // toolStripSeparator6
-            // 
-            toolStripSeparator6.Name = "toolStripSeparator6";
-            toolStripSeparator6.Size = new Size(201, 6);
-            // 
-            // cutToolStripMenuItem
-            // 
-            cutToolStripMenuItem.Image = (Image)resources.GetObject("cutToolStripMenuItem.Image");
-            cutToolStripMenuItem.ImageTransparentColor = Color.Black;
-            cutToolStripMenuItem.Name = "cutToolStripMenuItem";
-            cutToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.X;
-            cutToolStripMenuItem.Size = new Size(204, 22);
-            cutToolStripMenuItem.Text = "Cor&tar";
-            cutToolStripMenuItem.Click += CutToolStripMenuItem_Click;
-            // 
-            // copyToolStripMenuItem
-            // 
-            copyToolStripMenuItem.Image = (Image)resources.GetObject("copyToolStripMenuItem.Image");
-            copyToolStripMenuItem.ImageTransparentColor = Color.Black;
-            copyToolStripMenuItem.Name = "copyToolStripMenuItem";
-            copyToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.C;
-            copyToolStripMenuItem.Size = new Size(204, 22);
-            copyToolStripMenuItem.Text = "&Copiar";
-            copyToolStripMenuItem.Click += CopyToolStripMenuItem_Click;
-            // 
-            // pasteToolStripMenuItem
-            // 
-            pasteToolStripMenuItem.Image = (Image)resources.GetObject("pasteToolStripMenuItem.Image");
-            pasteToolStripMenuItem.ImageTransparentColor = Color.Black;
-            pasteToolStripMenuItem.Name = "pasteToolStripMenuItem";
-            pasteToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.V;
-            pasteToolStripMenuItem.Size = new Size(204, 22);
-            pasteToolStripMenuItem.Text = "&Pegar";
-            pasteToolStripMenuItem.Click += PasteToolStripMenuItem_Click;
-            // 
-            // toolStripSeparator7
-            // 
-            toolStripSeparator7.Name = "toolStripSeparator7";
-            toolStripSeparator7.Size = new Size(201, 6);
-            // 
-            // selectAllToolStripMenuItem
-            // 
-            selectAllToolStripMenuItem.Name = "selectAllToolStripMenuItem";
-            selectAllToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.A;
-            selectAllToolStripMenuItem.Size = new Size(204, 22);
-            selectAllToolStripMenuItem.Text = "Seleccionar &todo";
             // 
             // viewMenu
             // 
@@ -408,10 +326,10 @@ namespace Comercio.NET
             // 
             // toolStrip
             // 
-            toolStrip.Items.AddRange(new ToolStripItem[] { newToolStripButton, openToolStripButton, saveToolStripButton, toolStripSeparator1, printToolStripButton, printPreviewToolStripButton, toolStripSeparator2 });
+            toolStrip.Items.AddRange(new ToolStripItem[] { newToolStripButton, openToolStripButton, toolStripSeparator1, printToolStripButton, printPreviewToolStripButton, toolStripSeparator2 });
             toolStrip.Location = new Point(0, 24);
             toolStrip.Name = "toolStrip";
-            toolStrip.Size = new Size(981, 25);
+            toolStrip.Size = new Size(1056, 25);
             toolStrip.TabIndex = 1;
             toolStrip.Text = "ToolStrip";
             // 
@@ -435,15 +353,6 @@ namespace Comercio.NET
             openToolStripButton.Text = "Abrir";
             openToolStripButton.Click += OpenFile;
             // 
-            // saveToolStripButton
-            // 
-            saveToolStripButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
-            saveToolStripButton.Image = (Image)resources.GetObject("saveToolStripButton.Image");
-            saveToolStripButton.ImageTransparentColor = Color.Black;
-            saveToolStripButton.Name = "saveToolStripButton";
-            saveToolStripButton.Size = new Size(23, 22);
-            saveToolStripButton.Text = "Guardar";
-            // 
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
@@ -461,7 +370,7 @@ namespace Comercio.NET
             // printPreviewToolStripButton
             // 
             printPreviewToolStripButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
-            printPreviewToolStripButton.Image = (Image)resources.GetObject("printPreviewToolStripButton.Image");
+            printPreviewToolStripButton.Image = Properties.Resources.DocumentEdit;
             printPreviewToolStripButton.ImageTransparentColor = Color.Black;
             printPreviewToolStripButton.Name = "printPreviewToolStripButton";
             printPreviewToolStripButton.Size = new Size(23, 22);
@@ -479,7 +388,7 @@ namespace Comercio.NET
             statusStrip.Location = new Point(0, 702);
             statusStrip.Name = "statusStrip";
             statusStrip.Padding = new Padding(1, 0, 16, 0);
-            statusStrip.Size = new Size(981, 22);
+            statusStrip.Size = new Size(1056, 22);
             statusStrip.TabIndex = 2;
             statusStrip.Text = "StatusStrip";
             // 
@@ -489,11 +398,18 @@ namespace Comercio.NET
             toolStripStatusLabel.Size = new Size(42, 17);
             toolStripStatusLabel.Text = "Estado";
             // 
+            // controlFacturasToolStripMenuItem
+            // 
+            controlFacturasToolStripMenuItem.Name = "controlFacturasToolStripMenuItem";
+            controlFacturasToolStripMenuItem.Size = new Size(180, 22);
+            controlFacturasToolStripMenuItem.Text = "Control Facturas";
+            controlFacturasToolStripMenuItem.Click += controlFacturasToolStripMenuItem_Click;
+            // 
             // MenuPrincipal
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(981, 724);
+            ClientSize = new Size(1056, 724);
             Controls.Add(statusStrip);
             Controls.Add(toolStrip);
             Controls.Add(menuStrip);
@@ -528,9 +444,7 @@ namespace Comercio.NET
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
         private System.Windows.Forms.ToolStripMenuItem printSetupToolStripMenuItem;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator7;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
         private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel;
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
@@ -543,13 +457,6 @@ namespace Comercio.NET
         private System.Windows.Forms.ToolStripMenuItem printToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem printPreviewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem editMenu;
-        private System.Windows.Forms.ToolStripMenuItem undoToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem redoToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem cutToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem copyToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem pasteToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem selectAllToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem viewMenu;
         private System.Windows.Forms.ToolStripMenuItem toolBarToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem statusBarToolStripMenuItem;
@@ -566,13 +473,13 @@ namespace Comercio.NET
         private System.Windows.Forms.ToolStripMenuItem searchToolStripMenuItem;
         private System.Windows.Forms.ToolStripButton newToolStripButton;
         private System.Windows.Forms.ToolStripButton openToolStripButton;
-        private System.Windows.Forms.ToolStripButton saveToolStripButton;
         private System.Windows.Forms.ToolStripButton printToolStripButton;
         private System.Windows.Forms.ToolStripButton printPreviewToolStripButton;
         private System.Windows.Forms.ToolTip toolTip;
         private ToolStripMenuItem modulosToolStripMenuItem;
         private ToolStripMenuItem ventasToolStripMenuItem;
         private ToolStripMenuItem productosToolStripMenuItem;
+        private ToolStripMenuItem controlFacturasToolStripMenuItem;
     }
 }
 

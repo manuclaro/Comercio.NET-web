@@ -116,7 +116,7 @@
             // lbDescripcionProducto
             // 
             lbDescripcionProducto.AutoSize = true;
-            lbDescripcionProducto.Location = new Point(135, 135);
+            lbDescripcionProducto.Location = new Point(28, 63);
             lbDescripcionProducto.Name = "lbDescripcionProducto";
             lbDescripcionProducto.Size = new Size(118, 15);
             lbDescripcionProducto.TabIndex = 8;

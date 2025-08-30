@@ -44,17 +44,17 @@
             GrillaProductos.AllowUserToDeleteRows = false;
             GrillaProductos.AllowUserToResizeRows = false;
             GrillaProductos.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            //GrillaProductos.Location = new Point(12, 47);
+            GrillaProductos.Location = new Point(12, 52);
             GrillaProductos.Name = "GrillaProductos";
             GrillaProductos.ReadOnly = true;
-            GrillaProductos.Size = new Size(927, 366);
+            GrillaProductos.Size = new Size(927, 371);
             GrillaProductos.TabIndex = 0;
             // 
             // lblContador
             // 
             lblContador.AutoSize = true;
             lblContador.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lblContador.Location = new Point(832, 426);
+            lblContador.Location = new Point(798, 426);
             lblContador.Name = "lblContador";
             lblContador.Size = new Size(62, 17);
             lblContador.TabIndex = 1;
