@@ -139,7 +139,6 @@
             btnFinalizarVenta.Text = "Finalizar Venta";
             btnFinalizarVenta.TextAlign = ContentAlignment.MiddleRight;
             btnFinalizarVenta.UseVisualStyleBackColor = true;
-            btnFinalizarVenta.Click += btnFinalizarVenta_Click_1;
             // 
             // chkEsCtaCte
             // 
@@ -241,6 +240,7 @@
             Controls.Add(txtBuscarProducto);
             Controls.Add(dataGridView1);
             Controls.Add(panelFooter);
+            MinimumSize = new Size(773, 541);
             Name = "Ventas";
             Text = "Ventas";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

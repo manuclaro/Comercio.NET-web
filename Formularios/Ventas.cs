@@ -542,9 +542,9 @@ namespace Comercio.NET
             using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"SELECT codigo, descripcion, precio,  cantidad, total
-                              FROM Ventas
-                              WHERE nrofactura = @nrofactura
-                              ORDER BY id ASC";
+                      FROM Ventas
+                      WHERE nrofactura = @nrofactura
+                      ORDER BY id ASC";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
@@ -553,6 +553,20 @@ namespace Comercio.NET
                     dataGridView1.DataSource = dt;
                     remitoActual = dt;
                 }
+            }
+
+            // Ajustar anchos de columnas
+            if (dataGridView1.Columns["descripcion"] != null)
+            {
+                dataGridView1.Columns["descripcion"].Width = 330; // Más ancha
+            }
+            if (dataGridView1.Columns["precio"] != null)
+            {
+                dataGridView1.Columns["precio"].Width = 110; // Más angosta
+            }
+            if (dataGridView1.Columns["cantidad"] != null)
+            {
+                dataGridView1.Columns["cantidad"].Width = 50; // Más angosta
             }
 
             lbCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
@@ -578,6 +592,7 @@ namespace Comercio.NET
             using (var seleccion = new SeleccionImpresionForm())
             {
                 seleccion.ShowDialog(this);
+                
 
                 switch (seleccion.OpcionSeleccionada)
                 {
@@ -1436,11 +1451,6 @@ namespace Comercio.NET
             int digitoVerificador = resto == 0 ? 0 : resto == 1 ? 9 : 11 - resto;
 
             return digitoVerificador == int.Parse(cuit[10].ToString());
-        }
-
-        private void btnFinalizarVenta_Click_1(object sender, EventArgs e)
-        {
-
         }
     }
 
