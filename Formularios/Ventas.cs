@@ -199,7 +199,7 @@ namespace Comercio.NET
                         txtPrecio.Text = valor.ToString("N2");
                     }
                 }
-};
+            };
             txtPrecio.TextChanged += (s, e) =>
             {
                 // Solo actualizar si el control está habilitado (es editable)
@@ -228,7 +228,7 @@ namespace Comercio.NET
                         }
                     }
                 }
-};
+            };
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -571,26 +571,64 @@ namespace Comercio.NET
         {
             remitoIncrementado = false;
 
-            if (remitoActual != null && remitoActual.Rows.Count > 0)
-            {
-                //ImprimirTicket();
-                //ImprimirA4();
-            }
+            if (remitoActual == null || remitoActual.Rows.Count == 0)
+                return;
 
-            bool exito = await CrearFacturaBAsync();
-            //bool exito = await CrearFacturaAAsync("27270733145"); // Para Factura A
-
-            if (exito)
+            // Mostrar el modal de selección
+            using (var seleccion = new SeleccionImpresionForm())
             {
-                Ventas_Load(null, null);
-                dataGridView1.DataSource = null;
-                dataGridView1.Rows.Clear();
-                lbCantidadProductos.Text = "Productos: 0";
-                lbTotal.Text = "Total: $0,00";
-                chkEsCtaCte.Checked = false;
-                //MessageBox.Show("Venta finalizada. Se generó un nuevo remito.");
+                seleccion.ShowDialog(this);
+
+                switch (seleccion.OpcionSeleccionada)
+                {
+                    case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
+                        ImprimirTicket();
+                        // Limpiar y reiniciar la venta igual que en las otras opciones
+                        Ventas_Load(null, null);
+                        dataGridView1.DataSource = null;
+                        dataGridView1.Rows.Clear();
+                        lbCantidadProductos.Text = "Productos: 0";
+                        lbTotal.Text = "Total: $0,00";
+                        chkEsCtaCte.Checked = false;
+                        break;
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaB:
+                    {
+                        bool exito = await CrearFacturaBAsync();
+                        if (exito)
+                        {
+                            Ventas_Load(null, null);
+                            dataGridView1.DataSource = null;
+                            dataGridView1.Rows.Clear();
+                            lbCantidadProductos.Text = "Productos: 0";
+                            lbTotal.Text = "Total: $0,00";
+                            chkEsCtaCte.Checked = false;
+                        }
+                        break;
+                    }
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
+                    {
+                        // Puedes pedir el CUIT aquí si lo necesitas
+                        string cuit = Microsoft.VisualBasic.Interaction.InputBox("Ingrese el CUIT del receptor:", "CUIT Receptor", "");
+                        if (!string.IsNullOrWhiteSpace(cuit))
+                        {
+                            bool exito = await CrearFacturaAAsync(cuit);
+                            if (exito)
+                            {
+                                Ventas_Load(null, null);
+                                dataGridView1.DataSource = null;
+                                dataGridView1.Rows.Clear();
+                                lbCantidadProductos.Text = "Productos: 0";
+                                lbTotal.Text = "Total: $0,00";
+                                chkEsCtaCte.Checked = false;
+                            }
+                        }
+                        break;
+                    }
+                    default:
+                        // No se seleccionó nada
+                        break;
+                }
             }
-            // Si no fue exitosa, no se limpia nada y el usuario puede corregir el CUIT o los datos.
         }
 
         private void printDocumentRemito_PrintPage(object sender, PrintPageEventArgs e)
@@ -1398,6 +1436,11 @@ namespace Comercio.NET
             int digitoVerificador = resto == 0 ? 0 : resto == 1 ? 9 : 11 - resto;
 
             return digitoVerificador == int.Parse(cuit[10].ToString());
+        }
+
+        private void btnFinalizarVenta_Click_1(object sender, EventArgs e)
+        {
+
         }
     }
 

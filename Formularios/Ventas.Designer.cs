@@ -139,6 +139,7 @@
             btnFinalizarVenta.Text = "Finalizar Venta";
             btnFinalizarVenta.TextAlign = ContentAlignment.MiddleRight;
             btnFinalizarVenta.UseVisualStyleBackColor = true;
+            btnFinalizarVenta.Click += btnFinalizarVenta_Click_1;
             // 
             // chkEsCtaCte
             // 
