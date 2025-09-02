@@ -33,6 +33,9 @@ namespace Comercio.NET
         private string token;
         private string sign;
 
+        private int cantidadPersonalizada = 1;
+        private CheckBox chkCantidad;
+
         public Ventas()
         {
             InitializeComponent();
@@ -388,11 +391,12 @@ namespace Comercio.NET
                 using (var connection = new SqlConnection(connectionString))
                 {
                     var query = @"UPDATE Ventas 
-                          SET cantidad = cantidad + 1, 
-                              total = (cantidad + 1) * @precio
-                          WHERE nrofactura = @nrofactura AND codigo = @codigo";
+      SET cantidad = cantidad + @nuevaCantidad, 
+          total = (cantidad + @nuevaCantidad) * @precio
+      WHERE nrofactura = @nrofactura AND codigo = @codigo";
                     using (var cmd = new SqlCommand(query, connection))
                     {
+                        cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
                         cmd.Parameters.AddWithValue("@precio", precioUnitario);
                         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
@@ -420,8 +424,8 @@ namespace Comercio.NET
                         cmd.Parameters.AddWithValue("@costo", producto["costo"]);
                         cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
                         cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
-                        cmd.Parameters.AddWithValue("@cantidad", 1);
-                        cmd.Parameters.AddWithValue("@total", precioUnitario);
+                        cmd.Parameters.AddWithValue("@cantidad", cantidadPersonalizada);
+                        cmd.Parameters.AddWithValue("@total", precioUnitario * cantidadPersonalizada);
                         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
                         cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
@@ -461,6 +465,13 @@ namespace Comercio.NET
             // Dejar el foco en el campo buscar para el próximo producto
             txtBuscarProducto.Text = "";
             txtBuscarProducto.Focus();
+
+            // Desmarcar el checkbox de cantidad después de agregar el producto
+            if (chkCantidad.Checked)
+            {
+                chkCantidad.Checked = false;
+                cantidadPersonalizada = 1;
+            }
         }
         private void Ventas_Load(object sender, EventArgs e)
         {
@@ -532,6 +543,31 @@ namespace Comercio.NET
             //Color suave para filas alternas
             dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255); // AliceBlue
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
+
+            // CheckBox para cantidad personalizada
+            chkCantidad = new CheckBox
+            {
+                Text = "Cantidad",
+                Left = 500, // Más a la derecha, separado del chkEsCtaCte
+                Top = 136,  // Misma altura que chkEsCtaCte
+                Width = 180,
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.Black
+            };
+            chkCantidad.CheckedChanged += chkCantidad_CheckedChanged;
+            this.Controls.Add(chkCantidad);
+
+            // Configurar el atajo F9 para el checkbox de cantidad
+            this.KeyPreview = true; // Importante: permite que el formulario capture las teclas
+            this.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.F9)
+                {
+                    e.SuppressKeyPress = true;
+                    // Alternar el estado del checkbox
+                    chkCantidad.Checked = !chkCantidad.Checked;
+                }
+            };
         }
 
         private void CargarVentasActuales()
@@ -1469,6 +1505,31 @@ namespace Comercio.NET
             string safeService = service.Replace("/", "_").Replace("\\", "_");
             return $"ta_{safeService}.xml";
         }
+
+        private void chkCantidad_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkCantidad.Checked)
+            {
+                using (var modalCantidad = new ModalCantidadForm())
+                {
+                    if (modalCantidad.ShowDialog() == DialogResult.OK)
+                    {
+                        cantidadPersonalizada = modalCantidad.CantidadSeleccionada;
+                        // Hacer foco en el campo buscar después de confirmar cantidad
+                        txtBuscarProducto.Focus();
+                    }
+                    else
+                    {
+                        chkCantidad.Checked = false; // Si cancela, desmarca el checkbox
+                        txtBuscarProducto.Focus(); // También hacer foco si cancela
+                    }
+                }
+            }
+            else
+            {
+                cantidadPersonalizada = 1; // Resetea a 1 cuando se desmarca
+            }
+        }
     }
 
     public class WSAAHelper
@@ -1503,7 +1564,7 @@ namespace Comercio.NET
         {
             string cmsBase64 = Convert.ToBase64String(cms);
 
-            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?
             <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
               <soap:Header/>
               <soap:Body>
@@ -1705,7 +1766,7 @@ public class WSAAHelper
     {
         string cmsBase64 = Convert.ToBase64String(cms);
 
-        string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+        string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?
         <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
           <soap:Header/>
           <soap:Body>
