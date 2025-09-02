@@ -30,6 +30,9 @@ namespace Comercio.NET
         private string nombreComercio = "Comercio";
         private string domicilioComercio = "domicilio";
 
+        private string token;
+        private string sign;
+
         public Ventas()
         {
             InitializeComponent();
@@ -562,7 +565,7 @@ namespace Comercio.NET
             }
             if (dataGridView1.Columns["precio"] != null)
             {
-                dataGridView1.Columns["precio"].Width = 110; // Más angosta
+                dataGridView1.Columns["precio"].Width = 110;
             }
             if (dataGridView1.Columns["cantidad"] != null)
             {
@@ -589,10 +592,14 @@ namespace Comercio.NET
                 return;
 
             // Mostrar el modal de selección
-            using (var seleccion = new SeleccionImpresionForm())
+            using (var seleccion = new SeleccionImpresionForm
+                {
+                    TokenAfip = this.token, // tu variable de token en Ventas
+                    SignAfip = this.sign    // tu variable de sign en Ventas
+                })
             {
                 seleccion.ShowDialog(this);
-                
+
 
                 switch (seleccion.OpcionSeleccionada)
                 {
@@ -607,26 +614,8 @@ namespace Comercio.NET
                         chkEsCtaCte.Checked = false;
                         break;
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
-                    {
-                        bool exito = await CrearFacturaBAsync();
-                        if (exito)
                         {
-                            Ventas_Load(null, null);
-                            dataGridView1.DataSource = null;
-                            dataGridView1.Rows.Clear();
-                            lbCantidadProductos.Text = "Productos: 0";
-                            lbTotal.Text = "Total: $0,00";
-                            chkEsCtaCte.Checked = false;
-                        }
-                        break;
-                    }
-                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
-                    {
-                        // Puedes pedir el CUIT aquí si lo necesitas
-                        string cuit = Microsoft.VisualBasic.Interaction.InputBox("Ingrese el CUIT del receptor:", "CUIT Receptor", "");
-                        if (!string.IsNullOrWhiteSpace(cuit))
-                        {
-                            bool exito = await CrearFacturaAAsync(cuit);
+                            bool exito = await CrearFacturaBAsync();
                             if (exito)
                             {
                                 Ventas_Load(null, null);
@@ -636,9 +625,27 @@ namespace Comercio.NET
                                 lbTotal.Text = "Total: $0,00";
                                 chkEsCtaCte.Checked = false;
                             }
+                            break;
                         }
-                        break;
-                    }
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
+                        {
+                            // Puedes pedir el CUIT aquí si lo necesitas
+                            string cuit = Microsoft.VisualBasic.Interaction.InputBox("Ingrese el CUIT del receptor:", "CUIT Receptor", "");
+                            if (!string.IsNullOrWhiteSpace(cuit))
+                            {
+                                bool exito = await CrearFacturaAAsync(cuit);
+                                if (exito)
+                                {
+                                    Ventas_Load(null, null);
+                                    dataGridView1.DataSource = null;
+                                    dataGridView1.Rows.Clear();
+                                    lbCantidadProductos.Text = "Productos: 0";
+                                    lbTotal.Text = "Total: $0,00";
+                                    chkEsCtaCte.Checked = false;
+                                }
+                            }
+                            break;
+                        }
                     default:
                         // No se seleccionó nada
                         break;
@@ -1258,6 +1265,9 @@ namespace Comercio.NET
             string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
 
             var (token, sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+            this.token = token;
+            this.sign = sign;
+
             var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
 
             var auth = new ArcaWS.FEAuthRequest
@@ -1452,6 +1462,13 @@ namespace Comercio.NET
 
             return digitoVerificador == int.Parse(cuit[10].ToString());
         }
+
+        private static string GetTaPath(string service)
+        {
+            // Limpia el nombre del servicio para evitar caracteres inválidos en el nombre de archivo
+            string safeService = service.Replace("/", "_").Replace("\\", "_");
+            return $"ta_{safeService}.xml";
+        }
     }
 
     public class WSAAHelper
@@ -1478,7 +1495,7 @@ namespace Comercio.NET
             var contentInfo = new ContentInfo(Encoding.UTF8.GetBytes(traXml));
             var signedCms = new SignedCms(contentInfo);
             var cmsSigner = new CmsSigner(cert);
-            signedCms.ComputeSignature(cmsSigner);  
+            signedCms.ComputeSignature(cmsSigner);
             return signedCms.Encode();
         }
 
@@ -1496,20 +1513,20 @@ namespace Comercio.NET
               </soap:Body>
             </soap:Envelope>";
 
-using var client = new HttpClient();
-var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
-content.Headers.Add("SOAPAction", "\"\""); // Add this line
-var response = await client.PostAsync(wsaaUrl, content);
-var responseBody = await response.Content.ReadAsStringAsync();
+            using var client = new HttpClient();
+            var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
+            content.Headers.Add("SOAPAction", "\"\""); // Add this line
+            var response = await client.PostAsync(wsaaUrl, content);
+            var responseBody = await response.Content.ReadAsStringAsync();
 
-if (!response.IsSuccessStatusCode)
-{
-    // Aquí puedes loguear o mostrar el contenido para diagnóstico
-    throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
-}
+            if (!response.IsSuccessStatusCode)
+            {
+                // Aquí puedes loguear o mostrar el contenido para diagnóstico
+                throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
+            }
 
-       return responseBody;
-   }
+            return responseBody;
+        }
 
         public static (string Token, string Sign) ExtraerTokenSign(string soapResponse)
         {
@@ -1550,31 +1567,21 @@ if (!response.IsSuccessStatusCode)
 
         public static (string token, string sign) GetTA(string service, string pfxPath, string pfxPassword, string wsaaUrl)
         {
+            string taPath = GetTaPath(service);
             // Intenta leer el TA guardado
-            if (File.Exists(TaPath))
+            if (File.Exists(taPath))
             {
                 var taXml = new XmlDocument();
-                taXml.Load(TaPath);
+                taXml.Load(taPath);
                 _token = taXml.SelectSingleNode("//token")?.InnerText;
                 _sign = taXml.SelectSingleNode("//sign")?.InnerText;
                 var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
                 _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
 
-                // LOG para depuración
-                Console.WriteLine($"TA encontrado. Expira: {_expiration}, Token: {_token}, Sign: {_sign}");
-
                 if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
                 {
                     return (_token, _sign);
                 }
-                else
-                {
-                    Console.WriteLine("TA inválido o vencido, se solicitará uno nuevo.");
-                }
-            }
-            else
-            {
-                Console.WriteLine("No existe ta.xml, se solicitará un nuevo TA.");
             }
 
             string traXml = WSAAHelper.CrearTRA(service);
@@ -1589,7 +1596,7 @@ if (!response.IsSuccessStatusCode)
             var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
             if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
             {
-                File.WriteAllText(TaPath, loginCmsReturn.InnerText);
+                File.WriteAllText(taPath, loginCmsReturn.InnerText);
                 var taXml = new XmlDocument();
                 taXml.LoadXml(loginCmsReturn.InnerText);
                 _token = taXml.SelectSingleNode("//token")?.InnerText;
@@ -1604,45 +1611,33 @@ if (!response.IsSuccessStatusCode)
         // Cambia la firma:
         public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
         {
-            if (File.Exists(TaPath))
+            string taPath = GetTaPath(service);
+            if (File.Exists(taPath))
             {
                 try
                 {
                     var taXml = new XmlDocument();
-                    taXml.Load(TaPath);
+                    taXml.Load(taPath);
                     _token = taXml.SelectSingleNode("//token")?.InnerText;
                     _sign = taXml.SelectSingleNode("//sign")?.InnerText;
                     var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
 
-                    // Validar formato de fecha
                     if (!DateTime.TryParse(expirationStr, out _expiration))
                     {
-                        Console.WriteLine($"[WSAA] Formato de fecha inválido en ta.xml: '{expirationStr}'");
-                        File.Delete(TaPath); // Elimina el archivo corrupto
+                        File.Delete(taPath); // Elimina el archivo corrupto
                     }
                     else
                     {
-                        Console.WriteLine($"[WSAA] TA encontrado. Expira: {_expiration}, Token: {_token}, Sign: {_sign}");
-
                         if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
                         {
                             return (_token, _sign);
                         }
-                        else
-                        {
-                            Console.WriteLine("[WSAA] TA inválido o vencido, se solicitará uno nuevo.");
-                        }
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.WriteLine($"[WSAA] Error leyendo ta.xml: {ex.Message}");
-                    File.Delete(TaPath); // Elimina el archivo corrupto
+                    File.Delete(taPath); // Elimina el archivo corrupto
                 }
-            }
-            else
-            {
-                Console.WriteLine("[WSAA] No existe ta.xml, se solicitará un nuevo TA.");
             }
 
             string traXml = WSAAHelper.CrearTRA(service);
@@ -1657,7 +1652,7 @@ if (!response.IsSuccessStatusCode)
             var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
             if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
             {
-                File.WriteAllText(TaPath, loginCmsReturn.InnerText);
+                File.WriteAllText(taPath, loginCmsReturn.InnerText);
                 var taXml = new XmlDocument();
                 taXml.LoadXml(loginCmsReturn.InnerText);
                 _token = taXml.SelectSingleNode("//token")?.InnerText;
@@ -1668,5 +1663,213 @@ if (!response.IsSuccessStatusCode)
 
             return (_token, _sign);
         }
+
+        private static string GetTaPath(string service)
+        {
+            // Limpia el nombre del servicio para evitar caracteres inválidos en el nombre de archivo
+            string safeService = service.Replace("/", "_").Replace("\\", "_");
+            return $"ta_{safeService}.xml";
+        }
+    }
+}
+
+public class WSAAHelper
+{
+    public static string CrearTRA(string service)
+    {
+        var uniqueId = ((int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds).ToString();
+        var generationTime = DateTime.UtcNow.AddMinutes(-10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var expirationTime = DateTime.UtcNow.AddMinutes(+10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+        return $@"<loginTicketRequest version=""1.0"">
+                  <header>
+                    <uniqueId>{uniqueId}</uniqueId>
+                    <generationTime>{generationTime}</generationTime>
+                    <expirationTime>{expirationTime}</expirationTime>
+                  </header>
+                  <service>{service}</service>
+                </loginTicketRequest>";
+    }
+
+    public static byte[] FirmarTRA(string traXml, string pfxPath, string pfxPassword)
+    {
+        var cert = new X509Certificate2(pfxPath, pfxPassword, X509KeyStorageFlags.MachineKeySet);
+        var contentInfo = new ContentInfo(Encoding.UTF8.GetBytes(traXml));
+        var signedCms = new SignedCms(contentInfo);
+        var cmsSigner = new CmsSigner(cert);
+        signedCms.ComputeSignature(cmsSigner);
+        return signedCms.Encode();
+    }
+
+    public static async Task<string> LlamarWSAA(byte[] cms, string wsaaUrl)
+    {
+        string cmsBase64 = Convert.ToBase64String(cms);
+
+        string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+        <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
+          <soap:Header/>
+          <soap:Body>
+            <wsaa:loginCms>
+              <wsaa:in0>{cmsBase64}</wsaa:in0>
+            </wsaa:loginCms>
+          </soap:Body>
+        </soap:Envelope>";
+
+        using var client = new HttpClient();
+        var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
+        content.Headers.Add("SOAPAction", "\"\""); // Add this line
+        var response = await client.PostAsync(wsaaUrl, content);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Aquí puedes loguear o mostrar el contenido para diagnóstico
+            throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
+        }
+
+        return responseBody;
+    }
+
+    public static (string Token, string Sign) ExtraerTokenSign(string soapResponse)
+    {
+        var xml = new XmlDocument();
+        xml.LoadXml(soapResponse);
+
+        var nsmgr = new XmlNamespaceManager(xml.NameTable);
+        nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+        nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+
+        // Verificar si hay un error SOAP
+        var fault = xml.SelectSingleNode("//soap:Fault", nsmgr);
+        if (fault != null)
+            throw new Exception("Respuesta de error de WSAA: " + fault.InnerXml);
+
+        // Buscar el nodo con namespace
+        var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
+        if (loginCmsReturn == null || string.IsNullOrEmpty(loginCmsReturn.InnerText))
+            throw new Exception("La respuesta del servicio WSAA fue nula o vacía, pero no arrojó un FaultException.");
+
+        var taXml = new XmlDocument();
+        taXml.LoadXml(loginCmsReturn.InnerText);
+
+        var token = taXml.SelectSingleNode("//token")?.InnerText;
+        var sign = taXml.SelectSingleNode("//sign")?.InnerText;
+
+        return (token, sign);
+    }
+}
+
+public class AfipAuthenticator
+{
+    private static string _token;
+    private static string _sign;
+    private static DateTime _expiration;
+
+    private static readonly string TaPath = "ta.xml";
+
+    public static (string token, string sign) GetTA(string service, string pfxPath, string pfxPassword, string wsaaUrl)
+    {
+        string taPath = GetTaPath(service);
+        // Intenta leer el TA guardado
+        if (File.Exists(taPath))
+        {
+            var taXml = new XmlDocument();
+            taXml.Load(taPath);
+            _token = taXml.SelectSingleNode("//token")?.InnerText;
+            _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+            var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+            _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
+
+            if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
+            {
+                return (_token, _sign);
+            }
+        }
+
+        string traXml = WSAAHelper.CrearTRA(service);
+        byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
+        string soapResponse = WSAAHelper.LlamarWSAA(cms, wsaaUrl).GetAwaiter().GetResult();
+
+        var xml = new XmlDocument();
+        xml.LoadXml(soapResponse);
+        var nsmgr = new XmlNamespaceManager(xml.NameTable);
+        nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+        nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+        var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
+        if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
+        {
+            File.WriteAllText(taPath, loginCmsReturn.InnerText);
+            var taXml = new XmlDocument();
+            taXml.LoadXml(loginCmsReturn.InnerText);
+            _token = taXml.SelectSingleNode("//token")?.InnerText;
+            _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+            var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+            _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
+        }
+
+        return (_token, _sign);
+    }
+
+    // Cambia la firma:
+    public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
+    {
+        string taPath = GetTaPath(service);
+        if (File.Exists(taPath))
+        {
+            try
+            {
+                var taXml = new XmlDocument();
+                taXml.Load(taPath);
+                _token = taXml.SelectSingleNode("//token")?.InnerText;
+                _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+                var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+
+                if (!DateTime.TryParse(expirationStr, out _expiration))
+                {
+                    File.Delete(taPath); // Elimina el archivo corrupto
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
+                    {
+                        return (_token, _sign);
+                    }
+                }
+            }
+            catch
+            {
+                File.Delete(taPath); // Elimina el archivo corrupto
+            }
+        }
+
+        string traXml = WSAAHelper.CrearTRA(service);
+        byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
+        string soapResponse = await WSAAHelper.LlamarWSAA(cms, wsaaUrl);
+
+        var xml = new XmlDocument();
+        xml.LoadXml(soapResponse);
+        var nsmgr = new XmlNamespaceManager(xml.NameTable);
+        nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+        nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+        var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
+        if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
+        {
+            File.WriteAllText(taPath, loginCmsReturn.InnerText);
+            var taXml = new XmlDocument();
+            taXml.LoadXml(loginCmsReturn.InnerText);
+            _token = taXml.SelectSingleNode("//token")?.InnerText;
+            _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+            var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+            _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
+        }
+
+        return (_token, _sign);
+    }
+
+    private static string GetTaPath(string service)
+    {
+        // Limpia el nombre del servicio para evitar caracteres inválidos en el nombre de archivo
+        string safeService = service.Replace("/", "_").Replace("\\", "_");
+        return $"ta_{safeService}.xml";
     }
 }
