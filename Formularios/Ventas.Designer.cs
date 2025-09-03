@@ -143,7 +143,7 @@
             // chkEsCtaCte
             // 
             chkEsCtaCte.AutoSize = true;
-            chkEsCtaCte.Location = new Point(369, 136);
+            chkEsCtaCte.Location = new Point(369, 135);
             chkEsCtaCte.Name = "chkEsCtaCte";
             chkEsCtaCte.Size = new Size(68, 19);
             chkEsCtaCte.TabIndex = 12;

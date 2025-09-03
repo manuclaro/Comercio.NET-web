@@ -244,14 +244,58 @@ namespace Comercio.NET
 
         private void txtBuscarProducto_TextChanged(object sender, EventArgs e)
         {
-            string codigoBuscado = txtBuscarProducto.Text.Trim();
+            string textoIngresado = txtBuscarProducto.Text.Trim();
+            string codigoBuscado = textoIngresado;
+            decimal? precioPersonalizado = null;
 
-            if (string.IsNullOrEmpty(codigoBuscado))
+            if (string.IsNullOrEmpty(textoIngresado))
             {
                 lbDescripcionProducto.Text = "";
                 txtPrecio.Text = "";
                 txtPrecio.Enabled = false;
                 return;
+            }
+
+            // Procesar código especial que empieza con "50"
+            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+            {
+                try
+                {
+                    // Extraer componentes del código
+                    string codigoProducto = textoIngresado.Substring(2, 5);     // Posiciones 2-6 (5 dígitos)
+                    string parteEntera = textoIngresado.Substring(7, 5);        // Posiciones 7-11 (5 dígitos)
+                    // Posición 12 se descarta
+
+                    // NUEVO: Eliminar ceros a la izquierda del código del producto
+                    codigoProducto = codigoProducto.TrimStart('0');
+                    // Si queda vacío después de eliminar ceros, usar "0"
+                    if (string.IsNullOrEmpty(codigoProducto))
+                        codigoProducto = "0";
+
+                    // Construir el precio correctamente (solo números enteros)
+                    int parteEnteraNumero = int.Parse(parteEntera);
+                    
+                    // Precio como número entero (sin decimales)
+                    precioPersonalizado = parteEnteraNumero;
+                    codigoBuscado = codigoProducto;
+
+                    // Debug: mostrar el desglose
+                    lbDescripcionProducto.Text = $"Código especial - Producto: {codigoBuscado}, Precio: {precioPersonalizado:F0}";
+                }
+                catch (Exception ex)
+                {
+                    lbDescripcionProducto.Text = $"Error procesando código especial: {ex.Message}";
+                    txtPrecio.Text = "";
+                    txtPrecio.Enabled = false;
+                    return;
+                }
+            }
+            else
+            {
+                // NUEVO: Para códigos normales también eliminar ceros a la izquierda
+                codigoBuscado = codigoBuscado.TrimStart('0');
+                if (string.IsNullOrEmpty(codigoBuscado))
+                    codigoBuscado = "0";
             }
 
             var config = new ConfigurationBuilder()
@@ -272,14 +316,27 @@ namespace Comercio.NET
                         if (reader.Read())
                         {
                             lbDescripcionProducto.Text = reader["descripcion"].ToString();
-                            txtPrecio.Text = Convert.ToDecimal(reader["precio"]).ToString("N2");
-                            // Habilita o deshabilita txtPrecio según EditarPrecio
-                            bool editarPrecio = reader["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(reader["EditarPrecio"]);
-                            txtPrecio.Enabled = editarPrecio;
+                            
+                            // Si es código especial, usar el precio personalizado
+                            if (precioPersonalizado.HasValue)
+                            {
+                                txtPrecio.Text = precioPersonalizado.Value.ToString("F0"); // Sin decimales
+                                bool editarPrecio = reader["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(reader["EditarPrecio"]);
+                                txtPrecio.Enabled = editarPrecio;
+                                lbDescripcionProducto.Text += " (Precio Balanza)";
+                            }
+                            else
+                            {
+                                txtPrecio.Text = Convert.ToDecimal(reader["precio"]).ToString("N2");
+                                // Habilita o deshabilita txtPrecio según EditarPrecio
+                                bool editarPrecio = reader["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(reader["EditarPrecio"]);
+                                txtPrecio.Enabled = editarPrecio;
+                            }
                         }
                         else
                         {
-                            lbDescripcionProducto.Text = "Producto no encontrado";
+                            // Mostrar qué código se buscó para debug
+                            lbDescripcionProducto.Text = $"Producto no encontrado (buscado: '{codigoBuscado}')";
                             txtPrecio.Text = "";
                             txtPrecio.Enabled = false;
                         }
@@ -290,12 +347,45 @@ namespace Comercio.NET
 
         private void btnAgregar_Click(object sender, EventArgs e)
         {
-            string codigoBuscado = txtBuscarProducto.Text.Trim();
-            if (string.IsNullOrEmpty(codigoBuscado))
+            string textoIngresado = txtBuscarProducto.Text.Trim();
+            string codigoBuscado = textoIngresado;
+            bool esCodigoEspecial = false;
+
+            if (string.IsNullOrEmpty(textoIngresado))
             {
                 MessageBox.Show("Ingrese un código de producto válido.");
                 txtBuscarProducto.Focus();
                 return;
+            }
+
+            // NUEVO: Procesar código especial también en btnAgregar_Click
+            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+            {
+                try
+                {
+                    string codigoProducto = textoIngresado.Substring(2, 5); // 5 dígitos (posiciones 2-6)
+                    
+                    // NUEVO: Eliminar ceros a la izquierda del código del producto
+                    codigoProducto = codigoProducto.TrimStart('0');
+                    if (string.IsNullOrEmpty(codigoProducto))
+                        codigoProducto = "0";
+                        
+                    codigoBuscado = codigoProducto;
+                    esCodigoEspecial = true;
+                }
+                catch
+                {
+                    MessageBox.Show("Error procesando código especial.");
+                    txtBuscarProducto.Focus();
+                    return;
+                }
+            }
+            else
+            {
+                // NUEVO: Para códigos normales también eliminar ceros a la izquierda
+                codigoBuscado = codigoBuscado.TrimStart('0');
+                if (string.IsNullOrEmpty(codigoBuscado))
+                    codigoBuscado = "0";
             }
 
             var config = new ConfigurationBuilder()
@@ -343,12 +433,12 @@ namespace Comercio.NET
                               FROM Productos WHERE codigo = @codigo";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
-                    adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
+                    adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado); // Usar codigoBuscado procesado
                     DataTable dt = new DataTable();
                     adapter.Fill(dt);
                     if (dt.Rows.Count == 0)
                     {
-                        MessageBox.Show("Producto no encontrado.");
+                        MessageBox.Show($"Producto no encontrado (código: {codigoBuscado}).");
                         txtBuscarProducto.Focus();
                         return;
                     }
@@ -357,18 +447,51 @@ namespace Comercio.NET
                 }
             }
 
-            // 3. Verificar si el producto ya está en la venta actual
-            bool productoYaAgregado = false;
-            int cantidadActual = 0;
+            // 3. Determinar el precio a usar
             decimal precioUnitario;
-            if (txtPrecio.Enabled && decimal.TryParse(txtPrecio.Text, out decimal precioEditado))
+            if (esCodigoEspecial)
             {
-                precioUnitario = precioEditado;
+                // Para códigos especiales, SIEMPRE usar el precio del txtPrecio
+                if (decimal.TryParse(txtPrecio.Text, out decimal precioEspecial))
+                {
+                    precioUnitario = precioEspecial;
+                    
+                    // ACTUALIZAR el precio en la tabla Productos
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                            cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
+                            connection.Open();
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Error: Precio inválido en código especial.");
+                    txtBuscarProducto.Focus();
+                    return;
+                }
             }
             else
             {
-                precioUnitario = Convert.ToDecimal(producto["precio"]);
+                // Para códigos normales, usar la lógica anterior
+                if (txtPrecio.Enabled && decimal.TryParse(txtPrecio.Text, out decimal precioEditado))
+                {
+                    precioUnitario = precioEditado;
+                }
+                else
+                {
+                    precioUnitario = Convert.ToDecimal(producto["precio"]);
+                }
             }
+
+            // 4. Verificar si el producto ya está en la venta actual
+            bool productoYaAgregado = false;
+            int cantidadActual = 0;
             using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
@@ -417,7 +540,7 @@ namespace Comercio.NET
                     {
                         cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
                         cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
-                        cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                        cmd.Parameters.AddWithValue("@precio", precioUnitario); // Usar el precio correcto
                         cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
                         cmd.Parameters.AddWithValue("@marca", producto["marca"]);
                         cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
@@ -439,7 +562,7 @@ namespace Comercio.NET
             // 5. Mostrar todas las ventas del remito actual
             CargarVentasActuales();
 
-            // Formatear columnas y encabezados (igual que antes)
+            // Formatear columnas y encabezados (resto del código igual)
             if (dataGridView1.Columns["precio"] != null)
             {
                 dataGridView1.Columns["precio"].DefaultCellStyle.Format = "C2";
