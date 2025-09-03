@@ -6,11 +6,12 @@ namespace Comercio.NET
 {
     public partial class ModalCantidadForm : Form
     {
+        public int CantidadSeleccionada { get; private set; } = 1;
+        
         private TextBox txtCantidad;
         private Button btnAceptar;
         private Button btnCancelar;
-
-        public int CantidadSeleccionada { get; private set; } = 1;
+        private Label lblCantidad;
 
         public ModalCantidadForm()
         {
@@ -19,115 +20,88 @@ namespace Comercio.NET
 
         private void InitializeComponent()
         {
-            this.Text = "Cantidad del producto";
+            this.txtCantidad = new TextBox();
+            this.btnAceptar = new Button();
+            this.btnCancelar = new Button();
+            this.lblCantidad = new Label();
+            this.SuspendLayout();
+
+            // lblCantidad
+            this.lblCantidad.AutoSize = true;
+            this.lblCantidad.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            this.lblCantidad.Location = new Point(12, 15);
+            this.lblCantidad.Name = "lblCantidad";
+            this.lblCantidad.Size = new Size(87, 21);
+            this.lblCantidad.Text = "Cantidad:";
+
+            // txtCantidad
+            this.txtCantidad.Font = new Font("Segoe UI", 14F);
+            this.txtCantidad.Location = new Point(105, 12);
+            this.txtCantidad.Name = "txtCantidad";
+            this.txtCantidad.Size = new Size(100, 32);
+            this.txtCantidad.Text = "1";
+            this.txtCantidad.TextAlign = HorizontalAlignment.Center;
+
+            // btnAceptar
+            this.btnAceptar.BackColor = Color.FromArgb(0, 120, 215);
+            this.btnAceptar.FlatStyle = FlatStyle.Flat;
+            this.btnAceptar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            this.btnAceptar.ForeColor = Color.White;
+            this.btnAceptar.Location = new Point(12, 60);
+            this.btnAceptar.Name = "btnAceptar";
+            this.btnAceptar.Size = new Size(90, 35);
+            this.btnAceptar.Text = "Aceptar";
+            this.btnAceptar.UseVisualStyleBackColor = false;
+            this.btnAceptar.Click += btnAceptar_Click;
+
+            // btnCancelar
+            this.btnCancelar.BackColor = Color.FromArgb(220, 53, 69);
+            this.btnCancelar.FlatStyle = FlatStyle.Flat;
+            this.btnCancelar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            this.btnCancelar.ForeColor = Color.White;
+            this.btnCancelar.Location = new Point(115, 60);
+            this.btnCancelar.Name = "btnCancelar";
+            this.btnCancelar.Size = new Size(90, 35);
+            this.btnCancelar.Text = "Cancelar";
+            this.btnCancelar.UseVisualStyleBackColor = false;
+            this.btnCancelar.Click += btnCancelar_Click;
+
+            // ModalCantidadForm
+            this.AutoScaleDimensions = new SizeF(7F, 15F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.ClientSize = new Size(220, 110);
+            this.Controls.Add(this.btnCancelar);
+            this.Controls.Add(this.btnAceptar);
+            this.Controls.Add(this.txtCantidad);
+            this.Controls.Add(this.lblCantidad);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.StartPosition = FormStartPosition.CenterParent;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.Width = 300;
-            this.Height = 150; 
+            this.Name = "ModalCantidadForm";
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.Text = "Ingrese Cantidad";
+            this.ResumeLayout(false);
+            this.PerformLayout();
+        }
 
-            var lblCantidad = new Label
+        private void btnAceptar_Click(object sender, EventArgs e)
+        {
+            if (int.TryParse(txtCantidad.Text, out int cantidad) && cantidad > 0)
             {
-                Text = "Ingrese la cantidad:",
-                Left = 20,
-                Top = 20,
-                Width = 150,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-            };
-
-            txtCantidad = new TextBox
+                CantidadSeleccionada = cantidad;
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
+            else
             {
-                Left = 20,
-                Top = 50,
-                Width = 100,
-                Font = new Font("Segoe UI", 12F),
-                Text = "1",
-                MaxLength = 2,
-                TextAlign = HorizontalAlignment.Center // Centrar el contenido
-            };
+                MessageBox.Show("Ingrese una cantidad válida mayor a 0.");
+            }
+        }
 
-            // Solo permite números enteros
-            txtCantidad.KeyPress += (s, e) =>
-            {
-                if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
-                {
-                    e.Handled = true;
-                }
-            };
-
-            txtCantidad.TextChanged += (s, e) =>
-            {
-                if (string.IsNullOrEmpty(txtCantidad.Text))
-                    txtCantidad.Text = "1";
-                
-                if (int.TryParse(txtCantidad.Text, out int valor))
-                {
-                    if (valor > 99)
-                        txtCantidad.Text = "99";
-                    else if (valor < 1)
-                        txtCantidad.Text = "1";
-                }
-            };
-
-            btnAceptar = new Button
-            {
-                Text = "Aceptar",
-                Left = 175,
-                Top = 15, // Bajado de 45 a 60
-                Width = 80,
-                Height = 30,
-                DialogResult = DialogResult.OK,
-                BackColor = Color.FromArgb(0, 120, 215),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-
-            btnCancelar = new Button
-            {
-                Text = "Cancelar",
-                Left = 175,
-                Top = 55, // Bajado de 80 a 100
-                Width = 80,
-                Height = 30,
-                DialogResult = DialogResult.Cancel,
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-
-            btnAceptar.Click += (s, e) =>
-            {
-                if (int.TryParse(txtCantidad.Text, out int cantidad) && cantidad >= 1 && cantidad <= 99)
-                {
-                    CantidadSeleccionada = cantidad;
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-                else
-                {
-                    MessageBox.Show("Ingrese una cantidad válida entre 1 y 99.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtCantidad.Focus();
-                }
-            };
-
-            this.Controls.Add(lblCantidad);
-            this.Controls.Add(txtCantidad);
-            this.Controls.Add(btnAceptar);
-            this.Controls.Add(btnCancelar);
-
-            // Seleccionar todo el texto al mostrar el modal
-            this.Shown += (s, e) => txtCantidad.SelectAll();
-            
-            // Enter en el textbox = clic en Aceptar
-            txtCantidad.KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.Enter)
-                {
-                    e.SuppressKeyPress = true;
-                    btnAceptar.PerformClick();
-                }
-            };
+        private void btnCancelar_Click(object sender, EventArgs e)
+        {
+            this.DialogResult = DialogResult.Cancel;
+            this.Close();
         }
     }
 }

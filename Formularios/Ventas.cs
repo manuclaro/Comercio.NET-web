@@ -23,6 +23,13 @@ namespace Comercio.NET
 {
     public partial class Ventas : Form
     {
+        private const string PREFIJO_CODIGO_ESPECIAL = "50";
+        private const int LONGITUD_CODIGO_ESPECIAL = 13;
+        private const int POSICION_CODIGO_PRODUCTO = 2;
+        private const int LONGITUD_CODIGO_PRODUCTO = 5;
+        private const int POSICION_PRECIO = 7;
+        private const int LONGITUD_PRECIO = 5;
+
         private int nroRemitoActual = 0;
         private bool remitoIncrementado = false;
         private DataTable remitoActual = null;
@@ -39,16 +46,39 @@ namespace Comercio.NET
         public Ventas()
         {
             InitializeComponent();
+            ConfigurarEstilosFormulario();
+            ConfigurarEventHandlers();
+            CargarConfiguracion();
+            ConfigurarCheckboxCantidad();
+            ConfigurarAtajosTeclado();
+
+            // Agregar evento de redimensionamiento
+            this.Resize += Ventas_Resize;
+        }
+
+        private void Ventas_Resize(object sender, EventArgs e)
+        {
+            // Ajustar el DataGridView cuando se redimensiona el formulario
+            if (dataGridView1 != null)
+            {
+                dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 60);
+            }
+        }
+
+        private void ConfigurarEventHandlers()
+        {
             txtBuscarProducto.TextChanged += txtBuscarProducto_TextChanged;
             btnAgregar.Click += btnAgregar_Click;
             this.Load += Ventas_Load;
             btnFinalizarVenta.Click += btnFinalizarVenta_Click;
             cbnombreCtaCte.SelectedIndexChanged += cbnombreCtaCte_SelectedIndexChanged;
 
-            // Selecciona todo el texto al recibir foco
-            txtBuscarProducto.Enter += (s, e) => txtBuscarProducto.SelectAll();
+            ConfigurarEventosTextBox();
+        }
 
-            // Tabula con Enter
+        private void ConfigurarEventosTextBox()
+        {
+            txtBuscarProducto.Enter += (s, e) => txtBuscarProducto.SelectAll();
             txtBuscarProducto.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Enter)
@@ -58,8 +88,25 @@ namespace Comercio.NET
                 }
             };
 
-            printDocumentRemito.PrintPage += printDocumentRemito_PrintPage;
+            ConfigurarEventosPrecio();
+        }
 
+        private void ConfigurarAtajosTeclado()
+        {
+            this.KeyPreview = true; // Importante: permite que el formulario capture las teclas
+            this.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.F9)
+                {
+                    e.SuppressKeyPress = true;
+                    // Alternar el estado del checkbox
+                    chkCantidad.Checked = !chkCantidad.Checked;
+                }
+            };
+        }
+
+        private void CargarConfiguracion()
+        {
             // Leer desde appsettings.json
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -67,34 +114,48 @@ namespace Comercio.NET
                 .Build();
             nombreComercio = config["Comercio:Nombre"] ?? "Comercio";
             domicilioComercio = config["Comercio:Domicilio"] ?? "domicilio";
+        }
 
+        private void ConfigurarCheckboxCantidad()
+        {
+            // CheckBox para cantidad personalizada
+            chkCantidad = new CheckBox
+            {
+                Text = "Cantidad",
+                Left = 500, // Más a la derecha, separado del chkEsCtaCte
+                Top = 136,  // Misma altura que chkEsCtaCte
+                Width = 180,
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.Black
+            };
+            chkCantidad.CheckedChanged += chkCantidad_CheckedChanged;
+            this.Controls.Add(chkCantidad);
+        }
+
+        private void ConfigurarEstilosFormulario()
+        {
             this.Font = new Font("Segoe UI", 10F);
             this.BackColor = Color.WhiteSmoke;
-            btnAgregar.FlatStyle = FlatStyle.Flat;
-            btnAgregar.BackColor = Color.FromArgb(0, 120, 215); // Azul moderno
-            btnAgregar.ForeColor = Color.White;
-            btnAgregar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            //btnAgregar.Image = Properties.Resources.add_32; // Si tienes un recurso de imagen
-            btnAgregar.ImageAlign = ContentAlignment.MiddleLeft;
-            btnAgregar.TextAlign = ContentAlignment.MiddleRight;
 
-            btnFinalizarVenta.FlatStyle = FlatStyle.Flat;
-            btnFinalizarVenta.BackColor = Color.FromArgb(0, 150, 136); // Verde azulado moderno
-            btnFinalizarVenta.ForeColor = Color.White;
-            btnFinalizarVenta.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnAgregar.ImageAlign = ContentAlignment.MiddleLeft;
-            btnAgregar.TextAlign = ContentAlignment.MiddleRight;
+            ConfigurarBoton(btnAgregar, Color.FromArgb(0, 120, 215));
+            ConfigurarBoton(btnFinalizarVenta, Color.FromArgb(0, 150, 136));
+            ConfigurarBoton(btnSalir, Color.FromArgb(220, 53, 69));
 
-            btnSalir.FlatStyle = FlatStyle.Flat;
-            btnSalir.BackColor = Color.FromArgb(220, 53, 69); // Rojo para acciones destructivas o de advertencia
-            btnSalir.ForeColor = Color.White;
-            btnSalir.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnSalir.Padding = new Padding(0, 0, 20, 0); // 20px de margen derecho
+            ConfigurarPaneles();
+            ConfigurarDataGridView();
+            ConfigurarTextBoxes();
+        }
 
-            txtBuscarProducto.BorderStyle = BorderStyle.FixedSingle;
-            cbnombreCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbnombreCtaCte.FlatStyle = FlatStyle.Flat;
+        private void ConfigurarBoton(Button btn, Color backColor)
+        {
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.BackColor = backColor;
+            btn.ForeColor = Color.White;
+            btn.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        }
 
+        private void ConfigurarPaneles()
+        {
             // Panel superior
             panelHeader.Dock = DockStyle.Top;
             panelHeader.Height = 70;
@@ -110,131 +171,29 @@ namespace Comercio.NET
             };
             panelHeader.Controls.Add(lblTitulo);
 
-            // Panel inferior para el total y cantidad de productos
-            panelFooter = new Panel();
-            panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 36;
-            panelFooter.BackColor = Color.FromArgb(0, 120, 215);
+            // Panel inferior
+            ConfigurarPanelFooter();
+        }
 
-            // Label de cantidad de productos (izquierda)
-            lbCantidadProductos.AutoSize = false;
-            lbCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
-            lbCantidadProductos.Dock = DockStyle.Left;
-            lbCantidadProductos.Width = 200;
-            lbCantidadProductos.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
-            lbCantidadProductos.ForeColor = Color.White;
-            lbCantidadProductos.Text = "Productos: 0";
+        private void ConfigurarDataGridView()
+        {
+            dataGridView1.AllowUserToAddRows = false;
+            dataGridView1.AllowUserToDeleteRows = false;
+            dataGridView1.ReadOnly = true;
+            dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGridView1.MultiSelect = false;
+            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridView1.EnableHeadersVisualStyles = false;
+            dataGridView1.BorderStyle = BorderStyle.None;
+            dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
-            // Label de total (derecha)
-            lbTotal.AutoSize = false;
-            lbTotal.TextAlign = ContentAlignment.MiddleRight;
-            lbTotal.Dock = DockStyle.Right;
-            lbTotal.Width = 600; // Aumenta el ancho, por ejemplo 300
-            lbTotal.Font = new Font("Segoe UI", 32F, FontStyle.Bold);
-            lbTotal.ForeColor = Color.White;
-            lbTotal.Text = "Total: $0,00";
-            lbTotal.Padding = new Padding(0, 0, 20, 0); // 20px de margen derecho
+            // Estilos
+            var headerStyle = dataGridView1.ColumnHeadersDefaultCellStyle;
+            headerStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            headerStyle.BackColor = Color.FromArgb(248, 249, 250);
+            headerStyle.ForeColor = Color.Black;
 
-            txtPrecio.KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.Enter)
-                {
-                    e.SuppressKeyPress = true;
-                    this.SelectNextControl(txtPrecio, true, true, true, true);
-                }
-            };
-            txtPrecio.Enter += (s, e) => txtPrecio.SelectAll();
-
-            txtPrecio.KeyPress += (s, e) =>
-{
-    // Si se presiona el punto, lo convertimos en coma
-    if (e.KeyChar == '.')
-    {
-        e.KeyChar = ',';
-    }
-
-    // Permitir teclas de control (backspace, delete, etc.)
-    if (char.IsControl(e.KeyChar))
-        return;
-
-    // Permitir solo dígitos y una coma
-    if (!char.IsDigit(e.KeyChar) && e.KeyChar != ',')
-    {
-        e.Handled = true;
-        return;
-    }
-
-    var txt = ((TextBox)s).Text;
-    int selStart = ((TextBox)s).SelectionStart;
-    int selLength = ((TextBox)s).SelectionLength;
-
-    // Simular el texto resultante si se acepta la tecla
-    string newText = txt.Substring(0, selStart) + e.KeyChar + txt.Substring(selStart + selLength);
-
-    // Solo una coma
-    if (e.KeyChar == ',' && txt.Contains(","))
-    {
-        e.Handled = true;
-        return;
-    }
-
-    // Validar formato: máximo 6 dígitos antes de la coma y 2 después
-    string[] partes = newText.Split(',');
-    if (partes[0].Length > 6)
-    {
-        e.Handled = true;
-        return;
-    }
-    if (partes.Length > 1 && partes[1].Length > 2)
-    {
-        e.Handled = true;
-        return;
-    }
-};
-            txtPrecio.Leave += (s, e) =>
-            {
-                if (!string.IsNullOrEmpty(txtPrecio.Text))
-                {
-                    if (!decimal.TryParse(txtPrecio.Text, out decimal valor))
-                    {
-                        MessageBox.Show("Ingrese un precio válido (solo números y hasta 2 decimales).");
-                        txtPrecio.Focus();
-                    }
-                    else
-                    {
-                        txtPrecio.Text = valor.ToString("N2");
-                    }
-                }
-            };
-            txtPrecio.TextChanged += (s, e) =>
-            {
-                // Solo actualizar si el control está habilitado (es editable)
-                if (!txtPrecio.Enabled) return;
-
-                string codigoBuscado = txtBuscarProducto.Text.Trim();
-                if (string.IsNullOrEmpty(codigoBuscado)) return;
-
-                if (decimal.TryParse(txtPrecio.Text, out decimal nuevoPrecio))
-                {
-                    var config = new ConfigurationBuilder()
-                        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                        .AddJsonFile("appsettings.json")
-                        .Build();
-                    string connectionString = config.GetConnectionString("DefaultConnection");
-
-                    using (var connection = new SqlConnection(connectionString))
-                    {
-                        var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
-                        using (var cmd = new SqlCommand(query, connection))
-                        {
-                            cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
-                            cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
-                            connection.Open();
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                }
-            };
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255);
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -242,107 +201,59 @@ namespace Comercio.NET
             this.Close();
         }
 
-        private void txtBuscarProducto_TextChanged(object sender, EventArgs e)
+        private async void txtBuscarProducto_TextChanged(object sender, EventArgs e)
         {
             string textoIngresado = txtBuscarProducto.Text.Trim();
-            string codigoBuscado = textoIngresado;
-            decimal? precioPersonalizado = null;
 
             if (string.IsNullOrEmpty(textoIngresado))
             {
-                lbDescripcionProducto.Text = "";
-                txtPrecio.Text = "";
-                txtPrecio.Enabled = false;
+                LimpiarCamposProducto();
                 return;
             }
 
-            // Procesar código especial que empieza con "50"
-            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+            try
             {
-                try
-                {
-                    // Extraer componentes del código
-                    string codigoProducto = textoIngresado.Substring(2, 5);     // Posiciones 2-6 (5 dígitos)
-                    string parteEntera = textoIngresado.Substring(7, 5);        // Posiciones 7-11 (5 dígitos)
-                    // Posición 12 se descarta
+                var (codigoBuscado, precioPersonalizado, esEspecial) = ProcesarCodigo(textoIngresado);
+                await MostrarProductoAsync(codigoBuscado, precioPersonalizado, esEspecial);
+            }
+            catch (Exception ex)
+            {
+                lbDescripcionProducto.Text = ex.Message;
+                LimpiarCamposProducto();
+            }
+        }
 
-                    // NUEVO: Eliminar ceros a la izquierda del código del producto
-                    codigoProducto = codigoProducto.TrimStart('0');
-                    // Si queda vacío después de eliminar ceros, usar "0"
-                    if (string.IsNullOrEmpty(codigoProducto))
-                        codigoProducto = "0";
+        private async Task MostrarProductoAsync(string codigo, decimal? precioPersonalizado, bool esEspecial)
+        {
+            var producto = await BuscarProductoAsync(codigo);
 
-                    // Construir el precio correctamente (solo números enteros)
-                    int parteEnteraNumero = int.Parse(parteEntera);
-                    
-                    // Precio como número entero (sin decimales)
-                    precioPersonalizado = parteEnteraNumero;
-                    codigoBuscado = codigoProducto;
+            if (producto == null)
+            {
+                lbDescripcionProducto.Text = $"Producto no encontrado (buscado: '{codigo}')";
+                LimpiarCamposProducto();
+                return;
+            }
 
-                    // Debug: mostrar el desglose
-                    lbDescripcionProducto.Text = $"Código especial - Producto: {codigoBuscado}, Precio: {precioPersonalizado:F0}";
-                }
-                catch (Exception ex)
-                {
-                    lbDescripcionProducto.Text = $"Error procesando código especial: {ex.Message}";
-                    txtPrecio.Text = "";
-                    txtPrecio.Enabled = false;
-                    return;
-                }
+            lbDescripcionProducto.Text = producto["descripcion"].ToString();
+            bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
+
+            if (precioPersonalizado.HasValue)
+            {
+                txtPrecio.Text = precioPersonalizado.Value.ToString("F0");
+                lbDescripcionProducto.Text += " (Precio Balanza)";
             }
             else
             {
-                // NUEVO: Para códigos normales también eliminar ceros a la izquierda
-                codigoBuscado = codigoBuscado.TrimStart('0');
-                if (string.IsNullOrEmpty(codigoBuscado))
-                    codigoBuscado = "0";
+                txtPrecio.Text = Convert.ToDecimal(producto["precio"]).ToString("N2");
             }
 
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
-            string connectionString = config.GetConnectionString("DefaultConnection");
+            txtPrecio.Enabled = editarPrecio;
+        }
 
-            using (var connection = new SqlConnection(connectionString))
-            {
-                var query = "SELECT descripcion, precio, EditarPrecio FROM Productos WHERE codigo = @codigo";
-                using (var cmd = new SqlCommand(query, connection))
-                {
-                    cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
-                    connection.Open();
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            lbDescripcionProducto.Text = reader["descripcion"].ToString();
-                            
-                            // Si es código especial, usar el precio personalizado
-                            if (precioPersonalizado.HasValue)
-                            {
-                                txtPrecio.Text = precioPersonalizado.Value.ToString("F0"); // Sin decimales
-                                bool editarPrecio = reader["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(reader["EditarPrecio"]);
-                                txtPrecio.Enabled = editarPrecio;
-                                lbDescripcionProducto.Text += " (Precio Balanza)";
-                            }
-                            else
-                            {
-                                txtPrecio.Text = Convert.ToDecimal(reader["precio"]).ToString("N2");
-                                // Habilita o deshabilita txtPrecio según EditarPrecio
-                                bool editarPrecio = reader["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(reader["EditarPrecio"]);
-                                txtPrecio.Enabled = editarPrecio;
-                            }
-                        }
-                        else
-                        {
-                            // Mostrar qué código se buscó para debug
-                            lbDescripcionProducto.Text = $"Producto no encontrado (buscado: '{codigoBuscado}')";
-                            txtPrecio.Text = "";
-                            txtPrecio.Enabled = false;
-                        }
-                    }
-                }
-            }
+        private void LimpiarCamposProducto()
+        {
+            txtPrecio.Text = "";
+            txtPrecio.Enabled = false;
         }
 
         private void btnAgregar_Click(object sender, EventArgs e)
@@ -364,12 +275,12 @@ namespace Comercio.NET
                 try
                 {
                     string codigoProducto = textoIngresado.Substring(2, 5); // 5 dígitos (posiciones 2-6)
-                    
+
                     // NUEVO: Eliminar ceros a la izquierda del código del producto
                     codigoProducto = codigoProducto.TrimStart('0');
                     if (string.IsNullOrEmpty(codigoProducto))
                         codigoProducto = "0";
-                        
+
                     codigoBuscado = codigoProducto;
                     esCodigoEspecial = true;
                 }
@@ -455,7 +366,7 @@ namespace Comercio.NET
                 if (decimal.TryParse(txtPrecio.Text, out decimal precioEspecial))
                 {
                     precioUnitario = precioEspecial;
-                    
+
                     // ACTUALIZAR el precio en la tabla Productos
                     using (var connection = new SqlConnection(connectionString))
                     {
@@ -563,27 +474,7 @@ namespace Comercio.NET
             CargarVentasActuales();
 
             // Formatear columnas y encabezados (resto del código igual)
-            if (dataGridView1.Columns["precio"] != null)
-            {
-                dataGridView1.Columns["precio"].DefaultCellStyle.Format = "C2";
-                dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-            }
-            if (dataGridView1.Columns["total"] != null)
-            {
-                dataGridView1.Columns["total"].DefaultCellStyle.Format = "C2";
-                dataGridView1.Columns["total"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-            }
-            if (dataGridView1.Columns["cantidad"] != null)
-            {
-                dataGridView1.Columns["cantidad"].HeaderText = "CANT.";
-                dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                dataGridView1.Columns["cantidad"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            }
-            foreach (DataGridViewColumn col in dataGridView1.Columns)
-            {
-                col.HeaderText = col.HeaderText.ToUpper();
-                col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            }
+            FormatearDataGridView();
 
             // Dejar el foco en el campo buscar para el próximo producto
             txtBuscarProducto.Text = "";
@@ -619,17 +510,15 @@ namespace Comercio.NET
                 }
             }
 
-
-
             // Deja la grilla vacía al abrir el formulario
             dataGridView1.DataSource = null;
-            dataGridView1.Rows.Clear(); // Opcional, asegura que no queden filas
+            dataGridView1.Rows.Clear();
 
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
             dataGridView1.ClearSelection();
             dataGridView1.CurrentCell = null;
-            dataGridView1.Enabled = true; // Permite scroll y visualización, pero no selección
+            dataGridView1.Enabled = true;
 
             // Evento para evitar cualquier selección por el usuario
             dataGridView1.SelectionChanged += (s, e) =>
@@ -642,55 +531,101 @@ namespace Comercio.NET
             lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
 
-            // Configuración general
+            // Configuración general del DataGridView
             dataGridView1.AllowUserToAddRows = false;
             dataGridView1.AllowUserToDeleteRows = false;
             dataGridView1.ReadOnly = true;
             dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGridView1.MultiSelect = false;
-            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // <-- Esto hace que las columnas ocupen todo el ancho
+            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             // Personalizar estilo de DataGridView
             dataGridView1.EnableHeadersVisualStyles = false;
             dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250); // Blanco suave
-            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black; // Blanco para el texto
+            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
+            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.Black;
-            //dataGridView1.DefaultCellStyle.BackColor = Color.White;
             dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
             //Color suave para filas alternas
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255); // AliceBlue
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255);
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
 
+            // ELIMINAR ESTA SECCIÓN COMPLETA - YA SE CREA EN ConfigurarCheckboxCantidad():
+            /*
             // CheckBox para cantidad personalizada
             chkCantidad = new CheckBox
             {
                 Text = "Cantidad",
-                Left = 500, // Más a la derecha, separado del chkEsCtaCte
-                Top = 136,  // Misma altura que chkEsCtaCte
+                Left = 500,
+                Top = 136,
                 Width = 180,
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.Black
             };
             chkCantidad.CheckedChanged += chkCantidad_CheckedChanged;
             this.Controls.Add(chkCantidad);
+            */
 
+            // ELIMINAR ESTA SECCIÓN TAMBIÉN - YA SE CONFIGURA EN ConfigurarAtajosTeclado():
+            /*
             // Configurar el atajo F9 para el checkbox de cantidad
-            this.KeyPreview = true; // Importante: permite que el formulario capture las teclas
+            this.KeyPreview = true;
             this.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.F9)
                 {
                     e.SuppressKeyPress = true;
-                    // Alternar el estado del checkbox
                     chkCantidad.Checked = !chkCantidad.Checked;
                 }
             };
+            */
+        }
+
+        private void ConfigurarPanelFooter()
+        {
+            // Crear el panel footer programáticamente
+            Panel panelFooter = new Panel();
+            panelFooter.Dock = DockStyle.Bottom;
+            panelFooter.Height = 60; // Aumentar altura para mejor visibilidad
+            panelFooter.BackColor = Color.FromArgb(0, 120, 215);
+
+            // Configurar lbCantidadProductos
+            lbCantidadProductos.AutoSize = false;
+            lbCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
+            lbCantidadProductos.Dock = DockStyle.Left;
+            lbCantidadProductos.Width = 250;
+            lbCantidadProductos.Font = new Font("Segoe UI", 14F, FontStyle.Bold); // Reducir tamaño de fuente
+            lbCantidadProductos.ForeColor = Color.White;
+            lbCantidadProductos.Text = "Productos: 0";
+
+            // Configurar lbTotal
+            lbTotal.AutoSize = false;
+            lbTotal.TextAlign = ContentAlignment.MiddleRight;
+            lbTotal.Dock = DockStyle.Right;
+            lbTotal.Width = 400; // Reducir ancho
+            lbTotal.Font = new Font("Segoe UI", 24F, FontStyle.Bold); // Reducir tamaño de fuente
+            lbTotal.ForeColor = Color.White;
+            lbTotal.Text = "Total: $0,00";
+            lbTotal.Padding = new Padding(0, 0, 20, 0);
+
+            // Agregar los labels al panel
+            panelFooter.Controls.Add(lbCantidadProductos);
+            panelFooter.Controls.Add(lbTotal);
+
+            // Agregar el panel al formulario
+            this.Controls.Add(panelFooter);
+            panelFooter.BringToFront();
+
+            // IMPORTANTE: Ajustar el DataGridView para que no se superponga
+            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dataGridView1.Dock = DockStyle.None;
+            dataGridView1.Location = new Point(0, 171);
+            dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 60); // Restar altura del footer
         }
 
         private void CargarVentasActuales()
@@ -752,64 +687,59 @@ namespace Comercio.NET
 
             // Mostrar el modal de selección
             using (var seleccion = new SeleccionImpresionForm
-                {
-                    TokenAfip = this.token, // tu variable de token en Ventas
-                    SignAfip = this.sign    // tu variable de sign en Ventas
-                })
+            {
+                TokenAfip = this.token,
+                SignAfip = this.sign
+            })
             {
                 seleccion.ShowDialog(this);
-
 
                 switch (seleccion.OpcionSeleccionada)
                 {
                     case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
                         ImprimirTicket();
-                        // Limpiar y reiniciar la venta igual que en las otras opciones
-                        Ventas_Load(null, null);
-                        dataGridView1.DataSource = null;
-                        dataGridView1.Rows.Clear();
-                        lbCantidadProductos.Text = "Productos: 0";
-                        lbTotal.Text = "Total: $0,00";
-                        chkEsCtaCte.Checked = false;
+                        LimpiarYReiniciarVenta();
                         break;
+
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
                         {
                             bool exito = await CrearFacturaBAsync();
                             if (exito)
                             {
-                                Ventas_Load(null, null);
-                                dataGridView1.DataSource = null;
-                                dataGridView1.Rows.Clear();
-                                lbCantidadProductos.Text = "Productos: 0";
-                                lbTotal.Text = "Total: $0,00";
-                                chkEsCtaCte.Checked = false;
+                                LimpiarYReiniciarVenta();
                             }
                             break;
                         }
+
                     case SeleccionImpresionForm.OpcionImpresion.FacturaA:
                         {
-                            // Puedes pedir el CUIT aquí si lo necesitas
                             string cuit = Microsoft.VisualBasic.Interaction.InputBox("Ingrese el CUIT del receptor:", "CUIT Receptor", "");
                             if (!string.IsNullOrWhiteSpace(cuit))
                             {
                                 bool exito = await CrearFacturaAAsync(cuit);
                                 if (exito)
                                 {
-                                    Ventas_Load(null, null);
-                                    dataGridView1.DataSource = null;
-                                    dataGridView1.Rows.Clear();
-                                    lbCantidadProductos.Text = "Productos: 0";
-                                    lbTotal.Text = "Total: $0,00";
-                                    chkEsCtaCte.Checked = false;
+                                    LimpiarYReiniciarVenta();
                                 }
                             }
                             break;
                         }
+
                     default:
                         // No se seleccionó nada
                         break;
                 }
             }
+        }
+
+        private void LimpiarYReiniciarVenta()
+        {
+            Ventas_Load(null, null);
+            dataGridView1.DataSource = null;
+            dataGridView1.Rows.Clear();
+            lbCantidadProductos.Text = "Productos: 0";
+            lbTotal.Text = "Total: $0,00";
+            chkEsCtaCte.Checked = false;
         }
 
         private void printDocumentRemito_PrintPage(object sender, PrintPageEventArgs e)
@@ -983,45 +913,213 @@ namespace Comercio.NET
             //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
         }
 
-        private void ImprimirA4()
+        private void printDocumentRemito_PrintPageTicket(object sender, PrintPageEventArgs e)
         {
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
-            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageA4;
+            if (remitoActual == null) return;
 
-            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
+            // Márgenes y fuentes para ticket
+            float leftMargin = e.MarginBounds.Left;
+            float topMargin = e.MarginBounds.Top + 1;
+            float rowHeight = 18;
+            Font font = new Font("Arial", 9);
+            Font fontBold = new Font("Arial", 9, FontStyle.Bold);
+            Font fontTitulo = new Font("Arial", 16, FontStyle.Bold);
+            Pen linePen = new Pen(Color.Black, 1);
+
+            // Definir anchos de columnas para ticket
+            float colCantidad = 20;
+            float colDescripcion = 120;
+            float colPrecio = 50;
+            float colTotal = 70;
+
+            float[] colX = {
+                leftMargin,
+                leftMargin + colCantidad,
+                leftMargin + colCantidad + colDescripcion,
+                leftMargin + colCantidad + colDescripcion + colPrecio
+            };
+
+            float tablaRight = colX[3] + colTotal;
+            float y = topMargin;
+
+            // Fecha y hora
+            string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
+            string horaStr = $"Hora: {DateTime.Now:HH:mm}";
+            SizeF fechaSize = e.Graphics.MeasureString(fechaStr, font);
+            SizeF horaSize = e.Graphics.MeasureString(horaStr, font);
+            float fechaX = tablaRight - fechaSize.Width;
+            float horaX = tablaRight - horaSize.Width;
+            e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
+            e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
+
+            y += Math.Max(fechaSize.Height + horaSize.Height, 10) + 6;
+
+            // Título principal
+            SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
+            e.Graphics.DrawString(
+                nombreComercio,
+                fontTitulo,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
+                y
+            );
+
+            // Domicilio
+            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
+            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
+            e.Graphics.DrawString(
+                domicilioComercio,
+                fontDomicilio,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
+                y + nombreComercioSize.Height
+            );
+            y += nombreComercioSize.Height + domicilioSize.Height + 6;
+
+            // Título Remito
+            string titulo = $"REMITO N°: {nroRemitoActual}";
+            SizeF tituloSize = e.Graphics.MeasureString(titulo, fontBold);
+            e.Graphics.DrawString(
+                titulo,
+                fontBold,
+                Brushes.Black,
+                leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
+                y
+            );
+            y += tituloSize.Height + 10;
+
+            // Encabezados
+            string[] headers = { "C", "DESCRIPCIÓN", "PRECIO", "TOTAL" };
+            float[] colWidths = { colCantidad, colDescripcion, colPrecio, colTotal };
+            for (int i = 0; i < headers.Length; i++)
             {
-                previewDialog.Document = printDocumentRemito;
-                previewDialog.WindowState = FormWindowState.Maximized;
-                previewDialog.ShowDialog();
+                float headerX = colX[i];
+                float colWidth = colWidths[i];
+                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
+
+                if (i == 0)
+                {
+                    headerX += (colWidth - headerSize.Width) / 2;
+                }
+                else if (i == 1)
+                {
+                    // "DESCRIPCIÓN" alineado a la izquierda
+                }
+                else
+                {
+                    headerX += colWidth - headerSize.Width;
+                }
+                e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
             }
 
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageA4;
-        }
+            y += rowHeight - 2;
+            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 4;
 
-        private void ImprimirTicket()
-        {
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
-            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageTicket;
-
-            // 8 cm = 80 mm = 315 centésimas de pulgada (1 pulgada = 25,4 mm)
-            int anchoTicket = (int)(75 / 25.4 * 100); // 80mm a centésimas de pulgada
-            int altoTicket = (int)(200 / 25.4 * 100); // 200mm de alto (ajustable)
-
-            PaperSize ticketSize = new PaperSize("Ticket", anchoTicket, altoTicket);
-            printDocumentRemito.DefaultPageSettings.PaperSize = ticketSize;
-
-            // Márgenes mínimos (2 mm)
-            printDocumentRemito.DefaultPageSettings.Margins = new Margins(8, 8, 8, 8); // 8 centésimas de pulgada ≈ 2 mm
-
-            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
+            // Detalle productos
+            int cantidadTotal = 0;
+            foreach (DataRow row in remitoActual.Rows)
             {
-                previewDialog.Document = printDocumentRemito;
-                previewDialog.WindowState = FormWindowState.Maximized;
-                previewDialog.ShowDialog();
+                float filaY = y;
+
+                // Descripción con salto de línea si es necesario
+                string descripcion = row["descripcion"].ToString();
+                float maxDescripcionWidth = colDescripcion - 2;
+                List<string> lineasDescripcion = new List<string>();
+                string resto = descripcion;
+                while (!string.IsNullOrEmpty(resto))
+                {
+                    int len = resto.Length;
+                    string linea = resto;
+                    SizeF descSize = e.Graphics.MeasureString(linea, font);
+                    while (descSize.Width > maxDescripcionWidth && len > 0)
+                    {
+                        len--;
+                        linea = resto.Substring(0, len);
+                        descSize = e.Graphics.MeasureString(linea + "...", font);
+                    }
+                    if (len < resto.Length)
+                    {
+                        linea = resto.Substring(0, len) + "...";
+                        lineasDescripcion.Add(linea);
+                        resto = resto.Substring(len);
+                    }
+                    else
+                    {
+                        lineasDescripcion.Add(linea);
+                        break;
+                    }
+                }
+
+                // Cantidad centrada
+                string cantidadStr = row["cantidad"].ToString();
+                SizeF cantidadSize = e.Graphics.MeasureString(cantidadStr, font);
+                float cantidadX = colX[0] + (colCantidad - cantidadSize.Width) / 2;
+
+                if (int.TryParse(cantidadStr, out int cantVal))
+                    cantidadTotal += cantVal;
+
+                // Precio y Total
+                string precioStr = Convert.ToDecimal(row["precio"]).ToString("C2");
+                SizeF precioSize = e.Graphics.MeasureString(precioStr, font);
+                float precioX = colX[2] + colPrecio - precioSize.Width;
+
+                string totalStr = Convert.ToDecimal(row["total"]).ToString("C2");
+                SizeF totalSize = e.Graphics.MeasureString(totalStr, font);
+                float totalX = colX[3] + colTotal - totalSize.Width;
+
+                // Imprimir líneas
+                for (int i = 0; i < lineasDescripcion.Count; i++)
+                {
+                    float cantidadYLinea = filaY + ((rowHeight - cantidadSize.Height) / 2);
+                    if (i == 0)
+                        e.Graphics.DrawString(cantidadStr, font, Brushes.Black, cantidadX, cantidadYLinea);
+
+                    e.Graphics.DrawString(lineasDescripcion[i], font, Brushes.Black, colX[1], filaY);
+
+                    if (i == 0)
+                    {
+                        e.Graphics.DrawString(precioStr, font, Brushes.Black, precioX, filaY);
+                        e.Graphics.DrawString(totalStr, font, Brushes.Black, totalX, filaY);
+                    }
+                    filaY += rowHeight - 2;
+                }
+
+                y = filaY;
             }
 
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageTicket;
+            // Total final
+            y += 6;
+            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 6;
+
+            decimal sumaTotal = 0;
+            foreach (DataRow row in remitoActual.Rows)
+            {
+                if (decimal.TryParse(row["total"].ToString(), out decimal valor))
+                    sumaTotal += valor;
+            }
+            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
+            SizeF totalGeneralSize = e.Graphics.MeasureString(totalGeneralStr, fontBold);
+            float totalGeneralX = colX[3] + colTotal - totalGeneralSize.Width;
+            e.Graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
+
+            string cantidadTotalStr = $"PRODUCTOS: {cantidadTotal}";
+            e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
         }
+
+        private async Task ActualizarPrecioProductoAsync(string codigo, decimal precio)
+        {
+            using var connection = new SqlConnection(GetConnectionString());
+            var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
+            using var cmd = new SqlCommand(query, connection);
+            cmd.Parameters.AddWithValue("@precio", precio);
+            cmd.Parameters.AddWithValue("@codigo", codigo);
+            await connection.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+
 
         private void printDocumentRemito_PrintPageA4(object sender, PrintPageEventArgs e)
         {
@@ -1056,7 +1154,6 @@ namespace Comercio.NET
             float y = topMargin;
 
             // Título principal (variable)
-            //string nombreComercio = "Comercio";
             SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
             e.Graphics.DrawString(
                 nombreComercio,
@@ -1195,215 +1292,6 @@ namespace Comercio.NET
             //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
         }
 
-        private void printDocumentRemito_PrintPageTicket(object sender, PrintPageEventArgs e)
-        {
-            if (remitoActual == null) return;
-
-            // Márgenes y fuentes
-            float leftMargin = e.MarginBounds.Left; // Margen izquierdo 0
-            float topMargin = e.MarginBounds.Top + 1; // Margen superior más chico
-            float rowHeight = 18;
-            Font font = new Font("Arial", 9);
-            Font fontBold = new Font("Arial", 9, FontStyle.Bold);
-            Font fontTitulo = new Font("Arial", 16, FontStyle.Bold);
-            Pen linePen = new Pen(Color.Black, 1);
-
-            // Definir anchos de columnas (ajustados)
-            float colCantidad = 20;
-            float colDescripcion = 120;
-            float colPrecio = 50;
-            float colTotal = 70;
-
-            float[] colX = {
-                leftMargin,
-                leftMargin + colCantidad,
-                leftMargin + colCantidad + colDescripcion,
-                leftMargin + colCantidad + colDescripcion + colPrecio
-            };
-
-            float tablaRight = colX[3] + colTotal; // Límite derecho de la tabla
-
-            float y = topMargin;
-
-            // Fecha y hora alineadas con el borde derecho de la columna "TOTAL"
-            string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
-            string horaStr = $"Hora: {DateTime.Now:HH:mm}";
-            SizeF fechaSize = e.Graphics.MeasureString(fechaStr, font);
-            SizeF horaSize = e.Graphics.MeasureString(horaStr, font);
-            float fechaX = tablaRight - fechaSize.Width;
-            float horaX = tablaRight - horaSize.Width;
-            e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
-            e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
-
-            // Subir el título (menos espacio después de la fecha/hora)
-            y += Math.Max(fechaSize.Height + horaSize.Height, 10) + 6;
-
-            // Título principal (variable)
-            SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
-            e.Graphics.DrawString(
-                nombreComercio,
-                fontTitulo,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
-                y
-            );
-
-            // Domicilio debajo del título, centrado y con fuente más pequeña
-            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
-            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
-            e.Graphics.DrawString(
-                domicilioComercio,
-                fontDomicilio,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
-                y + nombreComercioSize.Height
-            );
-            y += nombreComercioSize.Height + domicilioSize.Height + 6;
-
-            // Título Remito centrado
-            string titulo = $"REMITO N°: {nroRemitoActual}";
-            SizeF tituloSize = e.Graphics.MeasureString(titulo, fontBold);
-            e.Graphics.DrawString(
-                titulo,
-                fontBold,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
-                y
-            );
-            y += tituloSize.Height + 10;
-
-            // Encabezados de columnas
-            string[] headers = { "C", "DESCRIPCIÓN", "PRECIO", "TOTAL" };
-            float[] colWidths = { colCantidad, colDescripcion, colPrecio, colTotal };
-            for (int i = 0; i < headers.Length; i++)
-            {
-                float headerX = colX[i];
-                float colWidth = colWidths[i];
-                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
-
-                if (i == 0)
-                {
-                    // Centrar encabezado de cantidad
-                    headerX += (colWidth - headerSize.Width) / 2;
-                }
-                else if (i == 1)
-                {
-                    // "DESCRIPCIÓN" alineado a la izquierda (sin ajuste)
-                }
-                else
-                {
-                    // Alinear encabezados de PRECIO y TOTAL a la derecha
-                    headerX += colWidth - headerSize.Width;
-                }
-                e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
-            }
-
-            y += rowHeight - 2; // Más espacio debajo de los encabezados
-            // Línea debajo del encabezado (hasta el borde de la columna TOTAL)
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 4;
-
-            // Detalle productos
-            int cantidadTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                float filaY = y;
-
-                // Descripción (corte y salto de línea si es necesario)
-                string descripcion = row["descripcion"].ToString();
-                float maxDescripcionWidth = colDescripcion - 2;
-                List<string> lineasDescripcion = new List<string>();
-                string resto = descripcion;
-                while (!string.IsNullOrEmpty(resto))
-                {
-                    int len = resto.Length;
-                    string linea = resto;
-                    SizeF descSize = e.Graphics.MeasureString(linea, font);
-                    while (descSize.Width > maxDescripcionWidth && len > 0)
-                    {
-                        len--;
-                        linea = resto.Substring(0, len);
-                        descSize = e.Graphics.MeasureString(linea + "...", font);
-                    }
-                    if (len < resto.Length)
-                    {
-                        linea = resto.Substring(0, len) + "...";
-                        lineasDescripcion.Add(linea);
-                        resto = resto.Substring(len);
-                    }
-                    else
-                    {
-                        lineasDescripcion.Add(linea);
-                        break;
-                    }
-                }
-
-                // Cantidad (centrado vertical y horizontal en cada línea)
-                string cantidadStr = row["cantidad"].ToString();
-                SizeF cantidadSize = e.Graphics.MeasureString(cantidadStr, font);
-                float cantidadX = colX[0] + (colCantidad - cantidadSize.Width) / 2;
-                float cantidadY = filaY + ((rowHeight - cantidadSize.Height) / 2);
-
-                // Sumar cantidad total
-                if (int.TryParse(cantidadStr, out int cantVal))
-                    cantidadTotal += cantVal;
-
-                // Precio y Total (solo en la primera línea de la descripción)
-                string precioStr = Convert.ToDecimal(row["precio"]).ToString("C2");
-                SizeF precioSize = e.Graphics.MeasureString(precioStr, font);
-                float precioX = colX[2] + colPrecio - precioSize.Width;
-
-                string totalStr = Convert.ToDecimal(row["total"]).ToString("C2");
-                SizeF totalSize = e.Graphics.MeasureString(totalStr, font);
-                float totalX = colX[3] + colTotal - totalSize.Width;
-
-                // Imprimir líneas de descripción y datos
-                for (int i = 0; i < lineasDescripcion.Count; i++)
-                {
-                    // Centrar cantidad en cada línea (vertical y horizontal)
-                    float cantidadYLinea = filaY + ((rowHeight - cantidadSize.Height) / 2);
-                    if (i == 0)
-                        e.Graphics.DrawString(cantidadStr, font, Brushes.Black, cantidadX, cantidadYLinea);
-
-                    e.Graphics.DrawString(lineasDescripcion[i], font, Brushes.Black, colX[1], filaY);
-
-                    if (i == 0)
-                    {
-                        e.Graphics.DrawString(precioStr, font, Brushes.Black, precioX, filaY);
-                        e.Graphics.DrawString(totalStr, font, Brushes.Black, totalX, filaY);
-                    }
-                    filaY += rowHeight - 2;
-                }
-
-                y = filaY;
-            }
-
-            // Línea encima del total (hasta el borde de la columna TOTAL)
-            y += 6;
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 6;
-
-            // Total general, alineado a la derecha, in línea con la columna TOTAL
-            decimal sumaTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                if (decimal.TryParse(row["total"].ToString(), out decimal valor))
-                    sumaTotal += valor;
-            }
-            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
-            SizeF totalGeneralSize = e.Graphics.MeasureString(totalGeneralStr, fontBold);
-            float totalGeneralX = colX[3] + colTotal - totalGeneralSize.Width;
-            e.Graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
-
-            // Total cantidad de productos, alineado a la izquierda, a la misma altura que el total general
-            string cantidadTotalStr = $"PRODUCTOS: {cantidadTotal}";
-            e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
-
-            // Firma (opcional)
-            //y += rowHeight * 2;
-            //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
-        }
-
         private async Task<bool> CrearFacturaBAsync()
         {
             return await CrearFacturaAfipAsync(
@@ -1423,7 +1311,8 @@ namespace Comercio.NET
             string pfxPassword = "Micertificado";
             string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
 
-            var (token, sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+            (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+
             this.token = token;
             this.sign = sign;
 
@@ -1638,6 +1527,10 @@ namespace Comercio.NET
                     if (modalCantidad.ShowDialog() == DialogResult.OK)
                     {
                         cantidadPersonalizada = modalCantidad.CantidadSeleccionada;
+
+                        // Debug para verificar que se está tomando la cantidad
+                        Console.WriteLine($"Cantidad personalizada establecida: {cantidadPersonalizada}");
+
                         // Hacer foco en el campo buscar después de confirmar cantidad
                         txtBuscarProducto.Focus();
                     }
@@ -1651,8 +1544,240 @@ namespace Comercio.NET
             else
             {
                 cantidadPersonalizada = 1; // Resetea a 1 cuando se desmarca
+                Console.WriteLine($"Cantidad personalizada reseteada a: {cantidadPersonalizada}");
             }
         }
+
+        private string GetConnectionString()
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+            return config.GetConnectionString("DefaultConnection");
+        }
+
+        private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
+        {
+            string codigoBuscado = textoIngresado.TrimStart('0');
+            if (string.IsNullOrEmpty(codigoBuscado))
+                codigoBuscado = "0";
+
+            decimal? precioPersonalizado = null;
+            bool esEspecial = false;
+
+            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+            {
+                try
+                {
+                    string codigoProducto = textoIngresado.Substring(2, 5).TrimStart('0');
+                    if (string.IsNullOrEmpty(codigoProducto))
+                        codigoProducto = "0";
+
+                    string parteEntera = textoIngresado.Substring(7, 5);
+                    int parteEnteraNumero = int.Parse(parteEntera);
+
+                    precioPersonalizado = parteEnteraNumero;
+                    codigoBuscado = codigoProducto;
+                    // CAMBIAR ESTA LÍNEA:
+                    // esCodigoEspecial = true;
+                    // POR ESTA:
+                    esEspecial = true;
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Error procesando código especial: {ex.Message}");
+                }
+            }
+
+            return (codigoBuscado, precioPersonalizado, esEspecial);
+        }
+
+        private void ConfigurarEventosPrecio()
+        {
+            txtPrecio.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    this.SelectNextControl(txtPrecio, true, true, true, true);
+                }
+            };
+            txtPrecio.Enter += (s, e) => txtPrecio.SelectAll();
+
+            txtPrecio.KeyPress += (s, e) =>
+            {
+                // Si se presiona el punto, lo convertimos en coma
+                if (e.KeyChar == '.')
+                {
+                    e.KeyChar = ',';
+                }
+
+                // Permitir teclas de control (backspace, delete, etc.)
+                if (char.IsControl(e.KeyChar))
+                    return;
+
+                // Permitir solo dígitos y una coma
+                if (!char.IsDigit(e.KeyChar) && e.KeyChar != ',')
+                {
+                    e.Handled = true;
+                    return;
+                }
+
+                var txt = ((TextBox)s).Text;
+                int selStart = ((TextBox)s).SelectionStart;
+                int selLength = ((TextBox)s).SelectionLength;
+
+                // Simular el texto resultante si se acepta la tecla
+                string newText = txt.Substring(0, selStart) + e.KeyChar + txt.Substring(selStart + selLength);
+
+                // Solo una coma
+                if (e.KeyChar == ',' && txt.Contains(","))
+                {
+                    e.Handled = true;
+                    return;
+                }
+
+                // Validar formato: máximo 6 dígitos antes de la coma y 2 después
+                string[] partes = newText.Split(',');
+                if (partes[0].Length > 6)
+                {
+                    e.Handled = true;
+                    return;
+                }
+                if (partes.Length > 1 && partes[1].Length > 2)
+                {
+                    e.Handled = true;
+                    return;
+                }
+            };
+
+            txtPrecio.Leave += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(txtPrecio.Text))
+                {
+                    if (!decimal.TryParse(txtPrecio.Text, out decimal valor))
+                    {
+                        MessageBox.Show("Ingrese un precio válido (solo números y hasta 2 decimales).");
+                        txtPrecio.Focus();
+                    }
+                    else
+                    {
+                        txtPrecio.Text = valor.ToString("N2");
+                    }
+                }
+            };
+
+            txtPrecio.TextChanged += async (s, e) =>
+            {
+                // Solo actualizar si el control está habilitado (es editable)
+                if (!txtPrecio.Enabled) return;
+
+                string codigoBuscado = txtBuscarProducto.Text.Trim();
+                if (string.IsNullOrEmpty(codigoBuscado)) return;
+
+                if (decimal.TryParse(txtPrecio.Text, out decimal nuevoPrecio))
+                {
+                    await ActualizarPrecioProductoAsync(codigoBuscado, nuevoPrecio);
+                }
+            };
+        }
+
+        private void ConfigurarTextBoxes()
+        {
+            txtBuscarProducto.BorderStyle = BorderStyle.FixedSingle;
+            cbnombreCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbnombreCtaCte.FlatStyle = FlatStyle.Flat;
+        }
+
+        private void FormatearDataGridView()
+        {
+            ConfigurarColumna("precio", "C2", DataGridViewContentAlignment.MiddleRight);
+            ConfigurarColumna("total", "C2", DataGridViewContentAlignment.MiddleRight);
+
+            // CAMBIAR ESTA LÍNEA para no pasar formato a cantidad:
+            ConfigurarColumna("cantidad", null, DataGridViewContentAlignment.MiddleCenter, 50);
+
+            ConfigurarColumna("descripcion", null, null, 330);
+
+            foreach (DataGridViewColumn col in dataGridView1.Columns)
+            {
+                col.HeaderText = col.HeaderText.ToUpper();
+                col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+        }
+
+        private void ConfigurarColumna(string nombre, string formato = null,
+            DataGridViewContentAlignment? alineacion = null, int? ancho = null)
+        {
+            var columna = dataGridView1.Columns[nombre];
+            if (columna == null) return;
+
+            if (!string.IsNullOrEmpty(formato))
+                columna.DefaultCellStyle.Format = formato;
+            if (alineacion.HasValue)
+                columna.DefaultCellStyle.Alignment = alineacion.Value;
+            if (ancho.HasValue)
+                columna.Width = ancho.Value;
+
+            // CORREGIR: Solo cambiar el HeaderText, NO el formato
+            if (nombre == "cantidad")
+                columna.HeaderText = "CANT.";
+        }
+
+        private void ImprimirTicket()
+        {
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
+            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageTicket;
+
+            // 8 cm = 80 mm = 315 centésimas de pulgada (1 pulgada = 25,4 mm)
+            int anchoTicket = (int)(75 / 25.4 * 100); // 80mm a centésimas de pulgada
+            int altoTicket = (int)(200 / 25.4 * 100); // 200mm de alto (ajustable)
+
+            PaperSize ticketSize = new PaperSize("Ticket", anchoTicket, altoTicket);
+            printDocumentRemito.DefaultPageSettings.PaperSize = ticketSize;
+
+            // Márgenes mínimos (2 mm)
+            printDocumentRemito.DefaultPageSettings.Margins = new Margins(8, 8, 8, 8); // 8 centésimas de pulgada ≈ 2 mm
+
+            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
+            {
+                previewDialog.Document = printDocumentRemito;
+                previewDialog.WindowState = FormWindowState.Maximized;
+                previewDialog.ShowDialog();
+            }
+
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageTicket;
+        }
+
+        private void ImprimirA4()
+        {
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
+            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageA4;
+
+            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
+            {
+                previewDialog.Document = printDocumentRemito;
+                previewDialog.WindowState = FormWindowState.Maximized;
+                previewDialog.ShowDialog();
+            }
+
+            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageA4;
+        }
+
+        private async Task<DataRow> BuscarProductoAsync(string codigo)
+{
+    using var connection = new SqlConnection(GetConnectionString());
+    var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, 
+                  PermiteAcumular, EditarPrecio FROM Productos WHERE codigo = @codigo";
+
+    using var adapter = new SqlDataAdapter(query, connection);
+    adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
+
+    var dt = new DataTable();
+    adapter.Fill(dt);
+    return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+}
     }
 
     public class WSAAHelper
@@ -1664,13 +1789,13 @@ namespace Comercio.NET
             var expirationTime = DateTime.UtcNow.AddMinutes(+10).ToString("yyyy-MM-ddTHH:mm:ssZ");
 
             return $@"<loginTicketRequest version=""1.0"">
-                  <header>
-                    <uniqueId>{uniqueId}</uniqueId>
-                    <generationTime>{generationTime}</generationTime>
-                    <expirationTime>{expirationTime}</expirationTime>
-                  </header>
-                  <service>{service}</service>
-                </loginTicketRequest>";
+                      <header>
+                        <uniqueId>{uniqueId}</uniqueId>
+                        <generationTime>{generationTime}</generationTime>
+                        <expirationTime>{expirationTime}</expirationTime>
+                      </header>
+                      <service>{service}</service>
+                    </loginTicketRequest>";
         }
 
         public static byte[] FirmarTRA(string traXml, string pfxPath, string pfxPassword)
@@ -1687,7 +1812,7 @@ namespace Comercio.NET
         {
             string cmsBase64 = Convert.ToBase64String(cms);
 
-            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?
+            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
             <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
               <soap:Header/>
               <soap:Body>
@@ -1699,45 +1824,16 @@ namespace Comercio.NET
 
             using var client = new HttpClient();
             var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
-            content.Headers.Add("SOAPAction", "\"\""); // Add this line
+            content.Headers.Add("SOAPAction", "\"\"");
             var response = await client.PostAsync(wsaaUrl, content);
             var responseBody = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                // Aquí puedes loguear o mostrar el contenido para diagnóstico
                 throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
             }
 
             return responseBody;
-        }
-
-        public static (string Token, string Sign) ExtraerTokenSign(string soapResponse)
-        {
-            var xml = new XmlDocument();
-            xml.LoadXml(soapResponse);
-
-            var nsmgr = new XmlNamespaceManager(xml.NameTable);
-            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
-
-            // Verificar si hay un error SOAP
-            var fault = xml.SelectSingleNode("//soap:Fault", nsmgr);
-            if (fault != null)
-                throw new Exception("Respuesta de error de WSAA: " + fault.InnerXml);
-
-            // Buscar el nodo con namespace
-            var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
-            if (loginCmsReturn == null || string.IsNullOrEmpty(loginCmsReturn.InnerText))
-                throw new Exception("La respuesta del servicio WSAA fue nula o vacía, pero no arrojó un FaultException.");
-
-            var taXml = new XmlDocument();
-            taXml.LoadXml(loginCmsReturn.InnerText);
-
-            var token = taXml.SelectSingleNode("//token")?.InnerText;
-            var sign = taXml.SelectSingleNode("//sign")?.InnerText;
-
-            return (token, sign);
         }
     }
 
@@ -1747,313 +1843,102 @@ namespace Comercio.NET
         private static string _sign;
         private static DateTime _expiration;
 
-        private static readonly string TaPath = "ta.xml";
-
         public static (string token, string sign) GetTA(string service, string pfxPath, string pfxPassword, string wsaaUrl)
         {
-            string taPath = GetTaPath(service);
-            // Intenta leer el TA guardado
-            if (File.Exists(taPath))
-            {
-                var taXml = new XmlDocument();
-                taXml.Load(taPath);
-                _token = taXml.SelectSingleNode("//token")?.InnerText;
-                _sign = taXml.SelectSingleNode("//sign")?.InnerText;
-                var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
-                _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
-
-                if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
-                {
-                    return (_token, _sign);
-                }
-            }
-
-            string traXml = WSAAHelper.CrearTRA(service);
-            byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
-            string soapResponse = WSAAHelper.LlamarWSAA(cms, wsaaUrl).GetAwaiter().GetResult();
-
-            var xml = new XmlDocument();
-            xml.LoadXml(soapResponse);
-            var nsmgr = new XmlNamespaceManager(xml.NameTable);
-            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
-            var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
-            if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
-            {
-                File.WriteAllText(taPath, loginCmsReturn.InnerText);
-                var taXml = new XmlDocument();
-                taXml.LoadXml(loginCmsReturn.InnerText);
-                _token = taXml.SelectSingleNode("//token")?.InnerText;
-                _sign = taXml.SelectSingleNode("//sign")?.InnerText;
-                var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
-                _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
-            }
-
-            return (_token, _sign);
+            return GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl).GetAwaiter().GetResult();
         }
 
-        // Cambia la firma:
         public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
         {
             string taPath = GetTaPath(service);
-            if (File.Exists(taPath))
-            {
-                try
-                {
-                    var taXml = new XmlDocument();
-                    taXml.Load(taPath);
-                    _token = taXml.SelectSingleNode("//token")?.InnerText;
-                    _sign = taXml.SelectSingleNode("//sign")?.InnerText;
-                    var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
 
-                    if (!DateTime.TryParse(expirationStr, out _expiration))
-                    {
-                        File.Delete(taPath); // Elimina el archivo corrupto
-                    }
-                    else
-                    {
-                        if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
-                        {
-                            return (_token, _sign);
-                        }
-                    }
-                }
-                catch
-                {
-                    File.Delete(taPath); // Elimina el archivo corrupto
-                }
+            var cachedTA = TryLoadCachedTA(taPath);
+            if (cachedTA.HasValue)
+            {
+                return cachedTA.Value;
             }
 
-            string traXml = WSAAHelper.CrearTRA(service);
-            byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
-            string soapResponse = await WSAAHelper.LlamarWSAA(cms, wsaaUrl);
-
-            var xml = new XmlDocument();
-            xml.LoadXml(soapResponse);
-            var nsmgr = new XmlNamespaceManager(xml.NameTable);
-            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
-            var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
-            if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
-            {
-                File.WriteAllText(taPath, loginCmsReturn.InnerText);
-                var taXml = new XmlDocument();
-                taXml.LoadXml(loginCmsReturn.InnerText);
-                _token = taXml.SelectSingleNode("//token")?.InnerText;
-                _sign = taXml.SelectSingleNode("//sign")?.InnerText;
-                var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
-                _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
-            }
-
-            return (_token, _sign);
+            return await GenerateNewTAAsync(service, pfxPath, pfxPassword, wsaaUrl, taPath);
         }
 
-        private static string GetTaPath(string service)
+        private static (string token, string sign)? TryLoadCachedTA(string taPath)
         {
-            // Limpia el nombre del servicio para evitar caracteres inválidos en el nombre de archivo
-            string safeService = service.Replace("/", "_").Replace("\\", "_");
-            return $"ta_{safeService}.xml";
-        }
-    }
-}
+            if (!File.Exists(taPath))
+                return null;
 
-public class WSAAHelper
-{
-    public static string CrearTRA(string service)
-    {
-        var uniqueId = ((int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds).ToString();
-        var generationTime = DateTime.UtcNow.AddMinutes(-10).ToString("yyyy-MM-ddTHH:mm:ssZ");
-        var expirationTime = DateTime.UtcNow.AddMinutes(+10).ToString("yyyy-MM-ddTHH:mm:ssZ");
-
-        return $@"<loginTicketRequest version=""1.0"">
-                  <header>
-                    <uniqueId>{uniqueId}</uniqueId>
-                    <generationTime>{generationTime}</generationTime>
-                    <expirationTime>{expirationTime}</expirationTime>
-                  </header>
-                  <service>{service}</service>
-                </loginTicketRequest>";
-    }
-
-    public static byte[] FirmarTRA(string traXml, string pfxPath, string pfxPassword)
-    {
-        var cert = new X509Certificate2(pfxPath, pfxPassword, X509KeyStorageFlags.MachineKeySet);
-        var contentInfo = new ContentInfo(Encoding.UTF8.GetBytes(traXml));
-        var signedCms = new SignedCms(contentInfo);
-        var cmsSigner = new CmsSigner(cert);
-        signedCms.ComputeSignature(cmsSigner);
-        return signedCms.Encode();
-    }
-
-    public static async Task<string> LlamarWSAA(byte[] cms, string wsaaUrl)
-    {
-        string cmsBase64 = Convert.ToBase64String(cms);
-
-        string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?
-        <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
-          <soap:Header/>
-          <soap:Body>
-            <wsaa:loginCms>
-              <wsaa:in0>{cmsBase64}</wsaa:in0>
-            </wsaa:loginCms>
-          </soap:Body>
-        </soap:Envelope>";
-
-        using var client = new HttpClient();
-        var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
-        content.Headers.Add("SOAPAction", "\"\""); // Add this line
-        var response = await client.PostAsync(wsaaUrl, content);
-        var responseBody = await response.Content.ReadAsStringAsync();
-
-        if (!response.IsSuccessStatusCode)
-        {
-            // Aquí puedes loguear o mostrar el contenido para diagnóstico
-            throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
-        }
-
-        return responseBody;
-    }
-
-    public static (string Token, string Sign) ExtraerTokenSign(string soapResponse)
-    {
-        var xml = new XmlDocument();
-        xml.LoadXml(soapResponse);
-
-        var nsmgr = new XmlNamespaceManager(xml.NameTable);
-        nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-        nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
-
-        // Verificar si hay un error SOAP
-        var fault = xml.SelectSingleNode("//soap:Fault", nsmgr);
-        if (fault != null)
-            throw new Exception("Respuesta de error de WSAA: " + fault.InnerXml);
-
-        // Buscar el nodo con namespace
-        var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
-        if (loginCmsReturn == null || string.IsNullOrEmpty(loginCmsReturn.InnerText))
-            throw new Exception("La respuesta del servicio WSAA fue nula o vacía, pero no arrojó un FaultException.");
-
-        var taXml = new XmlDocument();
-        taXml.LoadXml(loginCmsReturn.InnerText);
-
-        var token = taXml.SelectSingleNode("//token")?.InnerText;
-        var sign = taXml.SelectSingleNode("//sign")?.InnerText;
-
-        return (token, sign);
-    }
-}
-
-public class AfipAuthenticator
-{
-    private static string _token;
-    private static string _sign;
-    private static DateTime _expiration;
-
-    private static readonly string TaPath = "ta.xml";
-
-    public static (string token, string sign) GetTA(string service, string pfxPath, string pfxPassword, string wsaaUrl)
-    {
-        string taPath = GetTaPath(service);
-        // Intenta leer el TA guardado
-        if (File.Exists(taPath))
-        {
-            var taXml = new XmlDocument();
-            taXml.Load(taPath);
-            _token = taXml.SelectSingleNode("//token")?.InnerText;
-            _sign = taXml.SelectSingleNode("//sign")?.InnerText;
-            var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
-            _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
-
-            if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
-            {
-                return (_token, _sign);
-            }
-        }
-
-        string traXml = WSAAHelper.CrearTRA(service);
-        byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
-        string soapResponse = WSAAHelper.LlamarWSAA(cms, wsaaUrl).GetAwaiter().GetResult();
-
-        var xml = new XmlDocument();
-        xml.LoadXml(soapResponse);
-        var nsmgr = new XmlNamespaceManager(xml.NameTable);
-        nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-        nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
-        var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
-        if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
-        {
-            File.WriteAllText(taPath, loginCmsReturn.InnerText);
-            var taXml = new XmlDocument();
-            taXml.LoadXml(loginCmsReturn.InnerText);
-            _token = taXml.SelectSingleNode("//token")?.InnerText;
-            _sign = taXml.SelectSingleNode("//sign")?.InnerText;
-            var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
-            _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
-        }
-
-        return (_token, _sign);
-    }
-
-    // Cambia la firma:
-    public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
-    {
-        string taPath = GetTaPath(service);
-        if (File.Exists(taPath))
-        {
             try
             {
                 var taXml = new XmlDocument();
                 taXml.Load(taPath);
+
                 _token = taXml.SelectSingleNode("//token")?.InnerText;
                 _sign = taXml.SelectSingleNode("//sign")?.InnerText;
                 var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
 
                 if (!DateTime.TryParse(expirationStr, out _expiration))
                 {
-                    File.Delete(taPath); // Elimina el archivo corrupto
+                    File.Delete(taPath);
+                    return null;
                 }
-                else
+
+                if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
                 {
-                    if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
-                    {
-                        return (_token, _sign);
-                    }
+                    return (_token, _sign);
                 }
             }
             catch
             {
-                File.Delete(taPath); // Elimina el archivo corrupto
+                File.Delete(taPath);
             }
+
+            return null;
         }
 
-        string traXml = WSAAHelper.CrearTRA(service);
-        byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
-        string soapResponse = await WSAAHelper.LlamarWSAA(cms, wsaaUrl);
-
-        var xml = new XmlDocument();
-        xml.LoadXml(soapResponse);
-        var nsmgr = new XmlNamespaceManager(xml.NameTable);
-        nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-        nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
-        var loginCmsReturn = xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr);
-        if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn.InnerText))
+        private static async Task<(string token, string sign)> GenerateNewTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl, string taPath)
         {
-            File.WriteAllText(taPath, loginCmsReturn.InnerText);
+            string traXml = WSAAHelper.CrearTRA(service);
+            byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
+            string soapResponse = await WSAAHelper.LlamarWSAA(cms, wsaaUrl);
+
+            var loginCmsReturn = ProcessSoapResponse(soapResponse);
+            if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn))
+            {
+                File.WriteAllText(taPath, loginCmsReturn);
+                return ParseTAFromXml(loginCmsReturn);
+            }
+
+            throw new Exception("No se pudo obtener una respuesta válida del servicio WSAA.");
+        }
+
+        private static string ProcessSoapResponse(string soapResponse)
+        {
+            var xml = new XmlDocument();
+            xml.LoadXml(soapResponse);
+
+            var nsmgr = new XmlNamespaceManager(xml.NameTable);
+            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+
+            return xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr)?.InnerText;
+        }
+
+        private static (string token, string sign) ParseTAFromXml(string taXmlContent)
+        {
             var taXml = new XmlDocument();
-            taXml.LoadXml(loginCmsReturn.InnerText);
+            taXml.LoadXml(taXmlContent);
+
             _token = taXml.SelectSingleNode("//token")?.InnerText;
             _sign = taXml.SelectSingleNode("//sign")?.InnerText;
             var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
             _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
+
+            return (_token, _sign);
         }
 
-        return (_token, _sign);
-    }
-
-    private static string GetTaPath(string service)
-    {
-        // Limpia el nombre del servicio para evitar caracteres inválidos en el nombre de archivo
-        string safeService = service.Replace("/", "_").Replace("\\", "_");
-        return $"ta_{safeService}.xml";
+        private static string GetTaPath(string service)
+        {
+            string safeService = service.Replace("/", "_").Replace("\\", "_");
+            return $"ta_{safeService}.xml";
+        }
     }
 }

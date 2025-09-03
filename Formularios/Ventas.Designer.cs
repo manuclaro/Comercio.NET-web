@@ -38,14 +38,12 @@
             btnFinalizarVenta = new Button();
             chkEsCtaCte = new CheckBox();
             cbnombreCtaCte = new ComboBox();
-            panelFooter = new Panel();
             lbTotal = new Label();
             lbCantidadProductos = new Label();
             panelHeader = new Panel();
             lbPrecio = new Label();
             txtPrecio = new TextBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
-            panelFooter.SuspendLayout();
             panelHeader.SuspendLayout();
             SuspendLayout();
             // 
@@ -160,17 +158,6 @@
             cbnombreCtaCte.TabIndex = 13;
             cbnombreCtaCte.Visible = false;
             // 
-            // panelFooter
-            // 
-            panelFooter.BackColor = Color.FromArgb(0, 120, 215);
-            panelFooter.Controls.Add(lbTotal);
-            panelFooter.Controls.Add(lbCantidadProductos);
-            panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Location = new Point(0, 432);
-            panelFooter.Name = "panelFooter";
-            panelFooter.Size = new Size(757, 70);
-            panelFooter.TabIndex = 14;
-            // 
             // lbTotal
             // 
             lbTotal.AutoSize = true;
@@ -239,13 +226,10 @@
             Controls.Add(lbBuscarProducto);
             Controls.Add(txtBuscarProducto);
             Controls.Add(dataGridView1);
-            Controls.Add(panelFooter);
             MinimumSize = new Size(773, 541);
             Name = "Ventas";
             Text = "Ventas";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
-            panelFooter.ResumeLayout(false);
-            panelFooter.PerformLayout();
             panelHeader.ResumeLayout(false);
             panelHeader.PerformLayout();
             ResumeLayout(false);
@@ -263,11 +247,10 @@
         private Button btnFinalizarVenta;
         private CheckBox chkEsCtaCte;
         private ComboBox cbnombreCtaCte;
-        private Panel panelFooter;
-        private Panel panelHeader;
         private Label lbTotal;
         private Label lbCantidadProductos;
         private Label lbPrecio;
         private TextBox txtPrecio;
+        private Panel panelHeader;
     }
 }
