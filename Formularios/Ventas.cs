@@ -254,6 +254,7 @@ namespace Comercio.NET
         {
             txtPrecio.Text = "";
             txtPrecio.Enabled = false;
+            lbDescripcionProducto.Text = ""; // AGREGAR ESTA LÍNEA SI NO ESTÁ
         }
 
         private void btnAgregar_Click(object sender, EventArgs e)
@@ -554,36 +555,6 @@ namespace Comercio.NET
             //Color suave para filas alternas
             dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255);
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
-
-            // ELIMINAR ESTA SECCIÓN COMPLETA - YA SE CREA EN ConfigurarCheckboxCantidad():
-            /*
-            // CheckBox para cantidad personalizada
-            chkCantidad = new CheckBox
-            {
-                Text = "Cantidad",
-                Left = 500,
-                Top = 136,
-                Width = 180,
-                Font = new Font("Segoe UI", 10F),
-                ForeColor = Color.Black
-            };
-            chkCantidad.CheckedChanged += chkCantidad_CheckedChanged;
-            this.Controls.Add(chkCantidad);
-            */
-
-            // ELIMINAR ESTA SECCIÓN TAMBIÉN - YA SE CONFIGURA EN ConfigurarAtajosTeclado():
-            /*
-            // Configurar el atajo F9 para el checkbox de cantidad
-            this.KeyPreview = true;
-            this.KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.F9)
-                {
-                    e.SuppressKeyPress = true;
-                    chkCantidad.Checked = !chkCantidad.Checked;
-                }
-            };
-            */
         }
 
         private void ConfigurarPanelFooter()
@@ -641,7 +612,7 @@ namespace Comercio.NET
                 var query = @"SELECT codigo, descripcion, precio,  cantidad, total
                       FROM Ventas
                       WHERE nrofactura = @nrofactura
-                      ORDER BY id ASC";
+                      ORDER BY idd DESC";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
@@ -740,6 +711,16 @@ namespace Comercio.NET
             lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
             chkEsCtaCte.Checked = false;
+            
+            // USAR EL MÉTODO EXISTENTE PARA LIMPIAR CAMPOS:
+            LimpiarCamposProducto();
+            
+            // LIMPIAR TAMBIÉN EL CAMPO DE BÚSQUEDA Y DESCRIPCIÓN:
+            txtBuscarProducto.Text = "";
+            lbDescripcionProducto.Text = "";
+            
+            // Asegurar que el foco esté en el campo de búsqueda
+            txtBuscarProducto.Focus();
         }
 
         private void printDocumentRemito_PrintPage(object sender, PrintPageEventArgs e)
@@ -1531,7 +1512,7 @@ namespace Comercio.NET
                         // Debug para verificar que se está tomando la cantidad
                         Console.WriteLine($"Cantidad personalizada establecida: {cantidadPersonalizada}");
 
-                        // Hacer foco en el campo buscar después de confirmar cantidad
+                        // HACER FOCO EN EL CAMPO BUSCAR DESPUÉS DE CONFIRMAR CANTIDAD
                         txtBuscarProducto.Focus();
                     }
                     else
