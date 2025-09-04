@@ -213,8 +213,9 @@ namespace Comercio.NET
 
             try
             {
-                var (codigoBuscado, precioPersonalizado, esEspecial) = ProcesarCodigo(textoIngresado);
-                await MostrarProductoAsync(codigoBuscado, precioPersonalizado, esEspecial);
+                // Corrección: usar declaraciones separadas
+                var resultado = ProcesarCodigo(textoIngresado);
+                await MostrarProductoAsync(resultado.codigoBuscado, resultado.precioPersonalizado, resultado.esEspecial);
             }
             catch (Exception ex)
             {
@@ -656,71 +657,172 @@ namespace Comercio.NET
             if (remitoActual == null || remitoActual.Rows.Count == 0)
                 return;
 
-            // Mostrar el modal de selección
-            using (var seleccion = new SeleccionImpresionForm
+            // Calcular el importe total antes de abrir el modal
+            decimal importeTotal = 0;
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
+                    importeTotal += valor;
+            }
+
+            // Mostrar el modal de selección pasando el importe total Y la referencia al formulario padre
+            using (var seleccion = new SeleccionImpresionForm(importeTotal, this)
             {
                 TokenAfip = this.token,
-                SignAfip = this.sign
-            })
-            {
-                seleccion.ShowDialog(this);
-
-                switch (seleccion.OpcionSeleccionada)
+                SignAfip = this.sign,
+                OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento) =>
                 {
-                    case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
-                        ImprimirTicket();
-                        LimpiarYReiniciarVenta();
-                        break;
-
-                    case SeleccionImpresionForm.OpcionImpresion.FacturaB:
-                        {
-                            bool exito = await CrearFacturaBAsync();
-                            if (exito)
-                            {
-                                LimpiarYReiniciarVenta();
-                            }
+                    // Primero guardar en BD - CORREGIR: usar los parámetros que vienen del modal
+                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento);
+                    
+                    // Luego ejecutar la acción específica según el tipo
+                    switch (tipoFactura)
+                    {
+                        case "Remito":
+                            ImprimirTicket();
                             break;
-                        }
-
-                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
-                        {
-                            string cuit = Microsoft.VisualBasic.Interaction.InputBox("Ingrese el CUIT del receptor:", "CUIT Receptor", "");
-                            if (!string.IsNullOrWhiteSpace(cuit))
-                            {
-                                bool exito = await CrearFacturaAAsync(cuit);
-                                if (exito)
-                                {
-                                    LimpiarYReiniciarVenta();
-                                }
-                            }
+                        case "FacturaB":
+                            // Lógica específica para Factura B si es necesaria
                             break;
-                        }
-
-                    default:
-                        // No se seleccionó nada
-                        break;
+                        case "FacturaA":
+                            // Lógica específica para Factura A si es necesaria
+                            break;
+                    }
+                    
+                    // Finalmente limpiar y reiniciar
+                    LimpiarYReiniciarVenta();
                 }
+    })
+    {
+        seleccion.ShowDialog(this);
+    }
+}
+        // Agregar este método público para que el modal pueda acceder a él
+        public DataTable GetRemitoActual()
+        {
+            return remitoActual;
+        }
+
+        // Agregar este método público para que el modal pueda acceder al número de remito
+        public int GetNroRemitoActual()
+        {
+            return nroRemitoActual;
+        }
+
+        // Agregar este método público para que el modal pueda acceder al nombre del comercio
+        public string GetNombreComercio()
+        {
+            return nombreComercio;
+        }
+
+        // Agregar este método público para que el modal pueda acceder al domicilio
+        public string GetDomicilioComercio()
+        {
+            return domicilioComercio;
+        }
+
+        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                // Calcular el importe total
+                decimal importeTotal = 0;
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
+                        importeTotal += valor;
+                }
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"INSERT INTO Facturas 
+                (NumeroFactura, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre, 
+                 Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente)
+                VALUES 
+                (@NumeroFactura, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre, 
+                 @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente)";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                        cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
+                        cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@ImporteTotal", importeTotal);
+                        cmd.Parameters.AddWithValue("@FormadePago", formaPago);
+                        cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
+                        cmd.Parameters.AddWithValue("@CtaCteNombre", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Cajero", "1"); // Por defecto
+                        cmd.Parameters.AddWithValue("@TipoFactura", tipoFactura);
+                        
+                        // Solo guardar CAE si es Factura A o B
+                        if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
+                        {
+                            cmd.Parameters.AddWithValue("@CAENumero", !string.IsNullOrEmpty(caeNumero) ? (object)caeNumero : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@CAEVencimiento", caeVencimiento.HasValue ? (object)caeVencimiento.Value : DBNull.Value);
+                        }
+                        else
+                        {
+                            cmd.Parameters.AddWithValue("@CAENumero", DBNull.Value);
+                            cmd.Parameters.AddWithValue("@CAEVencimiento", DBNull.Value);
+                        }
+
+                        // Solo guardar CUIT si es Factura A
+                        if (tipoFactura == "FacturaA" && !string.IsNullOrEmpty(cuitCliente))
+                        {
+                            cmd.Parameters.AddWithValue("@CUITCliente", cuitCliente);
+                        }
+                        else
+                        {
+                            cmd.Parameters.AddWithValue("@CUITCliente", DBNull.Value);
+                        }
+
+                        connection.Open();
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al guardar la factura en base de datos: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void LimpiarYReiniciarVenta()
         {
-            Ventas_Load(null, null);
+            // Limpiar la grilla
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear();
+            
+            // Actualizar labels
             lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
+            
+            // Limpiar checkboxes
             chkEsCtaCte.Checked = false;
             
-            // USAR EL MÉTODO EXISTENTE PARA LIMPIAR CAMPOS:
+            // Limpiar campos de producto
             LimpiarCamposProducto();
             
-            // LIMPIAR TAMBIÉN EL CAMPO DE BÚSQUEDA Y DESCRIPCIÓN:
+            // Limpiar campos de búsqueda
             txtBuscarProducto.Text = "";
             lbDescripcionProducto.Text = "";
             
-            // Asegurar que el foco esté en el campo de búsqueda
-            txtBuscarProducto.Focus();
+            // Resetear variables de control
+            remitoActual = null;
+            
+            // IMPORTANTE: Usar BeginInvoke para asegurar que el foco se establezca después de que se complete el cierre del modal
+            this.BeginInvoke(new Action(() =>
+            {
+                txtBuscarProducto.Focus();
+                txtBuscarProducto.SelectAll();
+            }));
         }
 
         private void printDocumentRemito_PrintPage(object sender, PrintPageEventArgs e)
@@ -1273,148 +1375,83 @@ namespace Comercio.NET
             //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
         }
 
-        private async Task<bool> CrearFacturaBAsync()
+        private async Task<DataRow> BuscarProductoAsync(string codigo)
         {
-            return await CrearFacturaAfipAsync(
-                cbteTipo: 6,
-                condicionIVAReceptor: 5,
-                docTipo: 99,
-                docNro: 0,
-                alicuotaIVA: 21m
-            );
+            using var connection = new SqlConnection(GetConnectionString());
+            var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, 
+                  PermiteAcumular, EditarPrecio FROM Productos WHERE codigo = @codigo";
+
+            using var adapter = new SqlDataAdapter(query, connection);
+            adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
+
+            var dt = new DataTable();
+            adapter.Fill(dt);
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
         }
 
-        private async Task<bool> CrearFacturaAfipAsync(int cbteTipo, int condicionIVAReceptor, int docTipo, long docNro, decimal alicuotaIVA)
+        private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
         {
-            string cuit = "20280694739";
-            string service = "wsfe";
-            string pfxPath = @"C:\Certificados\certificado.pfx";
-            string pfxPassword = "Micertificado";
-            string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+            string codigoBuscado = textoIngresado.TrimStart('0');
+            if (string.IsNullOrEmpty(codigoBuscado))
+                codigoBuscado = "0";
 
-            (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+            decimal? precioPersonalizado = null;
+            bool esEspecial = false;
 
-            this.token = token;
-            this.sign = sign;
-
-            var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
-
-            var auth = new ArcaWS.FEAuthRequest
+            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
             {
-                Token = token,
-                Sign = sign,
-                Cuit = Convert.ToInt64(cuit)
-            };
-
-            int ptoVta = 1;
-            var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
-            int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
-            int nuevoNroComprobante = ultimoNroAfip + 1;
-
-            // Calcular totales
-            decimal impTotal = 0;
-            foreach (DataGridViewRow row in dataGridView1.Rows)
-            {
-                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
-                    impTotal += valor;
-            }
-            decimal impIVA = Math.Round(impTotal - (impTotal / (1 + (alicuotaIVA / 100m))), 2);
-            decimal impNeto = Math.Round(impTotal - impIVA, 2);
-
-            var iva = new ArcaWS.AlicIva
-            {
-                Id = (alicuotaIVA == 21m) ? 5 : 4, // 5=21%, 4=10.5%
-                BaseImp = (double)impNeto,
-                Importe = (double)impIVA
-            };
-
-            var feCabReq = new ArcaWS.FECAECabRequest
-            {
-                CantReg = 1,
-                PtoVta = ptoVta,
-                CbteTipo = cbteTipo
-            };
-
-            var feDetReq = new ArcaWS.FECAEDetRequest
-            {
-                Concepto = 1,
-                DocTipo = docTipo,
-                DocNro = docNro,
-                CbteDesde = nuevoNroComprobante,
-                CbteHasta = nuevoNroComprobante,
-                CbteFch = DateTime.Now.ToString("yyyyMMdd"),
-                ImpTotal = (double)impTotal,
-                ImpNeto = (double)impNeto,
-                ImpIVA = (double)impIVA,
-                MonId = "PES",
-                MonCotiz = 1,
-                CondicionIVAReceptorId = condicionIVAReceptor,
-                ImpTrib = 0,
-                ImpOpEx = 0,
-                Iva = new ArcaWS.AlicIva[] { iva }
-            };
-
-            var feCAEReq = new ArcaWS.FECAERequest
-            {
-                FeCabReq = feCabReq,
-                FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
-            };
-
-            var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
-            var resultado = respuesta?.Body?.FECAESolicitarResult;
-
-            if (resultado != null && resultado.FeDetResp != null && resultado.FeDetResp.Length > 0)
-            {
-                var detalle = resultado.FeDetResp[0];
-                if (detalle.Resultado == "A")
+                try
                 {
-                    string cae = detalle.CAE;
-                    string nroComprobante = detalle.CbteDesde.ToString();
-                    MessageBox.Show($"Factura Aprobada.\nCAE: {cae}\nComprobante: {nroComprobante}");
-                    return true;
+                    string codigoProducto = textoIngresado.Substring(2, 5).TrimStart('0');
+                    if (string.IsNullOrEmpty(codigoProducto))
+                        codigoProducto = "0";
+
+                    string parteEntera = textoIngresado.Substring(7, 5);
+                    int parteEnteraNumero = int.Parse(parteEntera);
+
+                    precioPersonalizado = parteEnteraNumero;
+                    codigoBuscado = codigoProducto;
+                    esEspecial = true;
                 }
-                else if (detalle.Resultado == "R")
+                catch (Exception ex)
                 {
-                    // Factura rechazada, mostrar motivos
-                    string mensaje = "La factura fue RECHAZADA.\n";
-                    if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
+                    throw new InvalidOperationException($"Error procesando código especial: {ex.Message}");
+                }
+            }
+
+            return (codigoBuscado, precioPersonalizado, esEspecial);
+        }
+
+        private string GetConnectionString()
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+            return config.GetConnectionString("DefaultConnection");
+        }
+
+        private void chkCantidad_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkCantidad.Checked)
+            {
+                using (var modalCantidad = new ModalCantidadForm())
+                {
+                    if (modalCantidad.ShowDialog() == DialogResult.OK)
                     {
-                        foreach (var obs in detalle.Observaciones)
-                        {
-                            mensaje += $"Código: {obs.Code} - {obs.Msg}\n";
-                        }
-                    }
-                    else if (resultado?.Errors != null && resultado.Errors.Length > 0)
-                    {
-                        foreach (var error in resultado.Errors)
-                        {
-                            mensaje += $"Error {error.Code}: {error.Msg}\n";
-                        }
+                        cantidadPersonalizada = modalCantidad.CantidadSeleccionada;
+                        txtBuscarProducto.Focus();
                     }
                     else
                     {
-                        mensaje += "No se recibieron observaciones de AFIP.\n";
+                        chkCantidad.Checked = false;
+                        txtBuscarProducto.Focus();
                     }
-                    mensaje += "\nVerifique los datos ingresados o intente nuevamente.";
-                    MessageBox.Show(mensaje, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return false;
                 }
-                else
-                {
-                    MessageBox.Show($"Resultado desconocido: {detalle.Resultado}");
-                    return false;
-                }
-            }
-            else if (resultado?.Errors != null && resultado.Errors.Length > 0)
-            {
-                var error = resultado.Errors[0];
-                MessageBox.Show($"Error {error.Code}: {error.Msg}");
-                return false;
             }
             else
             {
-                MessageBox.Show("No se obtuvo respuesta válida de ARCA.");
-                return false;
+                cantidadPersonalizada = 1;
             }
         }
 
@@ -1422,7 +1459,6 @@ namespace Comercio.NET
         {
             if (chkEsCtaCte.Checked)
             {
-                // Cargar nombres de CtaCte desde archivo de texto
                 string rutaArchivo = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ctacte_nombres.txt");
                 if (File.Exists(rutaArchivo))
                 {
@@ -1454,126 +1490,6 @@ namespace Comercio.NET
             txtBuscarProducto.Focus();
         }
 
-        private async Task<bool> CrearFacturaAAsync(string cuitReceptor)
-        {
-            // Factura A: Responsable Inscripto, DocNro = CUIT válido, IVA 21%
-            if (!long.TryParse(cuitReceptor, out long cuitValido) || cuitReceptor.Length != 11)
-            {
-                MessageBox.Show("Debe ingresar un CUIT válido de 11 dígitos para la Factura A.");
-                return false;
-            }
-            if (!EsCuitValido(cuitReceptor))
-            {
-                MessageBox.Show("Debe ingresar un CUIT válido para la Factura A.");
-                return false;
-            }
-            return await CrearFacturaAfipAsync(
-                cbteTipo: 1, // Factura A
-                condicionIVAReceptor: 1, // Responsable Inscripto
-                docTipo: 80, // CUIT
-                docNro: cuitValido,
-                alicuotaIVA: 21
-            );
-        }
-
-        private bool EsCuitValido(string cuit)
-        {
-            if (cuit.Length != 11 || !long.TryParse(cuit, out _))
-                return false;
-
-            int[] coef = { 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
-            int suma = 0;
-            for (int i = 0; i < 10; i++)
-                suma += int.Parse(cuit[i].ToString()) * coef[i];
-
-            int resto = suma % 11;
-            int digitoVerificador = resto == 0 ? 0 : resto == 1 ? 9 : 11 - resto;
-
-            return digitoVerificador == int.Parse(cuit[10].ToString());
-        }
-
-        private static string GetTaPath(string service)
-        {
-            // Limpia el nombre del servicio para evitar caracteres inválidos en el nombre de archivo
-            string safeService = service.Replace("/", "_").Replace("\\", "_");
-            return $"ta_{safeService}.xml";
-        }
-
-        private void chkCantidad_CheckedChanged(object sender, EventArgs e)
-        {
-            if (chkCantidad.Checked)
-            {
-                using (var modalCantidad = new ModalCantidadForm())
-                {
-                    if (modalCantidad.ShowDialog() == DialogResult.OK)
-                    {
-                        cantidadPersonalizada = modalCantidad.CantidadSeleccionada;
-
-                        // Debug para verificar que se está tomando la cantidad
-                        Console.WriteLine($"Cantidad personalizada establecida: {cantidadPersonalizada}");
-
-                        // HACER FOCO EN EL CAMPO BUSCAR DESPUÉS DE CONFIRMAR CANTIDAD
-                        txtBuscarProducto.Focus();
-                    }
-                    else
-                    {
-                        chkCantidad.Checked = false; // Si cancela, desmarca el checkbox
-                        txtBuscarProducto.Focus(); // También hacer foco si cancela
-                    }
-                }
-            }
-            else
-            {
-                cantidadPersonalizada = 1; // Resetea a 1 cuando se desmarca
-                Console.WriteLine($"Cantidad personalizada reseteada a: {cantidadPersonalizada}");
-            }
-        }
-
-        private string GetConnectionString()
-        {
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
-            return config.GetConnectionString("DefaultConnection");
-        }
-
-        private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
-        {
-            string codigoBuscado = textoIngresado.TrimStart('0');
-            if (string.IsNullOrEmpty(codigoBuscado))
-                codigoBuscado = "0";
-
-            decimal? precioPersonalizado = null;
-            bool esEspecial = false;
-
-            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
-            {
-                try
-                {
-                    string codigoProducto = textoIngresado.Substring(2, 5).TrimStart('0');
-                    if (string.IsNullOrEmpty(codigoProducto))
-                        codigoProducto = "0";
-
-                    string parteEntera = textoIngresado.Substring(7, 5);
-                    int parteEnteraNumero = int.Parse(parteEntera);
-
-                    precioPersonalizado = parteEnteraNumero;
-                    codigoBuscado = codigoProducto;
-                    // CAMBIAR ESTA LÍNEA:
-                    // esCodigoEspecial = true;
-                    // POR ESTA:
-                    esEspecial = true;
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException($"Error procesando código especial: {ex.Message}");
-                }
-            }
-
-            return (codigoBuscado, precioPersonalizado, esEspecial);
-        }
-
         private void ConfigurarEventosPrecio()
         {
             txtPrecio.KeyDown += (s, e) =>
@@ -1588,17 +1504,14 @@ namespace Comercio.NET
 
             txtPrecio.KeyPress += (s, e) =>
             {
-                // Si se presiona el punto, lo convertimos en coma
                 if (e.KeyChar == '.')
                 {
                     e.KeyChar = ',';
                 }
 
-                // Permitir teclas de control (backspace, delete, etc.)
                 if (char.IsControl(e.KeyChar))
                     return;
 
-                // Permitir solo dígitos y una coma
                 if (!char.IsDigit(e.KeyChar) && e.KeyChar != ',')
                 {
                     e.Handled = true;
@@ -1609,17 +1522,14 @@ namespace Comercio.NET
                 int selStart = ((TextBox)s).SelectionStart;
                 int selLength = ((TextBox)s).SelectionLength;
 
-                // Simular el texto resultante si se acepta la tecla
                 string newText = txt.Substring(0, selStart) + e.KeyChar + txt.Substring(selStart + selLength);
 
-                // Solo una coma
                 if (e.KeyChar == ',' && txt.Contains(","))
                 {
                     e.Handled = true;
                     return;
                 }
 
-                // Validar formato: máximo 6 dígitos antes de la coma y 2 después
                 string[] partes = newText.Split(',');
                 if (partes[0].Length > 6)
                 {
@@ -1651,7 +1561,6 @@ namespace Comercio.NET
 
             txtPrecio.TextChanged += async (s, e) =>
             {
-                // Solo actualizar si el control está habilitado (es editable)
                 if (!txtPrecio.Enabled) return;
 
                 string codigoBuscado = txtBuscarProducto.Text.Trim();
@@ -1675,10 +1584,7 @@ namespace Comercio.NET
         {
             ConfigurarColumna("precio", "C2", DataGridViewContentAlignment.MiddleRight);
             ConfigurarColumna("total", "C2", DataGridViewContentAlignment.MiddleRight);
-
-            // CAMBIAR ESTA LÍNEA para no pasar formato a cantidad:
             ConfigurarColumna("cantidad", null, DataGridViewContentAlignment.MiddleCenter, 50);
-
             ConfigurarColumna("descripcion", null, null, 330);
 
             foreach (DataGridViewColumn col in dataGridView1.Columns)
@@ -1701,7 +1607,6 @@ namespace Comercio.NET
             if (ancho.HasValue)
                 columna.Width = ancho.Value;
 
-            // CORREGIR: Solo cambiar el HeaderText, NO el formato
             if (nombre == "cantidad")
                 columna.HeaderText = "CANT.";
         }
@@ -1711,15 +1616,12 @@ namespace Comercio.NET
             printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
             printDocumentRemito.PrintPage += printDocumentRemito_PrintPageTicket;
 
-            // 8 cm = 80 mm = 315 centésimas de pulgada (1 pulgada = 25,4 mm)
-            int anchoTicket = (int)(75 / 25.4 * 100); // 80mm a centésimas de pulgada
-            int altoTicket = (int)(200 / 25.4 * 100); // 200mm de alto (ajustable)
+            int anchoTicket = (int)(75 / 25.4 * 100);
+            int altoTicket = (int)(200 / 25.4 * 100);
 
             PaperSize ticketSize = new PaperSize("Ticket", anchoTicket, altoTicket);
             printDocumentRemito.DefaultPageSettings.PaperSize = ticketSize;
-
-            // Márgenes mínimos (2 mm)
-            printDocumentRemito.DefaultPageSettings.Margins = new Margins(8, 8, 8, 8); // 8 centésimas de pulgada ≈ 2 mm
+            printDocumentRemito.DefaultPageSettings.Margins = new Margins(8, 8, 8, 8);
 
             using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
             {
@@ -1730,35 +1632,6 @@ namespace Comercio.NET
 
             printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageTicket;
         }
-
-        private void ImprimirA4()
-        {
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
-            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageA4;
-
-            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
-            {
-                previewDialog.Document = printDocumentRemito;
-                previewDialog.WindowState = FormWindowState.Maximized;
-                previewDialog.ShowDialog();
-            }
-
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageA4;
-        }
-
-        private async Task<DataRow> BuscarProductoAsync(string codigo)
-{
-    using var connection = new SqlConnection(GetConnectionString());
-    var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, 
-                  PermiteAcumular, EditarPrecio FROM Productos WHERE codigo = @codigo";
-
-    using var adapter = new SqlDataAdapter(query, connection);
-    adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
-
-    var dt = new DataTable();
-    adapter.Fill(dt);
-    return dt.Rows.Count > 0 ? dt.Rows[0] : null;
-}
     }
 
     public class WSAAHelper
@@ -1793,7 +1666,7 @@ namespace Comercio.NET
         {
             string cmsBase64 = Convert.ToBase64String(cms);
 
-            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?
             <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
               <soap:Header/>
               <soap:Body>
