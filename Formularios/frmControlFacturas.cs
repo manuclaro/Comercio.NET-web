@@ -20,6 +20,7 @@ namespace Comercio.NET.Formularios
         private Panel panelFiltros;
         private Panel panelResumen;
         private Form frmDetalle; // Ventana flotante para el detalle
+        private CheckBox chkCtaCte; // AGREGAR: Checkbox para Cuenta Corriente
 
         public frmControlFacturas()
         {
@@ -40,6 +41,7 @@ namespace Comercio.NET.Formularios
             this.lblTitulo = new Label();
             this.panelFiltros = new Panel();
             this.panelResumen = new Panel();
+            this.chkCtaCte = new CheckBox(); // AGREGAR: Inicializar checkbox
             
             ((System.ComponentModel.ISupportInitialize)(this.dgvVentas)).BeginInit();
             this.panelFiltros.SuspendLayout();
@@ -87,6 +89,15 @@ namespace Comercio.NET.Formularios
             this.btnHoy.Text = "Hoy";
             this.btnHoy.Click += BtnHoy_Click;
 
+            // AGREGAR: Checkbox Cuenta Corriente
+            this.chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            this.chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
+            this.chkCtaCte.Location = new Point(340, 15);
+            this.chkCtaCte.Size = new Size(120, 30);
+            this.chkCtaCte.Text = "Cta. Cte.";
+            this.chkCtaCte.UseVisualStyleBackColor = true;
+            this.chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
+
             // dgvVentas
             this.dgvVentas.AllowUserToAddRows = false;
             this.dgvVentas.AllowUserToDeleteRows = false;
@@ -105,12 +116,12 @@ namespace Comercio.NET.Formularios
             this.dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             this.dgvVentas.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 252);
             this.dgvVentas.CellClick += DgvVentas_CellClick;
-            this.dgvVentas.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250); // Sin resaltado
+            this.dgvVentas.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250);
 
             // panelResumen
             this.panelResumen.BackColor = Color.FromArgb(0, 120, 215);
             this.panelResumen.Dock = DockStyle.Bottom;
-            this.panelResumen.Height = 60;
+            this.panelResumen.Height = 80;
 
             // lblCantidadVentas
             this.lblCantidadVentas.Dock = DockStyle.Left;
@@ -121,22 +132,52 @@ namespace Comercio.NET.Formularios
             this.lblCantidadVentas.Width = 200;
             this.lblCantidadVentas.Padding = new Padding(20, 0, 0, 0);
 
-            // lblTotal
-            this.lblTotal.Dock = DockStyle.Right;
+            // Panel de totales
+            var panelTotales = new Panel();
+            panelTotales.Dock = DockStyle.Fill;
+            panelTotales.BackColor = Color.FromArgb(0, 120, 215);
+
+            // Label para total general
+            this.lblTotal = new Label();
+            this.lblTotal.Dock = DockStyle.Top;
             this.lblTotal.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
             this.lblTotal.ForeColor = Color.White;
             this.lblTotal.Text = "Total: $0,00";
             this.lblTotal.TextAlign = ContentAlignment.MiddleRight;
-            this.lblTotal.Width = 300;
-            this.lblTotal.Padding = new Padding(0, 0, 20, 0);
+            this.lblTotal.Height = 25;
+
+            // Label para detalles de formas de pago
+            var lblDetalleFormasPago = new Label();
+            lblDetalleFormasPago.Name = "lblDetalleFormasPago";
+            lblDetalleFormasPago.Dock = DockStyle.Top;
+            lblDetalleFormasPago.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+            lblDetalleFormasPago.ForeColor = Color.White;
+            lblDetalleFormasPago.Text = "";
+            lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
+            lblDetalleFormasPago.Height = 20;
+
+            // Label para detalles de tipos de factura
+            var lblDetalleTiposFactura = new Label();
+            lblDetalleTiposFactura.Name = "lblDetalleTiposFactura";
+            lblDetalleTiposFactura.Dock = DockStyle.Top;
+            lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+            lblDetalleTiposFactura.ForeColor = Color.White;
+            lblDetalleTiposFactura.Text = "";
+            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
+            lblDetalleTiposFactura.Height = 20;
+
+            panelTotales.Controls.Add(lblDetalleTiposFactura);
+            panelTotales.Controls.Add(lblDetalleFormasPago);
+            panelTotales.Controls.Add(this.lblTotal);
 
             // Agregar controles a paneles
+            this.panelFiltros.Controls.Add(this.chkCtaCte); // AGREGAR: Checkbox al panel
             this.panelFiltros.Controls.Add(this.btnHoy);
             this.panelFiltros.Controls.Add(this.btnBuscar);
             this.panelFiltros.Controls.Add(this.dtpFecha);
 
             this.panelResumen.Controls.Add(this.lblCantidadVentas);
-            this.panelResumen.Controls.Add(this.lblTotal);
+            this.panelResumen.Controls.Add(panelTotales);
 
             // frmControlFacturas
             this.AutoScaleDimensions = new SizeF(7F, 15F);
@@ -160,6 +201,81 @@ namespace Comercio.NET.Formularios
             this.panelFiltros.ResumeLayout(false);
             this.panelResumen.ResumeLayout(false);
             this.ResumeLayout(false);
+        }
+
+        // AGREGAR: Event handler para el checkbox
+        private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
+        {
+            // Recargar los datos con el filtro actual
+            CargarVentasPorFecha(dtpFecha.Value.Date);
+        }
+
+        // MODIFICAR: Método de carga con filtro de Cuenta Corriente y columna dinámica
+        private void CargarVentasPorFecha(DateTime fecha)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    // MODIFICAR: Query dinámico según el checkbox
+                    var query = chkCtaCte.Checked 
+                        ? @"SELECT 
+                            NumeroFactura as 'N° Factura',
+                            Fecha as 'Fecha',
+                            Hora as 'Hora',
+                            ImporteTotal as 'Total Venta',
+                            FormadePago as 'Forma de Pago',
+                            TipoFactura as 'Tipo Factura',
+                            CAENumero as 'CAE',
+                            CtaCteNombre as 'Cta. Cte. Nombre'
+                        FROM Facturas 
+                        WHERE CAST(Fecha AS DATE) = @fecha 
+                        AND esCtaCte = @esCtaCte
+                        ORDER BY NumeroFactura DESC"
+                        : @"SELECT 
+                            NumeroFactura as 'N° Factura',
+                            Fecha as 'Fecha',
+                            Hora as 'Hora',
+                            ImporteTotal as 'Total Venta',
+                            FormadePago as 'Forma de Pago',
+                            TipoFactura as 'Tipo Factura',
+                            CAENumero as 'CAE',
+                            CUITCliente as 'CUIT Cliente'
+                        FROM Facturas 
+                        WHERE CAST(Fecha AS DATE) = @fecha 
+                        AND esCtaCte = @esCtaCte
+                        ORDER BY NumeroFactura DESC";
+
+                    using (var adapter = new SqlDataAdapter(query, connection))
+                    {
+                        adapter.SelectCommand.Parameters.AddWithValue("@fecha", fecha.Date);
+                        adapter.SelectCommand.Parameters.AddWithValue("@esCtaCte", chkCtaCte.Checked);
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        
+                        dgvVentas.DataSource = dt;
+                        FormatearColumnas();
+                        ActualizarResumen(dt);
+                    }
+                }
+
+                // Actualizar título para mostrar el tipo de ventas
+                string tipoVenta = chkCtaCte.Checked ? "Cuenta Corriente" : "Contado";
+                lblTitulo.Text = fecha.Date == DateTime.Today 
+                    ? $"Control de Facturas - Ventas del Día ({tipoVenta})" 
+                    : $"Control de Facturas - Ventas del {fecha:dd/MM/yyyy} ({tipoVenta})";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al cargar las ventas: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void CrearVentanaDetalle()
@@ -308,54 +424,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private void CargarVentasPorFecha(DateTime fecha)
-        {
-            try
-            {
-                var config = new ConfigurationBuilder()
-                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json")
-                    .Build();
-                string connectionString = config.GetConnectionString("DefaultConnection");
-
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    var query = @"
-                        SELECT 
-                            NumeroFactura as 'N° Factura',
-                            Fecha as 'Fecha',
-                            Hora as 'Hora',
-                            ImporteTotal as 'Total Venta',
-                            FormadePago as 'Forma de Pago',
-                            TipoFactura as 'Tipo Factura',
-                            CAENumero as 'CAE',
-                            CUITCliente as 'CUIT Cliente'
-                        FROM Facturas 
-                        WHERE CAST(Fecha AS DATE) = @fecha
-                        ORDER BY NumeroFactura DESC";
-
-                    using (var adapter = new SqlDataAdapter(query, connection))
-                    {
-                        adapter.SelectCommand.Parameters.AddWithValue("@fecha", fecha.Date);
-                        DataTable dt = new DataTable();
-                        adapter.Fill(dt);
-                        
-                        dgvVentas.DataSource = dt;
-                        FormatearColumnas();
-                        ActualizarResumen(dt);
-                    }
-                }
-
-                lblTitulo.Text = fecha.Date == DateTime.Today 
-                    ? "Control de Facturas - Ventas del Día" 
-                    : $"Control de Facturas - Ventas del {fecha:dd/MM/yyyy}";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al cargar las ventas: {ex.Message}", "Error", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
+      
 
         private void FormatearColumnas()
         {
@@ -405,8 +474,6 @@ namespace Comercio.NET.Formularios
                     formaPagoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // REMOVIDO: La configuración de la columna "Tipo"
-
                 var tipoFacturaCol = dgvVentas.Columns["Tipo Factura"];
                 if (tipoFacturaCol != null)
                 {
@@ -421,11 +488,26 @@ namespace Comercio.NET.Formularios
                     caeCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                var cuitCol = dgvVentas.Columns["CUIT Cliente"];
-                if (cuitCol != null)
+                // NUEVO: Formatear columna dinámica según el checkbox
+                if (chkCtaCte.Checked)
                 {
-                    cuitCol.Width = 120;
-                    cuitCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    // Cuando está tildado, mostrar Cta. Cte. Nombre
+                    var ctaCteCol = dgvVentas.Columns["Cta. Cte. Nombre"];
+                    if (ctaCteCol != null)
+                    {
+                        ctaCteCol.Width = 150;
+                        ctaCteCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                    }
+                }
+                else
+                {
+                    // Cuando NO está tildado, mostrar CUIT Cliente
+                    var cuitCol = dgvVentas.Columns["CUIT Cliente"];
+                    if (cuitCol != null)
+                    {
+                        cuitCol.Width = 120;
+                        cuitCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
                 }
             }
             finally
@@ -523,10 +605,10 @@ namespace Comercio.NET.Formularios
                                 string cuit = reader["CUITCliente"]?.ToString() ?? "";
 
                                 string titulo = $"Detalle {tipoFactura} N° {nroFactura}";
-                                
+
                                 if (!string.IsNullOrEmpty(cae))
                                     titulo += $" - CAE: {cae}";
-                                
+
                                 if (!string.IsNullOrEmpty(cuit))
                                     titulo += $" - CUIT: {cuit}";
 
@@ -550,17 +632,86 @@ namespace Comercio.NET.Formularios
         {
             int cantidadFacturas = dt.Rows.Count;
             decimal totalVentas = 0;
+            
+            // Totales por forma de pago
+            decimal totalEfectivo = 0;
+            decimal totalTransferencia = 0;
+            decimal totalTarjeta = 0;
+            
+            // Totales por tipo de factura
+            decimal totalRemito = 0;
+            decimal totalFacturaA = 0;
+            decimal totalFacturaB = 0;
 
             foreach (DataRow row in dt.Rows)
             {
                 if (decimal.TryParse(row["Total Venta"].ToString(), out decimal total))
                 {
                     totalVentas += total;
+                    
+                    // Agrupar por forma de pago - USAR TRIM()
+                    string formaPago = (row["Forma de Pago"]?.ToString() ?? "").Trim();
+                    switch (formaPago)
+                    {
+                        case "Efectivo":
+                            totalEfectivo += total;
+                            break;
+                        case "Transferencia":
+                            totalTransferencia += total;
+                            break;
+                        case "TarjetaCredito":
+                            totalTarjeta += total;
+                            break;
+                    }
+                    
+                    // Agrupar por tipo de factura - USAR TRIM()
+                    string tipoFactura = (row["Tipo Factura"]?.ToString() ?? "").Trim();
+                    switch (tipoFactura)
+                    {
+                        case "Remito":
+                            totalRemito += total;
+                            break;
+                        case "FacturaA":
+                            totalFacturaA += total;
+                            break;
+                        case "FacturaB":
+                            totalFacturaB += total;
+                            break;
+                    }
                 }
             }
 
             lblCantidadVentas.Text = $"Facturas: {cantidadFacturas}";
             lblTotal.Text = $"Total: {totalVentas:C2}";
+
+            // Buscar en el panel correcto
+            var panelTotales = this.panelResumen.Controls.OfType<Panel>().FirstOrDefault();
+            if (panelTotales != null)
+            {
+                // Actualizar el detalle de formas de pago
+                var lblDetalleFormasPago = panelTotales.Controls.Find("lblDetalleFormasPago", false).FirstOrDefault() as Label;
+                if (lblDetalleFormasPago != null)
+                {
+                    string detalle = "";
+                    if (totalEfectivo > 0) detalle += $"Efectivo: {totalEfectivo:C2}  ";
+                    if (totalTransferencia > 0) detalle += $"Transferencia: {totalTransferencia:C2}  ";
+                    if (totalTarjeta > 0) detalle += $"Tarjeta: {totalTarjeta:C2}";
+                    
+                    lblDetalleFormasPago.Text = string.IsNullOrEmpty(detalle) ? "" : detalle.Trim();
+                }
+
+                // Actualizar el detalle de tipos de factura
+                var lblDetalleTiposFactura = panelTotales.Controls.Find("lblDetalleTiposFactura", false).FirstOrDefault() as Label;
+                if (lblDetalleTiposFactura != null)
+                {
+                    string detalleTipos = "";
+                    if (totalRemito > 0) detalleTipos += $"Remito: {totalRemito:C2}  ";
+                    if (totalFacturaA > 0) detalleTipos += $"Factura A: {totalFacturaA:C2}  ";
+                    if (totalFacturaB > 0) detalleTipos += $"Factura B: {totalFacturaB:C2}";
+                    
+                    lblDetalleTiposFactura.Text = string.IsNullOrEmpty(detalleTipos) ? "" : detalleTipos.Trim();
+                }
+            }
         }
 
         private void FormatearColumnasDetalle(DataGridView dgvDetalle)
