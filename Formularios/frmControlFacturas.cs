@@ -20,7 +20,8 @@ namespace Comercio.NET.Formularios
         private Panel panelFiltros;
         private Panel panelResumen;
         private Form frmDetalle; // Ventana flotante para el detalle
-        private CheckBox chkCtaCte; // AGREGAR: Checkbox para Cuenta Corriente
+        private CheckBox chkCtaCte; // Checkbox para Cuenta Corriente
+        private TextBox txtFiltroCtaCte; // AGREGAR: TextBox para filtrar por nombre Cta Cte
 
         public frmControlFacturas()
         {
@@ -41,14 +42,15 @@ namespace Comercio.NET.Formularios
             this.lblTitulo = new Label();
             this.panelFiltros = new Panel();
             this.panelResumen = new Panel();
-            this.chkCtaCte = new CheckBox(); // AGREGAR: Inicializar checkbox
+            this.chkCtaCte = new CheckBox();
+            this.txtFiltroCtaCte = new TextBox(); // AGREGAR: Inicializar textbox
             
             ((System.ComponentModel.ISupportInitialize)(this.dgvVentas)).BeginInit();
             this.panelFiltros.SuspendLayout();
             this.panelResumen.SuspendLayout();
             this.SuspendLayout();
 
-            // lblTitulo
+            // lblTitulo (sin cambios)
             this.lblTitulo.Dock = DockStyle.Top;
             this.lblTitulo.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
             this.lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
@@ -62,14 +64,14 @@ namespace Comercio.NET.Formularios
             this.panelFiltros.Height = 60;
             this.panelFiltros.Padding = new Padding(10);
 
-            // dtpFecha
+            // dtpFecha (sin cambios)
             this.dtpFecha.Font = new Font("Segoe UI", 10F);
             this.dtpFecha.Format = DateTimePickerFormat.Short;
             this.dtpFecha.Location = new Point(20, 15);
             this.dtpFecha.Size = new Size(120, 25);
             this.dtpFecha.Value = DateTime.Today;
 
-            // btnBuscar
+            // btnBuscar (sin cambios)
             this.btnBuscar.BackColor = Color.FromArgb(0, 120, 215);
             this.btnBuscar.FlatStyle = FlatStyle.Flat;
             this.btnBuscar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
@@ -79,7 +81,7 @@ namespace Comercio.NET.Formularios
             this.btnBuscar.Text = "Buscar";
             this.btnBuscar.Click += BtnBuscar_Click;
 
-            // btnHoy
+            // btnHoy (sin cambios)
             this.btnHoy.BackColor = Color.FromArgb(0, 150, 136);
             this.btnHoy.FlatStyle = FlatStyle.Flat;
             this.btnHoy.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
@@ -89,7 +91,7 @@ namespace Comercio.NET.Formularios
             this.btnHoy.Text = "Hoy";
             this.btnHoy.Click += BtnHoy_Click;
 
-            // AGREGAR: Checkbox Cuenta Corriente
+            // Checkbox Cuenta Corriente
             this.chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             this.chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
             this.chkCtaCte.Location = new Point(340, 15);
@@ -98,7 +100,15 @@ namespace Comercio.NET.Formularios
             this.chkCtaCte.UseVisualStyleBackColor = true;
             this.chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
 
-            // dgvVentas
+            // AGREGAR: TextBox para filtrar por nombre de Cta Cte
+            this.txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
+            this.txtFiltroCtaCte.Location = new Point(470, 17);
+            this.txtFiltroCtaCte.Size = new Size(200, 25);
+            this.txtFiltroCtaCte.Visible = false; // Inicialmente oculto
+            this.txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
+            this.txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
+
+            // dgvVentas (sin cambios)
             this.dgvVentas.AllowUserToAddRows = false;
             this.dgvVentas.AllowUserToDeleteRows = false;
             this.dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
@@ -114,7 +124,6 @@ namespace Comercio.NET.Formularios
             this.dgvVentas.ReadOnly = true;
             this.dgvVentas.RowHeadersVisible = false;
             this.dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            this.dgvVentas.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 252);
             this.dgvVentas.CellClick += DgvVentas_CellClick;
             this.dgvVentas.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250);
 
@@ -163,7 +172,7 @@ namespace Comercio.NET.Formularios
             lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             lblDetalleTiposFactura.ForeColor = Color.White;
             lblDetalleTiposFactura.Text = "";
-            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
+            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight; // CORREGIR: Cambiar 'lblDetailTiposFactura' por 'lblDetalleTiposFactura'
             lblDetalleTiposFactura.Height = 20;
 
             panelTotales.Controls.Add(lblDetalleTiposFactura);
@@ -171,7 +180,8 @@ namespace Comercio.NET.Formularios
             panelTotales.Controls.Add(this.lblTotal);
 
             // Agregar controles a paneles
-            this.panelFiltros.Controls.Add(this.chkCtaCte); // AGREGAR: Checkbox al panel
+            this.panelFiltros.Controls.Add(this.txtFiltroCtaCte); // AGREGAR: TextBox al panel
+            this.panelFiltros.Controls.Add(this.chkCtaCte);
             this.panelFiltros.Controls.Add(this.btnHoy);
             this.panelFiltros.Controls.Add(this.btnBuscar);
             this.panelFiltros.Controls.Add(this.dtpFecha);
@@ -203,11 +213,100 @@ namespace Comercio.NET.Formularios
             this.ResumeLayout(false);
         }
 
-        // AGREGAR: Event handler para el checkbox
+        // MODIFICAR: Event handler para el checkbox
         private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
         {
+            // Mostrar/ocultar el TextBox de filtro
+            txtFiltroCtaCte.Visible = chkCtaCte.Checked;
+            
+            if (chkCtaCte.Checked)
+            {
+                // Limpiar el filtro y hacer foco
+                txtFiltroCtaCte.Text = "";
+                txtFiltroCtaCte.Focus();
+            }
+            
             // Recargar los datos con el filtro actual
             CargarVentasPorFecha(dtpFecha.Value.Date);
+        }
+
+        // AGREGAR: Event handler para el TextBox de filtro
+        private void TxtFiltroCtaCte_TextChanged(object sender, EventArgs e)
+        {
+            if (chkCtaCte.Checked)
+            {
+                // Filtrar los datos existentes en tiempo real
+                FiltrarDatosCtaCte();
+            }
+        }
+
+        // AGREGAR: Método para filtrar datos por nombre de cuenta corriente
+        private void FiltrarDatosCtaCte()
+        {
+            if (dgvVentas.DataSource is DataTable dt)
+            {
+                string filtro = txtFiltroCtaCte.Text.Trim();
+                
+                if (string.IsNullOrEmpty(filtro))
+                {
+                    // Si no hay filtro, mostrar todas las filas
+                    dt.DefaultView.RowFilter = "";
+                }
+                else
+                {
+                    // Aplicar filtro por nombre de cuenta corriente (búsqueda parcial, sin distinguir mayúsculas)
+                    dt.DefaultView.RowFilter = $"[Cta. Cte. Nombre] LIKE '%{filtro.Replace("'", "''")}%'";
+               
+                    // CORREGIR: Si se encuentra una coincidencia exacta, seleccionar esa fila
+                    if (dt.DefaultView.Count == 1 && dgvVentas.Rows.Count > 0)
+                    {
+                        try
+                        {
+                            // Buscar la fila que corresponde al registro filtrado
+                            var dataRowView = dt.DefaultView[0];
+                            string numeroFactura = dataRowView["N° Factura"].ToString();
+                            
+                            // Buscar la fila en el DataGridView que tenga ese número de factura
+                            foreach (DataGridViewRow dgvRow in dgvVentas.Rows)
+                            {
+                                if (dgvRow.Cells["N° Factura"].Value?.ToString() == numeroFactura)
+                                {
+                                    // Seleccionar la fila encontrada
+                                    dgvVentas.ClearSelection();
+                                    dgvRow.Selected = true;
+                                    dgvVentas.CurrentCell = dgvRow.Cells[0];
+                                    
+                                    // Hacer scroll para que la fila sea visible
+                                    if (dgvRow.Index < dgvVentas.FirstDisplayedScrollingRowIndex || 
+                                        dgvRow.Index > dgvVentas.FirstDisplayedScrollingRowIndex + dgvVentas.DisplayedRowCount(false))
+                                    {
+                                        dgvVentas.FirstDisplayedScrollingRowIndex = dgvRow.Index;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Si hay algún error, simplemente no seleccionar nada
+                        }
+                    }
+                }
+                
+                // Actualizar el resumen con los datos filtrados
+                ActualizarResumenFiltrado();
+            }
+        }
+
+        // AGREGAR: Método para actualizar resumen con datos filtrados
+        private void ActualizarResumenFiltrado()
+        {
+            if (dgvVentas.DataSource is DataTable dt)
+            {
+                // Crear un DataTable temporal con solo las filas visibles
+                DataTable dtFiltrado = dt.DefaultView.ToTable();
+                ActualizarResumen(dtFiltrado);
+            }
         }
 
         // MODIFICAR: Método de carga con filtro de Cuenta Corriente y columna dinámica
@@ -223,7 +322,7 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    // MODIFICAR: Query dinámico según el checkbox
+                    // Query dinámico según el checkbox
                     var query = chkCtaCte.Checked 
                         ? @"SELECT 
                             NumeroFactura as 'N° Factura',
@@ -261,7 +360,16 @@ namespace Comercio.NET.Formularios
                         
                         dgvVentas.DataSource = dt;
                         FormatearColumnas();
-                        ActualizarResumen(dt);
+                        
+                        // Si hay filtro de texto aplicado, reaplicarlo
+                        if (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text))
+                        {
+                            FiltrarDatosCtaCte();
+                        }
+                        else
+                        {
+                            ActualizarResumen(dt);
+                        }
                     }
                 }
 
@@ -356,7 +464,13 @@ namespace Comercio.NET.Formularios
             dgvDetalle.ReadOnly = true;
             dgvDetalle.RowHeadersVisible = false;
             dgvDetalle.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvDetalle.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
+            
+            // MODIFICAR: Configurar colores alternados más contrastantes para el detalle
+            dgvDetalle.DefaultCellStyle.BackColor = Color.White;
+            dgvDetalle.DefaultCellStyle.ForeColor = Color.Black;
+            dgvDetalle.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(215, 225, 235); // Azul grisáceo más marcado
+            dgvDetalle.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
+            
             dgvDetalle.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
             dgvDetalle.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
             dgvDetalle.DefaultCellStyle.SelectionForeColor = Color.Black;
@@ -398,6 +512,10 @@ namespace Comercio.NET.Formularios
             dgvVentas.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
             dgvVentas.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
             dgvVentas.DefaultCellStyle.SelectionForeColor = Color.Black;
+            
+            // MODIFICAR: Configurar colores alternados más oscuros y contrastantes
+            dgvVentas.DefaultCellStyle.BackColor = Color.White;
+            dgvVentas.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 230, 240); // Azul claro más visible
         }
 
         private void DgvVentas_CellClick(object sender, DataGridViewCellEventArgs e)
