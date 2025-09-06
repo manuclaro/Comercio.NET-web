@@ -85,7 +85,6 @@
             btnSalir.TabIndex = 4;
             btnSalir.Text = "Salir";
             btnSalir.UseVisualStyleBackColor = true;
-            btnSalir.Click += btnSalir_Click;
             // 
             // btnAgregarProducto
             // 
@@ -95,7 +94,6 @@
             btnAgregarProducto.TabIndex = 5;
             btnAgregarProducto.Text = "Agregar Producto";
             btnAgregarProducto.UseVisualStyleBackColor = true;
-            btnAgregarProducto.Click += btnAgregarProducto_Click;
             // 
             // btnModificarProducto
             // 
@@ -105,13 +103,12 @@
             btnModificarProducto.TabIndex = 6;
             btnModificarProducto.Text = "Modificar Producto";
             btnModificarProducto.UseVisualStyleBackColor = true;
-            btnModificarProducto.Click += btnModificarProducto_Click;
             // 
             // Productos
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.BlanchedAlmond;
+            BackColor = Color.White;
             ClientSize = new Size(953, 450);
             Controls.Add(btnModificarProducto);
             Controls.Add(btnAgregarProducto);

@@ -132,5 +132,12 @@ namespace Comercio.NET
             ControlFacturasForm.MdiParent = this;
             ControlFacturasForm.Show();
         }
+
+        private void toolStripProductos_Click(object sender, EventArgs e)
+        {
+            var productosForm = new Productos();
+            productosForm.MdiParent = this;
+            productosForm.Show();
+        }
     }
 }

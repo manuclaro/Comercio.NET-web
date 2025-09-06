@@ -21,6 +21,9 @@ namespace Comercio.NET.Formularios
         private Panel panelResumen;
         private Form frmDetalle; // Ventana flotante para el detalle
         private CheckBox chkCtaCte; // Checkbox para Cuenta Corriente
+        private Panel panelTotales;
+        private Label lblDetalleTiposFactura;
+        private Label lblDetalleFormasPago;
         private TextBox txtFiltroCtaCte; // AGREGAR: TextBox para filtrar por nombre Cta Cte
 
         public frmControlFacturas()
@@ -33,184 +36,237 @@ namespace Comercio.NET.Formularios
 
         private void InitializeComponent()
         {
-            this.dgvVentas = new DataGridView();
-            this.dtpFecha = new DateTimePicker();
-            this.btnBuscar = new Button();
-            this.btnHoy = new Button();
-            this.lblTotal = new Label();
-            this.lblCantidadVentas = new Label();
-            this.lblTitulo = new Label();
-            this.panelFiltros = new Panel();
-            this.panelResumen = new Panel();
-            this.chkCtaCte = new CheckBox();
-            this.txtFiltroCtaCte = new TextBox(); // AGREGAR: Inicializar textbox
-            
-            ((System.ComponentModel.ISupportInitialize)(this.dgvVentas)).BeginInit();
-            this.panelFiltros.SuspendLayout();
-            this.panelResumen.SuspendLayout();
-            this.SuspendLayout();
-
-            // lblTitulo (sin cambios)
-            this.lblTitulo.Dock = DockStyle.Top;
-            this.lblTitulo.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
-            this.lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
-            this.lblTitulo.Height = 50;
-            this.lblTitulo.Text = "Control de Facturas - Ventas del Día";
-            this.lblTitulo.TextAlign = ContentAlignment.MiddleCenter;
-
-            // panelFiltros
-            this.panelFiltros.BackColor = Color.FromArgb(248, 249, 250);
-            this.panelFiltros.Dock = DockStyle.Top;
-            this.panelFiltros.Height = 60;
-            this.panelFiltros.Padding = new Padding(10);
-
-            // dtpFecha (sin cambios)
-            this.dtpFecha.Font = new Font("Segoe UI", 10F);
-            this.dtpFecha.Format = DateTimePickerFormat.Short;
-            this.dtpFecha.Location = new Point(20, 15);
-            this.dtpFecha.Size = new Size(120, 25);
-            this.dtpFecha.Value = DateTime.Today;
-
-            // btnBuscar (sin cambios)
-            this.btnBuscar.BackColor = Color.FromArgb(0, 120, 215);
-            this.btnBuscar.FlatStyle = FlatStyle.Flat;
-            this.btnBuscar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            this.btnBuscar.ForeColor = Color.White;
-            this.btnBuscar.Location = new Point(150, 15);
-            this.btnBuscar.Size = new Size(80, 30);
-            this.btnBuscar.Text = "Buscar";
-            this.btnBuscar.Click += BtnBuscar_Click;
-
-            // btnHoy (sin cambios)
-            this.btnHoy.BackColor = Color.FromArgb(0, 150, 136);
-            this.btnHoy.FlatStyle = FlatStyle.Flat;
-            this.btnHoy.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            this.btnHoy.ForeColor = Color.White;
-            this.btnHoy.Location = new Point(240, 15);
-            this.btnHoy.Size = new Size(80, 30);
-            this.btnHoy.Text = "Hoy";
-            this.btnHoy.Click += BtnHoy_Click;
-
-            // Checkbox Cuenta Corriente
-            this.chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            this.chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
-            this.chkCtaCte.Location = new Point(340, 15);
-            this.chkCtaCte.Size = new Size(120, 30);
-            this.chkCtaCte.Text = "Cta. Cte.";
-            this.chkCtaCte.UseVisualStyleBackColor = true;
-            this.chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
-
-            // AGREGAR: TextBox para filtrar por nombre de Cta Cte
-            this.txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
-            this.txtFiltroCtaCte.Location = new Point(470, 17);
-            this.txtFiltroCtaCte.Size = new Size(200, 25);
-            this.txtFiltroCtaCte.Visible = false; // Inicialmente oculto
-            this.txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
-            this.txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
-
-            // dgvVentas (sin cambios)
-            this.dgvVentas.AllowUserToAddRows = false;
-            this.dgvVentas.AllowUserToDeleteRows = false;
-            this.dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            this.dgvVentas.BackgroundColor = Color.White;
-            this.dgvVentas.BorderStyle = BorderStyle.None;
-            this.dgvVentas.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            this.dgvVentas.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-            this.dgvVentas.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            this.dgvVentas.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
-            this.dgvVentas.ColumnHeadersHeight = 35;
-            this.dgvVentas.Dock = DockStyle.Fill;
-            this.dgvVentas.EnableHeadersVisualStyles = false;
-            this.dgvVentas.ReadOnly = true;
-            this.dgvVentas.RowHeadersVisible = false;
-            this.dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            this.dgvVentas.CellClick += DgvVentas_CellClick;
-            this.dgvVentas.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250);
-
-            // panelResumen
-            this.panelResumen.BackColor = Color.FromArgb(0, 120, 215);
-            this.panelResumen.Dock = DockStyle.Bottom;
-            this.panelResumen.Height = 80;
-
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            dgvVentas = new DataGridView();
+            dtpFecha = new DateTimePicker();
+            btnBuscar = new Button();
+            btnHoy = new Button();
+            lblTotal = new Label();
+            lblCantidadVentas = new Label();
+            lblTitulo = new Label();
+            panelFiltros = new Panel();
+            txtFiltroCtaCte = new TextBox();
+            chkCtaCte = new CheckBox();
+            panelResumen = new Panel();
+            panelTotales = new Panel();
+            lblDetalleTiposFactura = new Label();
+            lblDetalleFormasPago = new Label();
+            ((System.ComponentModel.ISupportInitialize)dgvVentas).BeginInit();
+            panelFiltros.SuspendLayout();
+            panelResumen.SuspendLayout();
+            panelTotales.SuspendLayout();
+            SuspendLayout();
+            // 
+            // dgvVentas
+            // 
+            dgvVentas.AllowUserToAddRows = false;
+            dgvVentas.AllowUserToDeleteRows = false;
+            dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvVentas.BackgroundColor = Color.White;
+            dgvVentas.BorderStyle = BorderStyle.None;
+            dgvVentas.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = Color.FromArgb(248, 249, 250);
+            dataGridViewCellStyle1.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dataGridViewCellStyle1.ForeColor = Color.Black;
+            dataGridViewCellStyle1.SelectionBackColor = Color.FromArgb(248, 249, 250);
+            dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
+            dgvVentas.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dgvVentas.ColumnHeadersHeight = 35;
+            dgvVentas.Dock = DockStyle.Fill;
+            dgvVentas.EnableHeadersVisualStyles = false;
+            dgvVentas.Location = new Point(0, 110);
+            dgvVentas.Name = "dgvVentas";
+            dgvVentas.ReadOnly = true;
+            dgvVentas.RowHeadersVisible = false;
+            dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvVentas.Size = new Size(991, 391);
+            dgvVentas.TabIndex = 0;
+            dgvVentas.CellClick += DgvVentas_CellClick;
+            dgvVentas.Click += FrmControlFacturas_Click;
+            // 
+            // dtpFecha
+            // 
+            dtpFecha.Font = new Font("Segoe UI", 10F);
+            dtpFecha.Format = DateTimePickerFormat.Short;
+            dtpFecha.Location = new Point(20, 15);
+            dtpFecha.Name = "dtpFecha";
+            dtpFecha.Size = new Size(120, 25);
+            dtpFecha.TabIndex = 4;
+            dtpFecha.Value = new DateTime(2025, 9, 5, 0, 0, 0, 0);
+            // 
+            // btnBuscar
+            // 
+            btnBuscar.BackColor = Color.FromArgb(0, 120, 215);
+            btnBuscar.FlatStyle = FlatStyle.Flat;
+            btnBuscar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnBuscar.ForeColor = Color.White;
+            btnBuscar.Location = new Point(150, 15);
+            btnBuscar.Name = "btnBuscar";
+            btnBuscar.Size = new Size(80, 30);
+            btnBuscar.TabIndex = 3;
+            btnBuscar.Text = "Buscar";
+            btnBuscar.UseVisualStyleBackColor = false;
+            btnBuscar.Click += BtnBuscar_Click;
+            // 
+            // btnHoy
+            // 
+            btnHoy.BackColor = Color.FromArgb(0, 150, 136);
+            btnHoy.FlatStyle = FlatStyle.Flat;
+            btnHoy.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnHoy.ForeColor = Color.White;
+            btnHoy.Location = new Point(240, 15);
+            btnHoy.Name = "btnHoy";
+            btnHoy.Size = new Size(80, 30);
+            btnHoy.TabIndex = 2;
+            btnHoy.Text = "Hoy";
+            btnHoy.UseVisualStyleBackColor = false;
+            btnHoy.Click += BtnHoy_Click;
+            // 
+            // lblTotal
+            // 
+            lblTotal.Dock = DockStyle.Top;
+            lblTotal.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
+            lblTotal.ForeColor = Color.White;
+            lblTotal.Location = new Point(0, 0);
+            lblTotal.Name = "lblTotal";
+            lblTotal.Size = new Size(991, 25);
+            lblTotal.TabIndex = 2;
+            lblTotal.Text = "Total: $0,00";
+            lblTotal.TextAlign = ContentAlignment.MiddleRight;
+            // 
             // lblCantidadVentas
-            this.lblCantidadVentas.Dock = DockStyle.Left;
-            this.lblCantidadVentas.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            this.lblCantidadVentas.ForeColor = Color.White;
-            this.lblCantidadVentas.Text = "Ventas: 0";
-            this.lblCantidadVentas.TextAlign = ContentAlignment.MiddleLeft;
-            this.lblCantidadVentas.Width = 200;
-            this.lblCantidadVentas.Padding = new Padding(20, 0, 0, 0);
-
-            // Panel de totales
-            var panelTotales = new Panel();
-            panelTotales.Dock = DockStyle.Fill;
+            // 
+            lblCantidadVentas.Dock = DockStyle.Left;
+            lblCantidadVentas.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            lblCantidadVentas.ForeColor = Color.White;
+            lblCantidadVentas.Location = new Point(0, 0);
+            lblCantidadVentas.Name = "lblCantidadVentas";
+            lblCantidadVentas.Padding = new Padding(20, 0, 0, 0);
+            lblCantidadVentas.Size = new Size(200, 80);
+            lblCantidadVentas.TabIndex = 0;
+            lblCantidadVentas.Text = "Ventas: 0";
+            lblCantidadVentas.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // lblTitulo
+            // 
+            lblTitulo.Dock = DockStyle.Top;
+            lblTitulo.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
+            lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
+            lblTitulo.Location = new Point(0, 0);
+            lblTitulo.Name = "lblTitulo";
+            lblTitulo.Size = new Size(991, 50);
+            lblTitulo.TabIndex = 3;
+            lblTitulo.Text = "Control de Facturas - Ventas del Día";
+            lblTitulo.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // panelFiltros
+            // 
+            panelFiltros.BackColor = Color.FromArgb(248, 249, 250);
+            panelFiltros.Controls.Add(txtFiltroCtaCte);
+            panelFiltros.Controls.Add(chkCtaCte);
+            panelFiltros.Controls.Add(btnHoy);
+            panelFiltros.Controls.Add(btnBuscar);
+            panelFiltros.Controls.Add(dtpFecha);
+            panelFiltros.Dock = DockStyle.Top;
+            panelFiltros.Location = new Point(0, 50);
+            panelFiltros.Name = "panelFiltros";
+            panelFiltros.Padding = new Padding(10);
+            panelFiltros.Size = new Size(991, 60);
+            panelFiltros.TabIndex = 2;
+            panelFiltros.Click += FrmControlFacturas_Click;
+            // 
+            // txtFiltroCtaCte
+            // 
+            txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
+            txtFiltroCtaCte.Location = new Point(470, 17);
+            txtFiltroCtaCte.Name = "txtFiltroCtaCte";
+            txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
+            txtFiltroCtaCte.Size = new Size(200, 25);
+            txtFiltroCtaCte.TabIndex = 0;
+            txtFiltroCtaCte.Visible = false;
+            txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
+            // 
+            // chkCtaCte
+            // 
+            chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
+            chkCtaCte.Location = new Point(340, 15);
+            chkCtaCte.Name = "chkCtaCte";
+            chkCtaCte.Size = new Size(120, 30);
+            chkCtaCte.TabIndex = 1;
+            chkCtaCte.Text = "Cta. Cte.";
+            chkCtaCte.UseVisualStyleBackColor = true;
+            chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
+            // 
+            // panelResumen
+            // 
+            panelResumen.BackColor = Color.FromArgb(0, 120, 215);
+            panelResumen.Controls.Add(lblCantidadVentas);
+            panelResumen.Controls.Add(panelTotales);
+            panelResumen.Dock = DockStyle.Bottom;
+            panelResumen.Location = new Point(0, 501);
+            panelResumen.Name = "panelResumen";
+            panelResumen.Size = new Size(991, 80);
+            panelResumen.TabIndex = 1;
+            panelResumen.Click += FrmControlFacturas_Click;
+            // 
+            // panelTotales
+            // 
             panelTotales.BackColor = Color.FromArgb(0, 120, 215);
-
-            // Label para total general
-            this.lblTotal = new Label();
-            this.lblTotal.Dock = DockStyle.Top;
-            this.lblTotal.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
-            this.lblTotal.ForeColor = Color.White;
-            this.lblTotal.Text = "Total: $0,00";
-            this.lblTotal.TextAlign = ContentAlignment.MiddleRight;
-            this.lblTotal.Height = 25;
-
-            // Label para detalles de formas de pago
-            var lblDetalleFormasPago = new Label();
-            lblDetalleFormasPago.Name = "lblDetalleFormasPago";
-            lblDetalleFormasPago.Dock = DockStyle.Top;
-            lblDetalleFormasPago.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
-            lblDetalleFormasPago.ForeColor = Color.White;
-            lblDetalleFormasPago.Text = "";
-            lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
-            lblDetalleFormasPago.Height = 20;
-
-            // Label para detalles de tipos de factura
-            var lblDetalleTiposFactura = new Label();
-            lblDetalleTiposFactura.Name = "lblDetalleTiposFactura";
-            lblDetalleTiposFactura.Dock = DockStyle.Top;
-            lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
-            lblDetalleTiposFactura.ForeColor = Color.White;
-            lblDetalleTiposFactura.Text = "";
-            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight; // CORREGIR: Cambiar 'lblDetailTiposFactura' por 'lblDetalleTiposFactura'
-            lblDetalleTiposFactura.Height = 20;
-
             panelTotales.Controls.Add(lblDetalleTiposFactura);
             panelTotales.Controls.Add(lblDetalleFormasPago);
-            panelTotales.Controls.Add(this.lblTotal);
-
-            // Agregar controles a paneles
-            this.panelFiltros.Controls.Add(this.txtFiltroCtaCte); // AGREGAR: TextBox al panel
-            this.panelFiltros.Controls.Add(this.chkCtaCte);
-            this.panelFiltros.Controls.Add(this.btnHoy);
-            this.panelFiltros.Controls.Add(this.btnBuscar);
-            this.panelFiltros.Controls.Add(this.dtpFecha);
-
-            this.panelResumen.Controls.Add(this.lblCantidadVentas);
-            this.panelResumen.Controls.Add(panelTotales);
-
+            panelTotales.Controls.Add(lblTotal);
+            panelTotales.Dock = DockStyle.Fill;
+            panelTotales.Location = new Point(0, 0);
+            panelTotales.Name = "panelTotales";
+            panelTotales.Size = new Size(991, 80);
+            panelTotales.TabIndex = 1;
+            // 
+            // lblDetalleTiposFactura
+            // 
+            lblDetalleTiposFactura.Dock = DockStyle.Top;
+            lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F);
+            lblDetalleTiposFactura.ForeColor = Color.White;
+            lblDetalleTiposFactura.Location = new Point(0, 45);
+            lblDetalleTiposFactura.Name = "lblDetalleTiposFactura";
+            lblDetalleTiposFactura.Size = new Size(991, 20);
+            lblDetalleTiposFactura.TabIndex = 0;
+            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // lblDetalleFormasPago
+            // 
+            lblDetalleFormasPago.Dock = DockStyle.Top;
+            lblDetalleFormasPago.Font = new Font("Segoe UI", 9F);
+            lblDetalleFormasPago.ForeColor = Color.White;
+            lblDetalleFormasPago.Location = new Point(0, 25);
+            lblDetalleFormasPago.Name = "lblDetalleFormasPago";
+            lblDetalleFormasPago.Size = new Size(991, 20);
+            lblDetalleFormasPago.TabIndex = 1;
+            lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
+            // 
             // frmControlFacturas
-            this.AutoScaleDimensions = new SizeF(7F, 15F);
-            this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1000, 600);
-            this.Controls.Add(this.dgvVentas);
-            this.Controls.Add(this.panelResumen);
-            this.Controls.Add(this.panelFiltros);
-            this.Controls.Add(this.lblTitulo);
-            this.Font = new Font("Segoe UI", 9F);
-            this.Text = "Control de Facturas";
-            this.WindowState = FormWindowState.Maximized;
-            
-            // Eventos para ocultar ventana detalle al hacer clic
-            this.Click += FrmControlFacturas_Click;
-            this.dgvVentas.Click += FrmControlFacturas_Click;
-            this.panelFiltros.Click += FrmControlFacturas_Click;
-            this.panelResumen.Click += FrmControlFacturas_Click;
-
-            ((System.ComponentModel.ISupportInitialize)(this.dgvVentas)).EndInit();
-            this.panelFiltros.ResumeLayout(false);
-            this.panelResumen.ResumeLayout(false);
-            this.ResumeLayout(false);
+            // 
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(991, 581);
+            Controls.Add(dgvVentas);
+            Controls.Add(panelResumen);
+            Controls.Add(panelFiltros);
+            Controls.Add(lblTitulo);
+            Font = new Font("Segoe UI", 9F);
+            MinimumSize = new Size(780, 500);
+            Name = "frmControlFacturas";
+            Text = "Control de Facturas";
+            WindowState = FormWindowState.Maximized;
+            Click += FrmControlFacturas_Click;
+            ((System.ComponentModel.ISupportInitialize)dgvVentas).EndInit();
+            panelFiltros.ResumeLayout(false);
+            panelFiltros.PerformLayout();
+            panelResumen.ResumeLayout(false);
+            panelTotales.ResumeLayout(false);
+            ResumeLayout(false);
         }
 
         // MODIFICAR: Event handler para el checkbox
@@ -559,7 +615,7 @@ namespace Comercio.NET.Formularios
                 if (totalVentaCol != null)
                 {
                     totalVentaCol.DefaultCellStyle.Format = "C2";
-                    totalVentaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    totalVentaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     totalVentaCol.Width = 120;
                 }
 
@@ -567,13 +623,14 @@ namespace Comercio.NET.Formularios
                 if (fechaCol != null)
                 {
                     fechaCol.DefaultCellStyle.Format = "dd/MM/yyyy";
-                    fechaCol.Width = 100;
+                    fechaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    fechaCol.Width = 60;
                 }
 
                 var horaCol = dgvVentas.Columns["Hora"];
                 if (horaCol != null)
                 {
-                    horaCol.Width = 80;
+                    horaCol.Width = 60;
                     horaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     horaCol.DefaultCellStyle.Format = "HH:mm:ss";
                 }
