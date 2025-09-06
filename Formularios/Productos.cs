@@ -24,6 +24,14 @@ namespace Comercio.NET.Formularios
         private Panel panelInferior;
         private Panel panelCentral;
         
+        // NUEVO: Controles para indicar carga
+        private Panel panelCarga;
+        private ProgressBar progressBarCarga;
+        private Label lblCargando;
+        private PictureBox picSpinner;
+        private System.Windows.Forms.Timer timerSpinner;
+        private int spinnerAngle = 0;
+        
         // OPTIMIZACIÓN: Cache de fuentes para evitar recrearlas constantemente
         private static readonly Font _headerFont = new Font("Segoe UI", 10F, FontStyle.Bold);
         private static readonly Font _normalFont = new Font("Segoe UI", 9F);
@@ -46,6 +54,11 @@ namespace Comercio.NET.Formularios
                 searchTimer?.Stop();
                 searchTimer?.Dispose();
                 searchTimer = null;
+                
+                // NUEVO: Limpiar recursos del spinner
+                timerSpinner?.Stop();
+                timerSpinner?.Dispose();
+                timerSpinner = null;
                 
                 productosTable?.Dispose();
                 productosTable = null;
@@ -70,10 +83,160 @@ namespace Comercio.NET.Formularios
             // NUEVO: Crear estructura de paneles ANTES de aplicar estilos
             CrearEstructuraPaneles();
             
+            // NUEVO: Crear controles de carga
+            CrearControlesdeCarga();
+            
             AplicarEstilosModernos();
             ConfigurarSearchTimer();
 
             isInitialized = true;
+        }
+
+        // NUEVO: Crear controles para mostrar indicadores de carga
+        private void CrearControlesdeCarga()
+        {
+            // Panel de carga que se superpone al panel central
+            panelCarga = new Panel
+            {
+                Name = "panelCarga",
+                BackColor = Color.FromArgb(240, 245, 248, 250), // Transparencia simulada
+                Dock = DockStyle.Fill,
+                Visible = false
+            };
+
+            // Barra de progreso
+            progressBarCarga = new ProgressBar
+            {
+                Style = ProgressBarStyle.Continuous, // CAMBIO: de Marquee a Continuous
+                Maximum = 100,                       // NUEVO: Valor máximo
+                Value = 0,                          // NUEVO: Valor inicial
+                Size = new Size(300, 8),            // CAMBIO: Altura de 6 a 8
+                ForeColor = Color.FromArgb(63, 81, 181)
+            };
+
+            // Etiqueta de carga
+            lblCargando = new Label
+            {
+                Text = "🔄 Cargando productos...",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181),
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            // Spinner personalizado
+            picSpinner = new PictureBox
+            {
+                Size = new Size(32, 32),
+                BackColor = Color.Transparent
+            };
+            picSpinner.Paint += PicSpinner_Paint;
+
+            // Timer para animar el spinner
+            timerSpinner = new System.Windows.Forms.Timer
+            {
+                Interval = 50 // 20 FPS
+            };
+            timerSpinner.Tick += TimerSpinner_Tick;
+
+            // Agregar controles al panel de carga
+            panelCarga.Controls.Add(progressBarCarga);
+            panelCarga.Controls.Add(lblCargando);
+            panelCarga.Controls.Add(picSpinner);
+
+            // Evento para centrar controles cuando cambie el tamaño
+            panelCarga.Resize += PanelCarga_Resize;
+        }
+
+        // NUEVO: Dibujar spinner personalizado
+        private void PicSpinner_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            int centerX = picSpinner.Width / 2;
+            int centerY = picSpinner.Height / 2;
+            int radius = Math.Min(centerX, centerY) - 2;
+
+            // Dibujar círculo de puntos giratorio
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = (spinnerAngle + i * 30) * Math.PI / 180;
+                float x = centerX + (float)(radius * 0.7 * Math.Cos(angle));
+                float y = centerY + (float)(radius * 0.7 * Math.Sin(angle));
+
+                // Fade effect para los puntos
+                int alpha = Math.Max(50, 255 - (i * 20));
+                using (var brush = new SolidBrush(Color.FromArgb(alpha, 63, 81, 181)))
+                {
+                    g.FillEllipse(brush, x - 2, y - 2, 4, 4);
+                }
+            }
+        }
+
+        // NUEVO: Animar el spinner
+        private void TimerSpinner_Tick(object sender, EventArgs e)
+        {
+            spinnerAngle = (spinnerAngle + 30) % 360;
+            picSpinner.Invalidate();
+        }
+
+        // NUEVO: Centrar controles de carga
+        private void PanelCarga_Resize(object sender, EventArgs e)
+        {
+            if (panelCarga == null) return;
+
+            int centerX = panelCarga.Width / 2;
+            int centerY = panelCarga.Height / 2;
+
+            // Posicionar spinner
+            picSpinner.Location = new Point(centerX - 16, centerY - 50);
+
+            // Posicionar etiqueta
+            lblCargando.Location = new Point(centerX - lblCargando.Width / 2, centerY - 10);
+
+            // Posicionar barra de progreso
+            progressBarCarga.Location = new Point(centerX - 150, centerY + 20);
+        }
+
+        // NUEVO: Mostrar indicadores de carga
+        private void MostrarCarga(string mensaje = "🔄 Cargando productos...")
+        {
+            this.Invoke((Action)(() =>
+            {
+                if (panelCarga != null && panelCentral != null)
+                {
+                    lblCargando.Text = mensaje;
+                    
+                    // Agregar panel de carga al panel central
+                    if (!panelCentral.Controls.Contains(panelCarga))
+                    {
+                        panelCentral.Controls.Add(panelCarga);
+                        panelCarga.BringToFront();
+                    }
+                    
+                    panelCarga.Visible = true;
+                    progressBarCarga.Visible = true;
+                    timerSpinner.Start();
+                    
+                    // Reposicionar controles
+                    PanelCarga_Resize(null, null);
+                }
+            }));
+        }
+
+        // NUEVO: Ocultar indicadores de carga
+        private void OcultarCarga()
+        {
+            this.Invoke((Action)(() =>
+            {
+                timerSpinner?.Stop();
+                if (panelCarga != null)
+                {
+                    panelCarga.Visible = false;
+                    panelCentral?.Controls.Remove(panelCarga);
+                }
+            }));
         }
 
         // NUEVO: Crear estructura con paneles superior, central e inferior
@@ -472,7 +635,7 @@ namespace Comercio.NET.Formularios
             this.Close();
         }
 
-        // CORREGIDO: Actualizar el método de creación de botones para mejor posicionamiento
+        // CORREGIDO: Actualizar el método de creación de botones para mejor posicionamento
         private void CrearBotonSiNoExiste(string nombre, string texto, Color color, Size tamaño, EventHandler clickHandler)
         {
             var boton = this.Controls.Find(nombre, true).FirstOrDefault() as Button;
@@ -522,7 +685,7 @@ namespace Comercio.NET.Formularios
                 ConfigurarBoton(btnModificarProducto, "✏️ Modificar", Color.FromArgb(255, 152, 0), new Size(120, 35));
             }
 
-            // Crear botones dinámicos solo si no existen
+            // CORREGIDO: Quitar espacios en el nombre del método
             CrearBotonSiNoExiste("btnEliminar", "🗑️ Eliminar", Color.FromArgb(244, 67, 54), new Size(120, 35), BtnEliminar_Click);
             CrearBotonSiNoExiste("btnRefrescar", "🔄 Actualizar", Color.FromArgb(96, 125, 139), new Size(110, 35), BtnRefrescar_Click);
             
@@ -594,6 +757,9 @@ namespace Comercio.NET.Formularios
         {
             ConfigurarFormularioPersonalizado();
 
+            // CAMBIO: Mostrar indicador de carga antes de cargar datos
+            MostrarCarga("🔄 Cargando productos...");
+
             // OPTIMIZACIÓN: Cargar datos en background thread más eficiente
             Task.Run(async () =>
             {
@@ -601,17 +767,20 @@ namespace Comercio.NET.Formularios
                 
                 this.Invoke((Action)(() =>
                 {
+                    OcultarCarga(); // NUEVO: Ocultar indicador al terminar
                     txtFiltroDescripcion?.Focus();
                 }));
             });
         }
 
-        // OPTIMIZACIÓN: Método asíncrono para cargar productos
+        // MODIFICADO: Método asíncrono para cargar productos con indicadores de progreso
         private async Task CargarProductosAsync()
         {
             try
             {
                 this.Invoke((Action)(() => this.Cursor = Cursors.WaitCursor));
+
+                ActualizarProgreso(10, "📡 Conectando a la base de datos...");
 
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -621,17 +790,33 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
                 var newTable = new DataTable();
 
+                ActualizarProgreso(25, "📋 Consultando productos...");
+
                 using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
+                    ActualizarProgreso(40, "📋 Ejecutando consulta...");
+                    
                     var query = "SELECT codigo, descripcion, rubro, marca, costo, porcentaje, precio, cantidad, proveedor FROM Productos ORDER BY descripcion";
                     
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
                         adapter.SelectCommand.CommandTimeout = 30;
-                        await Task.Run(() => adapter.Fill(newTable));
+                        
+                        // Simular progreso durante la carga de datos
+                        await Task.Run(() => 
+                        {
+                            adapter.Fill(newTable);
+                        });
+                        
+                        ActualizarProgreso(75, "⚙️ Procesando datos...");
                     }
                 }
+
+                ActualizarProgreso(90, "🎨 Configurando vista...");
+
+                // Pequeña pausa para mostrar el progreso
+                await Task.Delay(200);
 
                 // OPTIMIZACIÓN: Actualizar UI en thread principal
                 this.Invoke((Action)(() =>
@@ -648,11 +833,15 @@ namespace Comercio.NET.Formularios
 
                     ActualizarContador();
                 }));
+                
+                ActualizarProgreso(100, "✅ Carga completada");
+                await Task.Delay(300); // Mostrar "completado" brevemente
             }
             catch (Exception ex)
             {
                 this.Invoke((Action)(() =>
                 {
+                    OcultarCarga();
                     MessageBox.Show($"Error al cargar productos: {ex.Message}", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }));
@@ -663,10 +852,15 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // OPTIMIZACIÓN: Método síncrono simplificado para refresh
+        // MODIFICADO: Método síncrono con indicadores de carga
         private void CargarProductos()
         {
-            Task.Run(async () => await CargarProductosAsync());
+            MostrarCarga("🔄 Refrescando datos...");
+            Task.Run(async () => 
+            {
+                await CargarProductosAsync();
+                this.Invoke((Action)(() => OcultarCarga()));
+            });
         }
 
         // CAMBIO: Nueva configuración de columnas para aprovechar todo el ancho
@@ -680,16 +874,16 @@ namespace Comercio.NET.Formularios
             {
                 var columnConfig = new Dictionary<string, (double percentage, string header, DataGridViewContentAlignment headerAlign, DataGridViewContentAlignment cellAlign, string format)>
                 {
-                    // CAMBIO: Todos los headers centrados, células con alineación específica
+                    // CAMBIO: Todos los headers centrados
                     ["codigo"] = (0.10, "CÓDIGO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
                     ["descripcion"] = (0.35, "DESCRIPCIÓN", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleLeft, ""),
                     ["rubro"] = (0.12, "RUBRO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
                     ["marca"] = (0.12, "MARCA", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["costo"] = (0.10, "COSTO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleRight, "C2"),
+                    ["costo"] = (0.10, "COSTO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "C2"),
                     ["porcentaje"] = (0.06, "%", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["precio"] = (0.10, "PRECIO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleRight, "C2"),
+                    ["precio"] = (0.10, "PRECIO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "C2"),
                     ["cantidad"] = (0.08, "STOCK", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["proveedor"] = (0.07, "PROVEEDOR", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "")
+                    ["proveedor"] = (0.07, "PROV.", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "")
                 };
 
                 foreach (var config in columnConfig)
@@ -700,19 +894,29 @@ namespace Comercio.NET.Formularios
                         // CAMBIO: Configurar anchos proporcionales
                         col.FillWeight = (float)(config.Value.percentage * 100);
                         col.HeaderText = config.Value.header;
-                        
+
                         // CAMBIO: Header siempre centrado, pero celda con alineación específica
-                        col.HeaderCell.Style.Alignment = config.Value.headerAlign;
+                        col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter; // TODOS centrados
                         col.DefaultCellStyle.Alignment = config.Value.cellAlign;
                         
                         if (!string.IsNullOrEmpty(config.Value.format))
                             col.DefaultCellStyle.Format = config.Value.format;
-                        
-                        // NUEVO: Asegurar que todos los headers tengan el mismo estilo
-                        col.HeaderCell.Style.BackColor = Color.FromArgb(63, 81, 181);
-                        col.HeaderCell.Style.ForeColor = Color.White;
-                        col.HeaderCell.Style.Font = _headerFont;
                     }
+                }
+
+                // NUEVO: Asegurar que todas las columnas tengan el mismo estilo
+                if (GrillaProductos != null)
+                {
+                    GrillaProductos.DataBindingComplete += (s, e) =>
+                    {
+                        foreach (DataGridViewColumn col in GrillaProductos.Columns)
+                        {
+                            col.HeaderCell.Style.BackColor = Color.FromArgb(63, 81, 181);
+                            col.HeaderCell.Style.ForeColor = Color.White;
+                            col.HeaderCell.Style.Font = _headerFont;
+                            col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        }
+                    };
                 }
 
                 // OPTIMIZACIÓN: Aplicar formato solo después de configurar columnas
@@ -826,7 +1030,7 @@ namespace Comercio.NET.Formularios
                         row.DefaultCellStyle.BackColor = normalRowColor;
                         row.DefaultCellStyle.ForeColor = normalForeColor;
                         cantidadCell.Style.BackColor = normalRowColor;
-                        cantidadCell.Style.ForeColor = normalForeColor;
+                        cantidadCell.Style.ForeColor = normalRowColor;
                         cantidadCell.Style.Font = _normalFont;
                     }
                 }
@@ -889,7 +1093,6 @@ namespace Comercio.NET.Formularios
             {
                 formulario.Font = _normalFont;
                 formulario.BackColor = Color.FromArgb(245, 248, 250);
-                formulario.StartPosition = FormStartPosition.CenterParent;
                 formulario.FormBorderStyle = FormBorderStyle.FixedDialog;
                 formulario.MaximizeBox = false;
 
@@ -1041,9 +1244,17 @@ namespace Comercio.NET.Formularios
             {
                 using (var form = new frmAgregarProducto())
                 {
-                    form.Load += (s, args) => AplicarEstiloModerno(form);
+                    // CAMBIO: Configurar para centrar respecto al padre
+                    form.StartPosition = FormStartPosition.CenterParent;
+                    
+                    form.Load += (s, args) => 
+                    {
+                        AplicarEstiloModerno(form);
+                        // Opcional: aplicar centrado personalizado si es necesario
+                        // CentrarFormulario(form);
+                    };
 
-                    var result = form.ShowDialog(this);
+                    var result = form.ShowDialog(this); // IMPORTANTE: pasar 'this' como padre
                     if (result == DialogResult.OK)
                     {
                         CargarProductos();
@@ -1088,59 +1299,18 @@ namespace Comercio.NET.Formularios
                 var row = GrillaProductos.CurrentRow;
                 using (var form = new frmAgregarProducto())
                 {
+                    // CAMBIO: Configurar para centrar respecto al padre
+                    form.StartPosition = FormStartPosition.CenterParent;
+                    
                     form.Load += (s, args) =>
                     {
                         AplicarEstiloModerno(form);
                         CargarDatosEnFormulario(form, row);
+                        // Opcional: aplicar centrado personalizado si es necesario
+                        // CentrarFormulario(form);
                     };
 
-                    try
-                    {
-                        var modoProperty = form.GetType().GetProperty("Modo");
-                        var codigoProperty = form.GetType().GetProperty("CodigoOriginal");
-
-                        if (modoProperty != null)
-                        {
-                            var modoEnum = modoProperty.PropertyType.GetField("Modificar");
-                            if (modoEnum != null)
-                            {
-                                modoProperty.SetValue(form, modoEnum.GetValue(null));
-                            }
-                        }
-
-                        if (codigoProperty != null)
-                        {
-                            codigoProperty.SetValue(form, row.Cells["codigo"]?.Value?.ToString());
-                        }
-                    }
-                    catch
-                    {
-                        // Continuar sin configurar modo
-                    }
-
-                    var result = form.ShowDialog(this);
-                    if (result == DialogResult.OK)
-                    {
-                        CargarProductos();
-                        AplicarFiltroDescripcion(txtFiltroDescripcion?.Text ?? "");
-
-                        try
-                        {
-                            var codigoProperty = form.GetType().GetProperty("CodigoAgregado");
-                            if (codigoProperty != null)
-                            {
-                                var codigo = codigoProperty.GetValue(form)?.ToString();
-                                if (!string.IsNullOrEmpty(codigo))
-                                {
-                                    SeleccionarProducto(codigo);
-                                }
-                            }
-                        }
-                        catch
-                        {
-                            // Continuar sin seleccionar
-                        }
-                    }
+                    var result = form.ShowDialog(this); // IMPORTANTE: pasar 'this' como padre
                 }
             }
             catch (Exception ex)
@@ -1197,6 +1367,9 @@ namespace Comercio.NET.Formularios
             {
                 try
                 {
+                    // NUEVO: Mostrar indicador durante eliminación
+                    MostrarCarga("🗑️ Eliminando producto...");
+
                     var config = new ConfigurationBuilder()
                         .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                         .AddJsonFile("appsettings.json")
@@ -1215,13 +1388,15 @@ namespace Comercio.NET.Formularios
 
                             if (affected > 0)
                             {
+                                OcultarCarga();
                                 MessageBox.Show("✅ Producto eliminado correctamente.", "Éxito",
                                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                CargarProductos();
+                                CargarProductos(); // Ya incluye indicadores de carga
                                 txtFiltroDescripcion?.Focus();
                             }
                             else
                             {
+                                OcultarCarga();
                                 MessageBox.Show("❌ No se pudo eliminar el producto.", "Error",
                                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
@@ -1230,6 +1405,7 @@ namespace Comercio.NET.Formularios
                 }
                 catch (Exception ex)
                 {
+                    OcultarCarga();
                     MessageBox.Show($"❌ Error al eliminar el producto: {ex.Message}", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
@@ -1238,7 +1414,7 @@ namespace Comercio.NET.Formularios
 
         private void BtnRefrescar_Click(object sender, EventArgs e)
         {
-            CargarProductos();
+            CargarProductos(); // Ya incluye indicadores de carga
             txtFiltroDescripcion?.Clear();
             txtFiltroDescripcion?.Focus();
             this.Text = "Gestión de Productos";
@@ -1267,6 +1443,38 @@ namespace Comercio.NET.Formularios
             }   
         }
 
+        // NUEVO: Método para actualizar el progreso
+        private void ActualizarProgreso(int porcentaje, string mensaje = null)
+        {
+            this.Invoke((Action)(() =>
+            {
+                if (progressBarCarga != null)
+                {
+                    progressBarCarga.Value = Math.Min(100, Math.Max(0, porcentaje));
+                }
+                
+                if (!string.IsNullOrEmpty(mensaje) && lblCargando != null)
+                {
+                    lblCargando.Text = mensaje;
+                    // Reposicionar el label después de cambiar texto
+                    lblCargando.Location = new Point(
+                        panelCarga.Width / 2 - lblCargando.Width / 2, 
+                        panelCarga.Height / 2 - 10
+                    );
+                }
+            }));
+        }
+
+        // NUEVO: Método para simular progreso en operaciones rápidas
+        private async Task SimularProgresoRapido()
+        {
+            for (int i = 40; i <= 70; i += 5)
+            {
+                ActualizarProgreso(i);
+                await Task.Delay(50); // 50ms entre actualizaciones
+            }
+        }
+
         // CAMBIO: Mejorar el redimensionamiento para usar todo el espacio
         protected override void OnResize(EventArgs e)
         {
@@ -1276,6 +1484,23 @@ namespace Comercio.NET.Formularios
                 // NUEVO: Reconfigurar columnas al redimensionar para usar todo el ancho
                 ConfigurarColumnas();
             }
+        }
+
+        // NUEVO: Método helper para centrar formularios
+        private void CentrarFormulario(Form formulario)
+        {
+            // Obtener el área de trabajo de la pantalla primaria
+            Rectangle workingArea = Screen.PrimaryScreen.WorkingArea;
+            
+            // Calcular posición centrada
+            int x = workingArea.X + (workingArea.Width - formulario.Width) / 2;
+            int y = workingArea.Y + (workingArea.Height - formulario.Height) / 2;
+            
+            // Asegurar que el formulario esté dentro de los límites de la pantalla
+            x = Math.Max(workingArea.X, Math.Min(x, workingArea.Right - formulario.Width));
+            y = Math.Max(workingArea.Y, Math.Min(y, workingArea.Bottom - formulario.Height));
+            
+            formulario.Location = new Point(x, y);
         }
     }
 }

@@ -160,5 +160,20 @@ namespace Comercio.NET.Formularios
         {
 
         }
+
+        // NUEVO: Método helper para centrar formularios
+        private void CentrarFormulario(Form formulario)
+        {
+            formulario.StartPosition = FormStartPosition.Manual;
+            
+            // Obtener el área de trabajo de la pantalla principal
+            Rectangle workingArea = Screen.PrimaryScreen.WorkingArea;
+            
+            // Calcular posición centrada
+            int x = workingArea.X + (workingArea.Width - formulario.Width) / 2;
+            int y = workingArea.Y + (workingArea.Height - formulario.Height) / 2;
+            
+            formulario.Location = new Point(x, y);
+        }
     }
 }

@@ -230,6 +230,7 @@ namespace Comercio.NET.Formularios
             Controls.Add(txtCodigo);
             Controls.Add(btnGuardar);
             Name = "frmAgregarProducto";
+            StartPosition = FormStartPosition.CenterScreen;
             Text = "Agregar Producto";
             Load += frmAgregarProducto_Load;
             ResumeLayout(false);
