@@ -102,6 +102,12 @@ namespace Comercio.NET
                     // Alternar el estado del checkbox
                     chkCantidad.Checked = !chkCantidad.Checked;
                 }
+                else if (e.KeyCode == Keys.F6)
+                {
+                    e.SuppressKeyPress = true;
+                    // Abrir consulta rápida de precios
+                    AbrirConsultaRapidaPrecios();
+                }
             };
         }
 
@@ -1631,6 +1637,21 @@ namespace Comercio.NET
             }
 
             printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageTicket;
+        }
+
+        private void AbrirConsultaRapidaPrecios()
+        {
+            using (var consultaForm = new ConsultaPrecioForm())
+            {
+                consultaForm.ShowDialog(this);
+            }
+            
+            // Restaurar el foco al campo de búsqueda cuando se cierre el modal
+            this.BeginInvoke(new Action(() =>
+            {
+                txtBuscarProducto.Focus();
+                txtBuscarProducto.SelectAll();
+            }));
         }
     }
 
