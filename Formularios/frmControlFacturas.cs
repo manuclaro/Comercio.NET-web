@@ -37,6 +37,7 @@ namespace Comercio.NET.Formularios
         private void InitializeComponent()
         {
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmControlFacturas));
             dgvVentas = new DataGridView();
             dtpFecha = new DateTimePicker();
             btnBuscar = new Button();
@@ -256,6 +257,7 @@ namespace Comercio.NET.Formularios
             Controls.Add(panelFiltros);
             Controls.Add(lblTitulo);
             Font = new Font("Segoe UI", 9F);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(780, 500);
             Name = "frmControlFacturas";
             Text = "Control de Facturas";

@@ -93,6 +93,16 @@ namespace Comercio.NET.Properties {
         /// <summary>
         ///   Busca un recurso adaptado de tipo System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap cash_machine {
+            get {
+                object obj = ResourceManager.GetObject("cash-machine", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Busca un recurso adaptado de tipo System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap DocumentEdit {
             get {
                 object obj = ResourceManager.GetObject("DocumentEdit", resourceCulture);

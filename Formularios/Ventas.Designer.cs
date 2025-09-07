@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Ventas));
             dataGridView1 = new DataGridView();
             lbBuscarProducto = new Label();
             txtBuscarProducto = new TextBox();
@@ -226,6 +227,7 @@
             Controls.Add(lbBuscarProducto);
             Controls.Add(txtBuscarProducto);
             Controls.Add(dataGridView1);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(773, 541);
             Name = "Ventas";
             Text = "Ventas";

@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Productos));
             GrillaProductos = new DataGridView();
             lblContador = new Label();
             txtFiltroDescripcion = new TextBox();
@@ -117,6 +118,7 @@
             Controls.Add(txtFiltroDescripcion);
             Controls.Add(lblContador);
             Controls.Add(GrillaProductos);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(969, 489);
             Name = "Productos";
             Text = "Productos";
