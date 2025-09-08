@@ -344,26 +344,22 @@ namespace Comercio.NET.Formularios
             if (panelSuperior != null)
             {
                 int margen = 15;
-                int yFila1 = 15;  // Primera fila para filtro
-                int yFila2 = 45;  // Segunda fila para botones
+                int yFila1 = 15;  // Primera fila para el filtro
+                int yFila2 = 45;  // Segunda fila para los botones
                 int x = margen;
 
-                // CORREGIDO: Buscar etiqueta del filtro primero
+                // Ubicar controles de filtro (sin cambios)
                 var lblFiltro = panelSuperior.Controls.OfType<Label>()
-                    .FirstOrDefault(l => l.Name?.Contains("Filtro") == true || 
-                                        l.Name?.Contains("Buscar") == true ||
-                                        l.Text?.Contains("Buscar") == true ||
-                                        l.Text?.Contains("Filtro") == true);
-
-                // Posicionar etiqueta del filtro si existe
+                    .FirstOrDefault(l => l.Name?.Contains("Filtro") == true ||
+                                          l.Name?.Contains("Buscar") == true ||
+                                          l.Text?.Contains("Buscar") == true ||
+                                          l.Text?.Contains("Filtro") == true);
                 if (lblFiltro != null)
                 {
                     lblFiltro.Location = new Point(margen, yFila1 - 25);
                     lblFiltro.Size = new Size(200, 20);
                     lblFiltro.Text = "🔍 Buscar producto:";
                 }
-
-                // CORREGIDO: Posicionar campo de filtro
                 if (txtFiltroDescripcion != null)
                 {
                     txtFiltroDescripcion.Location = new Point(margen, yFila1);
@@ -371,76 +367,62 @@ namespace Comercio.NET.Formularios
                     txtFiltroDescripcion.PlaceholderText = "Escriba para filtrar productos...";
                 }
 
-                // CORREGIDO: Posicionar botones en segunda fila con espaciado correcto
-                x = margen; // Resetear posición X
-
-                // Obtener todos los botones y ordenarlos por prioridad
+                // Construir la lista de botones en el orden deseado
                 var todosLosBotones = new List<Button>();
-                
-                // Agregar botones en orden específico
                 if (btnAgregarProducto != null)
                     todosLosBotones.Add(btnAgregarProducto);
-                
                 if (btnModificarProducto != null)
                     todosLosBotones.Add(btnModificarProducto);
 
-                // Buscar botones dinámicos
+                // Insertar el botón "Actualizar Stock" (btnAbrirActualizar) después de "Modificar"
+                var btnAbrirActualizar = panelSuperior.Controls.OfType<Button>()
+                    .FirstOrDefault(b => b.Name == "btnAbrirActualizar");
+                if (btnAbrirActualizar != null)
+                    todosLosBotones.Add(btnAbrirActualizar);
+
+                // Agregar los demás botones dinámicos
                 var btnEliminar = panelSuperior.Controls.OfType<Button>()
                     .FirstOrDefault(b => b.Name == "btnEliminar");
                 if (btnEliminar != null)
                     todosLosBotones.Add(btnEliminar);
-
                 var btnRefrescar = panelSuperior.Controls.OfType<Button>()
                     .FirstOrDefault(b => b.Name == "btnRefrescar");
                 if (btnRefrescar != null)
                     todosLosBotones.Add(btnRefrescar);
-
                 var btnSalir = panelSuperior.Controls.OfType<Button>()
                     .FirstOrDefault(b => b.Name == "btnSalir" || b.Text.Contains("Salir"));
                 if (btnSalir != null)
                     todosLosBotones.Add(btnSalir);
 
-                // CORREGIDO: Posicionar cada botón con espaciado adecuado
+                // Posicionar cada botón con espaciado adecuado
                 foreach (var boton in todosLosBotones)
                 {
                     boton.Location = new Point(x, yFila2);
-                    
-                    // Asegurar tamaño consistente
                     if (boton.Name == "btnSalir")
-                    {
                         boton.Size = new Size(80, 35);
-                    }
                     else if (boton.Name == "btnRefrescar")
-                    {
                         boton.Size = new Size(110, 35);
-                    }
                     else
-                    {
                         boton.Size = new Size(120, 35);
-                    }
 
-                    // Avanzar posición X para el siguiente botón
-                    x += boton.Width + 12; // Espaciado de 12px entre botones
+                    x += boton.Width + 12; // Espaciado entre botones
                 }
 
-                // CORREGIDO: Si hay más controles no identificados, posicionarlos al final
+                // Ubicar los demás controles (etiquetas, textbox, etc.) que no han sido incluidos en la lista.
                 var otrosControles = panelSuperior.Controls.Cast<Control>()
                     .Where(c => c != txtFiltroDescripcion && 
-                               c != lblFiltro && 
-                               !todosLosBotones.Contains(c))
+                                c != lblFiltro && 
+                                !todosLosBotones.Contains(c))
                     .ToList();
-
                 foreach (var control in otrosControles)
                 {
                     if (control is Label lbl && lbl != lblFiltro)
                     {
-                        // Otras etiquetas van después del filtro
                         lbl.Location = new Point(txtFiltroDescripcion.Right + 20, yFila1);
                         lbl.Size = new Size(200, 25);
                     }
                     else if (control is TextBox || control is ComboBox)
                     {
-                        // Otros campos van después del filtro
                         control.Location = new Point(txtFiltroDescripcion.Right + 20, yFila1);
                         control.Size = new Size(150, 25);
                     }
@@ -687,9 +669,37 @@ namespace Comercio.NET.Formularios
 
             // CORREGIDO: Quitar espacios en el nombre del método
             CrearBotonSiNoExiste("btnEliminar", "🗑️ Eliminar", Color.FromArgb(244, 67, 54), new Size(120, 35), BtnEliminar_Click);
-            CrearBotonSiNoExiste("btnRefrescar", "🔄 Actualizar", Color.FromArgb(96, 125, 139), new Size(110, 35), BtnRefrescar_Click);
+            CrearBotonSiNoExiste("btnRefrescar", "🔄 Refrescar", Color.FromArgb(96, 125, 139), new Size(110, 35), BtnRefrescar_Click);
             
             ConfigurarBotonSalir();
+
+            // NUEVO: Crear y agregar el botón "Actualizar Stock" si no existe
+            var btnActualizar = this.Controls.Find("btnAbrirActualizar", true).FirstOrDefault() as Button;
+            if (btnActualizar == null)
+            {
+                btnActualizar = new Button
+                {
+                    Name = "btnAbrirActualizar",
+                    Text = "Actualizar Stock",
+                    Size = new Size(120, 35),
+                    BackColor = Color.FromArgb(96, 125, 139),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = _boldFont,
+                    Cursor = Cursors.Hand
+                };
+
+                btnActualizar.FlatAppearance.BorderSize = 0;
+                btnActualizar.Click += btnAbrirActualizar_Click;
+
+                if (panelSuperior != null)
+                {
+                    panelSuperior.Controls.Add(btnActualizar);
+                    OrganizarControlesPanelSuperior();
+                }
+
+                AplicarHoverButton(btnActualizar);
+            }
 
             // NUEVO: Reorganizar todos los controles después de configurar
             OrganizarControlesPanelSuperior();
@@ -1501,6 +1511,27 @@ namespace Comercio.NET.Formularios
             y = Math.Max(workingArea.Y, Math.Min(y, workingArea.Bottom - formulario.Height));
             
             formulario.Location = new Point(x, y);
+        }
+
+        private void btnAbrirActualizar_Click(object sender, EventArgs e)
+        {
+            using (var frm = new frmActualizarProducto())
+            {
+                if (frm.ShowDialog() == DialogResult.OK)
+                {
+                    // Aquí puedes recargar los datos del producto o actualizar la interfaz.
+                }
+            }
+        }
+
+        // NUEVO: Método para recargar productos desde otros formularios
+        public void RefrescarProductos()
+        {
+            // Llama al método que recarga los productos (por ejemplo, CargarProductos o un método similar)
+            CargarProductos();
+            txtFiltroDescripcion?.Clear();
+            txtFiltroDescripcion?.Focus();
+            this.Text = "Gestión de Productos";
         }
     }
 }

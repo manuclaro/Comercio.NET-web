@@ -96,6 +96,7 @@ namespace Comercio.NET.Formularios
             dtpFecha.Size = new Size(120, 25);
             dtpFecha.TabIndex = 4;
             dtpFecha.Value = new DateTime(2025, 9, 5, 0, 0, 0, 0);
+            dtpFecha.Value = DateTime.Today;
             // 
             // btnBuscar
             // 
