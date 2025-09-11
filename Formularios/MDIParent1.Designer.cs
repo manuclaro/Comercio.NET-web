@@ -64,16 +64,16 @@ namespace Comercio.NET
             toolStripSeparator8 = new ToolStripSeparator();
             aboutToolStripMenuItem = new ToolStripMenuItem();
             toolStrip = new ToolStrip();
-            toolStripSeparator1 = new ToolStripSeparator();
             printPreviewToolStripButton = new ToolStripButton();
-            toolStripSeparator2 = new ToolStripSeparator();
+            toolStripSeparator1 = new ToolStripSeparator();
             toolStripProductos = new ToolStripButton();
-            statusStrip = new StatusStrip();
-            toolStripStatusLabel = new ToolStripStatusLabel();
-            toolTip = new ToolTip(components);
+            toolStripSeparator2 = new ToolStripSeparator();
             toolStripButton1 = new ToolStripButton();
             toolStripSeparator6 = new ToolStripSeparator();
             toolStripButton2 = new ToolStripButton();
+            statusStrip = new StatusStrip();
+            toolStripStatusLabel = new ToolStripStatusLabel();
+            toolTip = new ToolTip(components);
             menuStrip.SuspendLayout();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
@@ -326,11 +326,6 @@ namespace Comercio.NET
             toolStrip.TabIndex = 1;
             toolStrip.Text = "ToolStrip";
             // 
-            // toolStripSeparator1
-            // 
-            toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new Size(6, 25);
-            // 
             // printPreviewToolStripButton
             // 
             printPreviewToolStripButton.BackColor = Color.Snow;
@@ -339,13 +334,13 @@ namespace Comercio.NET
             printPreviewToolStripButton.ImageTransparentColor = Color.Black;
             printPreviewToolStripButton.Name = "printPreviewToolStripButton";
             printPreviewToolStripButton.Size = new Size(23, 22);
-            printPreviewToolStripButton.Text = "Vista previa de impresión";
+            printPreviewToolStripButton.Text = "Ventas";
             printPreviewToolStripButton.Click += printPreviewToolStripButton_Click;
             // 
-            // toolStripSeparator2
+            // toolStripSeparator1
             // 
-            toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new Size(6, 25);
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new Size(6, 25);
             // 
             // toolStripProductos
             // 
@@ -355,8 +350,37 @@ namespace Comercio.NET
             toolStripProductos.ImageTransparentColor = Color.Magenta;
             toolStripProductos.Name = "toolStripProductos";
             toolStripProductos.Size = new Size(23, 22);
-            toolStripProductos.Text = "toolStripButton1";
+            toolStripProductos.Text = "Productos";
             toolStripProductos.Click += toolStripProductos_Click;
+            // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(6, 25);
+            // 
+            // toolStripButton1
+            // 
+            toolStripButton1.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolStripButton1.Image = (Image)resources.GetObject("toolStripButton1.Image");
+            toolStripButton1.ImageTransparentColor = Color.Magenta;
+            toolStripButton1.Name = "toolStripButton1";
+            toolStripButton1.Size = new Size(23, 22);
+            toolStripButton1.Text = "Control de ventas";
+            toolStripButton1.Click += toolStripButton1_Click;
+            // 
+            // toolStripSeparator6
+            // 
+            toolStripSeparator6.Name = "toolStripSeparator6";
+            toolStripSeparator6.Size = new Size(6, 25);
+            // 
+            // toolStripButton2
+            // 
+            toolStripButton2.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolStripButton2.Image = (Image)resources.GetObject("toolStripButton2.Image");
+            toolStripButton2.ImageTransparentColor = Color.Magenta;
+            toolStripButton2.Name = "toolStripButton2";
+            toolStripButton2.Size = new Size(23, 22);
+            toolStripButton2.Text = "Compras";
             // 
             // statusStrip
             // 
@@ -373,30 +397,6 @@ namespace Comercio.NET
             toolStripStatusLabel.Name = "toolStripStatusLabel";
             toolStripStatusLabel.Size = new Size(42, 17);
             toolStripStatusLabel.Text = "Estado";
-            // 
-            // toolStripButton1
-            // 
-            toolStripButton1.DisplayStyle = ToolStripItemDisplayStyle.Image;
-            toolStripButton1.Image = (Image)resources.GetObject("toolStripButton1.Image");
-            toolStripButton1.ImageTransparentColor = Color.Magenta;
-            toolStripButton1.Name = "toolStripButton1";
-            toolStripButton1.Size = new Size(23, 22);
-            toolStripButton1.Text = "toolStripButton1";
-            toolStripButton1.Click += toolStripButton1_Click;
-            // 
-            // toolStripSeparator6
-            // 
-            toolStripSeparator6.Name = "toolStripSeparator6";
-            toolStripSeparator6.Size = new Size(6, 25);
-            // 
-            // toolStripButton2
-            // 
-            toolStripButton2.DisplayStyle = ToolStripItemDisplayStyle.Image;
-            toolStripButton2.Image = (Image)resources.GetObject("toolStripButton2.Image");
-            toolStripButton2.ImageTransparentColor = Color.Magenta;
-            toolStripButton2.Name = "toolStripButton2";
-            toolStripButton2.Size = new Size(23, 22);
-            toolStripButton2.Text = "toolStripButton2";
             // 
             // MenuPrincipal
             // 
