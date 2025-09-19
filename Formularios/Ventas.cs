@@ -15,9 +15,9 @@ using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
+using Comercio.NET.Servicios; // AGREGAR ESTA LÍNEA
 
 namespace Comercio.NET
 {
@@ -33,7 +33,7 @@ namespace Comercio.NET
         private int nroRemitoActual = 0;
         private bool remitoIncrementado = false;
         private DataTable remitoActual = null;
-        private PrintDocument printDocumentRemito = new PrintDocument();
+
         private string nombreComercio = "Comercio";
         private string domicilioComercio = "domicilio";
 
@@ -91,6 +91,39 @@ namespace Comercio.NET
             ConfigurarEventosPrecio();
         }
 
+        private async Task ActualizarPrecioProductoAsync(string codigo, decimal nuevoPrecio)
+        {
+            try
+            {
+                string connectionString = GetConnectionString();
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
+                        cmd.Parameters.AddWithValue("@codigo", codigo);
+                        connection.Open();
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Error silencioso para evitar interrumpir la experiencia del usuario
+                System.Diagnostics.Debug.WriteLine($"Error actualizando precio: {ex.Message}");
+            }
+        }
+
+        private void AbrirConsultaRapidaPrecios()
+        {
+            using (var consultaForm = new ConsultaPrecioForm())
+            {
+                consultaForm.ShowDialog(this);
+            }
+        }
+
         private void ConfigurarAtajosTeclado()
         {
             this.KeyPreview = true; // Importante: permite que el formulario capture las teclas
@@ -110,6 +143,7 @@ namespace Comercio.NET
                 }
             };
         }
+
 
         private void CargarConfiguracion()
         {
@@ -268,6 +302,7 @@ namespace Comercio.NET
         {
             string textoIngresado = txtBuscarProducto.Text.Trim();
             string codigoBuscado = textoIngresado;
+            bool esCodigoTemporal = false;
             bool esCodigoEspecial = false;
 
             if (string.IsNullOrEmpty(textoIngresado))
@@ -298,6 +333,13 @@ namespace Comercio.NET
                     txtBuscarProducto.Focus();
                     return;
                 }
+            }
+            else if (textoIngresado.Length == 8)
+            {
+                // TRATAMIENTO ESPECIAL PARA CÓDIGOS TEMPORALES DE TESTING (8 DÍGITOS)
+                // Asumimos que vienen en el formato XXXXXXXX y son válidos para testing
+                codigoBuscado = textoIngresado;
+                esCodigoTemporal = true;
             }
             else
             {
@@ -655,7 +697,11 @@ namespace Comercio.NET
             lbTotal.Text = $"Total: {sumaTotal:C2}";
         }
 
-        // Reemplaza la llamada incorrecta a CrearFacturaBAsync con parámetros por la llamada correcta sin parámetros
+        // Eliminar completamente el método FinalizarVenta() duplicado que agregamos antes
+        // Ya existe btnFinalizarVenta_Click que hace lo mismo
+
+        // El método btnFinalizarVenta_Click ya está bien implementado, solo hay que hacer algunos ajustes:
+
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
@@ -671,38 +717,84 @@ namespace Comercio.NET
                     importeTotal += valor;
             }
 
-            // Mostrar el modal de selección pasando el importe total Y la referencia al formulario padre
+            // Mostrar el modal de selección
             using (var seleccion = new SeleccionImpresionForm(importeTotal, this)
             {
                 TokenAfip = this.token,
                 SignAfip = this.sign,
-                OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento) =>
+                OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip) =>
                 {
-                    // Primero guardar en BD - CORREGIR: usar los parámetros que vienen del modal
-                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento);
-                    
-                    // Luego ejecutar la acción específica según el tipo
-                    switch (tipoFactura)
-                    {
-                        case "Remito":
-                            ImprimirTicket();
-                            break;
-                        case "FacturaB":
-                            // Lógica específica para Factura B si es necesaria
-                            break;
-                        case "FacturaA":
-                            // Lógica específica para Factura A si es necesaria
-                            break;
-                    }
-                    
-                    // Finalmente limpiar y reiniciar
+                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip);
+                }
+            })
+            {
+                var resultado = seleccion.ShowDialog(this);
+
+                if (resultado == DialogResult.OK)
+                {
+                    // SIMPLIFICADO: Solo llamar al servicio de impresión
+                    ImprimirConServicio(seleccion);
+
+                    // Limpiar y reiniciar para nueva venta
                     LimpiarYReiniciarVenta();
                 }
-    })
-    {
-        seleccion.ShowDialog(this);
-    }
-}
+            }
+        }
+
+        // NUEVO método simplificado para manejar la impresión
+        private void ImprimirConServicio(SeleccionImpresionForm seleccion)
+        {
+            try
+            {
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                {
+                    MessageBox.Show("No hay productos para imprimir.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Configurar el ticket según el tipo de comprobante
+                var config = new TicketConfig
+                {
+                    NombreComercio = nombreComercio,
+                    DomicilioComercio = domicilioComercio,
+                    NumeroComprobante = nroRemitoActual.ToString(),
+                    FormaPago = seleccion.OpcionPagoSeleccionada.ToString(),
+                    MensajePie = "Gracias por su compra!"
+                };
+
+                // Configurar según el tipo de comprobante seleccionado
+                switch (seleccion.OpcionSeleccionada)
+                {
+                    case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
+                        config.TipoComprobante = "REMITO";
+                        break;
+
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaB:
+                        config.TipoComprobante = "FACTURA B";
+                        config.CAE = seleccion.CAENumero;
+                        config.CAEVencimiento = seleccion.CAEVencimiento;
+                        break;
+
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
+                        config.TipoComprobante = "FACTURA A";
+                        config.CAE = seleccion.CAENumero;
+                        config.CAEVencimiento = seleccion.CAEVencimiento;
+                        // El CUIT se obtiene del formulario seleccion si es necesario
+                        break;
+                }
+
+                // Usar el servicio de impresión
+                using (var ticketService = new TicketPrintingService())
+                {
+                    ticketService.ImprimirTicket(remitoActual, config);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         // Agregar este método público para que el modal pueda acceder a él
         public DataTable GetRemitoActual()
         {
@@ -727,7 +819,7 @@ namespace Comercio.NET
             return domicilioComercio;
         }
 
-        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null)
+        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0)
         {
             try
             {
@@ -748,37 +840,48 @@ namespace Comercio.NET
                 using (var connection = new SqlConnection(connectionString))
                 {
                     var query = @"INSERT INTO Facturas 
-                (NumeroFactura, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre, 
-                 Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente)
-                VALUES 
-                (@NumeroFactura, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre, 
-                 @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente)";
+            (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre, 
+             Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente)
+            VALUES 
+            (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre, 
+             @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente)";
 
                     using (var cmd = new SqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                        // CORRECCIÓN: Usar NumeroRemito y NroFactura correctamente
+                        cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual); // Siempre el número de remito local
+                        
+                        if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
+                        {
+                            // Para facturas A y B: NroFactura = número de AFIP
+                            cmd.Parameters.AddWithValue("@NroFactura", numeroFacturaAfip);
+                            cmd.Parameters.AddWithValue("@CAENumero", !string.IsNullOrEmpty(caeNumero) ? (object)caeNumero : DBNull.Value);
+                        }
+                        else
+                        {
+                            // Para remitos: NroFactura = null
+                            cmd.Parameters.AddWithValue("@NroFactura", DBNull.Value);
+                            cmd.Parameters.AddWithValue("@CAENumero", DBNull.Value);
+                        }
+
                         cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
                         cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
                         cmd.Parameters.AddWithValue("@ImporteTotal", importeTotal);
                         cmd.Parameters.AddWithValue("@FormadePago", formaPago);
                         cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
                         cmd.Parameters.AddWithValue("@CtaCteNombre", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Cajero", "1"); // Por defecto
+                        cmd.Parameters.AddWithValue("@Cajero", "1");
                         cmd.Parameters.AddWithValue("@TipoFactura", tipoFactura);
-                        
-                        // Solo guardar CAE si es Factura A o B
+
                         if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
                         {
-                            cmd.Parameters.AddWithValue("@CAENumero", !string.IsNullOrEmpty(caeNumero) ? (object)caeNumero : DBNull.Value);
                             cmd.Parameters.AddWithValue("@CAEVencimiento", caeVencimiento.HasValue ? (object)caeVencimiento.Value : DBNull.Value);
                         }
                         else
                         {
-                            cmd.Parameters.AddWithValue("@CAENumero", DBNull.Value);
                             cmd.Parameters.AddWithValue("@CAEVencimiento", DBNull.Value);
                         }
 
-                        // Solo guardar CUIT si es Factura A
                         if (tipoFactura == "FacturaA" && !string.IsNullOrEmpty(cuitCliente))
                         {
                             cmd.Parameters.AddWithValue("@CUITCliente", cuitCliente);
@@ -795,590 +898,41 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al guardar la factura en base de datos: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al guardar la factura en base de datos: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
+        // Asegurarse de que el método LimpiarYReiniciarVenta esté bien implementado
         private void LimpiarYReiniciarVenta()
         {
             // Limpiar la grilla
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear();
-            
+
             // Actualizar labels
             lbCantidadProductos.Text = "Productos: 0";
             lbTotal.Text = "Total: $0,00";
-            
+
             // Limpiar checkboxes
             chkEsCtaCte.Checked = false;
-            
+
             // Limpiar campos de producto
             LimpiarCamposProducto();
-            
+
             // Limpiar campos de búsqueda
             txtBuscarProducto.Text = "";
             lbDescripcionProducto.Text = "";
-            
+
             // Resetear variables de control
             remitoActual = null;
-            
+
             // IMPORTANTE: Usar BeginInvoke para asegurar que el foco se establezca después de que se complete el cierre del modal
             this.BeginInvoke(new Action(() =>
             {
-                txtBuscarProducto.Focus();
+                txtBuscarProducto.Focus(); // Este es el nombre correcto del TextBox
                 txtBuscarProducto.SelectAll();
             }));
-        }
-
-        private void printDocumentRemito_PrintPage(object sender, PrintPageEventArgs e)
-        {
-            if (remitoActual == null) return;
-
-            // Márgenes y fuentes
-            float leftMargin = e.MarginBounds.Left + 20;
-            float topMargin = e.MarginBounds.Top + 20;
-            float rowHeight = 22;
-            Font font = new Font("Arial", 10);
-            Font fontBold = new Font("Arial", 10, FontStyle.Bold);
-            Font fontTitulo = new Font("Arial", 18, FontStyle.Bold);
-            Pen linePen = new Pen(Color.Black, 1);
-
-            // Definir anchos de columnas (ajustados)
-            float colCodigo = 120;
-            float colDescripcion = 240;
-            float colCantidad = 70;
-            float colPrecio = 90;
-            float colTotal = 120;
-
-            float[] colX = {
-                leftMargin,
-                leftMargin + colCodigo,
-                leftMargin + colCodigo + colDescripcion,
-                leftMargin + colCodigo + colDescripcion + colCantidad,
-                leftMargin + colCodigo + colDescripcion + colCantidad + colPrecio
-            };
-
-            float tablaRight = colX[4] + colTotal; // Límite derecho de la tabla
-
-            float y = topMargin;
-
-            // Título principal (variable)
-            SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
-            e.Graphics.DrawString(
-                nombreComercio,
-                fontTitulo,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
-                y
-            );
-
-            // Domicilio debajo del título, centrado y con fuente más pequeña
-            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
-            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
-            e.Graphics.DrawString(
-                domicilioComercio,
-                fontDomicilio,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
-                y + nombreComercioSize.Height
-            );
-            y += nombreComercioSize.Height + domicilioSize.Height + 6;
-
-            // Fecha y hora alineadas con el borde derecho de la columna "TOTAL"
-            string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
-            string horaStr = $"Hora: {DateTime.Now:HH:mm}";
-            SizeF fechaSize = e.Graphics.MeasureString(fechaStr, font);
-            SizeF horaSize = e.Graphics.MeasureString(horaStr, font);
-            float fechaX = tablaRight - fechaSize.Width;
-            float horaX = tablaRight - horaSize.Width;
-            e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
-            e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
-
-            y += Math.Max(nombreComercioSize.Height, fechaSize.Height + horaSize.Height) + 10;
-
-            // Título Remito centrado
-            string titulo = $"REMITO N°: {nroRemitoActual}";
-            SizeF tituloSize = e.Graphics.MeasureString(titulo, fontBold);
-            e.Graphics.DrawString(
-                titulo,
-                fontBold,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
-                y
-            );
-            y += tituloSize.Height + 10;
-
-            // Encabezados de columnas
-            string[] headers = { "CÓDIGO", "DESCRIPCIÓN", "CANT.", "PRECIO", "TOTAL" };
-            for (int i = 0; i < headers.Length; i++)
-            {
-                float headerX = colX[i];
-                float colWidth = (i == 0) ? colCodigo :
-                                 (i == 1) ? colDescripcion :
-                                 (i == 2) ? colCantidad :
-                                 (i == 3) ? colPrecio : colTotal;
-
-                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
-
-                if (i == 3 || i == 4)
-                {
-                    // Alinear a la derecha PRECIO y TOTAL
-                    headerX += colWidth - headerSize.Width;
-                }
-                else if (i == 2)
-                {
-                    // Centrar CANT.
-                    headerX += (colWidth - headerSize.Width) / 2;
-                }
-                // CÓDIGO y DESCRIPCIÓN quedan alineados a la izquierda
-
-                e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
-            }
-
-            y += rowHeight - 6;
-            // Línea debajo del encabezado (hasta el borde de la columna TOTAL)
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 4;
-
-            // Detalle productos
-            int cantidadTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                // Código
-                e.Graphics.DrawString(row["codigo"].ToString(), font, Brushes.Black, colX[0], y);
-
-                // Descripción
-                e.Graphics.DrawString(row["descripcion"].ToString(), font, Brushes.Black, colX[1], y);
-
-                // Cantidad (centrado)
-                string cantidadStr = row["cantidad"].ToString();
-                SizeF cantidadSize = e.Graphics.MeasureString(cantidadStr, font);
-                float cantidadX = colX[2] + (colCantidad - cantidadSize.Width) / 2;
-                e.Graphics.DrawString(cantidadStr, font, Brushes.Black, cantidadX, y);
-
-                // Sumar cantidad total
-                if (int.TryParse(cantidadStr, out int cantVal))
-                    cantidadTotal += cantVal;
-
-                // Precio (alineado a la derecha)
-                string precioStr = Convert.ToDecimal(row["precio"]).ToString("C2");
-                SizeF precioSize = e.Graphics.MeasureString(precioStr, font);
-                float precioX = colX[3] + colPrecio - precioSize.Width;
-                e.Graphics.DrawString(precioStr, font, Brushes.Black, precioX, y);
-
-                // Total (alineado a la derecha)
-                string totalStr = Convert.ToDecimal(row["total"]).ToString("C2");
-                SizeF totalSize = e.Graphics.MeasureString(totalStr, font);
-                float totalX = colX[4] + colTotal - totalSize.Width;
-                e.Graphics.DrawString(totalStr, font, Brushes.Black, totalX, y);
-
-                y += rowHeight - 2;
-            }
-
-            // Línea encima del total (hasta el borde de la columna TOTAL)
-            y += 6;
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 6;
-
-            // Total general, alineado a la derecha, en línea con la columna TOTAL
-            decimal sumaTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                if (decimal.TryParse(row["total"].ToString(), out decimal valor))
-                    sumaTotal += valor;
-            }
-            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
-            SizeF totalGeneralSize = e.Graphics.MeasureString(totalGeneralStr, fontBold);
-            float totalGeneralX = colX[4] + colTotal - totalGeneralSize.Width;
-            e.Graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
-
-            // Total cantidad de productos, alineado a la izquierda, a la misma altura que el total general
-            string cantidadTotalStr = $"CANTIDAD TOTAL DE PRODUCTOS: {cantidadTotal}";
-            e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
-
-            // Firma (opcional)
-            //y += rowHeight * 2;
-            //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
-        }
-
-        private void printDocumentRemito_PrintPageTicket(object sender, PrintPageEventArgs e)
-        {
-            if (remitoActual == null) return;
-
-            // Márgenes y fuentes para ticket
-            float leftMargin = e.MarginBounds.Left;
-            float topMargin = e.MarginBounds.Top + 1;
-            float rowHeight = 18;
-            Font font = new Font("Arial", 9);
-            Font fontBold = new Font("Arial", 9, FontStyle.Bold);
-            Font fontTitulo = new Font("Arial", 16, FontStyle.Bold);
-            Pen linePen = new Pen(Color.Black, 1);
-
-            // Definir anchos de columnas para ticket
-            float colCantidad = 20;
-            float colDescripcion = 120;
-            float colPrecio = 50;
-            float colTotal = 70;
-
-            float[] colX = {
-                leftMargin,
-                leftMargin + colCantidad,
-                leftMargin + colCantidad + colDescripcion,
-                leftMargin + colCantidad + colDescripcion + colPrecio
-            };
-
-            float tablaRight = colX[3] + colTotal;
-            float y = topMargin;
-
-            // Fecha y hora
-            string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
-            string horaStr = $"Hora: {DateTime.Now:HH:mm}";
-            SizeF fechaSize = e.Graphics.MeasureString(fechaStr, font);
-            SizeF horaSize = e.Graphics.MeasureString(horaStr, font);
-            float fechaX = tablaRight - fechaSize.Width;
-            float horaX = tablaRight - horaSize.Width;
-            e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
-            e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
-
-            y += Math.Max(fechaSize.Height + horaSize.Height, 10) + 6;
-
-            // Título principal
-            SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
-            e.Graphics.DrawString(
-                nombreComercio,
-                fontTitulo,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
-                y
-            );
-
-            // Domicilio
-            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
-            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
-            e.Graphics.DrawString(
-                domicilioComercio,
-                fontDomicilio,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
-                y + nombreComercioSize.Height
-            );
-            y += nombreComercioSize.Height + domicilioSize.Height + 6;
-
-            // Título Remito
-            string titulo = $"REMITO N°: {nroRemitoActual}";
-            SizeF tituloSize = e.Graphics.MeasureString(titulo, fontBold);
-            e.Graphics.DrawString(
-                titulo,
-                fontBold,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
-                y
-            );
-            y += tituloSize.Height + 10;
-
-            // Encabezados
-            string[] headers = { "C", "DESCRIPCIÓN", "PRECIO", "TOTAL" };
-            float[] colWidths = { colCantidad, colDescripcion, colPrecio, colTotal };
-            for (int i = 0; i < headers.Length; i++)
-            {
-                float headerX = colX[i];
-                float colWidth = colWidths[i];
-                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
-
-                if (i == 0)
-                {
-                    headerX += (colWidth - headerSize.Width) / 2;
-                }
-                else if (i == 1)
-                {
-                    // "DESCRIPCIÓN" alineado a la izquierda
-                }
-                else
-                {
-                    headerX += colWidth - headerSize.Width;
-                }
-                e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
-            }
-
-            y += rowHeight - 2;
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 4;
-
-            // Detalle productos
-            int cantidadTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                float filaY = y;
-
-                // Descripción con salto de línea si es necesario
-                string descripcion = row["descripcion"].ToString();
-                float maxDescripcionWidth = colDescripcion - 2;
-                List<string> lineasDescripcion = new List<string>();
-                string resto = descripcion;
-                while (!string.IsNullOrEmpty(resto))
-                {
-                    int len = resto.Length;
-                    string linea = resto;
-                    SizeF descSize = e.Graphics.MeasureString(linea, font);
-                    while (descSize.Width > maxDescripcionWidth && len > 0)
-                    {
-                        len--;
-                        linea = resto.Substring(0, len);
-                        descSize = e.Graphics.MeasureString(linea + "...", font);
-                    }
-                    if (len < resto.Length)
-                    {
-                        linea = resto.Substring(0, len) + "...";
-                        lineasDescripcion.Add(linea);
-                        resto = resto.Substring(len);
-                    }
-                    else
-                    {
-                        lineasDescripcion.Add(linea);
-                        break;
-                    }
-                }
-
-                // Cantidad centrada
-                string cantidadStr = row["cantidad"].ToString();
-                SizeF cantidadSize = e.Graphics.MeasureString(cantidadStr, font);
-                float cantidadX = colX[0] + (colCantidad - cantidadSize.Width) / 2;
-
-                if (int.TryParse(cantidadStr, out int cantVal))
-                    cantidadTotal += cantVal;
-
-                // Precio y Total
-                string precioStr = Convert.ToDecimal(row["precio"]).ToString("C2");
-                SizeF precioSize = e.Graphics.MeasureString(precioStr, font);
-                float precioX = colX[2] + colPrecio - precioSize.Width;
-
-                string totalStr = Convert.ToDecimal(row["total"]).ToString("C2");
-                SizeF totalSize = e.Graphics.MeasureString(totalStr, font);
-                float totalX = colX[3] + colTotal - totalSize.Width;
-
-                // Imprimir líneas
-                for (int i = 0; i < lineasDescripcion.Count; i++)
-                {
-                    float cantidadYLinea = filaY + ((rowHeight - cantidadSize.Height) / 2);
-                    if (i == 0)
-                        e.Graphics.DrawString(cantidadStr, font, Brushes.Black, cantidadX, cantidadYLinea);
-
-                    e.Graphics.DrawString(lineasDescripcion[i], font, Brushes.Black, colX[1], filaY);
-
-                    if (i == 0)
-                    {
-                        e.Graphics.DrawString(precioStr, font, Brushes.Black, precioX, filaY);
-                        e.Graphics.DrawString(totalStr, font, Brushes.Black, totalX, filaY);
-                    }
-                    filaY += rowHeight - 2;
-                }
-
-                y = filaY;
-            }
-
-            // Total final
-            y += 6;
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 6;
-
-            decimal sumaTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                if (decimal.TryParse(row["total"].ToString(), out decimal valor))
-                    sumaTotal += valor;
-            }
-            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
-            SizeF totalGeneralSize = e.Graphics.MeasureString(totalGeneralStr, fontBold);
-            float totalGeneralX = colX[3] + colTotal - totalGeneralSize.Width;
-            e.Graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
-
-            string cantidadTotalStr = $"PRODUCTOS: {cantidadTotal}";
-            e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
-        }
-
-        private async Task ActualizarPrecioProductoAsync(string codigo, decimal precio)
-        {
-            using var connection = new SqlConnection(GetConnectionString());
-            var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
-            using var cmd = new SqlCommand(query, connection);
-            cmd.Parameters.AddWithValue("@precio", precio);
-            cmd.Parameters.AddWithValue("@codigo", codigo);
-            await connection.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-
-
-        private void printDocumentRemito_PrintPageA4(object sender, PrintPageEventArgs e)
-        {
-            if (remitoActual == null) return;
-
-            // Márgenes y fuentes
-            float leftMargin = e.MarginBounds.Left + 20;
-            float topMargin = e.MarginBounds.Top + 20;
-            float rowHeight = 22;
-            Font font = new Font("Arial", 10);
-            Font fontBold = new Font("Arial", 10, FontStyle.Bold);
-            Font fontTitulo = new Font("Arial", 18, FontStyle.Bold);
-            Pen linePen = new Pen(Color.Black, 1);
-
-            // Definir anchos de columnas (ajustados)
-            float colCodigo = 120;
-            float colDescripcion = 240;
-            float colCantidad = 70;
-            float colPrecio = 90;
-            float colTotal = 120;
-
-            float[] colX = {
-                leftMargin,
-                leftMargin + colCodigo,
-                leftMargin + colCodigo + colDescripcion,
-                leftMargin + colCodigo + colDescripcion + colCantidad,
-                leftMargin + colCodigo + colDescripcion + colCantidad + colPrecio
-            };
-
-            float tablaRight = colX[4] + colTotal; // Límite derecho de la tabla
-
-            float y = topMargin;
-
-            // Título principal (variable)
-            SizeF nombreComercioSize = e.Graphics.MeasureString(nombreComercio, fontTitulo);
-            e.Graphics.DrawString(
-                nombreComercio,
-                fontTitulo,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - nombreComercioSize.Width) / 2,
-                y
-            );
-
-            // Domicilio debajo del título, centrado y con fuente más pequeña
-            Font fontDomicilio = new Font("Arial", 8, FontStyle.Regular);
-            SizeF domicilioSize = e.Graphics.MeasureString(domicilioComercio, fontDomicilio);
-            e.Graphics.DrawString(
-                domicilioComercio,
-                fontDomicilio,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - domicilioSize.Width) / 2,
-                y + nombreComercioSize.Height
-            );
-            y += nombreComercioSize.Height + domicilioSize.Height + 6;
-
-            // Fecha y hora alineadas con el borde derecho de la columna "TOTAL"
-            string fechaStr = $"Fecha: {DateTime.Now:dd/MM/yyyy}";
-            string horaStr = $"Hora: {DateTime.Now:HH:mm}";
-            SizeF fechaSize = e.Graphics.MeasureString(fechaStr, font);
-            SizeF horaSize = e.Graphics.MeasureString(horaStr, font);
-            float fechaX = tablaRight - fechaSize.Width;
-            float horaX = tablaRight - horaSize.Width;
-            e.Graphics.DrawString(fechaStr, font, Brushes.Black, fechaX, y);
-            e.Graphics.DrawString(horaStr, font, Brushes.Black, horaX, y + fechaSize.Height);
-
-            y += Math.Max(nombreComercioSize.Height, fechaSize.Height + horaSize.Height) + 10;
-
-            // Título Remito centrado
-            string titulo = $"REMITO N°: {nroRemitoActual}";
-            SizeF tituloSize = e.Graphics.MeasureString(titulo, fontBold);
-            e.Graphics.DrawString(
-                titulo,
-                fontBold,
-                Brushes.Black,
-                leftMargin + ((tablaRight - leftMargin) - tituloSize.Width) / 2,
-                y
-            );
-            y += tituloSize.Height + 10;
-
-            // Encabezados de columnas
-            string[] headers = { "CÓDIGO", "DESCRIPCIÓN", "CANT.", "PRECIO", "TOTAL" };
-            for (int i = 0; i < headers.Length; i++)
-            {
-                float headerX = colX[i];
-                float colWidth = (i == 0) ? colCodigo :
-                                 (i == 1) ? colDescripcion :
-                                 (i == 2) ? colCantidad :
-                                 (i == 3) ? colPrecio : colTotal;
-
-                SizeF headerSize = e.Graphics.MeasureString(headers[i], fontBold);
-
-                if (i == 3 || i == 4)
-                {
-                    // Alinear a la derecha PRECIO y TOTAL
-                    headerX += colWidth - headerSize.Width;
-                }
-                else if (i == 2)
-                {
-                    // Centrar CANT.
-                    headerX += (colWidth - headerSize.Width) / 2;
-                }
-                // CÓDIGO y DESCRIPCIÓN quedan alineados a la izquierda
-
-                e.Graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
-            }
-
-            y += rowHeight - 6;
-            // Línea debajo del encabezado (hasta el borde de la columna TOTAL)
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 4;
-
-            // Detalle productos
-            int cantidadTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                // Código
-                e.Graphics.DrawString(row["codigo"].ToString(), font, Brushes.Black, colX[0], y);
-
-                // Descripción
-                e.Graphics.DrawString(row["descripcion"].ToString(), font, Brushes.Black, colX[1], y);
-
-                // Cantidad (centrado)
-                string cantidadStr = row["cantidad"].ToString();
-                SizeF cantidadSize = e.Graphics.MeasureString(cantidadStr, font);
-                float cantidadX = colX[2] + (colCantidad - cantidadSize.Width) / 2;
-                e.Graphics.DrawString(cantidadStr, font, Brushes.Black, cantidadX, y);
-
-                // Sumar cantidad total
-                if (int.TryParse(cantidadStr, out int cantVal))
-                    cantidadTotal += cantVal;
-
-                // Precio (alineado a la derecha)
-                string precioStr = Convert.ToDecimal(row["precio"]).ToString("C2");
-                SizeF precioSize = e.Graphics.MeasureString(precioStr, font);
-                float precioX = colX[3] + colPrecio - precioSize.Width;
-                e.Graphics.DrawString(precioStr, font, Brushes.Black, precioX, y);
-
-                // Total (alineado a la derecha)
-                string totalStr = Convert.ToDecimal(row["total"]).ToString("C2");
-                SizeF totalSize = e.Graphics.MeasureString(totalStr, font);
-                float totalX = colX[4] + colTotal - totalSize.Width;
-                e.Graphics.DrawString(totalStr, font, Brushes.Black, totalX, y);
-
-                y += rowHeight - 2;
-            }
-
-            // Línea encima del total (hasta el borde de la columna TOTAL)
-            y += 6;
-            e.Graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 6;
-
-            // Total general, alineado a la derecha, en línea con la columna TOTAL
-            decimal sumaTotal = 0;
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                if (decimal.TryParse(row["total"].ToString(), out decimal valor))
-                    sumaTotal += valor;
-            }
-            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
-            SizeF totalGeneralSize = e.Graphics.MeasureString(totalGeneralStr, fontBold);
-            float totalGeneralX = colX[4] + colTotal - totalGeneralSize.Width;
-            e.Graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
-
-            // Total cantidad de productos, alineado a la izquierda, a la misma altura que el total general
-            string cantidadTotalStr = $"CANTIDAD TOTAL DE PRODUCTOS: {cantidadTotal}";
-            e.Graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
-
-            // Firma (opcional)
-            //y += rowHeight * 2;
-            //e.Graphics.DrawString("Firma: ___________________________", font, Brushes.Black, leftMargin, y);
         }
 
         private async Task<DataRow> BuscarProductoAsync(string codigo)
@@ -1617,53 +1171,77 @@ namespace Comercio.NET
                 columna.HeaderText = "CANT.";
         }
 
-        private void ImprimirTicket()
+        private void imprimirRemito(DataTable detalle)
         {
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPage;
-            printDocumentRemito.PrintPage += printDocumentRemito_PrintPageTicket;
-
-            int anchoTicket = (int)(75 / 25.4 * 100);
-            int altoTicket = (int)(200 / 25.4 * 100);
-
-            PaperSize ticketSize = new PaperSize("Ticket", anchoTicket, altoTicket);
-            printDocumentRemito.DefaultPageSettings.PaperSize = ticketSize;
-            printDocumentRemito.DefaultPageSettings.Margins = new Margins(8, 8, 8, 8);
-
-            using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
+            try
             {
-                previewDialog.Document = printDocumentRemito;
-                previewDialog.WindowState = FormWindowState.Maximized;
-                previewDialog.ShowDialog();
-            }
+                if (detalle == null || detalle.Rows.Count == 0)
+                {
+                    MessageBox.Show("No hay productos para imprimir.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
 
-            printDocumentRemito.PrintPage -= printDocumentRemito_PrintPageTicket;
+                using (PrintDialog printDialog = new PrintDialog())
+                {
+                    PrintDocument printDocument = new PrintDocument();
+                    printDocument.DocumentName = "Remito";
+                    printDocument.DefaultPageSettings.Landscape = false;
+                    printDocument.PrintPage += (sender, e) =>
+                    {
+                        e.Graphics.DrawString("REMITO", new Font("Arial", 16, FontStyle.Bold), Brushes.Black, 10, 10);
+                        e.Graphics.DrawString($"Nº: {nroRemitoActual}", new Font("Arial", 12), Brushes.Black, 10, 40);
+                        e.Graphics.DrawString($"Fecha: {DateTime.Now.ToShortDateString()}", new Font("Arial", 10), Brushes.Black, 10, 70);
+                        e.Graphics.DrawString($"Hora: {DateTime.Now.ToShortTimeString()}", new Font("Arial", 10), Brushes.Black, 10, 90);
+
+                        // Encabezados de columnas
+                        int yPos = 120;
+                        e.Graphics.DrawString("CANT.", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 10, yPos);
+                        e.Graphics.DrawString("DESCRIPCIÓN", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 60, yPos);
+                        e.Graphics.DrawString("PRECIO", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 280, yPos);
+                        e.Graphics.DrawString("TOTAL", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 380, yPos);
+
+                        // Detalle de productos
+                        yPos += 30;
+                        decimal totalGeneral = 0;
+                        foreach (DataRow row in detalle.Rows)
+                        {
+                            e.Graphics.DrawString(row["cantidad"].ToString(), new Font("Arial", 10), Brushes.Black, 10, yPos);
+                            e.Graphics.DrawString(row["descripcion"].ToString(), new Font("Arial", 10), Brushes.Black, 60, yPos);
+                            e.Graphics.DrawString(decimal.Parse(row["precio"].ToString()).ToString("C2"), new Font("Arial", 10), Brushes.Black, 280, yPos);
+                            e.Graphics.DrawString(decimal.Parse(row["total"].ToString()).ToString("C2"), new Font("Arial", 10), Brushes.Black, 380, yPos);
+
+                            totalGeneral += decimal.Parse(row["total"].ToString());
+                            yPos += 25;
+                        }
+
+                        // Total general
+                        yPos += 10;
+                        e.Graphics.DrawString("TOTAL GENERAL:", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 280, yPos);
+                        e.Graphics.DrawString(totalGeneral.ToString("C2"), new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 380, yPos);
+                    };
+
+                    printDialog.Document = printDocument;
+                    if (printDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        printDocument.Print();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al imprimir el remito: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        private void AbrirConsultaRapidaPrecios()
+        public class WSAAHelper
         {
-            using (var consultaForm = new ConsultaPrecioForm())
+            public static string CrearTRA(string service)
             {
-                consultaForm.ShowDialog(this);
-            }
-            
-            // Restaurar el foco al campo de búsqueda cuando se cierre el modal
-            this.BeginInvoke(new Action(() =>
-            {
-                txtBuscarProducto.Focus();
-                txtBuscarProducto.SelectAll();
-            }));
-        }
-    }
+                var uniqueId = ((int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds).ToString();
+                var generationTime = DateTime.UtcNow.AddMinutes(-10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+                var expirationTime = DateTime.UtcNow.AddMinutes(+10).ToString("yyyy-MM-ddTHH:mm:ssZ");
 
-    public class WSAAHelper
-    {
-        public static string CrearTRA(string service)
-        {
-            var uniqueId = ((int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds).ToString();
-            var generationTime = DateTime.UtcNow.AddMinutes(-10).ToString("yyyy-MM-ddTHH:mm:ssZ");
-            var expirationTime = DateTime.UtcNow.AddMinutes(+10).ToString("yyyy-MM-ddTHH:mm:ssZ");
-
-            return $@"<loginTicketRequest version=""1.0"">
+                return $@"<loginTicketRequest version=""1.0"">
                       <header>
                         <uniqueId>{uniqueId}</uniqueId>
                         <generationTime>{generationTime}</generationTime>
@@ -1671,23 +1249,23 @@ namespace Comercio.NET
                       </header>
                       <service>{service}</service>
                     </loginTicketRequest>";
-        }
+            }
 
-        public static byte[] FirmarTRA(string traXml, string pfxPath, string pfxPassword)
-        {
-            var cert = new X509Certificate2(pfxPath, pfxPassword, X509KeyStorageFlags.MachineKeySet);
-            var contentInfo = new ContentInfo(Encoding.UTF8.GetBytes(traXml));
-            var signedCms = new SignedCms(contentInfo);
-            var cmsSigner = new CmsSigner(cert);
-            signedCms.ComputeSignature(cmsSigner);
-            return signedCms.Encode();
-        }
+            public static byte[] FirmarTRA(string traXml, string pfxPath, string pfxPassword)
+            {
+                var cert = new X509Certificate2(pfxPath, pfxPassword, X509KeyStorageFlags.MachineKeySet);
+                var contentInfo = new ContentInfo(Encoding.UTF8.GetBytes(traXml));
+                var signedCms = new SignedCms(contentInfo);
+                var cmsSigner = new CmsSigner(cert);
+                signedCms.ComputeSignature(cmsSigner);
+                return signedCms.Encode();
+            }
 
-        public static async Task<string> LlamarWSAA(byte[] cms, string wsaaUrl)
-        {
-            string cmsBase64 = Convert.ToBase64String(cms);
+            public static async Task<string> LlamarWSAA(byte[] cms, string wsaaUrl)
+            {
+                string cmsBase64 = Convert.ToBase64String(cms);
 
-            string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?
+                string soapRequest = $@"<?xml version=""1.0"" encoding=""UTF-8""?
             <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:wsaa=""http://wsaa.view.sua.dvadac.desein.afip.gov.ar/"">
               <soap:Header/>
               <soap:Body>
@@ -1697,123 +1275,124 @@ namespace Comercio.NET
               </soap:Body>
             </soap:Envelope>";
 
-            using var client = new HttpClient();
-            var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
-            content.Headers.Add("SOAPAction", "\"\"");
-            var response = await client.PostAsync(wsaaUrl, content);
-            var responseBody = await response.Content.ReadAsStringAsync();
+                using var client = new HttpClient();
+                var content = new StringContent(soapRequest, Encoding.UTF8, "text/xml");
+                content.Headers.Add("SOAPAction", "\"\"");
+                var response = await client.PostAsync(wsaaUrl, content);
+                var responseBody = await response.Content.ReadAsStringAsync();
 
-            if (!response.IsSuccessStatusCode)
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
+                }
+
+                return responseBody;
+            }
+        }
+
+        public class AfipAuthenticator
+        {
+            private static string _token;
+            private static string _sign;
+            private static DateTime _expiration;
+
+            public static (string token, string sign) GetTA(string service, string pfxPath, string pfxPassword, string wsaaUrl)
             {
-                throw new Exception($"Error WSAA: {response.StatusCode}\n{responseBody}");
+                return GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl).GetAwaiter().GetResult();
             }
 
-            return responseBody;
-        }
-    }
-
-    public class AfipAuthenticator
-    {
-        private static string _token;
-        private static string _sign;
-        private static DateTime _expiration;
-
-        public static (string token, string sign) GetTA(string service, string pfxPath, string pfxPassword, string wsaaUrl)
-        {
-            return GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl).GetAwaiter().GetResult();
-        }
-
-        public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
-        {
-            string taPath = GetTaPath(service);
-
-            var cachedTA = TryLoadCachedTA(taPath);
-            if (cachedTA.HasValue)
+            public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
             {
-                return cachedTA.Value;
+                string taPath = GetTaPath(service);
+
+                var cachedTA = TryLoadCachedTA(taPath);
+                if (cachedTA.HasValue)
+                {
+                    return cachedTA.Value;
+                }
+
+                return await GenerateNewTAAsync(service, pfxPath, pfxPassword, wsaaUrl, taPath);
             }
 
-            return await GenerateNewTAAsync(service, pfxPath, pfxPassword, wsaaUrl, taPath);
-        }
+            private static (string token, string sign)? TryLoadCachedTA(string taPath)
+            {
+                if (!File.Exists(taPath))
+                    return null;
 
-        private static (string token, string sign)? TryLoadCachedTA(string taPath)
-        {
-            if (!File.Exists(taPath))
+                try
+                {
+                    var taXml = new XmlDocument();
+                    taXml.Load(taPath);
+
+                    _token = taXml.SelectSingleNode("//token")?.InnerText;
+                    _sign = taXml.SelectSingleNode("//sign")?.InnerText;
+                    var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+
+                    if (!DateTime.TryParse(expirationStr, out _expiration))
+                    {
+                        File.Delete(taPath);
+                        return null;
+                    }
+
+                    if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
+                    {
+                        return (_token, _sign);
+                    }
+                }
+                catch
+                {
+                    File.Delete(taPath);
+                }
+
                 return null;
+            }
 
-            try
+            private static async Task<(string token, string sign)> GenerateNewTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl, string taPath)
+            {
+                string traXml = WSAAHelper.CrearTRA(service);
+                byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
+                string soapResponse = await WSAAHelper.LlamarWSAA(cms, wsaaUrl);
+
+                var loginCmsReturn = ProcessSoapResponse(soapResponse);
+                if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn))
+                {
+                    File.WriteAllText(taPath, loginCmsReturn);
+                    return ParseTAFromXml(loginCmsReturn);
+                }
+
+                throw new Exception("No se pudo obtener una respuesta válida del servicio WSAA.");
+            }
+
+            private static string ProcessSoapResponse(string soapResponse)
+            {
+                var xml = new XmlDocument();
+                xml.LoadXml(soapResponse);
+
+                var nsmgr = new XmlNamespaceManager(xml.NameTable);
+                nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+                nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
+
+                return xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr)?.InnerText;
+            }
+
+            private static (string token, string sign) ParseTAFromXml(string taXmlContent)
             {
                 var taXml = new XmlDocument();
-                taXml.Load(taPath);
+                taXml.LoadXml(taXmlContent);
 
                 _token = taXml.SelectSingleNode("//token")?.InnerText;
                 _sign = taXml.SelectSingleNode("//sign")?.InnerText;
                 var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
+                _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
 
-                if (!DateTime.TryParse(expirationStr, out _expiration))
-                {
-                    File.Delete(taPath);
-                    return null;
-                }
-
-                if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_sign) && _expiration > DateTime.UtcNow.AddMinutes(1))
-                {
-                    return (_token, _sign);
-                }
+                return (_token, _sign);
             }
-            catch
+
+            private static string GetTaPath(string service)
             {
-                File.Delete(taPath);
+                string safeService = service.Replace("/", "_").Replace("\\", "_");
+                return $"ta_{safeService}.xml";
             }
-
-            return null;
-        }
-
-        private static async Task<(string token, string sign)> GenerateNewTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl, string taPath)
-        {
-            string traXml = WSAAHelper.CrearTRA(service);
-            byte[] cms = WSAAHelper.FirmarTRA(traXml, pfxPath, pfxPassword);
-            string soapResponse = await WSAAHelper.LlamarWSAA(cms, wsaaUrl);
-
-            var loginCmsReturn = ProcessSoapResponse(soapResponse);
-            if (loginCmsReturn != null && !string.IsNullOrEmpty(loginCmsReturn))
-            {
-                File.WriteAllText(taPath, loginCmsReturn);
-                return ParseTAFromXml(loginCmsReturn);
-            }
-
-            throw new Exception("No se pudo obtener una respuesta válida del servicio WSAA.");
-        }
-
-        private static string ProcessSoapResponse(string soapResponse)
-        {
-            var xml = new XmlDocument();
-            xml.LoadXml(soapResponse);
-
-            var nsmgr = new XmlNamespaceManager(xml.NameTable);
-            nsmgr.AddNamespace("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-            nsmgr.AddNamespace("ns1", "http://wsaa.view.sua.dvadac.desein.afip.gov.ar/");
-
-            return xml.SelectSingleNode("//ns1:loginCmsReturn", nsmgr)?.InnerText;
-        }
-
-        private static (string token, string sign) ParseTAFromXml(string taXmlContent)
-        {
-            var taXml = new XmlDocument();
-            taXml.LoadXml(taXmlContent);
-
-            _token = taXml.SelectSingleNode("//token")?.InnerText;
-            _sign = taXml.SelectSingleNode("//sign")?.InnerText;
-            var expirationStr = taXml.SelectSingleNode("//expirationTime")?.InnerText;
-            _expiration = DateTime.ParseExact(expirationStr, new[] { "yyyy-MM-ddTHH:mm:ss.fffK", "yyyy-MM-ddTHH:mm:ssK" }, CultureInfo.InvariantCulture, DateTimeStyles.None);
-
-            return (_token, _sign);
-        }
-
-        private static string GetTaPath(string service)
-        {
-            string safeService = service.Replace("/", "_").Replace("\\", "_");
-            return $"ta_{safeService}.xml";
         }
     }
 }

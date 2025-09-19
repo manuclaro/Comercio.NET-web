@@ -7,7 +7,10 @@ using Microsoft.Extensions.Configuration;
 using System.Data.SqlClient;
 using System.Data;
 using System.Drawing.Printing;
-using System.Globalization; // AGREGAR ESTA LÍNEA
+using System.Globalization;
+using System.ServiceModel; // AGREGAR ESTA LÍNEA
+using System.Threading.Tasks; // AGREGAR ESTA LÍNEA SI NO ESTÁ
+using Comercio.NET.Servicios;
 
 namespace Comercio.NET
 {
@@ -24,8 +27,8 @@ namespace Comercio.NET
         public enum OpcionPago
         {
             Efectivo,
-            Transferencia,
-            TarjetaCredito
+            DNI,
+            MercadoPago
         }
 
         public OpcionImpresion OpcionSeleccionada { get; private set; } = OpcionImpresion.Ninguna;
@@ -34,8 +37,8 @@ namespace Comercio.NET
         private TextBox txtCuit;
         private Label lblRazonSocial;
 
-        // Delegate para el callback después de procesar la venta
-        public Func<string, string, string, string, DateTime?, Task> OnProcesarVenta { get; set; }
+        // Delegate para el callback después de procesar la venta (CAMBIO: agregar parámetro numeroFacturaAfip)
+        public Func<string, string, string, string, DateTime?, int, Task> OnProcesarVenta { get; set; }
 
         private decimal importeTotalVenta;
         private Ventas formularioPadre; // AGREGAR ESTA LÍNEA
@@ -68,17 +71,17 @@ namespace Comercio.NET
             // Opciones de pago (RadioButtons)
             var lblPago = new Label { Text = "Forma de pago:", Left = 40, Top = 30, Width = 200, Font = new Font("Segoe UI", 12F, FontStyle.Bold) };
             var rbEfectivo = new RadioButton { Text = "Efectivo", Left = 70, Top = 70, Width = 140, Height = 30, Font = fontRadio, Checked = true };
-            var rbTransferencia = new RadioButton { Text = "Transferencia", Left = 210, Top = 70, Width = 160, Height = 30, Font = fontRadio };
-            var rbTarjeta = new RadioButton { Text = "Tarjeta/crédito", Left = 370, Top = 70, Width = 180, Height = 30, Font = fontRadio };
+            var rbDNI = new RadioButton { Text = "DNI", Left = 210, Top = 70, Width = 160, Height = 30, Font = fontRadio };
+            var rbMercadoPago = new RadioButton { Text = "MercadoPago", Left = 370, Top = 70, Width = 180, Height = 30, Font = fontRadio };
 
             rbEfectivo.CheckedChanged += (s, e) => { if (rbEfectivo.Checked) OpcionPagoSeleccionada = OpcionPago.Efectivo; };
-            rbTransferencia.CheckedChanged += (s, e) => { if (rbTransferencia.Checked) OpcionPagoSeleccionada = OpcionPago.Transferencia; };
-            rbTarjeta.CheckedChanged += (s, e) => { if (rbTarjeta.Checked) OpcionPagoSeleccionada = OpcionPago.TarjetaCredito; };
+            rbDNI.CheckedChanged += (s, e) => { if (rbDNI.Checked) OpcionPagoSeleccionada = OpcionPago.DNI; };
+            rbMercadoPago.CheckedChanged += (s, e) => { if (rbMercadoPago.Checked) OpcionPagoSeleccionada = OpcionPago.MercadoPago; };
 
             this.Controls.Add(lblPago);
             this.Controls.Add(rbEfectivo);
-            this.Controls.Add(rbTransferencia);
-            this.Controls.Add(rbTarjeta);
+            this.Controls.Add(rbDNI);
+            this.Controls.Add(rbMercadoPago);
 
             this.Controls.Add(btnRemito);
             this.Controls.Add(btnFacturaB);
@@ -128,20 +131,21 @@ namespace Comercio.NET
             this.Shown += (s, e) => btnRemito.Focus();
         }
 
+        // Modificar SOLO el método ProcesarRemito para no imprimir inmediatamente
         private async Task ProcesarRemito()
         {
             try
             {
                 OpcionSeleccionada = OpcionImpresion.RemitoTicket;
-                
                 string formaPago = OpcionPagoSeleccionada.ToString();
                 
                 // Llamar al callback para guardar en BD
                 if (OnProcesarVenta != null)
                 {
-                    await OnProcesarVenta("Remito", formaPago, "", "", null);
+                    await OnProcesarVenta("Remito", formaPago, "", "", null, 0); // 0 para remitos
                 }
 
+                // NO IMPRIMIR AÚN - Solo cerrar el modal
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             }
@@ -162,10 +166,10 @@ namespace Comercio.NET
                 
                 if (exito)
                 {
-                    // VERIFICAR: Los valores CAENumero y CAEVencimiento deben tener datos
                     if (OnProcesarVenta != null)
                     {
-                        await OnProcesarVenta("FacturaB", formaPago, "", CAENumero, CAEVencimiento);
+                        // Pasar CAE en el 4to parámetro y número de factura en el 6to
+                        await OnProcesarVenta("FacturaB", formaPago, "", CAENumero, CAEVencimiento, NumeroFacturaAfip);
                     }
 
                     this.DialogResult = DialogResult.OK;
@@ -197,10 +201,10 @@ namespace Comercio.NET
                 
                 if (exito)
                 {
-                    // VERIFICAR: Los valores CAENumero, CAEVencimiento y cuit deben tener datos
                     if (OnProcesarVenta != null)
                     {
-                        await OnProcesarVenta("FacturaA", formaPago, cuit, CAENumero, CAEVencimiento);
+                        // Pasar CAE en el 4to parámetro y número de factura en el 6to
+                        await OnProcesarVenta("FacturaA", formaPago, cuit, CAENumero, CAEVencimiento, NumeroFacturaAfip);
                     }
 
                     this.DialogResult = DialogResult.OK;
@@ -213,9 +217,10 @@ namespace Comercio.NET
             }
         }
 
-        // Propiedades para almacenar datos del CAE
+        // Propiedades para almacenar datos del CAE - VERIFICAR que sean públicas
         public string CAENumero { get; private set; } = "";
         public DateTime? CAEVencimiento { get; private set; } = null;
+        public int NumeroFacturaAfip { get; private set; } = 0;
 
         // Métodos para crear facturas (movidos desde Ventas.cs)
         private async Task<bool> CrearFacturaBAsync()
@@ -252,115 +257,154 @@ namespace Comercio.NET
 
         private async Task<bool> CrearFacturaAfipAsync(int cbteTipo, int condicionIVAReceptor, int docTipo, long docNro, decimal alicuotaIVA)
         {
-            // Necesitarás obtener los datos de la venta desde el formulario padre
-            // o pasarlos como parámetros. Por ahora asumo que tienes acceso a ellos.
-            
-            string cuit = "20280694739";
-            string service = "wsfe";
-            string pfxPath = @"C:\Certificados\certificado.pfx";
-            string pfxPassword = "Micertificado";
-            string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+            const int maxReintentos = 3;
+            const int tiempoEsperaMs = 2000;
 
-            (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
-
-            TokenAfip = token;
-            SignAfip = sign;
-
-            var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
-
-            var auth = new ArcaWS.FEAuthRequest
+            for (int intento = 1; intento <= maxReintentos; intento++)
             {
-                Token = token,
-                Sign = sign,
-                Cuit = Convert.ToInt64(cuit)
-            };
-
-            int ptoVta = 1;
-            var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
-            int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
-            int nuevoNroComprobante = ultimoNroAfip + 1;
-
-            // AQUÍ NECESITARÁS OBTENER EL IMPORTE TOTAL DE LA VENTA
-            // Podrías pasarlo como parámetro o obtenerlo del formulario padre
-            decimal impTotal = ObtenerImporteTotalVenta();
-            
-            decimal impIVA = Math.Round(impTotal - (impTotal / (1 + (alicuotaIVA / 100m))), 2);
-            decimal impNeto = Math.Round(impTotal - impIVA, 2);
-
-            var iva = new ArcaWS.AlicIva
-            {
-                Id = (alicuotaIVA == 21m) ? 5 : 4,
-                BaseImp = (double)impNeto,
-                Importe = (double)impIVA
-            };
-
-            var feCabReq = new ArcaWS.FECAECabRequest
-            {
-                CantReg = 1,
-                PtoVta = ptoVta,
-                CbteTipo = cbteTipo
-            };
-
-            var feDetReq = new ArcaWS.FECAEDetRequest
-            {
-                Concepto = 1,
-                DocTipo = docTipo,
-                DocNro = docNro,
-                CbteDesde = nuevoNroComprobante,
-                CbteHasta = nuevoNroComprobante,
-                CbteFch = DateTime.Now.ToString("yyyyMMdd"),
-                ImpTotal = (double)impTotal,
-                ImpNeto = (double)impNeto,
-                ImpIVA = (double)impIVA,
-                MonId = "PES",
-                MonCotiz = 1,
-                CondicionIVAReceptorId = condicionIVAReceptor,
-                ImpTrib = 0,
-                ImpOpEx = 0,
-                Iva = new ArcaWS.AlicIva[] { iva }
-            };
-
-            var feCAEReq = new ArcaWS.FECAERequest
-            {
-                FeCabReq = feCabReq,
-                FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
-            };
-
-            var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
-            var resultado = respuesta?.Body?.FECAESolicitarResult;
-
-            if (resultado != null && resultado.FeDetResp != null && resultado.FeDetResp.Length > 0)
-            {
-                var detalle = resultado.FeDetResp[0];
-                if (detalle.Resultado == "A")
+                try
                 {
-                    CAENumero = detalle.CAE;
-                    if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd", null, DateTimeStyles.None, out DateTime fechaVto))
-                    {
-                        CAEVencimiento = fechaVto;
-                    }
+                    string cuit = "20280694739";
+                    string service = "wsfe";
+                    string pfxPath = @"C:\Certificados\certificado.pfx";
+                    string pfxPassword = "Micertificado";
+                    string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
 
-                    string nroComprobante = detalle.CbteDesde.ToString();
-                    MessageBox.Show($"Factura Aprobada.\nCAE: {CAENumero}\nComprobante: {nroComprobante}");
-                    return true;
-                }
-                else if (detalle.Resultado == "R")
-                {
-                    string mensaje = "La factura fue RECHAZADA.\n";
-                    if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
+                    (string token, string sign) = await Ventas.AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+
+                    TokenAfip = token;
+                    SignAfip = sign;
+
+                    var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
+
+                    var auth = new ArcaWS.FEAuthRequest
                     {
-                        foreach (var obs in detalle.Observaciones)
+                        Token = token,
+                        Sign = sign,
+                        Cuit = Convert.ToInt64(cuit)
+                    };
+
+                    int ptoVta = 1;
+                    var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
+                    int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
+                    int nuevoNroComprobante = ultimoNroAfip + 1;
+
+                    decimal impTotal = ObtenerImporteTotalVenta();
+                    decimal impIVA = Math.Round(impTotal - (impTotal / (1 + (alicuotaIVA / 100m))), 2);
+                    decimal impNeto = Math.Round(impTotal - impIVA, 2);
+
+                    var iva = new ArcaWS.AlicIva
+                    {
+                        Id = (alicuotaIVA == 21m) ? 5 : 4,
+                        BaseImp = (double)impNeto,
+                        Importe = (double)impIVA
+                    };
+
+                    var feCabReq = new ArcaWS.FECAECabRequest
+                    {
+                        CantReg = 1,
+                        PtoVta = ptoVta,
+                        CbteTipo = cbteTipo
+                    };
+
+                    var feDetReq = new ArcaWS.FECAEDetRequest
+                    {
+                        Concepto = 1,
+                        DocTipo = docTipo,
+                        DocNro = docNro,
+                        CbteDesde = nuevoNroComprobante,
+                        CbteHasta = nuevoNroComprobante,
+                        CbteFch = DateTime.Now.ToString("yyyyMMdd"),
+                        ImpTotal = (double)impTotal,
+                        ImpNeto = (double)impNeto,
+                        ImpIVA = (double)impIVA,
+                        MonId = "PES",
+                        MonCotiz = 1,
+                        CondicionIVAReceptorId = condicionIVAReceptor,
+                        ImpTrib = 0,
+                        ImpOpEx = 0,
+                        Iva = new ArcaWS.AlicIva[] { iva }
+                    };
+
+                    var feCAEReq = new ArcaWS.FECAERequest
+                    {
+                        FeCabReq = feCabReq,
+                        FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
+                    };
+
+                    var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
+                    var resultado = respuesta?.Body?.FECAESolicitarResult;
+
+                    if (resultado != null && resultado.FeDetResp != null && resultado.FeDetResp.Length > 0)
+                    {
+                        var detalle = resultado.FeDetResp[0];
+                        if (detalle.Resultado == "A")
                         {
-                            mensaje += $"Código: {obs.Code} - {obs.Msg}\n";
+                            CAENumero = detalle.CAE;
+                            NumeroFacturaAfip = (int)detalle.CbteDesde; // Conversión explícita
+                            
+                            if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd", null, DateTimeStyles.None, out DateTime fechaVto))
+                            {
+                                CAEVencimiento = fechaVto;
+                            }
+
+                            string nroComprobante = detalle.CbteDesde.ToString();
+                            MessageBox.Show($"Factura Aprobada.\nCAE: {CAENumero}\nComprobante: {nroComprobante}");
+                            return true;
+                        }
+                        else if (detalle.Resultado == "R")
+                        {
+                            string mensaje = "La factura fue RECHAZADA.\n";
+                            if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
+                            {
+                                foreach (var obs in detalle.Observaciones)
+                                {
+                                    mensaje += $"Código: {obs.Code} - {obs.Msg}\n";
+                                }
+                            }
+                            mensaje += "\nVerifique los datos ingresados o intente nuevamente.";
+                            MessageBox.Show(mensaje, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return false;
                         }
                     }
-                    mensaje += "\nVerifique los datos ingresados o intente nuevamente.";
-                    MessageBox.Show(mensaje, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                    MessageBox.Show("No se obtuvo respuesta válida de AFIP.");
+                    return false;
+                }
+                catch (Exception ex) when (ex.Message.Contains("no está disponible") || 
+                                       ex.Message.Contains("not available") || 
+                                       ex.Message.Contains("timeout") ||
+                                       ex.Message.Contains("endpoint"))
+                {
+                    if (intento == maxReintentos)
+                    {
+                        MessageBox.Show($"El servicio AFIP no está disponible después de {maxReintentos} intentos.\n" +
+                                      "Esto puede deberse a:\n" +
+                                      "• Mantenimiento del servicio AFIP\n" +
+                                      "• Problemas de conectividad\n" +
+                                      "• Sobrecarga del servidor\n\n" +
+                                      "Intente nuevamente en unos minutos o considere emitir un remito temporalmente.\n\n" +
+                                      $"Error técnico: {ex.Message}",
+                                      "Servicio AFIP No Disponible", 
+                                      MessageBoxButtons.OK, 
+                                      MessageBoxIcon.Warning);
+                        return false;
+                    }
+                    
+                    MessageBox.Show($"Intento {intento} falló. Reintentando en {tiempoEsperaMs / 1000} segundos...", 
+                                   "Reintentando Conexión", 
+                                   MessageBoxButtons.OK, 
+                                   MessageBoxIcon.Information);
+                    
+                    await Task.Delay(tiempoEsperaMs);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error inesperado: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
             }
-
-            MessageBox.Show("No se obtuvo respuesta válida de AFIP.");
+            
             return false;
         }
 
@@ -385,8 +429,6 @@ namespace Comercio.NET
             return digitoVerificador == int.Parse(cuit[10].ToString());
         }
 
-        // ... resto de métodos existentes (ConsultarCuitAsync, etc.)
-        
         public string TokenAfip { get; set; }
         public string SignAfip { get; set; }
 
@@ -429,7 +471,6 @@ namespace Comercio.NET
                     }
                     else if (persona != null && persona.errorConstancia != null)
                     {
-                        // Si 'error' es un array de string, muestra todos los mensajes
                         var errores = persona.errorConstancia.GetType().GetProperty("error")?.GetValue(persona.errorConstancia) as string[];
                         if (errores != null && errores.Length > 0)
                             lblRazonSocial.Text = string.Join(" | ", errores);
@@ -454,7 +495,6 @@ namespace Comercio.NET
 
         private async Task<bool> EnsureTokenAndSignAsync()
         {
-            // Solo obtiene el TA para el padrón
             var (tokenPadron, signPadron) = await GetTokenAndSignAsync("ws_sr_padron_a5");
 
             if (!string.IsNullOrEmpty(tokenPadron) && !string.IsNullOrEmpty(signPadron))
@@ -471,7 +511,80 @@ namespace Comercio.NET
             string pfxPath = @"C:\Certificados\certificado.pfx";
             string pfxPassword = "Micertificado";
             string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-            return await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+            return await Ventas.AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+        }
+
+        private async Task<bool> VerificarEstadoServicioAfipAsync()
+        {
+            try
+            {
+                string cuit = "20280694739";
+                string service = "wsfe";
+                string pfxPath = @"C:\Certificados\certificado.pfx";
+                string pfxPassword = "Micertificado";
+                string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+
+                (string token, string sign) = await Ventas.AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+
+                var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
+                
+                var auth = new ArcaWS.FEAuthRequest
+                {
+                    Token = token,
+                    Sign = sign,
+                    Cuit = Convert.ToInt64(cuit)
+                };
+
+                var respuesta = await client.FEDummyAsync();
+                return respuesta?.Body?.FEDummyResult != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void ImprimirTicketDespuesDeGuardar(string tipoComprobante, string numeroComprobante)
+        {
+            try
+            {
+                DataTable datosTicket = formularioPadre?.GetRemitoActual();
+                
+                if (datosTicket == null || datosTicket.Rows.Count == 0)
+                {
+                    MessageBox.Show("No hay productos para imprimir.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var config = new TicketConfig
+                {
+                    NombreComercio = formularioPadre?.GetNombreComercio() ?? "Tu Comercio",
+                    DomicilioComercio = formularioPadre?.GetDomicilioComercio() ?? "Tu Domicilio",
+                    TipoComprobante = tipoComprobante,
+                    NumeroComprobante = numeroComprobante,
+                    FormaPago = OpcionPagoSeleccionada.ToString(),
+                    MensajePie = "Gracias por su compra!"
+                };
+
+                if (tipoComprobante.Contains("Factura"))
+                {
+                    config.CAE = CAENumero;
+                    config.CAEVencimiento = CAEVencimiento;
+                    if (tipoComprobante == "FacturaA")
+                    {
+                        config.CUIT = txtCuit.Text.Trim();
+                    }
+                }
+
+                using (var ticketService = new TicketPrintingService())
+                {
+                    ticketService.ImprimirTicket(datosTicket, config);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al imprimir ticket: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

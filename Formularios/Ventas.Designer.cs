@@ -66,6 +66,7 @@
             dataGridView1.Location = new Point(0, 171);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowHeadersVisible = false;
+            dataGridView1.RowHeadersWidth = 62;
             dataGridView1.Size = new Size(757, 257);
             dataGridView1.TabIndex = 8;
             // 
@@ -228,7 +229,7 @@
             Controls.Add(txtBuscarProducto);
             Controls.Add(dataGridView1);
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MinimumSize = new Size(773, 541);
+            MinimumSize = new Size(771, 532);
             Name = "Ventas";
             Text = "Ventas";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

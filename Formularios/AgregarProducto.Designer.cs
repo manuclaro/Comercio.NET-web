@@ -47,8 +47,7 @@ namespace Comercio.NET.Formularios
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.DarkSeaGreen;
-            ClientSize = new Size(799, 283);
-            //Controls.Add(btnGuardar);
+            ClientSize = new Size(806, 453);
             Name = "frmAgregarProducto";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Agregar Producto";
