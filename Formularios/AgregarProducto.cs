@@ -15,7 +15,10 @@ namespace Comercio.NET.Formularios
     public partial class frmAgregarProducto : Form
     {
         public enum ModoFormulario { Agregar, Modificar }
+        public enum OrigenLlamada { Productos, Ventas } // NUEVO: Para identificar el origen
+        
         public ModoFormulario Modo { get; set; } = ModoFormulario.Agregar;
+        public OrigenLlamada Origen { get; set; } = OrigenLlamada.Productos; // NUEVO: Por defecto desde Productos
         public string CodigoOriginal { get; set; } // Para identificar el registro a modificar
 
         // NO DECLARAR CONTROLES AQUÍ - ya están en el diseñador
@@ -85,7 +88,7 @@ namespace Comercio.NET.Formularios
                 new { Name = "txtMarca", ReadOnly = false },
                 new { Name = "txtCosto", ReadOnly = false },
                 new { Name = "txtPorcentaje", ReadOnly = false },
-                new { Name = "txtPrecio", ReadOnly = true },
+                new { Name = "txtPrecio", ReadOnly = false }, // CAMBIADO: Ahora editable desde Ventas
                 new { Name = "txtCantidad", ReadOnly = false },
                 new { Name = "txtProveedor", ReadOnly = false }
             };
@@ -131,54 +134,84 @@ namespace Comercio.NET.Formularios
                 int textBoxX = startX + labelWidth + 15;
                 int textBoxWidth = 280;
 
-                // CORREGIDO: Crear una lista con los controles en el orden correcto
+                // MODIFICADO: Crear lista de controles según el origen
                 var controlesOrdenados = new List<(Label label, TextBox textBox)>();
 
-                // Buscar controles uno por uno y agregarlos en orden
-                var lblCodigo = this.Controls.Find("lblCodigo", true).FirstOrDefault() as Label;
-                var txtCodigo = this.Controls.Find("txtCodigo", true).FirstOrDefault() as TextBox;
-                if (lblCodigo != null && txtCodigo != null)
-                    controlesOrdenados.Add((lblCodigo, txtCodigo));
+                if (Origen == OrigenLlamada.Ventas)
+                {
+                    // DESDE VENTAS: Solo mostrar Código, Descripción y Precio
+                    var lblCodigo = this.Controls.Find("lblCodigo", true).FirstOrDefault() as Label;
+                    var txtCodigo = this.Controls.Find("txtCodigo", true).FirstOrDefault() as TextBox;
+                    if (lblCodigo != null && txtCodigo != null)
+                        controlesOrdenados.Add((lblCodigo, txtCodigo));
 
-                var lblDescripcion = this.Controls.Find("lblDescripcion", true).FirstOrDefault() as Label;
-                var txtDescripcion = this.Controls.Find("txtDescripcion", true).FirstOrDefault() as TextBox;
-                if (lblDescripcion != null && txtDescripcion != null)
-                    controlesOrdenados.Add((lblDescripcion, txtDescripcion));
+                    var lblDescripcion = this.Controls.Find("lblDescripcion", true).FirstOrDefault() as Label;
+                    var txtDescripcion = this.Controls.Find("txtDescripcion", true).FirstOrDefault() as TextBox;
+                    if (lblDescripcion != null && txtDescripcion != null)
+                        controlesOrdenados.Add((lblDescripcion, txtDescripcion));
 
-                var lblRubro = this.Controls.Find("lblRubro", true).FirstOrDefault() as Label;
-                var txtRubro = this.Controls.Find("txtRubro", true).FirstOrDefault() as TextBox;
-                if (lblRubro != null && txtRubro != null)
-                    controlesOrdenados.Add((lblRubro, txtRubro));
+                    var lblPrecio = this.Controls.Find("lblPrecio", true).FirstOrDefault() as Label;
+                    var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+                    if (lblPrecio != null && txtPrecio != null)
+                    {
+                        txtPrecio.ReadOnly = false; // Permitir edición desde Ventas
+                        controlesOrdenados.Add((lblPrecio, txtPrecio));
+                    }
 
-                var lblMarca = this.Controls.Find("lblMarca", true).FirstOrDefault() as Label;
-                var txtMarca = this.Controls.Find("txtMarca", true).FirstOrDefault() as TextBox;
-                if (lblMarca != null && txtMarca != null)
-                    controlesOrdenados.Add((lblMarca, txtMarca));
+                    // OCULTAR los controles que no se usan desde Ventas
+                    OcultarControlesNoUsados();
+                }
+                else
+                {
+                    // DESDE PRODUCTOS: Mostrar todos los controles como antes
+                    var lblCodigo = this.Controls.Find("lblCodigo", true).FirstOrDefault() as Label;
+                    var txtCodigo = this.Controls.Find("txtCodigo", true).FirstOrDefault() as TextBox;
+                    if (lblCodigo != null && txtCodigo != null)
+                        controlesOrdenados.Add((lblCodigo, txtCodigo));
 
-                var lblCosto = this.Controls.Find("lblCosto", true).FirstOrDefault() as Label;
-                var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
-                if (lblCosto != null && txtCosto != null)
-                    controlesOrdenados.Add((lblCosto, txtCosto));
+                    var lblDescripcion = this.Controls.Find("lblDescripcion", true).FirstOrDefault() as Label;
+                    var txtDescripcion = this.Controls.Find("txtDescripcion", true).FirstOrDefault() as TextBox;
+                    if (lblDescripcion != null && txtDescripcion != null)
+                        controlesOrdenados.Add((lblDescripcion, txtDescripcion));
 
-                var lblPorcentaje = this.Controls.Find("lblPorcentaje", true).FirstOrDefault() as Label;
-                var txtPorcentaje = this.Controls.Find("txtPorcentaje", true).FirstOrDefault() as TextBox;
-                if (lblPorcentaje != null && txtPorcentaje != null)
-                    controlesOrdenados.Add((lblPorcentaje, txtPorcentaje));
+                    var lblRubro = this.Controls.Find("lblRubro", true).FirstOrDefault() as Label;
+                    var txtRubro = this.Controls.Find("txtRubro", true).FirstOrDefault() as TextBox;
+                    if (lblRubro != null && txtRubro != null)
+                        controlesOrdenados.Add((lblRubro, txtRubro));
 
-                var lblPrecio = this.Controls.Find("lblPrecio", true).FirstOrDefault() as Label;
-                var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
-                if (lblPrecio != null && txtPrecio != null)
-                    controlesOrdenados.Add((lblPrecio, txtPrecio));
+                    var lblMarca = this.Controls.Find("lblMarca", true).FirstOrDefault() as Label;
+                    var txtMarca = this.Controls.Find("txtMarca", true).FirstOrDefault() as TextBox;
+                    if (lblMarca != null && txtMarca != null)
+                        controlesOrdenados.Add((lblMarca, txtMarca));
 
-                var lblStock = this.Controls.Find("lblStock", true).FirstOrDefault() as Label;
-                var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
-                if (lblStock != null && txtCantidad != null)
-                    controlesOrdenados.Add((lblStock, txtCantidad));
+                    var lblCosto = this.Controls.Find("lblCosto", true).FirstOrDefault() as Label;
+                    var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
+                    if (lblCosto != null && txtCosto != null)
+                        controlesOrdenados.Add((lblCosto, txtCosto));
 
-                var lblProveedor = this.Controls.Find("lblProveedor", true).FirstOrDefault() as Label;
-                var txtProveedor = this.Controls.Find("txtProveedor", true).FirstOrDefault() as TextBox;
-                if (lblProveedor != null && txtProveedor != null)
-                    controlesOrdenados.Add((lblProveedor, txtProveedor));
+                    var lblPorcentaje = this.Controls.Find("lblPorcentaje", true).FirstOrDefault() as Label;
+                    var txtPorcentaje = this.Controls.Find("txtPorcentaje", true).FirstOrDefault() as TextBox;
+                    if (lblPorcentaje != null && txtPorcentaje != null)
+                        controlesOrdenados.Add((lblPorcentaje, txtPorcentaje));
+
+                    var lblPrecio = this.Controls.Find("lblPrecio", true).FirstOrDefault() as Label;
+                    var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+                    if (lblPrecio != null && txtPrecio != null)
+                    {
+                        txtPrecio.ReadOnly = true; // Solo lectura desde Productos
+                        controlesOrdenados.Add((lblPrecio, txtPrecio));
+                    }
+
+                    var lblStock = this.Controls.Find("lblStock", true).FirstOrDefault() as Label;
+                    var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
+                    if (lblStock != null && txtCantidad != null)
+                        controlesOrdenados.Add((lblStock, txtCantidad));
+
+                    var lblProveedor = this.Controls.Find("lblProveedor", true).FirstOrDefault() as Label;
+                    var txtProveedor = this.Controls.Find("txtProveedor", true).FirstOrDefault() as TextBox;
+                    if (lblProveedor != null && txtProveedor != null)
+                        controlesOrdenados.Add((lblProveedor, txtProveedor));
+                }
 
                 // Posicionar controles en orden
                 for (int i = 0; i < controlesOrdenados.Count; i++)
@@ -193,6 +226,7 @@ namespace Comercio.NET.Formularios
                     label.TextAlign = ContentAlignment.MiddleLeft;
                     label.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                     label.ForeColor = Color.FromArgb(62, 80, 100);
+                    label.Visible = true; // Asegurar que esté visible
 
                     // Configurar TextBox
                     textBox.Location = new Point(textBoxX, yPos);
@@ -200,6 +234,7 @@ namespace Comercio.NET.Formularios
                     textBox.Font = new Font("Segoe UI", 10F);
                     textBox.BackColor = Color.FromArgb(250, 252, 254);
                     textBox.ForeColor = Color.FromArgb(62, 80, 100);
+                    textBox.Visible = true; // Asegurar que esté visible
                 }
 
                 // Posicionar botones
@@ -229,12 +264,22 @@ namespace Comercio.NET.Formularios
                     btnSalirModal.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 }
 
-                // Ajustar tamaño del formulario
+                // Ajustar tamaño del formulario según el origen
                 int formHeight = buttonY + 100;
                 int formWidth = textBoxX + textBoxWidth + 50;
-                this.ClientSize = new Size(formWidth, formHeight);
                 
-                this.Text = Modo == ModoFormulario.Agregar ? "Agregar Producto" : "Modificar Producto";
+                if (Origen == OrigenLlamada.Ventas)
+                {
+                    // Formulario más pequeño para Ventas (solo 3 campos)
+                    formHeight = buttonY + 80;
+                    this.Text = "Agregar Producto Rápido";
+                }
+                else
+                {
+                    this.Text = Modo == ModoFormulario.Agregar ? "Agregar Producto" : "Modificar Producto";
+                }
+                
+                this.ClientSize = new Size(formWidth, formHeight);
 
                 // NUEVO: Forzar que los controles se traigan al frente en orden
                 foreach (var (label, textBox) in controlesOrdenados)
@@ -249,6 +294,22 @@ namespace Comercio.NET.Formularios
             {
                 this.ResumeLayout(true);
                 this.Refresh(); // Forzar redibujado
+            }
+        }
+
+        // NUEVO: Método para ocultar controles no utilizados desde Ventas
+        private void OcultarControlesNoUsados()
+        {
+            var controlesAOcultar = new[] { "lblRubro", "txtRubro", "lblMarca", "txtMarca", "lblCosto", "txtCosto", 
+                                           "lblPorcentaje", "txtPorcentaje", "lblStock", "txtCantidad", "lblProveedor", "txtProveedor" };
+            
+            foreach (var nombreControl in controlesAOcultar)
+            {
+                var control = this.Controls.Find(nombreControl, true).FirstOrDefault();
+                if (control != null)
+                {
+                    control.Visible = false;
+                }
             }
         }
 
@@ -278,46 +339,77 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // Eventos específicos
-            var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
-            var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
-            var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
-            var txtPorcentaje = this.Controls.Find("txtPorcentaje", true).FirstOrDefault() as TextBox;
-
-            if (txtCosto != null)
+            // MODIFICADO: Solo configurar eventos específicos si no es desde Ventas
+            if (Origen != OrigenLlamada.Ventas)
             {
-                txtCosto.KeyPress += txtCostoPrecio_KeyPress;
-                txtCosto.TextChanged += CalcularPrecioAuto;
+                var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
+                var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+                var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
+                var txtPorcentaje = this.Controls.Find("txtPorcentaje", true).FirstOrDefault() as TextBox;
+
+                if (txtCosto != null)
+                {
+                    txtCosto.KeyPress += txtCostoPrecio_KeyPress;
+                    txtCosto.TextChanged += CalcularPrecioAuto;
+                }
+
+                if (txtPrecio != null)
+                {
+                    txtPrecio.KeyPress += txtCostoPrecio_KeyPress;
+                    txtPrecio.ReadOnly = true;
+                }
+
+                if (txtCantidad != null)
+                {
+                    txtCantidad.KeyPress += TextBoxEntero_KeyPress;
+                }
+
+                if (txtPorcentaje != null)
+                {
+                    txtPorcentaje.KeyPress += txtPorcentaje_KeyPress;
+                    txtPorcentaje.TextChanged += CalcularPrecioAuto;
+                }
             }
-
-            if (txtPrecio != null)
+            else
             {
-                txtPrecio.KeyPress += txtCostoPrecio_KeyPress;
-                txtPrecio.ReadOnly = true;
-            }
-
-            if (txtCantidad != null)
-            {
-                txtCantidad.KeyPress += TextBoxEntero_KeyPress;
-            }
-
-            if (txtPorcentaje != null)
-            {
-                txtPorcentaje.KeyPress += txtPorcentaje_KeyPress;
-                txtPorcentaje.TextChanged += CalcularPrecioAuto;
+                // Desde Ventas: Configurar eventos solo para txtPrecio
+                var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+                if (txtPrecio != null)
+                {
+                    txtPrecio.KeyPress += txtCostoPrecio_KeyPress;
+                    txtPrecio.ReadOnly = false; // Permitir edición
+                }
             }
         }
 
         private void ConfigurarTabIndex()
         {
-            var controls = new[] { "txtCodigo", "txtDescripcion", "txtRubro", "txtMarca", "txtCosto", "txtPorcentaje", "txtPrecio", "txtCantidad", "txtProveedor", "btnGuardar", "btnSalirModal" };
-            
-            for (int i = 0; i < controls.Length; i++)
+            if (Origen == OrigenLlamada.Ventas)
             {
-                var control = this.Controls.Find(controls[i], true).FirstOrDefault();
-                if (control != null)
+                // Desde Ventas: Solo configurar TabIndex para los campos visibles
+                var controls = new[] { "txtCodigo", "txtDescripcion", "txtPrecio", "btnGuardar", "btnSalirModal" };
+                
+                for (int i = 0; i < controls.Length; i++)
                 {
-                    control.TabIndex = i;
+                    var control = this.Controls.Find(controls[i], true).FirstOrDefault();
+                    if (control != null)
+                    {
+                        control.TabIndex = i;
+                    }
+                }
+            }
+            else
+            {
+                // Desde Productos: Configurar todos los campos
+                var controls = new[] { "txtCodigo", "txtDescripcion", "txtRubro", "txtMarca", "txtCosto", "txtPorcentaje", "txtPrecio", "txtCantidad", "txtProveedor", "btnGuardar", "btnSalirModal" };
+                
+                for (int i = 0; i < controls.Length; i++)
+                {
+                    var control = this.Controls.Find(controls[i], true).FirstOrDefault();
+                    if (control != null)
+                    {
+                        control.TabIndex = i;
+                    }
                 }
             }
         }
@@ -376,24 +468,50 @@ namespace Comercio.NET.Formularios
                     cmd = new SqlCommand(query, connection);
                 }
 
-                var txtRubro = this.Controls.Find("txtRubro", true).FirstOrDefault() as TextBox;
-                var txtMarca = this.Controls.Find("txtMarca", true).FirstOrDefault() as TextBox;
-                var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
-                var txtPorcentaje = this.Controls.Find("txtPorcentaje", true).FirstOrDefault() as TextBox;
-                var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
-                var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
-                var txtProveedor = this.Controls.Find("txtProveedor", true).FirstOrDefault() as TextBox;
+                // MODIFICADO: Obtener valores según el origen
+                if (Origen == OrigenLlamada.Ventas)
+                {
+                    // DESDE VENTAS: Usar valores predeterminados y cálculos automáticos
+                    var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+                    decimal precio = decimal.TryParse(txtPrecio?.Text, out var p) ? p : 0;
+                    
+                    // Calcular costo usando porcentaje 50 (precio = costo + (costo * 50 / 100))
+                    // Despejando: costo = precio / (1 + 50/100) = precio / 1.5
+                    decimal costo = precio / 1.5m;
+                    
+                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                    cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
+                    cmd.Parameters.AddWithValue("@rubro", "Agregado en ventas");
+                    cmd.Parameters.AddWithValue("@marca", "Ventas");
+                    cmd.Parameters.AddWithValue("@precio", precio);
+                    cmd.Parameters.AddWithValue("@costo", Math.Round(costo, 2));
+                    cmd.Parameters.AddWithValue("@porcentaje", 50);
+                    cmd.Parameters.AddWithValue("@cantidad", 10);
+                    cmd.Parameters.AddWithValue("@proveedor", "Proveedor");
+                    cmd.Parameters.AddWithValue("@PermiteAcumular", PermiteAcumular);
+                }
+                else
+                {
+                    // DESDE PRODUCTOS: Usar valores de los controles como antes
+                    var txtRubro = this.Controls.Find("txtRubro", true).FirstOrDefault() as TextBox;
+                    var txtMarca = this.Controls.Find("txtMarca", true).FirstOrDefault() as TextBox;
+                    var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
+                    var txtPorcentaje = this.Controls.Find("txtPorcentaje", true).FirstOrDefault() as TextBox;
+                    var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+                    var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
+                    var txtProveedor = this.Controls.Find("txtProveedor", true).FirstOrDefault() as TextBox;
 
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
-                cmd.Parameters.AddWithValue("@rubro", txtRubro?.Text?.Trim() ?? "");
-                cmd.Parameters.AddWithValue("@marca", txtMarca?.Text?.Trim() ?? "");
-                cmd.Parameters.AddWithValue("@precio", decimal.TryParse(txtPrecio?.Text, out var precio) ? precio : 0);
-                cmd.Parameters.AddWithValue("@costo", decimal.TryParse(txtCosto?.Text, out var costo) ? costo : 0);
-                cmd.Parameters.AddWithValue("@porcentaje", decimal.TryParse(txtPorcentaje?.Text, out var porcentaje) ? porcentaje : 0);
-                cmd.Parameters.AddWithValue("@cantidad", int.TryParse(txtCantidad?.Text, out var cantidad) ? cantidad : 0);
-                cmd.Parameters.AddWithValue("@proveedor", txtProveedor?.Text?.Trim() ?? "");
-                cmd.Parameters.AddWithValue("@PermiteAcumular", PermiteAcumular);
+                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                    cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
+                    cmd.Parameters.AddWithValue("@rubro", txtRubro?.Text?.Trim() ?? "");
+                    cmd.Parameters.AddWithValue("@marca", txtMarca?.Text?.Trim() ?? "");
+                    cmd.Parameters.AddWithValue("@precio", decimal.TryParse(txtPrecio?.Text, out var precio) ? precio : 0);
+                    cmd.Parameters.AddWithValue("@costo", decimal.TryParse(txtCosto?.Text, out var costo) ? costo : 0);
+                    cmd.Parameters.AddWithValue("@porcentaje", decimal.TryParse(txtPorcentaje?.Text, out var porcentaje) ? porcentaje : 0);
+                    cmd.Parameters.AddWithValue("@cantidad", int.TryParse(txtCantidad?.Text, out var cantidad) ? cantidad : 0);
+                    cmd.Parameters.AddWithValue("@proveedor", txtProveedor?.Text?.Trim() ?? "");
+                    cmd.Parameters.AddWithValue("@PermiteAcumular", PermiteAcumular);
+                }
 
                 cmd.ExecuteNonQuery();
                 
@@ -402,17 +520,34 @@ namespace Comercio.NET.Formularios
 
                 CodigoAgregado = codigo;
 
-                if (Modo == ModoFormulario.Agregar)
-                {
-                    MessageBox.Show("Producto agregado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LimpiarControles();
-                    txtCodigo?.Focus();
-                }
-                else
+                // MODIFICADO: Comportamiento según el origen y modo
+                if (Modo == ModoFormulario.Modificar)
                 {
                     MessageBox.Show("Producto modificado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     this.DialogResult = DialogResult.OK;
                     this.Close();
+                }
+                else // Modo Agregar
+                {
+                    string mensajeExito = Origen == OrigenLlamada.Ventas 
+                        ? "Producto agregado correctamente para la venta." 
+                        : "Producto agregado correctamente.";
+                    
+                    MessageBox.Show(mensajeExito, "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    // NUEVO: Comportamiento según el origen
+                    if (Origen == OrigenLlamada.Ventas)
+                    {
+                        // Desde Ventas: Cerrar el modal y volver al formulario de ventas
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                    else
+                    {
+                        // Desde Productos: Mantener el comportamiento actual (limpiar para agregar otro)
+                        LimpiarControles();
+                        txtCodigo?.Focus();
+                    }
                 }
             }
         }
@@ -655,8 +790,17 @@ namespace Comercio.NET.Formularios
 
             if (Modo == ModoFormulario.Agregar)
             {
-                txtCodigo?.Focus();
-                txtCodigo?.SelectAll();
+                if (Origen == OrigenLlamada.Ventas && txtCodigo != null && txtCodigo.ReadOnly)
+                {
+                    // Si viene de Ventas y el código está bloqueado, enfocar descripción
+                    txtDescripcion?.Focus();
+                    txtDescripcion?.SelectAll();
+                }
+                else
+                {
+                    txtCodigo?.Focus();
+                    txtCodigo?.SelectAll();
+                }
             }
             else
             {

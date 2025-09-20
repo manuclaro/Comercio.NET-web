@@ -17,7 +17,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
-using Comercio.NET.Servicios; // AGREGAR ESTA LÍNEA
+using Comercio.NET.Servicios;
+using Comercio.NET.Formularios;
 
 namespace Comercio.NET
 {
@@ -242,54 +243,55 @@ namespace Comercio.NET
         }
 
         private async void txtBuscarProducto_TextChanged(object sender, EventArgs e)
-        {
-            string textoIngresado = txtBuscarProducto.Text.Trim();
+{
+    string textoIngresado = txtBuscarProducto.Text.Trim();
 
-            if (string.IsNullOrEmpty(textoIngresado))
-            {
-                LimpiarCamposProducto();
-                return;
-            }
+    if (string.IsNullOrEmpty(textoIngresado))
+    {
+        LimpiarCamposProducto();
+        return;
+    }
 
-            try
-            {
-                // Corrección: usar declaraciones separadas
-                var resultado = ProcesarCodigo(textoIngresado);
-                await MostrarProductoAsync(resultado.codigoBuscado, resultado.precioPersonalizado, resultado.esEspecial);
-            }
-            catch (Exception ex)
-            {
-                lbDescripcionProducto.Text = ex.Message;
-                LimpiarCamposProducto();
-            }
-        }
+    try
+    {
+        // Corrección: usar declaraciones separadas
+        var resultado = ProcesarCodigo(textoIngresado);
+        await MostrarProductoAsync(resultado.codigoBuscado, resultado.precioPersonalizado, resultado.esEspecial);
+    }
+    catch (Exception ex)
+    {
+        lbDescripcionProducto.Text = ex.Message;
+        LimpiarCamposProducto();
+    }
+}
 
         private async Task MostrarProductoAsync(string codigo, decimal? precioPersonalizado, bool esEspecial)
-        {
-            var producto = await BuscarProductoAsync(codigo);
+{
+    var producto = await BuscarProductoAsync(codigo);
 
-            if (producto == null)
-            {
-                lbDescripcionProducto.Text = $"Producto no encontrado (buscado: '{codigo}')";
-                LimpiarCamposProducto();
-                return;
-            }
+    if (producto == null)
+    {
+        // MEJORADO: Mensaje más claro para el usuario
+        lbDescripcionProducto.Text = $"⚠️ Producto '{codigo}' no encontrado - Presione 'Agregar' para crearlo";
+        LimpiarCamposProducto();
+        return;
+    }
 
-            lbDescripcionProducto.Text = producto["descripcion"].ToString();
-            bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
+    lbDescripcionProducto.Text = producto["descripcion"].ToString();
+    bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
 
-            if (precioPersonalizado.HasValue)
-            {
-                txtPrecio.Text = precioPersonalizado.Value.ToString("F0");
-                lbDescripcionProducto.Text += " (Precio Balanza)";
-            }
-            else
-            {
-                txtPrecio.Text = Convert.ToDecimal(producto["precio"]).ToString("N2");
-            }
+    if (precioPersonalizado.HasValue)
+    {
+        txtPrecio.Text = precioPersonalizado.Value.ToString("F0");
+        lbDescripcionProducto.Text += " (Precio Balanza)";
+    }
+    else
+    {
+        txtPrecio.Text = Convert.ToDecimal(producto["precio"]).ToString("N2");
+    }
 
-            txtPrecio.Enabled = editarPrecio;
-        }
+    txtPrecio.Enabled = editarPrecio;
+}
 
         private void LimpiarCamposProducto()
         {
@@ -298,245 +300,279 @@ namespace Comercio.NET
             lbDescripcionProducto.Text = ""; // AGREGAR ESTA LÍNEA SI NO ESTÁ
         }
 
-        private void btnAgregar_Click(object sender, EventArgs e)
+        private async void btnAgregar_Click(object sender, EventArgs e)
+{
+    string textoIngresado = txtBuscarProducto.Text.Trim();
+    string codigoBuscado = textoIngresado;
+    bool esCodigoTemporal = false;
+    bool esCodigoEspecial = false;
+
+    if (string.IsNullOrEmpty(textoIngresado))
+    {
+        MessageBox.Show("Ingrese un código de producto válido.");
+        txtBuscarProducto.Focus();
+        return;
+    }
+
+    // NUEVO: Procesar código especial también en btnAgregar_Click
+    if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+    {
+        try
         {
-            string textoIngresado = txtBuscarProducto.Text.Trim();
-            string codigoBuscado = textoIngresado;
-            bool esCodigoTemporal = false;
-            bool esCodigoEspecial = false;
+            string codigoProducto = textoIngresado.Substring(2, 5); // 5 dígitos (posiciones 2-6)
 
-            if (string.IsNullOrEmpty(textoIngresado))
-            {
-                MessageBox.Show("Ingrese un código de producto válido.");
-                txtBuscarProducto.Focus();
-                return;
-            }
+            // NUEVO: Eliminar ceros a la izquierda del código del producto
+            codigoProducto = codigoProducto.TrimStart('0');
+            if (string.IsNullOrEmpty(codigoProducto))
+                codigoProducto = "0";
 
-            // NUEVO: Procesar código especial también en btnAgregar_Click
-            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+            codigoBuscado = codigoProducto;
+            esCodigoEspecial = true;
+        }
+        catch
+        {
+            MessageBox.Show("Error procesando código especial.");
+            txtBuscarProducto.Focus();
+            return;
+        }
+    }
+    else if (textoIngresado.Length == 8)
+    {
+        // TRATAMIENTO ESPECIAL PARA CÓDIGOS TEMPORALES DE TESTING (8 DÍGITOS)
+        // Asumimos que vienen en el formato XXXXXXXX y son válidos para testing
+        codigoBuscado = textoIngresado;
+        esCodigoTemporal = true;
+    }
+    else
+    {
+        // NUEVO: Para códigos normales también eliminar ceros a la izquierda
+        codigoBuscado = codigoBuscado.TrimStart('0');
+        if (string.IsNullOrEmpty(codigoBuscado))
+            codigoBuscado = "0";
+    }
+
+    var config = new ConfigurationBuilder()
+        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        .AddJsonFile("appsettings.json")
+        .Build();
+    string connectionString = config.GetConnectionString("DefaultConnection");
+
+    // NUEVO: Verificar si el producto existe antes de continuar
+    DataRow producto = null;
+    using (var connection = new SqlConnection(connectionString))
+    {
+        var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular 
+                      FROM Productos WHERE codigo = @codigo";
+        using (var adapter = new SqlDataAdapter(query, connection))
+        {
+            adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
+            DataTable dt = new DataTable();
+            adapter.Fill(dt);
+            if (dt.Rows.Count == 0)
             {
-                try
+                // MODIFICADO: Usar MessageBox personalizado sin botón por defecto
+                using (var customMsg = new CustomMessageBox(
+                    $"El producto con código '{codigoBuscado}' no existe.\n\n" +
+                    "¿Desea agregarlo ahora para continuar con la venta?",
+                    "Producto no encontrado"))
                 {
-                    string codigoProducto = textoIngresado.Substring(2, 5); // 5 dígitos (posiciones 2-6)
+                    var resultado = customMsg.ShowDialog(this);
 
-                    // NUEVO: Eliminar ceros a la izquierda del código del producto
-                    codigoProducto = codigoProducto.TrimStart('0');
-                    if (string.IsNullOrEmpty(codigoProducto))
-                        codigoProducto = "0";
-
-                    codigoBuscado = codigoProducto;
-                    esCodigoEspecial = true;
-                }
-                catch
-                {
-                    MessageBox.Show("Error procesando código especial.");
-                    txtBuscarProducto.Focus();
-                    return;
-                }
-            }
-            else if (textoIngresado.Length == 8)
-            {
-                // TRATAMIENTO ESPECIAL PARA CÓDIGOS TEMPORALES DE TESTING (8 DÍGITOS)
-                // Asumimos que vienen en el formato XXXXXXXX y son válidos para testing
-                codigoBuscado = textoIngresado;
-                esCodigoTemporal = true;
-            }
-            else
-            {
-                // NUEVO: Para códigos normales también eliminar ceros a la izquierda
-                codigoBuscado = codigoBuscado.TrimStart('0');
-                if (string.IsNullOrEmpty(codigoBuscado))
-                    codigoBuscado = "0";
-            }
-
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
-            string connectionString = config.GetConnectionString("DefaultConnection");
-
-            // 1. Si es el primer producto de la venta, incrementa el remito y obtén el nuevo valor
-            if (!remitoIncrementado)
-            {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    var query = "UPDATE numeroremito SET nroremito = nroremito + 1";
-                    using (var cmd = new SqlCommand(query, connection))
+                    if (resultado == DialogResult.Yes)
                     {
-                        connection.Open();
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-                // Obtener el nuevo nroRemitoActual
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    var query = "SELECT nroremito FROM numeroremito";
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        connection.Open();
-                        var result = cmd.ExecuteScalar();
-                        if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
+                        // Extraer precio si es código especial
+                        decimal? precioPersonalizado = null;
+                        if (esCodigoEspecial)
                         {
-                            MessageBox.Show("No se pudo obtener el número de remito.");
-                            return;
+                            try
+                            {
+                                string parteEntera = textoIngresado.Substring(7, 5);
+                                int parteEnteraNumero = int.Parse(parteEntera);
+                                precioPersonalizado = parteEnteraNumero;
+                            }
+                            catch
+                            {
+                                // Si hay error, continuar sin precio personalizado
+                            }
                         }
-                    }
-                }
-                remitoIncrementado = true;
-            }
 
-            // 2. Obtener los datos del producto, incluyendo PermiteAcumular
-            DataRow producto = null;
-            bool permiteAcumular = false;
-            using (var connection = new SqlConnection(connectionString))
-            {
-                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular 
-                              FROM Productos WHERE codigo = @codigo";
-                using (var adapter = new SqlDataAdapter(query, connection))
-                {
-                    adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado); // Usar codigoBuscado procesado
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    if (dt.Rows.Count == 0)
+                        // CORREGIDO: Usar await correctamente
+                        await AbrirFormularioAgregarProductoRapido(codigoBuscado, precioPersonalizado);
+                        return;
+                    }
+                    else
                     {
-                        MessageBox.Show($"Producto no encontrado (código: {codigoBuscado}).");
                         txtBuscarProducto.Focus();
                         return;
                     }
-                    producto = dt.Rows[0];
-                    permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
                 }
             }
+            producto = dt.Rows[0];
+        }
+    }
 
-            // 3. Determinar el precio a usar
-            decimal precioUnitario;
-            if (esCodigoEspecial)
+    // Continuar con el resto del código existente...
+    bool permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
+
+    // 1. Si es el primer producto de la venta, incrementa el remito y obtén el nuevo valor
+    if (!remitoIncrementado)
+    {
+        using (var connection = new SqlConnection(connectionString))
+        {
+            var query = "UPDATE numeroremito SET nroremito = nroremito + 1";
+            using (var cmd = new SqlCommand(query, connection))
             {
-                // Para códigos especiales, SIEMPRE usar el precio del txtPrecio
-                if (decimal.TryParse(txtPrecio.Text, out decimal precioEspecial))
+                connection.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+        // Obtener el nuevo nroRemitoActual
+        using (var connection = new SqlConnection(connectionString))
+        {
+            var query = "SELECT nroremito FROM numeroremito";
+            using (var cmd = new SqlCommand(query, connection))
+            {
+                connection.Open();
+                var result = cmd.ExecuteScalar();
+                if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
                 {
-                    precioUnitario = precioEspecial;
-
-                    // ACTUALIZAR el precio en la tabla Productos
-                    using (var connection = new SqlConnection(connectionString))
-                    {
-                        var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
-                        using (var cmd = new SqlCommand(query, connection))
-                        {
-                            cmd.Parameters.AddWithValue("@precio", precioUnitario);
-                            cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
-                            connection.Open();
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Error: Precio inválido en código especial.");
-                    txtBuscarProducto.Focus();
+                    MessageBox.Show("No se pudo obtener el número de remito.");
                     return;
                 }
             }
-            else
-            {
-                // Para códigos normales, usar la lógica anterior
-                if (txtPrecio.Enabled && decimal.TryParse(txtPrecio.Text, out decimal precioEditado))
-                {
-                    precioUnitario = precioEditado;
-                }
-                else
-                {
-                    precioUnitario = Convert.ToDecimal(producto["precio"]);
-                }
-            }
+        }
+        remitoIncrementado = true;
+    }
 
-            // 4. Verificar si el producto ya está en la venta actual
-            bool productoYaAgregado = false;
-            int cantidadActual = 0;
+    // 3. Determinar el precio a usar
+    decimal precioUnitario;
+    if (esCodigoEspecial)
+    {
+        // Para códigos especiales, SIEMPRE usar el precio del txtPrecio
+        if (decimal.TryParse(txtPrecio.Text, out decimal precioEspecial))
+        {
+            precioUnitario = precioEspecial;
+
+            // ACTUALIZAR el precio en la tabla Productos
             using (var connection = new SqlConnection(connectionString))
             {
-                var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
                 using (var cmd = new SqlCommand(query, connection))
                 {
-                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                    cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                    cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                    cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
                     connection.Open();
-                    var result = cmd.ExecuteScalar();
-                    if (result != null && int.TryParse(result.ToString(), out cantidadActual))
-                    {
-                        productoYaAgregado = true;
-                    }
+                    cmd.ExecuteNonQuery();
                 }
-            }
-
-            if (productoYaAgregado && permiteAcumular)
-            {
-                // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    var query = @"UPDATE Ventas 
-      SET cantidad = cantidad + @nuevaCantidad, 
-          total = (cantidad + @nuevaCantidad) * @precio
-      WHERE nrofactura = @nrofactura AND codigo = @codigo";
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
-                        cmd.Parameters.AddWithValue("@precio", precioUnitario);
-                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                        cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                        connection.Open();
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-            }
-            else
-            {
-                // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    var query = @"INSERT INTO Ventas 
-    (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte)
-    VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte)";
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                        cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
-                        cmd.Parameters.AddWithValue("@precio", precioUnitario); // Usar el precio correcto
-                        cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
-                        cmd.Parameters.AddWithValue("@marca", producto["marca"]);
-                        cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
-                        cmd.Parameters.AddWithValue("@costo", producto["costo"]);
-                        cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
-                        cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
-                        cmd.Parameters.AddWithValue("@cantidad", cantidadPersonalizada);
-                        cmd.Parameters.AddWithValue("@total", precioUnitario * cantidadPersonalizada);
-                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                        cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
-                        cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-
-                        connection.Open();
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-            }
-
-            // 5. Mostrar todas las ventas del remito actual
-            CargarVentasActuales();
-
-            // Formatear columnas y encabezados (resto del código igual)
-            FormatearDataGridView();
-
-            // Dejar el foco en el campo buscar para el próximo producto
-            txtBuscarProducto.Text = "";
-            txtBuscarProducto.Focus();
-
-            // Desmarcar el checkbox de cantidad después de agregar el producto
-            if (chkCantidad.Checked)
-            {
-                chkCantidad.Checked = false;
-                cantidadPersonalizada = 1;
             }
         }
+        else
+        {
+            MessageBox.Show("Error: Precio inválido en código especial.");
+            txtBuscarProducto.Focus();
+            return;
+        }
+    }
+    else
+    {
+        // Para códigos normales, usar la lógica anterior
+        if (txtPrecio.Enabled && decimal.TryParse(txtPrecio.Text, out decimal precioEditado))
+        {
+            precioUnitario = precioEditado;
+        }
+        else
+        {
+            precioUnitario = Convert.ToDecimal(producto["precio"]);
+        }
+    }
+
+    // 4. Verificar si el producto ya está en la venta actual
+    bool productoYaAgregado = false;
+    int cantidadActual = 0;
+    using (var connection = new SqlConnection(connectionString))
+    {
+        var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+        using (var cmd = new SqlCommand(query, connection))
+        {
+            cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+            cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+            connection.Open();
+            var result = cmd.ExecuteScalar();
+            if (result != null && int.TryParse(result.ToString(), out cantidadActual))
+            {
+                productoYaAgregado = true;
+            }
+        }
+    }
+
+    if (productoYaAgregado && permiteAcumular)
+    {
+        // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total
+        using (var connection = new SqlConnection(connectionString))
+        {
+            var query = @"UPDATE Ventas 
+  SET cantidad = cantidad + @nuevaCantidad, 
+      total = (cantidad + @nuevaCantidad) * @precio
+  WHERE nrofactura = @nrofactura AND codigo = @codigo";
+            using (var cmd = new SqlCommand(query, connection))
+            {
+                cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
+                cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                connection.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+    }
+    else
+    {
+        // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
+        using (var connection = new SqlConnection(connectionString))
+        {
+            var query = @"INSERT INTO Ventas 
+(codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte)
+VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte)";
+            using (var cmd = new SqlCommand(query, connection))
+            {
+                cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
+                cmd.Parameters.AddWithValue("@precio", precioUnitario); // Usar el precio correcto
+                cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
+                cmd.Parameters.AddWithValue("@marca", producto["marca"]);
+                cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
+                cmd.Parameters.AddWithValue("@costo", producto["costo"]);
+                cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
+                cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
+                cmd.Parameters.AddWithValue("@cantidad", cantidadPersonalizada);
+                cmd.Parameters.AddWithValue("@total", precioUnitario * cantidadPersonalizada);
+                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+                cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+
+                connection.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+    }
+
+    // 5. Mostrar todas las ventas del remito actual
+    CargarVentasActuales();
+
+    // Formatear columnas y encabezados (resto del código igual)
+    FormatearDataGridView();
+
+    // Dejar el foco en el campo buscar para el próximo producto
+    txtBuscarProducto.Text = "";
+    txtBuscarProducto.Focus();
+
+    // Desmarcar el checkbox de cantidad después de agregar el producto
+    if (chkCantidad.Checked)
+    {
+        chkCantidad.Checked = false;
+        cantidadPersonalizada = 1;
+    }
+}
         private void Ventas_Load(object sender, EventArgs e)
         {
             var config = new ConfigurationBuilder()
@@ -1404,6 +1440,233 @@ namespace Comercio.NET
             {
                 string safeService = service.Replace("/", "_").Replace("\\", "_");
                 return $"ta_{safeService}.xml";
+            }
+        }
+
+        private async Task AbrirFormularioAgregarProductoRapido(string codigo, decimal? precioPersonalizado)
+{
+    try
+    {
+        using (var formAgregar = new frmAgregarProducto())
+        {
+            // Configurar el formulario en modo agregar
+            formAgregar.Modo = frmAgregarProducto.ModoFormulario.Agregar;
+            formAgregar.Origen = frmAgregarProducto.OrigenLlamada.Ventas; // NUEVO: Indicar que viene desde Ventas
+            formAgregar.StartPosition = FormStartPosition.CenterParent;
+            
+            // NUEVO: Preconfigurar el código y precio si están disponibles
+            formAgregar.Load += (s, e) =>
+            {
+                // Buscar el TextBox del código y establecer el valor
+                var txtCodigo = formAgregar.Controls.Find("txtCodigo", true).FirstOrDefault() as TextBox;
+                if (txtCodigo != null)
+                {
+                    txtCodigo.Text = codigo;
+                    txtCodigo.ReadOnly = true; // No permitir cambiar el código
+                }
+                
+                // Si hay precio personalizado (código especial), establecerlo
+                if (precioPersonalizado.HasValue)
+                {
+                    var txtPrecio = formAgregar.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+                    var txtCosto = formAgregar.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
+                    
+                    if (txtPrecio != null)
+                    {
+                        txtPrecio.Text = precioPersonalizado.Value.ToString("F2");
+                    }
+                    
+                    // Calcular un costo estimado (90% del precio como ejemplo)
+                    if (txtCosto != null)
+                    {
+                        decimal costoEstimado = precioPersonalizado.Value * 0.9m;
+                        txtCosto.Text = costoEstimado.ToString("F2");
+                    }
+                }
+                
+                // Enfocar el campo descripción para que el usuario pueda empezar a escribir
+                var txtDescripcion = formAgregar.Controls.Find("txtDescripcion", true).FirstOrDefault() as TextBox;
+                txtDescripcion?.Focus();
+            };
+
+            var resultado = formAgregar.ShowDialog(this);
+            
+            if (resultado == DialogResult.OK && !string.IsNullOrEmpty(formAgregar.CodigoAgregado))
+            {
+                // NUEVO: Producto agregado exitosamente, ahora mostrarlo en la interfaz
+                MessageBox.Show(
+                    $"Producto '{codigo}' agregado correctamente.\n" +
+                    "Ahora puede continuar con la venta.",
+                    "Producto agregado",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                
+                // Volver a buscar el producto recién agregado para mostrarlo
+                await MostrarProductoAsync(codigo, precioPersonalizado, false);
+                
+                // Enfocar el botón agregar para que el usuario pueda añadir el producto a la venta
+                btnAgregar.Focus();
+            }
+            else
+            {
+                // El usuario canceló o no se pudo agregar el producto
+                txtBuscarProducto.Text = "";
+                txtBuscarProducto.Focus();
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show(
+            $"Error al abrir el formulario de agregar producto: {ex.Message}", 
+            "Error", 
+            MessageBoxButtons.OK, 
+            MessageBoxIcon.Error);
+        
+        txtBuscarProducto.Focus();
+    }
+}
+        // NUEVO: Clase para MessageBox personalizado sin botón por defecto
+        public partial class CustomMessageBox : Form
+        {
+            public DialogResult Result { get; private set; } = DialogResult.None;
+
+            public CustomMessageBox(string message, string caption)
+            {
+                InitializeComponent();
+                ConfigurarMessageBox(message, caption);
+            }
+
+            private void InitializeComponent()
+            {
+                this.SuspendLayout();
+
+                // Configuración del formulario
+                this.Text = "";
+                this.Size = new Size(400, 180);
+                this.FormBorderStyle = FormBorderStyle.FixedDialog;
+                this.MaximizeBox = false;
+                this.MinimizeBox = false;
+                this.StartPosition = FormStartPosition.CenterParent;
+                this.ShowInTaskbar = false;
+                this.KeyPreview = true;
+
+                // IMPORTANTE: No establecer ningún AcceptButton o CancelButton
+                // this.AcceptButton = null;
+                // this.CancelButton = null;
+
+                this.ResumeLayout(false);
+            }
+
+            private void ConfigurarMessageBox(string message, string caption)
+            {
+                this.Text = caption;
+
+                // Icono de pregunta
+                var pictureBox = new PictureBox
+                {
+                    Image = SystemIcons.Question.ToBitmap(),
+                    Location = new Point(15, 15),
+                    Size = new Size(32, 32),
+                    SizeMode = PictureBoxSizeMode.StretchImage
+                };
+                this.Controls.Add(pictureBox);
+
+                // Mensaje
+                var lblMessage = new Label
+                {
+                    Text = message,
+                    Location = new Point(60, 15),
+                    Size = new Size(310, 80),
+                    Font = new Font("Segoe UI", 9F),
+                    ForeColor = Color.FromArgb(62, 80, 100)
+                };
+                this.Controls.Add(lblMessage);
+
+                // Botón Sí
+                var btnYes = new Button
+                {
+                    Text = "Sí",
+                    Location = new Point(215, 100),
+                    Size = new Size(75, 30),
+                    Font = new Font("Segoe UI", 9F),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(76, 175, 80),
+                    ForeColor = Color.White,
+                    TabStop = false // IMPORTANTE: No recibir foco por Tab
+                };
+                btnYes.FlatAppearance.BorderSize = 0;
+                // CORREGIDO: Establecer DialogResult y cerrar
+                btnYes.Click += (s, e) => 
+                { 
+                    Result = DialogResult.Yes; 
+                    this.DialogResult = DialogResult.Yes; // NUEVO: Establecer DialogResult del formulario
+                    this.Close(); 
+                };
+                btnYes.MouseEnter += (s, e) => btnYes.BackColor = Color.FromArgb(66, 165, 70);
+                btnYes.MouseLeave += (s, e) => btnYes.BackColor = Color.FromArgb(76, 175, 80);
+                this.Controls.Add(btnYes);
+
+                // Botón No
+                var btnNo = new Button
+                {
+                    Text = "No",
+                    Location = new Point(300, 100),
+                    Size = new Size(75, 30),
+                    Font = new Font("Segoe UI", 9F),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(220, 53, 69),
+                    ForeColor = Color.White,
+                    TabStop = false // IMPORTANTE: No recibir foco por Tab
+                };
+                btnNo.FlatAppearance.BorderSize = 0;
+                // CORREGIDO: Establecer DialogResult y cerrar
+                btnNo.Click += (s, e) => 
+                { 
+                    Result = DialogResult.No; 
+                    this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
+                    this.Close(); 
+                };
+                btnNo.MouseEnter += (s, e) => btnNo.BackColor = Color.FromArgb(210, 43, 59);
+                btnNo.MouseLeave += (s, e) => btnNo.BackColor = Color.FromArgb(220, 53, 69);
+                this.Controls.Add(btnNo);
+
+                // CLAVE: Establecer el foco en el formulario principal, no en los botones
+                this.ActiveControl = null;
+
+                // Manejar teclas
+                this.KeyDown += (s, e) =>
+                {
+                    if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
+                    {
+                        // No hacer nada - forzar uso del mouse
+                        e.Handled = true;
+                    }
+                    else if (e.KeyCode == Keys.Escape)
+                    {
+                        Result = DialogResult.No;
+                        this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
+                        this.Close();
+                    }
+                };
+
+                // Asegurar que ningún botón tenga foco inicial
+                this.Shown += (s, e) =>
+                {
+                    this.ActiveControl = null;
+                    this.Focus();
+                };
+                
+                // NUEVO: Manejar el cierre del formulario sin selección
+                this.FormClosing += (s, e) =>
+                {
+                    // Si se cierra sin haber seleccionado nada, actuar como "No"
+                    if (this.DialogResult == DialogResult.None)
+                    {
+                        this.DialogResult = DialogResult.No;
+                        Result = DialogResult.No;
+                    }
+                };
             }
         }
     }
