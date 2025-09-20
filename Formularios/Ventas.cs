@@ -722,9 +722,9 @@ namespace Comercio.NET
             {
                 TokenAfip = this.token,
                 SignAfip = this.sign,
-                OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip) =>
+                OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
                 {
-                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip);
+                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado);
                 }
             })
             {
@@ -757,29 +757,33 @@ namespace Comercio.NET
                 {
                     NombreComercio = nombreComercio,
                     DomicilioComercio = domicilioComercio,
-                    NumeroComprobante = nroRemitoActual.ToString(),
                     FormaPago = seleccion.OpcionPagoSeleccionada.ToString(),
                     MensajePie = "Gracias por su compra!"
                 };
 
-                // Configurar según el tipo de comprobante seleccionado
+                // NUEVO: Configurar número y tipo según el comprobante seleccionado
                 switch (seleccion.OpcionSeleccionada)
                 {
                     case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
                         config.TipoComprobante = "REMITO";
+                        config.NumeroComprobante = nroRemitoActual.ToString(); // Usar número de remito
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
-                        config.TipoComprobante = "FACTURA B";
+                        config.TipoComprobante = "FACTURA";
+                        // NUEVO: Formatear número de factura para mostrar
+                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(6, 1, seleccion.NumeroFacturaAfip);
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaA:
-                        config.TipoComprobante = "FACTURA A";
+                        config.TipoComprobante = "FACTURA";
+                        // NUEVO: Formatear número de factura para mostrar
+                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(1, 1, seleccion.NumeroFacturaAfip);
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
-                        // El CUIT se obtiene del formulario seleccion si es necesario
+                        // Obtener CUIT del formulario de selección si es necesario
                         break;
                 }
 
@@ -819,7 +823,7 @@ namespace Comercio.NET
             return domicilioComercio;
         }
 
-        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0)
+        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0, string numeroFormateado = "")
         {
             try
             {
@@ -829,37 +833,30 @@ namespace Comercio.NET
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                // Calcular el importe total
                 decimal importeTotal = 0;
-                foreach (DataGridViewRow row in dataGridView1.Rows)
+                if (decimal.TryParse(lbTotal.Text.Replace("Total: $", "").Replace(",", ""), out decimal total))
                 {
-                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
-                        importeTotal += valor;
+                    importeTotal = total;
                 }
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = @"INSERT INTO Facturas 
-            (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre, 
-             Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente)
-            VALUES 
-            (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre, 
-             @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente)";
+                    var query = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente) 
+                                 VALUES (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre, 
+                                 @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente)";
 
                     using (var cmd = new SqlCommand(query, connection))
                     {
-                        // CORRECCIÓN: Usar NumeroRemito y NroFactura correctamente
-                        cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual); // Siempre el número de remito local
+                        cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
                         
                         if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
                         {
-                            // Para facturas A y B: NroFactura = número de AFIP
-                            cmd.Parameters.AddWithValue("@NroFactura", numeroFacturaAfip);
+                            // NUEVO: Usar el número formateado que ya viene con espacio
+                            cmd.Parameters.AddWithValue("@NroFactura", !string.IsNullOrEmpty(numeroFormateado) ? numeroFormateado : DBNull.Value);
                             cmd.Parameters.AddWithValue("@CAENumero", !string.IsNullOrEmpty(caeNumero) ? (object)caeNumero : DBNull.Value);
                         }
                         else
                         {
-                            // Para remitos: NroFactura = null
                             cmd.Parameters.AddWithValue("@NroFactura", DBNull.Value);
                             cmd.Parameters.AddWithValue("@CAENumero", DBNull.Value);
                         }
@@ -901,6 +898,21 @@ namespace Comercio.NET
                 MessageBox.Show($"Error al guardar la factura en base de datos: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // NUEVO: Método auxiliar para formatear número de factura (reutilizable)
+        private string FormatearNumeroFacturaParaBD(int cbteTipo, int ptoVta, int numeroFactura)
+        {
+            string letra = cbteTipo switch
+            {
+                1 => "A",
+                6 => "B",
+                11 => "C",
+                51 => "M",
+                _ => "X"
+            };
+            
+            return $"{letra}{ptoVta:D4}-{numeroFactura:D8}";
         }
 
         // Asegurarse de que el método LimpiarYReiniciarVenta esté bien implementado

@@ -34,6 +34,9 @@ namespace Comercio.NET.Formularios
             ConfigurarFormulario();
             CrearVentanaDetalle();
             CargarVentasDelDia();
+            
+            // FORZAR MAXIMIZACIÓN
+            //this.WindowState = FormWindowState.Maximized;
         }
 
         private void InitializeComponent()
@@ -79,12 +82,12 @@ namespace Comercio.NET.Formularios
             dgvVentas.ColumnHeadersHeight = 35;
             dgvVentas.Dock = DockStyle.Fill;
             dgvVentas.EnableHeadersVisualStyles = false;
-            dgvVentas.Location = new Point(0, 110);
+            dgvVentas.Location = new Point(0, 103);
             dgvVentas.Name = "dgvVentas";
             dgvVentas.ReadOnly = true;
             dgvVentas.RowHeadersVisible = false;
             dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvVentas.Size = new Size(991, 391);
+            dgvVentas.Size = new Size(909, 333);
             dgvVentas.TabIndex = 0;
             dgvVentas.CellClick += DgvVentas_CellClick;
             dgvVentas.Click += FrmControlFacturas_Click;
@@ -93,12 +96,11 @@ namespace Comercio.NET.Formularios
             // 
             dtpFecha.Font = new Font("Segoe UI", 10F);
             dtpFecha.Format = DateTimePickerFormat.Short;
-            dtpFecha.Location = new Point(20, 15);
+            dtpFecha.Location = new Point(18, 14);
             dtpFecha.Name = "dtpFecha";
-            dtpFecha.Size = new Size(120, 25);
+            dtpFecha.Size = new Size(106, 25);
             dtpFecha.TabIndex = 4;
-            dtpFecha.Value = new DateTime(2025, 9, 5, 0, 0, 0, 0);
-            dtpFecha.Value = DateTime.Today;
+            dtpFecha.Value = new DateTime(2025, 9, 20, 0, 0, 0, 0);
             // 
             // btnBuscar
             // 
@@ -106,9 +108,9 @@ namespace Comercio.NET.Formularios
             btnBuscar.FlatStyle = FlatStyle.Flat;
             btnBuscar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnBuscar.ForeColor = Color.White;
-            btnBuscar.Location = new Point(150, 15);
+            btnBuscar.Location = new Point(131, 14);
             btnBuscar.Name = "btnBuscar";
-            btnBuscar.Size = new Size(80, 30);
+            btnBuscar.Size = new Size(70, 28);
             btnBuscar.TabIndex = 3;
             btnBuscar.Text = "Buscar";
             btnBuscar.UseVisualStyleBackColor = false;
@@ -120,9 +122,9 @@ namespace Comercio.NET.Formularios
             btnHoy.FlatStyle = FlatStyle.Flat;
             btnHoy.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnHoy.ForeColor = Color.White;
-            btnHoy.Location = new Point(240, 15);
+            btnHoy.Location = new Point(210, 14);
             btnHoy.Name = "btnHoy";
-            btnHoy.Size = new Size(80, 30);
+            btnHoy.Size = new Size(70, 28);
             btnHoy.TabIndex = 2;
             btnHoy.Text = "Hoy";
             btnHoy.UseVisualStyleBackColor = false;
@@ -135,7 +137,7 @@ namespace Comercio.NET.Formularios
             lblTotal.ForeColor = Color.White;
             lblTotal.Location = new Point(0, 0);
             lblTotal.Name = "lblTotal";
-            lblTotal.Size = new Size(991, 25);
+            lblTotal.Size = new Size(909, 23);
             lblTotal.TabIndex = 2;
             lblTotal.Text = "Total: $0,00";
             lblTotal.TextAlign = ContentAlignment.MiddleRight;
@@ -147,8 +149,8 @@ namespace Comercio.NET.Formularios
             lblCantidadVentas.ForeColor = Color.White;
             lblCantidadVentas.Location = new Point(0, 0);
             lblCantidadVentas.Name = "lblCantidadVentas";
-            lblCantidadVentas.Padding = new Padding(20, 0, 0, 0);
-            lblCantidadVentas.Size = new Size(200, 80);
+            lblCantidadVentas.Padding = new Padding(18, 0, 0, 0);
+            lblCantidadVentas.Size = new Size(175, 75);
             lblCantidadVentas.TabIndex = 0;
             lblCantidadVentas.Text = "Ventas: 0";
             lblCantidadVentas.TextAlign = ContentAlignment.MiddleLeft;
@@ -160,7 +162,7 @@ namespace Comercio.NET.Formularios
             lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
             lblTitulo.Location = new Point(0, 0);
             lblTitulo.Name = "lblTitulo";
-            lblTitulo.Size = new Size(991, 50);
+            lblTitulo.Size = new Size(909, 47);
             lblTitulo.TabIndex = 3;
             lblTitulo.Text = "Control de Facturas - Ventas del Día";
             lblTitulo.TextAlign = ContentAlignment.MiddleCenter;
@@ -174,20 +176,20 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(btnBuscar);
             panelFiltros.Controls.Add(dtpFecha);
             panelFiltros.Dock = DockStyle.Top;
-            panelFiltros.Location = new Point(0, 50);
+            panelFiltros.Location = new Point(0, 47);
             panelFiltros.Name = "panelFiltros";
-            panelFiltros.Padding = new Padding(10);
-            panelFiltros.Size = new Size(991, 60);
+            panelFiltros.Padding = new Padding(9);
+            panelFiltros.Size = new Size(909, 56);
             panelFiltros.TabIndex = 2;
             panelFiltros.Click += FrmControlFacturas_Click;
             // 
             // txtFiltroCtaCte
             // 
             txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
-            txtFiltroCtaCte.Location = new Point(470, 17);
+            txtFiltroCtaCte.Location = new Point(411, 16);
             txtFiltroCtaCte.Name = "txtFiltroCtaCte";
             txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
-            txtFiltroCtaCte.Size = new Size(200, 25);
+            txtFiltroCtaCte.Size = new Size(176, 25);
             txtFiltroCtaCte.TabIndex = 0;
             txtFiltroCtaCte.Visible = false;
             txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
@@ -196,9 +198,9 @@ namespace Comercio.NET.Formularios
             // 
             chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
-            chkCtaCte.Location = new Point(340, 15);
+            chkCtaCte.Location = new Point(298, 14);
             chkCtaCte.Name = "chkCtaCte";
-            chkCtaCte.Size = new Size(120, 30);
+            chkCtaCte.Size = new Size(105, 28);
             chkCtaCte.TabIndex = 1;
             chkCtaCte.Text = "Cta. Cte.";
             chkCtaCte.UseVisualStyleBackColor = true;
@@ -210,9 +212,9 @@ namespace Comercio.NET.Formularios
             panelResumen.Controls.Add(lblCantidadVentas);
             panelResumen.Controls.Add(panelTotales);
             panelResumen.Dock = DockStyle.Bottom;
-            panelResumen.Location = new Point(0, 501);
+            panelResumen.Location = new Point(0, 436);
             panelResumen.Name = "panelResumen";
-            panelResumen.Size = new Size(991, 80);
+            panelResumen.Size = new Size(909, 75);
             panelResumen.TabIndex = 1;
             panelResumen.Click += FrmControlFacturas_Click;
             // 
@@ -225,7 +227,7 @@ namespace Comercio.NET.Formularios
             panelTotales.Dock = DockStyle.Fill;
             panelTotales.Location = new Point(0, 0);
             panelTotales.Name = "panelTotales";
-            panelTotales.Size = new Size(991, 80);
+            panelTotales.Size = new Size(909, 75);
             panelTotales.TabIndex = 1;
             // 
             // lblDetalleTiposFactura
@@ -233,9 +235,9 @@ namespace Comercio.NET.Formularios
             lblDetalleTiposFactura.Dock = DockStyle.Top;
             lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F);
             lblDetalleTiposFactura.ForeColor = Color.White;
-            lblDetalleTiposFactura.Location = new Point(0, 45);
+            lblDetalleTiposFactura.Location = new Point(0, 42);
             lblDetalleTiposFactura.Name = "lblDetalleTiposFactura";
-            lblDetalleTiposFactura.Size = new Size(991, 20);
+            lblDetalleTiposFactura.Size = new Size(909, 19);
             lblDetalleTiposFactura.TabIndex = 0;
             lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
             // 
@@ -244,25 +246,25 @@ namespace Comercio.NET.Formularios
             lblDetalleFormasPago.Dock = DockStyle.Top;
             lblDetalleFormasPago.Font = new Font("Segoe UI", 9F);
             lblDetalleFormasPago.ForeColor = Color.White;
-            lblDetalleFormasPago.Location = new Point(0, 25);
+            lblDetalleFormasPago.Location = new Point(0, 23);
             lblDetalleFormasPago.Name = "lblDetalleFormasPago";
-            lblDetalleFormasPago.Size = new Size(991, 20);
+            lblDetalleFormasPago.Size = new Size(909, 19);
             lblDetalleFormasPago.TabIndex = 0;
             lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
             // 
             // frmControlFacturas
             // 
-            AutoScaleDimensions = new SizeF(8F, 16F);
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(991, 581);
+            ClientSize = new Size(909, 511);
             Controls.Add(dgvVentas);
             Controls.Add(panelResumen);
             Controls.Add(panelFiltros);
             Controls.Add(lblTitulo);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            MinimumSize = new Size(925, 550);
             Name = "frmControlFacturas";
             Text = "Control de Facturas";
-            WindowState = FormWindowState.Maximized;
             ((System.ComponentModel.ISupportInitialize)dgvVentas).EndInit();
             panelFiltros.ResumeLayout(false);
             panelFiltros.PerformLayout();
@@ -292,30 +294,133 @@ namespace Comercio.NET.Formularios
 
         private void CrearVentanaDetalle()
         {
-            // Crear la ventana flotante para el detalle de la factura
+            // Crear la ventana flotante para el detalle de la factura (MÁS PEQUEÑA)
             frmDetalle = new Form();
             frmDetalle.Text = "Detalle de Factura";
-            frmDetalle.Size = new Size(800, 600);
-            frmDetalle.StartPosition = FormStartPosition.CenterParent;
+            frmDetalle.Size = new Size(600, 400); // REDUCIDO: era 800x600, ahora 600x400
+            frmDetalle.StartPosition = FormStartPosition.Manual; // CAMBIO: Manual para control total
             frmDetalle.FormBorderStyle = FormBorderStyle.FixedDialog;
             frmDetalle.MaximizeBox = false;
             frmDetalle.MinimizeBox = false;
+            frmDetalle.BackColor = Color.White;
 
-            // Agregar un DataGridView para mostrar los detalles de la factura
+            // Agregar un DataGridView para mostrar los detalles de la factura (IGUAL QUE LA GRILLA PRINCIPAL)
             var dgvDetalle = new DataGridView();
             dgvDetalle.Name = "dgvDetalle";
             dgvDetalle.Dock = DockStyle.Fill;
+            dgvDetalle.AllowUserToAddRows = false;
+            dgvDetalle.AllowUserToDeleteRows = false;
             dgvDetalle.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvDetalle.BackgroundColor = Color.White;
+            dgvDetalle.BorderStyle = BorderStyle.None;
+            dgvDetalle.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             dgvDetalle.ReadOnly = true;
+            dgvDetalle.RowHeadersVisible = false;
             dgvDetalle.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvDetalle.EnableHeadersVisualStyles = false;
+            
+            // MISMO ESTILO DE HEADER QUE LA GRILLA PRINCIPAL
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = Color.FromArgb(248, 249, 250);
+            dataGridViewCellStyle1.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dataGridViewCellStyle1.ForeColor = Color.Black;
+            dataGridViewCellStyle1.SelectionBackColor = Color.FromArgb(248, 249, 250);
+            dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
+            dgvDetalle.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dgvDetalle.ColumnHeadersHeight = 35;
+
             frmDetalle.Controls.Add(dgvDetalle);
 
-            // Agregar un botón para cerrar la ventana de detalle
+            // NUEVO: Panel para mostrar totales de la factura
+            var panelTotales = new Panel();
+            panelTotales.Dock = DockStyle.Bottom;
+            panelTotales.Height = 40;
+            panelTotales.BackColor = Color.FromArgb(0, 120, 215);
+            frmDetalle.Controls.Add(panelTotales);
+
+            // REORGANIZADO: Labels distribuidos correctamente
+            var lblCantidadProductos = new Label();
+            lblCantidadProductos.Name = "lblCantidadProductos";
+            lblCantidadProductos.Text = "Productos: 0";
+            lblCantidadProductos.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblCantidadProductos.ForeColor = Color.White;
+            lblCantidadProductos.AutoSize = false;
+            lblCantidadProductos.Dock = DockStyle.Left;
+            lblCantidadProductos.Width = 120; // A LA IZQUIERDA
+            lblCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
+            lblCantidadProductos.Padding = new Padding(10, 0, 0, 0);
+            panelTotales.Controls.Add(lblCantidadProductos);
+
+            var lblTotalFactura = new Label();
+            lblTotalFactura.Name = "lblTotalFactura";
+            lblTotalFactura.Text = "Total: $0,00";
+            lblTotalFactura.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            lblTotalFactura.ForeColor = Color.White;
+            lblTotalFactura.AutoSize = false;
+            lblTotalFactura.Dock = DockStyle.Right;
+            lblTotalFactura.Width = 200; // MÁS ANCHO: era 150, ahora 200
+            lblTotalFactura.TextAlign = ContentAlignment.MiddleRight;
+            lblTotalFactura.Padding = new Padding(0, 0, 10, 0);
+            panelTotales.Controls.Add(lblTotalFactura);
+
+            var lblCantidadTotalDetalle = new Label();
+            lblCantidadTotalDetalle.Name = "lblCantidadTotalDetalle";
+            lblCantidadTotalDetalle.Text = "Cantidad: 0";
+            lblCantidadTotalDetalle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblCantidadTotalDetalle.ForeColor = Color.White;
+            lblCantidadTotalDetalle.AutoSize = false;
+            lblCantidadTotalDetalle.Dock = DockStyle.Fill; // CAMBIO: Fill para ocupar el centro
+            lblCantidadTotalDetalle.TextAlign = ContentAlignment.MiddleCenter; // CENTRADO
+            lblCantidadTotalDetalle.Padding = new Padding(0);
+            panelTotales.Controls.Add(lblCantidadTotalDetalle);
+
+            // Panel inferior para botones (SIMPLE Y LIMPIO)
+            var panelBotones = new Panel();
+            panelBotones.Dock = DockStyle.Bottom;
+            panelBotones.Height = 50;
+            panelBotones.BackColor = Color.FromArgb(248, 249, 250);
+            frmDetalle.Controls.Add(panelBotones);
+
+            // Botón para imprimir (MISMO ESTILO QUE LOS BOTONES PRINCIPALES)
+            var btnImprimir = new Button();
+            btnImprimir.Name = "btnImprimir";
+            btnImprimir.Text = "Imprimir";
+            btnImprimir.BackColor = Color.FromArgb(0, 120, 215);
+            btnImprimir.ForeColor = Color.White;
+            btnImprimir.FlatStyle = FlatStyle.Flat;
+            btnImprimir.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnImprimir.Size = new Size(80, 30);
+            btnImprimir.Location = new Point(panelBotones.Width - 180, 10);
+            btnImprimir.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnImprimir.Click += BtnImprimir_Click;
+            panelBotones.Controls.Add(btnImprimir);
+
+            // Botón para cerrar (MISMO ESTILO QUE LOS BOTONES PRINCIPALES)
             var btnCerrar = new Button();
             btnCerrar.Text = "Cerrar";
-            btnCerrar.Dock = DockStyle.Bottom;
+            btnCerrar.BackColor = Color.FromArgb(0, 150, 136);
+            btnCerrar.ForeColor = Color.White;
+            btnCerrar.FlatStyle = FlatStyle.Flat;
+            btnCerrar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnCerrar.Size = new Size(80, 30);
+            btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
+            btnCerrar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             btnCerrar.Click += (s, e) => { frmDetalle.Hide(); };
-            frmDetalle.Controls.Add(btnCerrar);
+            panelBotones.Controls.Add(btnCerrar);
+            
+            // PREVENT form disposal when user clicks X button
+            frmDetalle.FormClosing += (s, e) => {
+                e.Cancel = true;  // Cancel the close operation
+                frmDetalle.Hide(); // Just hide instead
+            };
+
+            // Ajustar posición de botones cuando se redimensiona
+            panelBotones.Resize += (s, e) => {
+                btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
+                btnImprimir.Location = new Point(panelBotones.Width - 180, 10);
+            };
         }
 
         private void CargarVentasDelDia()
@@ -340,13 +445,13 @@ namespace Comercio.NET.Formularios
                     // Query dinámico según el checkbox
                     var query = chkCtaCte.Checked 
                         ? @"SELECT 
-                            NumeroRemito as 'N° Remito',
+                            NumeroRemito as 'Remito',
                             NroFactura as 'N° Factura',
                             Fecha as 'Fecha',
                             Hora as 'Hora',
                             ImporteTotal as 'Total Venta',
                             FormadePago as 'Forma de Pago',
-                            TipoFactura as 'Tipo Factura',
+                            TipoFactura as 'Tipo',
                             CAENumero as 'CAE',
                             CtaCteNombre as 'Cta. Cte. Nombre'
                         FROM Facturas 
@@ -354,13 +459,13 @@ namespace Comercio.NET.Formularios
                         AND esCtaCte = @esCtaCte
                         ORDER BY NumeroRemito DESC"
                         : @"SELECT 
-                            NumeroRemito as 'N° Remito',
+                            NumeroRemito as 'Remito',
                             NroFactura as 'N° Factura',
                             Fecha as 'Fecha',
                             Hora as 'Hora',
                             ImporteTotal as 'Total Venta',
                             FormadePago as 'Forma de Pago',
-                            TipoFactura as 'Tipo Factura',
+                            TipoFactura as 'Tipo',
                             CAENumero as 'CAE',
                             CUITCliente as 'CUIT Cliente'
                         FROM Facturas 
@@ -420,7 +525,7 @@ namespace Comercio.NET.Formularios
             CargarVentasPorFecha(DateTime.Today);
         }
 
-        // Método para formatear columnas del DataGridView de detalle
+        // Método para formatear columnas del DataGridView de detalle (IGUAL QUE LA GRILLA PRINCIPAL)
         private void FormatearColumnasDetalle(DataGridView dgvDetalle)
         {
             if (dgvDetalle.Columns.Count == 0) return;
@@ -434,20 +539,20 @@ namespace Comercio.NET.Formularios
                 var codigoCol = dgvDetalle.Columns["Código"];
                 if (codigoCol != null)
                 {
-                    codigoCol.Width = 80;
+                    codigoCol.Width = 100;
                     codigoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var productoCol = dgvDetalle.Columns["Producto"];
                 if (productoCol != null)
                 {
-                    productoCol.Width = 250;
+                    productoCol.Width = 300;
                 }
 
                 var cantidadCol = dgvDetalle.Columns["Cantidad"];
                 if (cantidadCol != null)
                 {
-                    cantidadCol.Width = 80;
+                    cantidadCol.Width = 100;
                     cantidadCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
@@ -455,16 +560,16 @@ namespace Comercio.NET.Formularios
                 if (precioCol != null)
                 {
                     precioCol.DefaultCellStyle.Format = "C2";
-                    precioCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    precioCol.Width = 100;
+                    precioCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    precioCol.Width = 120;
                 }
 
                 var totalCol = dgvDetalle.Columns["Total"];
                 if (totalCol != null)
                 {
                     totalCol.DefaultCellStyle.Format = "C2";
-                    totalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    totalCol.Width = 100;
+                    totalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    totalCol.Width = 120;
                 }
             }
             finally
@@ -529,7 +634,7 @@ namespace Comercio.NET.Formularios
                     }
 
                     // Contar tipos de factura
-                    string tipoFactura = row["Tipo Factura"]?.ToString() ?? "Sin especificar";
+                    string tipoFactura = row["Tipo"]?.ToString() ?? "Sin especificar";
                     if (tiposFactura.ContainsKey(tipoFactura))
                         tiposFactura[tipoFactura]++;
                     else
@@ -596,12 +701,25 @@ namespace Comercio.NET.Formularios
                 var dgvDetalle = frmDetalle.Controls.Find("dgvDetalle", true).FirstOrDefault() as DataGridView;
                 if (dgvDetalle?.DataSource is DataTable dtDetalle && dtDetalle.Rows.Count > 0)
                 {
-                    // Configurar el ticket con los datos reales usando la clase del servicio
+                    // NUEVO: Determinar el número correcto según el tipo de factura
+                    string numeroParaTicket;
+                    if (datosFactura.TipoFactura == "Remito")
+                    {
+                        numeroParaTicket = numeroRemito; // Usar número de remito
+                    }
+                    else
+                    {
+                        // Para facturas, intentar obtener el número formateado de la BD
+                        // Si ya está formateado en la BD, usarlo directamente
+                        numeroParaTicket = ObtenerNumeroFacturaFormateado(numeroRemito) ?? numeroRemito;
+                    }
+
+                    // Configurar el ticket con los datos reales
                     var config = new TicketConfig
                     {
                         NombreComercio = datosFactura.NombreComercio,
                         DomicilioComercio = datosFactura.DomicilioComercio,
-                        NumeroComprobante = numeroRemito,
+                        NumeroComprobante = numeroParaTicket, // Usar el número correcto
                         FormaPago = datosFactura.FormaPago,
                         MensajePie = "Gracias por su compra!",
                         TipoComprobante = ObtenerTipoComprobanteLegible(datosFactura.TipoFactura),
@@ -635,6 +753,35 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        // NUEVO: Método para obtener número de factura formateado de la BD
+        private string ObtenerNumeroFacturaFormateado(string numeroRemito)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = "SELECT NroFactura FROM Facturas WHERE NumeroRemito = @numeroRemito";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                        connection.Open();
+                        var resultado = cmd.ExecuteScalar();
+                        return resultado?.ToString();
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         // Método auxiliar para extraer número de remito del título
         private string ExtraerNumeroRemitoDelTitulo(string titulo)
         {
@@ -646,7 +793,7 @@ namespace Comercio.NET.Formularios
         // Event handler para el click en el formulario
         private void FrmControlFacturas_Click(object sender, EventArgs e)
         {
-            if (frmDetalle != null && frmDetalle.Visible)
+            if (frmDetalle != null && !frmDetalle.IsDisposed && frmDetalle.Visible)
             {
                 frmDetalle.Hide();
             }
@@ -694,10 +841,10 @@ namespace Comercio.NET.Formularios
         {
             if (e.RowIndex >= 0)
             {
-                var nroFactura = dgvVentas.Rows[e.RowIndex].Cells["N° Factura"].Value?.ToString();
-                if (!string.IsNullOrEmpty(nroFactura))
+                var numeroRemito = dgvVentas.Rows[e.RowIndex].Cells["Remito"].Value?.ToString();
+                if (!string.IsNullOrEmpty(numeroRemito))
                 {
-                    CargarDetalleFactura(nroFactura);
+                    CargarDetalleFactura(numeroRemito);
                     MostrarVentanaDetalle();
                 }
             }
@@ -708,18 +855,27 @@ namespace Comercio.NET.Formularios
         {
             if (dgvVentas.Columns.Count == 0) return;
 
+            // CAMBIO: Usar None temporalmente para configuración manual
             var originalAutoSizeMode = dgvVentas.AutoSizeColumnsMode;
             dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
             try
             {
-                // Formatear columnas principales
-                var totalVentaCol = dgvVentas.Columns["Total Venta"];
-                if (totalVentaCol != null)
+                // COLUMNAS FIJAS (primeras 4 - no se redimensionan)
+                var remitoCol = dgvVentas.Columns["Remito"];
+                if (remitoCol != null)
                 {
-                    totalVentaCol.DefaultCellStyle.Format = "C2";
-                    totalVentaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    totalVentaCol.Width = 120;
+                    remitoCol.Width = 60;
+                    remitoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // FIJA
+                    remitoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter; // CENTRADO
+                }
+
+                var facturaCol = dgvVentas.Columns["N° Factura"];
+                if (facturaCol != null)
+                {
+                    facturaCol.Width = 100;
+                    facturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // FIJA
+                    facturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var fechaCol = dgvVentas.Columns["Fecha"];
@@ -728,68 +884,73 @@ namespace Comercio.NET.Formularios
                     fechaCol.DefaultCellStyle.Format = "dd/MM/yyyy";
                     fechaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     fechaCol.Width = 100;
+                    fechaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // FIJA
                 }
 
                 var horaCol = dgvVentas.Columns["Hora"];
                 if (horaCol != null)
                 {
                     horaCol.Width = 80;
+                    horaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // FIJA
                     horaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    horaCol.DefaultCellStyle.Format = "HH:mm"; // FORMATO SOLO HORA SIN FECHA
                 }
 
-                var facturaCol = dgvVentas.Columns["N° Factura"];
-                if (facturaCol != null)
+                // COLUMNAS QUE SE REDIMENSIONAN (resto de columnas)
+                var totalVentaCol = dgvVentas.Columns["Total Venta"];
+                if (totalVentaCol != null)
                 {
-                    facturaCol.Width = 100;
-                    facturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    totalVentaCol.DefaultCellStyle.Format = "C2";
+                    totalVentaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    totalVentaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // SE REDIMENSIONA
+                    totalVentaCol.FillWeight = 120; // Peso relativo
                 }
 
                 var formaPagoCol = dgvVentas.Columns["Forma de Pago"];
                 if (formaPagoCol != null)
                 {
-                    formaPagoCol.Width = 120;
                     formaPagoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    formaPagoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // SE REDIMENSIONA
+                    formaPagoCol.FillWeight = 150; // Peso relativo más alto
                 }
 
-                var tipoFacturaCol = dgvVentas.Columns["Tipo Factura"];
+                var tipoFacturaCol = dgvVentas.Columns["Tipo"];
                 if (tipoFacturaCol != null)
                 {
-                    tipoFacturaCol.Width = 100;
                     tipoFacturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    tipoFacturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // SE REDIMENSIONA
+                    tipoFacturaCol.FillWeight = 100; // Peso relativo
                 }
 
                 var caeCol = dgvVentas.Columns["CAE"];
                 if (caeCol != null)
                 {
-                    caeCol.Width = 120;
                     caeCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    caeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // SE REDIMENSIONA
+                    caeCol.FillWeight = 120; // Peso relativo
                 }
 
                 var cuitCol = dgvVentas.Columns["CUIT Cliente"];
                 if (cuitCol != null)
                 {
-                    cuitCol.Width = 120;
                     cuitCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    cuitCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // SE REDIMENSIONA
+                    cuitCol.FillWeight = 120; // Peso relativo
                 }
 
-                // Formatear columnas dinámicas si existen
-                var remitoCol = dgvVentas.Columns["N° Remito"];
-                if (remitoCol != null)
-                {
-                    remitoCol.Width = 100;
-                    remitoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-
+                // Columna dinámica para Cuenta Corriente
                 var ctaCteCol = dgvVentas.Columns["Cta. Cte. Nombre"];
                 if (ctaCteCol != null)
                 {
-                    ctaCteCol.Width = 150;
                     ctaCteCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                    ctaCteCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // SE REDIMENSIONA
+                    ctaCteCol.FillWeight = 150; // Peso relativo más alto
                 }
             }
             finally
             {
-                dgvVentas.AutoSizeColumnsMode = originalAutoSizeMode;
+                // CAMBIO: Mantener el modo None para respetar las configuraciones individuales
+                dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
             }
         }
 
@@ -844,12 +1005,12 @@ namespace Comercio.NET.Formularios
                         {
                             // Buscar la fila que corresponde al registro filtrado
                             var dataRowView = dt.DefaultView[0];
-                            string numeroRemito = dataRowView["N° Remito"]?.ToString() ?? dataRowView["N° Factura"]?.ToString();
+                            string numeroRemito = dataRowView["Remito"]?.ToString() ?? dataRowView["N° Factura"]?.ToString();
 
                             // Buscar la fila en el DataGridView que tenga ese número
                             foreach (DataGridViewRow dgvRow in dgvVentas.Rows)
                             {
-                                string valorCelda = dgvRow.Cells["N° Remito"]?.Value?.ToString() ?? dgvRow.Cells["N° Factura"]?.Value?.ToString();
+                                string valorCelda = dgvRow.Cells["Remito"]?.Value?.ToString() ?? dgvRow.Cells["N° Factura"]?.Value?.ToString();
                                 if (valorCelda == numeroRemito)
                                 {
                                     // Seleccionar la fila encontrada
@@ -903,7 +1064,7 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    // Consultar desde la tabla Ventas usando nrofactura
+                    // CORREGIDO: Usar el nombre correcto de la columna
                     var query = @"
                         SELECT 
                             codigo as 'Código',
@@ -912,7 +1073,7 @@ namespace Comercio.NET.Formularios
                             precio as 'Precio Unit.',
                             total as 'Total'
                         FROM Ventas 
-                        WHERE numero = @nroFactura
+                        WHERE NroFactura = @nroFactura
                         ORDER BY descripcion";
 
                     using (var adapter = new SqlDataAdapter(query, connection))
@@ -947,10 +1108,55 @@ namespace Comercio.NET.Formularios
         // Método para mostrar la ventana de detalle
         private void MostrarVentanaDetalle()
         {
-            if (frmDetalle != null)
+            // Check if form is disposed and recreate if necessary
+            if (frmDetalle == null || frmDetalle.IsDisposed)
             {
-                // Centrar en la pantalla
-                frmDetalle.StartPosition = FormStartPosition.CenterScreen;
+                CrearVentanaDetalle();
+            }
+            
+            if (frmDetalle != null && !frmDetalle.IsDisposed)
+            {
+                // CENTRAR RESPECTO AL FORMULARIO MDI PADRE
+                Form mdiParent = this.MdiParent;
+                
+                if (mdiParent != null)
+                {
+                    Rectangle parentBounds;
+            
+            if (mdiParent.WindowState == FormWindowState.Maximized)
+            {
+                // Si el MDI parent está maximizado, usar el área de trabajo de la pantalla
+                parentBounds = Screen.FromControl(mdiParent).WorkingArea;
+            }
+            else
+            {
+                // Si el MDI parent no está maximizado, usar sus bounds reales
+                parentBounds = mdiParent.Bounds;
+            }
+            
+            int x = parentBounds.X + (parentBounds.Width - frmDetalle.Width) / 2;
+            int y = parentBounds.Y + (parentBounds.Height - frmDetalle.Height) / 2;
+            
+            // Asegurar que no se salga de la pantalla
+            Rectangle screenBounds = Screen.FromControl(this).WorkingArea;
+            if (x < screenBounds.X) x = screenBounds.X;
+            if (y < screenBounds.Y) y = screenBounds.Y;
+            if (x + frmDetalle.Width > screenBounds.Right) 
+                x = screenBounds.Right - frmDetalle.Width;
+            if (y + frmDetalle.Height > screenBounds.Bottom) 
+                y = screenBounds.Bottom - frmDetalle.Height;
+            
+            frmDetalle.Location = new Point(x, y);
+                }
+                else
+                {
+                    // Si no hay MDI parent, centrar en pantalla
+                    Rectangle workingArea = Screen.FromControl(this).WorkingArea;
+                    int x = workingArea.X + (workingArea.Width - frmDetalle.Width) / 2;
+                    int y = workingArea.Y + (workingArea.Height - frmDetalle.Height) / 2;
+                    frmDetalle.Location = new Point(x, y);
+                }
+                
                 frmDetalle.Show();
                 frmDetalle.BringToFront();
             }
@@ -969,14 +1175,17 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
+                    // MODIFICADO: Obtener también el número de remito y número de factura
                     var query = @"
                         SELECT 
-                            tipofactura,
-                            formapago,
-                            caenumero,
-                            cuitcliente
-                        FROM Ventas 
-                        WHERE numero = @nroFactura";
+                            NumeroRemito,
+                            NroFactura,
+                            TipoFactura,
+                            FormadePago,
+                            CAENumero,
+                            CUITCliente
+                        FROM Facturas 
+                        WHERE NumeroRemito = @nroFactura"; // Usar NumeroRemito ya que nroFactura contiene el número de remito
 
                     using (var cmd = new SqlCommand(query, connection))
                     {
@@ -986,13 +1195,32 @@ namespace Comercio.NET.Formularios
                         {
                             if (reader.Read())
                             {
-                                string tipoFactura = reader["tipofactura"]?.ToString() ?? "";
-                                string formaPago = reader["formapago"]?.ToString() ?? "";
-                                string cae = reader["caenumero"]?.ToString() ?? "";
-                                string cuit = reader["cuitcliente"]?.ToString() ?? "";
+                                string numeroRemito = reader["NumeroRemito"]?.ToString() ?? "";
+                                string numeroFactura = reader["NroFactura"]?.ToString() ?? "";
+                                string tipoFactura = reader["TipoFactura"]?.ToString() ?? "";
+                                string formaPago = reader["FormadePago"]?.ToString() ?? "";
+                                string cae = reader["CAENumero"]?.ToString() ?? "";
+                                string cuit = reader["CUITCliente"]?.ToString() ?? "";
 
-                                string titulo = $"Detalle {tipoFactura} N° {nroFactura}";
+                                // NUEVO: Construir título con número de remito y factura según corresponda
+                                string titulo = "";
+                        
+                                if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
+                                {
+                                    // Para facturas A/B: mostrar tanto remito como factura
+                                    titulo = $"Detalle  - Remito N° {numeroRemito}";
+                                    if (!string.IsNullOrEmpty(numeroFactura))
+                                    {
+                                        titulo += $" - Factura N° {numeroFactura}";
+                                    }
+                                }
+                                else
+                                {
+                                    // Para remitos: solo mostrar número de remito
+                                    titulo = $"Detalle {tipoFactura} N° {numeroRemito}";
+                                }
 
+                                // Agregar información adicional
                                 if (!string.IsNullOrEmpty(cae))
                                     titulo += $" - CAE: {cae}";
 
@@ -1003,7 +1231,7 @@ namespace Comercio.NET.Formularios
                             }
                             else
                             {
-                                frmDetalle.Text = $"Detalle de Factura N° {nroFactura}";
+                                frmDetalle.Text = $"Detalle de Comprobante N° {nroFactura}";
                             }
                         }
                     }
@@ -1011,12 +1239,12 @@ namespace Comercio.NET.Formularios
             }
             catch
             {
-                frmDetalle.Text = $"Detalle de Factura N° {nroFactura}";
+                frmDetalle.Text = $"Detalle de Comprobante N° {nroFactura}";
             }
         }
 
         // Método para obtener datos de la factura para impresión
-        private DatosFactura ObtenerDatosFactura(string numeroFactura)
+        private DatosFactura ObtenerDatosFactura(string numeroRemito)
         {
             try
             {
@@ -1031,12 +1259,13 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = @"SELECT tipofactura, formapago, caenumero, cuitcliente 
-                                 FROM Ventas WHERE numero = @numeroFactura";
+                    // CORREGIDO: Obtener datos de la tabla Facturas usando NumeroRemito
+                    var query = @"SELECT TipoFactura, FormadePago, CAENumero, CUITCliente 
+                                 FROM Facturas WHERE NumeroRemito = @numeroRemito";
                     
                     using (var cmd = new SqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@numeroFactura", numeroFactura);
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                         connection.Open();
                         
                         using (var reader = cmd.ExecuteReader())
@@ -1045,11 +1274,11 @@ namespace Comercio.NET.Formularios
                             {
                                 return new DatosFactura
                                 {
-                                    TipoFactura = reader["tipofactura"]?.ToString() ?? "",
-                                    FormaPago = reader["formapago"]?.ToString() ?? "",
-                                    CAENumero = reader["caenumero"]?.ToString() ?? "",
+                                    TipoFactura = reader["TipoFactura"]?.ToString() ?? "",
+                                    FormaPago = reader["FormadePago"]?.ToString() ?? "",
+                                    CAENumero = reader["CAENumero"]?.ToString() ?? "",
                                     CAEVencimiento = null,
-                                    CUITCliente = reader["cuitcliente"]?.ToString() ?? "",
+                                    CUITCliente = reader["CUITCliente"]?.ToString() ?? "",
                                     NombreComercio = nombreComercio,
                                     DomicilioComercio = domicilioComercio
                                 };
@@ -1072,8 +1301,8 @@ namespace Comercio.NET.Formularios
             return tipoFactura switch
             {
                 "Remito" => "REMITO",
-                "FacturaA" => "FACTURA A",
-                "FacturaB" => "FACTURA B",
+                "FacturaA" => "FACTURA",
+                "FacturaB" => "FACTURA",
                 _ => "COMPROBANTE"
             };
         }
@@ -1101,6 +1330,18 @@ namespace Comercio.NET.Formularios
             }
 
             return dtConvertida;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (frmDetalle != null && !frmDetalle.IsDisposed)
+                {
+                    frmDetalle.Dispose();
+                }
+            }
+            base.Dispose(disposing);
         }
     }
 }

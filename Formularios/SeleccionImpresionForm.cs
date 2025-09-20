@@ -38,7 +38,7 @@ namespace Comercio.NET
         private Label lblRazonSocial;
 
         // Delegate para el callback después de procesar la venta (CAMBIO: agregar parámetro numeroFacturaAfip)
-        public Func<string, string, string, string, DateTime?, int, Task> OnProcesarVenta { get; set; }
+        public Func<string, string, string, string, DateTime?, int, string, Task> OnProcesarVenta { get; set; }
 
         private decimal importeTotalVenta;
         private Ventas formularioPadre; // AGREGAR ESTA LÍNEA
@@ -142,7 +142,7 @@ namespace Comercio.NET
                 // Llamar al callback para guardar en BD
                 if (OnProcesarVenta != null)
                 {
-                    await OnProcesarVenta("Remito", formaPago, "", "", null, 0); // 0 para remitos
+                    await OnProcesarVenta("Remito", formaPago, "", "", null, 0, ""); // Agregar parámetro vacío para remitos
                 }
 
                 // NO IMPRIMIR AÚN - Solo cerrar el modal
@@ -166,16 +166,19 @@ namespace Comercio.NET
                 
                 if (exito)
                 {
+                    // Formatear el número de factura antes de enviarlo
+                    string numeroFormateado = FormatearNumeroFactura(6, 1, NumeroFacturaAfip); // 6 = Factura B
+                    
                     if (OnProcesarVenta != null)
                     {
-                        // Pasar CAE en el 4to parámetro y número de factura en el 6to
-                        await OnProcesarVenta("FacturaB", formaPago, "", CAENumero, CAEVencimiento, NumeroFacturaAfip);
+                        // CORRECCIÓN: Pasar todos los parámetros incluyendo el número formateado
+                        await OnProcesarVenta("FacturaB", formaPago, "", CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
                     }
 
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }
-            }
+            } 
             catch (Exception ex)
             {
                 MessageBox.Show($"Error procesando Factura B: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -201,10 +204,13 @@ namespace Comercio.NET
                 
                 if (exito)
                 {
+                    // Formatear el número de factura antes de enviarlo
+                    string numeroFormateado = FormatearNumeroFactura(1, 1, NumeroFacturaAfip); // 1 = Factura A
+                    
                     if (OnProcesarVenta != null)
                     {
-                        // Pasar CAE en el 4to parámetro y número de factura en el 6to
-                        await OnProcesarVenta("FacturaA", formaPago, cuit, CAENumero, CAEVencimiento, NumeroFacturaAfip);
+                        // CORRECCIÓN: Pasar CUIT como tercer parámetro y número formateado como último
+                        await OnProcesarVenta("FacturaA", formaPago, cuit, CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
                     }
 
                     this.DialogResult = DialogResult.OK;
@@ -341,15 +347,17 @@ namespace Comercio.NET
                         if (detalle.Resultado == "A")
                         {
                             CAENumero = detalle.CAE;
-                            NumeroFacturaAfip = (int)detalle.CbteDesde; // Conversión explícita
+                            NumeroFacturaAfip = (int)detalle.CbteDesde;
+                            
+                            // NUEVO: Formatear el número de factura según estándar AFIP
+                            string numeroFacturaFormateado = FormatearNumeroFactura(cbteTipo, ptoVta, NumeroFacturaAfip);
                             
                             if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd", null, DateTimeStyles.None, out DateTime fechaVto))
                             {
                                 CAEVencimiento = fechaVto;
                             }
 
-                            string nroComprobante = detalle.CbteDesde.ToString();
-                            MessageBox.Show($"Factura Aprobada.\nCAE: {CAENumero}\nComprobante: {nroComprobante}");
+                            MessageBox.Show($"Factura Aprobada.\nCAE: {CAENumero}\nComprobante: {numeroFacturaFormateado}");
                             return true;
                         }
                         else if (detalle.Resultado == "R")
@@ -406,6 +414,32 @@ namespace Comercio.NET
             }
             
             return false;
+        }
+
+        // NUEVO: Método para formatear número de factura según estándar AFIP
+        private string FormatearNumeroFactura(int cbteTipo, int ptoVta, int numeroFactura)
+        {
+            // Obtener la letra según el tipo de comprobante
+            string letra = ObtenerLetraComprobante(cbteTipo);
+
+            // MODIFICADO: Agregar espacio entre la letra y los números
+            // Formatear: Letra + ESPACIO + PtoVta (4 dígitos) + Número (8 dígitos)
+            // Ejemplo: "A 0001-00000123" o "B 0001-00000456"
+            return $"{letra} {ptoVta:D4}-{numeroFactura:D8}";
+        }
+
+        // NUEVO: Método para obtener la letra del comprobante según código AFIP
+        private string ObtenerLetraComprobante(int cbteTipo)
+        {
+            return cbteTipo switch
+            {
+                1 => "A",     // Factura A
+                6 => "B",     // Factura B
+                11 => "C",    // Factura C
+                51 => "M",    // Factura M
+                // Agregar más tipos según necesites
+                _ => "X"      // Tipo desconocido
+            };
         }
 
         private decimal ObtenerImporteTotalVenta()
@@ -544,6 +578,7 @@ namespace Comercio.NET
             }
         }
 
+        // MODIFICAR: Actualizar el método de impresión para usar el número correcto
         public void ImprimirTicketDespuesDeGuardar(string tipoComprobante, string numeroComprobante)
         {
             try
@@ -556,21 +591,42 @@ namespace Comercio.NET
                     return;
                 }
 
+                // NUEVO: Determinar el número correcto a mostrar
+                string numeroParaTicket;
+                if (tipoComprobante == "REMITO")
+                {
+                    // Para remitos, usar el número de remito
+                    numeroParaTicket = formularioPadre?.GetNroRemitoActual().ToString() ?? numeroComprobante;
+                }
+                else
+                {
+                    // Para facturas, usar el número formateado de AFIP
+                    if (NumeroFacturaAfip > 0)
+                    {
+                        int cbteTipo = tipoComprobante == "FACTURA" ? 1 : 6;
+                        numeroParaTicket = FormatearNumeroFactura(cbteTipo, 1, NumeroFacturaAfip);
+                    }
+                    else
+                    {
+                        numeroParaTicket = numeroComprobante;
+                    }
+                }
+
                 var config = new TicketConfig
                 {
                     NombreComercio = formularioPadre?.GetNombreComercio() ?? "Tu Comercio",
                     DomicilioComercio = formularioPadre?.GetDomicilioComercio() ?? "Tu Domicilio",
                     TipoComprobante = tipoComprobante,
-                    NumeroComprobante = numeroComprobante,
+                    NumeroComprobante = numeroParaTicket, // Usar el número correcto
                     FormaPago = OpcionPagoSeleccionada.ToString(),
                     MensajePie = "Gracias por su compra!"
                 };
 
-                if (tipoComprobante.Contains("Factura"))
+                if (tipoComprobante.Contains("FACTURA"))
                 {
                     config.CAE = CAENumero;
                     config.CAEVencimiento = CAEVencimiento;
-                    if (tipoComprobante == "FacturaA")
+                    if (tipoComprobante == "FACTURA")
                     {
                         config.CUIT = txtCuit.Text.Trim();
                     }
