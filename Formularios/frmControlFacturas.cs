@@ -27,6 +27,7 @@ namespace Comercio.NET.Formularios
         private Label lblDetalleTiposFactura;
         private Label lblDetalleFormasPago;
         private TextBox txtFiltroCtaCte; // AGREGAR: TextBox para filtrar por nombre Cta Cte
+        private Button btnAuditoriaEliminados; // Botón para Auditoría de Eliminados
 
         public frmControlFacturas()
         {
@@ -57,6 +58,7 @@ namespace Comercio.NET.Formularios
             panelTotales = new Panel();
             lblDetalleTiposFactura = new Label();
             lblDetalleFormasPago = new Label();
+            btnAuditoriaEliminados = new Button();
             ((System.ComponentModel.ISupportInitialize)dgvVentas).BeginInit();
             panelFiltros.SuspendLayout();
             panelResumen.SuspendLayout();
@@ -172,6 +174,7 @@ namespace Comercio.NET.Formularios
             panelFiltros.BackColor = Color.FromArgb(248, 249, 250);
             panelFiltros.Controls.Add(txtFiltroCtaCte);
             panelFiltros.Controls.Add(chkCtaCte);
+            panelFiltros.Controls.Add(btnAuditoriaEliminados);
             panelFiltros.Controls.Add(btnHoy);
             panelFiltros.Controls.Add(btnBuscar);
             panelFiltros.Controls.Add(dtpFecha);
@@ -186,7 +189,7 @@ namespace Comercio.NET.Formularios
             // txtFiltroCtaCte
             // 
             txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
-            txtFiltroCtaCte.Location = new Point(411, 16);
+            txtFiltroCtaCte.Location = new Point(551, 16);
             txtFiltroCtaCte.Name = "txtFiltroCtaCte";
             txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
             txtFiltroCtaCte.Size = new Size(176, 25);
@@ -198,7 +201,7 @@ namespace Comercio.NET.Formularios
             // 
             chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
-            chkCtaCte.Location = new Point(298, 14);
+            chkCtaCte.Location = new Point(440, 14);
             chkCtaCte.Name = "chkCtaCte";
             chkCtaCte.Size = new Size(105, 28);
             chkCtaCte.TabIndex = 1;
@@ -272,6 +275,21 @@ namespace Comercio.NET.Formularios
             panelTotales.ResumeLayout(false);
             ResumeLayout(false);
 
+            // 
+            // btnAuditoriaEliminados - AGREGAR CONFIGURACIÓN COMPLETA
+            // 
+            btnAuditoriaEliminados.BackColor = Color.FromArgb(255, 152, 0);
+            btnAuditoriaEliminados.FlatStyle = FlatStyle.Flat;
+            btnAuditoriaEliminados.FlatAppearance.BorderSize = 0;
+            btnAuditoriaEliminados.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnAuditoriaEliminados.ForeColor = Color.White;
+            btnAuditoriaEliminados.Location = new Point(290, 14); // Posición después del botón "Hoy"
+            btnAuditoriaEliminados.Name = "btnAuditoriaEliminados";
+            btnAuditoriaEliminados.Size = new Size(140, 28);
+            btnAuditoriaEliminados.TabIndex = 5;
+            btnAuditoriaEliminados.Text = "🗑️ Auditoría";
+            btnAuditoriaEliminados.UseVisualStyleBackColor = false;
+            btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click; // IMPORTANTE: Asignar el event handler
         }
 
         private void ConfigurarFormulario()
@@ -1342,6 +1360,23 @@ namespace Comercio.NET.Formularios
                 }
             }
             base.Dispose(disposing);
+        }
+
+        // AGREGAR: Event handler para el botón de auditoría de eliminados
+        private void BtnAuditoriaEliminados_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var consultaForm = new ConsultaAuditoriaEliminados())
+                {
+                    consultaForm.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

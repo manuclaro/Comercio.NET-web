@@ -75,6 +75,7 @@ namespace Comercio.NET
             cbnombreCtaCte.SelectedIndexChanged += cbnombreCtaCte_SelectedIndexChanged;
 
             ConfigurarEventosTextBox();
+            ConfigurarEventosDataGridView();
         }
 
         private void ConfigurarEventosTextBox()
@@ -228,13 +229,28 @@ namespace Comercio.NET
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
-            // Estilos
+            // MEJORADO: Estilos de selección más contrastantes
+            dataGridView1.DefaultCellStyle.BackColor = Color.White;
+            dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
+            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul más intenso
+            dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White; // Texto blanco para mayor contraste
+            dataGridView1.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+
+            // Estilos de encabezados
             var headerStyle = dataGridView1.ColumnHeadersDefaultCellStyle;
             headerStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             headerStyle.BackColor = Color.FromArgb(248, 249, 250);
             headerStyle.ForeColor = Color.Black;
 
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255);
+            // MEJORADO: Filas alternadas más oscuras para mejor diferenciación
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(240, 245, 250); // Más oscuro
+            dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
+            dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
+
+            // NUEVO: Configuración adicional para mejor experiencia visual
+            dataGridView1.RowTemplate.Height = 28; // Filas un poco más altas
+            dataGridView1.GridColor = Color.FromArgb(220, 220, 220);
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -574,73 +590,80 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
     }
 }
         private void Ventas_Load(object sender, EventArgs e)
+{
+    var config = new ConfigurationBuilder()
+        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        .AddJsonFile("appsettings.json")
+        .Build();
+    string connectionString = config.GetConnectionString("DefaultConnection");
+
+    using (var connection = new SqlConnection(connectionString))
+    {
+        var query = "SELECT nroremito FROM numeroremito";
+        using (var cmd = new SqlCommand(query, connection))
         {
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
-            string connectionString = config.GetConnectionString("DefaultConnection");
-
-            using (var connection = new SqlConnection(connectionString))
+            connection.Open();
+            var result = cmd.ExecuteScalar();
+            if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
             {
-                var query = "SELECT nroremito FROM numeroremito";
-                using (var cmd = new SqlCommand(query, connection))
-                {
-                    connection.Open();
-                    var result = cmd.ExecuteScalar();
-                    if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
-                    {
-                        MessageBox.Show("No se pudo obtener el número de remito.");
-                        nroRemitoActual = 0;
-                    }
-                }
+                MessageBox.Show("No se pudo obtener el número de remito.");
+                nroRemitoActual = 0;
             }
-
-            // Deja la grilla vacía al abrir el formulario
-            dataGridView1.DataSource = null;
-            dataGridView1.Rows.Clear();
-
-            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
-            dataGridView1.ClearSelection();
-            dataGridView1.CurrentCell = null;
-            dataGridView1.Enabled = true;
-
-            // Evento para evitar cualquier selección por el usuario
-            dataGridView1.SelectionChanged += (s, e) =>
-            {
-                dataGridView1.ClearSelection();
-            };
-
-            txtBuscarProducto.Focus();
-
-            lbCantidadProductos.Text = "Productos: 0";
-            lbTotal.Text = "Total: $0,00";
-
-            // Configuración general del DataGridView
-            dataGridView1.AllowUserToAddRows = false;
-            dataGridView1.AllowUserToDeleteRows = false;
-            dataGridView1.ReadOnly = true;
-            dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dataGridView1.MultiSelect = false;
-            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-
-            // Personalizar estilo de DataGridView
-            dataGridView1.EnableHeadersVisualStyles = false;
-            dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
-            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
-            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.Black;
-            dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
-            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
-            dataGridView1.BorderStyle = BorderStyle.None;
-            dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-
-            //Color suave para filas alternas
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(220, 235, 255);
-            dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
         }
+    }
+
+    // Deja la grilla vacía al abrir el formulario
+    dataGridView1.DataSource = null;
+    dataGridView1.Rows.Clear();
+
+    dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+    
+    // CORREGIDO: Cambiar SelectionMode para permitir selección de filas completas
+    dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+    dataGridView1.MultiSelect = false; // Permitir solo una fila seleccionada
+    dataGridView1.Enabled = true;
+
+    // CORREGIDO: Solo limpiar la selección inicial, pero permitir selecciones futuras
+    dataGridView1.ClearSelection();
+    dataGridView1.CurrentCell = null;
+
+    txtBuscarProducto.Focus();
+
+    lbCantidadProductos.Text = "Productos: 0";
+    lbTotal.Text = "Total: $0,00";
+
+    // Configuración general del DataGridView
+    dataGridView1.AllowUserToAddRows = false;
+    dataGridView1.AllowUserToDeleteRows = false;
+    dataGridView1.ReadOnly = true;
+    dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
+    // MEJORADO: Personalizar estilo de DataGridView con mejor contraste de selección
+    dataGridView1.EnableHeadersVisualStyles = false;
+    dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+    dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
+    dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
+    dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250);
+    dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.Black;
+    
+    // MEJORADO: Estilos de selección más contrastantes
+    dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
+    dataGridView1.DefaultCellStyle.BackColor = Color.White;
+    dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul más intenso
+    dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White; // Texto blanco para mayor contraste
+    
+    dataGridView1.BorderStyle = BorderStyle.None;
+    dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+
+    // MEJORADO: Color más oscuro para filas alternas con mejor selección
+    dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(235, 242, 248); // Más oscuro
+    dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
+    dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+    dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
+
+    // AGREGADO: Configurar eventos para eliminar productos (llamar al método que ya tienes)
+    ConfigurarEventosDataGridView();
+}
 
         private void ConfigurarPanelFooter()
         {
@@ -758,7 +781,7 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
             {
                 TokenAfip = this.token,
                 SignAfip = this.sign,
-                OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
+                OnProcesarVenta = async (tipoFactura,formaPago,cuitCliente,caeNumero,caeVencimiento,numeroFacturaAfip,numeroFormateado) =>
                 {
                     await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado);
                 }
@@ -1667,6 +1690,241 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                         Result = DialogResult.No;
                     }
                 };
+            }
+        }
+
+        private void ConfigurarEventosDataGridView()
+        {
+            // Agregar evento para eliminar productos con tecla Delete
+            dataGridView1.KeyDown += DataGridView1_KeyDown;
+            
+            // Agregar menú contextual para eliminar
+            var contextMenu = new ContextMenuStrip();
+            var eliminarItem = new ToolStripMenuItem("Eliminar Producto", null, EliminarProductoSeleccionado);
+            eliminarItem.ShortcutKeys = Keys.Delete;
+            contextMenu.Items.Add(eliminarItem);
+            dataGridView1.ContextMenuStrip = contextMenu;
+        }
+
+        private void DataGridView1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete && dataGridView1.SelectedRows.Count > 0)
+            {
+                EliminarProductoSeleccionado(sender, e);
+            }
+        }
+
+        // AGREGAR: Método para verificar si hay una fila seleccionada
+private bool TieneFilaSeleccionada()
+{
+    return dataGridView1.SelectedRows.Count > 0 && dataGridView1.SelectedRows[0].Index >= 0;
+}
+
+// MEJORAR: El método EliminarProductoSeleccionado
+private async void EliminarProductoSeleccionado(object sender, EventArgs e)
+{
+    // MEJORADO: Verificación más robusta
+    if (!TieneFilaSeleccionada())
+    {
+        MessageBox.Show("Seleccione un producto para eliminar haciendo clic en la fila.", "Información", 
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
+        return;
+    }
+
+    var filaSeleccionada = dataGridView1.SelectedRows[0];
+    
+    // Verificar que las celdas no sean nulas
+    if (filaSeleccionada.Cells["codigo"].Value == null)
+    {
+        MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error", 
+            MessageBoxButtons.OK, MessageBoxIcon.Error);
+        return;
+    }
+    
+    // Obtener datos del producto seleccionado
+    string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
+    string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
+    decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
+    int cantidad = Convert.ToInt32(filaSeleccionada.Cells["cantidad"].Value);
+    decimal total = Convert.ToDecimal(filaSeleccionada.Cells["total"].Value);
+
+    // Confirmar eliminación con motivo
+    using (var motivoForm = new MotivoEliminacionForm())
+    {
+        var resultado = motivoForm.ShowDialog();
+        if (resultado != DialogResult.OK)
+            return;
+
+        try
+        {
+            await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidad, total, motivoForm.Motivo);
+            
+            // Recargar la grilla
+            CargarVentasActuales();
+            
+            MessageBox.Show("Producto eliminado correctamente.", "Éxito", 
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error", 
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+}
+        private async Task EliminarProductoConAuditoria(string codigo, string descripcion, 
+            decimal precio, int cantidad, decimal total, string motivo)
+        {
+            string connectionString = GetConnectionString();
+            
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Devolver stock al producto
+                        await DevolverStockProducto(connection, transaction, codigo, cantidad);
+                        
+                        // 2. Registrar en auditoría
+                        await RegistrarEliminacionEnAuditoria(connection, transaction, 
+                            codigo, descripcion, precio, cantidad, total, motivo);
+                        
+                        // 3. Eliminar de la venta actual
+                        await EliminarDeVentaActual(connection, transaction, codigo);
+                        
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private async Task DevolverStockProducto(SqlConnection connection, SqlTransaction transaction, 
+            string codigo, int cantidad)
+        {
+            var query = @"UPDATE Productos 
+                          SET cantidad = ISNULL(cantidad, 0) + @cantidad 
+                          WHERE codigo = @codigo";
+    
+            using (var cmd = new SqlCommand(query, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@cantidad", cantidad);
+                cmd.Parameters.AddWithValue("@codigo", codigo);
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
+            string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
+        {
+            // Obtener datos adicionales del producto
+            var queryProducto = @"SELECT rubro, marca, proveedor FROM Productos WHERE codigo = @codigo";
+            string rubro = "", marca = "", proveedor = "";
+    
+            using (var cmd = new SqlCommand(queryProducto, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@codigo", codigo);
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    if (reader.Read())
+                    {
+                        rubro = reader["rubro"]?.ToString() ?? "";
+                        marca = reader["marca"]?.ToString() ?? "";
+                        proveedor = reader["proveedor"]?.ToString() ?? "";
+                    }
+                }
+            }
+
+            // Obtener fecha y hora de la venta original
+            var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
+                               FROM Ventas 
+                               WHERE nrofactura = @nrofactura AND codigo = @codigo";
+    
+            DateTime fechaVenta = DateTime.Now.Date;
+            string horaVenta = DateTime.Now.ToString("HH:mm:ss");
+            bool esCtaCte = false;
+            string nombreCtaCte = "";
+    
+            using (var cmd = new SqlCommand(queryVenta, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@codigo", codigo);
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    if (reader.Read())
+                    {
+                        fechaVenta = Convert.ToDateTime(reader["fecha"]);
+                        horaVenta = reader["hora"]?.ToString() ?? "";
+                        esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
+                        nombreCtaCte = reader["NombreCtaCte"]?.ToString() ?? "";
+                    }
+                }
+            }
+
+            // Insertar en auditoría
+            var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
+                                  (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
+                                   NumeroFactura, FechaVentaOriginal, HoraVentaOriginal, FechaEliminacion,
+                                   UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
+                                   IPUsuario, NombreEquipo)
+                                  VALUES 
+                                  (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
+                                   @NumeroFactura, @FechaVentaOriginal, @HoraVentaOriginal, @FechaEliminacion,
+                                   @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
+                                   @IPUsuario, @NombreEquipo)";
+
+            using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
+                cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+                cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
+                cmd.Parameters.AddWithValue("@Cantidad", cantidad);
+                cmd.Parameters.AddWithValue("@TotalEliminado", total);
+                cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@FechaVentaOriginal", fechaVenta);
+                cmd.Parameters.AddWithValue("@HoraVentaOriginal", horaVenta);
+                cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+                cmd.Parameters.AddWithValue("@UsuarioEliminacion", Environment.UserName);
+                cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
+                cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
+                cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
+                cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
+        {
+            var query = @"DELETE FROM Ventas 
+                          WHERE nrofactura = @nrofactura AND codigo = @codigo";
+    
+            using (var cmd = new SqlCommand(query, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@codigo", codigo);
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        private string ObtenerIPLocal()
+        {
+            try
+            {
+                return System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName())
+                    .AddressList.FirstOrDefault(ip => ip.AddressFamily == 
+                    System.Net.Sockets.AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
+            }
+            catch
+            {
+                return "127.0.0.1";
             }
         }
     }
