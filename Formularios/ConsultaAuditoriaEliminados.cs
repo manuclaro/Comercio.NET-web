@@ -14,27 +14,25 @@ namespace Comercio.NET.Formularios
     {
         private DataGridView dgvAuditoria;
         private DateTimePicker dtpDesde, dtpHasta;
-        private TextBox txtCodigoProducto, txtNumeroFactura;
-        private Button btnBuscar, btnExportar;
+        private TextBox txtCodigoProducto, txtNumeroFactura, txtUsuario; // AGREGADO: txtUsuario
+        private Button btnBuscar, btnExportar, btnSalir; // AGREGADO: btnSalir
         private Label lblTotalRegistros;
 
         public ConsultaAuditoriaEliminados()
         {
             ConfigurarFormulario();
-            // Remover CargarDatosIniciales() del constructor
         }
 
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            // Cargar datos después de que el formulario sea visible
             CargarDatosIniciales();
         }
 
         private void ConfigurarFormulario()
         {
             this.Text = "Consulta de Productos Eliminados - Auditoría";
-            this.Size = new Size(1200, 700);
+            this.Size = new Size(1200, 500);
             this.StartPosition = FormStartPosition.CenterScreen;
 
             // Panel de filtros
@@ -45,7 +43,7 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.FromArgb(240, 240, 240)
             };
 
-            // Filtros de fecha
+            // PRIMERA FILA - Todos los filtros y botón Buscar
             var lblDesde = new Label { Text = "Desde:", Location = new Point(10, 15), Size = new Size(50, 20) };
             dtpDesde = new DateTimePicker { Location = new Point(65, 12), Size = new Size(120, 23) };
             dtpDesde.Value = DateTime.Now.AddDays(-30);
@@ -53,19 +51,20 @@ namespace Comercio.NET.Formularios
             var lblHasta = new Label { Text = "Hasta:", Location = new Point(200, 15), Size = new Size(50, 20) };
             dtpHasta = new DateTimePicker { Location = new Point(255, 12), Size = new Size(120, 23) };
 
-            // Filtro por código de producto
             var lblCodigo = new Label { Text = "Código:", Location = new Point(390, 15), Size = new Size(50, 20) };
             txtCodigoProducto = new TextBox { Location = new Point(445, 12), Size = new Size(100, 23) };
 
-            // Filtro por número de factura
-            var lblFactura = new Label { Text = "N° Factura:", Location = new Point(560, 15), Size = new Size(70, 20) };
-            txtNumeroFactura = new TextBox { Location = new Point(635, 12), Size = new Size(100, 23) };
+            var lblFactura = new Label { Text = "Remito:", Location = new Point(560, 15), Size = new Size(50, 20) };
+            txtNumeroFactura = new TextBox { Location = new Point(615, 12), Size = new Size(100, 23) };
 
-            // Botones
+            var lblUsuario = new Label { Text = "Usuario:", Location = new Point(730, 15), Size = new Size(50, 20) };
+            txtUsuario = new TextBox { Location = new Point(785, 12), Size = new Size(100, 23) };
+
+            // CAMBIO: Botón Buscar al lado del filtro Usuario
             btnBuscar = new Button
             {
                 Text = "Buscar",
-                Location = new Point(750, 10),
+                Location = new Point(895, 10), // CAMBIO: Al lado del filtro Usuario
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
@@ -73,10 +72,11 @@ namespace Comercio.NET.Formularios
             };
             btnBuscar.Click += BtnBuscar_Click;
 
+            // SEGUNDA FILA - Solo botones Exportar y Salir
             btnExportar = new Button
             {
                 Text = "Exportar",
-                Location = new Point(840, 10),
+                Location = new Point(10, 45), // CAMBIO: Exportar queda a la izquierda
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
@@ -84,23 +84,38 @@ namespace Comercio.NET.Formularios
             };
             btnExportar.Click += BtnExportar_Click;
 
-            // Label para total de registros
+            btnSalir = new Button
+            {
+                Text = "Salir",
+                Location = new Point(100, 45), // CAMBIO: Salir al lado de Exportar
+                Size = new Size(80, 30),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnSalir.Click += BtnSalir_Click;
+
+            // Label para total de registros - En la segunda fila a la derecha
             lblTotalRegistros = new Label
             {
                 Text = "Total: 0 registros",
-                Location = new Point(10, 50),
+                Location = new Point(300, 50), // CAMBIO: Ajustado para dar más espacio
                 Size = new Size(200, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 120, 215)
             };
 
+            // Agregar todos los controles al panel
             panelFiltros.Controls.AddRange(new Control[]
             {
                 lblDesde, dtpDesde, lblHasta, dtpHasta,
                 lblCodigo, txtCodigoProducto, lblFactura, txtNumeroFactura,
-                btnBuscar, btnExportar, lblTotalRegistros
+                lblUsuario, txtUsuario, btnBuscar, // Buscar en la primera fila
+                btnExportar, btnSalir, // Exportar y Salir en la segunda fila
+                lblTotalRegistros
             });
 
-            // DataGridView
+            // MEJORADO: DataGridView con mejores estilos
             dgvAuditoria = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -109,11 +124,54 @@ namespace Comercio.NET.Formularios
                 AllowUserToDeleteRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+                AllowUserToResizeColumns = true,
+                AllowUserToOrderColumns = true,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing,
+                RowHeadersVisible = false,
+                BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                GridColor = Color.FromArgb(230, 230, 230),
+                BackgroundColor = Color.White,
+                EnableHeadersVisualStyles = false
             };
+
+            // NUEVO: Estilos mejorados para el DataGridView
+            ConfigurarEstilosDataGridView();
 
             this.Controls.Add(dgvAuditoria);
             this.Controls.Add(panelFiltros);
+        }
+
+        // NUEVO: Event handler para el botón Salir
+        private void BtnSalir_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        // NUEVO: Método para configurar estilos del DataGridView
+        private void ConfigurarEstilosDataGridView()
+        {
+            // Estilos de encabezados
+            dgvAuditoria.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0, 120, 215);
+            dgvAuditoria.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvAuditoria.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvAuditoria.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvAuditoria.ColumnHeadersHeight = 30;
+
+            // Estilos de celdas
+            dgvAuditoria.DefaultCellStyle.BackColor = Color.White;
+            dgvAuditoria.DefaultCellStyle.ForeColor = Color.Black;
+            dgvAuditoria.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            dgvAuditoria.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvAuditoria.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+
+            // Filas alternadas
+            dgvAuditoria.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245);
+            dgvAuditoria.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            dgvAuditoria.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
+
+            dgvAuditoria.RowTemplate.Height = 25;
         }
 
         private async void CargarDatosIniciales()
@@ -123,9 +181,10 @@ namespace Comercio.NET.Formularios
 
         private async void BtnBuscar_Click(object sender, EventArgs e)
         {
-            await BuscarRegistros();
+            await BuscarRegistros();    
         }
 
+        // MODIFICADO: Agregar filtro por usuario
         private async Task BuscarRegistros()
         {
             try
@@ -135,18 +194,18 @@ namespace Comercio.NET.Formularios
                     SELECT 
                         IdAuditoriaProductosEliminados,
                         CodigoProducto AS 'Código',
-                        DescripcionProducto AS 'Descripción',
-                        PrecioUnitario AS 'Precio Unit.',
-                        Cantidad,
+                        DescripcionProducto AS 'Descripción del Producto',
+                        PrecioUnitario AS 'Precio Unitario',
+                        Cantidad AS 'Cant.',
                         TotalEliminado AS 'Total Eliminado',
-                        NumeroFactura AS 'N° Factura',
-                        FechaVentaOriginal AS 'Fecha Venta',
+                        NumeroFactura AS 'Remito',
+                        FechaHoraVentaOriginal AS 'Fecha Factura',
                         FechaEliminacion AS 'Fecha Eliminación',
+                        MotivoEliminacion AS 'Motivo de Eliminación',
+                        CASE WHEN EsCtaCte = 1 THEN 'Sí' ELSE 'No' END AS 'CtaCte',
                         UsuarioEliminacion AS 'Usuario',
-                        MotivoEliminacion AS 'Motivo',
-                        CASE WHEN EsCtaCte = 1 THEN 'Sí' ELSE 'No' END AS 'Cta. Cte.',
-                        NombreCtaCte AS 'Nombre Cta. Cte.',
-                        NombreEquipo AS 'Equipo'
+                        NombreEquipo AS 'Equipo',
+                        IPUsuario AS 'IP'
                     FROM AuditoriaProductosEliminados 
                     WHERE FechaEliminacion >= @fechaDesde 
                       AND FechaEliminacion <= @fechaHasta";
@@ -169,6 +228,13 @@ namespace Comercio.NET.Formularios
                     parametros.Add(new SqlParameter("@numeroFactura", txtNumeroFactura.Text.Trim()));
                 }
 
+                // NUEVO: Filtro por usuario
+                if (!string.IsNullOrWhiteSpace(txtUsuario.Text))
+                {
+                    query += " AND UsuarioEliminacion LIKE @usuario";
+                    parametros.Add(new SqlParameter("@usuario", $"%{txtUsuario.Text.Trim()}%"));
+                }
+
                 query += " ORDER BY FechaEliminacion DESC";
 
                 using (var connection = new SqlConnection(connectionString))
@@ -180,7 +246,7 @@ namespace Comercio.NET.Formularios
                         adapter.Fill(dt);
                         
                         dgvAuditoria.DataSource = dt;
-                        lblTotalRegistros.Text = $"Total: {dt.Rows.Count} registros";
+                        lblTotalRegistros.Text = $"Total: {dt.Rows.Count} registros encontrados";
                         
                         FormatearDataGridView();
                     }
@@ -193,66 +259,93 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        // MEJORADO: Formateo con el nuevo orden y anchos de columnas
         private void FormatearDataGridView()
         {
+            if (dgvAuditoria.Columns.Count == 0) return;
+
             // Ocultar columna Id
             if (dgvAuditoria.Columns["IdAuditoriaProductosEliminados"] != null)
                 dgvAuditoria.Columns["IdAuditoriaProductosEliminados"].Visible = false;
 
-            // Formatear columnas monetarias
-            FormatearColumnaMonetaria("Precio Unit.");
-            FormatearColumnaMonetaria("Total Eliminado");
+            // NUEVO: Ocultar columna Precio Unitario
+            if (dgvAuditoria.Columns["Precio Unitario"] != null)
+                dgvAuditoria.Columns["Precio Unitario"].Visible = false;
 
-            // Formatear fechas
-            FormatearColumnaFecha("Fecha Venta");
-            FormatearColumnaFecha("Fecha Eliminación");
+            // Configuración de columnas (sin la línea de Precio Unitario)
+            ConfigurarColumna("Código", 100, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Descripción del Producto", 160, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("Cant.", 45, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Total Eliminado", 100, DataGridViewContentAlignment.MiddleRight, "C2");
+            ConfigurarColumna("Remito", 70, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Fecha Factura", 110, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
+            ConfigurarColumna("Fecha Eliminación", 120, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
+            ConfigurarColumna("Motivo de Eliminación", 160, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("CtaCte", 50, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Usuario", 75, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Equipo", 75, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("IP", 90, DataGridViewContentAlignment.MiddleCenter);
 
-            // Ajustar anchos específicos
-            AjustarAnchoColumna("Código", 80);
-            AjustarAnchoColumna("Descripción", 200);
-            AjustarAnchoColumna("Cantidad", 80);
-            AjustarAnchoColumna("Motivo", 150);
-        }
-
-        private void FormatearColumnaMonetaria(string nombreColumna)
-        {
-            if (dgvAuditoria.Columns[nombreColumna] != null)
+            // CAMBIO: Ajustar ancho mínimo de "Motivo de Eliminación" para la expansión automática
+            if (dgvAuditoria.Columns["Motivo de Eliminación"] != null)
             {
-                dgvAuditoria.Columns[nombreColumna].DefaultCellStyle.Format = "C2";
-                dgvAuditoria.Columns[nombreColumna].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvAuditoria.Columns["Motivo de Eliminación"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvAuditoria.Columns["Motivo de Eliminación"].MinimumWidth = 180;
             }
         }
 
-        private void FormatearColumnaFecha(string nombreColumna)
+        // MEJORADO: Método unificado para configurar columnas
+        private void ConfigurarColumna(string nombreColumna, int ancho, 
+            DataGridViewContentAlignment alineacion, string formato = null)
         {
-            if (dgvAuditoria.Columns[nombreColumna] != null)
-            {
-                dgvAuditoria.Columns[nombreColumna].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
-            }
-        }
+            if (dgvAuditoria.Columns[nombreColumna] == null) return;
 
-        private void AjustarAnchoColumna(string nombreColumna, int ancho)
-        {
-            if (dgvAuditoria.Columns[nombreColumna] != null)
+            var columna = dgvAuditoria.Columns[nombreColumna];
+            
+            try
             {
-                // Protección adicional para asegurar que el control esté completamente inicializado
-                try
+                columna.Width = ancho;
+                columna.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                columna.DefaultCellStyle.Alignment = alineacion;
+                columna.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                columna.Resizable = DataGridViewTriState.True;
+
+                if (!string.IsNullOrEmpty(formato))
                 {
-                    dgvAuditoria.Columns[nombreColumna].Width = ancho;
-                    dgvAuditoria.Columns[nombreColumna].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    columna.DefaultCellStyle.Format = formato;
                 }
-                catch (Exception)
+
+                // NUEVO: Colores especiales para ciertos tipos de columnas
+                if (formato == "C2") // Columnas monetarias
                 {
-                    // Si hay error, intentar después de que el control se haya renderizado
-                    this.BeginInvoke(new Action(() =>
+                    columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 100, 0); // Verde oscuro
+                    columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                }
+                else if (nombreColumna.Contains("Fecha")) // Columnas de fecha
+                {
+                    columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 0, 150); // Azul oscuro
+                }
+                else if (nombreColumna == "Motivo de Eliminación") // Columna de motivo
+                {
+                    columna.DefaultCellStyle.ForeColor = Color.FromArgb(150, 0, 0); // Rojo oscuro
+                    columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+                }
+            }
+            catch (Exception)
+            {
+                // Si hay error, intentar después de que el control se haya renderizado
+                this.BeginInvoke(new Action(() =>
+                {
+                    try
                     {
-                        if (dgvAuditoria.Columns[nombreColumna] != null)
-                        {
-                            dgvAuditoria.Columns[nombreColumna].Width = ancho;
-                            dgvAuditoria.Columns[nombreColumna].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                        }
-                    }));
-                }
+                        columna.Width = ancho;
+                        columna.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                        columna.DefaultCellStyle.Alignment = alineacion;
+                        if (!string.IsNullOrEmpty(formato))
+                            columna.DefaultCellStyle.Format = formato;
+                    }
+                    catch { }
+                }));
             }
         }
 

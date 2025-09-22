@@ -42,8 +42,8 @@ namespace Comercio.NET.Formularios
             {
                 Text = "Aceptar",
                 Location = new Point(220, 120),
-                Size = new Size(75, 30),
-                DialogResult = DialogResult.OK
+                Size = new Size(75, 30)
+                // REMOVIDO: DialogResult = DialogResult.OK - No establecer automáticamente
             };
 
             var btnCancelar = new Button
@@ -61,8 +61,11 @@ namespace Comercio.NET.Formularios
                 {
                     MessageBox.Show("Debe ingresar un motivo.", "Validación", 
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    txtMotivo.Focus(); // AGREGADO: Devolver el foco al TextBox
+                    return; // IMPORTANTE: Salir sin establecer DialogResult.OK
                 }
+                
+                // SOLO si el motivo es válido, establecer DialogResult.OK y cerrar
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             };

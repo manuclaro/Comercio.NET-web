@@ -1753,7 +1753,11 @@ private async void EliminarProductoSeleccionado(object sender, EventArgs e)
     {
         var resultado = motivoForm.ShowDialog();
         if (resultado != DialogResult.OK)
+        {
+            // AGREGADO: Si cancela, devolver foco al campo de búsqueda
+            txtBuscarProducto.Focus();
             return;
+        }
 
         try
         {
@@ -1764,11 +1768,25 @@ private async void EliminarProductoSeleccionado(object sender, EventArgs e)
             
             MessageBox.Show("Producto eliminado correctamente.", "Éxito", 
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
+            
+            // AGREGADO: Después del mensaje de éxito, devolver foco al campo de búsqueda
+            // Usar BeginInvoke para asegurar que el foco se establezca después de cerrar el MessageBox
+            this.BeginInvoke(new Action(() =>
+            {
+                txtBuscarProducto.Focus();
+                txtBuscarProducto.SelectAll(); // OPCIONAL: Seleccionar todo el texto si hay algo
+            }));
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error", 
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+            
+            // AGREGADO: También en caso de error, devolver foco al campo de búsqueda
+            this.BeginInvoke(new Action(() =>
+            {
+                txtBuscarProducto.Focus();
+            }));
         }
     }
 }
@@ -1821,86 +1839,96 @@ private async void EliminarProductoSeleccionado(object sender, EventArgs e)
         }
 
         private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
-            string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
+    string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
+{
+    // Obtener datos adicionales del producto
+    var queryProducto = @"SELECT rubro, marca, proveedor FROM Productos WHERE codigo = @codigo";
+    string rubro = "", marca = "", proveedor = "";
+
+    using (var cmd = new SqlCommand(queryProducto, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        using (var reader = await cmd.ExecuteReaderAsync())
         {
-            // Obtener datos adicionales del producto
-            var queryProducto = @"SELECT rubro, marca, proveedor FROM Productos WHERE codigo = @codigo";
-            string rubro = "", marca = "", proveedor = "";
-    
-            using (var cmd = new SqlCommand(queryProducto, connection, transaction))
+            if (reader.Read())
             {
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                using (var reader = await cmd.ExecuteReaderAsync())
-                {
-                    if (reader.Read())
-                    {
-                        rubro = reader["rubro"]?.ToString() ?? "";
-                        marca = reader["marca"]?.ToString() ?? "";
-                        proveedor = reader["proveedor"]?.ToString() ?? "";
-                    }
-                }
-            }
-
-            // Obtener fecha y hora de la venta original
-            var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
-                               FROM Ventas 
-                               WHERE nrofactura = @nrofactura AND codigo = @codigo";
-    
-            DateTime fechaVenta = DateTime.Now.Date;
-            string horaVenta = DateTime.Now.ToString("HH:mm:ss");
-            bool esCtaCte = false;
-            string nombreCtaCte = "";
-    
-            using (var cmd = new SqlCommand(queryVenta, connection, transaction))
-            {
-                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                using (var reader = await cmd.ExecuteReaderAsync())
-                {
-                    if (reader.Read())
-                    {
-                        fechaVenta = Convert.ToDateTime(reader["fecha"]);
-                        horaVenta = reader["hora"]?.ToString() ?? "";
-                        esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
-                        nombreCtaCte = reader["NombreCtaCte"]?.ToString() ?? "";
-                    }
-                }
-            }
-
-            // Insertar en auditoría
-            var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
-                                  (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
-                                   NumeroFactura, FechaVentaOriginal, HoraVentaOriginal, FechaEliminacion,
-                                   UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
-                                   IPUsuario, NombreEquipo)
-                                  VALUES 
-                                  (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
-                                   @NumeroFactura, @FechaVentaOriginal, @HoraVentaOriginal, @FechaEliminacion,
-                                   @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
-                                   @IPUsuario, @NombreEquipo)";
-
-            using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
-            {
-                cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
-                cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
-                cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
-                cmd.Parameters.AddWithValue("@Cantidad", cantidad);
-                cmd.Parameters.AddWithValue("@TotalEliminado", total);
-                cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
-                cmd.Parameters.AddWithValue("@FechaVentaOriginal", fechaVenta);
-                cmd.Parameters.AddWithValue("@HoraVentaOriginal", horaVenta);
-                cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
-                cmd.Parameters.AddWithValue("@UsuarioEliminacion", Environment.UserName);
-                cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
-                cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
-                cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
-                cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
-                cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-                
-                await cmd.ExecuteNonQueryAsync();
+                rubro = reader["rubro"]?.ToString() ?? "";
+                marca = reader["marca"]?.ToString() ?? "";
+                proveedor = reader["proveedor"]?.ToString() ?? "";
             }
         }
+    }
 
+    // Obtener fecha y hora de la venta original COMO UN SOLO DATETIME
+    var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
+                       FROM Ventas 
+                       WHERE nrofactura = @nrofactura AND codigo = @codigo";
+
+    DateTime fechaHoraVentaOriginal = DateTime.Now; // Valor por defecto
+    bool esCtaCte = false;
+    string nombreCtaCte = "";
+
+    using (var cmd = new SqlCommand(queryVenta, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            if (reader.Read())
+            {
+                // CAMBIO: Combinar fecha y hora en un solo DateTime
+                DateTime fechaVenta = Convert.ToDateTime(reader["fecha"]);
+                string horaVenta = reader["hora"]?.ToString() ?? "";
+                
+                // Intentar parsear la hora y combinarla con la fecha
+                if (TimeSpan.TryParse(horaVenta, out TimeSpan tiempo))
+                {
+                    fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
+                }
+                else
+                {
+                    // Si no se puede parsear la hora, usar solo la fecha
+                    fechaHoraVentaOriginal = fechaVenta;
+                }
+                
+                esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
+                nombreCtaCte = reader["NombreCtaCte"]?.ToString() ?? "";
+            }
+        }
+    }
+
+    // CAMBIO: Actualizar el INSERT para usar el nuevo campo unificado
+    var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
+                          (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
+                           NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion,
+                           UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
+                           IPUsuario, NombreEquipo)
+                          VALUES 
+                          (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
+                           @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+                           @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
+                           @IPUsuario, @NombreEquipo)";
+
+    using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
+        cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+        cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
+        cmd.Parameters.AddWithValue("@Cantidad", cantidad);
+        cmd.Parameters.AddWithValue("@TotalEliminado", total);
+        cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal); // CAMBIO: Un solo campo DateTime
+        cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+        cmd.Parameters.AddWithValue("@UsuarioEliminacion", Environment.UserName);
+        cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
+        cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
+        cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
+        cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+        
+        await cmd.ExecuteNonQueryAsync();
+    }
+}
         private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
         {
             var query = @"DELETE FROM Ventas 
