@@ -276,7 +276,8 @@ namespace Comercio.NET
                     string pfxPassword = "Micertificado";
                     string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
 
-                    (string token, string sign) = await Ventas.AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+                    // CAMBIO: Usar el servicio AfipAuthenticator en lugar de Ventas.AfipAuthenticator
+                    (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
 
                     TokenAfip = token;
                     SignAfip = sign;
@@ -545,7 +546,9 @@ namespace Comercio.NET
             string pfxPath = @"C:\Certificados\certificado.pfx";
             string pfxPassword = "Micertificado";
             string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-            return await Ventas.AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+            
+            // CAMBIO: Usar el servicio AfipAuthenticator en lugar de Ventas.AfipAuthenticator
+            return await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
         }
 
         private async Task<bool> VerificarEstadoServicioAfipAsync()
@@ -558,7 +561,8 @@ namespace Comercio.NET
                 string pfxPassword = "Micertificado";
                 string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
 
-                (string token, string sign) = await Ventas.AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+                // CAMBIO: Usar el servicio AfipAuthenticator en lugar de Ventas.AfipAuthenticator
+                (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
 
                 var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
                 

@@ -48,6 +48,8 @@ namespace Comercio.NET
             ventasToolStripMenuItem = new ToolStripMenuItem();
             productosToolStripMenuItem = new ToolStripMenuItem();
             controlFacturasToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator9 = new ToolStripSeparator();
+            gestionUsuariosToolStripMenuItem = new ToolStripMenuItem();
             viewMenu = new ToolStripMenuItem();
             toolBarToolStripMenuItem = new ToolStripMenuItem();
             statusBarToolStripMenuItem = new ToolStripMenuItem();
@@ -71,6 +73,8 @@ namespace Comercio.NET
             toolStripButton1 = new ToolStripButton();
             toolStripSeparator6 = new ToolStripSeparator();
             toolStripButton2 = new ToolStripButton();
+            toolStripSeparator7 = new ToolStripSeparator();
+            toolStripGestionUsuarios = new ToolStripButton();
             statusStrip = new StatusStrip();
             toolStripStatusLabel = new ToolStripStatusLabel();
             toolTip = new ToolTip(components);
@@ -181,7 +185,7 @@ namespace Comercio.NET
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem });
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";
@@ -189,23 +193,35 @@ namespace Comercio.NET
             // ventasToolStripMenuItem
             // 
             ventasToolStripMenuItem.Name = "ventasToolStripMenuItem";
-            ventasToolStripMenuItem.Size = new Size(161, 22);
+            ventasToolStripMenuItem.Size = new Size(180, 22);
             ventasToolStripMenuItem.Text = "Ventas";
             ventasToolStripMenuItem.Click += ventasToolStripMenuItem_Click;
             // 
             // productosToolStripMenuItem
             // 
             productosToolStripMenuItem.Name = "productosToolStripMenuItem";
-            productosToolStripMenuItem.Size = new Size(161, 22);
+            productosToolStripMenuItem.Size = new Size(180, 22);
             productosToolStripMenuItem.Text = "Productos";
             productosToolStripMenuItem.Click += productosToolStripMenuItem_Click;
             // 
             // controlFacturasToolStripMenuItem
             // 
             controlFacturasToolStripMenuItem.Name = "controlFacturasToolStripMenuItem";
-            controlFacturasToolStripMenuItem.Size = new Size(161, 22);
+            controlFacturasToolStripMenuItem.Size = new Size(180, 22);
             controlFacturasToolStripMenuItem.Text = "Control Facturas";
             controlFacturasToolStripMenuItem.Click += controlFacturasToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator9
+            // 
+            toolStripSeparator9.Name = "toolStripSeparator9";
+            toolStripSeparator9.Size = new Size(177, 6);
+            // 
+            // gestionUsuariosToolStripMenuItem
+            // 
+            gestionUsuariosToolStripMenuItem.Name = "gestionUsuariosToolStripMenuItem";
+            gestionUsuariosToolStripMenuItem.Size = new Size(180, 22);
+            gestionUsuariosToolStripMenuItem.Text = "👥 Gestión Usuarios";
+            gestionUsuariosToolStripMenuItem.Click += gestionUsuariosToolStripMenuItem_Click;
             // 
             // viewMenu
             // 
@@ -319,7 +335,7 @@ namespace Comercio.NET
             // 
             // toolStrip
             // 
-            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripButton2 });
+            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripButton2, toolStripSeparator7, toolStripGestionUsuarios });
             toolStrip.Location = new Point(0, 24);
             toolStrip.Name = "toolStrip";
             toolStrip.Size = new Size(1054, 25);
@@ -381,6 +397,21 @@ namespace Comercio.NET
             toolStripButton2.Name = "toolStripButton2";
             toolStripButton2.Size = new Size(23, 22);
             toolStripButton2.Text = "Compras";
+            // 
+            // toolStripSeparator7
+            // 
+            toolStripSeparator7.Name = "toolStripSeparator7";
+            toolStripSeparator7.Size = new Size(6, 25);
+            // 
+            // toolStripGestionUsuarios
+            // 
+            toolStripGestionUsuarios.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolStripGestionUsuarios.Image = (Image)resources.GetObject("toolStripGestionUsuarios.Image");
+            toolStripGestionUsuarios.ImageTransparentColor = Color.Magenta;
+            toolStripGestionUsuarios.Name = "toolStripGestionUsuarios";
+            toolStripGestionUsuarios.Size = new Size(23, 22);
+            toolStripGestionUsuarios.Text = "Gestión de Usuarios";
+            toolStripGestionUsuarios.Click += toolStripGestionUsuarios_Click;
             // 
             // statusStrip
             // 
@@ -474,8 +505,15 @@ namespace Comercio.NET
         private ToolStripButton toolStripButton1;
         private ToolStripSeparator toolStripSeparator6;
         private ToolStripButton toolStripButton2;
+        
+        // NUEVOS CONTROLES AGREGADOS
+        private ToolStripSeparator toolStripSeparator9;
+        private ToolStripMenuItem gestionUsuariosToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator7;
+        private ToolStripButton toolStripGestionUsuarios;
     }
 }
+
 
 
 

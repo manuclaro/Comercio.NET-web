@@ -1,4 +1,5 @@
 ﻿using Comercio.NET.Formularios;
+using Comercio.NET.Services;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,6 +19,26 @@ namespace Comercio.NET
         public MenuPrincipal()
         {
             InitializeComponent();
+            ConfigurarMenuSegunPermisos();
+        }
+
+        private void ConfigurarMenuSegunPermisos()
+        {
+            // Verificar permisos del usuario actual para mostrar/ocultar opciones
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                var usuario = AuthenticationService.SesionActual.Usuario;
+                
+                // Solo mostrar gestión de usuarios si tiene permisos
+                bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador || 
+                                             usuario.PuedeGestionarUsuarios;
+                
+                // La opción de gestión de usuarios se agregará en el Designer
+                if (!puedeGestionarUsuarios && gestionUsuariosToolStripMenuItem != null)
+                {
+                    gestionUsuariosToolStripMenuItem.Visible = false;
+                }
+            }
         }
 
         private void ShowNewForm(object sender, EventArgs e)
@@ -145,6 +166,59 @@ namespace Comercio.NET
             var ControlFacturasForm = new frmControlFacturas();
             ControlFacturasForm.MdiParent = this;
             ControlFacturasForm.Show();
+        }
+
+        // NUEVO: Método para abrir gestión de usuarios
+        private void gestionUsuariosToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar permisos antes de abrir
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    bool puedeGestionar = usuario.Nivel == Models.NivelUsuario.Administrador || 
+                                         usuario.PuedeGestionarUsuarios;
+
+                    if (!puedeGestionar)
+                    {
+                        MessageBox.Show("No tienes permisos para acceder a la gestión de usuarios.", 
+                            "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // Verificar si ya está abierto
+                    foreach (Form form in this.MdiChildren)
+                    {
+                        if (form is GestionUsuariosMainForm)
+                        {
+                            form.Activate();
+                            return;
+                        }
+                    }
+
+                    // Abrir nuevo formulario
+                    var gestionUsuariosForm = new GestionUsuariosMainForm();
+                    gestionUsuariosForm.MdiParent = this;
+                    gestionUsuariosForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir gestión de usuarios: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // NUEVO: Método para el botón de gestión de usuarios en la toolbar
+        private void toolStripGestionUsuarios_Click(object sender, EventArgs e)
+        {
+            gestionUsuariosToolStripMenuItem_Click(sender, e);
         }
     }
 }
