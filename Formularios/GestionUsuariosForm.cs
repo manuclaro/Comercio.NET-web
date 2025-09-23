@@ -38,8 +38,8 @@ namespace Comercio.NET.Formularios
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new Size(1000, 600);
-            this.MinimumSize = new Size(800, 500);
+            this.ClientSize = new Size(1000, 450);
+            this.MinimumSize = new Size(800, 400);
             this.Name = "GestionUsuariosMainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Gestión de Usuarios";

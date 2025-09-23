@@ -7,6 +7,10 @@ namespace Comercio.NET.Models
         public int TiempoExpiracionMinutos { get; set; } = 480; // 8 horas
         public bool RecordarUsuario { get; set; } = true;
         public bool MostrarDebugAutenticacion { get; set; } = false;
+        
+        // AGREGADO: Propiedades para recordar usuario
+        public string UltimoUsuarioLogueado { get; set; } = "";
+        public bool RecordarUltimoUsuario { get; set; } = false;
     }
 
     public enum NivelUsuario

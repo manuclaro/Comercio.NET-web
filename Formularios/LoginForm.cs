@@ -2,12 +2,14 @@
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
+using System.Text.Json;
 using Comercio.NET.Services;
 using Comercio.NET.Models;
 
 namespace Comercio.NET.Formularios
 {
-    public class LoginForm : Form  // CAMBIO: Eliminar 'partial'
+    public class LoginForm : Form
     {
         private readonly AuthenticationService _authService;
         private TextBox txtUsuario, txtPassword;
@@ -15,9 +17,6 @@ namespace Comercio.NET.Formularios
         private CheckBox chkRecordar;
         private Label lblMensaje;
 
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
         public bool LoginExitoso { get; private set; }
@@ -28,12 +27,9 @@ namespace Comercio.NET.Formularios
             _authService = new AuthenticationService();
             InitializeComponent();
             ConfigurarFormulario();
+            CargarUsuarioRecordado(); // AGREGADO: Cargar usuario recordado al inicializar
         }
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -45,10 +41,6 @@ namespace Comercio.NET.Formularios
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             this.SuspendLayout();
@@ -57,7 +49,7 @@ namespace Comercio.NET.Formularios
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(400, 380); // CAMBIO: Aumentar altura de 300 a 380
+            this.ClientSize = new System.Drawing.Size(400, 380);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -72,7 +64,7 @@ namespace Comercio.NET.Formularios
         private void ConfigurarFormulario()
         {
             this.Text = "Iniciar Sesión - Comercio .NET";
-            this.Size = new Size(400, 380); // CAMBIO: Aumentar altura de 300 a 380
+            this.Size = new Size(400, 380);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -153,14 +145,14 @@ namespace Comercio.NET.Formularios
             panel.Controls.Add(txtPassword);
             panelY += 35;
 
-            // Recordar usuario
+            // CORREGIDO: Recordar usuario con validación mejorada
             chkRecordar = new CheckBox
             {
                 Text = "Recordar usuario",
                 Location = new Point(90, panelY),
                 Size = new Size(150, 20),
                 Font = new Font("Segoe UI", 9F),
-                Checked = AuthenticationService.ConfiguracionLogin.RecordarUsuario
+                Checked = AuthenticationService.ConfiguracionLogin?.RecordarUltimoUsuario ?? false
             };
             panel.Controls.Add(chkRecordar);
 
@@ -200,24 +192,24 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)    
             };
             btnCancelar.FlatAppearance.BorderSize = 0;
             this.Controls.Add(btnCancelar);
 
-            currentY += 50; // CAMBIO: Aumentar espacio para el botón
+            currentY += 50;
 
-            // NUEVO: Botón para cambiar contraseña - ahora visible
+            // Botón para cambiar contraseña
             var btnCambiarPassword = new Button
             {
                 Text = "¿Olvidaste tu contraseña?",
-                Location = new Point(80, currentY), // CAMBIO: Mejor posicionamiento
-                Size = new Size(240, 30), // CAMBIO: Hacer más grande y visible
+                Location = new Point(80, currentY),
+                Size = new Size(240, 30),
                 BackColor = Color.Transparent,
                 ForeColor = Color.FromArgb(0, 120, 215),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Underline), // CAMBIO: Fuente más grande
-                Cursor = Cursors.Hand // CAMBIO: Cursor de mano para indicar que es clickeable
+                Font = new Font("Segoe UI", 10F, FontStyle.Underline),
+                Cursor = Cursors.Hand
             };
             btnCambiarPassword.FlatAppearance.BorderSize = 0;
             btnCambiarPassword.FlatAppearance.MouseOverBackColor = Color.FromArgb(230, 240, 250);
@@ -225,12 +217,12 @@ namespace Comercio.NET.Formularios
             {
                 using (var cambiarForm = new CambiarPasswordForm())
                 {
-                    cambiarForm.ShowDialog(this); // CAMBIO: Pasar 'this' como parent
+                    cambiarForm.ShowDialog(this);
                 }
             };
             this.Controls.Add(btnCambiarPassword);
 
-            // NUEVO: Separador visual
+            // Separador visual
             var lblSeparador = new Label
             {
                 Text = "───────────────────────────────",
@@ -273,7 +265,83 @@ namespace Comercio.NET.Formularios
                 }
             };
 
-            this.Load += (s, e) => txtUsuario.Focus();
+            // AGREGADO: Evento para manejar cambios en "Recordar usuario"
+            chkRecordar.CheckedChanged += (s, e) =>
+            {
+                try
+                {
+                    // Asegurar que ConfiguracionLogin no sea null
+                    if (AuthenticationService.ConfiguracionLogin != null)
+                    {
+                        AuthenticationService.ConfiguracionLogin.RecordarUltimoUsuario = chkRecordar.Checked;
+                        
+                        // Si se desmarca, limpiar el usuario recordado
+                        if (!chkRecordar.Checked)
+                        {
+                            AuthenticationService.ConfiguracionLogin.UltimoUsuarioLogueado = "";
+                            txtUsuario.Clear(); // Limpiar el campo de usuario también
+                        }
+                        
+                        GuardarConfiguracionLogin();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error al guardar configuración: {ex.Message}");
+                }
+            };
+
+            this.Load += (s, e) =>
+            {
+                // Enfocar el campo correcto según si hay usuario recordado
+                if (!string.IsNullOrEmpty(txtUsuario.Text))
+                {
+                    txtPassword.Focus();
+                }
+                else
+                {
+                    txtUsuario.Focus();
+                }
+            };
+        }
+
+        // AGREGADO: Método para cargar usuario recordado
+        private void CargarUsuarioRecordado()
+        {
+            try
+            {
+                // Asegurar que la configuración esté cargada
+                if (AuthenticationService.ConfiguracionLogin != null)
+                {
+                    if (AuthenticationService.ConfiguracionLogin.RecordarUltimoUsuario && 
+                        !string.IsNullOrEmpty(AuthenticationService.ConfiguracionLogin.UltimoUsuarioLogueado))
+                    {
+                        txtUsuario.Text = AuthenticationService.ConfiguracionLogin.UltimoUsuarioLogueado;
+                        chkRecordar.Checked = true;
+                    }
+                    else
+                    {
+                        chkRecordar.Checked = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error al cargar usuario recordado: {ex.Message}");
+            }
+        }
+
+        // CORREGIDO: Método para guardar la configuración usando el método estático
+        private void GuardarConfiguracionLogin()
+        {
+            try
+            {
+                AuthenticationService.GuardarConfiguracionLogin();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error al guardar configuración: {ex.Message}");
+            }
         }
 
         private async Task ProcesarLogin()
@@ -294,10 +362,31 @@ namespace Comercio.NET.Formularios
 
                 if (exito)
                 {
+                    // AGREGADO: Guardar usuario si "Recordar" está marcado
+                    if (chkRecordar.Checked)
+                    {
+                        if (AuthenticationService.ConfiguracionLogin != null)
+                        {
+                            AuthenticationService.ConfiguracionLogin.UltimoUsuarioLogueado = txtUsuario.Text.Trim();
+                            AuthenticationService.ConfiguracionLogin.RecordarUltimoUsuario = true;
+                            GuardarConfiguracionLogin();
+                        }
+                    }
+                    else
+                    {
+                        // Si no está marcado, limpiar usuario recordado
+                        if (AuthenticationService.ConfiguracionLogin != null)
+                        {
+                            AuthenticationService.ConfiguracionLogin.UltimoUsuarioLogueado = "";
+                            AuthenticationService.ConfiguracionLogin.RecordarUltimoUsuario = false;
+                            GuardarConfiguracionLogin();
+                        }
+                    }
+
                     MostrarMensaje($"Bienvenido, {usuario.NombreCompleto}", Color.Green);
                     LoginExitoso = true;
 
-                    await Task.Delay(1000); // Mostrar mensaje de bienvenida
+                    await Task.Delay(1000);
 
                     this.DialogResult = DialogResult.OK;
                     this.Close();

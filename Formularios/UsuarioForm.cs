@@ -23,7 +23,11 @@ namespace Comercio.NET.Formularios
         private CheckBox chkActivo, chkPuedeEliminarProductos, chkPuedeEditarPrecios, chkPuedeVerReportes, chkPuedeGestionarUsuarios, chkPuedeAnularFacturas;
         private Button btnGuardar, btnCancelar;
         private Label lblMensaje;
-        private Panel panelPassword;
+        private Panel panelPassword, panelPrincipal;
+        
+        // AGREGADO: Variables para controlar posiciones dinámicas
+        private Label lblNivel, lblCajero, lblPermisos;
+        private int _posicionBaseNivel;
 
         public UsuarioForm(string nombreUsuario = null)
         {
@@ -48,7 +52,7 @@ namespace Comercio.NET.Formularios
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new Size(500, 530); // AUMENTADO de 500 a 530
+            this.ClientSize = new Size(500, 580);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -90,11 +94,11 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(lblTitulo);
             currentY += 35;
 
-            // Panel principal - ALTURA AUMENTADA
-            var panelPrincipal = new Panel
+            // Panel principal
+            panelPrincipal = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(470, 380), // AUMENTADO de 350 a 380
+                Size = new Size(470, 380),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -178,12 +182,50 @@ namespace Comercio.NET.Formularios
             panelPrincipal.Controls.Add(txtEmail);
             panelY += lineHeight;
 
+            // Botón "Cambiar Contraseña" para modo edición (ANTES del panel)
+            if (_esEdicion)
+            {
+                var btnCambiarPassword = new Button
+                {
+                    Text = "🔑 Cambiar Contraseña",
+                    Location = new Point(15 + labelWidth, panelY - 2),
+                    Size = new Size(150, 25),
+                    BackColor = Color.FromArgb(255, 152, 0),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    UseVisualStyleBackColor = false
+                };
+                btnCambiarPassword.FlatAppearance.BorderSize = 0;
+                btnCambiarPassword.Click += (s, e) =>
+                {
+                    panelPassword.Visible = !panelPassword.Visible;
+                    btnCambiarPassword.Text = panelPassword.Visible ? "❌ Cancelar" : "🔑 Cambiar Contraseña";
+                    btnCambiarPassword.BackColor = panelPassword.Visible ? Color.FromArgb(244, 67, 54) : Color.FromArgb(255, 152, 0);
+
+                    // CORREGIDO: Mover controles en lugar de solo redimensionar
+                    ReposicionarControles(panelPassword.Visible);
+                    
+                    if (panelPassword.Visible)
+                    {
+                        txtPassword.Clear();
+                        txtConfirmarPassword.Clear();
+                        txtPassword.Focus();
+                    }
+                };
+                panelPrincipal.Controls.Add(btnCambiarPassword);
+                panelY += lineHeight;
+            }
+
             // Panel de contraseñas
             panelPassword = new Panel
             {
-                Location = new Point(0, panelY),
-                Size = new Size(470, 65),
-                BackColor = Color.FromArgb(248, 250, 252)
+                Location = new Point(5, panelY),
+                Size = new Size(460, 65),
+                BackColor = Color.FromArgb(248, 250, 252),
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = !_esEdicion
             };
             panelPrincipal.Controls.Add(panelPassword);
 
@@ -191,15 +233,15 @@ namespace Comercio.NET.Formularios
             panelPassword.Controls.Add(new Label
             {
                 Text = _esEdicion ? "Nueva contraseña:" : "Contraseña:",
-                Location = new Point(15, 8),
+                Location = new Point(10, 10),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             txtPassword = new TextBox
             {
-                Location = new Point(15 + labelWidth, 6),
-                Size = new Size(controlWidth, 22),
+                Location = new Point(10 + labelWidth, 8),
+                Size = new Size(controlWidth - 10, 22),
                 Font = new Font("Segoe UI", 9F),
                 PasswordChar = '●'
             };
@@ -209,70 +251,38 @@ namespace Comercio.NET.Formularios
             panelPassword.Controls.Add(new Label
             {
                 Text = "Confirmar:",
-                Location = new Point(15, 35),
+                Location = new Point(10, 37),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             txtConfirmarPassword = new TextBox
             {
-                Location = new Point(15 + labelWidth, 33),
-                Size = new Size(controlWidth, 22),
+                Location = new Point(10 + labelWidth, 35),
+                Size = new Size(controlWidth - 10, 22),
                 Font = new Font("Segoe UI", 9F),
                 PasswordChar = '●'
             };
             panelPassword.Controls.Add(txtConfirmarPassword);
 
-            if (_esEdicion)
+            // Avanzar panelY
+            if (!_esEdicion)
             {
-                panelPassword.Visible = false;
-                
-                // Botón "Cambiar Contraseña" para modo edición
-                var btnCambiarPassword = new Button
-                {
-                    Text = "🔑 Cambiar Contraseña",
-                    Location = new Point(15 + labelWidth, panelY + 10),
-                    Size = new Size(150, 28),
-                    BackColor = Color.FromArgb(255, 152, 0),
-                    ForeColor = Color.White,
-                    FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    UseVisualStyleBackColor = false
-                };
-                btnCambiarPassword.FlatAppearance.BorderSize = 0;
-                btnCambiarPassword.FlatAppearance.BorderColor = Color.FromArgb(255, 152, 0);
-                btnCambiarPassword.Click += (s, e) =>
-                {
-                    panelPassword.Visible = !panelPassword.Visible;
-                    btnCambiarPassword.Text = panelPassword.Visible ? "❌ Cancelar" : "🔑 Cambiar Contraseña";
-                    btnCambiarPassword.BackColor = panelPassword.Visible ? Color.FromArgb(244, 67, 54) : Color.FromArgb(255, 152, 0);
-                    
-                    // Ajustar la altura del formulario dinámicamente - ACTUALIZADO
-                    this.Height = panelPassword.Visible ? 595 : 530; // AJUSTADO para nueva altura
-                    panelPrincipal.Height = panelPassword.Visible ? 445 : 380; // AJUSTADO para nueva altura
-                };
-                panelPrincipal.Controls.Add(btnCambiarPassword);
+                panelY += 75; // Espacio para panel visible
             }
 
-            // CORREGIDO: Avanzar panelY dependiendo del modo
-            if (_esEdicion)
-            {
-                panelY += panelPassword.Visible ? 70 : 30; // Si es edición, sumar poco espacio
-            }
-            else
-            {
-                panelY += 70; // Si es agregar, dejar espacio para el panel de contraseñas visible
-            }
+            // CORREGIDO: Guardar posición base para reposicionamiento dinámico
+            _posicionBaseNivel = panelY;
 
-            // CORREGIDO: Nivel de Usuario y Cajero - AHORA SIEMPRE VISIBLE
-            panelPrincipal.Controls.Add(new Label
+            // Nivel de Usuario y Cajero
+            lblNivel = new Label
             {
                 Text = "Nivel:",
                 Location = new Point(15, panelY),
                 Size = new Size(45, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            });
+            };
+            panelPrincipal.Controls.Add(lblNivel);
 
             cmbNivel = new ComboBox
             {
@@ -289,18 +299,19 @@ namespace Comercio.NET.Formularios
             
             cmbNivel.DisplayMember = "Text";
             cmbNivel.ValueMember = "Value";
-            cmbNivel.SelectedIndex = 2; // Vendedor por defecto
+            cmbNivel.SelectedIndex = 2;
             
             panelPrincipal.Controls.Add(cmbNivel);
 
-            // CORREGIDO: Número de Cajero - AHORA SIEMPRE VISIBLE
-            panelPrincipal.Controls.Add(new Label
+            // Número de Cajero
+            lblCajero = new Label
             {
                 Text = "Cajero #:",
                 Location = new Point(220, panelY),
                 Size = new Size(60, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            });
+            };
+            panelPrincipal.Controls.Add(lblCajero);
 
             nudNumeroCajero = new NumericUpDown
             {
@@ -309,7 +320,7 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 9F),
                 Minimum = 1,
                 Maximum = 99,
-                Value = 1, // VALOR POR DEFECTO VISIBLE
+                Value = 1,
                 TextAlign = HorizontalAlignment.Center
             };
             panelPrincipal.Controls.Add(nudNumeroCajero);
@@ -329,14 +340,15 @@ namespace Comercio.NET.Formularios
             panelY += 30;
 
             // Sección de permisos
-            panelPrincipal.Controls.Add(new Label
+            lblPermisos = new Label
             {
                 Text = "🔐 PERMISOS:",
                 Location = new Point(15, panelY),
                 Size = new Size(400, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
-            });
+            };
+            panelPrincipal.Controls.Add(lblPermisos);
             panelY += 25;
 
             // Permisos en dos columnas
@@ -355,7 +367,7 @@ namespace Comercio.NET.Formularios
             chkPuedeAnularFacturas = CrearCheckboxPermiso("Anular facturas", new Point(15, panelY));
             panelPrincipal.Controls.Add(chkPuedeAnularFacturas);
 
-            currentY += 390; // AUMENTADO de 360 a 390
+            currentY += 390;
 
             // Mensaje de estado
             lblMensaje = new Label
@@ -369,36 +381,8 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(lblMensaje);
             currentY += 25;
 
-            // Botones
-            btnGuardar = new Button
-            {
-                Text = _esEdicion ? "💾 Guardar Cambios" : "➕ Crear Usuario",
-                Location = new Point(margin + 60, currentY),
-                Size = new Size(140, 30),
-                BackColor = Color.FromArgb(76, 175, 80),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false
-            };
-            btnGuardar.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnGuardar);
-
-            btnCancelar = new Button
-            {
-                Text = "❌ Cancelar",
-                Location = new Point(margin + 220, currentY),
-                Size = new Size(100, 30),
-                BackColor = Color.FromArgb(158, 158, 158),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false
-            };
-            btnCancelar.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnCancelar);
+            // Crear botones
+            CrearBotones(currentY);
 
             // Configurar TabIndex
             txtNombreUsuario.TabIndex = 0;
@@ -415,6 +399,92 @@ namespace Comercio.NET.Formularios
 
             this.AcceptButton = btnGuardar;
             this.CancelButton = btnCancelar;
+        }
+
+        // CORREGIDO: Método para reposicionar controles dinámicamente - AJUSTES FINALES
+        private void ReposicionarControles(bool panelPasswordVisible)
+        {
+            int desplazamiento = panelPasswordVisible ? 75 : 0;
+            int nuevaPosicionNivel = _posicionBaseNivel + desplazamiento;
+
+            // Reposicionar controles de Nivel y Cajero
+            lblNivel.Location = new Point(lblNivel.Location.X, nuevaPosicionNivel);
+            cmbNivel.Location = new Point(cmbNivel.Location.X, nuevaPosicionNivel - 2);
+            lblCajero.Location = new Point(lblCajero.Location.X, nuevaPosicionNivel);
+            nudNumeroCajero.Location = new Point(nudNumeroCajero.Location.X, nuevaPosicionNivel - 2);
+
+            // Reposicionar checkbox Activo
+            chkActivo.Location = new Point(chkActivo.Location.X, nuevaPosicionNivel + 35);
+
+            // Reposicionar sección de permisos
+            lblPermisos.Location = new Point(lblPermisos.Location.X, nuevaPosicionNivel + 65);
+            
+            chkPuedeEliminarProductos.Location = new Point(chkPuedeEliminarProductos.Location.X, nuevaPosicionNivel + 90);
+            chkPuedeEditarPrecios.Location = new Point(chkPuedeEditarPrecios.Location.X, nuevaPosicionNivel + 90);
+            
+            chkPuedeVerReportes.Location = new Point(chkPuedeVerReportes.Location.X, nuevaPosicionNivel + 115);
+            chkPuedeGestionarUsuarios.Location = new Point(chkPuedeGestionarUsuarios.Location.X, nuevaPosicionNivel + 115);
+            
+            chkPuedeAnularFacturas.Location = new Point(chkPuedeAnularFacturas.Location.X, nuevaPosicionNivel + 140);
+
+            // CORRECCIÓN FINAL: Ajustes más conservadores para asegurar que no haya superposición
+            if (panelPasswordVisible)
+            {
+                // Expandir formulario con medidas más generosas
+                this.Height = 700; // AUMENTADO significativamente
+                panelPrincipal.Height = 400; // REDUCIDO más para dar mayor espacio
+                
+                // Colocar mensaje y botones bien separados del panel
+                lblMensaje.Location = new Point(lblMensaje.Location.X, 415); // Separación segura
+                btnGuardar.Location = new Point(btnGuardar.Location.X, 445); // Separación segura  
+                btnCancelar.Location = new Point(btnCancelar.Location.X, 445); // Separación segura
+            }
+            else
+            {
+                // Contraer formulario a tamaño original
+                this.Height = 580;
+                panelPrincipal.Height = 380;
+                
+                // Posiciones originales
+                lblMensaje.Location = new Point(lblMensaje.Location.X, 405);
+                btnGuardar.Location = new Point(btnGuardar.Location.X, 435);
+                btnCancelar.Location = new Point(btnCancelar.Location.X, 435);
+            }
+        }
+
+        private void CrearBotones(int yPosition)
+        {
+            int margin = 15;
+
+            btnGuardar = new Button
+            {
+                Text = _esEdicion ? "💾 Guardar Cambios" : "➕ Crear Usuario",
+                Location = new Point(margin + 60, yPosition),
+                Size = new Size(140, 30),
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnGuardar.FlatAppearance.BorderSize = 0;
+            this.Controls.Add(btnGuardar);
+
+            btnCancelar = new Button
+            {
+                Text = "❌ Cancelar",
+                Location = new Point(margin + 220, yPosition),
+                Size = new Size(100, 30),
+                BackColor = Color.FromArgb(158, 158, 158),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnCancelar.FlatAppearance.BorderSize = 0;
+            this.Controls.Add(btnCancelar);
         }
 
         private CheckBox CrearCheckboxPermiso(string texto, Point ubicacion)
@@ -438,7 +508,6 @@ namespace Comercio.NET.Formularios
                 this.Close();
             };
 
-            // Evento para autoconfigurar permisos según nivel
             cmbNivel.SelectedIndexChanged += CmbNivel_SelectedIndexChanged;
 
             this.Load += (s, e) =>
@@ -446,14 +515,8 @@ namespace Comercio.NET.Formularios
                 if (!_esEdicion)
                 {
                     txtNombreUsuario.Focus();
-                    // ASEGURAR QUE EL CAJERO SEA VISIBLE EN MODO AGREGAR
                     nudNumeroCajero.Visible = true;
                     nudNumeroCajero.Enabled = true;
-                    
-                    // DEBUG: Verificar que los controles estén correctamente creados
-                    System.Diagnostics.Debug.WriteLine($"nudNumeroCajero creado: {nudNumeroCajero != null}");
-                    System.Diagnostics.Debug.WriteLine($"nudNumeroCajero visible: {nudNumeroCajero?.Visible}");
-                    System.Diagnostics.Debug.WriteLine($"nudNumeroCajero valor: {nudNumeroCajero?.Value}");
                 }
                 else
                 {
@@ -468,7 +531,6 @@ namespace Comercio.NET.Formularios
             {
                 var nivel = (NivelUsuario)item.GetType().GetProperty("Value").GetValue(item);
                 
-                // Autoconfigurar permisos según nivel
                 switch (nivel)
                 {
                     case NivelUsuario.Administrador:
