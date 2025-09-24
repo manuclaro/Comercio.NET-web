@@ -439,18 +439,21 @@ namespace Comercio.NET
                     return false;
                 }
 
-                // NUEVO: Detectar tokens placeholder
-                if (token == "PLACEHOLDER_TOKEN")
+                // NUEVO: Detectar tokens de espera
+                if (token == "WAITING_FOR_EXPIRY")
                 {
                     MessageBox.Show(
-                        "⏳ AFIP indica que ya existe un token válido activo.\n\n" +
-                        "💡 Esto es normal y significa que:\n" +
-                        "• Ya se obtuvo un token anteriormente\n" +
-                        "• El token anterior aún no ha expirado\n" +
+                        "⏳ AFIP tiene un token activo que debe expirar primero\n\n" +
+                        "💡 Situación detectada:\n" +
+                        "• Ya existe un token válido en AFIP\n" +
+                        "• El token anterior no ha expirado aún\n" +
                         "• AFIP no permite tokens duplicados\n\n" +
-                        "🔄 El sistema reintentará automáticamente en unos minutos.\n" +
-                        "Mientras tanto, puede intentar cerrar y reabrir la aplicación.", 
-                        "Token AFIP Activo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        "🔄 Soluciones:\n" +
+                        "• Espere 10-15 minutos e intente nuevamente\n" +
+                        "• Cierre completamente la aplicación y vuelva a abrirla\n" +
+                        "• Los tokens AFIP expiran automáticamente\n\n" +
+                        "⚠️ Esto es normal en desarrollo cuando se hacen múltiples pruebas.", 
+                        "Token AFIP Pendiente", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return false;
                 }
 
