@@ -880,7 +880,7 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
             return nombreComercio;
         }
 
-        // Agregar este método público para que el modal pueda acceder al domicilio
+        // Agregar este método pública para que el modal pueda acceder al domicilio
         public string GetDomicilioComercio()
         {
             return domicilioComercio;
@@ -971,93 +971,85 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
         // MODIFICADO: También actualizar el método RegistrarEliminacionEnAuditoria para usar el usuario logueado consistentemente
         private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
     string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
+{
+    // Obtener datos adicionales del producto
+    var queryProducto = @"SELECT rubro, marca, proveedor FROM Productos WHERE codigo = @codigo";
+    string rubro = "", marca = "", proveedor = "";
+
+    using (var cmd = new SqlCommand(queryProducto, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        using (var reader = await cmd.ExecuteReaderAsync())
         {
-            // Obtener datos adicionales del producto
-            var queryProducto = @"SELECT rubro, marca, proveedor FROM Productos WHERE codigo = @codigo";
-            string rubro = "", marca = "", proveedor = "";
-
-            using (var cmd = new SqlCommand(queryProducto, connection, transaction))
+            if (reader.Read())
             {
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                using (var reader = await cmd.ExecuteReaderAsync())
-                {
-                    if (reader.Read())
-                    {
-                        rubro = reader["rubro"]?.ToString() ?? "";
-                        marca = reader["marca"]?.ToString() ?? "";
-                        proveedor = reader["proveedor"]?.ToString() ?? "";
-                    }
-                }
+                rubro = reader["rubro"]?.ToString() ?? "";
+                marca = reader["marca"]?.ToString() ?? "";
+                proveedor = reader["proveedor"]?.ToString() ?? "";
             }
+        }
+    }
 
-            // Obtener fecha y hora de la venta original COMO UN SOLO DATETIME
-            var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
-                       FROM Ventas 
-                       WHERE nrofactura = @nrofactura AND codigo = @codigo";
+    // Obtener fecha y hora de la venta original COMO UN SOLO DATETIME
+    var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
+                   FROM Ventas 
+                   WHERE nrofactura = @nrofactura AND codigo = @codigo";
 
-            DateTime fechaHoraVentaOriginal = DateTime.Now; // Valor por defecto
-            bool esCtaCte = false;
-            string nombreCtaCte = "";
+    DateTime fechaHoraVentaOriginal = DateTime.Now; // Valor por defecto
+    bool esCtaCte = false;
+    string nombreCtaCte = "";
 
-            using (var cmd = new SqlCommand(queryVenta, connection, transaction))
+    using (var cmd = new SqlCommand(queryVenta, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            if (reader.Read())
             {
-                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                using (var reader = await cmd.ExecuteReaderAsync())
+                // Combinar fecha y hora en un solo DateTime
+                DateTime fechaVenta = Convert.ToDateTime(reader["fecha"]);
+                string horaVenta = reader["hora"]?.ToString() ?? "";
+
+                // Intentar parsear la hora y combinarla con la fecha
+                if (TimeSpan.TryParse(horaVenta, out TimeSpan tiempo))
                 {
-                    if (reader.Read())
-                    {
-                        // CAMBIO: Combinar fecha y hora en un solo DateTime
-                        DateTime fechaVenta = Convert.ToDateTime(reader["fecha"]);
-                        string horaVenta = reader["hora"]?.ToString() ?? "";
-
-                        // Intentar parsear la hora y combinarla con la fecha
-                        if (TimeSpan.TryParse(horaVenta, out TimeSpan tiempo))
-                        {
-                            fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
-                        }
-                        else
-                        {
-                            // Si no se puede parsear la hora, usar solo la fecha
-                            fechaHoraVentaOriginal = fechaVenta;
-                        }
-
-                        esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
-                        nombreCtaCte = reader["NombreCtaCte"]?.ToString() ?? "";
-                    }
-                }
-            }
-
-            // MODIFICADO: Obtener usuario logueado de forma consistente
-            string usuarioEliminacion;
-            try
-            {
-                if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true &&
-                    AuthenticationService.SesionActual != null)
-                {
-                    usuarioEliminacion = AuthenticationService.SesionActual.Usuario.NombreUsuario;
+                    fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
                 }
                 else
                 {
-                    usuarioEliminacion = Environment.UserName; // Fallback
+                    // Si no se puede parsear la hora, usar solo la fecha
+                    fechaHoraVentaOriginal = fechaVenta;
                 }
-            }
-            catch
-            {
-                usuarioEliminacion = Environment.UserName; // Fallback en caso de error
-            }
 
-            // CAMBIO: Actualizar el INSERT para usar el nuevo campo unificado
-            var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
-                  (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
-                   NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion,
-                   UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
-                   IPUsuario, NombreEquipo)
-                  VALUES 
-                  (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
-                   @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
-                   @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
-                   @IPUsuario, @NombreEquipo)";
+                esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
+                nombreCtaCte = reader["NombreCtaCte"]?.ToString() ?? "";
+            }
+        }
+    }
+
+    // CORREGIDO: Obtener usuario y cajero DIRECTAMENTE (igual que en las facturas)
+    string usuarioEliminacion = ObtenerUsuarioActual();
+    int numeroCajero = obtenerNumeroCajero();
+    
+    // DEBUG: Para verificar qué valores se están usando
+    System.Diagnostics.Debug.WriteLine($"=== AUDITORIA ELIMINACION ===");
+    System.Diagnostics.Debug.WriteLine($"Usuario: {usuarioEliminacion}");
+    System.Diagnostics.Debug.WriteLine($"Cajero: {numeroCajero}");
+    System.Diagnostics.Debug.WriteLine($"Código: {codigo}");
+    System.Diagnostics.Debug.WriteLine($"============================");
+
+    // ACTUALIZADO: INSERT para incluir el número de cajero
+    var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
+              (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
+               NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion,
+               UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
+               IPUsuario, NombreEquipo, NumeroCajero)
+              VALUES 
+              (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
+               @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+               @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
+               @IPUsuario, @NombreEquipo, @NumeroCajero)";
 
     using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
     {
@@ -1067,14 +1059,15 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
         cmd.Parameters.AddWithValue("@Cantidad", cantidad);
         cmd.Parameters.AddWithValue("@TotalEliminado", total);
         cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
-        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal); // CAMBIO: Un solo campo DateTime
+        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal);
         cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
-        cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuarioEliminacion); // CORREGIDO: Usar variable local
+        cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuarioEliminacion); // USAR VARIABLE LOCAL
         cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
         cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
         cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
         cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+        cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero); // USAR VARIABLE LOCAL
 
         await cmd.ExecuteNonQueryAsync();
     }
@@ -1651,44 +1644,50 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
             }
         }
 
-        // OPCIONAL: Simplificar el método obtenerNumeroCajero() para que sea más claro
-        private int obtenerNumeroCajero()
-        {
-            try
-            {
-                // CAMBIO: Verificar si hay sesión activa independientemente de si el login está habilitado
-                if (AuthenticationService.SesionActual?.Usuario != null)
-                {
-                    return AuthenticationService.SesionActual.Usuario.NumeroCajero;
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log del error si es necesario para debugging
-                System.Diagnostics.Debug.WriteLine($"Error obteniendo número de cajero: {ex.Message}");
-            }
-
-            return 1; // Cajero por defecto solo si no hay sesión activa
-        }
-
-        // NUEVO: Método helper para obtener usuario logueado consistentemente (opcional)
+        // VERSIÓN DIRECTA (igual que funciona para facturas)
         private string ObtenerUsuarioActual()
         {
             try
             {
-                // CAMBIO: Verificar si hay sesión activa independientemente de si el login está habilitado
-                if (AuthenticationService.SesionActual?.Usuario != null)
+                // DIRECTO: Solo verificar si hay sesión activa
+                if (AuthenticationService.SesionActual?.Usuario?.NombreUsuario != null)
                 {
-                    return AuthenticationService.SesionActual.Usuario.NombreUsuario;
+                    string usuario = AuthenticationService.SesionActual.Usuario.NombreUsuario;
+                    System.Diagnostics.Debug.WriteLine($"🟢 Usuario logueado encontrado: {usuario}");
+                    return usuario;
                 }
+                
+                System.Diagnostics.Debug.WriteLine($"🔴 No hay sesión activa, usando fallback: {Environment.UserName}");
+                return Environment.UserName; // Fallback
             }
             catch (Exception ex)
             {
-                // Log del error si es necesario para debugging
-                System.Diagnostics.Debug.WriteLine($"Error obteniendo usuario actual: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"🔴 Error obteniendo usuario: {ex.Message}");
+                return Environment.UserName;
             }
+        }
 
-            return Environment.UserName; // Fallback al usuario de Windows
+        // VERSIÓN DIRECTA (igual que funciona para facturas)
+        private int obtenerNumeroCajero()
+        {
+            try
+            {
+                // DIRECTO: Solo verificar si hay sesión activa
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    int cajero = AuthenticationService.SesionActual.Usuario.NumeroCajero;
+                    System.Diagnostics.Debug.WriteLine($"🟢 Número de cajero encontrado: {cajero}");
+                    return cajero;
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"🔴 No hay sesión activa, usando cajero por defecto: 1");
+                return 1; // Cajero por defecto
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"🔴 Error obteniendo cajero: {ex.Message}");
+                return 1;
+            }
         }
 
         // NUEVO: Clase para MessageBox personalizado sin botón por defecto

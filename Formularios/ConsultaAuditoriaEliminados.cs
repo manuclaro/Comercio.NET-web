@@ -14,8 +14,8 @@ namespace Comercio.NET.Formularios
     {
         private DataGridView dgvAuditoria;
         private DateTimePicker dtpDesde, dtpHasta;
-        private TextBox txtCodigoProducto, txtNumeroFactura, txtUsuario; // AGREGADO: txtUsuario
-        private Button btnBuscar, btnExportar, btnSalir; // AGREGADO: btnSalir
+        private TextBox txtCodigoProducto, txtNumeroFactura, txtUsuario, txtCajero;
+        private Button btnBuscar, btnExportar, btnSalir;
         private Label lblTotalRegistros;
 
         public ConsultaAuditoriaEliminados()
@@ -33,17 +33,17 @@ namespace Comercio.NET.Formularios
         {
             this.Text = "Consulta de Productos Eliminados - Auditoría";
             this.Size = new Size(1200, 500);
+            this.MinimumSize = new Size(1000, 400);
             this.StartPosition = FormStartPosition.CenterScreen;
 
-            // Panel de filtros
             var panelFiltros = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 80,
+                Height = 80, 
                 BackColor = Color.FromArgb(240, 240, 240)
             };
 
-            // PRIMERA FILA - Todos los filtros y botón Buscar
+            // PRIMERA FILA - Filtros de fecha, código, remito y usuario
             var lblDesde = new Label { Text = "Desde:", Location = new Point(10, 15), Size = new Size(50, 20) };
             dtpDesde = new DateTimePicker { Location = new Point(65, 12), Size = new Size(120, 23) };
             dtpDesde.Value = DateTime.Now.AddDays(-30);
@@ -60,11 +60,15 @@ namespace Comercio.NET.Formularios
             var lblUsuario = new Label { Text = "Usuario:", Location = new Point(730, 15), Size = new Size(50, 20) };
             txtUsuario = new TextBox { Location = new Point(785, 12), Size = new Size(100, 23) };
 
-            // CAMBIO: Botón Buscar al lado del filtro Usuario
+            // SEGUNDA FILA - Cajero y TODOS los botones juntos
+            var lblCajero = new Label { Text = "Cajero:", Location = new Point(10, 45), Size = new Size(50, 20) };
+            txtCajero = new TextBox { Location = new Point(65, 42), Size = new Size(80, 23) };
+
+            // TODOS LOS BOTONES EN LA SEGUNDA FILA - Alineados horizontalmente
             btnBuscar = new Button
             {
                 Text = "Buscar",
-                Location = new Point(895, 10), // CAMBIO: Al lado del filtro Usuario
+                Location = new Point(160, 40),
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
@@ -72,11 +76,10 @@ namespace Comercio.NET.Formularios
             };
             btnBuscar.Click += BtnBuscar_Click;
 
-            // SEGUNDA FILA - Solo botones Exportar y Salir
             btnExportar = new Button
             {
                 Text = "Exportar",
-                Location = new Point(10, 45), // CAMBIO: Exportar queda a la izquierda
+                Location = new Point(250, 40),
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
@@ -87,7 +90,7 @@ namespace Comercio.NET.Formularios
             btnSalir = new Button
             {
                 Text = "Salir",
-                Location = new Point(100, 45), // CAMBIO: Salir al lado de Exportar
+                Location = new Point(340, 40), 
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
@@ -95,11 +98,10 @@ namespace Comercio.NET.Formularios
             };
             btnSalir.Click += BtnSalir_Click;
 
-            // Label para total de registros - En la segunda fila a la derecha
             lblTotalRegistros = new Label
             {
                 Text = "Total: 0 registros",
-                Location = new Point(300, 50), // CAMBIO: Ajustado para dar más espacio
+                Location = new Point(450, 45),
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 120, 215)
@@ -110,9 +112,8 @@ namespace Comercio.NET.Formularios
             {
                 lblDesde, dtpDesde, lblHasta, dtpHasta,
                 lblCodigo, txtCodigoProducto, lblFactura, txtNumeroFactura,
-                lblUsuario, txtUsuario, btnBuscar, // Buscar en la primera fila
-                btnExportar, btnSalir, // Exportar y Salir en la segunda fila
-                lblTotalRegistros
+                lblUsuario, txtUsuario, // Primera fila
+                lblCajero, txtCajero, btnBuscar, btnExportar, btnSalir, lblTotalRegistros // TODOS en segunda fila
             });
 
             // MEJORADO: DataGridView con mejores estilos
@@ -143,13 +144,11 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(panelFiltros);
         }
 
-        // NUEVO: Event handler para el botón Salir
         private void BtnSalir_Click(object sender, EventArgs e)
         {
             this.Close();
         }
 
-        // NUEVO: Método para configurar estilos del DataGridView
         private void ConfigurarEstilosDataGridView()
         {
             // Estilos de encabezados
@@ -184,7 +183,6 @@ namespace Comercio.NET.Formularios
             await BuscarRegistros();    
         }
 
-        // MODIFICADO: Agregar filtro por usuario
         private async Task BuscarRegistros()
         {
             try
@@ -194,7 +192,7 @@ namespace Comercio.NET.Formularios
                     SELECT 
                         IdAuditoriaProductosEliminados,
                         CodigoProducto AS 'Código',
-                        DescripcionProducto AS 'Descripción del Producto',
+                        DescripcionProducto AS 'Descripción Producto',
                         PrecioUnitario AS 'Precio Unitario',
                         Cantidad AS 'Cant.',
                         TotalEliminado AS 'Total Eliminado',
@@ -204,8 +202,9 @@ namespace Comercio.NET.Formularios
                         MotivoEliminacion AS 'Motivo de Eliminación',
                         CASE WHEN EsCtaCte = 1 THEN 'Sí' ELSE 'No' END AS 'CtaCte',
                         UsuarioEliminacion AS 'Usuario',
-                        NombreEquipo AS 'Equipo',
-                        IPUsuario AS 'IP'
+                        NumeroCajero AS 'Cajero',
+                        NombreEquipo AS 'Equipo'
+                        -- REMOVIDO: IPUsuario AS 'IP' (columna eliminada)
                     FROM AuditoriaProductosEliminados 
                     WHERE FechaEliminacion >= @fechaDesde 
                       AND FechaEliminacion <= @fechaHasta";
@@ -228,11 +227,26 @@ namespace Comercio.NET.Formularios
                     parametros.Add(new SqlParameter("@numeroFactura", txtNumeroFactura.Text.Trim()));
                 }
 
-                // NUEVO: Filtro por usuario
                 if (!string.IsNullOrWhiteSpace(txtUsuario.Text))
                 {
                     query += " AND UsuarioEliminacion LIKE @usuario";
                     parametros.Add(new SqlParameter("@usuario", $"%{txtUsuario.Text.Trim()}%"));
+                }
+
+                // NUEVO: Filtro por número de cajero
+                if (!string.IsNullOrWhiteSpace(txtCajero.Text))
+                {
+                    if (int.TryParse(txtCajero.Text.Trim(), out int numeroCajero))
+                    {
+                        query += " AND NumeroCajero = @numeroCajero";
+                        parametros.Add(new SqlParameter("@numeroCajero", numeroCajero));
+                    }
+                    else
+                    {
+                        MessageBox.Show("El número de cajero debe ser un valor numérico.", "Validación", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
                 }
 
                 query += " ORDER BY FechaEliminacion DESC";
@@ -259,7 +273,6 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // MEJORADO: Formateo con el nuevo orden y anchos de columnas
         private void FormatearDataGridView()
         {
             if (dgvAuditoria.Columns.Count == 0) return;
@@ -268,33 +281,31 @@ namespace Comercio.NET.Formularios
             if (dgvAuditoria.Columns["IdAuditoriaProductosEliminados"] != null)
                 dgvAuditoria.Columns["IdAuditoriaProductosEliminados"].Visible = false;
 
-            // NUEVO: Ocultar columna Precio Unitario
             if (dgvAuditoria.Columns["Precio Unitario"] != null)
                 dgvAuditoria.Columns["Precio Unitario"].Visible = false;
 
-            // Configuración de columnas (sin la línea de Precio Unitario)
+
             ConfigurarColumna("Código", 100, DataGridViewContentAlignment.MiddleCenter);
-            ConfigurarColumna("Descripción del Producto", 160, DataGridViewContentAlignment.MiddleLeft);
-            ConfigurarColumna("Cant.", 45, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Descripción Producto", 180, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("Cant.", 40, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Total Eliminado", 100, DataGridViewContentAlignment.MiddleRight, "C2");
             ConfigurarColumna("Remito", 70, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Fecha Factura", 110, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
             ConfigurarColumna("Fecha Eliminación", 120, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
-            ConfigurarColumna("Motivo de Eliminación", 160, DataGridViewContentAlignment.MiddleLeft);
-            ConfigurarColumna("CtaCte", 50, DataGridViewContentAlignment.MiddleCenter);
-            ConfigurarColumna("Usuario", 75, DataGridViewContentAlignment.MiddleCenter);
-            ConfigurarColumna("Equipo", 75, DataGridViewContentAlignment.MiddleCenter);
-            ConfigurarColumna("IP", 90, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Motivo de Eliminación", 140, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("CtaCte", 60, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Usuario", 70, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Cajero", 50, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Equipo", 80, DataGridViewContentAlignment.MiddleCenter);
 
-            // CAMBIO: Ajustar ancho mínimo de "Motivo de Eliminación" para la expansión automática
+            // Ajustar ancho mínimo de "Motivo de Eliminación" para la expansión automática
             if (dgvAuditoria.Columns["Motivo de Eliminación"] != null)
             {
                 dgvAuditoria.Columns["Motivo de Eliminación"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                dgvAuditoria.Columns["Motivo de Eliminación"].MinimumWidth = 180;
+                dgvAuditoria.Columns["Motivo de Eliminación"].MinimumWidth = 200;
             }
         }
 
-        // MEJORADO: Método unificado para configurar columnas
         private void ConfigurarColumna(string nombreColumna, int ancho, 
             DataGridViewContentAlignment alineacion, string formato = null)
         {
@@ -315,7 +326,7 @@ namespace Comercio.NET.Formularios
                     columna.DefaultCellStyle.Format = formato;
                 }
 
-                // NUEVO: Colores especiales para ciertos tipos de columnas
+                // Colores especiales para ciertos tipos de columnas
                 if (formato == "C2") // Columnas monetarias
                 {
                     columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 100, 0); // Verde oscuro
@@ -330,10 +341,14 @@ namespace Comercio.NET.Formularios
                     columna.DefaultCellStyle.ForeColor = Color.FromArgb(150, 0, 0); // Rojo oscuro
                     columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
                 }
+                else if (nombreColumna == "Cajero") // NUEVO: Estilo especial para columna Cajero
+                {
+                    columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 120, 215); // Azul
+                    columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                }
             }
             catch (Exception)
             {
-                // Si hay error, intentar después de que el control se haya renderizado
                 this.BeginInvoke(new Action(() =>
                 {
                     try
@@ -385,13 +400,11 @@ namespace Comercio.NET.Formularios
             var dt = (DataTable)dgvAuditoria.DataSource;
             var lines = new List<string>();
 
-            // Encabezados (excluyendo la columna Id)
             var encabezados = dt.Columns.Cast<DataColumn>()
                 .Where(col => col.ColumnName != "IdAuditoriaProductosEliminados")
                 .Select(col => col.ColumnName);
             lines.Add(string.Join(",", encabezados));
 
-            // Datos (excluyendo la columna Id)
             foreach (DataRow row in dt.Rows)
             {
                 var valores = row.ItemArray
