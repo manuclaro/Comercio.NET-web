@@ -43,6 +43,22 @@ namespace Comercio.NET
         private decimal importeTotalVenta;
         private Ventas formularioPadre; // AGREGAR ESTA LÍNEA
 
+        // Cache de tokens para evitar duplicados en AFIP
+        private static string _cachedTokenWsfe = null;
+        private static string _cachedSignWsfe = null;
+        private static DateTime _cachedTokenExpiryWsfe = DateTime.MinValue;
+
+        // Propiedades para almacenar datos del CAE - VERIFICAR que sean públicas
+        public string CAENumero { get; private set; } = "";
+        public DateTime? CAEVencimiento { get; private set; } = null;
+        public int NumeroFacturaAfip { get; private set; } = 0;
+
+        public string TokenAfip { get; set; }
+        public string SignAfip { get; set; }
+
+        // NUEVO: Variable para controlar debug
+        private bool debugMode = true; // Cambiar a false para producción
+
         // Modificar el constructor para recibir el importe total
         public SeleccionImpresionForm(decimal importeTotal = 0, Ventas padre = null)
         {
@@ -63,10 +79,6 @@ namespace Comercio.NET
             var btnRemito = new Button { Text = "Remito (Ticket)", Width = 130, Left = 60, Top = 150, Height = 40 };
             var btnFacturaB = new Button { Text = "Factura B", Width = 130, Left = 210, Top = 150, Height = 40 };
             var btnFacturaA = new Button { Text = "Factura A", Width = 130, Left = 360, Top = 150, Height = 40 };
-
-            btnRemito.Click += async (s, e) => await ProcesarRemito();
-            btnFacturaB.Click += async (s, e) => await ProcesarFacturaB();
-            btnFacturaA.Click += async (s, e) => await ProcesarFacturaA();
 
             // Opciones de pago (RadioButtons)
             var lblPago = new Label { Text = "Forma de pago:", Left = 40, Top = 30, Width = 200, Font = new Font("Segoe UI", 12F, FontStyle.Bold) };
@@ -129,6 +141,56 @@ namespace Comercio.NET
 
             // Poner el foco en el botón Remito al abrir el modal
             this.Shown += (s, e) => btnRemito.Focus();
+
+            // CORREGIDO: Event handlers con mejor manejo de errores
+            btnRemito.Click += async (s, e) => 
+            {
+                try
+                {
+                    await ProcesarRemito();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error en Remito: {ex.Message}\n\nStack: {ex.StackTrace}", 
+                        "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            btnFacturaB.Click += async (s, e) => 
+            {
+                try
+                {
+                    await ProcesarFacturaB();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error en Factura B: {ex.Message}\n\nStack: {ex.StackTrace}", 
+                        "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            btnFacturaA.Click += async (s, e) => 
+            {
+                try
+                {
+                    await ProcesarFacturaA();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error en Factura A: {ex.Message}\n\nStack: {ex.StackTrace}", 
+                        "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+        }
+
+        // NUEVO: Método helper para debug condicional
+        private void DebugMessage(string message, string title = "Debug")
+        {
+            if (debugMode)
+            {
+                System.Diagnostics.Debug.WriteLine($"[{title}] {message}");
+                Console.WriteLine($"[{title}] {message}");
+            }
         }
 
         // Modificar SOLO el método ProcesarRemito para no imprimir inmediatamente
@@ -155,266 +217,445 @@ namespace Comercio.NET
             }
         }
 
-        private async Task ProcesarFacturaB()
-        {
-            try
-            {
-                OpcionSeleccionada = OpcionImpresion.FacturaB;
-                
-                string formaPago = OpcionPagoSeleccionada.ToString();
-                bool exito = await CrearFacturaBAsync();
-                
-                if (exito)
-                {
-                    // Formatear el número de factura antes de enviarlo
-                    string numeroFormateado = FormatearNumeroFactura(6, 1, NumeroFacturaAfip); // 6 = Factura B
-                    
-                    if (OnProcesarVenta != null)
-                    {
-                        // CORRECCIÓN: Pasar todos los parámetros incluyendo el número formateado
-                        await OnProcesarVenta("FacturaB", formaPago, "", CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
-                    }
-
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-            } 
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error procesando Factura B: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
+        // NUEVO: Método ProcesarFacturaA (similar a ProcesarFacturaB pero para Factura A)
         private async Task ProcesarFacturaA()
         {
             try
             {
+                // Validar que se haya ingresado CUIT para Factura A
                 string cuit = txtCuit.Text.Trim();
-                if (string.IsNullOrWhiteSpace(cuit) || cuit.Length != 11)
+                if (string.IsNullOrEmpty(cuit) || cuit.Length != 11 || !EsCuitValido(cuit))
                 {
-                    MessageBox.Show("Debe ingresar un CUIT válido de 11 dígitos para la Factura A.", "CUIT Requerido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("❌ Para Factura A debe ingresar un CUIT válido.", 
+                        "CUIT Requerido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     txtCuit.Focus();
                     return;
                 }
 
-                OpcionSeleccionada = OpcionImpresion.FacturaA;
+                DebugMessage("ProcesarFacturaA iniciado correctamente");
                 
+                OpcionSeleccionada = OpcionImpresion.FacturaA;
                 string formaPago = OpcionPagoSeleccionada.ToString();
-                bool exito = await CrearFacturaAAsync(cuit);
+                
+                DebugMessage($"Datos preparados: Opción={OpcionSeleccionada}, Pago={formaPago}, CUIT={cuit}, Importe=${importeTotalVenta}");
+                
+                DebugMessage("Llamando a CrearFacturaAAsync()...");
+                
+                bool exito = await CrearFacturaAAsync();
+                
+                DebugMessage($"CrearFacturaAAsync() terminó. Resultado: {exito}");
                 
                 if (exito)
                 {
+                    DebugMessage("Éxito = true, formateando número...");
+                    
                     // Formatear el número de factura antes de enviarlo
                     string numeroFormateado = FormatearNumeroFactura(1, 1, NumeroFacturaAfip); // 1 = Factura A
                     
+                    DebugMessage($"Número formateado: {numeroFormateado}");
+                    
                     if (OnProcesarVenta != null)
                     {
-                        // CORRECCIÓN: Pasar CUIT como tercer parámetro y número formateado como último
+                        DebugMessage("Llamando callback OnProcesarVenta...");
+                        
+                        // Pasar todos los parámetros incluyendo el CUIT y número formateado
                         await OnProcesarVenta("FacturaA", formaPago, cuit, CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
+                        
+                        DebugMessage("Callback terminado exitosamente");
+                    }
+                    else
+                    {
+                        DebugMessage("ERROR: OnProcesarVenta es NULL");
                     }
 
+                    DebugMessage("Cerrando modal...");
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }
+                else
+                {
+                    MessageBox.Show("❌ Error creando Factura A en AFIP.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            } 
+            catch (Exception ex)
+            {
+                MessageBox.Show($"🚨 Excepción en ProcesarFacturaA:\n{ex.Message}\n\nStack:\n{ex.StackTrace}", 
+                    "Error Detallado", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                throw; // Re-lanzar para que el handler del botón también la capture
+            }
+        }
+
+        // NUEVO: CrearFacturaAAsync (similar a CrearFacturaBAsync pero para Factura A)
+        private async Task<bool> CrearFacturaAAsync()
+        {
+            try
+            {
+                DebugMessage("CrearFacturaAAsync iniciado");
+                
+                var resultado = await CrearFacturaAfipAsync(
+                    cbteTipo: 1,  // 1 = Factura A
+                    condicionIVAReceptor: 1, // 1 = IVA Responsable Inscripto (típico para Factura A)
+                    docTipo: 80, // 80 = CUIT
+                    docNro: long.Parse(txtCuit.Text.Trim()),
+                    alicuotaIVA: 21m
+                );
+                
+                DebugMessage($"CrearFacturaAfipAsync terminó: {resultado}");
+                
+                return resultado;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error procesando Factura A: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                DebugMessage($"Error en CrearFacturaAAsync: {ex.Message}");
+                MessageBox.Show($"🚨 Error en CrearFacturaAAsync:\n{ex.Message}", 
+                    "Error CrearFacturaAAsync", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
         }
 
-        // Propiedades para almacenar datos del CAE - VERIFICAR que sean públicas
-        public string CAENumero { get; private set; } = "";
-        public DateTime? CAEVencimiento { get; private set; } = null;
-        public int NumeroFacturaAfip { get; private set; } = 0;
+        // CORREGIDO: ProcesarFacturaB con debug detallado
+        private async Task ProcesarFacturaB()
+        {
+            try
+            {
+                DebugMessage("ProcesarFacturaB iniciado correctamente");
+                
+                OpcionSeleccionada = OpcionImpresion.FacturaB;
+                string formaPago = OpcionPagoSeleccionada.ToString();
+                
+                DebugMessage($"Datos preparados: Opción={OpcionSeleccionada}, Pago={formaPago}, Importe=${importeTotalVenta}");
+                
+                DebugMessage("Llamando a CrearFacturaBAsync()...");
+                
+                bool exito = await CrearFacturaBAsync();
+                
+                DebugMessage($"CrearFacturaBAsync() terminó. Resultado: {exito}");
+                
+                if (exito)
+                {
+                    DebugMessage("Éxito = true, formateando número...");
+                    
+                    // Formatear el número de factura antes de enviarlo
+                    string numeroFormateado = FormatearNumeroFactura(6, 1, NumeroFacturaAfip); // 6 = Factura B
+                    
+                    DebugMessage($"Número formateado: {numeroFormateado}");
+                    
+                    if (OnProcesarVenta != null)
+                    {
+                        DebugMessage("Llamando callback OnProcesarVenta...");
+                        
+                        // CORRECCIÓN: Pasar todos los parámetros incluyendo el número formateado
+                        await OnProcesarVenta("FacturaB", formaPago, "", CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
+                        
+                        DebugMessage("Callback terminado exitosamente");
+                    }
+                    else
+                    {
+                        DebugMessage("ERROR: OnProcesarVenta es NULL");
+                    }
 
-        // Métodos para crear facturas (movidos desde Ventas.cs)
+                    DebugMessage("Cerrando modal...");
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("❌ Error creando Factura B en AFIP. Verifique su conexión y certificados.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            } 
+            catch (Exception ex)
+            {
+                MessageBox.Show($"🚨 Excepción en ProcesarFacturaB:\n{ex.Message}\n\nStack:\n{ex.StackTrace}", 
+                    "Error Detallado", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                throw; // Re-lanzar para que el handler del botón también la capture
+            }
+        }
+
+        // CORREGIDO: CrearFacturaBAsync con debug detallado
         private async Task<bool> CrearFacturaBAsync()
         {
-            return await CrearFacturaAfipAsync(
-                cbteTipo: 6,
-                condicionIVAReceptor: 5,
-                docTipo: 99,
-                docNro: 0,
-                alicuotaIVA: 21m
-            );
-        }
-
-        private async Task<bool> CrearFacturaAAsync(string cuitReceptor)
-        {
-            if (!long.TryParse(cuitReceptor, out long cuitValido) || cuitReceptor.Length != 11)
+            try
             {
-                MessageBox.Show("Debe ingresar un CUIT válido de 11 dígitos para la Factura A.");
+                DebugMessage("CrearFacturaBAsync iniciado");
+                
+                var resultado = await CrearFacturaAfipAsync(
+                    cbteTipo: 6,
+                    condicionIVAReceptor: 5,
+                    docTipo: 99,
+                    docNro: 0,
+                    alicuotaIVA: 21m
+                );
+                
+                DebugMessage($"CrearFacturaAfipAsync terminó: {resultado}");
+                
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                DebugMessage($"Error en CrearFacturaBAsync: {ex.Message}");
+                MessageBox.Show($"🚨 Error en CrearFacturaBAsync:\n{ex.Message}", 
+                    "Error CrearFacturaBAsync", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
-            if (!EsCuitValido(cuitReceptor))
-            {
-                MessageBox.Show("Debe ingresar un CUIT válido para la Factura A.");
-                return false;
-            }
-            return await CrearFacturaAfipAsync(
-                cbteTipo: 1,
-                condicionIVAReceptor: 1,
-                docTipo: 80,
-                docNro: cuitValido,
-                alicuotaIVA: 21
-            );
         }
 
+        // CORREGIDO: CrearFacturaAfipAsync con manejo de errores específicos mejorado
         private async Task<bool> CrearFacturaAfipAsync(int cbteTipo, int condicionIVAReceptor, int docTipo, long docNro, decimal alicuotaIVA)
         {
-            const int maxReintentos = 3;
-            const int tiempoEsperaMs = 2000;
-
-            for (int intento = 1; intento <= maxReintentos; intento++)
+            try
             {
-                try
+                DebugMessage("=== INICIO CrearFacturaAfipAsync ===");
+                
+                string cuit = "20280694739";
+                string pfxPath = @"C:\Certificados\certificado.pfx";
+                string pfxPassword = "Micertificado";
+                string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+
+                DebugMessage("Configuración cargada - Verificando certificado...");
+
+                // NUEVO: Verificar certificado antes de usarlo
+                var (valido, mensaje, vence) = AfipAuthenticator.VerificarCertificado(pfxPath, pfxPassword);
+                
+                if (!valido)
                 {
-                    string cuit = "20280694739";
-                    string service = "wsfe";
-                    string pfxPath = @"C:\Certificados\certificado.pfx";
-                    string pfxPassword = "Micertificado";
-                    string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-
-                    // CAMBIO: Usar el servicio AfipAuthenticator en lugar de Ventas.AfipAuthenticator
-                    (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
-
-                    TokenAfip = token;
-                    SignAfip = sign;
-
-                    var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
-
-                    var auth = new ArcaWS.FEAuthRequest
-                    {
-                        Token = token,
-                        Sign = sign,
-                        Cuit = Convert.ToInt64(cuit)
-                    };
-
-                    int ptoVta = 1;
-                    var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
-                    int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
-                    int nuevoNroComprobante = ultimoNroAfip + 1;
-
-                    decimal impTotal = ObtenerImporteTotalVenta();
-                    decimal impIVA = Math.Round(impTotal - (impTotal / (1 + (alicuotaIVA / 100m))), 2);
-                    decimal impNeto = Math.Round(impTotal - impIVA, 2);
-
-                    var iva = new ArcaWS.AlicIva
-                    {
-                        Id = (alicuotaIVA == 21m) ? 5 : 4,
-                        BaseImp = (double)impNeto,
-                        Importe = (double)impIVA
-                    };
-
-                    var feCabReq = new ArcaWS.FECAECabRequest
-                    {
-                        CantReg = 1,
-                        PtoVta = ptoVta,
-                        CbteTipo = cbteTipo
-                    };
-
-                    var feDetReq = new ArcaWS.FECAEDetRequest
-                    {
-                        Concepto = 1,
-                        DocTipo = docTipo,
-                        DocNro = docNro,
-                        CbteDesde = nuevoNroComprobante,
-                        CbteHasta = nuevoNroComprobante,
-                        CbteFch = DateTime.Now.ToString("yyyyMMdd"),
-                        ImpTotal = (double)impTotal,
-                        ImpNeto = (double)impNeto,
-                        ImpIVA = (double)impIVA,
-                        MonId = "PES",
-                        MonCotiz = 1,
-                        CondicionIVAReceptorId = condicionIVAReceptor,
-                        ImpTrib = 0,
-                        ImpOpEx = 0,
-                        Iva = new ArcaWS.AlicIva[] { iva }
-                    };
-
-                    var feCAEReq = new ArcaWS.FECAERequest
-                    {
-                        FeCabReq = feCabReq,
-                        FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
-                    };
-
-                    var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
-                    var resultado = respuesta?.Body?.FECAESolicitarResult;
-
-                    if (resultado != null && resultado.FeDetResp != null && resultado.FeDetResp.Length > 0)
-                    {
-                        var detalle = resultado.FeDetResp[0];
-                        if (detalle.Resultado == "A")
-                        {
-                            CAENumero = detalle.CAE;
-                            NumeroFacturaAfip = (int)detalle.CbteDesde;
-                            
-                            // NUEVO: Formatear el número de factura según estándar AFIP
-                            string numeroFacturaFormateado = FormatearNumeroFactura(cbteTipo, ptoVta, NumeroFacturaAfip);
-                            
-                            if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd", null, DateTimeStyles.None, out DateTime fechaVto))
-                            {
-                                CAEVencimiento = fechaVto;
-                            }
-
-                            MessageBox.Show($"Factura Aprobada.\nCAE: {CAENumero}\nComprobante: {numeroFacturaFormateado}");
-                            return true;
-                        }
-                        else if (detalle.Resultado == "R")
-                        {
-                            string mensaje = "La factura fue RECHAZADA.\n";
-                            if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
-                            {
-                                foreach (var obs in detalle.Observaciones)
-                                {
-                                    mensaje += $"Código: {obs.Code} - {obs.Msg}\n";
-                                }
-                            }
-                            mensaje += "\nVerifique los datos ingresados o intente nuevamente.";
-                            MessageBox.Show(mensaje, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            return false;
-                        }
-                    }
-
-                    MessageBox.Show("No se obtuvo respuesta válida de AFIP.");
+                    MessageBox.Show($"❌ Problema con el certificado AFIP:\n\n{mensaje}", "Error Certificado", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
-                catch (Exception ex) when (ex.Message.Contains("no está disponible") || 
-                                       ex.Message.Contains("not available") || 
-                                       ex.Message.Contains("timeout") ||
-                                       ex.Message.Contains("endpoint"))
+                
+                if (mensaje.Contains("⚠️"))
                 {
-                    if (intento == maxReintentos)
-                    {
-                        MessageBox.Show($"El servicio AFIP no está disponible después de {maxReintentos} intentos.\n" +
-                                      "Esto puede deberse a:\n" +
-                                      "• Mantenimiento del servicio AFIP\n" +
-                                      "• Problemas de conectividad\n" +
-                                      "• Sobrecarga del servidor\n\n" +
-                                      "Intente nuevamente en unos minutos o considere emitir un remito temporalmente.\n\n" +
-                                      $"Error técnico: {ex.Message}",
-                                      "Servicio AFIP No Disponible", 
-                                      MessageBoxButtons.OK, 
-                                      MessageBoxIcon.Warning);
-                        return false;
-                    }
-                    
-                    MessageBox.Show($"Intento {intento} falló. Reintentando en {tiempoEsperaMs / 1000} segundos...", 
-                                   "Reintentando Conexión", 
-                                   MessageBoxButtons.OK, 
-                                   MessageBoxIcon.Information);
-                    
-                    await Task.Delay(tiempoEsperaMs);
+                    // Mostrar advertencia pero continuar
+                    DebugMessage($"ADVERTENCIA: {mensaje}");
                 }
-                catch (Exception ex)
+
+                DebugMessage("Certificado verificado, obteniendo credenciales AFIP...");
+
+                // CORREGIDO: Usar AfipAuthenticator.GetTAAsync con mejor manejo de errores
+                (string token, string sign) = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
+
+                if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(sign))
                 {
-                    MessageBox.Show($"Error inesperado: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("❌ Error obteniendo credenciales AFIP. Verifique su certificado y conexión.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                // NUEVO: Detectar tokens placeholder
+                if (token == "PLACEHOLDER_TOKEN")
+                {
+                    MessageBox.Show(
+                        "⏳ AFIP indica que ya existe un token válido activo.\n\n" +
+                        "💡 Esto es normal y significa que:\n" +
+                        "• Ya se obtuvo un token anteriormente\n" +
+                        "• El token anterior aún no ha expirado\n" +
+                        "• AFIP no permite tokens duplicados\n\n" +
+                        "🔄 El sistema reintentará automáticamente en unos minutos.\n" +
+                        "Mientras tanto, puede intentar cerrar y reabrir la aplicación.", 
+                        "Token AFIP Activo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return false;
+                }
+
+                DebugMessage($"Token obtenido exitosamente. Length: {token.Length}");
+
+                TokenAfip = token;
+                SignAfip = sign;
+
+                DebugMessage("Creando cliente WSFE...");
+
+                // Continuar con WSFE
+                var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
+
+                var auth = new ArcaWS.FEAuthRequest
+                {
+                    Token = token,
+                    Sign = sign,
+                    Cuit = Convert.ToInt64(cuit)
+                };
+
+                DebugMessage("Probando conexión con FEDummy...");
+
+                // Probar FEDummy primero
+                var dummyResp = await client.FEDummyAsync();
+                
+                if (dummyResp?.Body?.FEDummyResult == null)
+                {
+                    MessageBox.Show("❌ Error de conectividad con WSFE de AFIP", "Error WSFE", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                DebugMessage($"WSFE operativo - AppServer: {dummyResp.Body.FEDummyResult.AppServer}");
+
+                DebugMessage("Obteniendo último número autorizado...");
+
+                // Si llegamos aquí, todo funciona - continuar con facturación real
+                int ptoVta = 1;
+                
+                var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
+                
+                if (ultimoResp?.Body?.FECompUltimoAutorizadoResult == null)
+                {
+                    MessageBox.Show("❌ Error obteniendo último número de comprobante de AFIP", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
+                int nuevoNroComprobante = ultimoNroAfip + 1;
+
+                DebugMessage($"Último número AFIP: {ultimoNroAfip}, Nuevo: {nuevoNroComprobante}");
+
+                decimal impTotal = ObtenerImporteTotalVenta();
+                
+                if (impTotal <= 0)
+                {
+                    MessageBox.Show("❌ El importe total debe ser mayor a cero", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                decimal impIVA = Math.Round(impTotal - (impTotal / (1 + (alicuotaIVA / 100m))), 2);
+                decimal impNeto = Math.Round(impTotal - impIVA, 2);
+
+                DebugMessage($"Cálculos - Total: {impTotal:C}, Neto: {impNeto:C}, IVA: {impIVA:C}");
+
+                var iva = new ArcaWS.AlicIva
+                {
+                    Id = (alicuotaIVA == 21m) ? 5 : 4,
+                    BaseImp = (double)impNeto,
+                    Importe = (double)impIVA
+                };
+
+                var feCabReq = new ArcaWS.FECAECabRequest
+                {
+                    CantReg = 1,
+                    PtoVta = ptoVta,
+                    CbteTipo = cbteTipo
+                };
+
+                var feDetReq = new ArcaWS.FECAEDetRequest
+                {
+                    Concepto = 1,
+                    DocTipo = docTipo,
+                    DocNro = docNro,
+                    CbteDesde = nuevoNroComprobante,
+                    CbteHasta = nuevoNroComprobante,
+                    CbteFch = DateTime.Now.ToString("yyyyMMdd"),
+                    ImpTotal = (double)impTotal,
+                    ImpNeto = (double)impNeto,
+                    ImpIVA = (double)impIVA,
+                    MonId = "PES",
+                    MonCotiz = 1,
+                    CondicionIVAReceptorId = condicionIVAReceptor,
+                    ImpTrib = 0,
+                    ImpOpEx = 0,
+                    Iva = new ArcaWS.AlicIva[] { iva }
+                };
+
+                var feCAEReq = new ArcaWS.FECAERequest
+                {
+                    FeCabReq = feCabReq,
+                    FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
+                };
+
+                DebugMessage("Enviando solicitud CAE a AFIP...");
+
+                var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
+                var resultado = respuesta?.Body?.FECAESolicitarResult;
+
+                DebugMessage("Respuesta recibida, procesando...");
+
+                if (resultado == null)
+                {
+                    MessageBox.Show("❌ Respuesta nula de AFIP. Intente nuevamente.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                // Verificar errores generales
+                if (resultado.Errors != null && resultado.Errors.Length > 0)
+                {
+                    string errores = "❌ ERRORES GENERALES AFIP:\n\n";
+                    foreach (var error in resultado.Errors)
+                    {
+                        errores += $"• Código {error.Code}: {error.Msg}\n";
+                    }
+                    MessageBox.Show(errores, "Error AFIP", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (resultado.FeDetResp == null || resultado.FeDetResp.Length == 0)
+                {
+                    MessageBox.Show("❌ Sin respuesta de detalle de AFIP", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                var detalle = resultado.FeDetResp[0];
+                DebugMessage($"Resultado AFIP: {detalle.Resultado}");
+                
+                if (detalle.Resultado == "A") // Aprobada
+                {
+                    CAENumero = detalle.CAE;
+                    NumeroFacturaAfip = (int)detalle.CbteDesde;
+                    
+                    string numeroFacturaFormateado = FormatearNumeroFactura(cbteTipo, ptoVta, NumeroFacturaAfip);
+                    
+                    if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd", null, DateTimeStyles.None, out DateTime fechaVto))
+                    {
+                        CAEVencimiento = fechaVto;
+                    }
+
+                    DebugMessage($"FACTURA EXITOSA! CAE: {CAENumero}, Número: {numeroFacturaFormateado}");
+                    MessageBox.Show($"🎉 Factura autorizada por AFIP\n\nCAE: {CAENumero}\nNúmero: {numeroFacturaFormateado}", 
+                        "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return true;
+                }
+                else if (detalle.Resultado == "R") // Rechazada
+                {
+                    string mensajeRechazo = "❌ FACTURA RECHAZADA POR AFIP\n\n";
+                    if (detalle.Observaciones != null && detalle.Observaciones.Length > 0)
+                    {
+                        foreach (var obs in detalle.Observaciones)
+                        {
+                            mensajeRechazo += $"• Código {obs.Code}: {obs.Msg}\n";
+                        }
+                    }
+                    mensajeRechazo += "\n💡 Verifique los datos e intente nuevamente.";
+                    MessageBox.Show(mensajeRechazo, "Rechazo AFIP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+                else
+                {
+                    MessageBox.Show($"❌ Estado desconocido de AFIP: {detalle.Resultado}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
             }
-            
-            return false;
+            // CORREGIDO: Manejo de excepciones compatible con .NET 8
+            catch (System.ServiceModel.CommunicationException ex)
+            {
+                DebugMessage($"Error de comunicación WCF: {ex.Message}");
+                MessageBox.Show($"❌ Error de comunicación con AFIP:\n{ex.Message}\n\n💡 Verifique su conexión a internet.", "Error Comunicación", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                DebugMessage($"Timeout en operación AFIP: {ex.Message}");
+                MessageBox.Show($"❌ Tiempo de espera agotado con AFIP:\n{ex.Message}\n\n💡 Intente nuevamente.", "Timeout", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+            catch (TimeoutException ex)
+            {
+                DebugMessage($"Timeout directo: {ex.Message}");
+                MessageBox.Show($"❌ Tiempo de espera agotado:\n{ex.Message}\n\n💡 Intente nuevamente.", "Timeout", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                DebugMessage($"Error HTTP: {ex.Message}");
+                MessageBox.Show($"❌ Error de conectividad HTTP:\n{ex.Message}\n\n💡 Verifique su conexión a internet.", "Error HTTP", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                DebugMessage($"ERROR GENERAL: {ex.GetType().Name} - {ex.Message}");
+                MessageBox.Show($"❌ Error inesperado: {ex.GetType().Name}\n{ex.Message}", "Error General", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
         }
 
         // NUEVO: Método para formatear número de factura según estándar AFIP
@@ -438,7 +679,7 @@ namespace Comercio.NET
                 6 => "B",     // Factura B
                 11 => "C",    // Factura C
                 51 => "M",    // Factura M
-                // Agregar más tipos según necesites
+                // Agregar más tipos según necesite
                 _ => "X"      // Tipo desconocido
             };
         }
@@ -463,9 +704,6 @@ namespace Comercio.NET
 
             return digitoVerificador == int.Parse(cuit[10].ToString());
         }
-
-        public string TokenAfip { get; set; }
-        public string SignAfip { get; set; }
 
         private async Task ConsultarCuitAsync()
         {
@@ -530,7 +768,8 @@ namespace Comercio.NET
 
         private async Task<bool> EnsureTokenAndSignAsync()
         {
-            var (tokenPadron, signPadron) = await GetTokenAndSignAsync("ws_sr_padron_a5");
+            // CORREGIDO: Declarar tipos explícitamente
+            (string tokenPadron, string signPadron) = await GetTokenAndSignAsync("ws_sr_padron_a5");
 
             if (!string.IsNullOrEmpty(tokenPadron) && !string.IsNullOrEmpty(signPadron))
             {
@@ -562,6 +801,7 @@ namespace Comercio.NET
                 string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
 
                 // CAMBIO: Usar el servicio AfipAuthenticator en lugar de Ventas.AfipAuthenticator
+                // CORREGIDO: Declarar tipos explícitamente
                 (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
 
                 var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
@@ -621,9 +861,7 @@ namespace Comercio.NET
                     NombreComercio = formularioPadre?.GetNombreComercio() ?? "Tu Comercio",
                     DomicilioComercio = formularioPadre?.GetDomicilioComercio() ?? "Tu Domicilio",
                     TipoComprobante = tipoComprobante,
-                    NumeroComprobante = numeroParaTicket, // Usar el número correcto
-                    FormaPago = OpcionPagoSeleccionada.ToString(),
-                    MensajePie = "Gracias por su compra!"
+                    NumeroComprobante = numeroParaTicket
                 };
 
                 if (tipoComprobante.Contains("FACTURA"))

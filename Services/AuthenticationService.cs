@@ -1,4 +1,4 @@
-using System;
+Ôªøusing System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -46,7 +46,7 @@ namespace Comercio.NET.Services
                     
                     if (_loginConfig != null)
                     {
-                        return; // ConfiguraciÛn cargada exitosamente
+                        return; // Configuraci√≥n cargada exitosamente
                     }
                 }
 
@@ -68,18 +68,18 @@ namespace Comercio.NET.Services
                     RecordarUltimoUsuario = false
                 };
 
-                // Guardar la configuraciÛn inicial en loginconfig.json
+                // Guardar la configuraci√≥n inicial en loginconfig.json
                 GuardarConfiguracionLogin();
             }
             catch (Exception ex)
             {
-                // Si hay error, usar configuraciÛn por defecto
+                // Si hay error, usar configuraci√≥n por defecto
                 _loginConfig = new LoginConfig();
                 GuardarConfiguracionLogin();
             }
         }
 
-        // AGREGADO: MÈtodo p˙blico est·tico para guardar configuraciÛn
+        // AGREGADO: M√©todo p√∫blico est√°tico para guardar configuraci√≥n
         public static void GuardarConfiguracionLogin()
         {
             try
@@ -96,7 +96,7 @@ namespace Comercio.NET.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error al guardar configuraciÛn: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error al guardar configuraci√≥n: {ex.Message}");
             }
         }
 
@@ -109,7 +109,7 @@ namespace Comercio.NET.Services
             {
                 // Log inicial
                 await File.AppendAllTextAsync(logFile, $"\n=== {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===\n");
-                await File.AppendAllTextAsync(logFile, $"INICIO AUTENTICACI”N\n");
+                await File.AppendAllTextAsync(logFile, $"INICIO AUTENTICACI√ìN\n");
                 await File.AppendAllTextAsync(logFile, $"Usuario: {nombreUsuario}\n");
                 await File.AppendAllTextAsync(logFile, $"Password: {password}\n");
                 await File.AppendAllTextAsync(logFile, $"Config debug: {_loginConfig?.MostrarDebugAutenticacion}\n");
@@ -132,12 +132,12 @@ namespace Comercio.NET.Services
                 
                 if (cantidadUsuarios == 0)
                 {
-                    await File.AppendAllTextAsync(logFile, "Usando usuarios por defecto - tabla vacÌa\n");
+                    await File.AppendAllTextAsync(logFile, "Usando usuarios por defecto - tabla vac√≠a\n");
                     return AutenticarUsuarioDefecto(nombreUsuario, password);
                 }
 
-                // PASO 3: Intentar autenticaciÛn con base de datos
-                await File.AppendAllTextAsync(logFile, "Intentando autenticaciÛn con BD\n");
+                // PASO 3: Intentar autenticaci√≥n con base de datos
+                await File.AppendAllTextAsync(logFile, "Intentando autenticaci√≥n con BD\n");
                 var (exitoBD, mensajeBD, usuarioBD) = await AutenticarConBaseDatosAsync(nombreUsuario, password, logFile);
                 
                 if (exitoBD)
@@ -146,14 +146,14 @@ namespace Comercio.NET.Services
                     return (exitoBD, mensajeBD, usuarioBD);
                 }
 
-                // PASO 4: Si fallÛ la BD, intentar con usuarios por defecto como backup
-                await File.AppendAllTextAsync(logFile, "BD fallÛ, usando usuarios por defecto como backup\n");
+                // PASO 4: Si fall√≥ la BD, intentar con usuarios por defecto como backup
+                await File.AppendAllTextAsync(logFile, "BD fall√≥, usando usuarios por defecto como backup\n");
                 return AutenticarUsuarioDefecto(nombreUsuario, password);
             }
             catch (Exception ex)
             {
                 // En caso de error, intentar usuarios por defecto
-                await File.AppendAllTextAsync(logFile, $"Error en autenticaciÛn: {ex.Message}\n");
+                await File.AppendAllTextAsync(logFile, $"Error en autenticaci√≥n: {ex.Message}\n");
                 return AutenticarUsuarioDefecto(nombreUsuario, password);
             }
         }
@@ -231,7 +231,7 @@ namespace Comercio.NET.Services
                     PuedeAnularFacturas = datosUsuario.nivel == NivelUsuario.Administrador || datosUsuario.nivel == NivelUsuario.Supervisor
                 };
 
-                // Crear sesiÛn
+                // Crear sesi√≥n
                 _sesionActual = new SesionUsuario
                 {
                     Usuario = usuario,
@@ -240,15 +240,15 @@ namespace Comercio.NET.Services
                     SesionActiva = true
                 };
 
-                return (true, "AutenticaciÛn exitosa (usuario de prueba)", usuario);
+                return (true, "Autenticaci√≥n exitosa (usuario de prueba)", usuario);
             }
 
-            return (false, "Usuario o contraseÒa incorrectos", null);
+            return (false, "Usuario o contrase√±a incorrectos", null);
         }
 
         private async Task<(bool exito, string mensaje, Usuario usuario)> AutenticarConBaseDatosAsync(string nombreUsuario, string password, string logFile)
         {
-            await File.AppendAllTextAsync(logFile, "=== AUTENTICACI”N CON BASE DE DATOS ===\n");
+            await File.AppendAllTextAsync(logFile, "=== AUTENTICACI√ìN CON BASE DE DATOS ===\n");
             
             string passwordHash = ComputeHash(password);
             
@@ -256,7 +256,7 @@ namespace Comercio.NET.Services
             
             using var connection = new SqlConnection(_connectionString);
             
-            // Consulta de debugging para ver quÈ hay en la base de datos
+            // Consulta de debugging para ver qu√© hay en la base de datos
             var debugQuery = @"
                 SELECT NombreUsuario, PasswordHash, Activo 
                 FROM Usuarios 
@@ -267,7 +267,7 @@ namespace Comercio.NET.Services
 
             connection.Open();
             
-            // DEBUGGING: Ver quÈ usuario existe en la BD
+            // DEBUGGING: Ver qu√© usuario existe en la BD
             using var debugReader = await debugCmd.ExecuteReaderAsync();
             if (debugReader.Read())
             {
@@ -290,7 +290,7 @@ namespace Comercio.NET.Services
             }
             debugReader.Close();
 
-            // Consulta original para autenticaciÛn
+            // Consulta original para autenticaci√≥n
             var query = @"
                 SELECT IdUsuarios, NombreUsuario, Nombre, Apellido, Email, PasswordHash, 
                        Nivel, NumeroCajero, Activo, FechaCreacion, UltimoAcceso,
@@ -307,7 +307,7 @@ namespace Comercio.NET.Services
 
             if (reader.Read())
             {
-                await File.AppendAllTextAsync(logFile, "AutenticaciÛn BD EXITOSA\n");
+                await File.AppendAllTextAsync(logFile, "Autenticaci√≥n BD EXITOSA\n");
                 
                 var usuario = new Usuario
                 {
@@ -329,11 +329,11 @@ namespace Comercio.NET.Services
                     PuedeAnularFacturas = reader.GetBoolean("PuedeAnularFacturas")
                 };
 
-                // Actualizar ˙ltimo acceso
+                // Actualizar √∫ltimo acceso
                 reader.Close();
                 await ActualizarUltimoAccesoAsync(usuario.IdUsuarios);
 
-                // Crear sesiÛn
+                // Crear sesi√≥n
                 _sesionActual = new SesionUsuario
                 {
                     Usuario = usuario,
@@ -342,12 +342,12 @@ namespace Comercio.NET.Services
                     SesionActiva = true
                 };
 
-                return (true, "AutenticaciÛn exitosa (base de datos)", usuario);
+                return (true, "Autenticaci√≥n exitosa (base de datos)", usuario);
             }
             else
             {
-                await File.AppendAllTextAsync(logFile, "AutenticaciÛn BD FALL”\n");
-                return (false, "Usuario o contraseÒa incorrectos (BD)", null);
+                await File.AppendAllTextAsync(logFile, "Autenticaci√≥n BD FALL√ì\n");
+                return (false, "Usuario o contrase√±a incorrectos (BD)", null);
             }
         }
 
@@ -441,7 +441,7 @@ namespace Comercio.NET.Services
             }
             catch
             {
-                // Log error pero no fallar la autenticaciÛn
+                // Log error pero no fallar la autenticaci√≥n
             }
         }
 
@@ -536,6 +536,37 @@ namespace Comercio.NET.Services
             catch
             {
                 // Si hay error al crear la tabla, continuar con usuarios por defecto
+            }
+        }
+
+        // Agregar este m√©todo a tu servicio de AFIP para diagn√≥stico
+        public async Task<bool> VerificarEstadoServicioAfipAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(30);
+                
+                // URL del servicio WSAA de homologaci√≥n
+                string urlHomologacion = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl";
+                
+                var response = await client.GetAsync(urlHomologacion);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine("‚úÖ Servicio AFIP disponible");
+                    return true;
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"‚ùå Error AFIP: {response.StatusCode}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"‚ùå Error conectividad AFIP: {ex.Message}");
+                return false;
             }
         }
     }
