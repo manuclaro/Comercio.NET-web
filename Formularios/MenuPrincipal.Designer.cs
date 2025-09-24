@@ -1,5 +1,4 @@
-﻿
-namespace Comercio.NET
+﻿namespace Comercio.NET
 {
     partial class MenuPrincipal
     {
@@ -78,6 +77,8 @@ namespace Comercio.NET
             statusStrip = new StatusStrip();
             toolStripStatusLabel = new ToolStripStatusLabel();
             toolTip = new ToolTip(components);
+            configuracionSistemaToolStripMenuItem = new ToolStripMenuItem();
+            toolStripConfiguracion = new ToolStripButton();
             menuStrip.SuspendLayout();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
@@ -185,7 +186,7 @@ namespace Comercio.NET
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, configuracionSistemaToolStripMenuItem });
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";
@@ -335,7 +336,7 @@ namespace Comercio.NET
             // 
             // toolStrip
             // 
-            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripButton2, toolStripSeparator7, toolStripGestionUsuarios });
+            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripButton2, toolStripSeparator7, toolStripGestionUsuarios, toolStripSeparator8, toolStripConfiguracion });
             toolStrip.Location = new Point(0, 24);
             toolStrip.Name = "toolStrip";
             toolStrip.Size = new Size(1054, 25);
@@ -412,6 +413,16 @@ namespace Comercio.NET
             toolStripGestionUsuarios.Size = new Size(23, 22);
             toolStripGestionUsuarios.Text = "Gestión de Usuarios";
             toolStripGestionUsuarios.Click += toolStripGestionUsuarios_Click;
+            // 
+            // toolStripConfiguracion
+            // 
+            toolStripConfiguracion.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
+            toolStripConfiguracion.Image = null; // Se configurará en tiempo de ejecución
+            toolStripConfiguracion.ImageTransparentColor = Color.Magenta;
+            toolStripConfiguracion.Name = "toolStripConfiguracion";
+            toolStripConfiguracion.Size = new Size(90, 22);
+            toolStripConfiguracion.Text = "Configuración";
+            toolStripConfiguracion.Click += new System.EventHandler(this.toolStripConfiguracion_Click);
             // 
             // statusStrip
             // 
@@ -505,14 +516,331 @@ namespace Comercio.NET
         private ToolStripButton toolStripButton1;
         private ToolStripSeparator toolStripSeparator6;
         private ToolStripButton toolStripButton2;
-        
-        // NUEVOS CONTROLES AGREGADOS
-        private ToolStripSeparator toolStripSeparator9;
-        private ToolStripMenuItem gestionUsuariosToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator7;
         private ToolStripButton toolStripGestionUsuarios;
+        private ToolStripMenuItem configuracionSistemaToolStripMenuItem;
+        private ToolStripButton toolStripConfiguracion;
+        private ToolStripSeparator toolStripSeparator9;
+        private ToolStripMenuItem gestionUsuariosToolStripMenuItem;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

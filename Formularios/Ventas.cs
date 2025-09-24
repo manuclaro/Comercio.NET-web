@@ -48,6 +48,8 @@ namespace Comercio.NET
         private int cantidadPersonalizada = 1;
         private CheckBox chkCantidad;
 
+        private bool validarStockHabilitado = true; // Variable de instancia para almacenar la configuración
+
         public Ventas()
         {
             InitializeComponent();
@@ -56,6 +58,19 @@ namespace Comercio.NET
             CargarConfiguracion();
             ConfigurarCheckboxCantidad();
             ConfigurarAtajosTeclado();
+
+            // DEBUG: Verificar estado de autenticación al abrir Ventas
+            System.Diagnostics.Debug.WriteLine($"=== DEBUG VENTAS CONSTRUCTOR ===");
+            System.Diagnostics.Debug.WriteLine($"Login habilitado: {AuthenticationService.ConfiguracionLogin?.LoginHabilitado}");
+            System.Diagnostics.Debug.WriteLine($"Sesión activa: {AuthenticationService.SesionActual != null}");
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                var usuario = AuthenticationService.SesionActual.Usuario;
+                System.Diagnostics.Debug.WriteLine($"Usuario logueado: {usuario.NombreUsuario}");
+                System.Diagnostics.Debug.WriteLine($"Puede eliminar: {usuario.PuedeEliminarProductos}");
+                System.Diagnostics.Debug.WriteLine($"Nivel: {usuario.Nivel}");
+            }
+            System.Diagnostics.Debug.WriteLine($"================================");
 
             // Agregar evento de redimensionamiento
             this.Resize += Ventas_Resize;
@@ -158,8 +173,17 @@ namespace Comercio.NET
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json")
                 .Build();
+            
             nombreComercio = config["Comercio:Nombre"] ?? "Comercio";
             domicilioComercio = config["Comercio:Domicilio"] ?? "domicilio";
+            
+            // NUEVO: Cargar configuración de validación de stock
+            validarStockHabilitado = config.GetValue<bool>("Validaciones:ValidarStockDisponible", true);
+            
+            // DEBUG: Mostrar configuración cargada
+            System.Diagnostics.Debug.WriteLine($"=== CONFIGURACIÓN STOCK ===");
+            System.Diagnostics.Debug.WriteLine($"Validar stock habilitado: {validarStockHabilitado}");
+            System.Diagnostics.Debug.WriteLine($"===========================");
         }
 
         private void ConfigurarCheckboxCantidad()
@@ -381,8 +405,9 @@ namespace Comercio.NET
             DataRow producto = null;
             using (var connection = new SqlConnection(connectionString))
             {
-                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular 
-                      FROM Productos WHERE codigo = @codigo";
+                // MODIFICADO: Incluir el campo cantidad (stock) en la consulta
+                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, cantidad 
+                              FROM Productos WHERE codigo = @codigo";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
@@ -428,6 +453,29 @@ namespace Comercio.NET
                         }
                     }
                     producto = dt.Rows[0];
+                }
+            }
+
+            // MODIFICADO: Verificación de stock basada en configuración
+            int stockDisponible = Convert.ToInt32(producto["cantidad"]);
+            if (validarStockHabilitado && stockDisponible < cantidadPersonalizada)
+            {
+                // CAMBIADO: Mostrar advertencia pero permitir continuar
+                var resultado = MessageBox.Show(
+                    $"⚠️ ADVERTENCIA: Stock insuficiente\n\n" +
+                    $"Producto: {producto["descripcion"]}\n" +
+                    $"Stock disponible: {stockDisponible}\n" +
+                    $"Cantidad solicitada: {cantidadPersonalizada}\n\n" +
+                    "¿Desea continuar de todas formas?\n" +
+                    "(El stock quedará en negativo)",
+                    "Stock Insuficiente", 
+                    MessageBoxButtons.YesNo, 
+                    MessageBoxIcon.Warning);
+                
+                if (resultado != DialogResult.Yes)
+                {
+                    txtBuscarProducto.Focus();
+                    return;
                 }
             }
 
@@ -525,53 +573,89 @@ namespace Comercio.NET
                 }
             }
 
-            if (productoYaAgregado && permiteAcumular)
+            // MODIFICADO: Usar transacción para asegurar consistencia entre ventas y stock
+            // IMPORTANTE: El descuento de stock se hace SIEMPRE, sin importar la configuración
+            using (var connection = new SqlConnection(connectionString))
             {
-                // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total
-                using (var connection = new SqlConnection(connectionString))
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
                 {
-                    var query = @"UPDATE Ventas 
-  SET cantidad = cantidad + @nuevaCantidad, 
-      total = (cantidad + @nuevaCantidad) * @precio
-  WHERE nrofactura = @nrofactura AND codigo = @codigo";
-                    using (var cmd = new SqlCommand(query, connection))
+                    try
                     {
-                        cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
-                        cmd.Parameters.AddWithValue("@precio", precioUnitario);
-                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                        cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                        connection.Open();
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-            }
-            else
-            {
-                // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    var query = @"INSERT INTO Ventas 
-(codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte)
-VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte)";
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                        cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
-                        cmd.Parameters.AddWithValue("@precio", precioUnitario); // Usar el precio correcto
-                        cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
-                        cmd.Parameters.AddWithValue("@marca", producto["marca"]);
-                        cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
-                        cmd.Parameters.AddWithValue("@costo", producto["costo"]);
-                        cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
-                        cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
-                        cmd.Parameters.AddWithValue("@cantidad", cantidadPersonalizada);
-                        cmd.Parameters.AddWithValue("@total", precioUnitario * cantidadPersonalizada);
-                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                        cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
-                        cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+                        if (productoYaAgregado && permiteAcumular)
+                        {
+                            // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total
+                            var query = @"UPDATE Ventas 
+                                          SET cantidad = cantidad + @nuevaCantidad, 
+                                              total = (cantidad + @nuevaCantidad) * @precio
+                                          WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                            using (var cmd = new SqlCommand(query, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
+                                cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        else
+                        {
+                            // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
+                            var query = @"INSERT INTO Ventas 
+                                        (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte)
+                                        VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte)";
+                            using (var cmd = new SqlCommand(query, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                                cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
+                                cmd.Parameters.AddWithValue("@precio", precioUnitario); // Usar el precio correcto
+                                cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
+                                cmd.Parameters.AddWithValue("@marca", producto["marca"]);
+                                cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
+                                cmd.Parameters.AddWithValue("@costo", producto["costo"]);
+                                cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
+                                cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
+                                cmd.Parameters.AddWithValue("@cantidad", cantidadPersonalizada);
+                                cmd.Parameters.AddWithValue("@total", precioUnitario * cantidadPersonalizada);
+                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+                                cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
-                        connection.Open();
-                        cmd.ExecuteNonQuery();
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+
+                        // IMPORTANTE: SIEMPRE descontar stock, independientemente de la configuración de validación
+                        var queryStock = @"UPDATE Productos 
+                                           SET cantidad = cantidad - @cantidadVendida 
+                                           WHERE codigo = @codigo";
+                        using (var cmd = new SqlCommand(queryStock, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
+                            cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // Si llegamos aquí, todo salió bien
+                        transaction.Commit();
+
+                        // DEBUG: Confirmar la operación con información más detallada
+                        int stockFinal = stockDisponible - cantidadPersonalizada;
+                        System.Diagnostics.Debug.WriteLine($"=== DESCUENTO STOCK ===");
+                        System.Diagnostics.Debug.WriteLine($"Configuración ValidarStock: {validarStockHabilitado}");
+                        System.Diagnostics.Debug.WriteLine($"Producto: {producto["codigo"]} - {producto["descripcion"]}");
+                        System.Diagnostics.Debug.WriteLine($"Stock anterior: {stockDisponible}");
+                        System.Diagnostics.Debug.WriteLine($"Cantidad vendida: {cantidadPersonalizada}");
+                        System.Diagnostics.Debug.WriteLine($"Stock final: {stockFinal}");
+                        System.Diagnostics.Debug.WriteLine($"Stock negativo: {stockFinal < 0}");
+                        System.Diagnostics.Debug.WriteLine($"=======================");
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        MessageBox.Show($"Error al procesar la venta: {ex.Message}", "Error", 
+                                       MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
                     }
                 }
             }
@@ -722,9 +806,9 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
             using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"SELECT codigo, descripcion, precio,  cantidad, total
-                      FROM Ventas
-                      WHERE nrofactura = @nrofactura
-                      ORDER BY idd DESC";
+                              FROM Ventas
+                              WHERE nrofactura = @nrofactura
+                              ORDER BY idd DESC";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
@@ -1486,28 +1570,52 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
         // MEJORAR: El método EliminarProductoSeleccionado
         private async void EliminarProductoSeleccionado(object sender, EventArgs e)
         {
-            // Modificar el método EliminarProductoSeleccionado para verificar permisos:
-            // Verificar permisos si el login está habilitado
             try
             {
-                if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true)
+                // CORREGIDO: Verificar permisos SIEMPRE que haya una sesión activa
+                // No solo cuando LoginHabilitado = true
+                if (AuthenticationService.SesionActual?.Usuario != null)
                 {
-                    var authService = new AuthenticationService();
-                    if (!authService.TienePermiso("eliminar_productos"))
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    
+                    // REMOVIDO: Debug visible por pantalla
+                    // Solo mantener debug para Visual Studio
+                    System.Diagnostics.Debug.WriteLine($"=== VERIFICACIÓN PERMISOS ELIMINAR ===");
+                    System.Diagnostics.Debug.WriteLine($"Usuario: {usuario.NombreUsuario}");
+                    System.Diagnostics.Debug.WriteLine($"Nivel: {usuario.Nivel}");
+                    System.Diagnostics.Debug.WriteLine($"PuedeEliminarProductos: {usuario.PuedeEliminarProductos}");
+                    System.Diagnostics.Debug.WriteLine($"Es Admin: {usuario.Nivel == Models.NivelUsuario.Administrador}");
+                    System.Diagnostics.Debug.WriteLine($"Login habilitado: {AuthenticationService.ConfiguracionLogin?.LoginHabilitado}");
+                    System.Diagnostics.Debug.WriteLine($"=====================================");
+
+                    // CORRECCIÓN: Verificar permisos específicos para eliminar productos
+                    if (!usuario.PuedeEliminarProductos && usuario.Nivel != Models.NivelUsuario.Administrador)
                     {
-                        MessageBox.Show("No tiene permisos para eliminar productos.", "Acceso denegado",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show($"No tiene permisos para eliminar productos.\n\n" +
+                                      $"Usuario: {usuario.NombreUsuario}\n" +
+                                      $"Nivel: {usuario.Nivel}\n" +
+                                      $"Permiso eliminar: {usuario.PuedeEliminarProductos}",
+                                      "Acceso denegado",
+                                      MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
                 }
+                else
+                {
+                    // Si no hay sesión activa, denegar la operación
+                    MessageBox.Show("No hay sesión de usuario activa.", "Acceso denegado",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Si hay error en el servicio de autenticación, permitir la operación
-                // (modo de compatibilidad)
+                MessageBox.Show($"Error verificando permisos: {ex.Message}", 
+                               "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return; // IMPORTANTE: No permitir la operación en caso de error
             }
 
-            // MEJORADO: Verificación más robusta
+            // Resto del método permanece igual...
             if (!TieneFilaSeleccionada())
             {
                 MessageBox.Show("Seleccione un producto para eliminar haciendo clic en la fila.", "Información",
@@ -1517,7 +1625,6 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
 
             var filaSeleccionada = dataGridView1.SelectedRows[0];
 
-            // Verificar que las celdas no sean nulas
             if (filaSeleccionada.Cells["codigo"].Value == null)
             {
                 MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error",
@@ -1525,20 +1632,17 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                 return;
             }
 
-            // Obtener datos del producto seleccionado
             string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
             string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
             decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
             int cantidad = Convert.ToInt32(filaSeleccionada.Cells["cantidad"].Value);
             decimal total = Convert.ToDecimal(filaSeleccionada.Cells["total"].Value);
 
-            // Confirmar eliminación con motivo
             using (var motivoForm = new MotivoEliminacionForm())
             {
                 var resultado = motivoForm.ShowDialog();
                 if (resultado != DialogResult.OK)
                 {
-                    // AGREGADO: Si cancela, devolver foco al campo de búsqueda
                     txtBuscarProducto.Focus();
                     return;
                 }
@@ -1546,27 +1650,20 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                 try
                 {
                     await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidad, total, motivoForm.Motivo);
-
-                    // Recargar la grilla
                     CargarVentasActuales();
-
                     MessageBox.Show("Producto eliminado correctamente.", "Éxito",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                    // AGREGADO: Después del mensaje de éxito, devolver foco al campo de búsqueda
-                    // Usar BeginInvoke para asegurar que el foco se establezca después de cerrar el MessageBox
                     this.BeginInvoke(new Action(() =>
                     {
                         txtBuscarProducto.Focus();
-                        txtBuscarProducto.SelectAll(); // OPCIONAL: Seleccionar todo el texto si hay algo
+                        txtBuscarProducto.SelectAll();
                     }));
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                    // AGREGADO: También en caso de error, devolver foco al campo de búsqueda
                     this.BeginInvoke(new Action(() =>
                     {
                         txtBuscarProducto.Focus();
@@ -1760,7 +1857,7 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                     TabStop = false // IMPORTANTE: No recibir foco por Tab
                 };
                 btnYes.FlatAppearance.BorderSize = 0;
-                // CORREGIDO: Establecer DialogResult y cerrar
+                // CORRECCIÓN: Establecer DialogResult y cerrar
                 btnYes.Click += (s, e) =>
                 {
                     Result = DialogResult.Yes;
@@ -1784,7 +1881,7 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                     TabStop = false // IMPORTANTE: No recibir foco por Tab
                 };
                 btnNo.FlatAppearance.BorderSize = 0;
-                // CORREGIDO: Establecer DialogResult y cerrar
+                // CORRECCIÓN: Establecer DialogResult y cerrar
                 btnNo.Click += (s, e) =>
                 {
                     Result = DialogResult.No;

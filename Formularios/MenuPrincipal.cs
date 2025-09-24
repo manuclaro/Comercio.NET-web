@@ -1,5 +1,6 @@
 ﻿using Comercio.NET.Formularios;
 using Comercio.NET.Services;
+using Comercio.NET.Formularios;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -25,6 +26,57 @@ namespace Comercio.NET
             InitializeComponent();
             ConfigurarInformacionUsuario(); // NUEVO: Configurar información del usuario
             ConfigurarMenuSegunPermisos();
+            
+            // NUEVO: Configurar ícono de configuración en tiempo de ejecución
+            ConfigurarIconoConfiguracion();
+        }
+        
+        // NUEVO: Método para configurar el ícono de configuración
+        private void ConfigurarIconoConfiguracion()
+        {
+            try
+            {
+                if (toolStripConfiguracion != null)
+                {
+                    toolStripConfiguracion.Image = CrearIconoConfiguracionLocal();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error configurando ícono: {ex.Message}");
+                // Si hay error, seguir sin ícono
+            }
+        }
+        
+        // NUEVO: Método local para crear el ícono (copia del método de ConfiguracionForm)
+        private Bitmap CrearIconoConfiguracionLocal()
+        {
+            var bitmap = new Bitmap(16, 16);
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.Clear(Color.Transparent);
+                
+                // Dibujar una rueda dentada simple
+                using (var brush = new SolidBrush(Color.Gray))
+                {
+                    // Centro del ícono
+                    g.FillEllipse(brush, 6, 6, 4, 4);
+                    
+                    // Dientes de la rueda
+                    Rectangle[] dientes = {
+                        new Rectangle(7, 2, 2, 3),   // Arriba
+                        new Rectangle(11, 7, 3, 2),  // Derecha
+                        new Rectangle(7, 11, 2, 3),  // Abajo
+                        new Rectangle(2, 7, 3, 2)    // Izquierda
+                    };
+                    
+                    foreach (var diente in dientes)
+                    {
+                        g.FillRectangle(brush, diente);
+                    }
+                }
+            }
+            return bitmap;
         }
 
         // NUEVO: Método para configurar la información del usuario en el StatusStrip
@@ -258,20 +310,41 @@ namespace Comercio.NET
                 bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador || 
                                              usuario.PuedeGestionarUsuarios;
                 
-                // La opción de gestión de usuarios se agregará en el Designer
-                if (!puedeGestionarUsuarios && gestionUsuariosToolStripMenuItem != null)
+                // CORREGIDO: Verificar que los controles existen antes de usarlos
+                if (gestionUsuariosToolStripMenuItem != null)
                 {
+                    gestionUsuariosToolStripMenuItem.Visible = puedeGestionarUsuarios;
+                }
+                
+                if (toolStripGestionUsuarios != null)
+                {
+                    toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
+                }
+
+                // Solo mostrar configuración a administradores
+                bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
+                
+                if (configuracionSistemaToolStripMenuItem != null)
+                {
+                    configuracionSistemaToolStripMenuItem.Visible = esAdministrador;
+                }
+                
+                if (toolStripConfiguracion != null)
+                {
+                    toolStripConfiguracion.Visible = esAdministrador;
+                }
+            }
+            else
+            {
+                // Si no hay usuario logueado, ocultar opciones administrativas
+                if (gestionUsuariosToolStripMenuItem != null)
                     gestionUsuariosToolStripMenuItem.Visible = false;
-                    toolStripGestionUsuarios.Visible = false; // AGREGADO: También ocultar el botón de la toolbar
-                }
-                else
-                {
-                    if (gestionUsuariosToolStripMenuItem != null)
-                    {
-                        gestionUsuariosToolStripMenuItem.Visible = true;
-                        toolStripGestionUsuarios.Visible = true;
-                    }
-                }
+                if (toolStripGestionUsuarios != null)
+                    toolStripGestionUsuarios.Visible = false;
+                if (configuracionSistemaToolStripMenuItem != null)
+                    configuracionSistemaToolStripMenuItem.Visible = false;
+                if (toolStripConfiguracion != null)
+                    toolStripConfiguracion.Visible = false;
             }
         }
 
@@ -453,6 +526,58 @@ namespace Comercio.NET
         private void toolStripGestionUsuarios_Click(object sender, EventArgs e)
         {
             gestionUsuariosToolStripMenuItem_Click(sender, e);
+        }
+
+        // NUEVO: Método para abrir configuración del sistema
+        private void configuracionSistemaToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar permisos de administrador
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
+
+                    if (!esAdministrador)
+                    {
+                        MessageBox.Show("Solo los administradores pueden acceder a la configuración del sistema.", 
+                            "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // Verificar si ya está abierto
+                    foreach (Form form in this.MdiChildren)
+                    {
+                        if (form is ConfiguracionForm)
+                        {
+                            form.Activate();
+                            return;
+                        }
+                    }
+
+                    // Abrir formulario de configuración
+                    var configuracionForm = new ConfiguracionForm();
+                    configuracionForm.MdiParent = this;
+                    configuracionForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir configuración: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // NUEVO: Método para el botón de configuración en la toolbar
+        private void toolStripConfiguracion_Click(object sender, EventArgs e)
+        {
+            configuracionSistemaToolStripMenuItem_Click(sender, e);
         }
     }
 }
