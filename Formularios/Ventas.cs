@@ -21,6 +21,8 @@ using Comercio.NET.Servicios;
 using Comercio.NET.Formularios;
 using Comercio.NET.Models;
 using Comercio.NET.Services;
+using System.Net.Sockets;
+using System.Net;
 
 namespace Comercio.NET
 {
@@ -884,6 +886,7 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
             return domicilioComercio;
         }
 
+        // Modificar el método GuardarFacturaEnBD para usar el método existente obtenerNumeroCajero()
         private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0, string numeroFormateado = "")
         {
             try
@@ -900,19 +903,9 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                     importeTotal = total;
                 }
 
-                // Obtener el nombre del usuario actual para la auditoría
-                string usuarioActual;
-                try
-                {
-                    usuarioActual = AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true &&
-                                   AuthenticationService.SesionActual != null
-                                   ? AuthenticationService.SesionActual.Usuario.NombreUsuario
-                                   : Environment.UserName;
-                }
-                catch
-                {
-                    usuarioActual = Environment.UserName; // Fallback en caso de error
-                }
+                // SIMPLIFICADO: Usar los métodos helper existentes
+                string usuarioActual = ObtenerUsuarioActual();
+                int numeroCajero = obtenerNumeroCajero();
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -941,9 +934,9 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                         cmd.Parameters.AddWithValue("@FormadePago", formaPago);
                         cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
                         cmd.Parameters.AddWithValue("@CtaCteNombre", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Cajero", obtenerNumeroCajero()); // Usar número de cajero del usuario
+                        cmd.Parameters.AddWithValue("@Cajero", numeroCajero); // Usar el número de cajero correcto
                         cmd.Parameters.AddWithValue("@TipoFactura", tipoFactura);
-                        cmd.Parameters.AddWithValue("@UsuarioVenta", usuarioActual); // Nuevo campo para auditoría
+                        cmd.Parameters.AddWithValue("@UsuarioVenta", usuarioActual);
 
                         if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
                         {
@@ -975,335 +968,7 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
             }
         }
 
-        // NUEVO método para obtener el número de cajero del usuario actual
-        private int obtenerNumeroCajero()
-        {
-            try
-            {
-                if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true &&
-                    AuthenticationService.SesionActual != null)
-                {
-                    return AuthenticationService.SesionActual.Usuario.NumeroCajero;
-                }
-            }
-            catch
-            {
-                // Si hay error en el servicio de autenticación, usar cajero por defecto
-            }
-
-            return 1; // Cajero por defecto si no hay login o hay error
-        }
-
-        // NUEVO: Clase para MessageBox personalizado sin botón por defecto
-        public partial class CustomMessageBox : Form
-        {
-            public DialogResult Result { get; private set; } = DialogResult.None;
-
-            public CustomMessageBox(string message, string caption)
-            {
-                InitializeComponent();
-                ConfigurarMessageBox(message, caption);
-            }
-
-            private void InitializeComponent()
-            {
-                this.SuspendLayout();
-
-                // Configuración del formulario
-                this.Text = "";
-                this.Size = new Size(400, 180);
-                this.FormBorderStyle = FormBorderStyle.FixedDialog;
-                this.MaximizeBox = false;
-                this.MinimizeBox = false;
-                this.StartPosition = FormStartPosition.CenterParent;
-                this.ShowInTaskbar = false;
-                this.KeyPreview = true;
-
-                // IMPORTANTE: No establecer ningún AcceptButton o CancelButton
-                // this.AcceptButton = null;
-                // this.CancelButton = null;
-
-                this.ResumeLayout(false);
-            }
-
-            private void ConfigurarMessageBox(string message, string caption)
-            {
-                this.Text = caption;
-
-                // Icono de pregunta
-                var pictureBox = new PictureBox
-                {
-                    Image = SystemIcons.Question.ToBitmap(),
-                    Location = new Point(15, 15),
-                    Size = new Size(32, 32),
-                    SizeMode = PictureBoxSizeMode.StretchImage
-                };
-                this.Controls.Add(pictureBox);
-
-                // Mensaje
-                var lblMessage = new Label
-                {
-                    Text = message,
-                    Location = new Point(60, 15),
-                    Size = new Size(310, 80),
-                    Font = new Font("Segoe UI", 9F),
-                    ForeColor = Color.FromArgb(62, 80, 100)
-                };
-                this.Controls.Add(lblMessage);
-
-                // Botón Sí
-                var btnYes = new Button
-                {
-                    Text = "Sí",
-                    Location = new Point(215, 100),
-                    Size = new Size(75, 30),
-                    Font = new Font("Segoe UI", 9F),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(76, 175, 80),
-                    ForeColor = Color.White,
-                    TabStop = false // IMPORTANTE: No recibir foco por Tab
-                };
-                btnYes.FlatAppearance.BorderSize = 0;
-                // CORREGIDO: Establecer DialogResult y cerrar
-                btnYes.Click += (s, e) =>
-                {
-                    Result = DialogResult.Yes;
-                    this.DialogResult = DialogResult.Yes; // NUEVO: Establecer DialogResult del formulario
-                    this.Close();
-                };
-                btnYes.MouseEnter += (s, e) => btnYes.BackColor = Color.FromArgb(66, 165, 70);
-                btnYes.MouseLeave += (s, e) => btnYes.BackColor = Color.FromArgb(76, 175, 80);
-                this.Controls.Add(btnYes);
-
-                // Botón No
-                var btnNo = new Button
-                {
-                    Text = "No",
-                    Location = new Point(300, 100),
-                    Size = new Size(75, 30),
-                    Font = new Font("Segoe UI", 9F),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(220, 53, 69),
-                    ForeColor = Color.White,
-                    TabStop = false // IMPORTANTE: No recibir foco por Tab
-                };
-                btnNo.FlatAppearance.BorderSize = 0;
-                // CORREGIDO: Establecer DialogResult y cerrar
-                btnNo.Click += (s, e) =>
-                {
-                    Result = DialogResult.No;
-                    this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
-                    this.Close();
-                };
-                btnNo.MouseEnter += (s, e) => btnNo.BackColor = Color.FromArgb(210, 43, 59);
-                btnNo.MouseLeave += (s, e) => btnNo.BackColor = Color.FromArgb(220, 53, 69);
-                this.Controls.Add(btnNo);
-
-                // CLAVE: Establecer el foco en el formulario principal, no en los botones
-                this.ActiveControl = null;
-
-                // Manejar teclas
-                this.KeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
-                    {
-                        // No hacer nada - forzar uso del mouse
-                        e.Handled = true;
-                    }
-                    else if (e.KeyCode == Keys.Escape)
-                    {
-                        Result = DialogResult.No;
-                        this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
-                        this.Close();
-                    }
-                };
-
-                // Asegurar que ningún botón tenga foco inicial
-                this.Shown += (s, e) =>
-                {
-                    this.ActiveControl = null;
-                    this.Focus();
-                };
-
-                // NUEVO: Manejar el cierre del formulario sin selección
-                this.FormClosing += (s, e) =>
-                {
-                    // Si se cierra sin haber seleccionado nada, actuar como "No"
-                    if (this.DialogResult == DialogResult.None)
-                    {
-                        this.DialogResult = DialogResult.No;
-                        Result = DialogResult.No;
-                    }
-                };
-            }
-        }
-
-        private void ConfigurarEventosDataGridView()
-        {
-            // Agregar evento para eliminar productos con tecla Delete
-            dataGridView1.KeyDown += DataGridView1_KeyDown;
-
-            // Agregar menú contextual para eliminar
-            var contextMenu = new ContextMenuStrip();
-            var eliminarItem = new ToolStripMenuItem("Eliminar Producto", null, EliminarProductoSeleccionado);
-            eliminarItem.ShortcutKeys = Keys.Delete;
-            contextMenu.Items.Add(eliminarItem);
-            dataGridView1.ContextMenuStrip = contextMenu;
-        }
-
-        private void DataGridView1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Delete && dataGridView1.SelectedRows.Count > 0)
-            {
-                EliminarProductoSeleccionado(sender, e);
-            }
-        }
-
-        // AGREGAR: Método para verificar si hay una fila seleccionada
-        private bool TieneFilaSeleccionada()
-        {
-            return dataGridView1.SelectedRows.Count > 0 && dataGridView1.SelectedRows[0].Index >= 0;
-        }
-
-        // MEJORAR: El método EliminarProductoSeleccionado
-        private async void EliminarProductoSeleccionado(object sender, EventArgs e)
-        {
-            // Modificar el método EliminarProductoSeleccionado para verificar permisos:
-            // Verificar permisos si el login está habilitado
-            try
-            {
-                if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true)
-                {
-                    var authService = new AuthenticationService();
-                    if (!authService.TienePermiso("eliminar_productos"))
-                    {
-                        MessageBox.Show("No tiene permisos para eliminar productos.", "Acceso denegado",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-                }
-            }
-            catch
-            {
-                // Si hay error en el servicio de autenticación, permitir la operación
-                // (modo de compatibilidad)
-            }
-
-            // MEJORADO: Verificación más robusta
-            if (!TieneFilaSeleccionada())
-            {
-                MessageBox.Show("Seleccione un producto para eliminar haciendo clic en la fila.", "Información",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            var filaSeleccionada = dataGridView1.SelectedRows[0];
-
-            // Verificar que las celdas no sean nulas
-            if (filaSeleccionada.Cells["codigo"].Value == null)
-            {
-                MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            // Obtener datos del producto seleccionado
-            string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
-            string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
-            decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
-            int cantidad = Convert.ToInt32(filaSeleccionada.Cells["cantidad"].Value);
-            decimal total = Convert.ToDecimal(filaSeleccionada.Cells["total"].Value);
-
-            // Confirmar eliminación con motivo
-            using (var motivoForm = new MotivoEliminacionForm())
-            {
-                var resultado = motivoForm.ShowDialog();
-                if (resultado != DialogResult.OK)
-                {
-                    // AGREGADO: Si cancela, devolver foco al campo de búsqueda
-                    txtBuscarProducto.Focus();
-                    return;
-                }
-
-                try
-                {
-                    await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidad, total, motivoForm.Motivo);
-
-                    // Recargar la grilla
-                    CargarVentasActuales();
-
-                    MessageBox.Show("Producto eliminado correctamente.", "Éxito",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                    // AGREGADO: Después del mensaje de éxito, devolver foco al campo de búsqueda
-                    // Usar BeginInvoke para asegurar que el foco se establezca después de cerrar el MessageBox
-                    this.BeginInvoke(new Action(() =>
-                    {
-                        txtBuscarProducto.Focus();
-                        txtBuscarProducto.SelectAll(); // OPCIONAL: Seleccionar todo el texto si hay algo
-                    }));
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                    // AGREGADO: También en caso de error, devolver foco al campo de búsqueda
-                    this.BeginInvoke(new Action(() =>
-                    {
-                        txtBuscarProducto.Focus();
-                    }));
-                }
-            }
-        }
-        private async Task EliminarProductoConAuditoria(string codigo, string descripcion,
-            decimal precio, int cantidad, decimal total, string motivo)
-        {
-            string connectionString = GetConnectionString();
-
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        // 1. Devolver stock al producto
-                        await DevolverStockProducto(connection, transaction, codigo, cantidad);
-
-                        // 2. Registrar en auditoría
-                        await RegistrarEliminacionEnAuditoria(connection, transaction,
-                            codigo, descripcion, precio, cantidad, total, motivo);
-
-                        // 3. Eliminar de la venta actual
-                        await EliminarDeVentaActual(connection, transaction, codigo);
-
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
-            }
-        }
-
-        private async Task DevolverStockProducto(SqlConnection connection, SqlTransaction transaction,
-            string codigo, int cantidad)
-        {
-            var query = @"UPDATE Productos 
-                          SET cantidad = ISNULL(cantidad, 0) + @cantidad 
-                          WHERE codigo = @codigo";
-
-            using (var cmd = new SqlCommand(query, connection, transaction))
-            {
-                cmd.Parameters.AddWithValue("@cantidad", cantidad);
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                await cmd.ExecuteNonQueryAsync();
-            }
-        }
-
+        // MODIFICADO: También actualizar el método RegistrarEliminacionEnAuditoria para usar el usuario logueado consistentemente
         private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
     string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
         {
@@ -1363,107 +1028,108 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                 }
             }
 
+            // MODIFICADO: Obtener usuario logueado de forma consistente
+            string usuarioEliminacion;
+            try
+            {
+                if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true &&
+                    AuthenticationService.SesionActual != null)
+                {
+                    usuarioEliminacion = AuthenticationService.SesionActual.Usuario.NombreUsuario;
+                }
+                else
+                {
+                    usuarioEliminacion = Environment.UserName; // Fallback
+                }
+            }
+            catch
+            {
+                usuarioEliminacion = Environment.UserName; // Fallback en caso de error
+            }
+
             // CAMBIO: Actualizar el INSERT para usar el nuevo campo unificado
             var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
-                          (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
-                           NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion,
-                           UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
-                           IPUsuario, NombreEquipo)
-                          VALUES 
-                          (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
-                           @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
-                           @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
-                           @IPUsuario, @NombreEquipo)";
+                  (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
+                   NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion,
+                   UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
+                   IPUsuario, NombreEquipo)
+                  VALUES 
+                  (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
+                   @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+                   @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
+                   @IPUsuario, @NombreEquipo)";
 
-            using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
+    using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
+        cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+        cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
+        cmd.Parameters.AddWithValue("@Cantidad", cantidad);
+        cmd.Parameters.AddWithValue("@TotalEliminado", total);
+        cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal); // CAMBIO: Un solo campo DateTime
+        cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+        cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuarioEliminacion); // CORREGIDO: Usar variable local
+        cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
+        cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
+        cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
+        cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+
+        await cmd.ExecuteNonQueryAsync();
+    }
+}
+
+        private async Task EliminarProductoConAuditoria(string codigo, string descripcion,
+            decimal precio, int cantidad, decimal total, string motivo)
+        {
+            string connectionString = GetConnectionString();
+
+            using (var connection = new SqlConnection(connectionString))
             {
-                cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
-                cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
-                cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
-                cmd.Parameters.AddWithValue("@Cantidad", cantidad);
-                cmd.Parameters.AddWithValue("@TotalEliminado", total);
-                cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
-                cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal); // CAMBIO: Un solo campo DateTime
-                cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
-                cmd.Parameters.AddWithValue("@UsuarioEliminacion", Environment.UserName);
-                cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
-                cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
-                cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
-                cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
-                cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Devolver stock al producto
+                        await DevolverStockProducto(connection, transaction, codigo, cantidad);
 
-                await cmd.ExecuteNonQueryAsync();
+                        // 2. Registrar en auditoría
+                        await RegistrarEliminacionEnAuditoria(connection, transaction,
+                            codigo, descripcion, precio, cantidad, total, motivo);
+
+                        // 3. Eliminar de la venta actual
+                        await EliminarDeVentaActual(connection, transaction, codigo);
+
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
             }
         }
-        private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
+
+        private async Task DevolverStockProducto(SqlConnection connection, SqlTransaction transaction,
+            string codigo, int cantidad)
         {
-            var query = @"DELETE FROM Ventas 
-                          WHERE nrofactura = @nrofactura AND codigo = @codigo";
+            var query = @"UPDATE Productos 
+                          SET cantidad = ISNULL(cantidad, 0) + @cantidad 
+                          WHERE codigo = @codigo";
 
             using (var cmd = new SqlCommand(query, connection, transaction))
             {
-                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@cantidad", cantidad);
                 cmd.Parameters.AddWithValue("@codigo", codigo);
                 await cmd.ExecuteNonQueryAsync();
             }
         }
 
-        private string ObtenerIPLocal()
-        {
-            try
-            {
-                return System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName())
-                    .AddressList.FirstOrDefault(ip => ip.AddressFamily ==
-                    System.Net.Sockets.AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
-            }
-            catch
-            {
-                return "127.0.0.1";
-            }
-        }
-
-        // Agregar este método después de los métodos existentes
-        private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
-        {
-            string codigoBuscado = textoIngresado.TrimStart('0');
-            if (string.IsNullOrEmpty(codigoBuscado))
-                codigoBuscado = "0";
-
-            decimal? precioPersonalizado = null;
-            bool esEspecial = false;
-
-            // Verificar si es un código especial (formato balanza: 50XXXXX...)
-            if (textoIngresado.StartsWith(PREFIJO_CODIGO_ESPECIAL) && textoIngresado.Length == LONGITUD_CODIGO_ESPECIAL)
-            {
-                try
-                {
-                    // Extraer código del producto (5 dígitos desde posición 2)
-                    string codigoProducto = textoIngresado.Substring(POSICION_CODIGO_PRODUCTO, LONGITUD_CODIGO_PRODUCTO);
-                    codigoProducto = codigoProducto.TrimStart('0');
-                    if (string.IsNullOrEmpty(codigoProducto))
-                        codigoProducto = "0";
-
-                    // Extraer precio (5 dígitos desde posición 7)
-                    string partePrecio = textoIngresado.Substring(POSICION_PRECIO, LONGITUD_PRECIO);
-                    if (int.TryParse(partePrecio, out int precioEntero))
-                    {
-                        precioPersonalizado = precioEntero;
-                    }
-
-                    codigoBuscado = codigoProducto;
-                    esEspecial = true;
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException($"Error procesando código especial: {ex.Message}");
-                }
-            }
-
-            return (codigoBuscado, precioPersonalizado, esEspecial);
-        }
-
         // Método para buscar productos en la base de datos
-        private async Task<DataRow> BuscarProductoAsync(string codigo)
+        private async Task<DataRow> BuscarProductoAsync(String codigo)
         {
             using var connection = new SqlConnection(GetConnectionString());
             var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, 
@@ -1794,6 +1460,378 @@ VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fec
                     MessageBoxIcon.Error);
 
                 txtBuscarProducto.Focus();
+            }
+        }
+
+        private void ConfigurarEventosDataGridView()
+        {
+            // Agregar evento para eliminar productos con tecla Delete
+            dataGridView1.KeyDown += DataGridView1_KeyDown;
+
+            // Agregar menú contextual para eliminar
+            var contextMenu = new ContextMenuStrip();
+            var eliminarItem = new ToolStripMenuItem("Eliminar Producto", null, EliminarProductoSeleccionado);
+            eliminarItem.ShortcutKeys = Keys.Delete;
+            contextMenu.Items.Add(eliminarItem);
+            dataGridView1.ContextMenuStrip = contextMenu;
+        }
+
+        private void DataGridView1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete && dataGridView1.SelectedRows.Count > 0)
+            {
+                EliminarProductoSeleccionado(sender, e);
+            }
+        }
+
+        // AGREGAR: Método para verificar si hay una fila seleccionada
+        private bool TieneFilaSeleccionada()
+        {
+            return dataGridView1.SelectedRows.Count > 0 && dataGridView1.SelectedRows[0].Index >= 0;
+        }
+
+        // MEJORAR: El método EliminarProductoSeleccionado
+        private async void EliminarProductoSeleccionado(object sender, EventArgs e)
+        {
+            // Modificar el método EliminarProductoSeleccionado para verificar permisos:
+            // Verificar permisos si el login está habilitado
+            try
+            {
+                if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true)
+                {
+                    var authService = new AuthenticationService();
+                    if (!authService.TienePermiso("eliminar_productos"))
+                    {
+                        MessageBox.Show("No tiene permisos para eliminar productos.", "Acceso denegado",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                // Si hay error en el servicio de autenticación, permitir la operación
+                // (modo de compatibilidad)
+            }
+
+            // MEJORADO: Verificación más robusta
+            if (!TieneFilaSeleccionada())
+            {
+                MessageBox.Show("Seleccione un producto para eliminar haciendo clic en la fila.", "Información",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var filaSeleccionada = dataGridView1.SelectedRows[0];
+
+            // Verificar que las celdas no sean nulas
+            if (filaSeleccionada.Cells["codigo"].Value == null)
+            {
+                MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Obtener datos del producto seleccionado
+            string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
+            string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
+            decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
+            int cantidad = Convert.ToInt32(filaSeleccionada.Cells["cantidad"].Value);
+            decimal total = Convert.ToDecimal(filaSeleccionada.Cells["total"].Value);
+
+            // Confirmar eliminación con motivo
+            using (var motivoForm = new MotivoEliminacionForm())
+            {
+                var resultado = motivoForm.ShowDialog();
+                if (resultado != DialogResult.OK)
+                {
+                    // AGREGADO: Si cancela, devolver foco al campo de búsqueda
+                    txtBuscarProducto.Focus();
+                    return;
+                }
+
+                try
+                {
+                    await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidad, total, motivoForm.Motivo);
+
+                    // Recargar la grilla
+                    CargarVentasActuales();
+
+                    MessageBox.Show("Producto eliminado correctamente.", "Éxito",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    // AGREGADO: Después del mensaje de éxito, devolver foco al campo de búsqueda
+                    // Usar BeginInvoke para asegurar que el foco se establezca después de cerrar el MessageBox
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        txtBuscarProducto.Focus();
+                        txtBuscarProducto.SelectAll(); // OPCIONAL: Seleccionar todo el texto si hay algo
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    // AGREGADO: También en caso de error, devolver foco al campo de búsqueda
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        txtBuscarProducto.Focus();
+                    }));
+                }
+            }
+        }
+
+        // Método ProcesarCodigo
+        private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
+        {
+            string codigoBuscado = textoIngresado.TrimStart('0');
+            if (string.IsNullOrEmpty(codigoBuscado))
+                codigoBuscado = "0";
+
+            decimal? precioPersonalizado = null;
+            bool esEspecial = false;
+
+            // Verificar si es un código especial (formato balanza: 50XXXXX...)
+            if (textoIngresado.StartsWith(PREFIJO_CODIGO_ESPECIAL) && textoIngresado.Length == LONGITUD_CODIGO_ESPECIAL)
+            {
+                try
+                {
+                    // Extraer código del producto (5 dígitos desde posición 2)
+                    string codigoProducto = textoIngresado.Substring(POSICION_CODIGO_PRODUCTO, LONGITUD_CODIGO_PRODUCTO);
+                    codigoProducto = codigoProducto.TrimStart('0');
+                    if (string.IsNullOrEmpty(codigoProducto))
+                        codigoProducto = "0";
+
+                    // Extraer precio (5 dígitos desde posición 7)
+                    string partePrecio = textoIngresado.Substring(POSICION_PRECIO, LONGITUD_PRECIO);
+                    if (int.TryParse(partePrecio, out int precioEntero))
+                    {
+                        precioPersonalizado = precioEntero;
+                    }
+
+                    codigoBuscado = codigoProducto;
+                    esEspecial = true;
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Error procesando código especial: {ex.Message}");
+                }
+            }
+
+            return (codigoBuscado, precioPersonalizado, esEspecial);
+        }
+
+        // Método ObtenerIPLocal
+        private string ObtenerIPLocal()
+        {
+            try
+            {
+                return System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName())
+                    .AddressList.FirstOrDefault(ip => ip.AddressFamily ==
+                    System.Net.Sockets.AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
+            }
+            catch
+            {
+                return "127.0.0.1";
+            }
+        }
+
+        // Método EliminarDeVentaActual
+        private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
+        {
+            var query = @"DELETE FROM Ventas 
+                  WHERE nrofactura = @nrofactura AND codigo = @codigo";
+
+            using (var cmd = new SqlCommand(query, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@codigo", codigo);
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        // OPCIONAL: Simplificar el método obtenerNumeroCajero() para que sea más claro
+        private int obtenerNumeroCajero()
+        {
+            try
+            {
+                // CAMBIO: Verificar si hay sesión activa independientemente de si el login está habilitado
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    return AuthenticationService.SesionActual.Usuario.NumeroCajero;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log del error si es necesario para debugging
+                System.Diagnostics.Debug.WriteLine($"Error obteniendo número de cajero: {ex.Message}");
+            }
+
+            return 1; // Cajero por defecto solo si no hay sesión activa
+        }
+
+        // NUEVO: Método helper para obtener usuario logueado consistentemente (opcional)
+        private string ObtenerUsuarioActual()
+        {
+            try
+            {
+                // CAMBIO: Verificar si hay sesión activa independientemente de si el login está habilitado
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    return AuthenticationService.SesionActual.Usuario.NombreUsuario;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log del error si es necesario para debugging
+                System.Diagnostics.Debug.WriteLine($"Error obteniendo usuario actual: {ex.Message}");
+            }
+
+            return Environment.UserName; // Fallback al usuario de Windows
+        }
+
+        // NUEVO: Clase para MessageBox personalizado sin botón por defecto
+        public partial class CustomMessageBox : Form
+        {
+            public DialogResult Result { get; private set; } = DialogResult.None;
+
+            public CustomMessageBox(string message, string caption)
+            {
+                InitializeComponent();
+                ConfigurarMessageBox(message, caption);
+            }
+
+            private void InitializeComponent()
+            {
+                this.SuspendLayout();
+
+                // Configuración del formulario
+                this.Text = "";
+                this.Size = new Size(400, 180);
+                this.FormBorderStyle = FormBorderStyle.FixedDialog;
+                this.MaximizeBox = false;
+                this.MinimizeBox = false;
+                this.StartPosition = FormStartPosition.CenterParent;
+                this.ShowInTaskbar = false;
+                this.KeyPreview = true;
+
+                // IMPORTANTE: No establecer ningún AcceptButton o CancelButton
+                // this.AcceptButton = null;
+                // this.CancelButton = null;
+
+                this.ResumeLayout(false);
+            }
+
+            private void ConfigurarMessageBox(string message, string caption)
+            {
+                this.Text = caption;
+
+                // Icono de pregunta
+                var pictureBox = new PictureBox
+                {
+                    Image = SystemIcons.Question.ToBitmap(),
+                    Location = new Point(15, 15),
+                    Size = new Size(32, 32),
+                    SizeMode = PictureBoxSizeMode.StretchImage
+                };
+                this.Controls.Add(pictureBox);
+
+                // Mensaje
+                var lblMessage = new Label
+                {
+                    Text = message,
+                    Location = new Point(60, 15),
+                    Size = new Size(310, 80),
+                    Font = new Font("Segoe UI", 9F),
+                    ForeColor = Color.FromArgb(62, 80, 100)
+                };
+                this.Controls.Add(lblMessage);
+
+                // Botón Sí
+                var btnYes = new Button
+                {
+                    Text = "Sí",
+                    Location = new Point(215, 100),
+                    Size = new Size(75, 30),
+                    Font = new Font("Segoe UI", 9F),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(76, 175, 80),
+                    ForeColor = Color.White,
+                    TabStop = false // IMPORTANTE: No recibir foco por Tab
+                };
+                btnYes.FlatAppearance.BorderSize = 0;
+                // CORREGIDO: Establecer DialogResult y cerrar
+                btnYes.Click += (s, e) =>
+                {
+                    Result = DialogResult.Yes;
+                    this.DialogResult = DialogResult.Yes; // NUEVO: Establecer DialogResult del formulario
+                    this.Close();
+                };
+                btnYes.MouseEnter += (s, e) => btnYes.BackColor = Color.FromArgb(66, 165, 70);
+                btnYes.MouseLeave += (s, e) => btnYes.BackColor = Color.FromArgb(76, 175, 80);
+                this.Controls.Add(btnYes);
+
+                // Botón No
+                var btnNo = new Button
+                {
+                    Text = "No",
+                    Location = new Point(300, 100),
+                    Size = new Size(75, 30),
+                    Font = new Font("Segoe UI", 9F),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(220, 53, 69),
+                    ForeColor = Color.White,
+                    TabStop = false // IMPORTANTE: No recibir foco por Tab
+                };
+                btnNo.FlatAppearance.BorderSize = 0;
+                // CORREGIDO: Establecer DialogResult y cerrar
+                btnNo.Click += (s, e) =>
+                {
+                    Result = DialogResult.No;
+                    this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
+                    this.Close();
+                };
+                btnNo.MouseEnter += (s, e) => btnNo.BackColor = Color.FromArgb(210, 43, 59);
+                btnNo.MouseLeave += (s, e) => btnNo.BackColor = Color.FromArgb(220, 53, 69);
+                this.Controls.Add(btnNo);
+
+                // CLAVE: Establecer el foco en el formulario principal, no en los botones
+                this.ActiveControl = null;
+
+                // Manejar teclas
+                this.KeyDown += (s, e) =>
+                {
+                    if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
+                    {
+                        // No hacer nada - forzar uso del mouse
+                        e.Handled = true;
+                    }
+                    else if (e.KeyCode == Keys.Escape)
+                    {
+                        Result = DialogResult.No;
+                        this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
+                        this.Close();
+                    }
+                };
+
+                // Asegurar que ningún botón tenga foco inicial
+                this.Shown += (s, e) =>
+                {
+                    this.ActiveControl = null;
+                    this.Focus();
+                };
+
+                // NUEVO: Manejar el cierre del formulario sin selección
+                this.FormClosing += (s, e) =>
+                {
+                    // Si se cierra sin haber seleccionado nada, actuar como "No"
+                    if (this.DialogResult == DialogResult.None)
+                    {
+                        this.DialogResult = DialogResult.No;
+                        Result = DialogResult.No;
+                    }
+                };
             }
         }
     }
