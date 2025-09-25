@@ -456,9 +456,12 @@ namespace Comercio.NET
                 }
             }
 
-            // MODIFICADO: Verificación de stock basada en configuración
+            // NUEVO: Verificar permiteAcumular para determinar si se puede agregar y modificar stock
+            bool permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
+            
+            // MODIFICADO: Solo verificar stock si el producto permite acumular (manejo de stock)
             int stockDisponible = Convert.ToInt32(producto["cantidad"]);
-            if (validarStockHabilitado && stockDisponible < cantidadPersonalizada)
+            if (permiteAcumular && validarStockHabilitado && stockDisponible < cantidadPersonalizada)
             {
                 // CAMBIADO: Mostrar advertencia pero permitir continuar
                 var resultado = MessageBox.Show(
@@ -479,8 +482,17 @@ namespace Comercio.NET
                 }
             }
 
-            // Continuar con el resto del código existente...
-            bool permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
+            // MODIFICADO: Si permiteAcumular = false, mostrar mensaje informativo
+            //if (!permiteAcumular)
+            //{
+            //    MessageBox.Show(
+            //        $"ℹ️ INFORMACIÓN: Producto sin control de stock\n\n" +
+            //        $"Producto: {producto["descripcion"]}\n" +
+            //        $"Este producto no maneja inventario automático.",
+            //        "Producto sin control de stock", 
+            //        MessageBoxButtons.OK, 
+            //        MessageBoxIcon.Information);
+            //}
 
             // 1. Si es el primer producto de la venta, incrementa el remito y obtén el nuevo valor
             if (!remitoIncrementado)
@@ -574,7 +586,6 @@ namespace Comercio.NET
             }
 
             // MODIFICADO: Usar transacción para asegurar consistencia entre ventas y stock
-            // IMPORTANTE: El descuento de stock se hace SIEMPRE, sin importar la configuración
             using (var connection = new SqlConnection(connectionString))
             {
                 connection.Open();
@@ -625,29 +636,33 @@ namespace Comercio.NET
                             }
                         }
 
-                        // IMPORTANTE: SIEMPRE descontar stock, independientemente de la configuración de validación
-                        var queryStock = @"UPDATE Productos 
-                                           SET cantidad = cantidad - @cantidadVendida 
-                                           WHERE codigo = @codigo";
-                        using (var cmd = new SqlCommand(queryStock, connection, transaction))
+                        // MODIFICADO: Solo descontar stock si el producto permite acumular (manejo de inventario)
+                        if (permiteAcumular)
                         {
-                            cmd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
-                            cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                            cmd.ExecuteNonQuery();
+                            var queryStock = @"UPDATE Productos 
+                                               SET cantidad = cantidad - @cantidadVendida 
+                                               WHERE codigo = @codigo";
+                            using (var cmd = new SqlCommand(queryStock, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
+                                cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                                cmd.ExecuteNonQuery();
+                            }
                         }
 
                         // Si llegamos aquí, todo salió bien
                         transaction.Commit();
 
                         // DEBUG: Confirmar la operación con información más detallada
-                        int stockFinal = stockDisponible - cantidadPersonalizada;
+                        int stockFinal = permiteAcumular ? (stockDisponible - cantidadPersonalizada) : stockDisponible;
                         System.Diagnostics.Debug.WriteLine($"=== DESCUENTO STOCK ===");
                         System.Diagnostics.Debug.WriteLine($"Configuración ValidarStock: {validarStockHabilitado}");
                         System.Diagnostics.Debug.WriteLine($"Producto: {producto["codigo"]} - {producto["descripcion"]}");
+                        System.Diagnostics.Debug.WriteLine($"PermiteAcumular: {permiteAcumular}");
                         System.Diagnostics.Debug.WriteLine($"Stock anterior: {stockDisponible}");
                         System.Diagnostics.Debug.WriteLine($"Cantidad vendida: {cantidadPersonalizada}");
                         System.Diagnostics.Debug.WriteLine($"Stock final: {stockFinal}");
-                        System.Diagnostics.Debug.WriteLine($"Stock negativo: {stockFinal < 0}");
+                        System.Diagnostics.Debug.WriteLine($"Stock modificado: {permiteAcumular}");
                         System.Diagnostics.Debug.WriteLine($"=======================");
                     }
                     catch (Exception ex)
@@ -805,7 +820,8 @@ namespace Comercio.NET
 
             using (var connection = new SqlConnection(connectionString))
             {
-                var query = @"SELECT codigo, descripcion, precio,  cantidad, total
+                // MODIFICADO: Incluir el campo idd (ID único) para identificar filas específicas
+                var query = @"SELECT idd, codigo, descripcion, precio, cantidad, total
                               FROM Ventas
                               WHERE nrofactura = @nrofactura
                               ORDER BY idd DESC";
@@ -817,6 +833,12 @@ namespace Comercio.NET
                     dataGridView1.DataSource = dt;
                     remitoActual = dt;
                 }
+            }
+
+            // NUEVO: Ocultar la columna idd para que no sea visible al usuario
+            if (dataGridView1.Columns["idd"] != null)
+            {
+                dataGridView1.Columns["idd"].Visible = false;
             }
 
             // Ajustar anchos de columnas
@@ -1177,7 +1199,7 @@ namespace Comercio.NET
                             codigo, descripcion, precio, cantidad, total, motivo);
 
                         // 3. Eliminar de la venta actual
-                        await EliminarDeVentaActual(connection, transaction, codigo);
+                        //await EliminarDeVentaActual(connection, transaction, codigo);
 
                         transaction.Commit();
                     }
@@ -1193,15 +1215,51 @@ namespace Comercio.NET
         private async Task DevolverStockProducto(SqlConnection connection, SqlTransaction transaction,
             string codigo, int cantidad)
         {
-            var query = @"UPDATE Productos 
-                          SET cantidad = ISNULL(cantidad, 0) + @cantidad 
-                          WHERE codigo = @codigo";
+            // NUEVO: Verificar primero si el producto permite acumular
+            var queryPermiteAcumular = @"SELECT PermiteAcumular FROM Productos WHERE codigo = @codigo";
+            bool permiteAcumular = false;
 
-            using (var cmd = new SqlCommand(query, connection, transaction))
+            using (var cmd = new SqlCommand(queryPermiteAcumular, connection, transaction))
             {
-                cmd.Parameters.AddWithValue("@cantidad", cantidad);
                 cmd.Parameters.AddWithValue("@codigo", codigo);
-                await cmd.ExecuteNonQueryAsync();
+                var result = await cmd.ExecuteScalarAsync();
+                if (result != null && result != DBNull.Value)
+                {
+                    permiteAcumular = Convert.ToBoolean(result);
+                }
+            }
+
+            // MODIFICADO: Solo devolver stock si el producto permite acumular
+            if (permiteAcumular)
+            {
+                var query = @"UPDATE Productos 
+                              SET cantidad = ISNULL(cantidad, 0) + @cantidad 
+                              WHERE codigo = @codigo";
+
+                using (var cmd = new SqlCommand(query, connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@cantidad", cantidad);
+                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                // DEBUG: Confirmar la devolución de stock
+                System.Diagnostics.Debug.WriteLine($"=== DEVOLUCIÓN STOCK ===");
+                System.Diagnostics.Debug.WriteLine($"Producto: {codigo}");
+                System.Diagnostics.Debug.WriteLine($"Cantidad devuelta: {cantidad}");
+                System.Diagnostics.Debug.WriteLine($"PermiteAcumular: {permiteAcumular}");
+                System.Diagnostics.Debug.WriteLine($"Stock actualizado: SÍ");
+                System.Diagnostics.Debug.WriteLine($"=======================");
+            }
+            else
+            {
+                // DEBUG: Informar que no se devuelve stock
+                System.Diagnostics.Debug.WriteLine($"=== DEVOLUCIÓN STOCK ===");
+                System.Diagnostics.Debug.WriteLine($"Producto: {codigo}");
+                System.Diagnostics.Debug.WriteLine($"Cantidad que se intentó devolver: {cantidad}");
+                System.Diagnostics.Debug.WriteLine($"PermiteAcumular: {permiteAcumular}");
+                System.Diagnostics.Debug.WriteLine($"Stock actualizado: NO");
+                System.Diagnostics.Debug.WriteLine($"=======================");
             }
         }
 
@@ -1341,18 +1399,18 @@ namespace Comercio.NET
         private void ConfigurarColumna(string nombre, string formato = null,
             DataGridViewContentAlignment? alineacion = null, int? ancho = null)
         {
-            var columna = dataGridView1.Columns[nombre];
-            if (columna == null) return;
+            var colonia = dataGridView1.Columns[nombre];
+            if (colonia == null) return;
 
             if (!string.IsNullOrEmpty(formato))
-                columna.DefaultCellStyle.Format = formato;
+                colonia.DefaultCellStyle.Format = formato;
             if (alineacion.HasValue)
-                columna.DefaultCellStyle.Alignment = alineacion.Value;
+                colonia.DefaultCellStyle.Alignment = alineacion.Value;
             if (ancho.HasValue)
-                columna.Width = ancho.Value;
+                colonia.Width = ancho.Value;
 
             if (nombre == "cantidad")
-                columna.HeaderText = "CANT.";
+                colonia.HeaderText = "CANT.";
         }
 
         // Método para formatear número de factura
@@ -1567,19 +1625,16 @@ namespace Comercio.NET
             return dataGridView1.SelectedRows.Count > 0 && dataGridView1.SelectedRows[0].Index >= 0;
         }
 
-        // MEJORAR: El método EliminarProductoSeleccionado
+        // MODIFICADO: El método EliminarProductoSeleccionado para manejar eliminación por idd específico
         private async void EliminarProductoSeleccionado(object sender, EventArgs e)
         {
             try
             {
-                // CORREGIDO: Verificar permisos SIEMPRE que haya una sesión activa
-                // No solo cuando LoginHabilitado = true
+                // Verificación de permisos (código existente)...
                 if (AuthenticationService.SesionActual?.Usuario != null)
                 {
                     var usuario = AuthenticationService.SesionActual.Usuario;
                     
-                    // REMOVIDO: Debug visible por pantalla
-                    // Solo mantener debug para Visual Studio
                     System.Diagnostics.Debug.WriteLine($"=== VERIFICACIÓN PERMISOS ELIMINAR ===");
                     System.Diagnostics.Debug.WriteLine($"Usuario: {usuario.NombreUsuario}");
                     System.Diagnostics.Debug.WriteLine($"Nivel: {usuario.Nivel}");
@@ -1588,7 +1643,6 @@ namespace Comercio.NET
                     System.Diagnostics.Debug.WriteLine($"Login habilitado: {AuthenticationService.ConfiguracionLogin?.LoginHabilitado}");
                     System.Diagnostics.Debug.WriteLine($"=====================================");
 
-                    // CORRECCIÓN: Verificar permisos específicos para eliminar productos
                     if (!usuario.PuedeEliminarProductos && usuario.Nivel != Models.NivelUsuario.Administrador)
                     {
                         MessageBox.Show($"No tiene permisos para eliminar productos.\n\n" +
@@ -1602,7 +1656,6 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    // Si no hay sesión activa, denegar la operación
                     MessageBox.Show("No hay sesión de usuario activa.", "Acceso denegado",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
@@ -1612,65 +1665,159 @@ namespace Comercio.NET
             {
                 MessageBox.Show($"Error verificando permisos: {ex.Message}", 
                                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; // IMPORTANTE: No permitir la operación en caso de error
-            }
-
-            // Resto del método permanece igual...
-            if (!TieneFilaSeleccionada())
-            {
-                MessageBox.Show("Seleccione un producto para eliminar haciendo clic en la fila.", "Información",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var filaSeleccionada = dataGridView1.SelectedRows[0];
+    if (!TieneFilaSeleccionada())
+    {
+        MessageBox.Show("Seleccione un producto para eliminar haciendo clic en la fila.", "Información",
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
+        return;
+    }
 
-            if (filaSeleccionada.Cells["codigo"].Value == null)
+    var filaSeleccionada = dataGridView1.SelectedRows[0];
+
+    // NUEVO: Verificar que la fila tenga todos los campos necesarios incluido idd
+    if (filaSeleccionada.Cells["codigo"].Value == null || filaSeleccionada.Cells["idd"].Value == null)
+    {
+        MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error",
+            MessageBoxButtons.OK, MessageBoxIcon.Error);
+        return;
+    }
+
+    // NUEVO: Obtener el idd específico de la fila seleccionada
+    int idd = Convert.ToInt32(filaSeleccionada.Cells["idd"].Value);
+    string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
+    string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
+    decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
+    int cantidadTotal = Convert.ToInt32(filaSeleccionada.Cells["cantidad"].Value);
+    decimal total = Convert.ToDecimal(filaSeleccionada.Cells["total"].Value);
+
+    // MODIFICADO: Pasar información del producto al formulario de motivo (cantidadTotal siempre será de esta fila específica)
+    using (var motivoForm = new MotivoEliminacionForm(descripcion, cantidadTotal, codigo, precio))
+    {
+        var resultado = motivoForm.ShowDialog();
+        if (resultado != DialogResult.OK)
+        {
+            txtBuscarProducto.Focus();
+            return;
+        }
+
+        try
+        {
+            // NUEVO: Usar idd específico para eliminación precisa
+            int cantidadAEliminar = motivoForm.CantidadAEliminar;
+            decimal totalAEliminar = cantidadAEliminar * precio;
+            
+            // MODIFICADO: Usar nueva función que elimina por idd específico
+            await EliminarProductoPorIddConAuditoria(idd, codigo, descripcion, precio, cantidadTotal, cantidadAEliminar, totalAEliminar, motivoForm.Motivo);
+            CargarVentasActuales();
+            
+            string mensaje = cantidadAEliminar == cantidadTotal 
+                ? "Producto eliminado completamente." 
+                : $"Se eliminaron {cantidadAEliminar} de {cantidadTotal} unidades.";
+                
+            MessageBox.Show(mensaje, "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            this.BeginInvoke(new Action(() =>
             {
-                MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                txtBuscarProducto.Focus();
+                txtBuscarProducto.SelectAll();
+            }));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            this.BeginInvoke(new Action(() =>
+            {
+                txtBuscarProducto.Focus();
+            }));
+        }
+    }
+}
+
+// NUEVO: Método para manejar eliminación por idd específico con auditoría
+private async Task EliminarProductoPorIddConAuditoria(int idd, string codigo, string descripcion, 
+    decimal precio, int cantidadTotal, int cantidadAEliminar, decimal totalAEliminar, string motivo)
+{
+    string connectionString = GetConnectionString();
+
+    using (var connection = new SqlConnection(connectionString))
+    {
+        connection.Open();
+        using (var transaction = connection.BeginTransaction())
+        {
+            try
+            {
+                // 1. Devolver stock al producto (solo la cantidad eliminada)
+                await DevolverStockProducto(connection, transaction, codigo, cantidadAEliminar);
+
+                // 2. Registrar en auditoría (con la cantidad específica eliminada)
+                await RegistrarEliminacionEnAuditoria(connection, transaction,
+                    codigo, descripcion, precio, cantidadAEliminar, totalAEliminar, motivo);
+
+                // 3. NUEVO: Eliminar o actualizar la fila específica por idd
+                if (cantidadAEliminar == cantidadTotal)
+                {
+                    // Eliminar completamente el registro específico por idd
+                    await EliminarFilaPorIdd(connection, transaction, idd);
+                }
+                else
+                {
+                    // Actualizar la cantidad y recalcular el total en la fila específica
+                    await ActualizarCantidadPorIdd(connection, transaction, idd, cantidadTotal - cantidadAEliminar, precio);
+                }
+
+                transaction.Commit();
+
+                // DEBUG: Confirmar la operación específica por idd
+                System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN POR IDD ===");
+                System.Diagnostics.Debug.WriteLine($"IDD eliminado/modificado: {idd}");
+                System.Diagnostics.Debug.WriteLine($"Producto: {codigo} - {descripcion}");
+                System.Diagnostics.Debug.WriteLine($"Cantidad original: {cantidadTotal}");
+                System.Diagnostics.Debug.WriteLine($"Cantidad eliminada: {cantidadAEliminar}");
+                System.Diagnostics.Debug.WriteLine($"Operación: {(cantidadAEliminar == cantidadTotal ? "ELIMINACIÓN COMPLETA" : "ACTUALIZACIÓN PARCIAL")}");
+                System.Diagnostics.Debug.WriteLine($"===========================");
             }
-
-            string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
-            string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
-            decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
-            int cantidad = Convert.ToInt32(filaSeleccionada.Cells["cantidad"].Value);
-            decimal total = Convert.ToDecimal(filaSeleccionada.Cells["total"].Value);
-
-            using (var motivoForm = new MotivoEliminacionForm())
+            catch
             {
-                var resultado = motivoForm.ShowDialog();
-                if (resultado != DialogResult.OK)
-                {
-                    txtBuscarProducto.Focus();
-                    return;
-                }
-
-                try
-                {
-                    await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidad, total, motivoForm.Motivo);
-                    CargarVentasActuales();
-                    MessageBox.Show("Producto eliminado correctamente.", "Éxito",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                    this.BeginInvoke(new Action(() =>
-                    {
-                        txtBuscarProducto.Focus();
-                        txtBuscarProducto.SelectAll();
-                    }));
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    this.BeginInvoke(new Action(() =>
-                    {
-                        txtBuscarProducto.Focus();
-                    }));
-                }
+                transaction.Rollback();
+                throw;
             }
         }
+    }
+}
+
+// NUEVO: Método para eliminar fila específica por idd
+private async Task EliminarFilaPorIdd(SqlConnection connection, SqlTransaction transaction, int idd)
+{
+    var query = @"DELETE FROM Ventas WHERE idd = @idd";
+
+    using (var cmd = new SqlCommand(query, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@idd", idd);
+        await cmd.ExecuteNonQueryAsync();
+    }
+}
+
+// NUEVO: Método para actualizar cantidad en fila específica por idd
+private async Task ActualizarCantidadPorIdd(SqlConnection connection, SqlTransaction transaction, 
+    int idd, int nuevaCantidad, decimal precio)
+{
+    var query = @"UPDATE Ventas 
+                  SET cantidad = @nuevaCantidad, 
+                      total = @nuevaCantidad * @precio
+                  WHERE idd = @idd";
+
+    using (var cmd = new SqlCommand(query, connection, transaction))
+    {
+        cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
+        cmd.Parameters.AddWithValue("@precio", precio);
+        cmd.Parameters.AddWithValue("@idd", idd);
+        await cmd.ExecuteNonQueryAsync();
+    }
+}
 
         // Método ProcesarCodigo
         private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
@@ -1724,20 +1871,6 @@ namespace Comercio.NET
             catch
             {
                 return "127.0.0.1";
-            }
-        }
-
-        // Método EliminarDeVentaActual
-        private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
-        {
-            var query = @"DELETE FROM Ventas 
-                  WHERE nrofactura = @nrofactura AND codigo = @codigo";
-
-            using (var cmd = new SqlCommand(query, connection, transaction))
-            {
-                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                await cmd.ExecuteNonQueryAsync();
             }
         }
 
@@ -1812,7 +1945,7 @@ namespace Comercio.NET
                 this.ShowInTaskbar = false;
                 this.KeyPreview = true;
 
-                // IMPORTANTE: No establecer ningún AcceptButton o CancelButton
+                // IMPORTANT: No establecer ningún AcceptButton o CancelButton
                 // this.AcceptButton = null;
                 // this.CancelButton = null;
 
