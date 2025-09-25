@@ -21,12 +21,44 @@ namespace Comercio.NET.Formularios
         public ConsultaAuditoriaEliminados()
         {
             ConfigurarFormulario();
+            ConfigurarEventosTextBoxes(); // NUEVO: Configurar eventos de navegación
         }
 
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
             CargarDatosIniciales();
+        }
+
+        // NUEVO: Método para configurar eventos de navegación con Enter en TextBoxes
+        private void ConfigurarEventosTextBoxes()
+        {
+            // Configurar cada TextBox para navegar con Enter
+            ConfigurarTextBoxNavegacion(txtCodigoProducto);
+            ConfigurarTextBoxNavegacion(txtNumeroFactura);
+            ConfigurarTextBoxNavegacion(txtUsuario);
+            ConfigurarTextBoxNavegacion(txtCajero);
+        }
+
+        // NUEVO: Método helper para configurar navegación con Enter en un TextBox específico
+        private void ConfigurarTextBoxNavegacion(TextBox textBox)
+        {
+            textBox.KeyDown += (sender, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true; // Evitar el beep del sistema
+                    
+                    // Navegar al siguiente control en el orden de tabulación
+                    this.SelectNextControl(textBox, true, true, true, true);
+                }
+            };
+
+            // OPCIONAL: Seleccionar todo el texto cuando el TextBox recibe foco
+            textBox.Enter += (sender, e) =>
+            {
+                textBox.SelectAll();
+            };
         }
 
         private void ConfigurarFormulario()
@@ -45,24 +77,24 @@ namespace Comercio.NET.Formularios
 
             // PRIMERA FILA - Filtros de fecha, código, remito y usuario
             var lblDesde = new Label { Text = "Desde:", Location = new Point(10, 15), Size = new Size(50, 20) };
-            dtpDesde = new DateTimePicker { Location = new Point(65, 12), Size = new Size(120, 23) };
+            dtpDesde = new DateTimePicker { Location = new Point(65, 12), Size = new Size(120, 23), TabIndex = 0 }; // NUEVO: TabIndex
             dtpDesde.Value = DateTime.Now.AddDays(-30);
 
             var lblHasta = new Label { Text = "Hasta:", Location = new Point(200, 15), Size = new Size(50, 20) };
-            dtpHasta = new DateTimePicker { Location = new Point(255, 12), Size = new Size(120, 23) };
+            dtpHasta = new DateTimePicker { Location = new Point(255, 12), Size = new Size(120, 23), TabIndex = 1 }; // NUEVO: TabIndex
 
             var lblCodigo = new Label { Text = "Código:", Location = new Point(390, 15), Size = new Size(50, 20) };
-            txtCodigoProducto = new TextBox { Location = new Point(445, 12), Size = new Size(100, 23) };
+            txtCodigoProducto = new TextBox { Location = new Point(445, 12), Size = new Size(100, 23), TabIndex = 2 }; // NUEVO: TabIndex
 
             var lblFactura = new Label { Text = "Remito:", Location = new Point(560, 15), Size = new Size(50, 20) };
-            txtNumeroFactura = new TextBox { Location = new Point(615, 12), Size = new Size(100, 23) };
+            txtNumeroFactura = new TextBox { Location = new Point(615, 12), Size = new Size(100, 23), TabIndex = 3 }; // NUEVO: TabIndex
 
             var lblUsuario = new Label { Text = "Usuario:", Location = new Point(730, 15), Size = new Size(50, 20) };
-            txtUsuario = new TextBox { Location = new Point(785, 12), Size = new Size(100, 23) };
+            txtUsuario = new TextBox { Location = new Point(785, 12), Size = new Size(100, 23), TabIndex = 4 }; // NUEVO: TabIndex
 
             // SEGUNDA FILA - Cajero y TODOS los botones juntos
             var lblCajero = new Label { Text = "Cajero:", Location = new Point(10, 45), Size = new Size(50, 20) };
-            txtCajero = new TextBox { Location = new Point(65, 42), Size = new Size(80, 23) };
+            txtCajero = new TextBox { Location = new Point(65, 42), Size = new Size(80, 23), TabIndex = 5 }; // NUEVO: TabIndex
 
             // TODOS LOS BOTONES EN LA SEGUNDA FILA - Alineados horizontalmente
             btnBuscar = new Button
@@ -72,7 +104,8 @@ namespace Comercio.NET.Formularios
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                TabIndex = 6 // NUEVO: TabIndex
             };
             btnBuscar.Click += BtnBuscar_Click;
 
@@ -83,7 +116,8 @@ namespace Comercio.NET.Formularios
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                TabIndex = 7 // NUEVO: TabIndex
             };
             btnExportar.Click += BtnExportar_Click;
 
@@ -94,7 +128,8 @@ namespace Comercio.NET.Formularios
                 Size = new Size(80, 30),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                TabIndex = 8 // NUEVO: TabIndex
             };
             btnSalir.Click += BtnSalir_Click;
 
@@ -134,7 +169,8 @@ namespace Comercio.NET.Formularios
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
                 GridColor = Color.FromArgb(230, 230, 230),
                 BackgroundColor = Color.White,
-                EnableHeadersVisualStyles = false
+                EnableHeadersVisualStyles = false,
+                TabIndex = 9 // NUEVO: TabIndex para el DataGridView
             };
 
             // NUEVO: Estilos mejorados para el DataGridView
@@ -142,6 +178,10 @@ namespace Comercio.NET.Formularios
 
             this.Controls.Add(dgvAuditoria);
             this.Controls.Add(panelFiltros);
+
+            // NUEVO: Configurar el orden de tabulación y foco inicial
+            this.TabStop = true;
+            dtpDesde.Select(); // Establecer foco inicial en el primer control
         }
 
         private void BtnSalir_Click(object sender, EventArgs e)
@@ -291,9 +331,9 @@ namespace Comercio.NET.Formularios
             ConfigurarColumna("Total Eliminado", 100, DataGridViewContentAlignment.MiddleRight, "C2");
             ConfigurarColumna("Remito", 70, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Fecha Factura", 110, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
-            ConfigurarColumna("Fecha Eliminación", 120, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
-            ConfigurarColumna("Motivo de Eliminación", 140, DataGridViewContentAlignment.MiddleLeft);
-            ConfigurarColumna("CtaCte", 60, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Fecha Eliminación", 115, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
+            ConfigurarColumna("Motivo de Eliminación", 130, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("CtaCte", 45, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Usuario", 70, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Cajero", 50, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Equipo", 80, DataGridViewContentAlignment.MiddleCenter);

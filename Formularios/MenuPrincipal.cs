@@ -279,7 +279,6 @@ namespace Comercio.NET
                                  $"📊 Ver reportes: {(usuario.PuedeVerReportes ? "✅" : "❌")}\n" +
                                  $"👥 Gestionar usuarios: {(usuario.PuedeGestionarUsuarios ? "✅" : "❌")}\n" +
                                  $"❌ Anular facturas: {(usuario.PuedeAnularFacturas ? "✅" : "❌")}";
-
                     MessageBox.Show(info, "Información del Usuario", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
@@ -440,11 +439,38 @@ namespace Comercio.NET
             ventasForm.Show();
         }
 
+        // MODIFICADO: Verificar permisos antes de abrir productos
         private void productosToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var productosForm = new Productos();
-            productosForm.MdiParent = this;
-            productosForm.Show();
+            // Verificar si el usuario tiene permisos para editar precios
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                var usuario = AuthenticationService.SesionActual.Usuario;
+                
+                // Solo permitir acceso si puede editar precios o es administrador
+                if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
+                {
+                    var productosForm = new Productos();
+                    productosForm.MdiParent = this;
+                    productosForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "⚠️ ACCESO DENEGADO\n\n" +
+                        "No tienes permisos para acceder a la gestión de productos.\n\n" +
+                        "Este módulo requiere el permiso 'Editar Precios'.\n" +
+                        "Contacta a un administrador si necesitas acceso.",
+                        "Permisos Insuficientes",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
+            else
+            {
+                MessageBox.Show("No hay una sesión activa.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void printPreviewToolStripButton_Click(object sender, EventArgs e)
@@ -454,25 +480,52 @@ namespace Comercio.NET
             ventasForm.Show();
         }
 
+        // MODIFICADO: Verificar permisos antes de abrir control de facturas
         private void controlFacturasToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var ControlFacturasForm = new frmControlFacturas();
-            ControlFacturasForm.MdiParent = this;
-            ControlFacturasForm.Show();
+            // Verificar si el usuario tiene permisos para ver reportes
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                var usuario = AuthenticationService.SesionActual.Usuario;
+                
+                // Solo permitir acceso si puede ver reportes o es administrador
+                if (usuario.PuedeVerReportes || usuario.Nivel == Models.NivelUsuario.Administrador)
+                {
+                    var ControlFacturasForm = new frmControlFacturas();
+                    ControlFacturasForm.MdiParent = this;
+                    ControlFacturasForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "⚠️ ACCESO DENEGADO\n\n" +
+                        "No tienes permisos para acceder al control de facturas.\n\n" +
+                        "Este módulo requiere el permiso 'Ver Reportes'.\n" +
+                        "Contacta a un administrador si necesitas acceso.",
+                        "Permisos Insuficientes",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
+            else
+            {
+                MessageBox.Show("No hay una sesión activa.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
+        // MODIFICADO: Verificar permisos antes de abrir productos desde toolbar
         private void toolStripProductos_Click(object sender, EventArgs e)
         {
-            var productosForm = new Productos();
-            productosForm.MdiParent = this;
-            productosForm.Show();
+            // Reutilizar la lógica del menú
+            productosToolStripMenuItem_Click(sender, e);
         }
 
+        // MODIFICADO: Verificar permisos antes de abrir control de facturas desde toolbar
         private void toolStripButton1_Click(object sender, EventArgs e)
         {
-            var ControlFacturasForm = new frmControlFacturas();
-            ControlFacturasForm.MdiParent = this;
-            ControlFacturasForm.Show();
+            // Reutilizar la lógica del menú
+            controlFacturasToolStripMenuItem_Click(sender, e);
         }
 
         // NUEVO: Método para abrir gestión de usuarios

@@ -1003,11 +1003,24 @@ namespace Comercio.NET
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
+                // CORREGIDO: Obtener el importe total directamente del DataGridView en lugar de parsearlo del label
                 decimal importeTotal = 0;
-                if (decimal.TryParse(lbTotal.Text.Replace("Total: $", "").Replace(",", ""), out decimal total))
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
+                        importeTotal += valor;
+                }
+
+                // ALTERNATIVA: Si se quiere mantener el parsing del label, usar InvariantCulture
+                /*
+                decimal importeTotal = 0;
+                string textoTotal = lbTotal.Text.Replace("Total: $", "").Trim();
+                // Usar InvariantCulture para parsing correcto independiente de la configuración regional
+                if (decimal.TryParse(textoTotal, NumberStyles.Currency, CultureInfo.CurrentCulture, out decimal total))
                 {
                     importeTotal = total;
                 }
+                */
 
                 // SIMPLIFICADO: Usar los métodos helper existentes
                 string usuarioActual = ObtenerUsuarioActual();
@@ -1066,6 +1079,13 @@ namespace Comercio.NET
                         await cmd.ExecuteNonQueryAsync();
                     }
                 }
+
+                // DEBUG: Para verificar el importe que se está guardando
+                System.Diagnostics.Debug.WriteLine($"=== GUARDADO FACTURA ===");
+                System.Diagnostics.Debug.WriteLine($"Texto del label: {lbTotal.Text}");
+                System.Diagnostics.Debug.WriteLine($"Importe calculado: {importeTotal:C}");
+                System.Diagnostics.Debug.WriteLine($"Importe guardado en BD: {importeTotal}");
+                System.Diagnostics.Debug.WriteLine($"=======================");
             }
             catch (Exception ex)
             {
@@ -1074,8 +1094,8 @@ namespace Comercio.NET
             }
         }
 
-        // MODIFICADO: También actualizar el método RegistrarEliminacionEnAuditoria para usar el usuario logueado consistentemente
-        private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
+        // CORREGIDO: Método RegistrarEliminacionEnAuditoria con mejor manejo de fecha y hora
+private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
     string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
 {
     // Obtener datos adicionales del producto
@@ -1096,10 +1116,11 @@ namespace Comercio.NET
         }
     }
 
-    // Obtener fecha y hora de la venta original COMO UN SOLO DATETIME
+    // CORREGIDO: Obtener fecha y hora de la venta original con mejor manejo
     var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
-                   FROM Ventas 
-                   WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                       FROM Ventas 
+                       WHERE nrofactura = @nrofactura AND codigo = @codigo 
+                       ORDER BY idd DESC"; // Obtener el registro más reciente
 
     DateTime fechaHoraVentaOriginal = DateTime.Now; // Valor por defecto
     bool esCtaCte = false;
@@ -1113,19 +1134,71 @@ namespace Comercio.NET
         {
             if (reader.Read())
             {
-                // Combinar fecha y hora en un solo DateTime
-                DateTime fechaVenta = Convert.ToDateTime(reader["fecha"]);
-                string horaVenta = reader["hora"]?.ToString() ?? "";
+                try
+                {
+                    // CORREGIDO: Mejor manejo de fecha y hora
+                    DateTime fechaVenta = Convert.ToDateTime(reader["fecha"]);
+                    string horaVentaString = reader["hora"]?.ToString() ?? "";
 
-                // Intentar parsear la hora y combinarla con la fecha
-                if (TimeSpan.TryParse(horaVenta, out TimeSpan tiempo))
-                {
-                    fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
+                    // DEBUG: Ver qué valores estamos obteniendo
+                    System.Diagnostics.Debug.WriteLine($"=== FECHA/HORA ORIGINAL ===");
+                    System.Diagnostics.Debug.WriteLine($"Fecha obtenida: {fechaVenta:yyyy-MM-dd}");
+                    System.Diagnostics.Debug.WriteLine($"Hora string obtenida: '{horaVentaString}'");
+                    
+                    if (!string.IsNullOrEmpty(horaVentaString))
+                    {
+                        // Intentar parsear como TimeSpan primero
+                        if (TimeSpan.TryParse(horaVentaString, out TimeSpan tiempo))
+                        {
+                            fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
+                            System.Diagnostics.Debug.WriteLine($"Hora parseada como TimeSpan: {tiempo}");
+                        }
+                        // Si no funciona como TimeSpan, intentar como DateTime completo
+                        else if (DateTime.TryParse($"{fechaVenta:yyyy-MM-dd} {horaVentaString}", out DateTime fechaHoraCompleta))
+                        {
+                            fechaHoraVentaOriginal = fechaHoraCompleta;
+                            System.Diagnostics.Debug.WriteLine($"Hora parseada como DateTime completo: {fechaHoraCompleta}");
+                        }
+                        // Si tampoco funciona, intentar extraer solo HH:mm:ss si hay más formato
+                        else
+                        {
+                            // Intentar extraer formato HH:mm:ss de string más complejo
+                            var match = System.Text.RegularExpressions.Regex.Match(horaVentaString, @"(\d{1,2}):(\d{2}):(\d{2})");
+                            if (match.Success)
+                            {
+                                if (int.TryParse(match.Groups[1].Value, out int horas) &&
+                                    int.TryParse(match.Groups[2].Value, out int minutos) &&
+                                    int.TryParse(match.Groups[3].Value, out int segundos))
+                                {
+                                    fechaHoraVentaOriginal = fechaVenta.Date.AddHours(horas).AddMinutes(minutos).AddSeconds(segundos);
+                                    System.Diagnostics.Debug.WriteLine($"Hora parseada con regex: {horas}:{minutos}:{segundos}");
+                                }
+                                else
+                                {
+                                    fechaHoraVentaOriginal = fechaVenta; // Solo fecha
+                                    System.Diagnostics.Debug.WriteLine($"No se pudo parsear la hora, usando solo fecha");
+                                }
+                            }
+                            else
+                            {
+                                fechaHoraVentaOriginal = fechaVenta; // Solo fecha
+                                System.Diagnostics.Debug.WriteLine($"Regex no coincide, usando solo fecha");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        fechaHoraVentaOriginal = fechaVenta; // Solo fecha si no hay hora
+                        System.Diagnostics.Debug.WriteLine($"No hay hora, usando solo fecha");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"Fecha/hora final: {fechaHoraVentaOriginal:yyyy-MM-dd HH:mm:ss}");
+                    System.Diagnostics.Debug.WriteLine($"===========================");
                 }
-                else
+                catch (Exception ex)
                 {
-                    // Si no se puede parsear la hora, usar solo la fecha
-                    fechaHoraVentaOriginal = fechaVenta;
+                    System.Diagnostics.Debug.WriteLine($"Error parseando fecha/hora: {ex.Message}");
+                    fechaHoraVentaOriginal = DateTime.Now; // Fallback
                 }
 
                 esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
@@ -1143,6 +1216,7 @@ namespace Comercio.NET
     System.Diagnostics.Debug.WriteLine($"Usuario: {usuarioEliminacion}");
     System.Diagnostics.Debug.WriteLine($"Cajero: {numeroCajero}");
     System.Diagnostics.Debug.WriteLine($"Código: {codigo}");
+    System.Diagnostics.Debug.WriteLine($"Fecha/Hora venta original: {fechaHoraVentaOriginal:yyyy-MM-dd HH:mm:ss}");
     System.Diagnostics.Debug.WriteLine($"============================");
 
     // ACTUALIZADO: INSERT para incluir el número de cajero
@@ -1165,15 +1239,15 @@ namespace Comercio.NET
         cmd.Parameters.AddWithValue("@Cantidad", cantidad);
         cmd.Parameters.AddWithValue("@TotalEliminado", total);
         cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
-        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal);
+        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal); // CORREGIDO: Ahora incluye fecha y hora
         cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
-        cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuarioEliminacion); // USAR VARIABLE LOCAL
+        cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuarioEliminacion);
         cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
         cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
         cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
         cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-        cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero); // USAR VARIABLE LOCAL
+        cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
 
         await cmd.ExecuteNonQueryAsync();
     }
@@ -1709,7 +1783,7 @@ namespace Comercio.NET
             int cantidadAEliminar = motivoForm.CantidadAEliminar;
             decimal totalAEliminar = cantidadAEliminar * precio;
             
-            // MODIFICADO: Usar nueva función que elimina por idd específico
+            // MODIFICADO: Pasar cantidadAEliminar y totalAEliminar a la función de eliminación
             await EliminarProductoPorIddConAuditoria(idd, codigo, descripcion, precio, cantidadTotal, cantidadAEliminar, totalAEliminar, motivoForm.Motivo);
             CargarVentasActuales();
             
