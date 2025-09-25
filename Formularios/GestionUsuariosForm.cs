@@ -79,7 +79,7 @@ namespace Comercio.NET.Formularios
             var panelHerramientas = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(960, 100), // AUMENTADO de 80 a 100
+                Size = new Size(960, 70), // AUMENTADO de 80 a 100
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -90,7 +90,7 @@ namespace Comercio.NET.Formularios
             {
                 Text = "🔍 Buscar:",
                 Location = new Point(15, 20),
-                Size = new Size(70, 25),
+                Size = new Size(30, 25),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             });
 
@@ -107,7 +107,7 @@ namespace Comercio.NET.Formularios
             btnAgregar = CrearBoton("➕ Agregar", new Point(360, 15), Color.FromArgb(76, 175, 80));
             btnEditar = CrearBoton("✏️ Editar", new Point(480, 15), Color.FromArgb(33, 150, 243));
             btnEliminar = CrearBoton("🗑️ Eliminar", new Point(580, 15), Color.FromArgb(244, 67, 54));
-            btnCambiarPassword = CrearBoton("🔑 Cambiar Contraseña", new Point(680, 15), Color.FromArgb(255, 152, 0));
+            btnCambiarPassword = CrearBoton("🔑 Contraseña", new Point(680, 15), Color.FromArgb(255, 152, 0));
             btnRefrescar = CrearBoton("🔄 Refrescar", new Point(840, 15), Color.FromArgb(158, 158, 158));
 
             panelHerramientas.Controls.Add(btnAgregar);
@@ -116,36 +116,12 @@ namespace Comercio.NET.Formularios
             panelHerramientas.Controls.Add(btnCambiarPassword);
             panelHerramientas.Controls.Add(btnRefrescar);
 
-            // NUEVO: Checkbox de debug - SEGUNDA FILA
-            chkMostrarDebugHash = new CheckBox
-            {
-                Text = "🔍 Mostrar debug de hash en operaciones (desarrollo)",
-                Location = new Point(15, 55), // SEGUNDA FILA
-                Size = new Size(350, 20),
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(255, 140, 0),
-                Checked = false
-            };
-            chkMostrarDebugHash.CheckedChanged += (s, e) =>
-            {
-                MostrarDebugHash = chkMostrarDebugHash.Checked;
-                if (MostrarDebugHash)
-                {
-                    MostrarMensaje("🔍 Debug de hash ACTIVADO - Se mostrarán los hash generados", Color.Purple);
-                }
-                else
-                {
-                    MostrarMensaje("", Color.Black);
-                }
-            };
-            panelHerramientas.Controls.Add(chkMostrarDebugHash);
-
             // Estado de botones
             btnEditar.Enabled = false;
             btnEliminar.Enabled = false;
             btnCambiarPassword.Enabled = false;
 
-            currentY += 120; // AUMENTADO de 100 a 120
+            currentY += 90; // AUMENTADO de 100 a 120
 
             // DataGridView
             dgvUsuarios = new DataGridView

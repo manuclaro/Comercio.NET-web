@@ -14,10 +14,9 @@ namespace Comercio.NET.Formularios
     {
         // Controles del formulario
         private TextBox txtNombreComercio, txtDomicilioComercio, txtConnectionString;
-        private CheckBox chkValidarStockDisponible;
         private Button btnGuardar, btnCancelar, btnTestearConexion;
         private Label lblMensaje;
-        private Panel panelPrincipal, panelComercio, panelValidaciones, panelBaseDatos;
+        private Panel panelPrincipal, panelComercio, panelBaseDatos;
         
         private string _rutaAppsettings;
         private JObject _configuracionOriginal;
@@ -37,7 +36,7 @@ namespace Comercio.NET.Formularios
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new Size(550, 480);
+            this.ClientSize = new Size(550, 380);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -80,7 +79,7 @@ namespace Comercio.NET.Formularios
             panelPrincipal = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(panelWidth, 320),
+                Size = new Size(panelWidth, 220),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 AutoScroll = true
@@ -137,37 +136,7 @@ namespace Comercio.NET.Formularios
             btnTestearConexion.FlatAppearance.BorderSize = 0;
             panelBaseDatos.Controls.Add(btnTestearConexion);
 
-            panelY += 120;
-
-            // === SECCIÓN VALIDACIONES ===
-            panelValidaciones = CrearSeccion("✅ VALIDACIONES DEL SISTEMA", panelY, panelWidth - 20);
-            panelPrincipal.Controls.Add(panelValidaciones);
-
-            // Checkbox validar stock
-            chkValidarStockDisponible = new CheckBox
-            {
-                Text = "⚠️ Validar stock disponible al realizar ventas",
-                Location = new Point(15, 35),
-                Size = new Size(400, 20),
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(62, 80, 100)
-            };
-            panelValidaciones.Controls.Add(chkValidarStockDisponible);
-
-            // Descripción de la validación
-            var lblDescripcionStock = new Label
-            {
-                Text = "Si está habilitado, el sistema mostrará advertencias cuando no hay stock suficiente.\n" +
-                       "El descuento de stock siempre se realiza, independientemente de esta configuración.",
-                Location = new Point(35, 60),
-                Size = new Size(440, 40),
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.FromArgb(120, 120, 120),
-                AutoSize = false
-            };
-            panelValidaciones.Controls.Add(lblDescripcionStock);
-
-            currentY += 330;
+            currentY += 230;
 
             // Mensaje de estado
             lblMensaje = new Label
@@ -189,9 +158,8 @@ namespace Comercio.NET.Formularios
             txtDomicilioComercio.TabIndex = 1;
             txtConnectionString.TabIndex = 2;
             btnTestearConexion.TabIndex = 3;
-            chkValidarStockDisponible.TabIndex = 4;
-            btnGuardar.TabIndex = 5;
-            btnCancelar.TabIndex = 6;
+            btnGuardar.TabIndex = 4;
+            btnCancelar.TabIndex = 5;
 
             this.AcceptButton = btnGuardar;
             this.CancelButton = btnCancelar;
@@ -313,9 +281,6 @@ namespace Comercio.NET.Formularios
                 // Cargar cadena de conexión
                 txtConnectionString.Text = _configuracionOriginal["ConnectionStrings"]?["DefaultConnection"]?.ToString() ?? "";
 
-                // Cargar validaciones
-                chkValidarStockDisponible.Checked = _configuracionOriginal["Validaciones"]?["ValidarStockDisponible"]?.ToObject<bool>() ?? true;
-
                 MostrarMensaje("✅ Configuración cargada correctamente", Color.Green);
                 
                 // Limpiar mensaje después de 2 segundos
@@ -360,12 +325,6 @@ namespace Comercio.NET.Formularios
                     nuevaConfiguracion["ConnectionStrings"] = new JObject();
                 
                 nuevaConfiguracion["ConnectionStrings"]["DefaultConnection"] = txtConnectionString.Text.Trim();
-
-                // Actualizar validaciones
-                if (nuevaConfiguracion["Validaciones"] == null)
-                    nuevaConfiguracion["Validaciones"] = new JObject();
-                
-                nuevaConfiguracion["Validaciones"]["ValidarStockDisponible"] = chkValidarStockDisponible.Checked;
 
                 // Crear backup del archivo original
                 string backupPath = _rutaAppsettings + $".backup.{DateTime.Now:yyyyMMdd_HHmmss}";

@@ -49,6 +49,7 @@
             controlFacturasToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator9 = new ToolStripSeparator();
             gestionUsuariosToolStripMenuItem = new ToolStripMenuItem();
+            configuracionSistemaToolStripMenuItem = new ToolStripMenuItem();
             viewMenu = new ToolStripMenuItem();
             toolBarToolStripMenuItem = new ToolStripMenuItem();
             statusBarToolStripMenuItem = new ToolStripMenuItem();
@@ -71,14 +72,12 @@
             toolStripSeparator2 = new ToolStripSeparator();
             toolStripButton1 = new ToolStripButton();
             toolStripSeparator6 = new ToolStripSeparator();
-            toolStripButton2 = new ToolStripButton();
             toolStripSeparator7 = new ToolStripSeparator();
             toolStripGestionUsuarios = new ToolStripButton();
+            toolStripConfiguracion = new ToolStripButton();
             statusStrip = new StatusStrip();
             toolStripStatusLabel = new ToolStripStatusLabel();
             toolTip = new ToolTip(components);
-            configuracionSistemaToolStripMenuItem = new ToolStripMenuItem();
-            toolStripConfiguracion = new ToolStripButton();
             menuStrip.SuspendLayout();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
@@ -224,6 +223,12 @@
             gestionUsuariosToolStripMenuItem.Text = "👥 Gestión Usuarios";
             gestionUsuariosToolStripMenuItem.Click += gestionUsuariosToolStripMenuItem_Click;
             // 
+            // configuracionSistemaToolStripMenuItem
+            // 
+            configuracionSistemaToolStripMenuItem.Name = "configuracionSistemaToolStripMenuItem";
+            configuracionSistemaToolStripMenuItem.Size = new Size(180, 22);
+            configuracionSistemaToolStripMenuItem.Click += configuracionSistemaToolStripMenuItem_Click_1;
+            // 
             // viewMenu
             // 
             viewMenu.DropDownItems.AddRange(new ToolStripItem[] { toolBarToolStripMenuItem, statusBarToolStripMenuItem });
@@ -302,7 +307,7 @@
             // 
             // helpMenu
             // 
-            helpMenu.DropDownItems.AddRange(new ToolStripItem[] { indexToolStripMenuItem, searchToolStripMenuItem, toolStripSeparator8, aboutToolStripMenuItem });
+            helpMenu.DropDownItems.AddRange(new ToolStripItem[] { indexToolStripMenuItem, searchToolStripMenuItem, aboutToolStripMenuItem });
             helpMenu.Name = "helpMenu";
             helpMenu.Size = new Size(53, 20);
             helpMenu.Text = "Ay&uda";
@@ -326,7 +331,7 @@
             // toolStripSeparator8
             // 
             toolStripSeparator8.Name = "toolStripSeparator8";
-            toolStripSeparator8.Size = new Size(144, 6);
+            toolStripSeparator8.Size = new Size(6, 25);
             // 
             // aboutToolStripMenuItem
             // 
@@ -336,7 +341,7 @@
             // 
             // toolStrip
             // 
-            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripButton2, toolStripSeparator7, toolStripGestionUsuarios, toolStripSeparator8, toolStripConfiguracion });
+            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripSeparator7, toolStripGestionUsuarios, toolStripSeparator8, toolStripConfiguracion });
             toolStrip.Location = new Point(0, 24);
             toolStrip.Name = "toolStrip";
             toolStrip.Size = new Size(1054, 25);
@@ -390,15 +395,6 @@
             toolStripSeparator6.Name = "toolStripSeparator6";
             toolStripSeparator6.Size = new Size(6, 25);
             // 
-            // toolStripButton2
-            // 
-            toolStripButton2.DisplayStyle = ToolStripItemDisplayStyle.Image;
-            toolStripButton2.Image = (Image)resources.GetObject("toolStripButton2.Image");
-            toolStripButton2.ImageTransparentColor = Color.Magenta;
-            toolStripButton2.Name = "toolStripButton2";
-            toolStripButton2.Size = new Size(23, 22);
-            toolStripButton2.Text = "Compras";
-            // 
             // toolStripSeparator7
             // 
             toolStripSeparator7.Name = "toolStripSeparator7";
@@ -407,7 +403,6 @@
             // toolStripGestionUsuarios
             // 
             toolStripGestionUsuarios.DisplayStyle = ToolStripItemDisplayStyle.Image;
-            toolStripGestionUsuarios.Image = (Image)resources.GetObject("toolStripGestionUsuarios.Image");
             toolStripGestionUsuarios.ImageTransparentColor = Color.Magenta;
             toolStripGestionUsuarios.Name = "toolStripGestionUsuarios";
             toolStripGestionUsuarios.Size = new Size(23, 22);
@@ -416,13 +411,11 @@
             // 
             // toolStripConfiguracion
             // 
-            toolStripConfiguracion.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText;
-            toolStripConfiguracion.Image = null; // Se configurará en tiempo de ejecución
             toolStripConfiguracion.ImageTransparentColor = Color.Magenta;
             toolStripConfiguracion.Name = "toolStripConfiguracion";
-            toolStripConfiguracion.Size = new Size(90, 22);
+            toolStripConfiguracion.Size = new Size(87, 22);
             toolStripConfiguracion.Text = "Configuración";
-            toolStripConfiguracion.Click += new System.EventHandler(this.toolStripConfiguracion_Click);
+            toolStripConfiguracion.Click += toolStripConfiguracion_Click;
             // 
             // statusStrip
             // 
@@ -515,7 +508,6 @@
         private ToolStripButton toolStripProductos;
         private ToolStripButton toolStripButton1;
         private ToolStripSeparator toolStripSeparator6;
-        private ToolStripButton toolStripButton2;
         private ToolStripSeparator toolStripSeparator7;
         private ToolStripButton toolStripGestionUsuarios;
         private ToolStripMenuItem configuracionSistemaToolStripMenuItem;

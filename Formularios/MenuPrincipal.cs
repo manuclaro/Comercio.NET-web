@@ -16,7 +16,7 @@ namespace Comercio.NET
     public partial class MenuPrincipal : Form
     {
         private int childFormNumber = 0;
-        
+
         // NUEVOS: Controles para información del usuario
         private ToolStripStatusLabel lblUsuarioActual;
         private ToolStripSplitButton btnCambiarUsuario;
@@ -26,11 +26,11 @@ namespace Comercio.NET
             InitializeComponent();
             ConfigurarInformacionUsuario(); // NUEVO: Configurar información del usuario
             ConfigurarMenuSegunPermisos();
-            
+
             // NUEVO: Configurar ícono de configuración en tiempo de ejecución
             ConfigurarIconoConfiguracion();
         }
-        
+
         // NUEVO: Método para configurar el ícono de configuración
         private void ConfigurarIconoConfiguracion()
         {
@@ -47,7 +47,7 @@ namespace Comercio.NET
                 // Si hay error, seguir sin ícono
             }
         }
-        
+
         // NUEVO: Método local para crear el ícono (copia del método de ConfiguracionForm)
         private Bitmap CrearIconoConfiguracionLocal()
         {
@@ -55,13 +55,13 @@ namespace Comercio.NET
             using (var g = Graphics.FromImage(bitmap))
             {
                 g.Clear(Color.Transparent);
-                
+
                 // Dibujar una rueda dentada simple
                 using (var brush = new SolidBrush(Color.Gray))
                 {
                     // Centro del ícono
                     g.FillEllipse(brush, 6, 6, 4, 4);
-                    
+
                     // Dientes de la rueda
                     Rectangle[] dientes = {
                         new Rectangle(7, 2, 2, 3),   // Arriba
@@ -69,7 +69,7 @@ namespace Comercio.NET
                         new Rectangle(7, 11, 2, 3),  // Abajo
                         new Rectangle(2, 7, 3, 2)    // Izquierda
                     };
-                    
+
                     foreach (var diente in dientes)
                     {
                         g.FillRectangle(brush, diente);
@@ -138,7 +138,7 @@ namespace Comercio.NET
                 var usuario = AuthenticationService.SesionActual.Usuario;
                 lblUsuarioActual.Text = $"👤 {usuario.Nombre} {usuario.Apellido} ({usuario.NombreUsuario})";
                 lblUsuarioActual.ForeColor = Color.FromArgb(76, 175, 80); // Verde para logueado
-                
+
                 // Mostrar nivel del usuario con color
                 string nivelTexto = usuario.Nivel.ToString();
                 Color colorNivel = usuario.Nivel switch
@@ -149,7 +149,7 @@ namespace Comercio.NET
                     Models.NivelUsuario.Invitado => Color.FromArgb(158, 158, 158),     // Gris
                     _ => Color.Black
                 };
-                
+
                 lblUsuarioActual.Text += $" - {nivelTexto}";
                 btnCambiarUsuario.Enabled = true;
             }
@@ -189,13 +189,13 @@ namespace Comercio.NET
                     using (var loginForm = new LoginForm())
                     {
                         var loginResult = loginForm.ShowDialog();
-                        
+
                         if (loginResult == DialogResult.OK && loginForm.LoginExitoso)
                         {
                             // Login exitoso - actualizar información
                             ActualizarInformacionUsuario();
                             ConfigurarMenuSegunPermisos();
-                            
+
                             MessageBox.Show($"Bienvenido {AuthenticationService.SesionActual.Usuario.Nombre}",
                                 "Cambio de Usuario Exitoso",
                                 MessageBoxButtons.OK,
@@ -208,7 +208,7 @@ namespace Comercio.NET
                                 "Cambio de Usuario Cancelado",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Warning);
-                            
+
                             Application.Exit();
                         }
                     }
@@ -304,17 +304,17 @@ namespace Comercio.NET
             if (AuthenticationService.SesionActual?.Usuario != null)
             {
                 var usuario = AuthenticationService.SesionActual.Usuario;
-                
+
                 // Solo mostrar gestión de usuarios si tiene permisos
-                bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador || 
+                bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador ||
                                              usuario.PuedeGestionarUsuarios;
-                
+
                 // CORREGIDO: Verificar que los controles existen antes de usarlos
                 if (gestionUsuariosToolStripMenuItem != null)
                 {
                     gestionUsuariosToolStripMenuItem.Visible = puedeGestionarUsuarios;
                 }
-                
+
                 if (toolStripGestionUsuarios != null)
                 {
                     toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
@@ -322,12 +322,12 @@ namespace Comercio.NET
 
                 // Solo mostrar configuración a administradores
                 bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
-                
+
                 if (configuracionSistemaToolStripMenuItem != null)
                 {
                     configuracionSistemaToolStripMenuItem.Visible = esAdministrador;
                 }
-                
+
                 if (toolStripConfiguracion != null)
                 {
                     toolStripConfiguracion.Visible = esAdministrador;
@@ -446,7 +446,7 @@ namespace Comercio.NET
             if (AuthenticationService.SesionActual?.Usuario != null)
             {
                 var usuario = AuthenticationService.SesionActual.Usuario;
-                
+
                 // Solo permitir acceso si puede editar precios o es administrador
                 if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
                 {
@@ -487,7 +487,7 @@ namespace Comercio.NET
             if (AuthenticationService.SesionActual?.Usuario != null)
             {
                 var usuario = AuthenticationService.SesionActual.Usuario;
-                
+
                 // Solo permitir acceso si puede ver reportes o es administrador
                 if (usuario.PuedeVerReportes || usuario.Nivel == Models.NivelUsuario.Administrador)
                 {
@@ -537,12 +537,12 @@ namespace Comercio.NET
                 if (AuthenticationService.SesionActual?.Usuario != null)
                 {
                     var usuario = AuthenticationService.SesionActual.Usuario;
-                    bool puedeGestionar = usuario.Nivel == Models.NivelUsuario.Administrador || 
+                    bool puedeGestionar = usuario.Nivel == Models.NivelUsuario.Administrador ||
                                          usuario.PuedeGestionarUsuarios;
 
                     if (!puedeGestionar)
                     {
-                        MessageBox.Show("No tienes permisos para acceder a la gestión de usuarios.", 
+                        MessageBox.Show("No tienes permisos para acceder a la gestión de usuarios.",
                             "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -564,7 +564,7 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    MessageBox.Show("No hay una sesión activa.", "Error", 
+                    MessageBox.Show("No hay una sesión activa.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
@@ -594,7 +594,7 @@ namespace Comercio.NET
 
                     if (!esAdministrador)
                     {
-                        MessageBox.Show("Solo los administradores pueden acceder a la configuración del sistema.", 
+                        MessageBox.Show("Solo los administradores pueden acceder a la configuración del sistema.",
                             "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -616,7 +616,7 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    MessageBox.Show("No hay una sesión activa.", "Error", 
+                    MessageBox.Show("No hay una sesión activa.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
@@ -631,6 +631,11 @@ namespace Comercio.NET
         private void toolStripConfiguracion_Click(object sender, EventArgs e)
         {
             configuracionSistemaToolStripMenuItem_Click(sender, e);
+        }
+
+        private void configuracionSistemaToolStripMenuItem_Click_1(object sender, EventArgs e)
+        {
+
         }
     }
 }
