@@ -202,7 +202,7 @@ namespace Comercio.NET.Formularios
             // Botón para cambiar contraseña
             var btnCambiarPassword = new Button
             {
-                Text = "¿Olvidaste tu contraseña?",
+                Text = "Cambiar contraseña",
                 Location = new Point(80, currentY),
                 Size = new Size(240, 30),
                 BackColor = Color.Transparent,
