@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -62,7 +63,8 @@ namespace Comercio.NET.Formularios
                 new { Name = "lblPorcentaje", Text = "Porcentaje:" },
                 new { Name = "lblPrecio", Text = "Precio:" },
                 new { Name = "lblStock", Text = "Stock:" },
-                new { Name = "lblProveedor", Text = "Proveedor:" }
+                new { Name = "lblProveedor", Text = "Proveedor:" },
+                new { Name = "lblIva", Text = "IVA %:" }
             };
 
             foreach (var labelInfo in labelsNeeded)
@@ -79,7 +81,7 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // Crear todos los textboxes que faltan
+            // Crear todos los textboxes que faltan (REMOVIDO txtIva)
             var textBoxesNeeded = new[]
             {
                 new { Name = "txtCodigo", ReadOnly = false },
@@ -88,9 +90,10 @@ namespace Comercio.NET.Formularios
                 new { Name = "txtMarca", ReadOnly = false },
                 new { Name = "txtCosto", ReadOnly = false },
                 new { Name = "txtPorcentaje", ReadOnly = false },
-                new { Name = "txtPrecio", ReadOnly = false }, // CAMBIADO: Ahora editable desde Ventas
+                new { Name = "txtPrecio", ReadOnly = false },
                 new { Name = "txtCantidad", ReadOnly = false },
                 new { Name = "txtProveedor", ReadOnly = false }
+                // REMOVIDO: txtIva ya que usamos solo el ComboBox
             };
 
             foreach (var textBoxInfo in textBoxesNeeded)
@@ -104,6 +107,28 @@ namespace Comercio.NET.Formularios
                     };
                     this.Controls.Add(textBox);
                 }
+            }
+
+            // ComboBox para IVA con valores predefinidos
+            if (this.Controls.Find("cmbIva", true).Length == 0)
+            {
+                var cmbIva = new ComboBox
+                {
+                    Name = "cmbIva",
+                    DropDownStyle = ComboBoxStyle.DropDown,
+                    AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+                    AutoCompleteSource = AutoCompleteSource.ListItems
+                };
+
+                // Agregar valores predefinidos de IVA
+                cmbIva.Items.AddRange(new object[] {
+                    "6.63",   // Cigarrillos
+                    "10.50",  // Verdulería, Carnicería, Harinas
+                    "21.00"   // Resto de productos, Pollo
+                });
+                cmbIva.Text = "21.00"; // Valor por defecto
+
+                this.Controls.Add(cmbIva);
             }
 
             // Crear botones que faltan
@@ -134,8 +159,7 @@ namespace Comercio.NET.Formularios
                 int textBoxX = startX + labelWidth + 15;
                 int textBoxWidth = 280;
 
-                // MODIFICADO: Crear lista de controles según el origen
-                var controlesOrdenados = new List<(Label label, TextBox textBox)>();
+                var controlesOrdenados = new List<(Label label, Control control)>();
 
                 if (Origen == OrigenLlamada.Ventas)
                 {
@@ -164,59 +188,41 @@ namespace Comercio.NET.Formularios
                 else
                 {
                     // DESDE PRODUCTOS: Mostrar todos los controles como antes
-                    var lblCodigo = this.Controls.Find("lblCodigo", true).FirstOrDefault() as Label;
-                    var txtCodigo = this.Controls.Find("txtCodigo", true).FirstOrDefault() as TextBox;
-                    if (lblCodigo != null && txtCodigo != null)
-                        controlesOrdenados.Add((lblCodigo, txtCodigo));
-
-                    var lblDescripcion = this.Controls.Find("lblDescripcion", true).FirstOrDefault() as Label;
-                    var txtDescripcion = this.Controls.Find("txtDescripcion", true).FirstOrDefault() as TextBox;
-                    if (lblDescripcion != null && txtDescripcion != null)
-                        controlesOrdenados.Add((lblDescripcion, txtDescripcion));
-
-                    var lblRubro = this.Controls.Find("lblRubro", true).FirstOrDefault() as Label;
-                    var txtRubro = this.Controls.Find("txtRubro", true).FirstOrDefault() as TextBox;
-                    if (lblRubro != null && txtRubro != null)
-                        controlesOrdenados.Add((lblRubro, txtRubro));
-
-                    var lblMarca = this.Controls.Find("lblMarca", true).FirstOrDefault() as Label;
-                    var txtMarca = this.Controls.Find("txtMarca", true).FirstOrDefault() as TextBox;
-                    if (lblMarca != null && txtMarca != null)
-                        controlesOrdenados.Add((lblMarca, txtMarca));
-
-                    var lblCosto = this.Controls.Find("lblCosto", true).FirstOrDefault() as Label;
-                    var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
-                    if (lblCosto != null && txtCosto != null)
-                        controlesOrdenados.Add((lblCosto, txtCosto));
-
-                    var lblPorcentaje = this.Controls.Find("lblPorcentaje", true).FirstOrDefault() as Label;
-                    var txtPorcentaje = this.Controls.Find("txtPorcentaje", true).FirstOrDefault() as TextBox;
-                    if (lblPorcentaje != null && txtPorcentaje != null)
-                        controlesOrdenados.Add((lblPorcentaje, txtPorcentaje));
-
-                    var lblPrecio = this.Controls.Find("lblPrecio", true).FirstOrDefault() as Label;
-                    var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
-                    if (lblPrecio != null && txtPrecio != null)
+                    var controlesCompletos = new[]
                     {
-                        txtPrecio.ReadOnly = true; // Solo lectura desde Productos
-                        controlesOrdenados.Add((lblPrecio, txtPrecio));
+                        ("lblCodigo", "txtCodigo"),
+                        ("lblDescripcion", "txtDescripcion"),
+                        ("lblRubro", "txtRubro"),
+                        ("lblMarca", "txtMarca"),
+                        ("lblCosto", "txtCosto"),
+                        ("lblPorcentaje", "txtPorcentaje"),
+                        ("lblPrecio", "txtPrecio"),
+                        ("lblStock", "txtCantidad"),
+                        ("lblProveedor", "txtProveedor"),
+                        // NUEVO: Agregar IVA a la lista
+                        ("lblIva", "cmbIva")
+                    };
+
+                    foreach (var (lblName, ctrlName) in controlesCompletos)
+                    {
+                        var label = this.Controls.Find(lblName, true).FirstOrDefault() as Label;
+                        var control = this.Controls.Find(ctrlName, true).FirstOrDefault();
+                        
+                        if (label != null && control != null)
+                        {
+                            if (ctrlName == "txtPrecio")
+                            {
+                                (control as TextBox).ReadOnly = true;
+                            }
+                            controlesOrdenados.Add((label, control));
+                        }
                     }
-
-                    var lblStock = this.Controls.Find("lblStock", true).FirstOrDefault() as Label;
-                    var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
-                    if (lblStock != null && txtCantidad != null)
-                        controlesOrdenados.Add((lblStock, txtCantidad));
-
-                    var lblProveedor = this.Controls.Find("lblProveedor", true).FirstOrDefault() as Label;
-                    var txtProveedor = this.Controls.Find("txtProveedor", true).FirstOrDefault() as TextBox;
-                    if (lblProveedor != null && txtProveedor != null)
-                        controlesOrdenados.Add((lblProveedor, txtProveedor));
                 }
 
                 // Posicionar controles en orden
                 for (int i = 0; i < controlesOrdenados.Count; i++)
                 {
-                    var (label, textBox) = controlesOrdenados[i];
+                    var (label, control) = controlesOrdenados[i];
                     int yPos = startY + (controlHeight + spacingY) * i;
 
                     // Configurar label
@@ -226,15 +232,24 @@ namespace Comercio.NET.Formularios
                     label.TextAlign = ContentAlignment.MiddleLeft;
                     label.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                     label.ForeColor = Color.FromArgb(62, 80, 100);
-                    label.Visible = true; // Asegurar que esté visible
+                    label.Visible = true;
 
-                    // Configurar TextBox
-                    textBox.Location = new Point(textBoxX, yPos);
-                    textBox.Size = new Size(textBoxWidth, controlHeight);
-                    textBox.Font = new Font("Segoe UI", 10F);
-                    textBox.BackColor = Color.FromArgb(250, 252, 254);
-                    textBox.ForeColor = Color.FromArgb(62, 80, 100);
-                    textBox.Visible = true; // Asegurar que esté visible
+                    // Configurar Control (TextBox o ComboBox)
+                    control.Location = new Point(textBoxX, yPos);
+                    control.Size = new Size(textBoxWidth, controlHeight);
+                    control.Font = new Font("Segoe UI", 10F);
+                    control.Visible = true;
+                    
+                    if (control is TextBox textBox)
+                    {
+                        textBox.BackColor = Color.FromArgb(250, 252, 254);
+                        textBox.ForeColor = Color.FromArgb(62, 80, 100);
+                    }
+                    else if (control is ComboBox comboBox)
+                    {
+                        comboBox.BackColor = Color.FromArgb(250, 252, 254);
+                        comboBox.ForeColor = Color.FromArgb(62, 80, 100);
+                    }
                 }
 
                 // Posicionar botones
@@ -282,10 +297,10 @@ namespace Comercio.NET.Formularios
                 this.ClientSize = new Size(formWidth, formHeight);
 
                 // NUEVO: Forzar que los controles se traigan al frente en orden
-                foreach (var (label, textBox) in controlesOrdenados)
+                foreach (var (label, control) in controlesOrdenados)
                 {
                     label.BringToFront();
-                    textBox.BringToFront();
+                    control.BringToFront();
                 }
                 btnGuardar?.BringToFront();
                 btnSalirModal?.BringToFront();
@@ -300,8 +315,12 @@ namespace Comercio.NET.Formularios
         // NUEVO: Método para ocultar controles no utilizados desde Ventas
         private void OcultarControlesNoUsados()
         {
-            var controlesAOcultar = new[] { "lblRubro", "txtRubro", "lblMarca", "txtMarca", "lblCosto", "txtCosto", 
-                                           "lblPorcentaje", "txtPorcentaje", "lblStock", "txtCantidad", "lblProveedor", "txtProveedor" };
+            var controlesAOcultar = new[] { 
+                "lblRubro", "txtRubro", "lblMarca", "txtMarca", "lblCosto", "txtCosto", 
+                "lblPorcentaje", "txtPorcentaje", "lblStock", "txtCantidad", "lblProveedor", "txtProveedor",
+                // CORREGIDO: Solo ocultar los controles de IVA que existen
+                "lblIva", "cmbIva"
+            };
             
             foreach (var nombreControl in controlesAOcultar)
             {
@@ -321,7 +340,7 @@ namespace Comercio.NET.Formularios
             if (btnGuardar != null) btnGuardar.Click += btnGuardar_Click;
             if (btnSalirModal != null) btnSalirModal.Click += BtnSalirModal_Click;
 
-            // Buscar y asignar eventos a TextBoxes
+            // CORREGIDO: Remover txtIva de la lista
             var textBoxes = new[] { "txtCodigo", "txtDescripcion", "txtRubro", "txtMarca", "txtCosto", "txtPorcentaje", "txtPrecio", "txtCantidad", "txtProveedor" };
             
             foreach (var name in textBoxes)
@@ -330,16 +349,19 @@ namespace Comercio.NET.Formularios
                 if (textBox != null)
                 {
                     textBox.KeyDown += TextBox_EnterAsTab;
-                    
-                    // NUEVO: Seleccionar todo el texto cuando reciba el foco
                     textBox.GotFocus += TextBox_GotFocus;
-                    
-                    // NUEVO: Seleccionar todo el texto cuando se hace clic con el mouse
                     textBox.MouseClick += TextBox_MouseClick;
                 }
             }
 
-            // MODIFICADO: Solo configurar eventos específicos si no es desde Ventas
+            // Configurar eventos para el ComboBox de IVA
+            var cmbIva = this.Controls.Find("cmbIva", true).FirstOrDefault() as ComboBox;
+            if (cmbIva != null)
+            {
+                cmbIva.KeyDown += ComboBox_EnterAsTab;
+                cmbIva.KeyPress += CmbIva_KeyPress;
+            }
+
             if (Origen != OrigenLlamada.Ventas)
             {
                 var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
@@ -372,12 +394,11 @@ namespace Comercio.NET.Formularios
             }
             else
             {
-                // Desde Ventas: Configurar eventos solo para txtPrecio
                 var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
                 if (txtPrecio != null)
                 {
                     txtPrecio.KeyPress += txtCostoPrecio_KeyPress;
-                    txtPrecio.ReadOnly = false; // Permitir edición
+                    txtPrecio.ReadOnly = false;
                 }
             }
         }
@@ -400,8 +421,8 @@ namespace Comercio.NET.Formularios
             }
             else
             {
-                // Desde Productos: Configurar todos los campos
-                var controls = new[] { "txtCodigo", "txtDescripcion", "txtRubro", "txtMarca", "txtCosto", "txtPorcentaje", "txtPrecio", "txtCantidad", "txtProveedor", "btnGuardar", "btnSalirModal" };
+                // ACTUALIZADO: Agregar cmbIva al TabIndex
+                var controls = new[] { "txtCodigo", "txtDescripcion", "txtRubro", "txtMarca", "txtCosto", "txtPorcentaje", "txtPrecio", "txtCantidad", "txtProveedor", "cmbIva", "btnGuardar", "btnSalirModal" };
                 
                 for (int i = 0; i < controls.Length; i++)
                 {
@@ -455,44 +476,62 @@ namespace Comercio.NET.Formularios
                                     porcentaje = @porcentaje,
                                     cantidad = @cantidad,
                                     proveedor = @proveedor,
-                                    PermiteAcumular = @PermiteAcumular
+                                    PermiteAcumular = @PermiteAcumular,
+                                    iva = @iva
                                   WHERE codigo = @codigoOriginal";
                     cmd = new SqlCommand(query, connection);
-                    cmd.Parameters.AddWithValue("@codigoOriginal", CodigoOriginal);
+                    cmd.Parameters.Add("@codigoOriginal", SqlDbType.VarChar, 50).Value = CodigoOriginal ?? "";
                 }
                 else
                 {
                     var query = @"INSERT INTO Productos 
-                                (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor, PermiteAcumular)
-                                VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor, @PermiteAcumular)";
+                                (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor, PermiteAcumular, iva)
+                                VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor, @PermiteAcumular, @iva)";
                     cmd = new SqlCommand(query, connection);
                 }
 
-                // MODIFICADO: Obtener valores según el origen
+                // CORREGIDO: Especificar precisión y escala para parámetros decimales
                 if (Origen == OrigenLlamada.Ventas)
                 {
-                    // DESDE VENTAS: Usar valores predeterminados y cálculos automáticos
                     var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
-                    decimal precio = decimal.TryParse(txtPrecio?.Text, out var p) ? p : 0;
                     
-                    // Calcular costo usando porcentaje 50 (precio = costo + (costo * 50 / 100))
-                    // Despejando: costo = precio / (1 + 50/100) = precio / 1.5
-                    decimal costo = precio / 1.5m;
+                    // CORREGIDO: Usar cultura actual para parsing correcto
+                    decimal precio = decimal.Parse(txtPrecio.Text.Replace(".", ","), CultureInfo.CurrentCulture);
+                    decimal costo = Math.Round(precio / 1.5m, 2);
                     
-                    cmd.Parameters.AddWithValue("@codigo", codigo);
-                    cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
-                    cmd.Parameters.AddWithValue("@rubro", "Agregado en ventas");
-                    cmd.Parameters.AddWithValue("@marca", "Ventas");
-                    cmd.Parameters.AddWithValue("@precio", precio);
-                    cmd.Parameters.AddWithValue("@costo", Math.Round(costo, 2));
-                    cmd.Parameters.AddWithValue("@porcentaje", 50);
-                    cmd.Parameters.AddWithValue("@cantidad", 10);
-                    cmd.Parameters.AddWithValue("@proveedor", "Proveedor");
-                    cmd.Parameters.AddWithValue("@PermiteAcumular", PermiteAcumular);
+                    cmd.Parameters.Add("@codigo", SqlDbType.VarChar, 50).Value = codigo;
+                    cmd.Parameters.Add("@descripcion", SqlDbType.VarChar, 255).Value = txtDescripcion.Text.Trim();
+                    cmd.Parameters.Add("@rubro", SqlDbType.VarChar, 100).Value = "Agregado en ventas";
+                    cmd.Parameters.Add("@marca", SqlDbType.VarChar, 100).Value = "Ventas";
+    
+                    // CORREGIDO: Especificar precisión y escala para decimales
+                    var precioParam = cmd.Parameters.Add("@precio", SqlDbType.Decimal);
+                    precioParam.Precision = 18;
+                    precioParam.Scale = 2;
+                    precioParam.Value = precio;
+    
+                    var costoParam = cmd.Parameters.Add("@costo", SqlDbType.Decimal);
+                    costoParam.Precision = 18;
+                    costoParam.Scale = 2;
+                    costoParam.Value = costo;
+    
+                    var porcentajeParam = cmd.Parameters.Add("@porcentaje", SqlDbType.Decimal);
+                    porcentajeParam.Precision = 5;
+                    porcentajeParam.Scale = 2;
+                    porcentajeParam.Value = 50.00m;
+    
+                    cmd.Parameters.Add("@cantidad", SqlDbType.Int).Value = 10;
+                    cmd.Parameters.Add("@proveedor", SqlDbType.VarChar, 100).Value = "Proveedor";
+                    cmd.Parameters.Add("@PermiteAcumular", SqlDbType.Int).Value = PermiteAcumular;
+    
+                    // CORREGIDO: IVA con precisión y escala correctas
+                    var ivaParam = cmd.Parameters.Add("@iva", SqlDbType.Decimal);
+                    ivaParam.Precision = 5;
+                    ivaParam.Scale = 2;
+                    ivaParam.Value = 21.00m;
                 }
                 else
                 {
-                    // DESDE PRODUCTOS: Usar valores de los controles como antes
                     var txtRubro = this.Controls.Find("txtRubro", true).FirstOrDefault() as TextBox;
                     var txtMarca = this.Controls.Find("txtMarca", true).FirstOrDefault() as TextBox;
                     var txtCosto = this.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
@@ -500,66 +539,143 @@ namespace Comercio.NET.Formularios
                     var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
                     var txtCantidad = this.Controls.Find("txtCantidad", true).FirstOrDefault() as TextBox;
                     var txtProveedor = this.Controls.Find("txtProveedor", true).FirstOrDefault() as TextBox;
+                    var cmbIva = this.Controls.Find("cmbIva", true).FirstOrDefault() as ComboBox;
 
-                    cmd.Parameters.AddWithValue("@codigo", codigo);
-                    cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
-                    cmd.Parameters.AddWithValue("@rubro", txtRubro?.Text?.Trim() ?? "");
-                    cmd.Parameters.AddWithValue("@marca", txtMarca?.Text?.Trim() ?? "");
-                    cmd.Parameters.AddWithValue("@precio", decimal.TryParse(txtPrecio?.Text, out var precio) ? precio : 0);
-                    cmd.Parameters.AddWithValue("@costo", decimal.TryParse(txtCosto?.Text, out var costo) ? costo : 0);
-                    cmd.Parameters.AddWithValue("@porcentaje", decimal.TryParse(txtPorcentaje?.Text, out var porcentaje) ? porcentaje : 0);
-                    cmd.Parameters.AddWithValue("@cantidad", int.TryParse(txtCantidad?.Text, out var cantidad) ? cantidad : 0);
-                    cmd.Parameters.AddWithValue("@proveedor", txtProveedor?.Text?.Trim() ?? "");
-                    cmd.Parameters.AddWithValue("@PermiteAcumular", PermiteAcumular);
-                }
-
-                cmd.ExecuteNonQuery();
-                
-                // NUEVO: Marcar que hubo cambios
-                HuboCambios = true;
-
-                CodigoAgregado = codigo;
-
-                // MODIFICADO: Comportamiento según el origen y modo
-                if (Modo == ModoFormulario.Modificar)
-                {
-                    MessageBox.Show("Producto modificado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-                else // Modo Agregar
-                {
-                    string mensajeExito = Origen == OrigenLlamada.Ventas 
-                        ? "Producto agregado correctamente para la venta." 
-                        : "Producto agregado correctamente.";
-                    
-                    MessageBox.Show(mensajeExito, "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    
-                    // NUEVO: Comportamiento según el origen
-                    if (Origen == OrigenLlamada.Ventas)
+                    // CORREGIDO: Usar NumberStyles y CultureInfo correctos para parsing
+                    decimal precio = 0;
+                    if (!string.IsNullOrWhiteSpace(txtPrecio?.Text))
                     {
-                        // Desde Ventas: Cerrar el modal y volver al formulario de ventas
+                        decimal.TryParse(txtPrecio.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out precio);
+                        precio = Math.Round(precio, 2);
+                    }
+
+                    decimal costo = 0;
+                    if (!string.IsNullOrWhiteSpace(txtCosto?.Text))
+                    {
+                        decimal.TryParse(txtCosto.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out costo);
+                        costo = Math.Round(costo, 2);
+                    }
+
+                    decimal porcentaje = 0;
+                    if (!string.IsNullOrWhiteSpace(txtPorcentaje?.Text))
+                    {
+                        decimal.TryParse(txtPorcentaje.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out porcentaje);
+                        porcentaje = Math.Round(porcentaje, 2);
+                    }
+
+                    // CORREGIDO: Parsing correcto del valor de IVA
+                    decimal iva = 21.00m; // Valor por defecto
+                    if (!string.IsNullOrWhiteSpace(cmbIva?.Text))
+                    {
+                        if (!decimal.TryParse(cmbIva.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out iva))
+                        {
+                            iva = 21.00m; // Si falla el parsing, usar valor por defecto
+                        }
+                        iva = Math.Round(iva, 2);
+                        
+                        // VALIDACIÓN: Asegurar que el IVA esté en rango válido para DECIMAL(5,2)
+                        if (iva < 0 || iva > 999.99m)
+                        {
+                            MessageBox.Show("El valor de IVA debe estar entre 0 y 999.99", "Error de Validación");
+                            return;
+                        }
+                    }
+
+                    int cantidad = int.TryParse(txtCantidad?.Text, out var cant) ? cant : 0;
+
+                    cmd.Parameters.Add("@codigo", SqlDbType.VarChar, 50).Value = codigo;
+                    cmd.Parameters.Add("@descripcion", SqlDbType.VarChar, 255).Value = txtDescripcion.Text.Trim();
+                    cmd.Parameters.Add("@rubro", SqlDbType.VarChar, 100).Value = txtRubro?.Text?.Trim() ?? "";
+                    cmd.Parameters.Add("@marca", SqlDbType.VarChar, 100).Value = txtMarca?.Text?.Trim() ?? "";
+    
+                    // CORREGIDO: Especificar precisión y escala para decimales
+                    var precioParam = cmd.Parameters.Add("@precio", SqlDbType.Decimal);
+                    precioParam.Precision = 18;
+                    precioParam.Scale = 2;
+                    precioParam.Value = precio;
+    
+                    var costoParam = cmd.Parameters.Add("@costo", SqlDbType.Decimal);
+                    costoParam.Precision = 18;
+                    costoParam.Scale = 2;
+                    costoParam.Value = costo;
+    
+                    var porcentajeParam = cmd.Parameters.Add("@porcentaje", SqlDbType.Decimal);
+                    porcentajeParam.Precision = 5;
+                    porcentajeParam.Scale = 2;
+                    porcentajeParam.Value = porcentaje;
+    
+                    cmd.Parameters.Add("@cantidad", SqlDbType.Int).Value = cantidad;
+                    cmd.Parameters.Add("@proveedor", SqlDbType.VarChar, 100).Value = txtProveedor?.Text?.Trim() ?? "";
+                    cmd.Parameters.Add("@PermiteAcumular", SqlDbType.Int).Value = PermiteAcumular;
+    
+                    // CORREGIDO: IVA con precisión y escala correctas (5,2)
+                    var ivaParam = cmd.Parameters.Add("@iva", SqlDbType.Decimal);
+                    ivaParam.Precision = 5;
+                    ivaParam.Scale = 2;
+                    ivaParam.Value = iva;
+                }
+
+                try
+                {
+                    cmd.ExecuteNonQuery();
+                    
+                    HuboCambios = true;
+                    CodigoAgregado = codigo;
+
+                    if (Modo == ModoFormulario.Modificar)
+                    {
+                        MessageBox.Show("Producto modificado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         this.DialogResult = DialogResult.OK;
                         this.Close();
                     }
                     else
                     {
-                        // Desde Productos: Mantener el comportamiento actual (limpiar para agregar otro)
-                        LimpiarControles();
-                        txtCodigo?.Focus();
+                        string mensajeExito = Origen == OrigenLlamada.Ventas 
+                            ? "Producto agregado correctamente para la venta." 
+                            : "Producto agregado correctamente.";
+                        
+                        MessageBox.Show(mensajeExito, "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        if (Origen == OrigenLlamada.Ventas)
+                        {
+                            this.DialogResult = DialogResult.OK;
+                            this.Close();
+                        }
+                        else
+                        {
+                            LimpiarControles();
+                            txtCodigo?.Focus();
+                        }
                     }
+                }
+                catch (SqlException ex)
+                {
+                    MessageBox.Show($"Error al guardar en la base de datos: {ex.Message}\n\nDetalles técnicos: {ex.Number}", 
+                        "Error SQL", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error inesperado: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
 
         private void LimpiarControles()
         {
+            // CORREGIDO: Remover txtIva de la lista
             var textBoxNames = new[] { "txtCodigo", "txtDescripcion", "txtRubro", "txtMarca", "txtCosto", "txtPorcentaje", "txtPrecio", "txtCantidad", "txtProveedor" };
             
             foreach (var name in textBoxNames)
             {
                 var textBox = this.Controls.Find(name, true).FirstOrDefault() as TextBox;
                 textBox?.Clear();
+            }
+            
+            // Limpiar ComboBox de IVA
+            var cmbIva = this.Controls.Find("cmbIva", true).FirstOrDefault() as ComboBox;
+            if (cmbIva != null)
+            {
+                cmbIva.Text = "21.00"; // Volver al valor por defecto
             }
         }
 
@@ -741,6 +857,7 @@ namespace Comercio.NET.Formularios
                 }
                 return;
             }
+            
             if (e.KeyChar == ',')
             {
                 // Permitir solo una coma.
@@ -748,6 +865,7 @@ namespace Comercio.NET.Formularios
                     e.Handled = true;
                 return;
             }
+            
             // Otros caracteres no permitidos.
             e.Handled = true;
         }
@@ -831,6 +949,68 @@ namespace Comercio.NET.Formularios
                     textBox.SelectAll();
                 }
             }
+        }
+
+        // NUEVO: Método para manejar Enter como Tab in ComboBox
+        private void ComboBox_EnterAsTab(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true; // Evita el beep y el salto de línea
+                this.SelectNextControl((Control)sender, true, true, true, true);
+            }
+        }
+
+        // NUEVO: Método para validar entrada en ComboBox de IVA
+        private void CmbIva_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Permitir solo dígitos, coma, punto y teclas de control
+            if (char.IsControl(e.KeyChar))
+                return;
+
+            if (e.KeyChar == '.')
+                e.KeyChar = ',';
+
+            ComboBox cmb = sender as ComboBox;
+            string text = cmb.Text;
+
+            if (char.IsDigit(e.KeyChar))
+            {
+                if (text.Contains(","))
+                {
+                    int index = text.IndexOf(",");
+                    // Si el cursor está en la parte decimal, permitir máximo 2 decimales
+                    if (cmb.SelectionStart > index)
+                    {
+                        string decimalPart = text.Substring(index + 1);
+                        if (decimalPart.Length >= 2 && cmb.SelectionLength == 0)
+                            e.Handled = true;
+                    }
+                    else
+                    {
+                        // Si el cursor está en la parte entera, permitir máximo 2 dígitos
+                        string integerPart = text.Substring(0, index);
+                        if (integerPart.Length >= 2 && cmb.SelectionLength == 0)
+                            e.Handled = true;
+                    }
+                }
+                else
+                {
+                    // Sin coma, permitir máximo 2 dígitos enteros
+                    if (text.Length >= 2 && cmb.SelectionLength == 0)
+                        e.Handled = true;
+                }
+                return;
+            }
+            
+            if (e.KeyChar == ',')
+            {
+                if (text.Contains(","))
+                    e.Handled = true;
+                return;
+            }
+            
+            e.Handled = true;
         }
 
         public bool HuboCambios { get; private set; } = false;

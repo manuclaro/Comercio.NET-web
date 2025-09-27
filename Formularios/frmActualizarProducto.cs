@@ -190,7 +190,8 @@ namespace Comercio.NET.Formularios
                 using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT descripcion, marca, costo, porcentaje, precio, cantidad 
+                    // MODIFICADO: Agregar columna IVA a la consulta
+                    string query = @"SELECT descripcion, marca, costo, porcentaje, precio, cantidad, iva 
                                      FROM Productos
                                      WHERE codigo = @codigo";
                     using (var cmd = new SqlCommand(query, connection))
@@ -204,15 +205,16 @@ namespace Comercio.NET.Formularios
                                 if (this.Controls.ContainsKey("txtMarca"))
                                     ((TextBox)this.Controls["txtMarca"]).Text = reader["marca"].ToString();
 
-                                // Formatear a 2 decimales
                                 txtNuevoCosto.Text = Convert.ToDecimal(reader["costo"]).ToString("F2");
                                 txtNuevoPorcentaje.Text = Convert.ToDecimal(reader["porcentaje"]).ToString("F2");
                                 txtValorVenta.Text = Convert.ToDecimal(reader["precio"]).ToString("F2");
                                 txtStockActual.Text = reader["cantidad"].ToString();
+                                
+                                // NUEVO: Cargar valor de IVA
+                                if (this.Controls.ContainsKey("txtIva"))
+                                    ((TextBox)this.Controls["txtIva"]).Text = Convert.ToDecimal(reader["iva"]).ToString("F2");
 
-                                // Establecer el foco en el campo Stock.
                                 txtStockActual.Focus();
-
                                 CalcularVenta(null, null);
                             }
                             else
@@ -253,6 +255,7 @@ namespace Comercio.NET.Formularios
                 MessageBox.Show("Código de producto no válido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+            
             if (!decimal.TryParse(txtNuevoCosto.Text, out decimal nuevoCosto) ||
                 !decimal.TryParse(txtNuevoPorcentaje.Text, out decimal nuevoPorcentaje) ||
                 !int.TryParse(txtStockActual.Text, out int nuevoStock))
@@ -262,6 +265,13 @@ namespace Comercio.NET.Formularios
             }
 
             decimal nuevoPrecio = nuevoCosto + ((nuevoCosto * nuevoPorcentaje) / 100);
+
+            // NUEVO: Obtener valor de IVA si existe el control
+            decimal nuevoIva = 21.00m; // Valor por defecto
+            if (this.Controls.ContainsKey("txtIva"))
+            {
+                decimal.TryParse(((TextBox)this.Controls["txtIva"]).Text, out nuevoIva);
+            }
 
             try
             {
@@ -274,11 +284,13 @@ namespace Comercio.NET.Formularios
                 using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
+                    // MODIFICADO: Agregar columna IVA al UPDATE
                     string updateQuery = @"UPDATE Productos
                                            SET cantidad = @nuevoStock,
                                                costo = @nuevoCosto,
                                                porcentaje = @nuevoPorcentaje,
-                                               precio = @nuevoPrecio
+                                               precio = @nuevoPrecio,
+                                               iva = @nuevoIva
                                            WHERE codigo = @codigo";
                     using (var cmd = new SqlCommand(updateQuery, connection))
                     {
@@ -286,6 +298,7 @@ namespace Comercio.NET.Formularios
                         cmd.Parameters.AddWithValue("@nuevoCosto", nuevoCosto);
                         cmd.Parameters.AddWithValue("@nuevoPorcentaje", nuevoPorcentaje);
                         cmd.Parameters.AddWithValue("@nuevoPrecio", nuevoPrecio);
+                        cmd.Parameters.AddWithValue("@nuevoIva", nuevoIva);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
 
                         int affected = cmd.ExecuteNonQuery();
@@ -318,6 +331,9 @@ namespace Comercio.NET.Formularios
             txtNuevoPorcentaje.Clear();
             txtValorVenta.Clear();
             txtStockActual.Clear();
+            // NUEVO: Limpiar campo IVA si existe
+            if (this.Controls.ContainsKey("txtIva"))
+                ((TextBox)this.Controls["txtIva"]).Clear();
         }
 
         // Botón Cerrar: Antes de cerrar, se busca ejecutar el botón "Refrescar" del formulario Productos.

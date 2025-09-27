@@ -558,6 +558,15 @@ namespace Comercio.NET
 
                 DebugMessage($"Último número AFIP: {ultimoNroAfip}, Nuevo: {nuevoNroComprobante}");
 
+                // NUEVO: Obtener productos de la venta actual con sus IVAs específicos
+                var productosVenta = await ObtenerProductosVentaConIva();
+                
+                if (productosVenta == null || productosVenta.Count == 0)
+                {
+                    MessageBox.Show("❌ No hay productos en la venta para facturar.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
                 decimal impTotal = ObtenerImporteTotalVenta();
                 
                 if (impTotal <= 0)
@@ -566,17 +575,26 @@ namespace Comercio.NET
                     return false;
                 }
 
-                decimal impIVA = Math.Round(impTotal - (impTotal / (1 + (alicuotaIVA / 100m))), 2);
-                decimal impNeto = Math.Round(impTotal - impIVA, 2);
+                // NUEVO: Calcular IVA agrupado por alícuota
+                var ivasAgrupados = CalcularIvasPorAlicuota(productosVenta);
+                
+                DebugMessage($"Total productos: {productosVenta.Count}, IVAs agrupados: {ivasAgrupados.Count}");
 
-                DebugMessage($"Cálculos - Total: {impTotal:C}, Neto: {impNeto:C}, IVA: {impIVA:C}");
-
-                var iva = new ArcaWS.AlicIva
+                // Crear array de alícuotas IVA
+                var alicuotasIva = new List<ArcaWS.AlicIva>();
+                
+                foreach (var ivaGroup in ivasAgrupados)
                 {
-                    Id = (alicuotaIVA == 21m) ? 5 : 4,
-                    BaseImp = (double)impNeto,
-                    Importe = (double)impIVA
-                };
+                    var alicuota = new ArcaWS.AlicIva
+                    {
+                        Id = ObtenerCodigoAlicuotaAfip(ivaGroup.Key),
+                        BaseImp = (double)ivaGroup.Value.BaseImponible,
+                        Importe = (double)ivaGroup.Value.ImporteIva
+                    };
+                    alicuotasIva.Add(alicuota);
+                    
+                    DebugMessage($"Alícuota {ivaGroup.Key}%: Base={alicuota.BaseImp:C}, IVA={alicuota.Importe:C}");
+                }
 
                 var feCabReq = new ArcaWS.FECAECabRequest
                 {
@@ -594,14 +612,14 @@ namespace Comercio.NET
                     CbteHasta = nuevoNroComprobante,
                     CbteFch = DateTime.Now.ToString("yyyyMMdd"),
                     ImpTotal = (double)impTotal,
-                    ImpNeto = (double)impNeto,
-                    ImpIVA = (double)impIVA,
+                    ImpNeto = (double)ivasAgrupados.Sum(x => x.Value.BaseImponible),
+                    ImpIVA = (double)ivasAgrupados.Sum(x => x.Value.ImporteIva),
                     MonId = "PES",
                     MonCotiz = 1,
                     CondicionIVAReceptorId = condicionIVAReceptor,
                     ImpTrib = 0,
                     ImpOpEx = 0,
-                    Iva = new ArcaWS.AlicIva[] { iva }
+                    Iva = alicuotasIva.ToArray() // CAMBIO: Usar alícuotas calculadas dinámicamente
                 };
 
                 var feCAEReq = new ArcaWS.FECAERequest
@@ -951,6 +969,118 @@ namespace Comercio.NET
             AfipAuthenticator.ClearTokenCache("wsfe");
             
             System.Diagnostics.Debug.WriteLine("[CACHE] Caché de tokens limpiado manualmente");
+        }
+
+        // NUEVO: Método para obtener productos de la venta con sus IVAs
+        private async Task<List<ProductoVenta>> ObtenerProductosVentaConIva()
+        {
+            try
+            {
+                var productos = new List<ProductoVenta>();
+                DataTable ventaActual = formularioPadre?.GetRemitoActual();
+                
+                if (ventaActual == null) return productos;
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    foreach (DataRow row in ventaActual.Rows)
+                    {
+                        string codigo = row["codigo"]?.ToString();
+                        if (string.IsNullOrEmpty(codigo)) continue;
+
+                        string query = "SELECT iva FROM Productos WHERE codigo = @codigo";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@codigo", codigo);
+                            var result = await cmd.ExecuteScalarAsync();
+                            
+                            decimal iva = result != null && decimal.TryParse(result.ToString(), out decimal ivaValue) 
+                                ? ivaValue 
+                                : 21.00m; // Default
+
+                            productos.Add(new ProductoVenta
+                            {
+                                Codigo = codigo,
+                                Descripcion = row["descripcion"]?.ToString() ?? "",
+                                Precio = decimal.TryParse(row["precio"]?.ToString(), out decimal precio) ? precio : 0,
+                                Cantidad = int.TryParse(row["cantidad"]?.ToString(), out int cantidad) ? cantidad : 0,
+                                Subtotal = decimal.TryParse(row["total"]?.ToString(), out decimal total) ? total : 0,
+                                IVA = iva
+                            });
+                        }
+                    }
+                }
+
+                return productos;
+            }
+            catch (Exception ex)
+            {
+                DebugMessage($"Error obteniendo productos con IVA: {ex.Message}");
+                return new List<ProductoVenta>();
+            }
+        }
+
+        // NUEVO: Método para calcular IVAs agrupados por alícuota
+        private Dictionary<decimal, (decimal BaseImponible, decimal ImporteIva)> CalcularIvasPorAlicuota(List<ProductoVenta> productos)
+        {
+            var ivasAgrupados = new Dictionary<decimal, (decimal BaseImponible, decimal ImporteIva)>();
+
+            foreach (var producto in productos)
+            {
+                // Calcular base imponible e IVA para este producto
+                decimal subtotal = producto.Subtotal;
+                decimal baseImponible = Math.Round(subtotal / (1 + (producto.IVA / 100m)), 2);
+                decimal importeIva = Math.Round(subtotal - baseImponible, 2);
+
+                if (ivasAgrupados.ContainsKey(producto.IVA))
+                {
+                    var actual = ivasAgrupados[producto.IVA];
+                    ivasAgrupados[producto.IVA] = (
+                        actual.BaseImponible + baseImponible,
+                        actual.ImporteIva + importeIva
+                    );
+                }
+                else
+                {
+                    ivasAgrupados[producto.IVA] = (baseImponible, importeIva);
+                }
+            }
+
+            return ivasAgrupados;
+        }
+
+        // NUEVO: Método para obtener código de alícuota AFIP según porcentaje
+        private int ObtenerCodigoAlicuotaAfip(decimal porcentajeIva)
+        {
+            return porcentajeIva switch
+            {
+                0m => 3,       // No gravado
+                2.5m => 9,     // 2.5%
+                5m => 8,       // 5%
+                10.5m => 4,    // 10.5%
+                21m => 5,      // 21%
+                27m => 6,      // 27%
+                _ => 5         // Por defecto 21%
+            };
+        }
+
+        // NUEVO: Clase para representar productos en la venta
+        public class ProductoVenta
+        {
+            public string Codigo { get; set; }
+            public string Descripcion { get; set; }
+            public decimal Precio { get; set; }
+            public int Cantidad { get; set; }
+            public decimal Subtotal { get; set; }
+            public decimal IVA { get; set; }
         }
     }
 }

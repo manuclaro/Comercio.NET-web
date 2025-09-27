@@ -807,7 +807,7 @@ namespace Comercio.NET.Formularios
                     await connection.OpenAsync();
                     ActualizarProgreso(40, "📋 Ejecutando consulta...");
 
-                    var query = "SELECT codigo, descripcion, rubro, marca, costo, porcentaje, precio, cantidad, proveedor FROM Productos ORDER BY descripcion";
+                    var query = "SELECT codigo, descripcion, rubro, marca, costo, porcentaje, precio, cantidad, proveedor, iva FROM Productos ORDER BY descripcion";
 
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
@@ -884,16 +884,18 @@ namespace Comercio.NET.Formularios
             {
                 var columnConfig = new Dictionary<string, (double percentage, string header, DataGridViewContentAlignment headerAlign, DataGridViewContentAlignment cellAlign, string format)>
                 {
-                    // CAMBIO: Todos los headers centrados
-                    ["codigo"] = (0.10, "CÓDIGO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["descripcion"] = (0.35, "DESCRIPCIÓN", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleLeft, ""),
-                    ["rubro"] = (0.12, "RUBRO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["marca"] = (0.12, "MARCA", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["costo"] = (0.10, "COSTO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "C2"),
-                    ["porcentaje"] = (0.06, "%", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["precio"] = (0.10, "PRECIO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "C2"),
-                    ["cantidad"] = (0.08, "STOCK", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["proveedor"] = (0.07, "PROV.", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "")
+                    // CAMBIO: Ajustar porcentajes para incluir IVA
+                    ["codigo"] = (0.08, "CÓDIGO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
+                    ["descripcion"] = (0.32, "DESCRIPCIÓN", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleLeft, ""),
+                    ["rubro"] = (0.11, "RUBRO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
+                    ["marca"] = (0.11, "MARCA", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
+                    ["costo"] = (0.09, "COSTO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "C2"),
+                    ["porcentaje"] = (0.05, "%", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
+                    ["precio"] = (0.09, "PRECIO", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "C2"),
+                    ["cantidad"] = (0.07, "STOCK", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
+                    ["proveedor"] = (0.06, "PROV.", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, ""),
+                    // NUEVO: Agregar columna IVA
+                    ["iva"] = (0.07, "IVA %", DataGridViewContentAlignment.MiddleCenter, DataGridViewContentAlignment.MiddleCenter, "N2")
                 };
 
                 foreach (var config in columnConfig)
@@ -911,6 +913,14 @@ namespace Comercio.NET.Formularios
 
                         if (!string.IsNullOrEmpty(config.Value.format))
                             col.DefaultCellStyle.Format = config.Value.format;
+
+                        // NUEVO: Agregar este bloque para dar estilo especial a la columna IVA
+                        if (config.Key == "iva")
+                        {
+                            col.DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
+                            col.DefaultCellStyle.ForeColor = Color.FromArgb(25, 118, 210);
+                            col.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        }
                     }
                 }
 
@@ -1344,6 +1354,13 @@ namespace Comercio.NET.Formularios
                     {
                         textBox.Text = row.Cells[campo]?.Value?.ToString() ?? "";
                     }
+                }
+
+                // NUEVO: Agregar soporte para ComboBox de IVA
+                var cmbIva = form.Controls.Find("cmbIva", true).FirstOrDefault() as ComboBox;
+                if (cmbIva != null && row.Cells["iva"] != null)
+                {
+                    cmbIva.Text = row.Cells["iva"]?.Value?.ToString() ?? "21.00";
                 }
             }
             catch
