@@ -193,6 +193,25 @@ namespace Comercio.NET
             }
         }
 
+        // NUEVO: Método para debug del estado del caché
+        private void DebugCacheStatus()
+        {
+            if (debugMode)
+            {
+                bool cacheValido = !string.IsNullOrEmpty(_cachedTokenWsfe) && 
+                                  !string.IsNullOrEmpty(_cachedSignWsfe) && 
+                                  _cachedTokenExpiryWsfe > DateTime.UtcNow.AddMinutes(5);
+
+                DebugMessage($"=== ESTADO CACHE TOKENS ===");
+                DebugMessage($"Token exists: {!string.IsNullOrEmpty(_cachedTokenWsfe)}");
+                DebugMessage($"Sign exists: {!string.IsNullOrEmpty(_cachedSignWsfe)}");
+                DebugMessage($"Expiry time: {_cachedTokenExpiryWsfe}");
+                DebugMessage($"Current time: {DateTime.UtcNow}");
+                DebugMessage($"Cache valid: {cacheValido}");
+                DebugMessage($"Minutes until expiry: {(_cachedTokenExpiryWsfe - DateTime.UtcNow).TotalMinutes:F1}");
+            }
+        }
+
         // Modificar SOLO el método ProcesarRemito para no imprimir inmediatamente
         private async Task ProcesarRemito()
         {
@@ -399,12 +418,13 @@ namespace Comercio.NET
             }
         }
 
-        // CORREGIDO: CrearFacturaAfipAsync con manejo de errores específicos mejorado
+        // CORREGIDO: CrearFacturaAfipAsync con manejo completamente basado en caché
         private async Task<bool> CrearFacturaAfipAsync(int cbteTipo, int condicionIVAReceptor, int docTipo, long docNro, decimal alicuotaIVA)
         {
             try
             {
                 DebugMessage("=== INICIO CrearFacturaAfipAsync ===");
+                DebugCacheStatus(); // Mostrar estado del caché antes de comenzar
                 
                 string cuit = "20280694739";
                 string pfxPath = @"C:\Certificados\certificado.pfx";
@@ -413,7 +433,7 @@ namespace Comercio.NET
 
                 DebugMessage("Configuración cargada - Verificando certificado...");
 
-                // NUEVO: Verificar certificado antes de usarlo
+                // Verificar certificado antes de usarlo
                 var (valido, mensaje, vence) = AfipAuthenticator.VerificarCertificado(pfxPath, pfxPassword);
                 
                 if (!valido)
@@ -424,43 +444,76 @@ namespace Comercio.NET
                 
                 if (mensaje.Contains("⚠️"))
                 {
-                    // Mostrar advertencia pero continuar
                     DebugMessage($"ADVERTENCIA: {mensaje}");
                 }
 
-                DebugMessage("Certificado verificado, obteniendo credenciales AFIP...");
+                DebugMessage("Certificado verificado, obteniendo token...");
 
-                // CORREGIDO: Usar AfipAuthenticator.GetTAAsync con mejor manejo de errores
-                (string token, string sign) = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
-
-                if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(sign))
+                // CAMBIO PRINCIPAL: Usar SOLO el sistema de caché del AfipAuthenticator
+                // No manejar el caché local aquí, dejar que AfipAuthenticator lo gestione completamente
+                string token, sign;
+                
+                try
                 {
-                    MessageBox.Show("❌ Error obteniendo credenciales AFIP. Verifique su certificado y conexión.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    DebugMessage("Llamando a AfipAuthenticator.GetTAAsync...");
+                    (token, sign) = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
+                    DebugMessage($"Token obtenido - Length: {token?.Length ?? 0}");
+                }
+                catch (Exception ex)
+                {
+                    DebugMessage($"Error obteniendo token: {ex.Message}");
+                    
+                    // Si el error es por token existente, mostrar mensaje específico
+                    if (ex.Message.Contains("Ya existe un token válido"))
+                    {
+                        MessageBox.Show(
+                            "⏳ AFIP detectó un token activo previo\n\n" +
+                            "💡 Esto ocurre cuando:\n" +
+                            "• Se hizo una factura recientemente\n" +
+                            "• El token anterior aún no expiró\n" +
+                            "• AFIP mantiene tokens activos por seguridad\n\n" +
+                            "🔄 Soluciones:\n" +
+                            "• Espere 10-15 minutos e intente nuevamente\n" +
+                            "• Reinicie la aplicación completamente\n" +
+                            "• El token expirará automáticamente\n\n" +
+                            "⚠️ Esto es normal en desarrollo con múltiples pruebas consecutivas.", 
+                            "Token AFIP Activo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"❌ Error obteniendo credenciales AFIP:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                     return false;
                 }
 
-                // NUEVO: Detectar tokens de espera
+                if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(sign))
+                {
+                    MessageBox.Show("❌ No se pudieron obtener credenciales válidas de AFIP.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                // Verificar si el token es de espera
                 if (token == "WAITING_FOR_EXPIRY")
                 {
                     MessageBox.Show(
-                        "⏳ AFIP tiene un token activo que debe expirar primero\n\n" +
-                        "💡 Situación detectada:\n" +
-                        "• Ya existe un token válido en AFIP\n" +
-                        "• El token anterior no ha expirado aún\n" +
-                        "• AFIP no permite tokens duplicados\n\n" +
-                        "🔄 Soluciones:\n" +
-                        "• Espere 10-15 minutos e intente nuevamente\n" +
-                        "• Cierre completamente la aplicación y vuelva a abrirla\n" +
-                        "• Los tokens AFIP expiran automáticamente\n\n" +
-                        "⚠️ Esto es normal en desarrollo cuando se hacen múltiples pruebas.", 
+                        "⏳ Token AFIP en espera\n\n" +
+                        "El sistema detectó que hay un token activo que debe expirar primero.\n" +
+                        "Esto es normal cuando se generan facturas consecutivamente.\n\n" +
+                        "💡 Intente nuevamente en 10-15 minutos.", 
                         "Token AFIP Pendiente", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return false;
                 }
 
-                DebugMessage($"Token obtenido exitosamente. Length: {token.Length}");
+                DebugMessage($"Token válido obtenido exitosamente. Length: {token.Length}");
 
+                // Actualizar propiedades de instancia
                 TokenAfip = token;
                 SignAfip = sign;
+
+                // Actualizar caché local (opcional, ya que AfipAuthenticator maneja su propio caché)
+                _cachedTokenWsfe = token;
+                _cachedSignWsfe = sign;
+                _cachedTokenExpiryWsfe = DateTime.UtcNow.AddHours(12);
 
                 DebugMessage("Creando cliente WSFE...");
 
@@ -489,7 +542,7 @@ namespace Comercio.NET
 
                 DebugMessage("Obteniendo último número autorizado...");
 
-                // Si llegamos aquí, todo funciona - continuar con facturación real
+                // Continuar con facturación real
                 int ptoVta = 1;
                 
                 var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
@@ -628,7 +681,6 @@ namespace Comercio.NET
                     return false;
                 }
             }
-            // CORREGIDO: Manejo de excepciones compatible con .NET 8
             catch (System.ServiceModel.CommunicationException ex)
             {
                 DebugMessage($"Error de comunicación WCF: {ex.Message}");
@@ -886,6 +938,19 @@ namespace Comercio.NET
             {
                 MessageBox.Show($"Error al imprimir ticket: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // NUEVO: Método para limpiar caché de tokens manualmente
+        public static void LimpiarCacheTokens()
+        {
+            _cachedTokenWsfe = null;
+            _cachedSignWsfe = null;
+            _cachedTokenExpiryWsfe = DateTime.MinValue;
+            
+            // También limpiar el caché del AfipAuthenticator
+            AfipAuthenticator.ClearTokenCache("wsfe");
+            
+            System.Diagnostics.Debug.WriteLine("[CACHE] Caché de tokens limpiado manualmente");
         }
     }
 }

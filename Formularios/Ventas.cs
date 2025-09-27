@@ -820,11 +820,11 @@ namespace Comercio.NET
 
             using (var connection = new SqlConnection(connectionString))
             {
-                // MODIFICADO: Incluir el campo idd (ID único) para identificar filas específicas
-                var query = @"SELECT idd, codigo, descripcion, precio, cantidad, total
+                // MODIFICADO: Incluir el campo id (ID único) para identificar filas específicas
+                var query = @"SELECT id, codigo, descripcion, precio, cantidad, total
                               FROM Ventas
                               WHERE nrofactura = @nrofactura
-                              ORDER BY idd DESC";
+                              ORDER BY id DESC";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
@@ -835,10 +835,10 @@ namespace Comercio.NET
                 }
             }
 
-            // NUEVO: Ocultar la columna idd para que no sea visible al usuario
-            if (dataGridView1.Columns["idd"] != null)
+            // NUEVO: Ocultar la columna id para que no sea visible al usuario
+            if (dataGridView1.Columns["id"] != null)
             {
-                dataGridView1.Columns["idd"].Visible = false;
+                dataGridView1.Columns["id"].Visible = false;
             }
 
             // Ajustar anchos de columnas
@@ -1120,7 +1120,7 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
     var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
                        FROM Ventas 
                        WHERE nrofactura = @nrofactura AND codigo = @codigo 
-                       ORDER BY idd DESC"; // Obtener el registro más reciente
+                       ORDER BY id DESC"; // Obtener el registro más reciente
 
     DateTime fechaHoraVentaOriginal = DateTime.Now; // Valor por defecto
     bool esCtaCte = false;
@@ -1699,7 +1699,7 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
             return dataGridView1.SelectedRows.Count > 0 && dataGridView1.SelectedRows[0].Index >= 0;
         }
 
-        // MODIFICADO: El método EliminarProductoSeleccionado para manejar eliminación por idd específico
+        // MODIFICADO: El método EliminarProductoSeleccionado para manejar eliminación por id específico
         private async void EliminarProductoSeleccionado(object sender, EventArgs e)
         {
             try
@@ -1751,16 +1751,16 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
 
     var filaSeleccionada = dataGridView1.SelectedRows[0];
 
-    // NUEVO: Verificar que la fila tenga todos los campos necesarios incluido idd
-    if (filaSeleccionada.Cells["codigo"].Value == null || filaSeleccionada.Cells["idd"].Value == null)
+    // NUEVO: Verificar que la fila tenga todos los campos necesarios incluido id
+    if (filaSeleccionada.Cells["codigo"].Value == null || filaSeleccionada.Cells["id"].Value == null)
     {
         MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error",
             MessageBoxButtons.OK, MessageBoxIcon.Error);
         return;
     }
 
-    // NUEVO: Obtener el idd específico de la fila seleccionada
-    int idd = Convert.ToInt32(filaSeleccionada.Cells["idd"].Value);
+    // NUEVO: Obtener el id específico de la fila seleccionada
+    int id = Convert.ToInt32(filaSeleccionada.Cells["id"].Value);
     string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
     string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
     decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
@@ -1779,12 +1779,12 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
 
         try
         {
-            // NUEVO: Usar idd específico para eliminación precisa
+            // NUEVO: Usar id específico para eliminación precisa
             int cantidadAEliminar = motivoForm.CantidadAEliminar;
             decimal totalAEliminar = cantidadAEliminar * precio;
             
             // MODIFICADO: Pasar cantidadAEliminar y totalAEliminar a la función de eliminación
-            await EliminarProductoPorIddConAuditoria(idd, codigo, descripcion, precio, cantidadTotal, cantidadAEliminar, totalAEliminar, motivoForm.Motivo);
+            await EliminarProductoPorIdConAuditoria(id, codigo, descripcion, precio, cantidadTotal, cantidadAEliminar, totalAEliminar, motivoForm.Motivo);
             CargarVentasActuales();
             
             string mensaje = cantidadAEliminar == cantidadTotal 
@@ -1811,8 +1811,8 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
     }
 }
 
-// NUEVO: Método para manejar eliminación por idd específico con auditoría
-private async Task EliminarProductoPorIddConAuditoria(int idd, string codigo, string descripcion, 
+// NUEVO: Método para manejar eliminación por id específico con auditoría
+private async Task EliminarProductoPorIdConAuditoria(int id, string codigo, string descripcion, 
     decimal precio, int cantidadTotal, int cantidadAEliminar, decimal totalAEliminar, string motivo)
 {
     string connectionString = GetConnectionString();
@@ -1831,23 +1831,23 @@ private async Task EliminarProductoPorIddConAuditoria(int idd, string codigo, st
                 await RegistrarEliminacionEnAuditoria(connection, transaction,
                     codigo, descripcion, precio, cantidadAEliminar, totalAEliminar, motivo);
 
-                // 3. NUEVO: Eliminar o actualizar la fila específica por idd
+                // 3. NUEVO: Eliminar o actualizar la fila específica por id
                 if (cantidadAEliminar == cantidadTotal)
                 {
-                    // Eliminar completamente el registro específico por idd
-                    await EliminarFilaPorIdd(connection, transaction, idd);
+                    // Eliminar completamente el registro específico por id
+                    await EliminarFilaPorId(connection, transaction, id);
                 }
                 else
                 {
                     // Actualizar la cantidad y recalcular el total en la fila específica
-                    await ActualizarCantidadPorIdd(connection, transaction, idd, cantidadTotal - cantidadAEliminar, precio);
+                    await ActualizarCantidadPorId(connection, transaction, id, cantidadTotal - cantidadAEliminar, precio);
                 }
 
                 transaction.Commit();
 
-                // DEBUG: Confirmar la operación específica por idd
-                System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN POR IDD ===");
-                System.Diagnostics.Debug.WriteLine($"IDD eliminado/modificado: {idd}");
+                // DEBUG: Confirmar la operación específica por id
+                System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN POR ID ===");
+                System.Diagnostics.Debug.WriteLine($"ID eliminado/modificado: {id}");
                 System.Diagnostics.Debug.WriteLine($"Producto: {codigo} - {descripcion}");
                 System.Diagnostics.Debug.WriteLine($"Cantidad original: {cantidadTotal}");
                 System.Diagnostics.Debug.WriteLine($"Cantidad eliminada: {cantidadAEliminar}");
@@ -1863,32 +1863,32 @@ private async Task EliminarProductoPorIddConAuditoria(int idd, string codigo, st
     }
 }
 
-// NUEVO: Método para eliminar fila específica por idd
-private async Task EliminarFilaPorIdd(SqlConnection connection, SqlTransaction transaction, int idd)
+// NUEVO: Método para eliminar fila específica por id
+private async Task EliminarFilaPorId(SqlConnection connection, SqlTransaction transaction, int id)
 {
-    var query = @"DELETE FROM Ventas WHERE idd = @idd";
+    var query = @"DELETE FROM Ventas WHERE id = @id";
 
     using (var cmd = new SqlCommand(query, connection, transaction))
     {
-        cmd.Parameters.AddWithValue("@idd", idd);
+        cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync();
     }
 }
 
-// NUEVO: Método para actualizar cantidad en fila específica por idd
-private async Task ActualizarCantidadPorIdd(SqlConnection connection, SqlTransaction transaction, 
-    int idd, int nuevaCantidad, decimal precio)
+// NUEVO: Método para actualizar cantidad en fila específica por id
+private async Task ActualizarCantidadPorId(SqlConnection connection, SqlTransaction transaction, 
+    int id, int nuevaCantidad, decimal precio)
 {
     var query = @"UPDATE Ventas 
                   SET cantidad = @nuevaCantidad, 
                       total = @nuevaCantidad * @precio
-                  WHERE idd = @idd";
+                  WHERE id = @id";
 
     using (var cmd = new SqlCommand(query, connection, transaction))
     {
         cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
         cmd.Parameters.AddWithValue("@precio", precio);
-        cmd.Parameters.AddWithValue("@idd", idd);
+        cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync();
     }
 }
