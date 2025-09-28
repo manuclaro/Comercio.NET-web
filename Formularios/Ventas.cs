@@ -50,6 +50,9 @@ namespace Comercio.NET
 
         private bool validarStockHabilitado = true; // Variable de instancia para almacenar la configuración
 
+        // En lugar del Label lbTotal, usar un RichTextBox para mejor control de formato
+        private RichTextBox rtbTotal;
+
         public Ventas()
         {
             InitializeComponent();
@@ -566,6 +569,27 @@ namespace Comercio.NET
                 }
             }
 
+            // NUEVO: Obtener el porcentaje de IVA del producto
+            decimal porcentajeIva = 0;
+            using (var connection = new SqlConnection(connectionString))
+            {
+                var queryIva = @"SELECT iva FROM Productos WHERE codigo = @codigo";
+                using (var cmd = new SqlCommand(queryIva, connection))
+                {
+                    cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
+                    connection.Open();
+                    var resultIva = cmd.ExecuteScalar();
+                    if (resultIva != null && resultIva != DBNull.Value)
+                    {
+                        porcentajeIva = Convert.ToDecimal(resultIva);
+                    }
+                }
+                connection.Close();
+            }
+
+            // NUEVO: Calcular el IVA basado en el precio y porcentaje
+            decimal ivaCalculado = CalcularIvaDesdeTotal(precioUnitario * cantidadPersonalizada, porcentajeIva);
+
             // 4. Verificar si el producto ya está en la venta actual
             bool productoYaAgregado = false;
             int cantidadActual = 0;
@@ -598,12 +622,14 @@ namespace Comercio.NET
                             // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total
                             var query = @"UPDATE Ventas 
                                           SET cantidad = cantidad + @nuevaCantidad, 
-                                              total = (cantidad + @nuevaCantidad) * @precio
+                                              total = (cantidad + @nuevaCantidad) * @precio,
+                                              IvaCalculado = (@precio * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva)
                                           WHERE nrofactura = @nrofactura AND codigo = @codigo";
                             using (var cmd = new SqlCommand(query, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
                                 cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                                cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
                                 cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                                 cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
                                 cmd.ExecuteNonQuery();
@@ -613,8 +639,8 @@ namespace Comercio.NET
                         {
                             // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
                             var query = @"INSERT INTO Ventas 
-                                        (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte)
-                                        VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte)";
+                                        (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte, IvaCalculado)
+                                        VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte, @ivaCalculado)";
                             using (var cmd = new SqlCommand(query, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
@@ -631,6 +657,9 @@ namespace Comercio.NET
                                 cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                                 cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
                                 cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+                                
+                                // NUEVO: Agregar IVA calculado
+                                cmd.Parameters.AddWithValue("@ivaCalculado", ivaCalculado);
 
                                 cmd.ExecuteNonQuery();
                             }
@@ -773,7 +802,7 @@ namespace Comercio.NET
             // Crear el panel footer programáticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 60; // Aumentar altura para mejor visibilidad
+            panelFooter.Height = 80; // Mantenemos la altura aumentada
             panelFooter.BackColor = Color.FromArgb(0, 120, 215);
 
             // Configurar lbCantidadProductos
@@ -781,23 +810,28 @@ namespace Comercio.NET
             lbCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
             lbCantidadProductos.Dock = DockStyle.Left;
             lbCantidadProductos.Width = 250;
-            lbCantidadProductos.Font = new Font("Segoe UI", 14F, FontStyle.Bold); // Reducir tamaño de fuente
+            lbCantidadProductos.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
             lbCantidadProductos.ForeColor = Color.White;
             lbCantidadProductos.Text = "Productos: 0";
 
-            // Configurar lbTotal
-            lbTotal.AutoSize = false;
-            lbTotal.TextAlign = ContentAlignment.MiddleRight;
-            lbTotal.Dock = DockStyle.Right;
-            lbTotal.Width = 400; // Reducir ancho
-            lbTotal.Font = new Font("Segoe UI", 24F, FontStyle.Bold); // Reducir tamaño de fuente
-            lbTotal.ForeColor = Color.White;
-            lbTotal.Text = "Total: $0,00";
-            lbTotal.Padding = new Padding(0, 0, 20, 0);
+            // NUEVO: Usar RichTextBox para mejor control de formato
+            rtbTotal = new RichTextBox
+            {
+                AutoSize = false,
+                Dock = DockStyle.Right,
+                Width = 500,
+                BackColor = Color.FromArgb(0, 120, 215),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                ReadOnly = true,
+                ScrollBars = RichTextBoxScrollBars.None,
+                Padding = new Padding(0, 0, 20, 0),
+                Multiline = true
+            };
 
-            // Agregar los labels al panel
+            // Agregar los controles al panel
             panelFooter.Controls.Add(lbCantidadProductos);
-            panelFooter.Controls.Add(lbTotal);
+            panelFooter.Controls.Add(rtbTotal);
 
             // Agregar el panel al formulario
             this.Controls.Add(panelFooter);
@@ -807,7 +841,7 @@ namespace Comercio.NET
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridView1.Dock = DockStyle.None;
             dataGridView1.Location = new Point(0, 171);
-            dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 60); // Restar altura del footer
+            dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 80);
         }
 
         private void CargarVentasActuales()
@@ -820,8 +854,8 @@ namespace Comercio.NET
 
             using (var connection = new SqlConnection(connectionString))
             {
-                // MODIFICADO: Incluir el campo id (ID único) para identificar filas específicas
-                var query = @"SELECT id, codigo, descripcion, precio, cantidad, total
+                // MODIFICADO: Incluir IvaCalculado en la consulta
+                var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, IvaCalculado
                               FROM Ventas
                               WHERE nrofactura = @nrofactura
                               ORDER BY id DESC";
@@ -835,42 +869,71 @@ namespace Comercio.NET
                 }
             }
 
-            // NUEVO: Ocultar la columna id para que no sea visible al usuario
+            // Ocultar la columna id
             if (dataGridView1.Columns["id"] != null)
             {
                 dataGridView1.Columns["id"].Visible = false;
             }
 
-            // Ajustar anchos de columnas
+            // NUEVO: Configurar la nueva columna IVA
+            if (dataGridView1.Columns["IvaCalculado"] != null)
+            {
+                dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA";
+                dataGridView1.Columns["IvaCalculado"].Width = 80;
+                dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Format = "C2";
+                dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
+
+            // Ajustar anchos de columnas existentes
             if (dataGridView1.Columns["descripcion"] != null)
             {
-                dataGridView1.Columns["descripcion"].Width = 330; // Más ancha
+                dataGridView1.Columns["descripcion"].Width = 260; // Reducido para hacer espacio al IVA
             }
             if (dataGridView1.Columns["precio"] != null)
             {
-                dataGridView1.Columns["precio"].Width = 110;
+                dataGridView1.Columns["precio"].Width = 100;
             }
             if (dataGridView1.Columns["cantidad"] != null)
             {
-                dataGridView1.Columns["cantidad"].Width = 50; // Más angosta
+                dataGridView1.Columns["cantidad"].Width = 50;
+            }
+            if (dataGridView1.Columns["total"] != null)
+            {
+                dataGridView1.Columns["total"].Width = 100;
             }
 
+            // Actualizar totales
             lbCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
 
             decimal sumaTotal = 0;
+            decimal sumaIva = 0;
+            
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
-                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
-                    sumaTotal += valor;
+                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
+                    sumaTotal += valorTotal;
+                    
+                if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
+                    sumaIva += valorIva;
             }
-            lbTotal.Text = $"Total: {sumaTotal:C2}";
+            
+            // NUEVO: Formatear con RichTextBox - Total grande e IVA pequeño debajo
+            rtbTotal.Clear();
+            rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
+
+            // Total con fuente grande
+            rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
+            rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}");
+
+            // Nueva línea
+            rtbTotal.AppendText("\n");
+
+            // IVA con fuente considerablemente más pequeña
+            rtbTotal.SelectionFont = new Font("Segoe UI", 11F, FontStyle.Regular);
+            rtbTotal.AppendText($"IVA: {sumaIva:C2}");
         }
 
-        // Eliminar completamente el método FinalizarVenta() duplicado que agregamos antes
-        // Ya existe btnFinalizarVenta_Click que hace lo mismo
-
-        // El método btnFinalizarVenta_Click ya está bien implementado, solo hay que hacer algunos ajustes:
-
+        // Método btnFinalizarVenta_Click
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
@@ -1094,8 +1157,8 @@ namespace Comercio.NET
             }
         }
 
-        // CORREGIDO: Método RegistrarEliminacionEnAuditoria con mejor manejo de fecha y hora
-private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
+        // MODIFICADO: Simplificar el método RegistrarEliminacionEnAuditoria
+        private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
     string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
 {
     // Obtener datos adicionales del producto
@@ -1116,17 +1179,17 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
         }
     }
 
-    // CORREGIDO: Obtener fecha y hora de la venta original con mejor manejo
-    var queryVenta = @"SELECT fecha, hora, EsCtaCte, NombreCtaCte 
-                       FROM Ventas 
-                       WHERE nrofactura = @nrofactura AND codigo = @codigo 
-                       ORDER BY id DESC"; // Obtener el registro más reciente
-
-    DateTime fechaHoraVentaOriginal = DateTime.Now; // Valor por defecto
+    // NUEVO: Obtener IVA calculado de la venta
+    var queryVentaIva = @"SELECT IvaCalculado, fecha, hora, EsCtaCte, NombreCtaCte FROM Ventas 
+                          WHERE nrofactura = @nrofactura AND codigo = @codigo 
+                          ORDER BY id DESC";
+    
+    decimal ivaCalculado = 0;
+    DateTime fechaHoraVentaOriginal = DateTime.Now;
     bool esCtaCte = false;
     string nombreCtaCte = "";
 
-    using (var cmd = new SqlCommand(queryVenta, connection, transaction))
+    using (var cmd = new SqlCommand(queryVentaIva, connection, transaction))
     {
         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
         cmd.Parameters.AddWithValue("@codigo", codigo);
@@ -1134,71 +1197,25 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
         {
             if (reader.Read())
             {
+                ivaCalculado = reader["IvaCalculado"] != DBNull.Value ? Convert.ToDecimal(reader["IvaCalculado"]) : 0;
+                
                 try
                 {
-                    // CORREGIDO: Mejor manejo de fecha y hora
                     DateTime fechaVenta = Convert.ToDateTime(reader["fecha"]);
                     string horaVentaString = reader["hora"]?.ToString() ?? "";
 
-                    // DEBUG: Ver qué valores estamos obteniendo
-                    System.Diagnostics.Debug.WriteLine($"=== FECHA/HORA ORIGINAL ===");
-                    System.Diagnostics.Debug.WriteLine($"Fecha obtenida: {fechaVenta:yyyy-MM-dd}");
-                    System.Diagnostics.Debug.WriteLine($"Hora string obtenida: '{horaVentaString}'");
-                    
-                    if (!string.IsNullOrEmpty(horaVentaString))
+                    if (!string.IsNullOrEmpty(horaVentaString) && TimeSpan.TryParse(horaVentaString, out TimeSpan tiempo))
                     {
-                        // Intentar parsear como TimeSpan primero
-                        if (TimeSpan.TryParse(horaVentaString, out TimeSpan tiempo))
-                        {
-                            fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
-                            System.Diagnostics.Debug.WriteLine($"Hora parseada como TimeSpan: {tiempo}");
-                        }
-                        // Si no funciona como TimeSpan, intentar como DateTime completo
-                        else if (DateTime.TryParse($"{fechaVenta:yyyy-MM-dd} {horaVentaString}", out DateTime fechaHoraCompleta))
-                        {
-                            fechaHoraVentaOriginal = fechaHoraCompleta;
-                            System.Diagnostics.Debug.WriteLine($"Hora parseada como DateTime completo: {fechaHoraCompleta}");
-                        }
-                        // Si tampoco funciona, intentar extraer solo HH:mm:ss si hay más formato
-                        else
-                        {
-                            // Intentar extraer formato HH:mm:ss de string más complejo
-                            var match = System.Text.RegularExpressions.Regex.Match(horaVentaString, @"(\d{1,2}):(\d{2}):(\d{2})");
-                            if (match.Success)
-                            {
-                                if (int.TryParse(match.Groups[1].Value, out int horas) &&
-                                    int.TryParse(match.Groups[2].Value, out int minutos) &&
-                                    int.TryParse(match.Groups[3].Value, out int segundos))
-                                {
-                                    fechaHoraVentaOriginal = fechaVenta.Date.AddHours(horas).AddMinutes(minutos).AddSeconds(segundos);
-                                    System.Diagnostics.Debug.WriteLine($"Hora parseada con regex: {horas}:{minutos}:{segundos}");
-                                }
-                                else
-                                {
-                                    fechaHoraVentaOriginal = fechaVenta; // Solo fecha
-                                    System.Diagnostics.Debug.WriteLine($"No se pudo parsear la hora, usando solo fecha");
-                                }
-                            }
-                            else
-                            {
-                                fechaHoraVentaOriginal = fechaVenta; // Solo fecha
-                                System.Diagnostics.Debug.WriteLine($"Regex no coincide, usando solo fecha");
-                            }
-                        }
+                        fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
                     }
                     else
                     {
-                        fechaHoraVentaOriginal = fechaVenta; // Solo fecha si no hay hora
-                        System.Diagnostics.Debug.WriteLine($"No hay hora, usando solo fecha");
+                        fechaHoraVentaOriginal = fechaVenta;
                     }
-
-                    System.Diagnostics.Debug.WriteLine($"Fecha/hora final: {fechaHoraVentaOriginal:yyyy-MM-dd HH:mm:ss}");
-                    System.Diagnostics.Debug.WriteLine($"===========================");
                 }
-                catch (Exception ex)
+                catch
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error parseando fecha/hora: {ex.Message}");
-                    fechaHoraVentaOriginal = DateTime.Now; // Fallback
+                    fechaHoraVentaOriginal = DateTime.Now;
                 }
 
                 esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
@@ -1207,29 +1224,21 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
         }
     }
 
-    // CORREGIDO: Obtener usuario y cajero DIRECTAMENTE (igual que en las facturas)
+    // Obtener usuario y cajero
     string usuarioEliminacion = ObtenerUsuarioActual();
     int numeroCajero = obtenerNumeroCajero();
-    
-    // DEBUG: Para verificar qué valores se están usando
-    System.Diagnostics.Debug.WriteLine($"=== AUDITORIA ELIMINACION ===");
-    System.Diagnostics.Debug.WriteLine($"Usuario: {usuarioEliminacion}");
-    System.Diagnostics.Debug.WriteLine($"Cajero: {numeroCajero}");
-    System.Diagnostics.Debug.WriteLine($"Código: {codigo}");
-    System.Diagnostics.Debug.WriteLine($"Fecha/Hora venta original: {fechaHoraVentaOriginal:yyyy-MM-dd HH:mm:ss}");
-    System.Diagnostics.Debug.WriteLine($"============================");
 
-    // ACTUALIZADO: INSERT para incluir el número de cajero
+    // INSERT para auditoría
     var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
               (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
                NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion,
                UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
-               IPUsuario, NombreEquipo, NumeroCajero)
+               IPUsuario, NombreEquipo, NumeroCajero, IvaEliminado)
               VALUES 
               (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
                @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
                @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
-               @IPUsuario, @NombreEquipo, @NumeroCajero)";
+               @IPUsuario, @NombreEquipo, @NumeroCajero, @IvaEliminado)";
 
     using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
     {
@@ -1239,7 +1248,7 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
         cmd.Parameters.AddWithValue("@Cantidad", cantidad);
         cmd.Parameters.AddWithValue("@TotalEliminado", total);
         cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
-        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal); // CORREGIDO: Ahora incluye fecha y hora
+        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal);
         cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
         cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuarioEliminacion);
         cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
@@ -1248,11 +1257,11 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
         cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
         cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
         cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+        cmd.Parameters.AddWithValue("@IvaEliminado", ivaCalculado);
 
         await cmd.ExecuteNonQueryAsync();
     }
 }
-
         private async Task EliminarProductoConAuditoria(string codigo, string descripcion,
             decimal precio, int cantidad, decimal total, string motivo)
         {
@@ -1323,7 +1332,7 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
                 System.Diagnostics.Debug.WriteLine($"Cantidad devuelta: {cantidad}");
                 System.Diagnostics.Debug.WriteLine($"PermiteAcumular: {permiteAcumular}");
                 System.Diagnostics.Debug.WriteLine($"Stock actualizado: SÍ");
-                System.Diagnostics.Debug.WriteLine($"=======================");
+                System.Diagnostics.Debug.WriteLine($"===========================");
             }
             else
             {
@@ -1333,7 +1342,7 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
                 System.Diagnostics.Debug.WriteLine($"Cantidad que se intentó devolver: {cantidad}");
                 System.Diagnostics.Debug.WriteLine($"PermiteAcumular: {permiteAcumular}");
                 System.Diagnostics.Debug.WriteLine($"Stock actualizado: NO");
-                System.Diagnostics.Debug.WriteLine($"=======================");
+                System.Diagnostics.Debug.WriteLine($"===========================");
             }
         }
 
@@ -1459,13 +1468,20 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
         {
             ConfigurarColumna("precio", "C2", DataGridViewContentAlignment.MiddleRight);
             ConfigurarColumna("total", "C2", DataGridViewContentAlignment.MiddleRight);
+            ConfigurarColumna("IvaCalculado", "C2", DataGridViewContentAlignment.MiddleRight, 80); // NUEVO
             ConfigurarColumna("cantidad", null, DataGridViewContentAlignment.MiddleCenter, 50);
-            ConfigurarColumna("descripcion", null, null, 330);
+            ConfigurarColumna("descripcion", null, null, 280); // Reducido
 
             foreach (DataGridViewColumn col in dataGridView1.Columns)
             {
                 col.HeaderText = col.HeaderText.ToUpper();
                 col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+            
+            // NUEVO: Configurar encabezado específico para IVA
+            if (dataGridView1.Columns["IvaCalculado"] != null)
+            {
+                dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA";
             }
         }
 
@@ -1511,7 +1527,17 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
 
             // Actualizar labels
             lbCantidadProductos.Text = "Productos: 0";
-            lbTotal.Text = "Total: $0,00";
+            
+            // MODIFICADO: Usar RichTextBox para el total
+            if (rtbTotal != null)
+            {
+                rtbTotal.Clear();
+                rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
+                rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
+                rtbTotal.AppendText("TOTAL: $0,00\n");
+                rtbTotal.SelectionFont = new Font("Segoe UI", 11F, FontStyle.Regular);
+                rtbTotal.AppendText("IVA: $0,00");
+            }
 
             // Limpiar checkboxes
             chkEsCtaCte.Checked = false;
@@ -1811,7 +1837,7 @@ private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, Sql
     }
 }
 
-// NUEVO: Método para manejar eliminación por id específico con auditoría
+// NUEVO: Método para eliminar por id específico con auditoría
 private async Task EliminarProductoPorIdConAuditoria(int id, string codigo, string descripcion, 
     decimal precio, int cantidadTotal, int cantidadAEliminar, decimal totalAEliminar, string motivo)
 {
@@ -1875,24 +1901,39 @@ private async Task EliminarFilaPorId(SqlConnection connection, SqlTransaction tr
     }
 }
 
-// NUEVO: Método para actualizar cantidad en fila específica por id
+// NUEVO: Método para actualizar cantidad en fila específica por id con IVA
 private async Task ActualizarCantidadPorId(SqlConnection connection, SqlTransaction transaction, 
     int id, int nuevaCantidad, decimal precio)
 {
+    // NUEVO: Obtener porcentaje de IVA del producto para recalcular
+    decimal porcentajeIva = 0;
+    var queryIva = @"SELECT p.iva FROM Ventas v INNER JOIN Productos p ON v.codigo = p.codigo WHERE v.id = @id";
+    using (var cmdIva = new SqlCommand(queryIva, connection, transaction))
+    {
+        cmdIva.Parameters.AddWithValue("@id", id);
+        var resultIva = await cmdIva.ExecuteScalarAsync();
+        if (resultIva != null && resultIva != DBNull.Value)
+        {
+            porcentajeIva = Convert.ToDecimal(resultIva);
+        }
+    }
+
+    // MODIFICADO: Incluir recálculo de IVA
     var query = @"UPDATE Ventas 
                   SET cantidad = @nuevaCantidad, 
-                      total = @nuevaCantidad * @precio
+                      total = @nuevaCantidad * @precio,
+                      IvaCalculado = (@precio * @nuevaCantidad) * @porcentajeIva / (100 + @porcentajeIva)
                   WHERE id = @id";
 
     using (var cmd = new SqlCommand(query, connection, transaction))
     {
         cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
         cmd.Parameters.AddWithValue("@precio", precio);
+        cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
         cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync();
     }
-}
-
+        }
         // Método ProcesarCodigo
         private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
         {
@@ -2136,6 +2177,26 @@ private async Task ActualizarCantidadPorId(SqlConnection connection, SqlTransact
                     }
                 };
             }
+        }
+
+        // NUEVO: Método para calcular IVA desde el total (precio con IVA incluido)
+        private decimal CalcularIvaDesdeTotal(decimal totalConIva, decimal porcentajeIva)
+        {
+            if (porcentajeIva <= 0) return 0;
+    
+            // Fórmula: IVA = Total * (% IVA / (100 + % IVA))
+            decimal iva = totalConIva * (porcentajeIva / (100 + porcentajeIva));
+            return Math.Round(iva, 2);
+        }
+
+        // NUEVO: Método alternativo para calcular IVA desde el neto (precio sin IVA)
+        private decimal CalcularIvaDesdeNeto(decimal totalNeto, decimal porcentajeIva)
+        {
+            if (porcentajeIva <= 0) return 0;
+    
+            // Fórmula: IVA = Total Neto * (% IVA / 100)
+            decimal iva = totalNeto * (porcentajeIva / 100);
+            return Math.Round(iva, 2);
         }
     }
 }
