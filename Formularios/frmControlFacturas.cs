@@ -75,6 +75,11 @@ namespace Comercio.NET.Formularios
             lblDetalleTiposFactura = new Label();
             lblDetalleFormasPago = new Label();
             btnAuditoriaEliminados = new Button();
+            
+            // NUEVO: Agregar labels para IVA
+            var lblTotalIVA = new Label();
+            var lblSubtotalSinIVA = new Label();
+            
             // 
             // txtFiltroCajero
             // 
@@ -87,9 +92,7 @@ namespace Comercio.NET.Formularios
             txtFiltroCajero.TabIndex = 6;
             txtFiltroCajero.TextChanged += TxtFiltroCajero_TextChanged;
             
-            // 
-            // dgvVentas
-            // 
+            // Configuración existente del DataGridView...
             dgvVentas.AllowUserToAddRows = false;
             dgvVentas.AllowUserToDeleteRows = false;
             dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
@@ -116,9 +119,8 @@ namespace Comercio.NET.Formularios
             dgvVentas.TabIndex = 0;
             dgvVentas.CellClick += DgvVentas_CellClick;
             dgvVentas.Click += FrmControlFacturas_Click;
-            // 
-            // dtpFecha
-            // 
+
+            // Configuración de otros controles existentes...
             dtpFecha.Font = new Font("Segoe UI", 10F);
             dtpFecha.Format = DateTimePickerFormat.Short;
             dtpFecha.Location = new Point(18, 14);
@@ -126,9 +128,7 @@ namespace Comercio.NET.Formularios
             dtpFecha.Size = new Size(106, 25);
             dtpFecha.TabIndex = 4;
             dtpFecha.Value = new DateTime(2025, 9, 20, 0, 0, 0, 0);
-            // 
-            // btnBuscar
-            // 
+
             btnBuscar.BackColor = Color.FromArgb(0, 120, 215);
             btnBuscar.FlatStyle = FlatStyle.Flat;
             btnBuscar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
@@ -140,9 +140,7 @@ namespace Comercio.NET.Formularios
             btnBuscar.Text = "Buscar";
             btnBuscar.UseVisualStyleBackColor = false;
             btnBuscar.Click += BtnBuscar_Click;
-            // 
-            // btnHoy
-            // 
+
             btnHoy.BackColor = Color.FromArgb(0, 150, 136);
             btnHoy.FlatStyle = FlatStyle.Flat;
             btnHoy.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
@@ -154,9 +152,8 @@ namespace Comercio.NET.Formularios
             btnHoy.Text = "Hoy";
             btnHoy.UseVisualStyleBackColor = false;
             btnHoy.Click += BtnHoy_Click;
-            // 
-            // lblTotal
-            // 
+
+            // MODIFICADO: Cambiar la altura del panel de resumen para hacer espacio al IVA
             lblTotal.Dock = DockStyle.Top;
             lblTotal.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
             lblTotal.ForeColor = Color.White;
@@ -166,22 +163,40 @@ namespace Comercio.NET.Formularios
             lblTotal.TabIndex = 2;
             lblTotal.Text = "Total: $0,00";
             lblTotal.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // lblCantidadVentas
-            // 
+
+            // NUEVO: Label para IVA Total
+            lblTotalIVA.Name = "lblTotalIVA";
+            lblTotalIVA.Dock = DockStyle.Top;
+            lblTotalIVA.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblTotalIVA.ForeColor = Color.FromArgb(255, 182, 193); // Rosa claro
+            lblTotalIVA.Location = new Point(0, 23);
+            lblTotalIVA.Size = new Size(909, 18);
+            lblTotalIVA.TabIndex = 3;
+            lblTotalIVA.Text = "IVA Total: $0,00";
+            lblTotalIVA.TextAlign = ContentAlignment.MiddleRight;
+
+            // NUEVO: Label para Subtotal sin IVA
+            lblSubtotalSinIVA.Name = "lblSubtotalSinIVA";
+            lblSubtotalSinIVA.Dock = DockStyle.Top;
+            lblSubtotalSinIVA.Font = new Font("Segoe UI", 10F);
+            lblSubtotalSinIVA.ForeColor = Color.FromArgb(200, 200, 200);
+            lblSubtotalSinIVA.Location = new Point(0, 41);
+            lblSubtotalSinIVA.Size = new Size(909, 16);
+            lblSubtotalSinIVA.TabIndex = 4;
+            lblSubtotalSinIVA.Text = "Subtotal sin IVA: $0,00";
+            lblSubtotalSinIVA.TextAlign = ContentAlignment.MiddleRight;
+
             lblCantidadVentas.Dock = DockStyle.Left;
             lblCantidadVentas.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             lblCantidadVentas.ForeColor = Color.White;
             lblCantidadVentas.Location = new Point(0, 0);
             lblCantidadVentas.Name = "lblCantidadVentas";
             lblCantidadVentas.Padding = new Padding(18, 0, 0, 0);
-            lblCantidadVentas.Size = new Size(175, 75);
+            lblCantidadVentas.Size = new Size(175, 95); // AUMENTADO: era 75, ahora 95
             lblCantidadVentas.TabIndex = 0;
             lblCantidadVentas.Text = "Ventas: 0";
             lblCantidadVentas.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // lblTitulo
-            // 
+
             lblTitulo.Dock = DockStyle.Top;
             lblTitulo.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
             lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
@@ -191,9 +206,8 @@ namespace Comercio.NET.Formularios
             lblTitulo.TabIndex = 3;
             lblTitulo.Text = "Control de Facturas - Ventas del Día";
             lblTitulo.TextAlign = ContentAlignment.MiddleCenter;
-            // 
-            // panelFiltros
-            // 
+
+            // Configuración de paneles...
             panelFiltros.BackColor = Color.FromArgb(248, 249, 250);
             panelFiltros.Controls.Add(txtFiltroCtaCte);
             panelFiltros.Controls.Add(chkCtaCte);
@@ -209,9 +223,7 @@ namespace Comercio.NET.Formularios
             panelFiltros.Size = new Size(909, 56);
             panelFiltros.TabIndex = 2;
             panelFiltros.Click += FrmControlFacturas_Click;
-            // 
-            // txtFiltroCtaCte
-            // 
+
             txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
             txtFiltroCtaCte.Location = new Point(551, 16);
             txtFiltroCtaCte.Name = "txtFiltroCtaCte";
@@ -220,9 +232,7 @@ namespace Comercio.NET.Formularios
             txtFiltroCtaCte.TabIndex = 0;
             txtFiltroCtaCte.Visible = false;
             txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
-            // 
-            // chkCtaCte
-            // 
+
             chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
             chkCtaCte.Location = new Point(440, 14);
@@ -232,55 +242,51 @@ namespace Comercio.NET.Formularios
             chkCtaCte.Text = "Cta. Cte.";
             chkCtaCte.UseVisualStyleBackColor = true;
             chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
-            // 
-            // panelResumen
-            // 
+
+            // MODIFICADO: Aumentar altura del panel de resumen
             panelResumen.BackColor = Color.FromArgb(0, 120, 215);
             panelResumen.Controls.Add(lblCantidadVentas);
             panelResumen.Controls.Add(panelTotales);
             panelResumen.Dock = DockStyle.Bottom;
-            panelResumen.Location = new Point(0, 436);
+            panelResumen.Location = new Point(0, 416); // AJUSTADO para nueva altura
             panelResumen.Name = "panelResumen";
-            panelResumen.Size = new Size(909, 75);
+            panelResumen.Size = new Size(909, 95); // AUMENTADO: era 75, ahora 95
             panelResumen.TabIndex = 1;
             panelResumen.Click += FrmControlFacturas_Click;
-            // 
-            // panelTotales
-            // 
+
+            // MODIFICADO: Panel de totales con más espacio
             panelTotales.BackColor = Color.FromArgb(0, 120, 215);
+            panelTotales.Controls.Add(lblSubtotalSinIVA); // NUEVO
+            panelTotales.Controls.Add(lblTotalIVA); // NUEVO
             panelTotales.Controls.Add(lblDetalleTiposFactura);
             panelTotales.Controls.Add(lblDetalleFormasPago);
             panelTotales.Controls.Add(lblTotal);
             panelTotales.Dock = DockStyle.Fill;
             panelTotales.Location = new Point(0, 0);
             panelTotales.Name = "panelTotales";
-            panelTotales.Size = new Size(909, 75);
+            panelTotales.Size = new Size(909, 95); // AUMENTADO
             panelTotales.TabIndex = 1;
-            // 
-            // lblDetalleTiposFactura
-            // 
+
+            // AJUSTAR: Posición de labels existentes
             lblDetalleTiposFactura.Dock = DockStyle.Top;
             lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F);
             lblDetalleTiposFactura.ForeColor = Color.White;
-            lblDetalleTiposFactura.Location = new Point(0, 42);
+            lblDetalleTiposFactura.Location = new Point(0, 75); // AJUSTADO
             lblDetalleTiposFactura.Name = "lblDetalleTiposFactura";
             lblDetalleTiposFactura.Size = new Size(909, 19);
             lblDetalleTiposFactura.TabIndex = 0;
             lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // lblDetalleFormasPago
-            // 
+
             lblDetalleFormasPago.Dock = DockStyle.Top;
             lblDetalleFormasPago.Font = new Font("Segoe UI", 9F);
             lblDetalleFormasPago.ForeColor = Color.White;
-            lblDetalleFormasPago.Location = new Point(0, 23);
+            lblDetalleFormasPago.Location = new Point(0, 57); // AJUSTADO
             lblDetalleFormasPago.Name = "lblDetalleFormasPago";
-            lblDetalleFormasPago.Size = new Size(909, 19);
+            lblDetalleFormasPago.Size = new Size(909, 18);
             lblDetalleFormasPago.TabIndex = 0;
             lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // frmControlFacturas
-            // 
+
+            // Resto de la configuración del formulario...
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(909, 511);
@@ -299,21 +305,19 @@ namespace Comercio.NET.Formularios
             panelTotales.ResumeLayout(false);
             ResumeLayout(false);
 
-            // 
-            // btnAuditoriaEliminados - AGREGAR CONFIGURACIÓN COMPLETA
-            // 
+            // Configuración del botón de auditoría...
             btnAuditoriaEliminados.BackColor = Color.FromArgb(255, 152, 0);
             btnAuditoriaEliminados.FlatStyle = FlatStyle.Flat;
             btnAuditoriaEliminados.FlatAppearance.BorderSize = 0;
             btnAuditoriaEliminados.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnAuditoriaEliminados.ForeColor = Color.White;
-            btnAuditoriaEliminados.Location = new Point(290, 14); // Posición después del botón "Hoy"
+            btnAuditoriaEliminados.Location = new Point(290, 14);
             btnAuditoriaEliminados.Name = "btnAuditoriaEliminados";
             btnAuditoriaEliminados.Size = new Size(140, 28);
             btnAuditoriaEliminados.TabIndex = 5;
             btnAuditoriaEliminados.Text = "🗑️ Auditoría";
             btnAuditoriaEliminados.UseVisualStyleBackColor = false;
-            btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click; // IMPORTANTE: Asignar el event handler
+            btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click;
         }
 
         private void ConfigurarFormulario()
@@ -491,12 +495,14 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    // MODIFICADO: Query con columnas reordenadas e inclusión de Cajero
+                    // MODIFICADO: Query con columnas reordenadas e inclusión de IVA
                     var query = chkCtaCte.Checked 
                         ? @"SELECT 
                             NumeroRemito as 'Remito',
                             NroFactura as 'N° Factura',
                             CAST(ISNULL(ImporteTotal, 0) AS DECIMAL(18,2)) as 'Importe',
+                            CAST(ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'IVA',
+                            CAST(ISNULL(ImporteTotal, 0) - ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
                             ISNULL(Cajero, '') as 'Cajero',
                             Fecha as 'Fecha',
                             Hora as 'Hora',
@@ -512,6 +518,8 @@ namespace Comercio.NET.Formularios
                             NumeroRemito as 'Remito',
                             NroFactura as 'N° Factura',
                             CAST(ISNULL(ImporteTotal, 0) AS DECIMAL(18,2)) as 'Importe',
+                            CAST(ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'IVA',
+                            CAST(ISNULL(ImporteTotal, 0) - ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
                             ISNULL(Cajero, '') as 'Cajero',
                             Fecha as 'Fecha',
                             Hora as 'Hora',
@@ -806,7 +814,7 @@ namespace Comercio.NET.Formularios
                     facturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // NUEVA: Columna Importe al lado de N° Factura
+                // Columna Importe
                 var importeCol = dgvVentas.Columns["Importe"];
                 if (importeCol != null)
                 {
@@ -814,10 +822,38 @@ namespace Comercio.NET.Formularios
                     importeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     importeCol.DefaultCellStyle.Format = "C2";
                     importeCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    importeCol.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69); // Verde para importe
+                    importeCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                     importeCol.HeaderText = "Importe";
                 }
 
-                // NUEVA: Columna Cajero
+                // NUEVO: Columna IVA
+                var ivaCol = dgvVentas.Columns["IVA"];
+                if (ivaCol != null)
+                {
+                    ivaCol.Width = 80;
+                    ivaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    ivaCol.DefaultCellStyle.Format = "C2";
+                    ivaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    ivaCol.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69); // Rojo para IVA
+                    ivaCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                    ivaCol.HeaderText = "IVA";
+                }
+
+                // NUEVO: Columna Subtotal
+                var subtotalCol = dgvVentas.Columns["Subtotal"];
+                if (subtotalCol != null)
+                {
+                    subtotalCol.Width = 90;
+                    subtotalCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    subtotalCol.DefaultCellStyle.Format = "C2";
+                    subtotalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    subtotalCol.DefaultCellStyle.ForeColor = Color.FromArgb(108, 117, 125); // Gris para subtotal
+                    subtotalCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+                    subtotalCol.HeaderText = "Subtotal";
+                }
+
+                // Columna Cajero
                 var cajeroCol = dgvVentas.Columns["Cajero"];
                 if (cajeroCol != null)
                 {
@@ -850,7 +886,7 @@ namespace Comercio.NET.Formularios
                 {
                     formaPagoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     formaPagoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    formaPagoCol.FillWeight = 150;
+                    formaPagoCol.FillWeight = 120; // Reducido para hacer espacio al IVA
                 }
 
                 var tipoFacturaCol = dgvVentas.Columns["Tipo"];
@@ -858,7 +894,7 @@ namespace Comercio.NET.Formularios
                 {
                     tipoFacturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     tipoFacturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    tipoFacturaCol.FillWeight = 100;
+                    tipoFacturaCol.FillWeight = 80; // Reducido
                 }
 
                 var caeCol = dgvVentas.Columns["CAE"];
@@ -866,7 +902,7 @@ namespace Comercio.NET.Formularios
                 {
                     caeCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     caeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    caeCol.FillWeight = 120;
+                    caeCol.FillWeight = 100; // Reducido
                 }
 
                 var cuitCol = dgvVentas.Columns["CUIT Cliente"];
@@ -874,7 +910,7 @@ namespace Comercio.NET.Formularios
                 {
                     cuitCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     cuitCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    cuitCol.FillWeight = 120;
+                    cuitCol.FillWeight = 100; // Reducido
                 }
 
                 // Columna dinámica para Cuenta Corriente
@@ -883,7 +919,7 @@ namespace Comercio.NET.Formularios
                 {
                     ctaCteCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
                     ctaCteCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    ctaCteCol.FillWeight = 150;
+                    ctaCteCol.FillWeight = 120; // Reducido
                 }
             }
             finally
@@ -988,6 +1024,8 @@ namespace Comercio.NET.Formularios
             {
                 int cantidadVentas = dt.Rows.Count;
                 decimal totalVentas = 0;
+                decimal totalIVA = 0;
+                decimal subtotalSinIVA = 0;
                 
                 // Diccionarios para contar tipos de factura y formas de pago
                 var tiposFactura = new Dictionary<string, int>();
@@ -1001,31 +1039,29 @@ namespace Comercio.NET.Formularios
                 {
                     try
                     {
-                        // CORREGIR: Usar la nueva columna "Importe"
+                        // Procesar Importe Total
                         object importeObj = row["Importe"];
-                        decimal total = 0;
+                        decimal importe = 0;
                         
-                        // Validar que el valor no sea null
                         if (importeObj != null && importeObj != DBNull.Value)
                         {
                             if (importeObj is decimal decimalValue)
                             {
-                                total = decimalValue;
-                                totalVentas += total;
+                                importe = decimalValue;
+                                totalVentas += importe;
                             }
                             else
                             {
                                 string importeStr = importeObj.ToString().Trim();
                                 
-                                // Intentar conversión directa primero
-                                if (decimal.TryParse(importeStr, out total))
+                                if (decimal.TryParse(importeStr, out importe))
                                 {
-                                    totalVentas += total;
+                                    totalVentas += importe;
                                 }
-                                else if (decimal.TryParse(importeStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out total) ||
-                                         decimal.TryParse(importeStr, NumberStyles.Number, CultureInfo.InvariantCulture, out total))
+                                else if (decimal.TryParse(importeStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out importe) ||
+                                         decimal.TryParse(importeStr, NumberStyles.Number, CultureInfo.InvariantCulture, out importe))
                                 {
-                                    totalVentas += total;
+                                    totalVentas += importe;
                                 }
                                 else
                                 {
@@ -1034,10 +1070,53 @@ namespace Comercio.NET.Formularios
                                 }
                             }
                         }
-                        else
+
+                        // NUEVO: Procesar IVA
+                        object ivaObj = row["IVA"];
+                        decimal iva = 0;
+                        
+                        if (ivaObj != null && ivaObj != DBNull.Value)
                         {
-                            filasConErrores++;
-                            errores.Add($"Fila {dt.Rows.IndexOf(row) + 1}: Importe es NULL");
+                            if (ivaObj is decimal ivaDecimalValue)
+                            {
+                                iva = ivaDecimalValue;
+                                totalIVA += iva;
+                            }
+                            else
+                            {
+                                string ivaStr = ivaObj.ToString().Trim();
+                                
+                                if (decimal.TryParse(ivaStr, out iva) ||
+                                    decimal.TryParse(ivaStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out iva) ||
+                                    decimal.TryParse(ivaStr, NumberStyles.Number, CultureInfo.InvariantCulture, out iva))
+                                {
+                                    totalIVA += iva;
+                                }
+                            }
+                        }
+
+                        // NUEVO: Procesar Subtotal
+                        object subtotalObj = row["Subtotal"];
+                        decimal subtotal = 0;
+                        
+                        if (subtotalObj != null && subtotalObj != DBNull.Value)
+                        {
+                            if (subtotalObj is decimal subtotalDecimalValue)
+                            {
+                                subtotal = subtotalDecimalValue;
+                                subtotalSinIVA += subtotal;
+                            }
+                            else
+                            {
+                                string subtotalStr = subtotalObj.ToString().Trim();
+                                
+                                if (decimal.TryParse(subtotalStr, out subtotal) ||
+                                    decimal.TryParse(subtotalStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out subtotal) ||
+                                    decimal.TryParse(subtotalStr, NumberStyles.Number, CultureInfo.InvariantCulture, out subtotal))
+                                {
+                                    subtotalSinIVA += subtotal;
+                                }
+                            }
                         }
 
                         // Contar tipos de factura
@@ -1050,9 +1129,9 @@ namespace Comercio.NET.Formularios
                         // Sumar por formas de pago
                         string formaPago = row["Forma de Pago"]?.ToString()?.Trim() ?? "Sin especificar";
                         if (formasPago.ContainsKey(formaPago))
-                            formasPago[formaPago] += total;
+                            formasPago[formaPago] += importe;
                         else
-                            formasPago[formaPago] = total;
+                            formasPago[formaPago] = importe;
                     }
                     catch (Exception rowEx)
                     {
@@ -1064,6 +1143,15 @@ namespace Comercio.NET.Formularios
                 // Actualizar labels principales
                 lblCantidadVentas.Text = $"Ventas: {cantidadVentas}";
                 lblTotal.Text = $"Total: {totalVentas:C2}";
+                
+                // NUEVO: Actualizar labels de IVA y Subtotal
+                var lblTotalIVA = this.Controls.Find("lblTotalIVA", true).FirstOrDefault() as Label;
+                if (lblTotalIVA != null)
+                    lblTotalIVA.Text = $"IVA Total: {totalIVA:C2}";
+
+                var lblSubtotalSinIVA = this.Controls.Find("lblSubtotalSinIVA", true).FirstOrDefault() as Label;
+                if (lblSubtotalSinIVA != null)
+                    lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {subtotalSinIVA:C2}";
 
                 // Actualizar detalle de tipos de factura
                 string detalleTipos = string.Join(" | ", 
@@ -1075,17 +1163,17 @@ namespace Comercio.NET.Formularios
                     formasPago.Select(kv => $"{kv.Key}: {kv.Value:C2}"));
                 lblDetalleFormasPago.Text = detalleFormas;
 
-                // NUEVO: Debug información si hay errores
+                // Debug información
                 if (filasConErrores > 0)
                 {
                     System.Diagnostics.Debug.WriteLine($"ADVERTENCIA: {filasConErrores} filas con errores en ActualizarResumen:");
-                    foreach (var error in errores.Take(5)) // Mostrar solo los primeros 5 errores
+                    foreach (var error in errores.Take(5))
                     {
                         System.Diagnostics.Debug.WriteLine($"  - {error}");
                     }
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentas} ventas, Total: {totalVentas:C2}, Errores: {filasConErrores}");
+                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentas} ventas, Total: {totalVentas:C2}, IVA: {totalIVA:C2}, Subtotal: {subtotalSinIVA:C2}, Errores: {filasConErrores}");
             }
             catch (Exception ex)
             {
@@ -1094,6 +1182,15 @@ namespace Comercio.NET.Formularios
                 // En caso de error, mostrar valores por defecto
                 lblCantidadVentas.Text = "Ventas: 0";
                 lblTotal.Text = "Total: $0,00";
+                
+                var lblTotalIVA = this.Controls.Find("lblTotalIVA", true).FirstOrDefault() as Label;
+                if (lblTotalIVA != null)
+                    lblTotalIVA.Text = "IVA Total: $0,00";
+
+                var lblSubtotalSinIVA = this.Controls.Find("lblSubtotalSinIVA", true).FirstOrDefault() as Label;
+                if (lblSubtotalSinIVA != null)
+                    lblSubtotalSinIVA.Text = "Subtotal sin IVA: $0,00";
+                
                 lblDetalleTiposFactura.Text = "Error calculando tipos";
                 lblDetalleFormasPago.Text = "Error calculando formas de pago";
                 

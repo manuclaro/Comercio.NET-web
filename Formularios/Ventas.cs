@@ -1081,11 +1081,18 @@ namespace Comercio.NET
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                // CORREGIDO: Obtener el importe total directamente del DataGridView en lugar de parsearlo del label
+                // CORREGIDO: Obtener el importe total e IVA directamente del DataGridView
                 decimal importeTotal = 0;
+                decimal ivaTotal = 0;
+
                 foreach (DataGridViewRow row in dataGridView1.Rows)
                 {
-                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor)) importeTotal += valor;
+                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
+                        importeTotal += valorTotal;
+
+                    // NUEVO: Sumar el IVA de cada producto
+                    if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
+                        ivaTotal += valorIva;
                 }
 
                 // SIMPLIFICADO: Usar los métodos helper existentes
@@ -1094,8 +1101,9 @@ namespace Comercio.NET
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, UsuarioVenta) 
-                                 VALUES (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre, 
+                    // MODIFICADO: Agregar el campo IVA en el INSERT
+                    var query = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, IVA, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, UsuarioVenta) 
+                                 VALUES (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @IVA, @FormadePago, @esCtaCte, @CtaCteNombre, 
                                  @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente, @UsuarioVenta)";
 
                     using (var cmd = new SqlCommand(query, connection))
@@ -1116,10 +1124,11 @@ namespace Comercio.NET
                         cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
                         cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
                         cmd.Parameters.AddWithValue("@ImporteTotal", importeTotal);
+                        cmd.Parameters.AddWithValue("@IVA", ivaTotal); // NUEVO: Parámetro para IVA
                         cmd.Parameters.AddWithValue("@FormadePago", formaPago);
                         cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
                         cmd.Parameters.AddWithValue("@CtaCteNombre", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Cajero", numeroCajero); // Usar el número de cajero correcto
+                        cmd.Parameters.AddWithValue("@Cajero", numeroCajero);
                         cmd.Parameters.AddWithValue("@TipoFactura", tipoFactura);
                         cmd.Parameters.AddWithValue("@UsuarioVenta", usuarioActual);
 
@@ -1146,14 +1155,13 @@ namespace Comercio.NET
                     }
                 }
 
-                // DEBUG: Para verificar el importe que se está guardando
+                // DEBUG: Para verificar el importe e IVA que se está guardando
                 System.Diagnostics.Debug.WriteLine($"=== GUARDADO FACTURA ===");
-                if (lbTotal != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Texto del label: {lbTotal.Text}");
-                }
                 System.Diagnostics.Debug.WriteLine($"Importe calculado: {importeTotal:C}");
+                System.Diagnostics.Debug.WriteLine($"IVA calculado: {ivaTotal:C}");
+                System.Diagnostics.Debug.WriteLine($"Subtotal (sin IVA): {(importeTotal - ivaTotal):C}");
                 System.Diagnostics.Debug.WriteLine($"Importe guardado en BD: {importeTotal}");
+                System.Diagnostics.Debug.WriteLine($"IVA guardado en BD: {ivaTotal}");
                 System.Diagnostics.Debug.WriteLine($"=======================");
             }
             catch (Exception ex)
@@ -2225,8 +2233,8 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"========================");
 
                 // Mostrar mensaje de confirmación
-                MessageBox.Show("Venta procesada correctamente.\n\nListo para nueva venta.", "Venta Completa", 
-                              MessageBoxButtons.OK, MessageBoxIcon.Information);
+                //MessageBox.Show("Venta procesada correctamente.\n\nListo para nueva venta.", "Venta Completa", 
+                //              MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
