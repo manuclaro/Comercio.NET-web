@@ -594,6 +594,26 @@ namespace Comercio.NET.Servicios
                 return (false, $"❌ Error AFIP: {ex.Message}", null, null);
             }
         }
+
+        // CORREGIDO: Método para obtener token existente del caché
+        public static (string token, string sign)? GetExistingToken(string service)
+        {
+            try
+            {
+                if (_tokenCache.TryGetValue(service, out var cached) && 
+                    !string.IsNullOrEmpty(cached.Token) && 
+                    !string.IsNullOrEmpty(cached.Sign) && 
+                    cached.ExpirationTime > DateTime.UtcNow.AddMinutes(5))
+                {
+                    return (cached.Token, cached.Sign);
+                }
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 
     // NUEVO: Excepción específica para cuando ya existe un token en AFIP

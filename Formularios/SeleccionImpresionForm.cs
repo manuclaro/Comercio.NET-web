@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
+using System.IO;
 using System.Windows.Forms;
 using WSconsultaCUIT;
 using ArcaWS;
@@ -8,8 +9,8 @@ using System.Data.SqlClient;
 using System.Data;
 using System.Drawing.Printing;
 using System.Globalization;
-using System.ServiceModel; // AGREGAR ESTA LÍNEA
-using System.Threading.Tasks; // AGREGAR ESTA LÍNEA SI NO ESTÁ
+using System.ServiceModel;
+using System.Threading.Tasks;
 using Comercio.NET.Servicios;
 
 namespace Comercio.NET
@@ -48,6 +49,9 @@ namespace Comercio.NET
         private static string _cachedSignWsfe = null;
         private static DateTime _cachedTokenExpiryWsfe = DateTime.MinValue;
 
+        // AGREGAR ESTA LÍNEA QUE FALTA:
+        private static readonly string TokenCacheFile = Path.Combine(Path.GetTempPath(), "afip_token_cache.dat");
+
         // Propiedades para almacenar datos del CAE - VERIFICAR que sean públicas
         public string CAENumero { get; private set; } = "";
         public DateTime? CAEVencimiento { get; private set; } = null;
@@ -75,7 +79,7 @@ namespace Comercio.NET
 
             var fontRadio = new Font("Segoe UI", 12F, FontStyle.Regular);
 
-            // Opciones de impresión - CAMBIAR LOS EVENT HANDLERS
+            // Opciones de impressão - CAMBIAR LOS EVENT HANDLERS
             var btnRemito = new Button { Text = "Remito (Ticket)", Width = 130, Left = 60, Top = 150, Height = 40 };
             var btnFacturaB = new Button { Text = "Factura B", Width = 130, Left = 210, Top = 150, Height = 40 };
             var btnFacturaA = new Button { Text = "Factura A", Width = 130, Left = 360, Top = 150, Height = 40 };
@@ -418,14 +422,24 @@ namespace Comercio.NET
             }
         }
 
-        // CORREGIDO: CrearFacturaAfipAsync con manejo completamente basado en caché
+        // NUEVA: Excepción personalizada para tokens que ya existen
+        public class TokenAlreadyExistsException : Exception
+        {
+            public string FaultString { get; }
+
+            public TokenAlreadyExistsException(string message, string faultString) : base(message)
+            {
+                FaultString = faultString;
+            }
+        }
+
+        // SIMPLIFICADO: Sistema de tokens sin intervención del usuario
         private async Task<bool> CrearFacturaAfipAsync(int cbteTipo, int condicionIVAReceptor, int docTipo, long docNro, decimal alicuotaIVA)
         {
             try
             {
                 DebugMessage("=== INICIO CrearFacturaAfipAsync ===");
-                DebugCacheStatus(); // Mostrar estado del caché antes de comenzar
-                
+
                 string cuit = "20280694739";
                 string pfxPath = @"C:\Certificados\certificado.pfx";
                 string pfxPassword = "Micertificado";
@@ -435,13 +449,13 @@ namespace Comercio.NET
 
                 // Verificar certificado antes de usarlo
                 var (valido, mensaje, vence) = AfipAuthenticator.VerificarCertificado(pfxPath, pfxPassword);
-                
+
                 if (!valido)
                 {
                     MessageBox.Show($"❌ Problema con el certificado AFIP:\n\n{mensaje}", "Error Certificado", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
-                
+
                 if (mensaje.Contains("⚠️"))
                 {
                     DebugMessage($"ADVERTENCIA: {mensaje}");
@@ -449,71 +463,151 @@ namespace Comercio.NET
 
                 DebugMessage("Certificado verificado, obteniendo token...");
 
-                // CAMBIO PRINCIPAL: Usar SOLO el sistema de caché del AfipAuthenticator
-                // No manejar el caché local aquí, dejar que AfipAuthenticator lo gestione completamente
-                string token, sign;
-                
-                try
+                // SIMPLIFICADO: Lógica de obtención de tokens sin complejidad innecesaria
+                string token = null, sign = null;
+
+                // 1. Verificar si ya tenemos tokens válidos en caché local
+                if (!string.IsNullOrEmpty(_cachedTokenWsfe) && 
+                    !string.IsNullOrEmpty(_cachedSignWsfe) && 
+                    _cachedTokenExpiryWsfe > DateTime.UtcNow.AddMinutes(10))
                 {
-                    DebugMessage("Llamando a AfipAuthenticator.GetTAAsync...");
-                    (token, sign) = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
-                    DebugMessage($"Token obtenido - Length: {token?.Length ?? 0}");
+                    DebugMessage("✅ Reutilizando token del caché local válido");
+                    token = _cachedTokenWsfe;
+                    sign = _cachedSignWsfe;
                 }
-                catch (Exception ex)
+                else
                 {
-                    DebugMessage($"Error obteniendo token: {ex.Message}");
+                    // 2. Verificar caché del AfipAuthenticator
+                    var tokenExistente = AfipAuthenticator.GetExistingToken("wsfe");
                     
-                    // Si el error es por token existente, mostrar mensaje específico
-                    if (ex.Message.Contains("Ya existe un token válido"))
+                    if (tokenExistente.HasValue && 
+                        !string.IsNullOrEmpty(tokenExistente.Value.token) && 
+                        !string.IsNullOrEmpty(tokenExistente.Value.sign))
                     {
-                        MessageBox.Show(
-                            "⏳ AFIP detectó un token activo previo\n\n" +
-                            "💡 Esto ocurre cuando:\n" +
-                            "• Se hizo una factura recientemente\n" +
-                            "• El token anterior aún no expiró\n" +
-                            "• AFIP mantiene tokens activos por seguridad\n\n" +
-                            "🔄 Soluciones:\n" +
-                            "• Espere 10-15 minutos e intente nuevamente\n" +
-                            "• Reinicie la aplicación completamente\n" +
-                            "• El token expirará automáticamente\n\n" +
-                            "⚠️ Esto es normal en desarrollo con múltiples pruebas consecutivas.", 
-                            "Token AFIP Activo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        DebugMessage("✅ Reutilizando token del caché de AfipAuthenticator");
+                        token = tokenExistente.Value.token;
+                        sign = tokenExistente.Value.sign;
+                        
+                        // Actualizar caché local
+                        _cachedTokenWsfe = token;
+                        _cachedSignWsfe = sign;
+                        _cachedTokenExpiryWsfe = DateTime.UtcNow.AddHours(11); // 11 horas para estar seguros
                     }
                     else
                     {
-                        MessageBox.Show($"❌ Error obteniendo credenciales AFIP:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        // 3. Verificar caché persistente
+                        var (tokenPersistente, signPersistente, expiracionPersistente) = CargarTokenPersistente();
+                        
+                        if (!string.IsNullOrEmpty(tokenPersistente) && 
+                            !string.IsNullOrEmpty(signPersistente) && 
+                            expiracionPersistente > DateTime.UtcNow.AddMinutes(10))
+                        {
+                            DebugMessage("✅ Reutilizando token del caché persistente");
+                            token = tokenPersistente;
+                            sign = signPersistente;
+                            
+                            // Actualizar caché local
+                            _cachedTokenWsfe = token;
+                            _cachedSignWsfe = sign;
+                            _cachedTokenExpiryWsfe = expiracionPersistente;
+                        }
+                        else
+                        {
+                            // 4. Obtener nuevo token de AFIP - SIN COMPLEJIDADES ADICIONALES
+                            DebugMessage("No hay tokens válidos en caché, solicitando nuevo token...");
+                            
+                            try
+                            {
+                                // SIMPLIFICADO: Llamada directa sin manejo especial de "token existente"
+                                var resultadoToken = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
+                                
+                                // Verificar si el resultado contiene tokens válidos
+                                if (!string.IsNullOrEmpty(resultadoToken.token) && 
+                                    !string.IsNullOrEmpty(resultadoToken.sign) && 
+                                    resultadoToken.token != "WAITING_FOR_EXPIRY" && 
+                                    resultadoToken.sign != "WAITING_FOR_EXPIRY")
+                                {
+                                    token = resultadoToken.token;
+                                    sign = resultadoToken.sign;
+                                    
+                                    DebugMessage($"✅ Nuevo token obtenido exitosamente - Length: {token.Length}");
+                                    
+                                    // Guardar en todos los cachés
+                                    var expiracion = DateTime.UtcNow.AddHours(11); // 11 horas
+                                    _cachedTokenWsfe = token;
+                                    _cachedSignWsfe = sign;
+                                    _cachedTokenExpiryWsfe = expiracion;
+                                    GuardarTokenPersistente(token, sign, expiracion);
+                                }
+                                else
+                                {
+                                    // Si AFIP devuelve tokens de espera, limpiar cachés y reintentar UNA VEZ
+                                    DebugMessage("AFIP devolvió tokens de espera, limpiando cachés y reintentando...");
+                                    
+                                    // Limpiar todos los cachés
+                                    _cachedTokenWsfe = null;
+                                    _cachedSignWsfe = null;
+                                    _cachedTokenExpiryWsfe = DateTime.MinValue;
+                                    AfipAuthenticator.ClearTokenCache("wsfe");
+                                    EliminarTokenPersistente();
+                                    
+                                    // Esperar 10 segundos y reintentar UNA VEZ
+                                    await Task.Delay(10000);
+                                    
+                                    DebugMessage("Reintentando obtención de token después de limpiar cachés...");
+                                    resultadoToken = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
+                        
+                                    if (!string.IsNullOrEmpty(resultadoToken.token) && 
+                                        !string.IsNullOrEmpty(resultadoToken.sign) && 
+                                        resultadoToken.token != "WAITING_FOR_EXPIRY")
+                                    {
+                                        token = resultadoToken.token;
+                                        sign = resultadoToken.sign;
+                                        
+                                        var expiracion = DateTime.UtcNow.AddHours(11);
+                                        _cachedTokenWsfe = token;
+                                        _cachedSignWsfe = sign;
+                                        _cachedTokenExpiryWsfe = expiracion;
+                                        GuardarTokenPersistente(token, sign, expiracion);
+                                        
+                                        DebugMessage("✅ Token obtenido en segundo intento");
+                                    }
+                                    else
+                                    {
+                                        // Si falla el segundo intento, mostrar error simple
+                                        MessageBox.Show(
+                                            "⚠️ AFIP está procesando tokens previos.\n\n" +
+                                            "Intente nuevamente en unos minutos.", 
+                                            "Token AFIP Ocupado", 
+                                            MessageBoxButtons.OK, 
+                                            MessageBoxIcon.Information);
+                                        return false;
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                DebugMessage($"Error obteniendo token: {ex.Message}");
+                                MessageBox.Show($"❌ Error obteniendo credenciales de AFIP:\n\n{ex.Message}", "Error AFIP", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return false;
+                            }
+                        }
                     }
-                    return false;
                 }
 
+                // Validar que tenemos tokens válidos
                 if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(sign))
                 {
+                    DebugMessage("❌ ERROR: No se pudieron obtener tokens válidos");
                     MessageBox.Show("❌ No se pudieron obtener credenciales válidas de AFIP.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
-                // Verificar si el token es de espera
-                if (token == "WAITING_FOR_EXPIRY")
-                {
-                    MessageBox.Show(
-                        "⏳ Token AFIP en espera\n\n" +
-                        "El sistema detectó que hay un token activo que debe expirar primero.\n" +
-                        "Esto es normal cuando se generan facturas consecutivamente.\n\n" +
-                        "💡 Intente nuevamente en 10-15 minutos.", 
-                        "Token AFIP Pendiente", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return false;
-                }
-
-                DebugMessage($"Token válido obtenido exitosamente. Length: {token.Length}");
+                DebugMessage($"✅ Tokens válidos confirmados - Token length: {token.Length}, Sign length: {sign.Length}");
 
                 // Actualizar propiedades de instancia
                 TokenAfip = token;
                 SignAfip = sign;
-
-                // Actualizar caché local (opcional, ya que AfipAuthenticator maneja su propio caché)
-                _cachedTokenWsfe = token;
-                _cachedSignWsfe = sign;
-                _cachedTokenExpiryWsfe = DateTime.UtcNow.AddHours(12);
 
                 DebugMessage("Creando cliente WSFE...");
 
@@ -531,22 +625,20 @@ namespace Comercio.NET
 
                 // Probar FEDummy primero
                 var dummyResp = await client.FEDummyAsync();
-                
+
                 if (dummyResp?.Body?.FEDummyResult == null)
                 {
                     MessageBox.Show("❌ Error de conectividad con WSFE de AFIP", "Error WSFE", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
-                DebugMessage($"WSFE operativo - AppServer: {dummyResp.Body.FEDummyResult.AppServer}");
+                DebugMessage($"✅ WSFE operativo - AppServer: {dummyResp.Body.FEDummyResult.AppServer}");
 
                 DebugMessage("Obteniendo último número autorizado...");
 
-                // Continuar con facturación real
                 int ptoVta = 1;
-                
                 var ultimoResp = await client.FECompUltimoAutorizadoAsync(auth, ptoVta, cbteTipo);
-                
+
                 if (ultimoResp?.Body?.FECompUltimoAutorizadoResult == null)
                 {
                     MessageBox.Show("❌ Error obteniendo último número de comprobante de AFIP", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -556,11 +648,11 @@ namespace Comercio.NET
                 int ultimoNroAfip = ultimoResp.Body.FECompUltimoAutorizadoResult.CbteNro;
                 int nuevoNroComprobante = ultimoNroAfip + 1;
 
-                DebugMessage($"Último número AFIP: {ultimoNroAfip}, Nuevo: {nuevoNroComprobante}");
+                DebugMessage($"✅ Último número AFIP: {ultimoNroAfip}, Nuevo: {nuevoNroComprobante}");
 
-                // NUEVO: Obtener productos de la venta actual con sus IVAs específicos
+                // Obtener productos de la venta actual con sus IVAs específicos
                 var productosVenta = await ObtenerProductosVentaConIva();
-                
+
                 if (productosVenta == null || productosVenta.Count == 0)
                 {
                     MessageBox.Show("❌ No hay productos en la venta para facturar.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -568,33 +660,59 @@ namespace Comercio.NET
                 }
 
                 decimal impTotal = ObtenerImporteTotalVenta();
-                
+
                 if (impTotal <= 0)
                 {
                     MessageBox.Show("❌ El importe total debe ser mayor a cero", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
-                // NUEVO: Calcular IVA agrupado por alícuota
+                // Calcular IVA agrupado por alícuota
                 var ivasAgrupados = CalcularIvasPorAlicuota(productosVenta);
-                
+
                 DebugMessage($"Total productos: {productosVenta.Count}, IVAs agrupados: {ivasAgrupados.Count}");
 
-                // Crear array de alícuotas IVA
+                // Validar que no haya alícuotas duplicadas antes de crear el array
                 var alicuotasIva = new List<ArcaWS.AlicIva>();
-                
+                var idsUtilizados = new HashSet<int>();
+
                 foreach (var ivaGroup in ivasAgrupados)
                 {
+                    int codigoAfip = ObtenerCodigoAlicuotaAfip(ivaGroup.Key);
+
+                    // Verificar que no se repita el código AFIP
+                    if (idsUtilizados.Contains(codigoAfip))
+                    {
+                        DebugMessage($"⚠️ ADVERTENCIA: Se detectó código AFIP duplicado: {codigoAfip} para alícuota {ivaGroup.Key}%");
+                        MessageBox.Show($"❌ Error interno: Se detectó una alícuota duplicada.\nCódigo AFIP: {codigoAfip}\nAlícuota: {ivaGroup.Key}%",
+                            "Error AlicIVA", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return false;
+                    }
+
+                    idsUtilizados.Add(codigoAfip);
+
                     var alicuota = new ArcaWS.AlicIva
                     {
-                        Id = ObtenerCodigoAlicuotaAfip(ivaGroup.Key),
+                        Id = codigoAfip,
                         BaseImp = (double)ivaGroup.Value.BaseImponible,
                         Importe = (double)ivaGroup.Value.ImporteIva
                     };
                     alicuotasIva.Add(alicuota);
-                    
-                    DebugMessage($"Alícuota {ivaGroup.Key}%: Base={alicuota.BaseImp:C}, IVA={alicuota.Importe:C}");
+
+                    DebugMessage($"✅ Alícuota {ivaGroup.Key}% → Código AFIP: {codigoAfip} - Base: ${alicuota.BaseImp:C} - IVA: ${alicuota.Importe:C}");
                 }
+
+                // Validar totales antes de enviar
+                decimal totalBaseCalculada = alicuotasIva.Sum(a => (decimal)a.BaseImp);
+                decimal totalIvaCalculado = alicuotasIva.Sum(a => (decimal)a.Importe);
+                decimal totalCalculado = totalBaseCalculada + totalIvaCalculado;
+
+                DebugMessage($"VALIDACIÓN TOTALES:");
+                DebugMessage($"  Base calculada: ${totalBaseCalculada}");
+                DebugMessage($"  IVA calculado: ${totalIvaCalculado}");
+                DebugMessage($"  Total calculado: ${totalCalculado}");
+                DebugMessage($"  Total venta: ${impTotal}");
+                DebugMessage($"  Diferencia: ${Math.Abs(totalCalculado - impTotal)}");
 
                 var feCabReq = new ArcaWS.FECAECabRequest
                 {
@@ -612,14 +730,14 @@ namespace Comercio.NET
                     CbteHasta = nuevoNroComprobante,
                     CbteFch = DateTime.Now.ToString("yyyyMMdd"),
                     ImpTotal = (double)impTotal,
-                    ImpNeto = (double)ivasAgrupados.Sum(x => x.Value.BaseImponible),
-                    ImpIVA = (double)ivasAgrupados.Sum(x => x.Value.ImporteIva),
+                    ImpNeto = (double)totalBaseCalculada,
+                    ImpIVA = (double)totalIvaCalculado,
                     MonId = "PES",
                     MonCotiz = 1,
                     CondicionIVAReceptorId = condicionIVAReceptor,
                     ImpTrib = 0,
                     ImpOpEx = 0,
-                    Iva = alicuotasIva.ToArray() // CAMBIO: Usar alícuotas calculadas dinámicamente
+                    Iva = alicuotasIva.ToArray()
                 };
 
                 var feCAEReq = new ArcaWS.FECAERequest
@@ -628,54 +746,62 @@ namespace Comercio.NET
                     FeDetReq = new ArcaWS.FECAEDetRequest[] { feDetReq }
                 };
 
+                DebugMessage("=== ESTRUCTURA ENVIADA A AFIP ===");
+                DebugMessage($"Cantidad de alícuotas: {alicuotasIva.Count}");
+                foreach (var alicuota in alicuotasIva)
+                {
+                    DebugMessage($"  ID: {alicuota.Id}, Base: {alicuota.BaseImp}, Importe: {alicuota.Importe}");
+                }
+
                 DebugMessage("Enviando solicitud CAE a AFIP...");
 
                 var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
-                var resultado = respuesta?.Body?.FECAESolicitarResult;
+                var resultadoCAE = respuesta?.Body?.FECAESolicitarResult; // CAMBIÓ EL NOMBRE AQUÍ
 
                 DebugMessage("Respuesta recibida, procesando...");
 
-                if (resultado == null)
+                if (resultadoCAE == null)
                 {
                     MessageBox.Show("❌ Respuesta nula de AFIP. Intente nuevamente.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
                 // Verificar errores generales
-                if (resultado.Errors != null && resultado.Errors.Length > 0)
+                if (resultadoCAE.Errors != null && resultadoCAE.Errors.Length > 0)
                 {
                     string errores = "❌ ERRORES GENERALES AFIP:\n\n";
-                    foreach (var error in resultado.Errors)
+                    foreach (var error in resultadoCAE.Errors)
                     {
                         errores += $"• Código {error.Code}: {error.Msg}\n";
+                        DebugMessage($"ERROR AFIP: {error.Code} - {error.Msg}");
                     }
                     MessageBox.Show(errores, "Error AFIP", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
-                if (resultado.FeDetResp == null || resultado.FeDetResp.Length == 0)
+                if (resultadoCAE.FeDetResp == null || resultadoCAE.FeDetResp.Length == 0)
                 {
                     MessageBox.Show("❌ Sin respuesta de detalle de AFIP", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
-                var detalle = resultado.FeDetResp[0];
+                var detalle = resultadoCAE.FeDetResp[0];
                 DebugMessage($"Resultado AFIP: {detalle.Resultado}");
-                
+
                 if (detalle.Resultado == "A") // Aprobada
                 {
                     CAENumero = detalle.CAE;
                     NumeroFacturaAfip = (int)detalle.CbteDesde;
-                    
+
                     string numeroFacturaFormateado = FormatearNumeroFactura(cbteTipo, ptoVta, NumeroFacturaAfip);
-                    
+
                     if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd", null, DateTimeStyles.None, out DateTime fechaVto))
                     {
                         CAEVencimiento = fechaVto;
                     }
 
-                    DebugMessage($"FACTURA EXITOSA! CAE: {CAENumero}, Número: {numeroFacturaFormateado}");
-                    MessageBox.Show($"🎉 Factura autorizada por AFIP\n\nCAE: {CAENumero}\nNúmero: {numeroFacturaFormateado}", 
+                    DebugMessage($"🎉 FACTURA EXITOSA! CAE: {CAENumero}, Número: {numeroFacturaFormateado}");
+                    MessageBox.Show($"🎉 Factura autorizada por AFIP\n\nCAE: {CAENumero}\nNúmero: {numeroFacturaFormateado}",
                         "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return true;
                 }
@@ -687,6 +813,7 @@ namespace Comercio.NET
                         foreach (var obs in detalle.Observaciones)
                         {
                             mensajeRechazo += $"• Código {obs.Code}: {obs.Msg}\n";
+                            DebugMessage($"OBSERVACIÓN AFIP: {obs.Code} - {obs.Msg}");
                         }
                     }
                     mensajeRechazo += "\n💡 Verifique los datos e intente nuevamente.";
@@ -731,16 +858,84 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Método para formatear número de factura según estándar AFIP
+        // NUEVOS MÉTODOS DE SOPORTE
+
+        private (string token, string sign, DateTime expiration) CargarTokenPersistente()
+        {
+            try
+            {
+                if (!File.Exists(TokenCacheFile))
+                    return (null, null, DateTime.MinValue);
+
+                var lines = File.ReadAllLines(TokenCacheFile);
+                if (lines.Length >= 3)
+                {
+                    string token = lines[0];
+                    string sign = lines[1];
+                    if (DateTime.TryParse(lines[2], out DateTime expiration))
+                    {
+                        DebugMessage($"Token persistente cargado - Expira: {expiration}");
+                        return (token, sign, expiration);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugMessage($"Error cargando token persistente: {ex.Message}");
+            }
+            
+            return (null, null, DateTime.MinValue);
+        }
+
+        private void GuardarTokenPersistente(string token, string sign, DateTime expiration)
+        {
+            try
+            {
+                File.WriteAllLines(TokenCacheFile, new[] { token, sign, expiration.ToString("O") });
+                DebugMessage($"Token persistente guardado - Expira: {expiration}");
+            }
+            catch (Exception ex)
+            {
+                DebugMessage($"Error guardando token persistente: {ex.Message}");
+            }
+        }
+
+        private void EliminarTokenPersistente()
+        {
+            try
+            {
+                if (File.Exists(TokenCacheFile))
+                {
+                    File.Delete(TokenCacheFile);
+                    DebugMessage("Token persistente eliminado");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugMessage($"Error eliminando token persistente: {ex.Message}");
+            }
+        }
+
+        // CORREGIDO: Método de formateo simple y claro
         private string FormatearNumeroFactura(int cbteTipo, int ptoVta, int numeroFactura)
         {
+            DebugMessage($"=== FORMATEANDO NÚMERO FACTURA ===");
+            DebugMessage($"Tipo comprobante (cbteTipo): {cbteTipo}");
+            DebugMessage($"Punto de venta (ptoVta): {ptoVta}");
+            DebugMessage($"Número factura (numeroFactura): {numeroFactura}");
+            
             // Obtener la letra según el tipo de comprobante
             string letra = ObtenerLetraComprobante(cbteTipo);
-
-            // MODIFICADO: Agregar espacio entre la letra y los números
-            // Formatear: Letra + ESPACIO + PtoVta (4 dígitos) + Número (8 dígitos)
+            DebugMessage($"Letra obtenida: {letra}");
+            
+            // FORMATO ESTÁNDAR AFIP: Letra + Espacio + PtoVenta(4) + Guión + Número(8)
             // Ejemplo: "A 0001-00000123" o "B 0001-00000456"
-            return $"{letra} {ptoVta:D4}-{numeroFactura:D8}";
+            string numeroFormateado = $"{letra} {ptoVta:D4}-{numeroFactura:D8}";
+            
+            DebugMessage($"Número final formateado: {numeroFormateado}");
+            DebugMessage($"=== FIN FORMATEO ===");
+            
+            return numeroFormateado;
         }
 
         // NUEVO: Método para obtener la letra del comprobante según código AFIP
@@ -895,7 +1090,7 @@ namespace Comercio.NET
             }
         }
 
-        // MODIFICAR: Actualizar el método de impresión para usar el número correcto
+        // CORREGIDO: Método de impresión con lógica correcta para tipos de factura
         public void ImprimirTicketDespuesDeGuardar(string tipoComprobante, string numeroComprobante)
         {
             try
@@ -908,7 +1103,7 @@ namespace Comercio.NET
                     return;
                 }
 
-                // NUEVO: Determinar el número correcto a mostrar
+                // CORREGIDO: Determinar el número correcto a mostrar
                 string numeroParaTicket;
                 if (tipoComprobante == "REMITO")
                 {
@@ -917,11 +1112,27 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    // Para facturas, usar el número formateado de AFIP
+                    // CORRECCIÓN: Para facturas, determinar correctamente el tipo
                     if (NumeroFacturaAfip > 0)
                     {
-                        int cbteTipo = tipoComprobante == "FACTURA" ? 1 : 6;
+                        // CORREGIDO: Determinar correctamente el cbteTipo según el tipo de comprobante
+                        int cbteTipo;
+                        if (tipoComprobante == "FacturaA")
+                        {
+                            cbteTipo = 1; // Factura A
+                        }
+                        else if (tipoComprobante == "FacturaB")
+                        {
+                            cbteTipo = 6; // Factura B
+                        }
+                        else
+                        {
+                            // Por defecto, asumir Factura B si no se especifica
+                            cbteTipo = 6;
+                        }
+
                         numeroParaTicket = FormatearNumeroFactura(cbteTipo, 1, NumeroFacturaAfip);
+                        DebugMessage($"Tipo: {tipoComprobante} → cbteTipo: {cbteTipo} → Número: {numeroParaTicket}");
                     }
                     else
                     {
@@ -937,11 +1148,11 @@ namespace Comercio.NET
                     NumeroComprobante = numeroParaTicket
                 };
 
-                if (tipoComprobante.Contains("FACTURA"))
+                if (tipoComprobante.Contains("Factura"))
                 {
                     config.CAE = CAENumero;
                     config.CAEVencimiento = CAEVencimiento;
-                    if (tipoComprobante == "FACTURA")
+                    if (tipoComprobante == "FacturaA")
                     {
                         config.CUIT = txtCuit.Text.Trim();
                     }
@@ -1028,10 +1239,12 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Método para calcular IVAs agrupados por alícuota
+        // CORRECCIÓN: Método para calcular IVAs agrupados por alícuota con validación mejorada
         private Dictionary<decimal, (decimal BaseImponible, decimal ImporteIva)> CalcularIvasPorAlicuota(List<ProductoVenta> productos)
         {
             var ivasAgrupados = new Dictionary<decimal, (decimal BaseImponible, decimal ImporteIva)>();
+
+            DebugMessage("=== INICIANDO CÁLCULO DE IVAs ===");
 
             foreach (var producto in productos)
             {
@@ -1040,6 +1253,8 @@ namespace Comercio.NET
                 decimal baseImponible = Math.Round(subtotal / (1 + (producto.IVA / 100m)), 2);
                 decimal importeIva = Math.Round(subtotal - baseImponible, 2);
 
+                DebugMessage($"Producto: {producto.Codigo} - IVA: {producto.IVA}% - Subtotal: ${subtotal} - Base: ${baseImponible} - IVA: ${importeIva}");
+
                 if (ivasAgrupados.ContainsKey(producto.IVA))
                 {
                     var actual = ivasAgrupados[producto.IVA];
@@ -1047,20 +1262,28 @@ namespace Comercio.NET
                         actual.BaseImponible + baseImponible,
                         actual.ImporteIva + importeIva
                     );
+                    DebugMessage($"AGREGADO a alícuota existente {producto.IVA}% - Nueva Base: ${ivasAgrupados[producto.IVA].BaseImponible} - Nuevo IVA: ${ivasAgrupados[producto.IVA].ImporteIva}");
                 }
                 else
                 {
-                    ivasAgrupados[producto.IVA] = (baseImponible, importeIva);
+                    ivasAgrupados[producto.IVA] = (baseImponible,importeIva);
+                    DebugMessage($"NUEVA alícuota {producto.IVA}% - Base: ${baseImponible} - IVA: ${importeIva}");
                 }
             }
+
+            DebugMessage($"=== RESULTADO FINAL: {ivasAgrupados.Count} alícuotas únicas ===");
 
             return ivasAgrupados;
         }
 
-        // NUEVO: Método para obtener código de alícuota AFIP según porcentaje
+        // CORRECCIÓN: Método sin referencias al 6,63% que ya fue corregido en la base de datos
         private int ObtenerCodigoAlicuotaAfip(decimal porcentajeIva)
         {
-            return porcentajeIva switch
+            DebugMessage($"Obteniendo código AFIP para alícuota: {porcentajeIva}%");
+            
+            decimal porcentajeNormalizado = Math.Round(porcentajeIva, 2);
+            
+            int codigo = porcentajeNormalizado switch
             {
                 0m => 3,       // No gravado
                 2.5m => 9,     // 2.5%
@@ -1068,8 +1291,20 @@ namespace Comercio.NET
                 10.5m => 4,    // 10.5%
                 21m => 5,      // 21%
                 27m => 6,      // 27%
-                _ => 5         // Por defecto 21%
+                
+                _ => throw new Exception($"⚠️ ALÍCUOTA NO SOPORTADA: {porcentajeNormalizado}%\n\n" +
+                    "Alícuotas válidas de AFIP:\n" +
+                    "• 0% (Código 3 - No gravado)\n" +
+                    "• 2.5% (Código 9)\n" +
+                    "• 5% (Código 8)\n" +
+                    "• 10.5% (Código 4)\n" +
+                    "• 21% (Código 5)\n" +
+                    "• 27% (Código 6)\n\n" +
+                    "Verifique la configuración del producto en la base de datos.")
             };
+            
+            DebugMessage($"Alícuota {porcentajeNormalizado}% → Código AFIP: {codigo}");
+            return codigo;
         }
 
         // NUEVO: Clase para representar productos en la venta
