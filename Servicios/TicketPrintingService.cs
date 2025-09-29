@@ -181,12 +181,11 @@ namespace Comercio.NET.Servicios
         private float ImprimirTituloComprobante(Graphics graphics, Font fontBold, float leftMargin, float rightMargin, float y)
         {
             float anchoUtil = rightMargin - leftMargin;
-            string titulo = $"{configuracion.TipoComprobante.ToUpper()} N°: {configuracion.NumeroComprobante}";
-            
+            // Mostrar solo el número formateado (ya incluye letra y guión)
+            string titulo = configuracion.NumeroComprobante;
             SizeF tituloSize = graphics.MeasureString(titulo, fontBold);
             float tituloX = leftMargin + (anchoUtil - tituloSize.Width) / 2;
             graphics.DrawString(titulo, fontBold, Brushes.Black, tituloX, y);
-            
             return y + tituloSize.Height + 8;
         }
 

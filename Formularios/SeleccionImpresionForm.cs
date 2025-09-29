@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
-using System.IO;
 using System.Windows.Forms;
 using WSconsultaCUIT;
 using ArcaWS;
@@ -9,8 +8,8 @@ using System.Data.SqlClient;
 using System.Data;
 using System.Drawing.Printing;
 using System.Globalization;
-using System.ServiceModel;
-using System.Threading.Tasks;
+using System.ServiceModel; // AGREGAR ESTA LÍNEA
+using System.Threading.Tasks; // AGREGAR ESTA LÍNEA SI NO ESTÁ
 using Comercio.NET.Servicios;
 
 namespace Comercio.NET
@@ -48,9 +47,6 @@ namespace Comercio.NET
         private static string _cachedTokenWsfe = null;
         private static string _cachedSignWsfe = null;
         private static DateTime _cachedTokenExpiryWsfe = DateTime.MinValue;
-
-        // AGREGAR ESTA LÍNEA QUE FALTA:
-        private static readonly string TokenCacheFile = Path.Combine(Path.GetTempPath(), "afip_token_cache.dat");
 
         // Propiedades para almacenar datos del CAE - VERIFICAR que sean públicas
         public string CAENumero { get; private set; } = "";
@@ -439,6 +435,7 @@ namespace Comercio.NET
             try
             {
                 DebugMessage("=== INICIO CrearFacturaAfipAsync ===");
+                DebugCacheStatus();
 
                 string cuit = "20280694739";
                 string pfxPath = @"C:\Certificados\certificado.pfx";
@@ -463,133 +460,111 @@ namespace Comercio.NET
 
                 DebugMessage("Certificado verificado, obteniendo token...");
 
-                // SIMPLIFICADO: Lógica de obtención de tokens sin complejidad innecesaria
+                // NUEVA ESTRATEGIA: Sistema de caché más robusto
                 string token = null, sign = null;
+                
+                // 1. Verificar caché local primero
+                DebugMessage("1. Verificando caché local...");
+                bool cacheLocalValido = !string.IsNullOrEmpty(_cachedTokenWsfe) && 
+                                       !string.IsNullOrEmpty(_cachedSignWsfe) && 
+                                       _cachedTokenExpiryWsfe > DateTime.UtcNow.AddMinutes(5);
 
-                // 1. Verificar si ya tenemos tokens válidos en caché local
-                if (!string.IsNullOrEmpty(_cachedTokenWsfe) && 
-                    !string.IsNullOrEmpty(_cachedSignWsfe) && 
-                    _cachedTokenExpiryWsfe > DateTime.UtcNow.AddMinutes(10))
+                if (cacheLocalValido)
                 {
-                    DebugMessage("✅ Reutilizando token del caché local válido");
+                    DebugMessage("✅ Usando token del caché local válido");
                     token = _cachedTokenWsfe;
                     sign = _cachedSignWsfe;
                 }
                 else
                 {
-                    // 2. Verificar caché del AfipAuthenticator
+                    // 2. Verificar caché de AfipAuthenticator
+                    DebugMessage("2. Verificando caché de AfipAuthenticator...");
                     var tokenExistente = AfipAuthenticator.GetExistingToken("wsfe");
                     
-                    if (tokenExistente.HasValue && 
-                        !string.IsNullOrEmpty(tokenExistente.Value.token) && 
-                        !string.IsNullOrEmpty(tokenExistente.Value.sign))
+                    if (tokenExistente.HasValue && !string.IsNullOrEmpty(tokenExistente.Value.token) && !string.IsNullOrEmpty(tokenExistente.Value.sign))
                     {
-                        DebugMessage("✅ Reutilizando token del caché de AfipAuthenticator");
+                        DebugMessage("✅ Token encontrado en caché de AfipAuthenticator");
                         token = tokenExistente.Value.token;
                         sign = tokenExistente.Value.sign;
                         
                         // Actualizar caché local
                         _cachedTokenWsfe = token;
                         _cachedSignWsfe = sign;
-                        _cachedTokenExpiryWsfe = DateTime.UtcNow.AddHours(11); // 11 horas para estar seguros
+                        _cachedTokenExpiryWsfe = DateTime.UtcNow.AddHours(12);
                     }
                     else
                     {
-                        // 3. Verificar caché persistente
+                        // 3. NUEVO: Intentar recuperar token persistente desde archivo
+                        DebugMessage("3. Verificando archivo de caché persistente...");
                         var (tokenPersistente, signPersistente, expiracionPersistente) = CargarTokenPersistente();
                         
                         if (!string.IsNullOrEmpty(tokenPersistente) && 
                             !string.IsNullOrEmpty(signPersistente) && 
-                            expiracionPersistente > DateTime.UtcNow.AddMinutes(10))
+                            expiracionPersistente > DateTime.UtcNow.AddMinutes(5))
                         {
-                            DebugMessage("✅ Reutilizando token del caché persistente");
+                            DebugMessage("✅ Token válido encontrado en caché persistente");
                             token = tokenPersistente;
                             sign = signPersistente;
                             
-                            // Actualizar caché local
+                            // Actualizar cachés
                             _cachedTokenWsfe = token;
                             _cachedSignWsfe = sign;
                             _cachedTokenExpiryWsfe = expiracionPersistente;
                         }
                         else
                         {
-                            // 4. Obtener nuevo token de AFIP - SIN COMPLEJIDADES ADICIONALES
-                            DebugMessage("No hay tokens válidos en caché, solicitando nuevo token...");
+                            // 4. ÚLTIMO RECURSO: Mostrar estrategias al usuario
+                            DebugMessage("4. No hay tokens válidos, consultando al usuario...");
                             
-                            try
+                            var estrategiaElegida = MostrarOpcionesToken();
+                            
+                            switch (estrategiaElegida)
                             {
-                                // SIMPLIFICADO: Llamada directa sin manejo especial de "token existente"
-                                var resultadoToken = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
-                                
-                                // Verificar si el resultado contiene tokens válidos
-                                if (!string.IsNullOrEmpty(resultadoToken.token) && 
-                                    !string.IsNullOrEmpty(resultadoToken.sign) && 
-                                    resultadoToken.token != "WAITING_FOR_EXPIRY" && 
-                                    resultadoToken.sign != "WAITING_FOR_EXPIRY")
-                                {
-                                    token = resultadoToken.token;
-                                    sign = resultadoToken.sign;
-                                    
-                                    DebugMessage($"✅ Nuevo token obtenido exitosamente - Length: {token.Length}");
-                                    
-                                    // Guardar en todos los cachés
-                                    var expiracion = DateTime.UtcNow.AddHours(11); // 11 horas
-                                    _cachedTokenWsfe = token;
-                                    _cachedSignWsfe = sign;
-                                    _cachedTokenExpiryWsfe = expiracion;
-                                    GuardarTokenPersistente(token, sign, expiracion);
-                                }
-                                else
-                                {
-                                    // Si AFIP devuelve tokens de espera, limpiar cachés y reintentar UNA VEZ
-                                    DebugMessage("AFIP devolvió tokens de espera, limpiando cachés y reintentando...");
+                                case EstrategiaToken.Esperar:
+                                    DebugMessage("Usuario eligió esperar - Aplicando delay de 15 segundos...");
+                                    await Task.Delay(15000); // Esperar 15 segundos
                                     
                                     // Limpiar todos los cachés
-                                    _cachedTokenWsfe = null;
-                                    _cachedSignWsfe = null;
-                                    _cachedTokenExpiryWsfe = DateTime.MinValue;
-                                    AfipAuthenticator.ClearTokenCache("wsfe");
-                                    EliminarTokenPersistente();
+                                    LimpiarTodosLosCaches();
                                     
-                                    // Esperar 10 segundos y reintentar UNA VEZ
-                                    await Task.Delay(10000);
-                                    
-                                    DebugMessage("Reintentando obtención de token después de limpiar cachés...");
-                                    resultadoToken = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
-                        
-                                    if (!string.IsNullOrEmpty(resultadoToken.token) && 
-                                        !string.IsNullOrEmpty(resultadoToken.sign) && 
-                                        resultadoToken.token != "WAITING_FOR_EXPIRY")
+                                    try
                                     {
-                                        token = resultadoToken.token;
-                                        sign = resultadoToken.sign;
+                                        DebugMessage("Reintentando obtener token después de espera...");
+                                        (token, sign) = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
+                                        DebugMessage($"✅ Token obtenido después de espera - Length: {token?.Length ?? 0}");
                                         
-                                        var expiracion = DateTime.UtcNow.AddHours(11);
-                                        _cachedTokenWsfe = token;
-                                        _cachedSignWsfe = sign;
-                                        _cachedTokenExpiryWsfe = expiracion;
-                                        GuardarTokenPersistente(token, sign, expiracion);
-                                        
-                                        DebugMessage("✅ Token obtenido en segundo intento");
+                                        // Guardar en todos los cachés
+                                        if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(sign))
+                                        {
+                                            var expiracion = DateTime.UtcNow.AddHours(12);
+                                            ActualizarTodosLosCaches(token, sign, expiracion);
+                                            GuardarTokenPersistente(token, sign, expiracion);
+                                        }
                                     }
-                                    else
+                                    catch (Exception ex2)
                                     {
-                                        // Si falla el segundo intento, mostrar error simple
+                                        DebugMessage($"❌ Reintento falló: {ex2.Message}");
                                         MessageBox.Show(
-                                            "⚠️ AFIP está procesando tokens previos.\n\n" +
-                                            "Intente nuevamente en unos minutos.", 
-                                            "Token AFIP Ocupado", 
-                                            MessageBoxButtons.OK, 
-                                            MessageBoxIcon.Information);
+                                            "❌ No se pudo obtener token después de esperar\n\n" +
+                                            "💡 El token anterior sigue activo en AFIP.\n" +
+                                            "Intente nuevamente en 30-60 minutos o reinicie la aplicación completamente.", 
+                                            "Token AFIP Persistente", MessageBoxButtons.OK, MessageBoxIcon.Error);
                                         return false;
                                     }
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                DebugMessage($"Error obteniendo token: {ex.Message}");
-                                MessageBox.Show($"❌ Error obteniendo credenciales de AFIP:\n\n{ex.Message}", "Error AFIP", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                return false;
+                                    break;
+                                    
+                                case EstrategiaToken.ReiniciarAplicacion:
+                                    MessageBox.Show(
+                                        "🔄 Reinicie la aplicación completamente\n\n" +
+                                        "💡 Cierre el programa y ábralo nuevamente.\n" +
+                                        "Esto limpiará todos los cachés y permitirá obtener un nuevo token.", 
+                                        "Reiniciar Aplicación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    return false;
+                                    
+                                case EstrategiaToken.Cancelar:
+                                default:
+                                    DebugMessage("Usuario canceló la operación");
+                                    return false;
                             }
                         }
                     }
@@ -756,21 +731,21 @@ namespace Comercio.NET
                 DebugMessage("Enviando solicitud CAE a AFIP...");
 
                 var respuesta = await client.FECAESolicitarAsync(auth, feCAEReq);
-                var resultadoCAE = respuesta?.Body?.FECAESolicitarResult; // CAMBIÓ EL NOMBRE AQUÍ
+                var resultado = respuesta?.Body?.FECAESolicitarResult;
 
                 DebugMessage("Respuesta recibida, procesando...");
 
-                if (resultadoCAE == null)
+                if (resultado == null)
                 {
                     MessageBox.Show("❌ Respuesta nula de AFIP. Intente nuevamente.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
                 // Verificar errores generales
-                if (resultadoCAE.Errors != null && resultadoCAE.Errors.Length > 0)
+                if (resultado.Errors != null && resultado.Errors.Length > 0)
                 {
                     string errores = "❌ ERRORES GENERALES AFIP:\n\n";
-                    foreach (var error in resultadoCAE.Errors)
+                    foreach (var error in resultado.Errors)
                     {
                         errores += $"• Código {error.Code}: {error.Msg}\n";
                         DebugMessage($"ERROR AFIP: {error.Code} - {error.Msg}");
@@ -779,13 +754,13 @@ namespace Comercio.NET
                     return false;
                 }
 
-                if (resultadoCAE.FeDetResp == null || resultadoCAE.FeDetResp.Length == 0)
+                if (resultado.FeDetResp == null || resultado.FeDetResp.Length == 0)
                 {
                     MessageBox.Show("❌ Sin respuesta de detalle de AFIP", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
-                var detalle = resultadoCAE.FeDetResp[0];
+                var detalle = resultado.FeDetResp[0];
                 DebugMessage($"Resultado AFIP: {detalle.Resultado}");
 
                 if (detalle.Resultado == "A") // Aprobada
@@ -859,6 +834,98 @@ namespace Comercio.NET
         }
 
         // NUEVOS MÉTODOS DE SOPORTE
+
+        private enum EstrategiaToken
+        {
+            Esperar,
+            ReiniciarAplicacion,
+            Cancelar
+        }
+
+        private EstrategiaToken MostrarOpcionesToken()
+        {
+            using (var form = new Form())
+            {
+                form.Text = "Token AFIP Activo";
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.MaximizeBox = false;
+                form.MinimizeBox = false;
+                form.StartPosition = FormStartPosition.CenterParent;
+                form.Size = new System.Drawing.Size(500, 300);
+
+                var label = new Label
+                {
+                    Text = "⏳ AFIP detectó un token activo previo\n\n" +
+                           "💡 El sistema de facturación electrónica mantiene tokens activos\n" +
+                           "por seguridad. Esto es normal al generar facturas consecutivas.\n\n" +
+                           "🔄 Seleccione una opción:",
+                    Location = new System.Drawing.Point(20, 20),
+                    Size = new System.Drawing.Size(440, 120),
+                    Font = new System.Drawing.Font("Segoe UI", 9)
+                };
+
+                var btnEsperar = new Button
+                {
+                    Text = "⏱️ Esperar 15 segundos e intentar",
+                    Location = new System.Drawing.Point(20, 150),
+                    Size = new System.Drawing.Size(200, 35),
+                    DialogResult = DialogResult.Retry
+                };
+
+                var btnReiniciar = new Button
+                {
+                    Text = "🔄 Reiniciar aplicación",
+                    Location = new System.Drawing.Point(240, 150),
+                    Size = new System.Drawing.Size(150, 35),
+                    DialogResult = DialogResult.Abort
+                };
+
+                var btnCancelar = new Button
+                {
+                    Text = "❌ Cancelar",
+                    Location = new System.Drawing.Point(400, 150),
+                    Size = new System.Drawing.Size(70, 35),
+                    DialogResult = DialogResult.Cancel
+                };
+
+                form.Controls.AddRange(new Control[] { label, btnEsperar, btnReiniciar, btnCancelar });
+
+                var result = form.ShowDialog();
+                return result switch
+                {
+                    DialogResult.Retry => EstrategiaToken.Esperar,
+                    DialogResult.Abort => EstrategiaToken.ReiniciarAplicacion,
+                    _ => EstrategiaToken.Cancelar
+                };
+            }
+        }
+
+        private void LimpiarTodosLosCaches()
+        {
+            // Limpiar caché local
+            _cachedTokenWsfe = null;
+            _cachedSignWsfe = null;
+            _cachedTokenExpiryWsfe = DateTime.MinValue;
+            
+            // Limpiar caché de AfipAuthenticator
+            AfipAuthenticator.ClearTokenCache("wsfe");
+            
+            // Limpiar archivo persistente
+            EliminarTokenPersistente();
+            
+            DebugMessage("Todos los cachés limpiados");
+        }
+
+        private void ActualizarTodosLosCaches(string token, string sign, DateTime expiracion)
+        {
+            _cachedTokenWsfe = token;
+            _cachedSignWsfe = sign;
+            _cachedTokenExpiryWsfe = expiracion;
+            
+            DebugMessage("Todos los cachés actualizados");
+        }
+
+        private static readonly string TokenCacheFile = Path.Combine(Path.GetTempPath(), "afip_token_cache.dat");
 
         private (string token, string sign, DateTime expiration) CargarTokenPersistente()
         {

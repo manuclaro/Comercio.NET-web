@@ -1171,8 +1171,10 @@ namespace Comercio.NET
             }
         }
 
+        // CORREGIDO: Método actualizado para soportar eliminación parcial
         private async Task EliminarProductoConAuditoria(string codigo, string descripcion,
-            decimal precio, int cantidad, decimal total, string motivo)
+            decimal precio, int cantidadAEliminar, decimal totalAEliminar, string motivo,
+            bool esEliminacionCompleta, int cantidadOriginal)
         {
             string connectionString = GetConnectionString();
 
@@ -1183,15 +1185,27 @@ namespace Comercio.NET
                 {
                     try
                     {
-                        // 1. Devolver stock al producto
-                        await DevolverStockProducto(connection, transaction, codigo, cantidad);
+                        // 1. Devolver stock al producto (solo la cantidad eliminada)
+                        await DevolverStockProducto(connection, transaction, codigo, cantidadAEliminar);
 
-                        // 2. Registrar en auditoría
+                        // 2. Registrar en auditoría (con la cantidad real eliminada)
                         await RegistrarEliminacionEnAuditoria(connection, transaction,
-                            codigo, descripcion, precio, cantidad, total, motivo);
+                            codigo, descripcion, precio, cantidadAEliminar, totalAEliminar, motivo);
 
-                        // 3. Eliminar de la venta actual
-                        await EliminarDeVentaActual(connection, transaction, codigo);
+                        // 3. Actualizar o eliminar de la venta actual
+                        if (esEliminacionCompleta)
+                        {
+                            // Eliminar completamente el producto
+                            await EliminarDeVentaActual(connection, transaction, codigo);
+                        }
+                        else
+                        {
+                            // Actualizar cantidad y total en la venta
+                            int nuevaCantidad = cantidadOriginal - cantidadAEliminar;
+                            decimal nuevoTotal = Math.Round(precio * nuevaCantidad, 2);
+
+                            await ActualizarCantidadEnVentaActual(connection, transaction, codigo, nuevaCantidad, nuevoTotal);
+                        }
 
                         transaction.Commit();
                     }
@@ -1908,7 +1922,7 @@ namespace Comercio.NET
             }
         }
 
-        // CORREGIDO: Método para eliminar producto seleccionado - SOLO UN MENSAJE
+        // CORREGIDO: Método para eliminar producto seleccionado - CON SOPORTE PARA CANTIDAD PARCIAL
         private async Task EliminarProductoSeleccionado()
         {
             if (dataGridView1.SelectedRows.Count == 0)
@@ -1920,7 +1934,7 @@ namespace Comercio.NET
                 string codigo = row.Cells["codigo"].Value.ToString();
                 string descripcion = row.Cells["descripcion"].Value.ToString();
                 decimal precio = Convert.ToDecimal(row.Cells["precio"].Value);
-                int cantidad = Convert.ToInt32(row.Cells["cantidad"].Value);
+                int cantidadTotal = Convert.ToInt32(row.Cells["cantidad"].Value);
                 decimal total = Convert.ToDecimal(row.Cells["total"].Value);
 
                 // Verificar permisos de eliminación
@@ -1934,35 +1948,63 @@ namespace Comercio.NET
                     }
                 }
 
-                // PASO 1: Pedir motivo (SIN mostrar confirmación en el formulario)
+                // PASO 1: Pedir motivo Y cantidad a eliminar
                 string motivo;
-                using (var motivoForm = new MotivoEliminacionForm(descripcion, cantidad, codigo, precio))
+                int cantidadAEliminar;
+                using (var motivoForm = new MotivoEliminacionForm(descripcion, cantidadTotal, codigo, precio))
                 {
-                    // IMPORTANTE: Asegúrate de que el MotivoEliminacionForm NO muestre confirmación adicional
                     if (motivoForm.ShowDialog(this) != DialogResult.OK)
                         return; // Usuario canceló
 
                     motivo = motivoForm.Motivo;
+                    cantidadAEliminar = motivoForm.CantidadAEliminar;
                 }
 
-                // PASO 2: ÚNICO MENSAJE DE CONFIRMACIÓN (el que quieres conservar)
-                var resultado = MessageBox.Show(
-                    $"¿Confirma la eliminación de este producto?\n\n" +
-                    $"Código: {codigo}\n" +
-                    $"Descripción: {descripcion}\n" +
-                    $"Cantidad: {cantidad}\n" +
-                    $"Total: {total:C2}\n\n" +
-                    $"Motivo: {motivo}\n\n" +
-                    "Esta acción no se puede deshacer.",
-                    "Confirmar eliminación",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
+                // Validar cantidad
+                if (cantidadAEliminar <= 0 || cantidadAEliminar > cantidadTotal)
+                {
+                    MessageBox.Show($"Cantidad inválida. Debe estar entre 1 y {cantidadTotal}.", "Error",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Calcular valores proporcionales
+                decimal totalAEliminar = Math.Round(precio * cantidadAEliminar, 2);
+                bool esEliminacionCompleta = cantidadAEliminar == cantidadTotal;
+
+                // PASO 2: MENSAJE DE CONFIRMACIÓN adaptado según si es eliminación parcial o completa
+                string mensaje;
+                if (esEliminacionCompleta)
+                {
+                    mensaje = $"¿Confirma la eliminación COMPLETA de este producto?\n\n" +
+                             $"Código: {codigo}\n" +
+                             $"Descripción: {descripcion}\n" +
+                             $"Cantidad: {cantidadTotal}\n" +
+                             $"Total: {total:C2}\n\n" +
+                             $"Motivo: {motivo}\n\n" +
+                             "Esta acción no se puede deshacer.";
+                }
+                else
+                {
+                    mensaje = $"¿Confirma la eliminación PARCIAL de este producto?\n\n" +
+                             $"Código: {codigo}\n" +
+                             $"Descripción: {descripcion}\n" +
+                             $"Cantidad a eliminar: {cantidadAEliminar} de {cantidadTotal}\n" +
+                             $"Total a eliminar: {totalAEliminar:C2}\n" +
+                             $"Cantidad que quedará: {cantidadTotal - cantidadAEliminar}\n" +
+                             $"Total que quedará: {(total - totalAEliminar):C2}\n\n" +
+                             $"Motivo: {motivo}\n\n" +
+                             "Esta acción no se puede deshacer.";
+                }
+
+                var resultado = MessageBox.Show(mensaje, "Confirmar eliminación",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
                 // PASO 3: Solo proceder si confirma
                 if (resultado == DialogResult.Yes)
                 {
-                    // Eliminar con auditoría
-                    await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidad, total, motivo);
+                    // CORREGIDO: Usar el método actualizado que soporta cantidad parcial
+                    await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidadAEliminar, totalAEliminar, motivo, esEliminacionCompleta, cantidadTotal);
 
                     // Refrescar la vista
                     CargarVentasActuales();
@@ -1971,8 +2013,11 @@ namespace Comercio.NET
                     // DEBUG
                     System.Diagnostics.Debug.WriteLine($"=== PRODUCTO ELIMINADO ===");
                     System.Diagnostics.Debug.WriteLine($"Código: {codigo}");
+                    System.Diagnostics.Debug.WriteLine($"Cantidad eliminada: {cantidadAEliminar} de {cantidadTotal}");
+                    System.Diagnostics.Debug.WriteLine($"Es eliminación completa: {esEliminacionCompleta}");
                     System.Diagnostics.Debug.WriteLine($"Motivo: {motivo}");
                     System.Diagnostics.Debug.WriteLine($"Usuario: {ObtenerUsuarioActual()}");
+                    System.Diagnostics.Debug.WriteLine($"Remito: {nroRemitoActual}");
                     System.Diagnostics.Debug.WriteLine($"==========================");
                 }
             }
@@ -2019,8 +2064,63 @@ namespace Comercio.NET
                             return; // No hay cambios
                         }
 
-                        // Actualizar en base de datos
-                        await ActualizarCantidadProductoEnVenta(codigo, nuevaCantidad, precio);
+                        // CORREGIDO: Usar la lógica de actualización directamente aquí
+                        string connectionString = GetConnectionString();
+
+                        using (var connection = new SqlConnection(connectionString))
+                        {
+                            connection.Open();
+                            using (var transaction = connection.BeginTransaction())
+                            {
+                                try
+                                {
+                                    // Calcular diferencia de stock
+                                    int diferenciaCantidad = nuevaCantidad - cantidadActual;
+                                    decimal nuevoTotal = Math.Round(precio * nuevaCantidad, 2);
+
+                                    // Actualizar stock del producto (solo si permite acumular)
+                                    if (diferenciaCantidad != 0)
+                                    {
+                                        var queryPermiteAcumular = @"SELECT ISNULL(PermiteAcumular, 0) FROM Productos WHERE codigo = @codigo";
+                                        bool permiteAcumular = false;
+                                        
+                                        using (var cmdPermite = new SqlCommand(queryPermiteAcumular, connection, transaction))
+                                        {
+                                            cmdPermite.Parameters.AddWithValue("@codigo", codigo);
+                                            var result = await cmdPermite.ExecuteScalarAsync();
+                                            if (result != null && result != DBNull.Value)
+                                            {
+                                                permiteAcumular = Convert.ToBoolean(result);
+                                            }
+                                        }
+
+                                        if (permiteAcumular)
+                                        {
+                                            var queryStock = @"UPDATE Productos 
+                                                              SET cantidad = cantidad - @diferenciaCantidad 
+                                                              WHERE codigo = @codigo";
+                                            
+                                            using (var cmdStock = new SqlCommand(queryStock, connection, transaction))
+                                            {
+                                                cmdStock.Parameters.AddWithValue("@diferenciaCantidad", diferenciaCantidad);
+                                                cmdStock.Parameters.AddWithValue("@codigo", codigo);
+                                                await cmdStock.ExecuteNonQueryAsync();
+                                            }
+                                        }
+                                    }
+
+                                    // Actualizar la venta usando el método existente
+                                    await ActualizarCantidadEnVentaActual(connection, transaction, codigo, nuevaCantidad, nuevoTotal);
+
+                                    transaction.Commit();
+                                }
+                                catch
+                                {
+                                    transaction.Rollback();
+                                    throw;
+                                }
+                            }
+                        }
 
                         // Refrescar la vista
                         CargarVentasActuales();
@@ -2044,141 +2144,143 @@ namespace Comercio.NET
             }
         }
 
-        // MÉTODO FALTANTE: ActualizarCantidadProductoEnVenta
-        private async Task ActualizarCantidadProductoEnVenta(string codigo, int nuevaCantidad, decimal precio)
+        // MÉTODO FALTANTE: RegistrarEliminacionEnAuditoria
+        private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
+            string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
         {
             try
             {
-                string connectionString = GetConnectionString();
+                // Obtener información del usuario actual
+                string usuarioActual = ObtenerUsuarioActual();
+                int numeroCajero = obtenerNumeroCajero();
 
-                using (var connection = new SqlConnection(connectionString))
+                var query = @"INSERT INTO AuditoriaEliminaciones 
+                             (Fecha, Hora, CodigoProducto, DescripcionProducto, PrecioUnitario, CantidadEliminada, 
+                              TotalEliminado, MotivoEliminacion, Usuario, NumeroCajero, NumeroRemito)
+                             VALUES 
+                             (@Fecha, @Hora, @Codigo, @Descripcion, @Precio, @Cantidad, @Total, @Motivo, 
+                              @Usuario, @Cajero, @NumeroRemito)";
+
+                using (var cmd = new SqlCommand(query, connection, transaction))
                 {
-                    connection.Open();
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        try
-                        {
-                            // 1. Obtener la cantidad actual del producto en la venta
-                            int cantidadAnterior = 0;
-                            var queryObtener = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
-                            using (var cmd = new SqlCommand(queryObtener, connection, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                                cmd.Parameters.AddWithValue("@codigo", codigo);
-                                var result = cmd.ExecuteScalarAsync();
-                                if (result != null)
-                                {
-                                    cantidadAnterior = Convert.ToInt32(await result);
-                                }
-                            }
+                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
+                    cmd.Parameters.AddWithValue("@Hora", DateTime.Now.ToString("HH:mm:ss"));
+                    cmd.Parameters.AddWithValue("@Codigo", codigo);
+                    cmd.Parameters.AddWithValue("@Descripcion", descripcion);
+                    cmd.Parameters.AddWithValue("@Precio", precio);
+                    cmd.Parameters.AddWithValue("@Cantidad", cantidad);
+                    cmd.Parameters.AddWithValue("@Total", total);
+                    cmd.Parameters.AddWithValue("@Motivo", motivo);
+                    cmd.Parameters.AddWithValue("@Usuario", usuarioActual);
+                    cmd.Parameters.AddWithValue("@Cajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
 
-                            // 2. Obtener el porcentaje de IVA del producto
-                            decimal porcentajeIva = 0;
-                            var queryIva = @"SELECT ISNULL(iva, 0) FROM Productos WHERE codigo = @codigo";
-                            using (var cmd = new SqlCommand(queryIva, connection, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@codigo", codigo);
-                                var resultIva = await cmd.ExecuteScalarAsync();
-                                if (resultIva != null && resultIva != DBNull.Value)
-                                {
-                                    porcentajeIva = Convert.ToDecimal(resultIva);
-                                }
-                            }
-
-                            // 3. Calcular el nuevo total e IVA
-                            decimal nuevoTotal = nuevaCantidad * precio;
-                            decimal nuevoIvaCalculado = CalcularIvaDesdeTotal(nuevoTotal, porcentajeIva);
-
-                            // 4. Actualizar la venta
-                            var queryActualizar = @"UPDATE Ventas 
-                                                   SET cantidad = @nuevaCantidad, 
-                                                       total = @nuevoTotal,
-                                                       IvaCalculado = @nuevoIvaCalculado,
-                                                       PorcentajeIva = @porcentajeIva
-                                                   WHERE nrofactura = @nrofactura AND codigo = @codigo";
-                            using (var cmd = new SqlCommand(queryActualizar, connection, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
-                                cmd.Parameters.AddWithValue("@nuevoTotal", nuevoTotal);
-                                cmd.Parameters.AddWithValue("@nuevoIvaCalculado", nuevoIvaCalculado);
-                                cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
-                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                                cmd.Parameters.AddWithValue("@codigo", codigo);
-                                await cmd.ExecuteNonQueryAsync();
-                            }
-
-                            // 5. Ajustar el stock si el producto permite acumular
-                            var queryPermiteAcumular = @"SELECT ISNULL(PermiteAcumular, 0) FROM Productos WHERE codigo = @codigo";
-                            bool permiteAcumular = false;
-                            using (var cmd = new SqlCommand(queryPermiteAcumular, connection, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@codigo", codigo);
-                                var result = await cmd.ExecuteScalarAsync();
-                                if (result != null && result != DBNull.Value)
-                                {
-                                    permiteAcumular = Convert.ToBoolean(result);
-                                }
-                            }
-
-                            if (permiteAcumular)
-                            {
-                                // Calcular la diferencia de cantidad para ajustar el stock
-                                int diferenciaCantidad = nuevaCantidad - cantidadAnterior;
-                                
-                                // Actualizar stock: si aumentó la cantidad, descontar más; si disminuyó, devolver
-                                var queryStock = @"UPDATE Productos 
-                                                   SET cantidad = cantidad - @diferencia 
-                                                   WHERE codigo = @codigo";
-                                using (var cmd = new SqlCommand(queryStock, connection, transaction))
-                                {
-                                    cmd.Parameters.AddWithValue("@diferencia", diferenciaCantidad);
-                                    cmd.Parameters.AddWithValue("@codigo", codigo);
-                                    await cmd.ExecuteNonQueryAsync();
-                                }
-                            }
-
-                            transaction.Commit();
-
-                            // DEBUG
-                            System.Diagnostics.Debug.WriteLine($"=== ACTUALIZACIÓN CANTIDAD ===");
-                            System.Diagnostics.Debug.WriteLine($"Producto: {codigo}");
-                            System.Diagnostics.Debug.WriteLine($"Cantidad anterior: {cantidadAnterior}");
-                            System.Diagnostics.Debug.WriteLine($"Nueva cantidad: {nuevaCantidad}");
-                            System.Diagnostics.Debug.WriteLine($"Nuevo total: {nuevoTotal:C}");
-                            System.Diagnostics.Debug.WriteLine($"Stock actualizado: {permiteAcumular}");
-                            System.Diagnostics.Debug.WriteLine($"==============================");
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw;
-                        }
-                    }
+                    await cmd.ExecuteNonQueryAsync();
                 }
+
+                // DEBUG: Confirmar registro de auditoría
+                System.Diagnostics.Debug.WriteLine($"=== AUDITORÍA ELIMINACIÓN ===");
+                System.Diagnostics.Debug.WriteLine($"Producto: {codigo} - {descripcion}");
+                System.Diagnostics.Debug.WriteLine($"Cantidad eliminada: {cantidad}");
+                System.Diagnostics.Debug.WriteLine($"Total eliminado: {total:C2}");
+                System.Diagnostics.Debug.WriteLine($"Motivo: {motivo}");
+                System.Diagnostics.Debug.WriteLine($"Usuario: {usuarioActual}");
+                System.Diagnostics.Debug.WriteLine($"Remito: {nroRemitoActual}");
+                System.Diagnostics.Debug.WriteLine($"============================");
             }
             catch (Exception ex)
             {
-                throw new Exception($"Error al actualizar la cantidad del producto: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error registrando auditoría: {ex.Message}");
+                // No lanzar excepción para no interrumpir el proceso principal
+            }
+        }
+
+        // MÉTODO FALTANTE: ActualizarCantidadEnVentaActual (versión simplificada para eliminación parcial)
+        private async Task ActualizarCantidadEnVentaActual(SqlConnection connection, SqlTransaction transaction, 
+            string codigo, int nuevaCantidad, decimal nuevoTotal)
+        {
+            try
+            {
+                // Obtener el porcentaje de IVA del producto para recalcular
+                decimal porcentajeIva = 0;
+                var queryIva = @"SELECT ISNULL(iva, 0) FROM Productos WHERE codigo = @codigo";
+                using (var cmd = new SqlCommand(queryIva, connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                    var resultIva = await cmd.ExecuteScalarAsync();
+                    if (resultIva != null && resultIva != DBNull.Value)
+                    {
+                        porcentajeIva = Convert.ToDecimal(resultIva);
+                    }
+                }
+
+                // Calcular el nuevo IVA
+                decimal nuevoIvaCalculado = CalcularIvaDesdeTotal(nuevoTotal, porcentajeIva);
+
+                var query = @"UPDATE Ventas 
+                             SET cantidad = @nuevaCantidad, 
+                                 total = @nuevoTotal,
+                                 IvaCalculado = @nuevoIvaCalculado,
+                                 PorcentajeIva = @porcentajeIva
+                             WHERE nrofactura = @nrofactura AND codigo = @codigo";
+
+                using (var cmd = new SqlCommand(query, connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
+                    cmd.Parameters.AddWithValue("@nuevoTotal", nuevoTotal);
+                    cmd.Parameters.AddWithValue("@nuevoIvaCalculado", nuevoIvaCalculado);
+                    cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
+                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                    cmd.Parameters.AddWithValue("@codigo", codigo);
+
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                // DEBUG: Confirmar actualización
+                System.Diagnostics.Debug.WriteLine($"=== ACTUALIZACIÓN CANTIDAD (ELIMINACIÓN PARCIAL) ===");
+                System.Diagnostics.Debug.WriteLine($"Producto: {codigo}");
+                System.Diagnostics.Debug.WriteLine($"Nueva cantidad: {nuevaCantidad}");
+                System.Diagnostics.Debug.WriteLine($"Nuevo total: {nuevoTotal:C2}");
+                System.Diagnostics.Debug.WriteLine($"Nuevo IVA: {nuevoIvaCalculado:C2}");
+                System.Diagnostics.Debug.WriteLine($"====================================================");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al actualizar cantidad en venta: {ex.Message}");
             }
         }
 
         // MÉTODO FALTANTE: EliminarDeVentaActual
         private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
         {
-            var query = @"DELETE FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
-            
-            using (var cmd = new SqlCommand(query, connection, transaction))
+            try
             {
-                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                await cmd.ExecuteNonQueryAsync();
-            }
+                var query = @"DELETE FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
 
-            // DEBUG
-            System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN DE VENTA ===");
-            System.Diagnostics.Debug.WriteLine($"Producto eliminado: {codigo}");
-            System.Diagnostics.Debug.WriteLine($"Remito: {nroRemitoActual}");
-            System.Diagnostics.Debug.WriteLine($"=============================");
+                using (var cmd = new SqlCommand(query, connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                    
+                    int filasAfectadas = await cmd.ExecuteNonQueryAsync();
+
+                    // DEBUG: Confirmar eliminación
+                    System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN PRODUCTO ===");
+                    System.Diagnostics.Debug.WriteLine($"Producto: {codigo}");
+                    System.Diagnostics.Debug.WriteLine($"Remito: {nroRemitoActual}");
+                    System.Diagnostics.Debug.WriteLine($"Filas eliminadas: {filasAfectadas}");
+                    System.Diagnostics.Debug.WriteLine($"============================");
+
+                    if (filasAfectadas == 0)
+                    {
+                        throw new Exception($"No se encontró el producto {codigo} en la venta actual para eliminar");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al eliminar producto de venta: {ex.Message}");
+            }
         }
 
         // MÉTODO FALTANTE: LimpiarYReiniciarVenta
@@ -2186,12 +2288,12 @@ namespace Comercio.NET
         {
             try
             {
-                // Limpiar la grilla
+                // 1. Limpiar el DataGridView
                 dataGridView1.DataSource = null;
                 dataGridView1.Rows.Clear();
                 remitoActual = null;
 
-                // Resetear totales
+                // 2. Resetear los totales
                 lbCantidadProductos.Text = "Productos: 0";
                 
                 if (rtbTotal != null)
@@ -2205,146 +2307,53 @@ namespace Comercio.NET
                     rtbTotal.AppendText("IVA: $0,00");
                 }
 
-                // Limpiar campos de producto
+                // 3. Limpiar campos de entrada
                 txtBuscarProducto.Text = "";
-                LimpiarCamposProducto();
+                txtPrecio.Text = "";
+                txtPrecio.Enabled = false;
+                lbDescripcionProducto.Text = "";
 
-                // Resetear checkbox de cuenta corriente
+                // 4. Resetear checkboxes y combos
                 chkEsCtaCte.Checked = false;
-                cbnombreCtaCte.SelectedIndex = -1;
                 cbnombreCtaCte.Visible = false;
                 cbnombreCtaCte.Enabled = false;
+                cbnombreCtaCte.SelectedIndex = -1;
 
-                // Resetear cantidad personalizada
-                chkCantidad.Checked = false;
-                cantidadPersonalizada = 1;
-                chkCantidad.Text = "Cantidad";
+                if (chkCantidad.Checked)
+                {
+                    chkCantidad.Checked = false;
+                    cantidadPersonalizada = 1;
+                    chkCantidad.Text = "Cantidad";
+                }
 
-                // Resetear remito
+                // 5. Resetear variables de control
                 remitoIncrementado = false;
+                procesandoEliminacion = false;
+                procesandoEdicionCantidad = false;
 
-                // Enfocar en el campo de búsqueda para la siguiente venta
+                // 6. Limpiar selección del DataGridView
+                dataGridView1.ClearSelection();
+                dataGridView1.CurrentCell = null;
+
+                // 7. Devolver el foco al campo de búsqueda
                 txtBuscarProducto.Focus();
 
-                // DEBUG
-                System.Diagnostics.Debug.WriteLine($"=== VENTA REINICIADA ===");
-                System.Diagnostics.Debug.WriteLine($"Remito procesado: {nroRemitoActual}");
-                System.Diagnostics.Debug.WriteLine($"Estado limpio para nueva venta");
-                System.Diagnostics.Debug.WriteLine($"========================");
-
-                // Mostrar mensaje de confirmación
-                //MessageBox.Show("Venta procesada correctamente.\n\nListo para nueva venta.", "Venta Completa", 
-                //              MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // DEBUG: Confirmar limpieza
+                System.Diagnostics.Debug.WriteLine($"=== LIMPIEZA Y REINICIO ===");
+                System.Diagnostics.Debug.WriteLine($"Venta limpiada correctamente");
+                System.Diagnostics.Debug.WriteLine($"Remito incrementado: {remitoIncrementado}");
+                System.Diagnostics.Debug.WriteLine($"Estado procesando eliminación: {procesandoEliminacion}");
+                System.Diagnostics.Debug.WriteLine($"Estado procesando edición: {procesandoEdicionCantidad}");
+                System.Diagnostics.Debug.WriteLine($"===========================");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error en LimpiarYReiniciarVenta: {ex.Message}");
-                MessageBox.Show($"Error al reiniciar: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al limpiar la venta: {ex.Message}", "Error",
                               MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // MÉTODO FALTANTE: RegistrarEliminacionEnAuditoria
-        // MÉTODO CORREGIDO: RegistrarEliminacionEnAuditoria
-        private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
-            string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
-        {
-            // CORREGIDO: Declarar la variable query FUERA del try para que sea accesible en el catch
-            var query = @"INSERT INTO AuditoriaEliminaciones 
-                 (Fecha, Hora, Usuario, CodigoProducto, DescripcionProducto, PrecioUnitario, 
-                  Cantidad, TotalEliminado, MotivoEliminacion, NumeroRemito, CajeroId)
-                 VALUES (@Fecha, @Hora, @Usuario, @CodigoProducto, @DescripcionProducto, 
-                  @PrecioUnitario, @Cantidad, @TotalEliminado, @MotivoEliminacion, 
-                  @NumeroRemito, @CajeroId)";
-
-            try
-            {
-                using (var cmd = new SqlCommand(query, connection, transaction))
-                {
-                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
-                    cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
-                    cmd.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
-                    cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
-                    cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
-                    cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
-                    cmd.Parameters.AddWithValue("@Cantidad", cantidad);
-                    cmd.Parameters.AddWithValue("@TotalEliminado", total);
-                    cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
-                    cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
-                    cmd.Parameters.AddWithValue("@CajeroId", obtenerNumeroCajero());
-
-                    await cmd.ExecuteNonQueryAsync();
-                }
-
-                // DEBUG
-                System.Diagnostics.Debug.WriteLine($"=== AUDITORÍA ELIMINACIÓN ===");
-                System.Diagnostics.Debug.WriteLine($"Producto: {codigo} - {descripcion}");
-                System.Diagnostics.Debug.WriteLine($"Total eliminado: {total:C}");
-                System.Diagnostics.Debug.WriteLine($"Usuario: {ObtenerUsuarioActual()}");
-                System.Diagnostics.Debug.WriteLine($"Motivo: {motivo}");
-                System.Diagnostics.Debug.WriteLine($"=============================");
-            }
-            catch (Exception ex)
-            {
-                // Si la tabla de auditoría no existe, crear un registro alternativo en el log
-                System.Diagnostics.Debug.WriteLine($"=== ERROR AUDITORÍA (TABLA NO EXISTE) ===");
-                System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Producto eliminado: {codigo} - {descripcion}");
-                System.Diagnostics.Debug.WriteLine($"Usuario: {ObtenerUsuarioActual()}");
-                System.Diagnostics.Debug.WriteLine($"Motivo: {motivo}");
-                System.Diagnostics.Debug.WriteLine($"Fecha/Hora: {DateTime.Now}");
-                System.Diagnostics.Debug.WriteLine($"========================================");
-
-                // OPCIONAL: Crear la tabla de auditoría si no existe
-                try
-                {
-                    var createTableQuery = @"
-                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='AuditoriaEliminaciones' AND xtype='U')
-                CREATE TABLE AuditoriaEliminaciones (
-                    Id INT IDENTITY(1,1) PRIMARY KEY,
-                    Fecha DATE NOT NULL,
-                    Hora DATETIME NOT NULL,
-                    Usuario NVARCHAR(100) NOT NULL,
-                    CodigoProducto NVARCHAR(50) NOT NULL,
-                    DescripcionProducto NVARCHAR(255) NOT NULL,
-                    PrecioUnitario DECIMAL(10,2) NOT NULL,
-                    Cantidad INT NOT NULL,
-                    TotalEliminado DECIMAL(10,2) NOT NULL,
-                    MotivoEliminacion NVARCHAR(500) NOT NULL,
-                    NumeroRemito INT NOT NULL,
-                    CajeroId INT NOT NULL
-                )";
-
-                    using (var createCmd = new SqlCommand(createTableQuery, connection, transaction))
-                    {
-                        await createCmd.ExecuteNonQueryAsync();
-                    }
-
-                    // CORREGIDO: Ahora 'query' está disponible aquí porque se declaró fuera del primer try
-                    using (var retryCmd = new SqlCommand(query, connection, transaction))
-                    {
-                        retryCmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
-                        retryCmd.Parameters.AddWithValue("@Hora", DateTime.Now);
-                        retryCmd.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
-                        retryCmd.Parameters.AddWithValue("@CodigoProducto", codigo);
-                        retryCmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
-                        retryCmd.Parameters.AddWithValue("@PrecioUnitario", precio);
-                        retryCmd.Parameters.AddWithValue("@Cantidad", cantidad);
-                        retryCmd.Parameters.AddWithValue("@TotalEliminado", total);
-                        retryCmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
-                        retryCmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
-                        retryCmd.Parameters.AddWithValue("@CajeroId", obtenerNumeroCajero());
-
-                        await retryCmd.ExecuteNonQueryAsync();
-                    }
-
-                    System.Diagnostics.Debug.WriteLine("Tabla AuditoriaEliminaciones creada y registro insertado correctamente.");
-                }
-                catch (Exception createEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error creando tabla de auditoría: {createEx.Message}");
-                    // No lanzar excepción para no interrumpir el proceso de eliminación
-                }
+                
+                // En caso de error, al menos intentar limpiar lo básico
+                txtBuscarProducto.Text = "";
+                txtBuscarProducto.Focus();
             }
         }
     }
