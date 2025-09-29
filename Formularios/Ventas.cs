@@ -48,10 +48,16 @@ namespace Comercio.NET
         private int cantidadPersonalizada = 1;
         private CheckBox chkCantidad;
 
-        private bool validarStockHabilitado = true; // Variable de instancia para almacenar la configuración
+        private bool validarStockHabilitado = true;
 
         // En lugar del Label lbTotal, usar un RichTextBox para mejor control de formato
         private RichTextBox rtbTotal;
+
+        // NUEVO: Variable para controlar el estado de eliminación
+        private bool procesandoEliminacion = false; 
+
+        // NUEVO: Variable para controlar el estado de edición de cantidad
+        private bool procesandoEdicionCantidad = false;
 
         public Ventas()
         {
@@ -87,7 +93,6 @@ namespace Comercio.NET
                 dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 60);
             }
         }
-
         private void ConfigurarEventHandlers()
         {
             txtBuscarProducto.TextChanged += txtBuscarProducto_TextChanged;
@@ -168,7 +173,6 @@ namespace Comercio.NET
             };
         }
 
-
         private void CargarConfiguracion()
         {
             // Leer desde appsettings.json
@@ -176,13 +180,13 @@ namespace Comercio.NET
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json")
                 .Build();
-            
+
             nombreComercio = config["Comercio:Nombre"] ?? "Comercio";
             domicilioComercio = config["Comercio:Domicilio"] ?? "domicilio";
-            
+
             // NUEVO: Cargar configuración de validación de stock
             validarStockHabilitado = config.GetValue<bool>("Validaciones:ValidarStockDisponible", true);
-            
+
             // DEBUG: Mostrar configuración cargada
             System.Diagnostics.Debug.WriteLine($"=== CONFIGURACIÓN STOCK ===");
             System.Diagnostics.Debug.WriteLine($"Validar stock habilitado: {validarStockHabilitado}");
@@ -344,7 +348,7 @@ namespace Comercio.NET
         {
             txtPrecio.Text = "";
             txtPrecio.Enabled = false;
-            lbDescripcionProducto.Text = ""; // AGREGAR ESTA LÍNEA SI NO ESTÁ
+            lbDescripcionProducto.Text = "";
         }
 
         private async void btnAgregar_Click(object sender, EventArgs e)
@@ -418,7 +422,7 @@ namespace Comercio.NET
                     adapter.Fill(dt);
                     if (dt.Rows.Count == 0)
                     {
-                        // MODIFICADO: Usar MessageBox personalizado sin botón por defecto
+                        // CORREGIDO: Usar el CustomMessageBox con el namespace correcto
                         using (var customMsg = new CustomMessageBox(
                             $"El producto con código '{codigoBuscado}' no existe.\n\n" +
                             "¿Desea agregarlo ahora para continuar con la venta?",
@@ -461,7 +465,7 @@ namespace Comercio.NET
 
             // NUEVO: Verificar permiteAcumular para determinar si se puede agregar y modificar stock
             bool permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
-            
+
             // MODIFICADO: Solo verificar stock si el producto permite acumular (manejo de stock)
             int stockDisponible = Convert.ToInt32(producto["cantidad"]);
             if (permiteAcumular && validarStockHabilitado && stockDisponible < cantidadPersonalizada)
@@ -474,28 +478,16 @@ namespace Comercio.NET
                     $"Cantidad solicitada: {cantidadPersonalizada}\n\n" +
                     "¿Desea continuar de todas formas?\n" +
                     "(El stock quedará en negativo)",
-                    "Stock Insuficiente", 
-                    MessageBoxButtons.YesNo, 
+                    "Stock Insuficiente",
+                    MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning);
-                
+
                 if (resultado != DialogResult.Yes)
                 {
                     txtBuscarProducto.Focus();
                     return;
                 }
             }
-
-            // MODIFICADO: Si permiteAcumular = false, mostrar mensaje informativo
-            //if (!permiteAcumular)
-            //{
-            //    MessageBox.Show(
-            //        $"ℹ️ INFORMACIÓN: Producto sin control de stock\n\n" +
-            //        $"Producto: {producto["descripcion"]}\n" +
-            //        $"Este producto no maneja inventario automático.",
-            //        "Producto sin control de stock", 
-            //        MessageBoxButtons.OK, 
-            //        MessageBoxIcon.Information);
-            //}
 
             // 1. Si es el primer producto de la venta, incrementa el remito y obtén el nuevo valor
             if (!remitoIncrementado)
@@ -619,11 +611,12 @@ namespace Comercio.NET
                     {
                         if (productoYaAgregado && permiteAcumular)
                         {
-                            // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total
+                            // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total e IVA
                             var query = @"UPDATE Ventas 
                                           SET cantidad = cantidad + @nuevaCantidad, 
                                               total = (cantidad + @nuevaCantidad) * @precio,
-                                              IvaCalculado = (@precio * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva)
+                                              IvaCalculado = (@precio * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva),
+                                              PorcentajeIva = @porcentajeIva
                                           WHERE nrofactura = @nrofactura AND codigo = @codigo";
                             using (var cmd = new SqlCommand(query, connection, transaction))
                             {
@@ -637,15 +630,15 @@ namespace Comercio.NET
                         }
                         else
                         {
-                            // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
+                            // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea) - INCLUIR PorcentajeIva
                             var query = @"INSERT INTO Ventas 
-                                        (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte, IvaCalculado)
-                                        VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte, @ivaCalculado)";
+                                        (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte, IvaCalculado, PorcentajeIva)
+                                        VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte, @ivaCalculado, @porcentajeIva)";
                             using (var cmd = new SqlCommand(query, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
                                 cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
-                                cmd.Parameters.AddWithValue("@precio", precioUnitario); // Usar el precio correcto
+                                cmd.Parameters.AddWithValue("@precio", precioUnitario);
                                 cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
                                 cmd.Parameters.AddWithValue("@marca", producto["marca"]);
                                 cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
@@ -657,9 +650,10 @@ namespace Comercio.NET
                                 cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                                 cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
                                 cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-                                
-                                // NUEVO: Agregar IVA calculado
+
+                                // NUEVO: Agregar IVA calculado y porcentaje de IVA
                                 cmd.Parameters.AddWithValue("@ivaCalculado", ivaCalculado);
+                                cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
 
                                 cmd.ExecuteNonQuery();
                             }
@@ -697,7 +691,7 @@ namespace Comercio.NET
                     catch (Exception ex)
                     {
                         transaction.Rollback();
-                        MessageBox.Show($"Error al procesar la venta: {ex.Message}", "Error", 
+                        MessageBox.Show($"Error al procesar la venta: {ex.Message}", "Error",
                                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
@@ -762,7 +756,12 @@ namespace Comercio.NET
             txtBuscarProducto.Focus();
 
             lbCantidadProductos.Text = "Productos: 0";
-            lbTotal.Text = "Total: $0,00";
+            
+            // CORREGIDO: Verificar si lbTotal existe antes de usarlo
+            if (lbTotal != null)
+            {
+                lbTotal.Text = "Total: $0,00";
+            }
 
             // Configuración general del DataGridView
             dataGridView1.AllowUserToAddRows = false;
@@ -854,8 +853,8 @@ namespace Comercio.NET
 
             using (var connection = new SqlConnection(connectionString))
             {
-                // MODIFICADO: Incluir IvaCalculado en la consulta
-                var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, IvaCalculado
+                // MODIFICADO: Cambiar el orden de las columnas - PorcentajeIva antes que IvaCalculado
+                var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, PorcentajeIva, IvaCalculado
                               FROM Ventas
                               WHERE nrofactura = @nrofactura
                               ORDER BY id DESC";
@@ -875,19 +874,35 @@ namespace Comercio.NET
                 dataGridView1.Columns["id"].Visible = false;
             }
 
-            // NUEVO: Configurar la nueva columna IVA
+            // MODIFICADO: Configurar la columna de porcentaje IVA primero (ahora aparecerá antes)
+            if (dataGridView1.Columns["PorcentajeIva"] != null)
+            {
+                dataGridView1.Columns["PorcentajeIva"].HeaderText = "IVA %";
+                dataGridView1.Columns["PorcentajeIva"].Width = 40;
+                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Format = "N2";
+                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                //dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
+                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.ForeColor = Color.FromArgb(25, 118, 210);
+                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                // NUEVO: Establecer el orden de visualización
+                dataGridView1.Columns["PorcentajeIva"].DisplayIndex = 6; // Aparecerá después de total
+            }
+
+            // MODIFICADO: Configurar la columna IVA calculado después
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
-                dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA";
+                dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA $";
                 dataGridView1.Columns["IvaCalculado"].Width = 80;
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                // NUEVO: Establecer el orden de visualización
+                dataGridView1.Columns["IvaCalculado"].DisplayIndex = 7; // Aparecerá después de IVA %
             }
 
-            // Ajustar anchos de columnas existentes
+            // Ajustar anchos de columnas existentes para hacer espacio
             if (dataGridView1.Columns["descripcion"] != null)
             {
-                dataGridView1.Columns["descripcion"].Width = 260; // Reducido para hacer espacio al IVA
+                dataGridView1.Columns["descripcion"].Width = 240; // Reducido para hacer espacio
             }
             if (dataGridView1.Columns["precio"] != null)
             {
@@ -907,16 +922,16 @@ namespace Comercio.NET
 
             decimal sumaTotal = 0;
             decimal sumaIva = 0;
-            
+
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
                 if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
                     sumaTotal += valorTotal;
-                    
+
                 if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
                     sumaIva += valorIva;
             }
-            
+
             // NUEVO: Formatear con RichTextBox - Total grande e IVA pequeño debajo
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
@@ -1070,20 +1085,8 @@ namespace Comercio.NET
                 decimal importeTotal = 0;
                 foreach (DataGridViewRow row in dataGridView1.Rows)
                 {
-                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
-                        importeTotal += valor;
+                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor)) importeTotal += valor;
                 }
-
-                // ALTERNATIVA: Si se quiere mantener el parsing del label, usar InvariantCulture
-                /*
-                decimal importeTotal = 0;
-                string textoTotal = lbTotal.Text.Replace("Total: $", "").Trim();
-                // Usar InvariantCulture para parsing correcto independiente de la configuración regional
-                if (decimal.TryParse(textoTotal, NumberStyles.Currency, CultureInfo.CurrentCulture, out decimal total))
-                {
-                    importeTotal = total;
-                }
-                */
 
                 // SIMPLIFICADO: Usar los métodos helper existentes
                 string usuarioActual = ObtenerUsuarioActual();
@@ -1145,7 +1148,10 @@ namespace Comercio.NET
 
                 // DEBUG: Para verificar el importe que se está guardando
                 System.Diagnostics.Debug.WriteLine($"=== GUARDADO FACTURA ===");
-                System.Diagnostics.Debug.WriteLine($"Texto del label: {lbTotal.Text}");
+                if (lbTotal != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Texto del label: {lbTotal.Text}");
+                }
                 System.Diagnostics.Debug.WriteLine($"Importe calculado: {importeTotal:C}");
                 System.Diagnostics.Debug.WriteLine($"Importe guardado en BD: {importeTotal}");
                 System.Diagnostics.Debug.WriteLine($"=======================");
@@ -1157,111 +1163,6 @@ namespace Comercio.NET
             }
         }
 
-        // MODIFICADO: Simplificar el método RegistrarEliminacionEnAuditoria
-        private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
-    string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
-{
-    // Obtener datos adicionales del producto
-    var queryProducto = @"SELECT rubro, marca, proveedor FROM Productos WHERE codigo = @codigo";
-    string rubro = "", marca = "", proveedor = "";
-
-    using (var cmd = new SqlCommand(queryProducto, connection, transaction))
-    {
-        cmd.Parameters.AddWithValue("@codigo", codigo);
-        using (var reader = await cmd.ExecuteReaderAsync())
-        {
-            if (reader.Read())
-            {
-                rubro = reader["rubro"]?.ToString() ?? "";
-                marca = reader["marca"]?.ToString() ?? "";
-                proveedor = reader["proveedor"]?.ToString() ?? "";
-            }
-        }
-    }
-
-    // NUEVO: Obtener IVA calculado de la venta
-    var queryVentaIva = @"SELECT IvaCalculado, fecha, hora, EsCtaCte, NombreCtaCte FROM Ventas 
-                          WHERE nrofactura = @nrofactura AND codigo = @codigo 
-                          ORDER BY id DESC";
-    
-    decimal ivaCalculado = 0;
-    DateTime fechaHoraVentaOriginal = DateTime.Now;
-    bool esCtaCte = false;
-    string nombreCtaCte = "";
-
-    using (var cmd = new SqlCommand(queryVentaIva, connection, transaction))
-    {
-        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-        cmd.Parameters.AddWithValue("@codigo", codigo);
-        using (var reader = await cmd.ExecuteReaderAsync())
-        {
-            if (reader.Read())
-            {
-                ivaCalculado = reader["IvaCalculado"] != DBNull.Value ? Convert.ToDecimal(reader["IvaCalculado"]) : 0;
-                
-                try
-                {
-                    DateTime fechaVenta = Convert.ToDateTime(reader["fecha"]);
-                    string horaVentaString = reader["hora"]?.ToString() ?? "";
-
-                    if (!string.IsNullOrEmpty(horaVentaString) && TimeSpan.TryParse(horaVentaString, out TimeSpan tiempo))
-                    {
-                        fechaHoraVentaOriginal = fechaVenta.Date + tiempo;
-                    }
-                    else
-                    {
-                        fechaHoraVentaOriginal = fechaVenta;
-                    }
-                }
-                catch
-                {
-                    fechaHoraVentaOriginal = DateTime.Now;
-                }
-
-                esCtaCte = reader["EsCtaCte"] != DBNull.Value && Convert.ToBoolean(reader["EsCtaCte"]);
-                nombreCtaCte = reader["NombreCtaCte"]?.ToString() ?? "";
-            }
-        }
-    }
-
-    // Obtener usuario y cajero
-    string usuarioEliminacion = ObtenerUsuarioActual();
-    int numeroCajero = obtenerNumeroCajero();
-
-    // INSERT para auditoría
-    var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
-              (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, TotalEliminado,
-               NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion,
-               UsuarioEliminacion, MotivoEliminacion, EsCtaCte, NombreCtaCte,
-               IPUsuario, NombreEquipo, NumeroCajero, IvaEliminado)
-              VALUES 
-              (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad, @TotalEliminado,
-               @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
-               @UsuarioEliminacion, @MotivoEliminacion, @EsCtaCte, @NombreCtaCte,
-               @IPUsuario, @NombreEquipo, @NumeroCajero, @IvaEliminado)";
-
-    using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
-    {
-        cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
-        cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
-        cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
-        cmd.Parameters.AddWithValue("@Cantidad", cantidad);
-        cmd.Parameters.AddWithValue("@TotalEliminado", total);
-        cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
-        cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", fechaHoraVentaOriginal);
-        cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
-        cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuarioEliminacion);
-        cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo ?? "");
-        cmd.Parameters.AddWithValue("@EsCtaCte", esCtaCte);
-        cmd.Parameters.AddWithValue("@NombreCtaCte", nombreCtaCte ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@IPUsuario", ObtenerIPLocal());
-        cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-        cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
-        cmd.Parameters.AddWithValue("@IvaEliminado", ivaCalculado);
-
-        await cmd.ExecuteNonQueryAsync();
-    }
-}
         private async Task EliminarProductoConAuditoria(string codigo, string descripcion,
             decimal precio, int cantidad, decimal total, string motivo)
         {
@@ -1282,7 +1183,7 @@ namespace Comercio.NET
                             codigo, descripcion, precio, cantidad, total, motivo);
 
                         // 3. Eliminar de la venta actual
-                        //await EliminarDeVentaActual(connection, transaction, codigo);
+                        await EliminarDeVentaActual(connection, transaction, codigo);
 
                         transaction.Commit();
                     }
@@ -1468,735 +1369,975 @@ namespace Comercio.NET
         {
             ConfigurarColumna("precio", "C2", DataGridViewContentAlignment.MiddleRight);
             ConfigurarColumna("total", "C2", DataGridViewContentAlignment.MiddleRight);
-            ConfigurarColumna("IvaCalculado", "C2", DataGridViewContentAlignment.MiddleRight, 80); // NUEVO
+            ConfigurarColumna("PorcentajeIva", "N2", DataGridViewContentAlignment.MiddleCenter, 70); // AHORA PRIMERO
+            ConfigurarColumna("IvaCalculado", "C2", DataGridViewContentAlignment.MiddleRight, 80); // AHORA SEGUNDO
             ConfigurarColumna("cantidad", null, DataGridViewContentAlignment.MiddleCenter, 50);
-            ConfigurarColumna("descripcion", null, null, 280); // Reducido
+            ConfigurarColumna("descripcion", null, null, 240); // Reducido
 
             foreach (DataGridViewColumn col in dataGridView1.Columns)
             {
                 col.HeaderText = col.HeaderText.ToUpper();
                 col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
-            
-            // NUEVO: Configurar encabezado específico para IVA
+
+            // Configurar encabezados específicos - ORDEN CAMBIADO
+            if (dataGridView1.Columns["PorcentajeIva"] != null)
+            {
+                dataGridView1.Columns["PorcentajeIva"].HeaderText = "IVA %";
+            }
+
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
-                dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA";
+                dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA $";
             }
         }
 
-        // Método para configurar columnas específicas
+        // Método para configurar columnas específicas del DataGridView
         private void ConfigurarColumna(string nombre, string formato = null,
             DataGridViewContentAlignment? alineacion = null, int? ancho = null)
         {
-            var colonia = dataGridView1.Columns[nombre];
-            if (colonia == null) return;
+            var columna = dataGridView1.Columns[nombre];
+            if (columna == null) return;
 
             if (!string.IsNullOrEmpty(formato))
-                colonia.DefaultCellStyle.Format = formato;
+                columna.DefaultCellStyle.Format = formato;
+
             if (alineacion.HasValue)
-                colonia.DefaultCellStyle.Alignment = alineacion.Value;
+                columna.DefaultCellStyle.Alignment = alineacion.Value;
+
             if (ancho.HasValue)
-                colonia.Width = ancho.Value;
+                columna.Width = ancho.Value;
 
+            // Configuraciones específicas por tipo de columna
             if (nombre == "cantidad")
-                colonia.HeaderText = "CANT.";
+                columna.HeaderText = "CANT.";
+            else if (nombre == "precio")
+                columna.HeaderText = "PRECIO";
+            else if (nombre == "total")
+                columna.HeaderText = "TOTAL";
+            else if (nombre == "descripcion")
+                columna.HeaderText = "DESCRIPCIÓN";
+            else if (nombre == "IvaCalculado")
+                columna.HeaderText = "IVA $";
+            else if (nombre == "PorcentajeIva")
+                columna.HeaderText = "IVA %";
+
+            // Estilos especiales para columnas monetarias
+            if (formato == "C2")
+            {
+                columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 100, 0); // Verde oscuro
+                columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
         }
 
-        // Método para formatear número de factura
-        private string FormatearNumeroFacturaParaBD(int cbteTipo, int ptoVta, int numeroFactura)
+        // Método para procesar códigos especiales de productos
+        private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
         {
-            string letra = cbteTipo switch
+            // Verificar si es un código especial de balanza (empieza con "50" y tiene 13 dígitos)
+            if (textoIngresado.StartsWith(PREFIJO_CODIGO_ESPECIAL) && textoIngresado.Length == LONGITUD_CODIGO_ESPECIAL)
             {
-                1 => "A",
-                6 => "B",
-                11 => "C",
-                51 => "M",
-                _ => "X"
-            };
+                try
+                {
+                    // Extraer código del producto (posiciones 2-6, 5 dígitos)
+                    string codigoProducto = textoIngresado.Substring(POSICION_CODIGO_PRODUCTO, LONGITUD_CODIGO_PRODUCTO)
+                        .TrimStart('0');
+                    if (string.IsNullOrEmpty(codigoProducto))
+                        codigoProducto = "0";
 
-            return $"{letra}{ptoVta:D4}-{numeroFactura:D8}";
-        }
+                    // Extraer precio (posiciones 7-11, 5 dígitos)
+                    string precioString = textoIngresado.Substring(POSICION_PRECIO, LONGITUD_PRECIO);
+                    decimal precioPersonalizado = decimal.Parse(precioString);
 
-        // Método para limpiar y reiniciar venta
-        private void LimpiarYReiniciarVenta()
-        {
-            // Limpiar la grilla
-            dataGridView1.DataSource = null;
-            dataGridView1.Rows.Clear();
-
-            // Actualizar labels
-            lbCantidadProductos.Text = "Productos: 0";
-            
-            // MODIFICADO: Usar RichTextBox para el total
-            if (rtbTotal != null)
-            {
-                rtbTotal.Clear();
-                rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
-                rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
-                rtbTotal.AppendText("TOTAL: $0,00\n");
-                rtbTotal.SelectionFont = new Font("Segoe UI", 11F, FontStyle.Regular);
-                rtbTotal.AppendText("IVA: $0,00");
+                    return (codigoProducto, precioPersonalizado, true);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error procesando código especial: {ex.Message}");
+                }
             }
 
-            // Limpiar checkboxes
-            chkEsCtaCte.Checked = false;
+            // Para códigos normales, eliminar ceros a la izquierda
+            string codigoLimpio = textoIngresado.TrimStart('0');
+            if (string.IsNullOrEmpty(codigoLimpio))
+                codigoLimpio = "0";
 
-            // Limpiar campos de producto
-            LimpiarCamposProducto();
-
-            // Limpiar campos de búsqueda
-            txtBuscarProducto.Text = "";
-            lbDescripcionProducto.Text = "";
-
-            // Resetear variables de control
-            remitoActual = null;
-
-            // IMPORTANTE: Usar BeginInvoke para asegurar que el foco se establezca después de que se complete el cierre del modal
-            this.BeginInvoke(new Action(() =>
-            {
-                txtBuscarProducto.Focus();
-                txtBuscarProducto.SelectAll();
-            }));
+            return (codigoLimpio, null, false);
         }
 
-        // Evento para cantidad personalizada
+        // Método para calcular IVA desde el total
+        private decimal CalcularIvaDesdeTotal(decimal total, decimal porcentajeIva)
+        {
+            if (porcentajeIva <= 0) return 0;
+
+            // Fórmula: IVA = Total * (PorcentajeIVA / (100 + PorcentajeIVA))
+            return total * (porcentajeIva / (100 + porcentajeIva));
+        }
+
+        // Evento para el checkbox de cantidad personalizada
         private void chkCantidad_CheckedChanged(object sender, EventArgs e)
         {
             if (chkCantidad.Checked)
             {
-                using (var modalCantidad = new ModalCantidadForm())
+                using (var cantidadForm = new ModalCantidadForm())
                 {
-                    if (modalCantidad.ShowDialog() == DialogResult.OK)
+                    cantidadForm.CantidadInicial = cantidadPersonalizada; // CORREGIDO: Establecer cantidad inicial
+                    
+                    if (cantidadForm.ShowDialog(this) == DialogResult.OK)
                     {
-                        cantidadPersonalizada = modalCantidad.CantidadSeleccionada;
-                        txtBuscarProducto.Focus();
+                        cantidadPersonalizada = cantidadForm.CantidadSeleccionada;
+                        chkCantidad.Text = $"Cantidad: {cantidadPersonalizada}";
                     }
                     else
                     {
                         chkCantidad.Checked = false;
-                        txtBuscarProducto.Focus();
+                        cantidadPersonalizada = 1;
+                        chkCantidad.Text = "Cantidad";
                     }
                 }
             }
             else
             {
                 cantidadPersonalizada = 1;
+                chkCantidad.Text = "Cantidad";
             }
         }
 
-        // Evento para cuenta corriente
-        private void chkEsCtaCte_CheckedChanged(object sender, EventArgs e)
-        {
-            if (chkEsCtaCte.Checked)
-            {
-                string rutaArchivo = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ctacte_nombres.txt");
-                if (File.Exists(rutaArchivo))
-                {
-                    var nombres = File.ReadAllLines(rutaArchivo)
-                                      .Select(l => l.Trim())
-                                      .Where(l => !string.IsNullOrEmpty(l))
-                                      .ToList();
-                    cbnombreCtaCte.Items.Clear();
-                    cbnombreCtaCte.Items.AddRange(nombres.ToArray());
-                    if (cbnombreCtaCte.Items.Count > 0)
-                        cbnombreCtaCte.SelectedIndex = 0;
-                }
-                cbnombreCtaCte.Enabled = true;
-                cbnombreCtaCte.Visible = true;
-                cbnombreCtaCte.Focus();
-            }
-            else
-            {
-                cbnombreCtaCte.Items.Clear();
-                cbnombreCtaCte.Text = "";
-                cbnombreCtaCte.Enabled = false;
-                cbnombreCtaCte.Visible = false;
-                txtBuscarProducto.Focus();
-            }
-        }
-
-        // Evento para combo de cuenta corriente
+        // Evento para cuando cambia la selección de cuenta corriente
         private void cbnombreCtaCte_SelectedIndexChanged(object sender, EventArgs e)
         {
-            txtBuscarProducto.Focus();
+            // Opcional: agregar lógica cuando cambie la selección
+            if (cbnombreCtaCte.SelectedItem != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"Cuenta corriente seleccionada: {cbnombreCtaCte.SelectedItem}");
+            }
+        }
+
+        // Método para formatear número de factura para base de datos
+        private string FormatearNumeroFacturaParaBD(int cbteTipo, int ptoVta, int numeroFactura)
+        {
+            return $"{cbteTipo:D4}-{ptoVta:D5}-{numeroFactura:D8}";
         }
 
         // Método para abrir formulario de agregar producto rápido
         private async Task AbrirFormularioAgregarProductoRapido(string codigo, decimal? precioPersonalizado)
         {
-            try
+            using (var formAgregar = new frmAgregarProducto())
             {
-                using (var formAgregar = new frmAgregarProducto())
+                formAgregar.Modo = frmAgregarProducto.ModoFormulario.Agregar;
+                formAgregar.Origen = frmAgregarProducto.OrigenLlamada.Ventas;
+
+                // Preconfigurar con el código y precio si están disponibles
+                if (formAgregar.ShowDialog(this) == DialogResult.OK)
                 {
-                    // Configurar el formulario en modo agregar
-                    formAgregar.Modo = frmAgregarProducto.ModoFormulario.Agregar;
-                    formAgregar.Origen = frmAgregarProducto.OrigenLlamada.Ventas;
-                    formAgregar.StartPosition = FormStartPosition.CenterParent;
+                    // El producto fue agregado, intentar agregarlo a la venta nuevamente
+                    await Task.Delay(500); // Pequeña pausa para asegurar que se guardó
 
-                    // Preconfigurar el código y precio si están disponibles
-                    formAgregar.Load += (s, e) =>
+                    // Simular click en agregar nuevamente
+                    btnAgregar_Click(this, EventArgs.Empty);
+                }
+            }
+        }
+
+        // Método para obtener usuario actual
+        private string ObtenerUsuarioActual()
+        {
+            // Verificar si hay un usuario autenticado
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                return AuthenticationService.SesionActual.Usuario.NombreUsuario;
+            }
+
+            // Si no hay usuario autenticado, usar el nombre del equipo
+            return Environment.MachineName;
+        }
+
+        // Método para obtener número de cajero
+        private int obtenerNumeroCajero()
+        {
+            // Si hay un usuario autenticado, usar su ID o número
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                return AuthenticationService.SesionActual.Usuario.IdUsuarios;
+            }
+
+            // Si no hay usuario autenticado, usar 1 por defecto
+            return 1;
+        }
+
+        // Método para configurar eventos del DataGridView
+        private void ConfigurarEventosDataGridView()
+        {
+            // Evento para doble clic - editar cantidad
+            dataGridView1.CellDoubleClick += async (s, e) =>
+            {
+                // CORREGIDO: Agregar control para evitar ejecución múltiple
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0 && !procesandoEliminacion && !procesandoEdicionCantidad)
+                {
+                    procesandoEdicionCantidad = true;
+                    
+                    try
                     {
-                        var txtCodigo = formAgregar.Controls.Find("txtCodigo", true).FirstOrDefault() as TextBox;
-                        if (txtCodigo != null)
+                        await EditarCantidadProducto(e.RowIndex);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Error durante la edición: {ex.Message}", "Error",
+                                       MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    finally
+                    {
+                        // IMPORTANTE: Agregar delay para evitar eventos residuales
+                        await Task.Delay(300);
+                        procesandoEdicionCantidad = false;
+                    }
+                }
+            };
+
+            // CORREGIDO: Evento para tecla Delete usando variable de clase
+            dataGridView1.KeyDown += async (s, e) =>
+            {
+                if (e.KeyCode == Keys.Delete && dataGridView1.SelectedRows.Count > 0 && !procesandoEliminacion && !procesandoEdicionCantidad)
+                {
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+
+                    procesandoEliminacion = true;
+
+                    try
+                    {
+                        await EliminarProductoSeleccionado();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Error durante la eliminación: {ex.Message}", "Error",
+                                       MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    finally
+                    {
+                        await Task.Delay(200);
+                        procesandoEliminacion = false;
+                    }
+                }
+            };
+
+            // Limpiar eventos residuales
+            dataGridView1.KeyUp += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Delete)
+                {
+                    e.Handled = true;
+                }
+            };
+
+            // NUEVO: Evento MouseDown para seleccionar fila con clic derecho
+            dataGridView1.MouseDown += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    // Obtener información del hit test para saber dónde se hizo clic
+                    var hitTest = dataGridView1.HitTest(e.X, e.Y);
+
+                    // Si se hizo clic en una fila válida (no en el header ni en área vacía)
+                    if (hitTest.RowIndex >= 0 && hitTest.RowIndex < dataGridView1.Rows.Count)
+                    {
+                        // Limpiar selección actual
+                        dataGridView1.ClearSelection();
+
+                        // Seleccionar la fila donde se hizo clic derecho
+                        dataGridView1.Rows[hitTest.RowIndex].Selected = true;
+
+                        // CORREGIDO: Usar la columna donde se hizo clic, pero verificar que sea visible
+                        var targetColumnIndex = hitTest.ColumnIndex;
+    
+                        // Si la columna donde se hizo clic no es visible, buscar la primera columna visible
+                        if (targetColumnIndex < 0 || !dataGridView1.Columns[targetColumnIndex].Visible)
                         {
-                            txtCodigo.Text = codigo;
-                            txtCodigo.ReadOnly = true;
+                            // Buscar la primera columna visible
+                            for (int i = 0; i < dataGridView1.Columns.Count; i++)
+                            {
+                                if (dataGridView1.Columns[i].Visible)
+                                {
+                                    targetColumnIndex = i;
+                                    break;
+                                }
+                            }
                         }
 
-                        if (precioPersonalizado.HasValue)
+                        // Solo establecer CurrentCell si encontramos una columna visible
+                        if (targetColumnIndex >= 0 && targetColumnIndex < dataGridView1.Columns.Count && 
+                            dataGridView1.Columns[targetColumnIndex].Visible)
                         {
-                            var txtPrecio = formAgregar.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
-                            var txtCosto = formAgregar.Controls.Find("txtCosto", true).FirstOrDefault() as TextBox;
-
-                            if (txtPrecio != null)
-                            {
-                                txtPrecio.Text = precioPersonalizado.Value.ToString("F2");
-                            }
-
-                            if (txtCosto != null)
-                            {
-                                decimal costoEstimado = precioPersonalizado.Value * 0.9m;
-                                txtCosto.Text = costoEstimado.ToString("F2");
-                            }
+                            dataGridView1.CurrentCell = dataGridView1.Rows[hitTest.RowIndex].Cells[targetColumnIndex];
                         }
 
-                        var txtDescripcion = formAgregar.Controls.Find("txtDescripcion", true).FirstOrDefault() as TextBox;
-                        txtDescripcion?.Focus();
-                    };
-
-                    var resultado = formAgregar.ShowDialog(this);
-
-                    if (resultado == DialogResult.OK && !string.IsNullOrEmpty(formAgregar.CodigoAgregado))
-                    {
-                        MessageBox.Show(
-                            $"Producto '{codigo}' agregado correctamente.\n" +
-                            "Ahora puede continuar con la venta.",
-                            "Producto agregado",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
-
-                        await MostrarProductoAsync(codigo, precioPersonalizado, false);
-                        btnAgregar.Focus();
+                        // DEBUG: Confirmar la selección
+                        System.Diagnostics.Debug.WriteLine($"=== CLIC DERECHO ===");
+                        System.Diagnostics.Debug.WriteLine($"Fila seleccionada: {hitTest.RowIndex}");
+                        System.Diagnostics.Debug.WriteLine($"Columna objetivo: {targetColumnIndex}");
+                        System.Diagnostics.Debug.WriteLine($"Producto: {dataGridView1.Rows[hitTest.RowIndex].Cells["codigo"].Value}");
+                        System.Diagnostics.Debug.WriteLine($"==================");
                     }
                     else
                     {
-                        txtBuscarProducto.Text = "";
-                        txtBuscarProducto.Focus();
+                        // Si se hizo clic fuera de las filas, limpiar selección
+                        dataGridView1.ClearSelection();
+                        dataGridView1.CurrentCell = null;
+                    }
+                }
+            };
+
+            // Menu contextual para clic derecho
+            var contextMenu = new ContextMenuStrip();
+
+            var editarItem = new ToolStripMenuItem("✏️ Editar Cantidad");
+            editarItem.Click += async (s, e) =>
+            {
+                if (dataGridView1.SelectedRows.Count > 0 && !procesandoEliminacion && !procesandoEdicionCantidad)
+                {
+                    procesandoEdicionCantidad = true;
+                    
+                    try
+                    {
+                        await EditarCantidadProducto(dataGridView1.SelectedRows[0].Index);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Error durante la edición: {ex.Message}", "Error",
+                                       MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    finally
+                    {
+                        await Task.Delay(300);
+                        procesandoEdicionCantidad = false;
+                    }
+                }
+            };
+            contextMenu.Items.Add(editarItem);
+
+            var eliminarItem = new ToolStripMenuItem("🗑️ Eliminar Producto");
+            eliminarItem.Click += async (s, e) =>
+            {
+                if (!procesandoEliminacion && !procesandoEdicionCantidad)
+                {
+                    await EliminarProductoSeleccionado();
+                }
+            };
+            contextMenu.Items.Add(eliminarItem);
+
+            // NUEVO: Separador para organización visual
+            contextMenu.Items.Add(new ToolStripSeparator());
+
+            // NUEVO: Opción de información del producto
+            var infoItem = new ToolStripMenuItem("ℹ️ Información del Producto");
+            infoItem.Click += async (s, e) =>
+            {
+                if (dataGridView1.SelectedRows.Count > 0)
+                {
+                    var row = dataGridView1.SelectedRows[0];
+                    string codigo = row.Cells["codigo"].Value.ToString();
+                    string descripcion = row.Cells["descripcion"].Value.ToString();
+                    decimal precio = Convert.ToDecimal(row.Cells["precio"].Value);
+                    int cantidad = Convert.ToInt32(row.Cells["cantidad"].Value);
+                    decimal total = Convert.ToDecimal(row.Cells["total"].Value);
+
+                    // NUEVO: Obtener el stock actual del producto desde la base de datos
+                    int stockActual = 0;
+                    try
+                    {
+                        string connectionString = GetConnectionString();
+                        using (var connection = new SqlConnection(connectionString))
+                        {
+                            var queryStock = @"SELECT ISNULL(cantidad, 0) FROM Productos WHERE codigo = @codigo";
+                            using (var cmd = new SqlCommand(queryStock, connection))
+                            {
+                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                connection.Open();
+                                var result = await cmd.ExecuteScalarAsync();
+                                if (result != null)
+                                {
+                                    stockActual = Convert.ToInt32(result);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // En caso de error, mostrar "N/A" en lugar del stock
+                        System.Diagnostics.Debug.WriteLine($"Error obteniendo stock: {ex.Message}");
+                    }
+
+                    // Obtener información adicional si está disponible
+                    string ivaInfo = "";
+                    if (row.Cells["PorcentajeIva"] != null && row.Cells["PorcentajeIva"].Value != null)
+                    {
+                        decimal porcentajeIva = Convert.ToDecimal(row.Cells["PorcentajeIva"].Value);
+                        decimal ivaCalculado = Convert.ToDecimal(row.Cells["IvaCalculado"].Value);
+                        ivaInfo = $"\nIVA: {porcentajeIva:N2}% ({ivaCalculado:C2})";
+                    }
+
+                    // MODIFICADO: Incluir información del stock
+                    string stockInfo = stockActual >= 0 ? stockActual.ToString() : "N/A";
+                    
+                    MessageBox.Show(
+                        $"📦 INFORMACIÓN DEL PRODUCTO\n\n" +
+                        $"Código: {codigo}\n" +
+                        $"Descripción: {descripcion}\n" +
+                        $"Precio unitario: {precio:C2}\n" +
+                        $"Cantidad en venta: {cantidad}\n" +
+                        $"Stock disponible: {stockInfo}\n" +
+                        $"Total: {total:C2}{ivaInfo}",
+                        "Información del Producto",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+            };
+            contextMenu.Items.Add(infoItem);
+
+            // MEJORADO: Configurar eventos de apertura/cierre del menú contextual
+            contextMenu.Opening += (s, e) =>
+            {
+                // Verificar si hay una fila seleccionada antes de mostrar el menú
+                bool haySeleccion = dataGridView1.SelectedRows.Count > 0;
+
+                // CORREGIDO: Incluir procesandoEdicionCantidad en las validaciones
+                editarItem.Enabled = haySeleccion && !procesandoEliminacion && !procesandoEdicionCantidad;
+                eliminarItem.Enabled = haySeleccion && !procesandoEliminacion && !procesandoEdicionCantidad;
+                infoItem.Enabled = haySeleccion;
+
+                // Verificar permisos de eliminación
+                if (haySeleccion && AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    bool puedeEliminar = AuthenticationService.SesionActual.Usuario.PuedeEliminarProductos;
+                    eliminarItem.Enabled = eliminarItem.Enabled && puedeEliminar;
+
+                    // Cambiar texto si no tiene permisos
+                    if (!puedeEliminar)
+                    {
+                        eliminarItem.Text = "🔒 Eliminar Producto (Sin permisos)";
+                        eliminarItem.ForeColor = Color.Gray;
+                    }
+                    else
+                    {
+                        eliminarItem.Text = "🗑️ Eliminar Producto";
+                        eliminarItem.ForeColor = Color.Black;
+                    }
+                }
+
+                // Verificar si el usuario tiene permisos para editar cantidades
+                bool puedeModificar = true;
+                if (haySeleccion && AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    puedeModificar = AuthenticationService.SesionActual.Usuario.PuedeEditarPrecios; // CAMBIADO: usar PuedeEditarPrecios en lugar de PuedeModificarCantidad
+                }
+                editarItem.Enabled = editarItem.Enabled && puedeModificar;
+
+                // Verificar si el usuario tiene permisos para ver información detallada
+                bool puedeVerInfo = true;
+                if (haySeleccion && AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    puedeVerInfo = AuthenticationService.SesionActual.Usuario.PuedeVerReportes; // CAMBIADO: usar PuedeVerReportes en lugar de PuedeVerInformacionProducto
+                }
+                infoItem.Enabled = infoItem.Enabled && puedeVerInfo;
+
+                // Si no hay selección, cancelar la apertura del menú
+                if (!haySeleccion)
+                {
+                    e.Cancel = true;
+                }
+            };
+
+            dataGridView1.ContextMenuStrip = contextMenu;
+        }
+
+        // NUEVO: Evento para checkbox de cuenta corriente
+        private void chkEsCtaCte_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkEsCtaCte.Checked)
+            {
+                // Cargar nombres de cuentas corrientes si está habilitado
+                CargarCuentasCorrientes();
+                cbnombreCtaCte.Visible = true;
+                cbnombreCtaCte.Enabled = true;
+            }
+            else
+            {
+                // Ocultar y limpiar selección si está deshabilitado
+                cbnombreCtaCte.Visible = false;
+                cbnombreCtaCte.Enabled = false;
+                cbnombreCtaCte.SelectedIndex = -1;
+            }
+        }
+
+        // NUEVO: Método para cargar cuentas corrientes
+        private void CargarCuentasCorrientes()
+        {
+            try
+            {
+                string connectionString = GetConnectionString();
+                
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    // Consultar tabla de cuentas corrientes o clientes
+                    var query = "SELECT DISTINCT NombreCtaCte FROM Facturas WHERE NombreCtaCte IS NOT NULL AND NombreCtaCte != '' ORDER BY NombreCtaCte";
+                    
+                    using (var adapter = new SqlDataAdapter(query, connection))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        
+                        cbnombreCtaCte.Items.Clear();
+                        
+                        foreach (DataRow row in dt.Rows)
+                        {
+                            cbnombreCtaCte.Items.Add(row["NombreCtaCte"].ToString());
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Error al abrir el formulario de agregar producto: {ex.Message}",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-
-                txtBuscarProducto.Focus();
+                System.Diagnostics.Debug.WriteLine($"Error cargando cuentas corrientes: {ex.Message}");
             }
         }
 
-        private void ConfigurarEventosDataGridView()
+        // CORREGIDO: Método para eliminar producto seleccionado - SOLO UN MENSAJE
+        private async Task EliminarProductoSeleccionado()
         {
-            // Agregar evento para eliminar productos con tecla Delete
-            dataGridView1.KeyDown += DataGridView1_KeyDown;
+            if (dataGridView1.SelectedRows.Count == 0)
+                return;
 
-            // Agregar menú contextual para eliminar
-            var contextMenu = new ContextMenuStrip();
-            var eliminarItem = new ToolStripMenuItem("Eliminar Producto", null, EliminarProductoSeleccionado);
-            eliminarItem.ShortcutKeys = Keys.Delete;
-            contextMenu.Items.Add(eliminarItem);
-            dataGridView1.ContextMenuStrip = contextMenu;
-        }
-
-        private void DataGridView1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Delete && dataGridView1.SelectedRows.Count > 0)
-            {
-                EliminarProductoSeleccionado(sender, e);
-            }
-        }
-
-        // AGREGAR: Método para verificar si hay una fila seleccionada
-        private bool TieneFilaSeleccionada()
-        {
-            return dataGridView1.SelectedRows.Count > 0 && dataGridView1.SelectedRows[0].Index >= 0;
-        }
-
-        // MODIFICADO: El método EliminarProductoSeleccionado para manejar eliminación por id específico
-        private async void EliminarProductoSeleccionado(object sender, EventArgs e)
-        {
             try
             {
-                // Verificación de permisos (código existente)...
+                var row = dataGridView1.SelectedRows[0];
+                string codigo = row.Cells["codigo"].Value.ToString();
+                string descripcion = row.Cells["descripcion"].Value.ToString();
+                decimal precio = Convert.ToDecimal(row.Cells["precio"].Value);
+                int cantidad = Convert.ToInt32(row.Cells["cantidad"].Value);
+                decimal total = Convert.ToDecimal(row.Cells["total"].Value);
+
+                // Verificar permisos de eliminación
                 if (AuthenticationService.SesionActual?.Usuario != null)
                 {
-                    var usuario = AuthenticationService.SesionActual.Usuario;
-                    
-                    System.Diagnostics.Debug.WriteLine($"=== VERIFICACIÓN PERMISOS ELIMINAR ===");
-                    System.Diagnostics.Debug.WriteLine($"Usuario: {usuario.NombreUsuario}");
-                    System.Diagnostics.Debug.WriteLine($"Nivel: {usuario.Nivel}");
-                    System.Diagnostics.Debug.WriteLine($"PuedeEliminarProductos: {usuario.PuedeEliminarProductos}");
-                    System.Diagnostics.Debug.WriteLine($"Es Admin: {usuario.Nivel == Models.NivelUsuario.Administrador}");
-                    System.Diagnostics.Debug.WriteLine($"Login habilitado: {AuthenticationService.ConfiguracionLogin?.LoginHabilitado}");
-                    System.Diagnostics.Debug.WriteLine($"=====================================");
-
-                    if (!usuario.PuedeEliminarProductos && usuario.Nivel != Models.NivelUsuario.Administrador)
+                    if (!AuthenticationService.SesionActual.Usuario.PuedeEliminarProductos)
                     {
-                        MessageBox.Show($"No tiene permisos para eliminar productos.\n\n" +
-                                      $"Usuario: {usuario.NombreUsuario}\n" +
-                                      $"Nivel: {usuario.Nivel}\n" +
-                                      $"Permiso eliminar: {usuario.PuedeEliminarProductos}",
-                                      "Acceso denegado",
+                        MessageBox.Show("No tiene permisos para eliminar productos.", "Sin permisos",
                                       MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
                 }
-                else
+
+                // PASO 1: Pedir motivo (SIN mostrar confirmación en el formulario)
+                string motivo;
+                using (var motivoForm = new MotivoEliminacionForm(descripcion, cantidad, codigo, precio))
                 {
-                    MessageBox.Show("No hay sesión de usuario activa.", "Acceso denegado",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    // IMPORTANTE: Asegúrate de que el MotivoEliminacionForm NO muestre confirmación adicional
+                    if (motivoForm.ShowDialog(this) != DialogResult.OK)
+                        return; // Usuario canceló
+
+                    motivo = motivoForm.Motivo;
+                }
+
+                // PASO 2: ÚNICO MENSAJE DE CONFIRMACIÓN (el que quieres conservar)
+                var resultado = MessageBox.Show(
+                    $"¿Confirma la eliminación de este producto?\n\n" +
+                    $"Código: {codigo}\n" +
+                    $"Descripción: {descripcion}\n" +
+                    $"Cantidad: {cantidad}\n" +
+                    $"Total: {total:C2}\n\n" +
+                    $"Motivo: {motivo}\n\n" +
+                    "Esta acción no se puede deshacer.",
+                    "Confirmar eliminación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                // PASO 3: Solo proceder si confirma
+                if (resultado == DialogResult.Yes)
+                {
+                    // Eliminar con auditoría
+                    await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidad, total, motivo);
+
+                    // Refrescar la vista
+                    CargarVentasActuales();
+                    FormatearDataGridView();
+
+                    // DEBUG
+                    System.Diagnostics.Debug.WriteLine($"=== PRODUCTO ELIMINADO ===");
+                    System.Diagnostics.Debug.WriteLine($"Código: {codigo}");
+                    System.Diagnostics.Debug.WriteLine($"Motivo: {motivo}");
+                    System.Diagnostics.Debug.WriteLine($"Usuario: {ObtenerUsuarioActual()}");
+                    System.Diagnostics.Debug.WriteLine($"==========================");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error verificando permisos: {ex.Message}", 
-                               "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-    if (!TieneFilaSeleccionada())
-    {
-        MessageBox.Show("Seleccione un producto para eliminar haciendo clic en la fila.", "Información",
-            MessageBoxButtons.OK, MessageBoxIcon.Information);
-        return;
-    }
-
-    var filaSeleccionada = dataGridView1.SelectedRows[0];
-
-    // NUEVO: Verificar que la fila tenga todos los campos necesarios incluido id
-    if (filaSeleccionada.Cells["codigo"].Value == null || filaSeleccionada.Cells["id"].Value == null)
-    {
-        MessageBox.Show("La fila seleccionada no contiene datos válidos.", "Error",
-            MessageBoxButtons.OK, MessageBoxIcon.Error);
-        return;
-    }
-
-    // NUEVO: Obtener el id específico de la fila seleccionada
-    int id = Convert.ToInt32(filaSeleccionada.Cells["id"].Value);
-    string codigo = filaSeleccionada.Cells["codigo"].Value?.ToString();
-    string descripcion = filaSeleccionada.Cells["descripcion"].Value?.ToString();
-    decimal precio = Convert.ToDecimal(filaSeleccionada.Cells["precio"].Value);
-    int cantidadTotal = Convert.ToInt32(filaSeleccionada.Cells["cantidad"].Value);
-    decimal total = Convert.ToDecimal(filaSeleccionada.Cells["total"].Value);
-
-    // MODIFICADO: Pasar información del producto al formulario de motivo (cantidadTotal siempre será de esta fila específica)
-    using (var motivoForm = new MotivoEliminacionForm(descripcion, cantidadTotal, codigo, precio))
-    {
-        var resultado = motivoForm.ShowDialog();
-        if (resultado != DialogResult.OK)
-        {
-            txtBuscarProducto.Focus();
-            return;
         }
 
-        try
-        {
-            // NUEVO: Usar id específico para eliminación precisa
-            int cantidadAEliminar = motivoForm.CantidadAEliminar;
-            decimal totalAEliminar = cantidadAEliminar * precio;
-            
-            // MODIFICADO: Pasar cantidadAEliminar y totalAEliminar a la función de eliminación
-            await EliminarProductoPorIdConAuditoria(id, codigo, descripcion, precio, cantidadTotal, cantidadAEliminar, totalAEliminar, motivoForm.Motivo);
-            CargarVentasActuales();
-            
-            string mensaje = cantidadAEliminar == cantidadTotal 
-                ? "Producto eliminado completamente." 
-                : $"Se eliminaron {cantidadAEliminar} de {cantidadTotal} unidades.";
-                
-            MessageBox.Show(mensaje, "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-            this.BeginInvoke(new Action(() =>
-            {
-                txtBuscarProducto.Focus();
-                txtBuscarProducto.SelectAll();
-            }));
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
-            this.BeginInvoke(new Action(() =>
-            {
-                txtBuscarProducto.Focus();
-            }));
-        }
-    }
-}
-
-// NUEVO: Método para eliminar por id específico con auditoría
-private async Task EliminarProductoPorIdConAuditoria(int id, string codigo, string descripcion, 
-    decimal precio, int cantidadTotal, int cantidadAEliminar, decimal totalAEliminar, string motivo)
-{
-    string connectionString = GetConnectionString();
-
-    using (var connection = new SqlConnection(connectionString))
-    {
-        connection.Open();
-        using (var transaction = connection.BeginTransaction())
+        // CORREGIDO: Método para editar cantidad de producto
+        private async Task EditarCantidadProducto(int rowIndex)
         {
             try
             {
-                // 1. Devolver stock al producto (solo la cantidad eliminada)
-                await DevolverStockProducto(connection, transaction, codigo, cantidadAEliminar);
+                if (rowIndex < 0 || rowIndex >= dataGridView1.Rows.Count)
+                    return;
 
-                // 2. Registrar en auditoría (con la cantidad específica eliminada)
-                await RegistrarEliminacionEnAuditoria(connection, transaction,
-                    codigo, descripcion, precio, cantidadAEliminar, totalAEliminar, motivo);
+                var row = dataGridView1.Rows[rowIndex];
+                string codigo = row.Cells["codigo"].Value.ToString();
+                string descripcion = row.Cells["descripcion"].Value.ToString();
+                int cantidadActual = Convert.ToInt32(row.Cells["cantidad"].Value);
+                decimal precio = Convert.ToDecimal(row.Cells["precio"].Value);
 
-                // 3. NUEVO: Eliminar o actualizar la fila específica por id
-                if (cantidadAEliminar == cantidadTotal)
+                // CORREGIDO: Configurar la cantidad inicial antes de mostrar el modal
+                using (var cantidadForm = new ModalCantidadForm())
                 {
-                    // Eliminar completamente el registro específico por id
-                    await EliminarFilaPorId(connection, transaction, id);
+                    cantidadForm.Text = "Editar Cantidad";
+                    cantidadForm.CantidadInicial = cantidadActual; // CORREGIDO: Establecer cantidad inicial
+                    
+                    if (cantidadForm.ShowDialog(this) == DialogResult.OK)
+                    {
+                        int nuevaCantidad = cantidadForm.CantidadSeleccionada;
+                        
+                        if (nuevaCantidad <= 0)
+                        {
+                            MessageBox.Show("La cantidad debe ser mayor a 0.", "Cantidad inválida", 
+                                          MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        if (nuevaCantidad == cantidadActual)
+                        {
+                            return; // No hay cambios
+                        }
+
+                        // Actualizar en base de datos
+                        await ActualizarCantidadProductoEnVenta(codigo, nuevaCantidad, precio);
+
+                        // Refrescar la vista
+                        CargarVentasActuales();
+                        FormatearDataGridView();
+
+                        // DEBUG
+                        System.Diagnostics.Debug.WriteLine($"=== EDICIÓN CANTIDAD ===");
+                        System.Diagnostics.Debug.WriteLine($"Producto: {codigo} - {descripcion}");
+                        System.Diagnostics.Debug.WriteLine($"Cantidad anterior: {cantidadActual}");
+                        System.Diagnostics.Debug.WriteLine($"Cantidad nueva: {nuevaCantidad}");
+                        System.Diagnostics.Debug.WriteLine($"Nuevo total: {precio * nuevaCantidad:C}");
+                        System.Diagnostics.Debug.WriteLine($"Stock actualizado: {true}");
+                        System.Diagnostics.Debug.WriteLine($"==============================");
+                    }
                 }
-                else
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al editar cantidad: {ex.Message}", "Error", 
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // MÉTODO FALTANTE: ActualizarCantidadProductoEnVenta
+        private async Task ActualizarCantidadProductoEnVenta(string codigo, int nuevaCantidad, decimal precio)
+        {
+            try
+            {
+                string connectionString = GetConnectionString();
+
+                using (var connection = new SqlConnection(connectionString))
                 {
-                    // Actualizar la cantidad y recalcular el total en la fila específica
-                    await ActualizarCantidadPorId(connection, transaction, id, cantidadTotal - cantidadAEliminar, precio);
+                    connection.Open();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // 1. Obtener la cantidad actual del producto en la venta
+                            int cantidadAnterior = 0;
+                            var queryObtener = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                            using (var cmd = new SqlCommand(queryObtener, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                var result = cmd.ExecuteScalarAsync();
+                                if (result != null)
+                                {
+                                    cantidadAnterior = Convert.ToInt32(await result);
+                                }
+                            }
+
+                            // 2. Obtener el porcentaje de IVA del producto
+                            decimal porcentajeIva = 0;
+                            var queryIva = @"SELECT ISNULL(iva, 0) FROM Productos WHERE codigo = @codigo";
+                            using (var cmd = new SqlCommand(queryIva, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                var resultIva = await cmd.ExecuteScalarAsync();
+                                if (resultIva != null && resultIva != DBNull.Value)
+                                {
+                                    porcentajeIva = Convert.ToDecimal(resultIva);
+                                }
+                            }
+
+                            // 3. Calcular el nuevo total e IVA
+                            decimal nuevoTotal = nuevaCantidad * precio;
+                            decimal nuevoIvaCalculado = CalcularIvaDesdeTotal(nuevoTotal, porcentajeIva);
+
+                            // 4. Actualizar la venta
+                            var queryActualizar = @"UPDATE Ventas 
+                                                   SET cantidad = @nuevaCantidad, 
+                                                       total = @nuevoTotal,
+                                                       IvaCalculado = @nuevoIvaCalculado,
+                                                       PorcentajeIva = @porcentajeIva
+                                                   WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                            using (var cmd = new SqlCommand(queryActualizar, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
+                                cmd.Parameters.AddWithValue("@nuevoTotal", nuevoTotal);
+                                cmd.Parameters.AddWithValue("@nuevoIvaCalculado", nuevoIvaCalculado);
+                                cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
+                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            // 5. Ajustar el stock si el producto permite acumular
+                            var queryPermiteAcumular = @"SELECT ISNULL(PermiteAcumular, 0) FROM Productos WHERE codigo = @codigo";
+                            bool permiteAcumular = false;
+                            using (var cmd = new SqlCommand(queryPermiteAcumular, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                var result = await cmd.ExecuteScalarAsync();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    permiteAcumular = Convert.ToBoolean(result);
+                                }
+                            }
+
+                            if (permiteAcumular)
+                            {
+                                // Calcular la diferencia de cantidad para ajustar el stock
+                                int diferenciaCantidad = nuevaCantidad - cantidadAnterior;
+                                
+                                // Actualizar stock: si aumentó la cantidad, descontar más; si disminuyó, devolver
+                                var queryStock = @"UPDATE Productos 
+                                                   SET cantidad = cantidad - @diferencia 
+                                                   WHERE codigo = @codigo";
+                                using (var cmd = new SqlCommand(queryStock, connection, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@diferencia", diferenciaCantidad);
+                                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            transaction.Commit();
+
+                            // DEBUG
+                            System.Diagnostics.Debug.WriteLine($"=== ACTUALIZACIÓN CANTIDAD ===");
+                            System.Diagnostics.Debug.WriteLine($"Producto: {codigo}");
+                            System.Diagnostics.Debug.WriteLine($"Cantidad anterior: {cantidadAnterior}");
+                            System.Diagnostics.Debug.WriteLine($"Nueva cantidad: {nuevaCantidad}");
+                            System.Diagnostics.Debug.WriteLine($"Nuevo total: {nuevoTotal:C}");
+                            System.Diagnostics.Debug.WriteLine($"Stock actualizado: {permiteAcumular}");
+                            System.Diagnostics.Debug.WriteLine($"==============================");
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al actualizar la cantidad del producto: {ex.Message}");
+            }
+        }
+
+        // MÉTODO FALTANTE: EliminarDeVentaActual
+        private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
+        {
+            var query = @"DELETE FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+            
+            using (var cmd = new SqlCommand(query, connection, transaction))
+            {
+                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@codigo", codigo);
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            // DEBUG
+            System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN DE VENTA ===");
+            System.Diagnostics.Debug.WriteLine($"Producto eliminado: {codigo}");
+            System.Diagnostics.Debug.WriteLine($"Remito: {nroRemitoActual}");
+            System.Diagnostics.Debug.WriteLine($"=============================");
+        }
+
+        // MÉTODO FALTANTE: LimpiarYReiniciarVenta
+        private void LimpiarYReiniciarVenta()
+        {
+            try
+            {
+                // Limpiar la grilla
+                dataGridView1.DataSource = null;
+                dataGridView1.Rows.Clear();
+                remitoActual = null;
+
+                // Resetear totales
+                lbCantidadProductos.Text = "Productos: 0";
+                
+                if (rtbTotal != null)
+                {
+                    rtbTotal.Clear();
+                    rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
+                    rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
+                    rtbTotal.AppendText("TOTAL: $0,00");
+                    rtbTotal.AppendText("\n");
+                    rtbTotal.SelectionFont = new Font("Segoe UI", 11F, FontStyle.Regular);
+                    rtbTotal.AppendText("IVA: $0,00");
                 }
 
-                transaction.Commit();
+                // Limpiar campos de producto
+                txtBuscarProducto.Text = "";
+                LimpiarCamposProducto();
 
-                // DEBUG: Confirmar la operación específica por id
-                System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN POR ID ===");
-                System.Diagnostics.Debug.WriteLine($"ID eliminado/modificado: {id}");
+                // Resetear checkbox de cuenta corriente
+                chkEsCtaCte.Checked = false;
+                cbnombreCtaCte.SelectedIndex = -1;
+                cbnombreCtaCte.Visible = false;
+                cbnombreCtaCte.Enabled = false;
+
+                // Resetear cantidad personalizada
+                chkCantidad.Checked = false;
+                cantidadPersonalizada = 1;
+                chkCantidad.Text = "Cantidad";
+
+                // Resetear remito
+                remitoIncrementado = false;
+
+                // Enfocar en el campo de búsqueda para la siguiente venta
+                txtBuscarProducto.Focus();
+
+                // DEBUG
+                System.Diagnostics.Debug.WriteLine($"=== VENTA REINICIADA ===");
+                System.Diagnostics.Debug.WriteLine($"Remito procesado: {nroRemitoActual}");
+                System.Diagnostics.Debug.WriteLine($"Estado limpio para nueva venta");
+                System.Diagnostics.Debug.WriteLine($"========================");
+
+                // Mostrar mensaje de confirmación
+                MessageBox.Show("Venta procesada correctamente.\n\nListo para nueva venta.", "Venta Completa", 
+                              MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error en LimpiarYReiniciarVenta: {ex.Message}");
+                MessageBox.Show($"Error al reiniciar: {ex.Message}", "Error", 
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // MÉTODO FALTANTE: RegistrarEliminacionEnAuditoria
+        // MÉTODO CORREGIDO: RegistrarEliminacionEnAuditoria
+        private async Task RegistrarEliminacionEnAuditoria(SqlConnection connection, SqlTransaction transaction,
+            string codigo, string descripcion, decimal precio, int cantidad, decimal total, string motivo)
+        {
+            // CORREGIDO: Declarar la variable query FUERA del try para que sea accesible en el catch
+            var query = @"INSERT INTO AuditoriaEliminaciones 
+                 (Fecha, Hora, Usuario, CodigoProducto, DescripcionProducto, PrecioUnitario, 
+                  Cantidad, TotalEliminado, MotivoEliminacion, NumeroRemito, CajeroId)
+                 VALUES (@Fecha, @Hora, @Usuario, @CodigoProducto, @DescripcionProducto, 
+                  @PrecioUnitario, @Cantidad, @TotalEliminado, @MotivoEliminacion, 
+                  @NumeroRemito, @CajeroId)";
+
+            try
+            {
+                using (var cmd = new SqlCommand(query, connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
+                    cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
+                    cmd.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
+                    cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
+                    cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+                    cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
+                    cmd.Parameters.AddWithValue("@Cantidad", cantidad);
+                    cmd.Parameters.AddWithValue("@TotalEliminado", total);
+                    cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
+                    cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                    cmd.Parameters.AddWithValue("@CajeroId", obtenerNumeroCajero());
+
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                // DEBUG
+                System.Diagnostics.Debug.WriteLine($"=== AUDITORÍA ELIMINACIÓN ===");
                 System.Diagnostics.Debug.WriteLine($"Producto: {codigo} - {descripcion}");
-                System.Diagnostics.Debug.WriteLine($"Cantidad original: {cantidadTotal}");
-                System.Diagnostics.Debug.WriteLine($"Cantidad eliminada: {cantidadAEliminar}");
-                System.Diagnostics.Debug.WriteLine($"Operación: {(cantidadAEliminar == cantidadTotal ? "ELIMINACIÓN COMPLETA" : "ACTUALIZACIÓN PARCIAL")}");
-                System.Diagnostics.Debug.WriteLine($"===========================");
+                System.Diagnostics.Debug.WriteLine($"Total eliminado: {total:C}");
+                System.Diagnostics.Debug.WriteLine($"Usuario: {ObtenerUsuarioActual()}");
+                System.Diagnostics.Debug.WriteLine($"Motivo: {motivo}");
+                System.Diagnostics.Debug.WriteLine($"=============================");
             }
-            catch
+            catch (Exception ex)
             {
-                transaction.Rollback();
-                throw;
-            }
-        }
-    }
-}
+                // Si la tabla de auditoría no existe, crear un registro alternativo en el log
+                System.Diagnostics.Debug.WriteLine($"=== ERROR AUDITORÍA (TABLA NO EXISTE) ===");
+                System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Producto eliminado: {codigo} - {descripcion}");
+                System.Diagnostics.Debug.WriteLine($"Usuario: {ObtenerUsuarioActual()}");
+                System.Diagnostics.Debug.WriteLine($"Motivo: {motivo}");
+                System.Diagnostics.Debug.WriteLine($"Fecha/Hora: {DateTime.Now}");
+                System.Diagnostics.Debug.WriteLine($"========================================");
 
-// NUEVO: Método para eliminar fila específica por id
-private async Task EliminarFilaPorId(SqlConnection connection, SqlTransaction transaction, int id)
-{
-    var query = @"DELETE FROM Ventas WHERE id = @id";
-
-    using (var cmd = new SqlCommand(query, connection, transaction))
-    {
-        cmd.Parameters.AddWithValue("@id", id);
-        await cmd.ExecuteNonQueryAsync();
-    }
-}
-
-// NUEVO: Método para actualizar cantidad en fila específica por id con IVA
-private async Task ActualizarCantidadPorId(SqlConnection connection, SqlTransaction transaction, 
-    int id, int nuevaCantidad, decimal precio)
-{
-    // NUEVO: Obtener porcentaje de IVA del producto para recalcular
-    decimal porcentajeIva = 0;
-    var queryIva = @"SELECT p.iva FROM Ventas v INNER JOIN Productos p ON v.codigo = p.codigo WHERE v.id = @id";
-    using (var cmdIva = new SqlCommand(queryIva, connection, transaction))
-    {
-        cmdIva.Parameters.AddWithValue("@id", id);
-        var resultIva = await cmdIva.ExecuteScalarAsync();
-        if (resultIva != null && resultIva != DBNull.Value)
-        {
-            porcentajeIva = Convert.ToDecimal(resultIva);
-        }
-    }
-
-    // MODIFICADO: Incluir recálculo de IVA
-    var query = @"UPDATE Ventas 
-                  SET cantidad = @nuevaCantidad, 
-                      total = @nuevaCantidad * @precio,
-                      IvaCalculado = (@precio * @nuevaCantidad) * @porcentajeIva / (100 + @porcentajeIva)
-                  WHERE id = @id";
-
-    using (var cmd = new SqlCommand(query, connection, transaction))
-    {
-        cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
-        cmd.Parameters.AddWithValue("@precio", precio);
-        cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
-        cmd.Parameters.AddWithValue("@id", id);
-        await cmd.ExecuteNonQueryAsync();
-    }
-        }
-        // Método ProcesarCodigo
-        private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
-        {
-            string codigoBuscado = textoIngresado.TrimStart('0');
-            if (string.IsNullOrEmpty(codigoBuscado))
-                codigoBuscado = "0";
-
-            decimal? precioPersonalizado = null;
-            bool esEspecial = false;
-
-            // Verificar si es un código especial (formato balanza: 50XXXXX...)
-            if (textoIngresado.StartsWith(PREFIJO_CODIGO_ESPECIAL) && textoIngresado.Length == LONGITUD_CODIGO_ESPECIAL)
-            {
+                // OPCIONAL: Crear la tabla de auditoría si no existe
                 try
                 {
-                    // Extraer código del producto (5 dígitos desde posición 2)
-                    string codigoProducto = textoIngresado.Substring(POSICION_CODIGO_PRODUCTO, LONGITUD_CODIGO_PRODUCTO);
-                    codigoProducto = codigoProducto.TrimStart('0');
-                    if (string.IsNullOrEmpty(codigoProducto))
-                        codigoProducto = "0";
+                    var createTableQuery = @"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='AuditoriaEliminaciones' AND xtype='U')
+                CREATE TABLE AuditoriaEliminaciones (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    Fecha DATE NOT NULL,
+                    Hora DATETIME NOT NULL,
+                    Usuario NVARCHAR(100) NOT NULL,
+                    CodigoProducto NVARCHAR(50) NOT NULL,
+                    DescripcionProducto NVARCHAR(255) NOT NULL,
+                    PrecioUnitario DECIMAL(10,2) NOT NULL,
+                    Cantidad INT NOT NULL,
+                    TotalEliminado DECIMAL(10,2) NOT NULL,
+                    MotivoEliminacion NVARCHAR(500) NOT NULL,
+                    NumeroRemito INT NOT NULL,
+                    CajeroId INT NOT NULL
+                )";
 
-                    // Extraer precio (5 dígitos desde posición 7)
-                    string partePrecio = textoIngresado.Substring(POSICION_PRECIO, LONGITUD_PRECIO);
-                    if (int.TryParse(partePrecio, out int precioEntero))
+                    using (var createCmd = new SqlCommand(createTableQuery, connection, transaction))
                     {
-                        precioPersonalizado = precioEntero;
+                        await createCmd.ExecuteNonQueryAsync();
                     }
 
-                    codigoBuscado = codigoProducto;
-                    esEspecial = true;
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException($"Error procesando código especial: {ex.Message}");
-                }
-            }
-
-            return (codigoBuscado, precioPersonalizado, esEspecial);
-        }
-
-        // Método ObtenerIPLocal
-        private string ObtenerIPLocal()
-        {
-            try
-            {
-                return System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName())
-                    .AddressList.FirstOrDefault(ip => ip.AddressFamily ==
-                    System.Net.Sockets.AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
-            }
-            catch
-            {
-                return "127.0.0.1";
-            }
-        }
-
-        // VERSIÓN DIRECTA (igual que funciona para facturas)
-        private string ObtenerUsuarioActual()
-        {
-            try
-            {
-                // DIRECTO: Solo verificar si hay sesión activa
-                if (AuthenticationService.SesionActual?.Usuario?.NombreUsuario != null)
-                {
-                    string usuario = AuthenticationService.SesionActual.Usuario.NombreUsuario;
-                    System.Diagnostics.Debug.WriteLine($"🟢 Usuario logueado encontrado: {usuario}");
-                    return usuario;
-                }
-                
-                System.Diagnostics.Debug.WriteLine($"🔴 No hay sesión activa, usando fallback: {Environment.UserName}");
-                return Environment.UserName; // Fallback
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"🔴 Error obteniendo usuario: {ex.Message}");
-                return Environment.UserName;
-            }
-        }
-
-        // VERSIÓN DIRECTA (igual que funciona para facturas)
-        private int obtenerNumeroCajero()
-        {
-            try
-            {
-                // DIRECTO: Solo verificar si hay sesión activa
-                if (AuthenticationService.SesionActual?.Usuario != null)
-                {
-                    int cajero = AuthenticationService.SesionActual.Usuario.NumeroCajero;
-                    System.Diagnostics.Debug.WriteLine($"🟢 Número de cajero encontrado: {cajero}");
-                    return cajero;
-                }
-                
-                System.Diagnostics.Debug.WriteLine($"🔴 No hay sesión activa, usando cajero por defecto: 1");
-                return 1; // Cajero por defecto
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"🔴 Error obteniendo cajero: {ex.Message}");
-                return 1;
-            }
-        }
-
-        // NUEVO: Clase para MessageBox personalizado sin botón por defecto
-        public partial class CustomMessageBox : Form
-        {
-            public DialogResult Result { get; private set; } = DialogResult.None;
-
-            public CustomMessageBox(string message, string caption)
-            {
-                InitializeComponent();
-                ConfigurarMessageBox(message, caption);
-            }
-
-            private void InitializeComponent()
-            {
-                this.SuspendLayout();
-
-                // Configuración del formulario
-                this.Text = "";
-                this.Size = new Size(400, 180);
-                this.FormBorderStyle = FormBorderStyle.FixedDialog;
-                this.MaximizeBox = false;
-                this.MinimizeBox = false;
-                this.StartPosition = FormStartPosition.CenterParent;
-                this.ShowInTaskbar = false;
-                this.KeyPreview = true;
-
-                // IMPORTANT: No establecer ningún AcceptButton o CancelButton
-                // this.AcceptButton = null;
-                // this.CancelButton = null;
-
-                this.ResumeLayout(false);
-            }
-
-            private void ConfigurarMessageBox(string message, string caption)
-            {
-                this.Text = caption;
-
-                // Icono de pregunta
-                var pictureBox = new PictureBox
-                {
-                    Image = SystemIcons.Question.ToBitmap(),
-                    Location = new Point(15, 15),
-                    Size = new Size(32, 32),
-                    SizeMode = PictureBoxSizeMode.StretchImage
-                };
-                this.Controls.Add(pictureBox);
-
-                // Mensaje
-                var lblMessage = new Label
-                {
-                    Text = message,
-                    Location = new Point(60, 15),
-                    Size = new Size(310, 80),
-                    Font = new Font("Segoe UI", 9F),
-                    ForeColor = Color.FromArgb(62, 80, 100)
-                };
-                this.Controls.Add(lblMessage);
-
-                // Botón Sí
-                var btnYes = new Button
-                {
-                    Text = "Sí",
-                    Location = new Point(215, 100),
-                    Size = new Size(75, 30),
-                    Font = new Font("Segoe UI", 9F),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(76, 175, 80),
-                    ForeColor = Color.White,
-                    TabStop = false // IMPORTANTE: No recibir foco por Tab
-                };
-                btnYes.FlatAppearance.BorderSize = 0;
-                // CORRECCIÓN: Establecer DialogResult y cerrar
-                btnYes.Click += (s, e) =>
-                {
-                    Result = DialogResult.Yes;
-                    this.DialogResult = DialogResult.Yes; // NUEVO: Establecer DialogResult del formulario
-                    this.Close();
-                };
-                btnYes.MouseEnter += (s, e) => btnYes.BackColor = Color.FromArgb(66, 165, 70);
-                btnYes.MouseLeave += (s, e) => btnYes.BackColor = Color.FromArgb(76, 175, 80);
-                this.Controls.Add(btnYes);
-
-                // Botón No
-                var btnNo = new Button
-                {
-                    Text = "No",
-                    Location = new Point(300, 100),
-                    Size = new Size(75, 30),
-                    Font = new Font("Segoe UI", 9F),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(220, 53, 69),
-                    ForeColor = Color.White,
-                    TabStop = false // IMPORTANTE: No recibir foco por Tab
-                };
-                btnNo.FlatAppearance.BorderSize = 0;
-                // CORRECCIÓN: Establecer DialogResult y cerrar
-                btnNo.Click += (s, e) =>
-                {
-                    Result = DialogResult.No;
-                    this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
-                    this.Close();
-                };
-                btnNo.MouseEnter += (s, e) => btnNo.BackColor = Color.FromArgb(210, 43, 59);
-                btnNo.MouseLeave += (s, e) => btnNo.BackColor = Color.FromArgb(220, 53, 69);
-                this.Controls.Add(btnNo);
-
-                // CLAVE: Establecer el foco en el formulario principal, no en los botones
-                this.ActiveControl = null;
-
-                // Manejar teclas
-                this.KeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
+                    // CORREGIDO: Ahora 'query' está disponible aquí porque se declaró fuera del primer try
+                    using (var retryCmd = new SqlCommand(query, connection, transaction))
                     {
-                        // No hacer nada - forzar uso del mouse
-                        e.Handled = true;
-                    }
-                    else if (e.KeyCode == Keys.Escape)
-                    {
-                        Result = DialogResult.No;
-                        this.DialogResult = DialogResult.No; // NUEVO: Establecer DialogResult del formulario
-                        this.Close();
-                    }
-                };
+                        retryCmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
+                        retryCmd.Parameters.AddWithValue("@Hora", DateTime.Now);
+                        retryCmd.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
+                        retryCmd.Parameters.AddWithValue("@CodigoProducto", codigo);
+                        retryCmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+                        retryCmd.Parameters.AddWithValue("@PrecioUnitario", precio);
+                        retryCmd.Parameters.AddWithValue("@Cantidad", cantidad);
+                        retryCmd.Parameters.AddWithValue("@TotalEliminado", total);
+                        retryCmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
+                        retryCmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                        retryCmd.Parameters.AddWithValue("@CajeroId", obtenerNumeroCajero());
 
-                // Asegurar que ningún botón tenga foco inicial
-                this.Shown += (s, e) =>
-                {
-                    this.ActiveControl = null;
-                    this.Focus();
-                };
-
-                // NUEVO: Manejar el cierre del formulario sin selección
-                this.FormClosing += (s, e) =>
-                {
-                    // Si se cierra sin haber seleccionado nada, actuar como "No"
-                    if (this.DialogResult == DialogResult.None)
-                    {
-                        this.DialogResult = DialogResult.No;
-                        Result = DialogResult.No;
+                        await retryCmd.ExecuteNonQueryAsync();
                     }
-                };
+
+                    System.Diagnostics.Debug.WriteLine("Tabla AuditoriaEliminaciones creada y registro insertado correctamente.");
+                }
+                catch (Exception createEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error creando tabla de auditoría: {createEx.Message}");
+                    // No lanzar excepción para no interrumpir el proceso de eliminación
+                }
             }
-        }
-
-        // NUEVO: Método para calcular IVA desde el total (precio con IVA incluido)
-        private decimal CalcularIvaDesdeTotal(decimal totalConIva, decimal porcentajeIva)
-        {
-            if (porcentajeIva <= 0) return 0;
-    
-            // Fórmula: IVA = Total * (% IVA / (100 + % IVA))
-            decimal iva = totalConIva * (porcentajeIva / (100 + porcentajeIva));
-            return Math.Round(iva, 2);
-        }
-
-        // NUEVO: Método alternativo para calcular IVA desde el neto (precio sin IVA)
-        private decimal CalcularIvaDesdeNeto(decimal totalNeto, decimal porcentajeIva)
-        {
-            if (porcentajeIva <= 0) return 0;
-    
-            // Fórmula: IVA = Total Neto * (% IVA / 100)
-            decimal iva = totalNeto * (porcentajeIva / 100);
-            return Math.Round(iva, 2);
         }
     }
 }
