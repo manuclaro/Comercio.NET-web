@@ -583,10 +583,10 @@ namespace Comercio.NET.Formularios
                 }
 
                 // Actualizar título para mostrar el tipo de ventas
-                string tipoVenta = chkCtaCte.Checked ? "Cuenta Corriente" : "Contado";
+                string tipoVenta = chkCtaCte.Checked ? " (Cuenta Corriente)" : "";
                 lblTitulo.Text = fecha.Date == DateTime.Today 
-                    ? $"Control de Facturas - Ventas del Día ({tipoVenta})" 
-                    : $"Control de Facturas - Ventas del {fecha:dd/MM/yyyy} ({tipoVenta})";
+                    ? $"Control de Facturas - Ventas del Día{tipoVenta}" 
+                    : $"Control de Facturas - Ventas del {fecha:dd/MM/yyyy}{tipoVenta}";
             }
             catch (Exception ex)
             {

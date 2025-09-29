@@ -32,7 +32,7 @@ namespace Comercio.NET.Formularios
             this.SuspendLayout();
 
             // Configuración básica del formulario
-            this.Text = $"Resumen de IVA - {fechaConsulta:dd/MM/yyyy}" + (esCtaCte ? " (Cuenta Corriente)" : " (Contado)");
+            this.Text = $"Resumen de IVA - {fechaConsulta:dd/MM/yyyy}";
             this.Size = new Size(650, 500);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -53,7 +53,7 @@ namespace Comercio.NET.Formularios
 
             var lblTitulo = new Label
             {
-                Text = "📊 Resumen de IVA por Alícuotas",
+                Text = "📊 Resumen de IVA por Alícuotas", // MODIFICADO: Indicar que incluye todas las ventas
                 Font = new Font("Segoe UI", 16F, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock = DockStyle.Fill,
@@ -73,27 +73,29 @@ namespace Comercio.NET.Formularios
                 Padding = new Padding(20, 10, 20, 10)
             };
 
-            // Labels para totales generales
+            // REORGANIZACIÓN: IVA Total primero y más prominente
+            var lblTotalIVA = new Label
+            {
+                Name = "lblTotalIVA",
+                Text = "💰 IVA TOTAL: $0,00",
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold), // MÁS GRANDE
+                ForeColor = Color.FromArgb(220, 53, 69), // Rojo destacado
+                AutoSize = true,
+                Location = new Point(20, 5) // MÁS ARRIBA
+            };
+
+            // Total General - segundo lugar
             var lblTotalGeneral = new Label
             {
                 Name = "lblTotalGeneral",
                 Text = "Total General: $0,00",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold), // REDUCIDO
                 ForeColor = Color.FromArgb(0, 120, 215),
                 AutoSize = true,
-                Location = new Point(20, 10)
+                Location = new Point(20, 30) // AJUSTADO
             };
 
-            var lblTotalIVA = new Label
-            {
-                Name = "lblTotalIVA",
-                Text = "IVA Total: $0,00",
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(220, 53, 69),
-                AutoSize = true,
-                Location = new Point(20, 35)
-            };
-
+            // Subtotal - tercer lugar
             var lblSubtotalSinIVA = new Label
             {
                 Name = "lblSubtotalSinIVA",
@@ -101,7 +103,7 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 11F),
                 ForeColor = Color.FromArgb(108, 117, 125),
                 AutoSize = true,
-                Location = new Point(20, 60)
+                Location = new Point(20, 55) // AJUSTADO
             };
 
             // NUEVO: Botón Imprimir
@@ -149,8 +151,9 @@ namespace Comercio.NET.Formularios
             btnCerrar.FlatAppearance.BorderSize = 0;
             btnCerrar.Click += (s, e) => this.Close();
 
+            // NUEVO ORDEN en los controles: IVA Total primero
             panelInferior.Controls.AddRange(new Control[] { 
-                lblTotalGeneral, lblTotalIVA, lblSubtotalSinIVA, 
+                lblTotalIVA, lblTotalGeneral, lblSubtotalSinIVA, // NUEVO ORDEN
                 btnImprimir, btnExportar, btnCerrar 
             });
             this.Controls.Add(panelInferior); // AGREGAR SEGUNDO
@@ -228,6 +231,7 @@ namespace Comercio.NET.Formularios
                 // IMPORTANTE: Establecer el modo de auto-tamaño ANTES de agregar columnas
                 dgvResumen.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
+                // NUEVO ORDEN: 1- Alícuota, 2- Productos, 3- Monto IVA, 4- Base Imponible, 5- Total con IVA
                 dgvResumen.Columns.Add(new DataGridViewTextBoxColumn 
                 { 
                     Name = "Alicuota", 
@@ -252,11 +256,27 @@ namespace Comercio.NET.Formularios
                     }
                 });
 
+                // COLUMNA MÁS PROMINENTE: Monto IVA ahora en 3ra posición
+                dgvResumen.Columns.Add(new DataGridViewTextBoxColumn 
+                { 
+                    Name = "MontoIVA", 
+                    HeaderText = "💰 Monto IVA", // NUEVO: Emoji para mayor prominencia
+                    Width = 130, // AUMENTADO: de 120 a 130 para mayor prominencia
+                    DefaultCellStyle = new DataGridViewCellStyle 
+                    { 
+                        Format = "C2",
+                        Alignment = DataGridViewContentAlignment.MiddleRight,
+                        ForeColor = Color.FromArgb(220, 53, 69), // Rojo para destacar
+                        Font = new Font("Segoe UI", 11F, FontStyle.Bold), // AUMENTADO: de 10F a 11F
+                        BackColor = Color.FromArgb(255, 248, 248) // NUEVO: Fondo rosado muy claro
+                    }
+                });
+
                 dgvResumen.Columns.Add(new DataGridViewTextBoxColumn 
                 { 
                     Name = "BaseImponible", 
                     HeaderText = "Base Imponible",
-                    Width = 130,
+                    Width = 120, // REDUCIDO: de 130 a 120
                     DefaultCellStyle = new DataGridViewCellStyle 
                     { 
                         Format = "C2",
@@ -267,23 +287,9 @@ namespace Comercio.NET.Formularios
 
                 dgvResumen.Columns.Add(new DataGridViewTextBoxColumn 
                 { 
-                    Name = "MontoIVA", 
-                    HeaderText = "Monto IVA",
-                    Width = 120,
-                    DefaultCellStyle = new DataGridViewCellStyle 
-                    { 
-                        Format = "C2",
-                        Alignment = DataGridViewContentAlignment.MiddleRight,
-                        ForeColor = Color.FromArgb(220, 53, 69),
-                        Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-                    }
-                });
-
-                dgvResumen.Columns.Add(new DataGridViewTextBoxColumn 
-                { 
                     Name = "TotalConIVA", 
                     HeaderText = "Total con IVA",
-                    Width = 140,
+                    Width = 130, // REDUCIDO: de 140 a 130
                     DefaultCellStyle = new DataGridViewCellStyle 
                     { 
                         Format = "C2",
@@ -294,7 +300,7 @@ namespace Comercio.NET.Formularios
                 });
 
                 // Cargar datos
-                datosResumenActual = await ObtenerResumenIvaPorAlicuota(); // MODIFICADO: Almacenar datos
+                datosResumenActual = await ObtenerResumenIvaPorAlicuota();
                 
                 if (datosResumenActual?.Count > 0)
                 {
@@ -306,11 +312,12 @@ namespace Comercio.NET.Formularios
                     {
                         var row = dgvResumen.Rows[dgvResumen.Rows.Add()];
                         
+                        // NUEVO ORDEN de asignación de valores
                         row.Cells["Alicuota"].Value = $"{grupo.PorcentajeIVA:N2}%";
                         row.Cells["CantidadProductos"].Value = grupo.CantidadProductos;
-                        row.Cells["BaseImponible"].Value = grupo.BaseImponible;
-                        row.Cells["MontoIVA"].Value = grupo.MontoIVA;
-                        row.Cells["TotalConIVA"].Value = grupo.TotalConIVA;
+                        row.Cells["MontoIVA"].Value = grupo.MontoIVA; // AHORA EN 3RA POSICIÓN
+                        row.Cells["BaseImponible"].Value = grupo.BaseImponible; // AHORA EN 4TA POSICIÓN
+                        row.Cells["TotalConIVA"].Value = grupo.TotalConIVA; // AHORA EN 5TA POSICIÓN
 
                         // Aplicar color de fondo según alícuota
                         Color colorFondo = grupo.PorcentajeIVA switch
@@ -321,7 +328,7 @@ namespace Comercio.NET.Formularios
                             _ => Color.White
                         };
 
-                        // Aplicar color a todas las celdas excepto MontoIVA
+                        // Aplicar color a todas las celdas EXCEPTO MontoIVA (que ya tiene su propio estilo destacado)
                         foreach (DataGridViewCell cell in row.Cells)
                         {
                             if (cell.OwningColumn.Name != "MontoIVA")
@@ -335,31 +342,39 @@ namespace Comercio.NET.Formularios
                         totalSinIVA += grupo.BaseImponible;
                     }
 
-                    // Actualizar labels de totales
-                    var lblTotalGeneral = this.Controls.Find("lblTotalGeneral", true).FirstOrDefault() as Label;
+                    // NUEVO ORDEN DE PROMINENCIA EN LOS LABELS: IVA Total primero y más grande
                     var lblTotalIVA = this.Controls.Find("lblTotalIVA", true).FirstOrDefault() as Label;
+                    var lblTotalGeneral = this.Controls.Find("lblTotalGeneral", true).FirstOrDefault() as Label;
                     var lblSubtotalSinIVA = this.Controls.Find("lblSubtotalSinIVA", true).FirstOrDefault() as Label;
 
-                    if (lblTotalGeneral != null)
-                        lblTotalGeneral.Text = $"Total General: {totalGeneral:C2}";
-                    
+                    // IVA TOTAL - MÁS PROMINENTE
                     if (lblTotalIVA != null)
-                        lblTotalIVA.Text = $"IVA Total: {totalIVA:C2}";
+                    {
+                        lblTotalIVA.Text = $"💰 IVA TOTAL: {totalIVA:C2}"; // NUEVO: Emoji y texto en mayúsculas
+                        lblTotalIVA.Font = new Font("Segoe UI", 16F, FontStyle.Bold); // AUMENTADO: de 12F a 16F
+                        lblTotalIVA.ForeColor = Color.FromArgb(220, 53, 69); // Mantener color rojo
+                    }
+                    
+                    if (lblTotalGeneral != null)
+                    {
+                        lblTotalGeneral.Text = $"Total General: {totalGeneral:C2}";
+                        lblTotalGeneral.Font = new Font("Segoe UI", 12F, FontStyle.Bold); // REDUCIDO: de 14F a 12F
+                    }
                     
                     if (lblSubtotalSinIVA != null)
                         lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {totalSinIVA:C2}";
                 }
                 else
                 {
-                    datosResumenActual = new List<ResumenIvaGroup>(); // NUEVO: Inicializar lista vacía
+                    datosResumenActual = new List<ResumenIvaGroup>();
                     
                     // Agregar fila indicando que no hay datos
                     var row = dgvResumen.Rows[dgvResumen.Rows.Add()];
                     row.Cells["Alicuota"].Value = "Sin datos para esta fecha";
                     row.Cells["CantidadProductos"].Value = 0;
-                    row.Cells["BaseImponible"].Value = 0;
-                    row.Cells["MontoIVA"].Value = 0;
-                    row.Cells["TotalConIVA"].Value = 0;
+                    row.Cells["MontoIVA"].Value = 0; // NUEVO ORDEN
+                    row.Cells["BaseImponible"].Value = 0; // NUEVO ORDEN
+                    row.Cells["TotalConIVA"].Value = 0; // NUEVO ORDEN
                     
                     // Centrar el texto "Sin datos"
                     row.Cells["Alicuota"].Style.Font = new Font("Segoe UI", 10F, FontStyle.Italic);
@@ -417,9 +432,13 @@ namespace Comercio.NET.Formularios
 
             using (var saveDialog = new SaveFileDialog())
             {
-                string tipoVenta = esCtaCte ? "CtaCte" : "Contado";
+                string tipoVenta = esCtaCte ? "CtaCte" : ""; 
+                string nombreArchivo = esCtaCte 
+                    ? $"ResumenIVA_{fechaConsulta:yyyyMMdd}_{tipoVenta}"
+                    : $"ResumenIVA_{fechaConsulta:yyyyMMdd}";
+                
                 saveDialog.Filter = "Archivos CSV|*.csv|Archivos de Excel|*.xlsx";
-                saveDialog.FileName = $"ResumenIVA_{fechaConsulta:yyyyMMdd}_{tipoVenta}";
+                saveDialog.FileName = nombreArchivo;
                 
                 if (saveDialog.ShowDialog(this) == DialogResult.OK)
                 {
@@ -448,7 +467,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // NUEVO: Método para imprimir el reporte
+        // NUEVO: Método para imprimir el reporte - ORDEN ACTUALIZADO Y ESPACIADO CORREGIDO
         private void PrintDocument_PrintPage(object sender, PrintPageEventArgs e)
         {
             Graphics graphics = e.Graphics;
@@ -456,6 +475,7 @@ namespace Comercio.NET.Formularios
             Font fontSubtitulo = new Font("Arial", 12, FontStyle.Bold);
             Font fontNormal = new Font("Arial", 10);
             Font fontPequeño = new Font("Arial", 9);
+            Font fontIvaDestacado = new Font("Arial", 11, FontStyle.Bold); // Para destacar IVA pero en negro
 
             float y = 50;
             float leftMargin = 50;
@@ -469,8 +489,10 @@ namespace Comercio.NET.Formularios
             y += tituloSize.Height + 10;
 
             // Información del reporte
-            string tipoVenta = esCtaCte ? "Cuenta Corriente" : "Contado";
-            string info = $"Fecha: {fechaConsulta:dd/MM/yyyy} - Tipo: {tipoVenta}";
+            //string tipoVenta = esCtaCte ? "Cuenta Corriente" : "";
+            string info = esCtaCte 
+                ? $"Fecha: {fechaConsulta:dd/MM/yyyy}" 
+                : $"Fecha: {fechaConsulta:dd/MM/yyyy}";
             SizeF infoSize = graphics.MeasureString(info, fontSubtitulo);
             float infoX = (e.PageBounds.Width - infoSize.Width) / 2;
             graphics.DrawString(info, fontSubtitulo, Brushes.Black, infoX, y);
@@ -481,17 +503,18 @@ namespace Comercio.NET.Formularios
             graphics.DrawString(fechaGen, fontPequeño, Brushes.Gray, rightMargin - graphics.MeasureString(fechaGen, fontPequeño).Width, y);
             y += 30;
 
-            // Encabezados de tabla
-            float colX1 = leftMargin;
-            float colX2 = leftMargin + 100;
-            float colX3 = leftMargin + 180;
-            float colX4 = leftMargin + 320;
-            float colX5 = leftMargin + 450;
+            // NUEVO ESPACIADO DE COLUMNAS - MÁS SEPARADAS
+            float colX1 = leftMargin;        // Alícuota
+            float colX2 = leftMargin + 100;  // Productos
+            float colX3 = leftMargin + 200;  // *** MONTO IVA (más espacio: era 180, ahora 200) ***
+            float colX4 = leftMargin + 330;  // Base Imponible (más espacio: era 300, ahora 330)
+            float colX5 = leftMargin + 480;  // Total con IVA (más espacio: era 450, ahora 480)
 
+            // Encabezados de tabla - NUEVO ORDEN Y TODO EN NEGRO
             graphics.DrawString("Alícuota", fontSubtitulo, Brushes.Black, colX1, y);
             graphics.DrawString("Productos", fontSubtitulo, Brushes.Black, colX2, y);
-            graphics.DrawString("Base Imponible", fontSubtitulo, Brushes.Black, colX3, y);
-            graphics.DrawString("Monto IVA", fontSubtitulo, Brushes.Black, colX4, y);
+            graphics.DrawString("MONTO IVA", fontSubtitulo, Brushes.Black, colX3, y); // CAMBIO: De rojo a negro
+            graphics.DrawString("Base Imponible", fontSubtitulo, Brushes.Black, colX4, y);
             graphics.DrawString("Total con IVA", fontSubtitulo, Brushes.Black, colX5, y);
             y += 25;
 
@@ -499,7 +522,7 @@ namespace Comercio.NET.Formularios
             graphics.DrawLine(Pens.Black, leftMargin, y, rightMargin, y);
             y += 10;
 
-            // Datos
+            // Datos - NUEVO ORDEN Y TODO EN NEGRO
             decimal totalGeneral = 0;
             decimal totalIVA = 0;
             decimal totalSinIVA = 0;
@@ -508,8 +531,8 @@ namespace Comercio.NET.Formularios
             {
                 graphics.DrawString($"{grupo.PorcentajeIVA:N2}%", fontNormal, Brushes.Black, colX1, y);
                 graphics.DrawString(grupo.CantidadProductos.ToString(), fontNormal, Brushes.Black, colX2, y);
-                graphics.DrawString(grupo.BaseImponible.ToString("C2"), fontNormal, Brushes.Black, colX3, y);
-                graphics.DrawString(grupo.MontoIVA.ToString("C2"), fontNormal, Brushes.Black, colX4, y);
+                graphics.DrawString(grupo.MontoIVA.ToString("C2"), fontIvaDestacado, Brushes.Black, colX3, y); // CAMBIO: De rojo a negro
+                graphics.DrawString(grupo.BaseImponible.ToString("C2"), fontNormal, Brushes.Black, colX4, y);
                 graphics.DrawString(grupo.TotalConIVA.ToString("C2"), fontNormal, Brushes.Black, colX5, y);
                 
                 totalGeneral += grupo.TotalConIVA;
@@ -523,60 +546,62 @@ namespace Comercio.NET.Formularios
             graphics.DrawLine(Pens.Black, leftMargin, y, rightMargin, y);
             y += 15;
 
-            // Totales finales
-            graphics.DrawString($"SUBTOTAL SIN IVA:", fontSubtitulo, Brushes.Black, colX3, y);
-            graphics.DrawString(totalSinIVA.ToString("C2"), fontSubtitulo, Brushes.Black, colX5, y);
+            // TOTALES - TODO EN NEGRO Y MEJOR ESPACIADO
+            graphics.DrawString($"IVA TOTAL:", fontTitulo, Brushes.Black, colX2, y); // CAMBIO: De rojo a negro
+            graphics.DrawString(totalIVA.ToString("C2"), fontTitulo, Brushes.Black, colX4, y); // CAMBIO: De rojo a negro
+            y += 30;
+
+            graphics.DrawString($"SUBTOTAL SIN IVA:", fontSubtitulo, Brushes.Black, colX2, y);
+            graphics.DrawString(totalSinIVA.ToString("C2"), fontSubtitulo, Brushes.Black, colX4, y);
             y += 25;
 
-            graphics.DrawString($"IVA TOTAL:", fontSubtitulo, Brushes.Black, colX3, y);
-            graphics.DrawString(totalIVA.ToString("C2"), fontSubtitulo, Brushes.Black, colX5, y);
-            y += 25;
-
-            graphics.DrawString($"TOTAL GENERAL:", fontTitulo, Brushes.Black, colX3, y);
-            graphics.DrawString(totalGeneral.ToString("C2"), fontTitulo, Brushes.Black, colX5, y);
+            graphics.DrawString($"TOTAL GENERAL:", fontSubtitulo, Brushes.Black, colX2, y);
+            graphics.DrawString(totalGeneral.ToString("C2"), fontSubtitulo, Brushes.Black, colX4, y);
 
             // Limpiar recursos
             fontTitulo.Dispose();
             fontSubtitulo.Dispose();
             fontNormal.Dispose();
             fontPequeño.Dispose();
+            fontIvaDestacado.Dispose();
         }
 
-        // NUEVO: Método para exportar a CSV
+        // NUEVO: Método para exportar a CSV - ORDEN ACTUALIZADO
         private void ExportarACSV(string rutaArchivo)
         {
             var lineas = new List<string>();
-            
+    
             // Agregar encabezado con información del reporte
-            string tipoVenta = esCtaCte ? "Cuenta Corriente" : "Contado";
+            string tipoVenta = esCtaCte ? "Cuenta Corriente" : "";
             lineas.Add($"# RESUMEN DE IVA POR ALÍCUOTAS");
-            lineas.Add($"# Fecha: {fechaConsulta:dd/MM/yyyy} - Tipo: {tipoVenta}");
+            lineas.Add($"# Fecha: {fechaConsulta:dd/MM/yyyy}" + (esCtaCte ? " - Tipo: Cuenta Corriente" : ""));
             lineas.Add($"# Generado el: {DateTime.Now:dd/MM/yyyy HH:mm}");
             lineas.Add(""); // Línea vacía
 
-            // Encabezados de columnas
-            lineas.Add("Alícuota IVA,Productos,Base Imponible,Monto IVA,Total con IVA");
+            // Encabezados de columnas - NUEVO ORDEN
+            lineas.Add("Alícuota IVA,Productos,Monto IVA,Base Imponible,Total con IVA");
 
-            // Datos
+            // Datos - NUEVO ORDEN
             decimal totalGeneral = 0;
             decimal totalIVA = 0;
             decimal totalSinIVA = 0;
 
             foreach (var grupo in datosResumenActual.OrderByDescending(x => x.PorcentajeIVA))
             {
+                // NUEVO ORDEN: Alícuota, Productos, MONTO IVA, Base Imponible, Total con IVA
                 lineas.Add($"{grupo.PorcentajeIVA:N2}%,{grupo.CantidadProductos}," +
-                          $"\"{grupo.BaseImponible:C2}\",\"{grupo.MontoIVA:C2}\",\"{grupo.TotalConIVA:C2}\"");
-                
+                          $"\"{grupo.MontoIVA:C2}\",\"{grupo.BaseImponible:C2}\",\"{grupo.TotalConIVA:C2}\"");
+        
                 totalGeneral += grupo.TotalConIVA;
                 totalIVA += grupo.MontoIVA;
                 totalSinIVA += grupo.BaseImponible;
             }
 
-            // Línea vacía y totales
+            // Línea vacía y totales - NUEVO ORDEN DE PROMINENCIA
             lineas.Add("");
             lineas.Add("TOTALES");
+            lineas.Add($"*** IVA TOTAL:,,,\"{totalIVA:C2}\","); // PRIMERO Y DESTACADO
             lineas.Add($"Subtotal sin IVA:,,,\"{totalSinIVA:C2}\",");
-            lineas.Add($"IVA Total:,,,\"{totalIVA:C2}\",");
             lineas.Add($"TOTAL GENERAL:,,,\"{totalGeneral:C2}\",");
 
             // Escribir archivo
@@ -599,7 +624,7 @@ namespace Comercio.NET.Formularios
                 {
                     await connection.OpenAsync();
 
-                    // Query para obtener ventas con sus productos y porcentajes de IVA
+                    // MODIFICADO: Eliminar filtro por esCtaCte para incluir TODAS las ventas del día
                     var query = @"
                         SELECT 
                             p.iva as PorcentajeIVA,
@@ -609,7 +634,6 @@ namespace Comercio.NET.Formularios
                         INNER JOIN Ventas v ON f.NumeroRemito = v.NroFactura
                         INNER JOIN Productos p ON v.codigo = p.codigo
                         WHERE CAST(f.Fecha AS DATE) = @fecha 
-                        AND f.esCtaCte = @esCtaCte
                         GROUP BY p.iva
                         HAVING SUM(v.total) > 0
                         ORDER BY p.iva DESC";
@@ -617,7 +641,7 @@ namespace Comercio.NET.Formularios
                     using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@fecha", fechaConsulta.Date);
-                        cmd.Parameters.AddWithValue("@esCtaCte", esCtaCte);
+                        // REMOVIDO: cmd.Parameters.AddWithValue("@esCtaCte", esCtaCte);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
