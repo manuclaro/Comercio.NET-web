@@ -52,8 +52,8 @@ namespace Comercio.NET.Formularios
             CrearVentanaDetalle();
             CargarVentasDelDia();
             
-            // FORZAR MAXIMIZACIÓN
-            //this.WindowState = FormWindowState.Maximized;
+            // MAXIMIZAR EL FORMULARIO AL ABRIRSE
+            this.WindowState = FormWindowState.Maximized;
         }
 
         private void InitializeComponent()
@@ -318,6 +318,28 @@ namespace Comercio.NET.Formularios
             btnAuditoriaEliminados.Text = "🗑️ Auditoría";
             btnAuditoriaEliminados.UseVisualStyleBackColor = false;
             btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click;
+
+            // Botón para Resumen de IVA
+            var btnResumenIva = new Button();
+            btnResumenIva.BackColor = Color.FromArgb(76, 175, 80); // Verde
+            btnResumenIva.FlatStyle = FlatStyle.Flat;
+            btnResumenIva.FlatAppearance.BorderSize = 0;
+            btnResumenIva.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnResumenIva.ForeColor = Color.White;
+            btnResumenIva.Location = new Point(880, 14); // Ajustar posición según tu layout
+            btnResumenIva.Name = "btnResumenIva";
+            btnResumenIva.Size = new Size(120, 28);
+            btnResumenIva.TabIndex = 7;
+            btnResumenIva.Text = "📊 IVA";
+            btnResumenIva.UseVisualStyleBackColor = false;
+            btnResumenIva.Click += BtnResumenIva_Click;
+            btnResumenIva.Cursor = Cursors.Hand;
+
+            // Agregar tooltip
+            var tooltipIva = new ToolTip();
+            tooltipIva.SetToolTip(btnResumenIva, "Ver resumen de IVA discriminado por alícuotas");
+
+            panelFiltros.Controls.Add(btnResumenIva);
         }
 
         private void ConfigurarFormulario()
@@ -1674,6 +1696,23 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // AGREGAR: Event handler para el botón de resumen de IVA
+        private void BtnResumenIva_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var resumenForm = new ResumenIvaForm(dtpFecha.Value.Date, chkCtaCte.Checked))
+                {
+                    resumenForm.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir el resumen de IVA: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
