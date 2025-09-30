@@ -54,7 +54,7 @@ namespace Comercio.NET
         private RichTextBox rtbTotal;
 
         // NUEVO: Variable para controlar el estado de eliminación
-        private bool procesandoEliminacion = false; 
+        private bool procesandoEliminacion = false;
 
         // NUEVO: Variable para controlar el estado de edición de cantidad
         private bool procesandoEdicionCantidad = false;
@@ -389,7 +389,7 @@ namespace Comercio.NET
             }
             else if (textoIngresado.Length == 8)
             {
-                // TRATAMIENTO ESPECIAL PARA CÓDIGOS TEMPORALES DE TESTING (8 DÍGITOS)
+                // TRATamiento ESPECIAL PARA CÓDIGOS TEMPORALES DE TESTING (8 DÍGITOS)
                 // Asumimos que vienen en el formato XXXXXXXX y son válidos para testing
                 codigoBuscado = textoIngresado;
                 esCodigoTemporal = true;
@@ -756,7 +756,7 @@ namespace Comercio.NET
             txtBuscarProducto.Focus();
 
             lbCantidadProductos.Text = "Productos: 0";
-            
+
             // CORREGIDO: Verificar si lbTotal existe antes de usarlo
             if (lbTotal != null)
             {
@@ -1172,9 +1172,9 @@ namespace Comercio.NET
         }
 
         // CORREGIDO: Método actualizado para soportar eliminación parcial
-        private async Task EliminarProductoConAuditoria(string codigo, string descripcion,
-            decimal precio, int cantidadAEliminar, decimal totalAEliminar, string motivo,
-            bool esEliminacionCompleta, int cantidadOriginal)
+        private async Task EliminarProductoConAuditoria(
+            string codigo, string descripcion, decimal precio, int cantidadAEliminar, decimal totalAEliminar, string motivo,
+            bool esEliminacionCompleta, int cantidadOriginal, bool permiteAcumular, int idVenta)
         {
             string connectionString = GetConnectionString();
 
@@ -1196,7 +1196,7 @@ namespace Comercio.NET
                         if (esEliminacionCompleta)
                         {
                             // Eliminar completamente el producto
-                            await EliminarDeVentaActual(connection, transaction, codigo);
+                            await EliminarDeVentaActual(connection, transaction, codigo, permiteAcumular, idVenta);
                         }
                         else
                         {
@@ -1204,7 +1204,7 @@ namespace Comercio.NET
                             int nuevaCantidad = cantidadOriginal - cantidadAEliminar;
                             decimal nuevoTotal = Math.Round(precio * nuevaCantidad, 2);
 
-                            await ActualizarCantidadEnVentaActual(connection, transaction, codigo, nuevaCantidad, nuevoTotal);
+                            await ActualizarCantidadEnVentaActual(connection, transaction, codigo, nuevaCantidad, nuevoTotal, idVenta);
                         }
 
                         transaction.Commit();
@@ -1225,13 +1225,13 @@ namespace Comercio.NET
             var queryPermiteAcumular = @"SELECT PermiteAcumular FROM Productos WHERE codigo = @codigo";
             bool permiteAcumular = false;
 
-            using (var cmd = new SqlCommand(queryPermiteAcumular, connection, transaction))
+            using (var cmdPermite = new SqlCommand(queryPermiteAcumular, connection, transaction))
             {
-                cmd.Parameters.AddWithValue("@codigo", codigo);
-                var result = await cmd.ExecuteScalarAsync();
-                if (result != null && result != DBNull.Value)
+                cmdPermite.Parameters.AddWithValue("@codigo", codigo);
+                var resultPermite = await cmdPermite.ExecuteScalarAsync();
+                if (resultPermite != null && resultPermite != DBNull.Value)
                 {
-                    permiteAcumular = Convert.ToBoolean(result);
+                    permiteAcumular = Convert.ToBoolean(resultPermite);
                 }
             }
 
@@ -1503,7 +1503,7 @@ namespace Comercio.NET
                 using (var cantidadForm = new ModalCantidadForm())
                 {
                     cantidadForm.CantidadInicial = cantidadPersonalizada; // CORREGIDO: Establecer cantidad inicial
-                    
+
                     if (cantidadForm.ShowDialog(this) == DialogResult.OK)
                     {
                         cantidadPersonalizada = cantidadForm.CantidadSeleccionada;
@@ -1602,7 +1602,7 @@ namespace Comercio.NET
                 if (e.RowIndex >= 0 && e.ColumnIndex >= 0 && !procesandoEliminacion && !procesandoEdicionCantidad)
                 {
                     procesandoEdicionCantidad = true;
-                    
+
                     try
                     {
                         await EditarCantidadProducto(e.RowIndex);
@@ -1676,7 +1676,7 @@ namespace Comercio.NET
 
                         // CORREGIDO: Usar la columna donde se hizo clic, pero verificar que sea visible
                         var targetColumnIndex = hitTest.ColumnIndex;
-    
+
                         // Si la columna donde se hizo clic no es visible, buscar la primera columna visible
                         if (targetColumnIndex < 0 || !dataGridView1.Columns[targetColumnIndex].Visible)
                         {
@@ -1692,7 +1692,7 @@ namespace Comercio.NET
                         }
 
                         // Solo establecer CurrentCell si encontramos una columna visible
-                        if (targetColumnIndex >= 0 && targetColumnIndex < dataGridView1.Columns.Count && 
+                        if (targetColumnIndex >= 0 && targetColumnIndex < dataGridView1.Columns.Count &&
                             dataGridView1.Columns[targetColumnIndex].Visible)
                         {
                             dataGridView1.CurrentCell = dataGridView1.Rows[hitTest.RowIndex].Cells[targetColumnIndex];
@@ -1723,7 +1723,7 @@ namespace Comercio.NET
                 if (dataGridView1.SelectedRows.Count > 0 && !procesandoEliminacion && !procesandoEdicionCantidad)
                 {
                     procesandoEdicionCantidad = true;
-                    
+
                     try
                     {
                         await EditarCantidadProducto(dataGridView1.SelectedRows[0].Index);
@@ -1805,7 +1805,7 @@ namespace Comercio.NET
 
                     // MODIFICADO: Incluir información del stock
                     string stockInfo = stockActual >= 0 ? stockActual.ToString() : "N/A";
-                    
+
                     MessageBox.Show(
                         $"📦 INFORMACIÓN DEL PRODUCTO\n\n" +
                         $"Código: {codigo}\n" +
@@ -1902,19 +1902,19 @@ namespace Comercio.NET
             try
             {
                 string connectionString = GetConnectionString();
-                
+
                 using (var connection = new SqlConnection(connectionString))
                 {
                     // Consultar tabla de cuentas corrientes o clientes
                     var query = "SELECT DISTINCT NombreCtaCte FROM Facturas WHERE NombreCtaCte IS NOT NULL AND NombreCtaCte != '' ORDER BY NombreCtaCte";
-                    
+
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
                         DataTable dt = new DataTable();
                         adapter.Fill(dt);
-                        
+
                         cbnombreCtaCte.Items.Clear();
-                        
+
                         foreach (DataRow row in dt.Rows)
                         {
                             cbnombreCtaCte.Items.Add(row["NombreCtaCte"].ToString());
@@ -1942,6 +1942,7 @@ namespace Comercio.NET
                 decimal precio = Convert.ToDecimal(row.Cells["precio"].Value);
                 int cantidadTotal = Convert.ToInt32(row.Cells["cantidad"].Value);
                 decimal total = Convert.ToDecimal(row.Cells["total"].Value);
+                int idVenta = Convert.ToInt32(row.Cells["id"].Value);
 
                 // Verificar permisos de eliminación
                 if (AuthenticationService.SesionActual?.Usuario != null)
@@ -1974,43 +1975,44 @@ namespace Comercio.NET
                     return;
                 }
 
-                // Calcular valores proporcionales
-                decimal totalAEliminar = Math.Round(precio * cantidadAEliminar, 2);
+                // CALCULO: Determinar si es una eliminación completa o parcial
                 bool esEliminacionCompleta = cantidadAEliminar == cantidadTotal;
 
-                // PASO 2: MENSAJE DE CONFIRMACIÓN adaptado según si es eliminación parcial o completa
-                string mensaje;
-                if (esEliminacionCompleta)
-                {
-                    mensaje = $"¿Confirma la eliminación COMPLETA de este producto?\n\n" +
-                             $"Código: {codigo}\n" +
-                             $"Descripción: {descripcion}\n" +
-                             $"Cantidad: {cantidadTotal}\n" +
-                             $"Total: {total:C2}\n\n" +
-                             $"Motivo: {motivo}\n\n" +
-                             "Esta acción no se puede deshacer.";
-                }
-                else
-                {
-                    mensaje = $"¿Confirma la eliminación PARCIAL de este producto?\n\n" +
-                             $"Código: {codigo}\n" +
-                             $"Descripción: {descripcion}\n" +
-                             $"Cantidad a eliminar: {cantidadAEliminar} de {cantidadTotal}\n" +
-                             $"Total a eliminar: {totalAEliminar:C2}\n" +
-                             $"Cantidad que quedará: {cantidadTotal - cantidadAEliminar}\n" +
-                             $"Total que quedará: {(total - totalAEliminar):C2}\n\n" +
-                             $"Motivo: {motivo}\n\n" +
-                             "Esta acción no se puede deshacer.";
-                }
-
-                var resultado = MessageBox.Show(mensaje, "Confirmar eliminación",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                // CONFIRMAR: Mostrar mensaje de confirmación con detalle
+                var resultado = MessageBox.Show(
+                    $"¿Confirma la eliminación {(esEliminacionCompleta ? "completa" : "parcial")} de este producto?\n\n" +
+                    $"Código: {codigo}\n" +
+                    $"Descripción: {descripcion}\n" +
+                    $"Cantidad a eliminar: {cantidadAEliminar} {(esEliminacionCompleta ? "" : $"(Quedará {cantidadTotal - cantidadAEliminar})")}\n" +
+                    $"Total a eliminar: {Math.Round(precio * cantidadAEliminar, 2):C2}\n\n" +
+                    $"Motivo: {motivo}\n\n" +
+                    "Esta acción no se puede deshacer.",
+                    "Confirmar eliminación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
 
                 // PASO 3: Solo proceder si confirma
                 if (resultado == DialogResult.Yes)
                 {
-                    // CORREGIDO: Usar el método actualizado que soporta cantidad parcial
-                    await EliminarProductoConAuditoria(codigo, descripcion, precio, cantidadAEliminar, totalAEliminar, motivo, esEliminacionCompleta, cantidadTotal);
+                    // Obtener permiteAcumular desde la base de datos
+                    bool permiteAcumular = false;
+                    using (var conn = new SqlConnection(GetConnectionString()))
+                    {
+                        var query = "SELECT PermiteAcumular FROM Productos WHERE codigo = @codigo";
+                        using (var cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@codigo", codigo);
+                            conn.Open();
+                            var result = await cmd.ExecuteScalarAsync();
+                            if (result != null && result != DBNull.Value)
+                                permiteAcumular = Convert.ToBoolean(result);
+                        }
+                    }
+
+                    await EliminarProductoConAuditoria(
+                        codigo, descripcion, precio, cantidadAEliminar, Math.Round(precio * cantidadAEliminar, 2), motivo,
+                        esEliminacionCompleta, cantidadTotal, permiteAcumular, idVenta
+                    );
 
                     // Refrescar la vista
                     CargarVentasActuales();
@@ -2047,20 +2049,20 @@ namespace Comercio.NET
                 string descripcion = row.Cells["descripcion"].Value.ToString();
                 int cantidadActual = Convert.ToInt32(row.Cells["cantidad"].Value);
                 decimal precio = Convert.ToDecimal(row.Cells["precio"].Value);
+                int idVenta = Convert.ToInt32(row.Cells["id"].Value);
 
-                // CORREGIDO: Configurar la cantidad inicial antes de mostrar el modal
                 using (var cantidadForm = new ModalCantidadForm())
                 {
                     cantidadForm.Text = "Editar Cantidad";
-                    cantidadForm.CantidadInicial = cantidadActual; // CORREGIDO: Establecer cantidad inicial
-                    
+                    cantidadForm.CantidadInicial = cantidadActual;
+
                     if (cantidadForm.ShowDialog(this) == DialogResult.OK)
                     {
                         int nuevaCantidad = cantidadForm.CantidadSeleccionada;
-                        
+
                         if (nuevaCantidad <= 0)
                         {
-                            MessageBox.Show("La cantidad debe ser mayor a 0.", "Cantidad inválida", 
+                            MessageBox.Show("La cantidad debe ser mayor a 0.", "Cantidad inválida",
                                           MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
@@ -2070,7 +2072,6 @@ namespace Comercio.NET
                             return; // No hay cambios
                         }
 
-                        // CORREGIDO: Usar la lógica de actualización directamente aquí
                         string connectionString = GetConnectionString();
 
                         using (var connection = new SqlConnection(connectionString))
@@ -2080,43 +2081,39 @@ namespace Comercio.NET
                             {
                                 try
                                 {
-                                    // Calcular diferencia de stock
                                     int diferenciaCantidad = nuevaCantidad - cantidadActual;
                                     decimal nuevoTotal = Math.Round(precio * nuevaCantidad, 2);
 
-                                    // Actualizar stock del producto (solo si permite acumular)
-                                    if (diferenciaCantidad != 0)
+                                    // Consultar si permite acumular
+                                    bool permiteAcumular = false;
+                                    var queryPermite = @"SELECT PermiteAcumular FROM Productos WHERE codigo = @codigo";
+                                    using (var cmdPermite = new SqlCommand(queryPermite, connection, transaction))
                                     {
-                                        var queryPermiteAcumular = @"SELECT ISNULL(PermiteAcumular, 0) FROM Productos WHERE codigo = @codigo";
-                                        bool permiteAcumular = false;
-                                        
-                                        using (var cmdPermite = new SqlCommand(queryPermiteAcumular, connection, transaction))
-                                        {
-                                            cmdPermite.Parameters.AddWithValue("@codigo", codigo);
-                                            var result = await cmdPermite.ExecuteScalarAsync();
-                                            if (result != null && result != DBNull.Value)
-                                            {
-                                                permiteAcumular = Convert.ToBoolean(result);
-                                            }
-                                        }
+                                        cmdPermite.Parameters.AddWithValue("@codigo", codigo);
+                                        var resultPermite = await cmdPermite.ExecuteScalarAsync();
+                                        if (resultPermite != null && resultPermite != DBNull.Value)
+                                            permiteAcumular = Convert.ToBoolean(resultPermite);
+                                    }
 
-                                        if (permiteAcumular)
+                                    // Actualizar stock solo si permite acumular
+                                    if (diferenciaCantidad != 0 && permiteAcumular)
+                                    {
+                                        var queryStock = @"UPDATE Productos 
+                                                  SET cantidad = ISNULL(cantidad, 0) + @diferenciaCantidad 
+                                                  WHERE codigo = @codigo";
+                                        using (var cmdStock = new SqlCommand(queryStock, connection, transaction))
                                         {
-                                            var queryStock = @"UPDATE Productos 
-                                                              SET cantidad = cantidad - @diferenciaCantidad 
-                                                              WHERE codigo = @codigo";
-                                            
-                                            using (var cmdStock = new SqlCommand(queryStock, connection, transaction))
-                                            {
-                                                cmdStock.Parameters.AddWithValue("@diferenciaCantidad", diferenciaCantidad);
-                                                cmdStock.Parameters.AddWithValue("@codigo", codigo);
-                                                await cmdStock.ExecuteNonQueryAsync();
-                                            }
+                                            cmdStock.Parameters.AddWithValue("@diferenciaCantidad", diferenciaCantidad);
+                                            cmdStock.Parameters.AddWithValue("@codigo", codigo);
+                                            await cmdStock.ExecuteNonQueryAsync();
                                         }
                                     }
 
-                                    // Actualizar la venta usando el método existente
-                                    await ActualizarCantidadEnVentaActual(connection, transaction, codigo, nuevaCantidad, nuevoTotal);
+                                    // Actualizar la venta SOLO la fila seleccionada si no permite acumular
+                                    if (permiteAcumular)
+                                        await ActualizarCantidadEnVentaActual(connection, transaction, codigo, nuevaCantidad, nuevoTotal);
+                                    else
+                                        await ActualizarCantidadEnVentaActual(connection, transaction, codigo, nuevaCantidad, nuevoTotal, idVenta);
 
                                     transaction.Commit();
                                 }
@@ -2143,9 +2140,10 @@ namespace Comercio.NET
                     }
                 }
             }
+
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al editar cantidad: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al editar cantidad: {ex.Message}", "Error",
                               MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -2161,11 +2159,11 @@ namespace Comercio.NET
                 int numeroCajero = obtenerNumeroCajero();
 
                 var query = @"INSERT INTO AuditoriaEliminaciones 
-                             (Fecha, Hora, CodigoProducto, DescripcionProducto, PrecioUnitario, CantidadEliminada, 
-                              TotalEliminado, MotivoEliminacion, Usuario, NumeroCajero, NumeroRemito)
-                             VALUES 
-                             (@Fecha, @Hora, @Codigo, @Descripcion, @Precio, @Cantidad, @Total, @Motivo, 
-                              @Usuario, @Cajero, @NumeroRemito)";
+                         (Fecha, Hora, CodigoProducto, DescripcionProducto, PrecioUnitario, CantidadEliminada, 
+                          TotalEliminado, MotivoEliminacion, Usuario, NumeroCajero, NumeroRemito)
+                         VALUES 
+                         (@Fecha, @Hora, @Codigo, @Descripcion, @Precio, @Cantidad, @Total, @Motivo, 
+                          @Usuario, @Cajero, @NumeroRemito)";
 
                 using (var cmd = new SqlCommand(query, connection, transaction))
                 {
@@ -2202,8 +2200,8 @@ namespace Comercio.NET
         }
 
         // MÉTODO FALTANTE: ActualizarCantidadEnVentaActual (versión simplificada para eliminación parcial)
-        private async Task ActualizarCantidadEnVentaActual(SqlConnection connection, SqlTransaction transaction, 
-            string codigo, int nuevaCantidad, decimal nuevoTotal)
+        private async Task ActualizarCantidadEnVentaActual(SqlConnection connection, SqlTransaction transaction,
+            string codigo, int nuevaCantidad, decimal nuevoTotal, int? idVenta = null)
         {
             try
             {
@@ -2223,12 +2221,25 @@ namespace Comercio.NET
                 // Calcular el nuevo IVA
                 decimal nuevoIvaCalculado = CalcularIvaDesdeTotal(nuevoTotal, porcentajeIva);
 
-                var query = @"UPDATE Ventas 
-                             SET cantidad = @nuevaCantidad, 
-                                 total = @nuevoTotal,
-                                 IvaCalculado = @nuevoIvaCalculado,
-                                 PorcentajeIva = @porcentajeIva
-                             WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                string query;
+                if (idVenta.HasValue)
+                {
+                    query = @"UPDATE Ventas 
+                          SET cantidad = @nuevaCantidad, 
+                              total = @nuevoTotal,
+                              IvaCalculado = @nuevoIvaCalculado,
+                              PorcentajeIva = @porcentajeIva
+                          WHERE nrofactura = @nrofactura AND id = @id";
+                }
+                else
+                {
+                    query = @"UPDATE Ventas 
+                          SET cantidad = @nuevaCantidad, 
+                              total = @nuevoTotal,
+                              IvaCalculado = @nuevoIvaCalculado,
+                              PorcentajeIva = @porcentajeIva
+                         WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                }
 
                 using (var cmd = new SqlCommand(query, connection, transaction))
                 {
@@ -2237,7 +2248,10 @@ namespace Comercio.NET
                     cmd.Parameters.AddWithValue("@nuevoIvaCalculado", nuevoIvaCalculado);
                     cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
                     cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                    if (idVenta.HasValue)
+                        cmd.Parameters.AddWithValue("@id", idVenta.Value);
+                    else
+                        cmd.Parameters.AddWithValue("@codigo", codigo);
 
                     await cmd.ExecuteNonQueryAsync();
                 }
@@ -2257,30 +2271,31 @@ namespace Comercio.NET
         }
 
         // MÉTODO FALTANTE: EliminarDeVentaActual
-        private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo)
+        private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo, bool permiteAcumular, int? idVenta = null)
         {
             try
             {
-                var query = @"DELETE FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                string query;
+                if (permiteAcumular)
+                {
+                    query = @"DELETE FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                }
+                else
+                {
+                    query = @"DELETE FROM Ventas WHERE nrofactura = @nrofactura AND id = @id";
+                }
 
                 using (var cmd = new SqlCommand(query, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                    cmd.Parameters.AddWithValue("@codigo", codigo);
-                    
+                    if (permiteAcumular)
+                        cmd.Parameters.AddWithValue("@codigo", codigo);
+                    else
+                        cmd.Parameters.AddWithValue("@id", idVenta.Value);
+
                     int filasAfectadas = await cmd.ExecuteNonQueryAsync();
-
-                    // DEBUG: Confirmar eliminación
-                    System.Diagnostics.Debug.WriteLine($"=== ELIMINACIÓN PRODUCTO ===");
-                    System.Diagnostics.Debug.WriteLine($"Producto: {codigo}");
-                    System.Diagnostics.Debug.WriteLine($"Remito: {nroRemitoActual}");
-                    System.Diagnostics.Debug.WriteLine($"Filas eliminadas: {filasAfectadas}");
-                    System.Diagnostics.Debug.WriteLine($"============================");
-
                     if (filasAfectadas == 0)
-                    {
-                        throw new Exception($"No se encontró el producto {codigo} en la venta actual para eliminar");
-                    }
+                        throw new Exception("No se encontró el producto para eliminar.");
                 }
             }
             catch (Exception ex)
@@ -2301,7 +2316,7 @@ namespace Comercio.NET
 
                 // 2. Resetear los totales
                 lbCantidadProductos.Text = "Productos: 0";
-                
+
                 if (rtbTotal != null)
                 {
                     rtbTotal.Clear();
@@ -2329,7 +2344,6 @@ namespace Comercio.NET
                 {
                     chkCantidad.Checked = false;
                     cantidadPersonalizada = 1;
-                    chkCantidad.Text = "Cantidad";
                 }
 
                 // 5. Resetear variables de control
@@ -2356,7 +2370,7 @@ namespace Comercio.NET
             {
                 MessageBox.Show($"Error al limpiar la venta: {ex.Message}", "Error",
                               MessageBoxButtons.OK, MessageBoxIcon.Error);
-                
+
                 // En caso de error, al menos intentar limpiar lo básico
                 txtBuscarProducto.Text = "";
                 txtBuscarProducto.Focus();
