@@ -49,7 +49,7 @@
             controlFacturasToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator9 = new ToolStripSeparator();
             gestionUsuariosToolStripMenuItem = new ToolStripMenuItem();
-            configuracionSistemaToolStripMenuItem = new ToolStripMenuItem();
+            InformesToolStripMenuItem = new ToolStripMenuItem();
             viewMenu = new ToolStripMenuItem();
             toolBarToolStripMenuItem = new ToolStripMenuItem();
             statusBarToolStripMenuItem = new ToolStripMenuItem();
@@ -63,8 +63,8 @@
             helpMenu = new ToolStripMenuItem();
             indexToolStripMenuItem = new ToolStripMenuItem();
             searchToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator8 = new ToolStripSeparator();
             aboutToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator8 = new ToolStripSeparator();
             toolStrip = new ToolStrip();
             printPreviewToolStripButton = new ToolStripButton();
             toolStripSeparator1 = new ToolStripSeparator();
@@ -185,7 +185,7 @@
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, configuracionSistemaToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem });
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";
@@ -223,11 +223,12 @@
             gestionUsuariosToolStripMenuItem.Text = "👥 Gestión Usuarios";
             gestionUsuariosToolStripMenuItem.Click += gestionUsuariosToolStripMenuItem_Click;
             // 
-            // configuracionSistemaToolStripMenuItem
+            // InformesToolStripMenuItem
             // 
-            configuracionSistemaToolStripMenuItem.Name = "configuracionSistemaToolStripMenuItem";
-            configuracionSistemaToolStripMenuItem.Size = new Size(180, 22);
-            configuracionSistemaToolStripMenuItem.Click += configuracionSistemaToolStripMenuItem_Click_1;
+            InformesToolStripMenuItem.Name = "InformesToolStripMenuItem";
+            InformesToolStripMenuItem.Size = new Size(180, 22);
+            InformesToolStripMenuItem.Text = "Informes";
+            InformesToolStripMenuItem.Click += configuracionSistemaToolStripMenuItem_Click_1;
             // 
             // viewMenu
             // 
@@ -328,16 +329,16 @@
             searchToolStripMenuItem.Size = new Size(147, 22);
             searchToolStripMenuItem.Text = "&Buscar";
             // 
-            // toolStripSeparator8
-            // 
-            toolStripSeparator8.Name = "toolStripSeparator8";
-            toolStripSeparator8.Size = new Size(6, 25);
-            // 
             // aboutToolStripMenuItem
             // 
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
             aboutToolStripMenuItem.Size = new Size(147, 22);
             aboutToolStripMenuItem.Text = "&Acerca de... ...";
+            // 
+            // toolStripSeparator8
+            // 
+            toolStripSeparator8.Name = "toolStripSeparator8";
+            toolStripSeparator8.Size = new Size(6, 25);
             // 
             // toolStrip
             // 
@@ -403,6 +404,7 @@
             // toolStripGestionUsuarios
             // 
             toolStripGestionUsuarios.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolStripGestionUsuarios.Image = Properties.Resources.UserAdd;
             toolStripGestionUsuarios.ImageTransparentColor = Color.Magenta;
             toolStripGestionUsuarios.Name = "toolStripGestionUsuarios";
             toolStripGestionUsuarios.Size = new Size(23, 22);
@@ -510,7 +512,7 @@
         private ToolStripSeparator toolStripSeparator6;
         private ToolStripSeparator toolStripSeparator7;
         private ToolStripButton toolStripGestionUsuarios;
-        private ToolStripMenuItem configuracionSistemaToolStripMenuItem;
+        private ToolStripMenuItem InformesToolStripMenuItem;
         private ToolStripButton toolStripConfiguracion;
         private ToolStripSeparator toolStripSeparator9;
         private ToolStripMenuItem gestionUsuariosToolStripMenuItem;

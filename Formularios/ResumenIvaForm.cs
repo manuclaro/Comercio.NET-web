@@ -634,6 +634,7 @@ namespace Comercio.NET.Formularios
                         INNER JOIN Ventas v ON f.NumeroRemito = v.NroFactura
                         INNER JOIN Productos p ON v.codigo = p.codigo
                         WHERE CAST(f.Fecha AS DATE) = @fecha 
+                        AND f.TipoFactura IN ('FacturaA', 'FacturaB') -- <--- FILTRO SOLO FACTURAS A Y B
                         GROUP BY p.iva
                         HAVING SUM(v.total) > 0
                         ORDER BY p.iva DESC";

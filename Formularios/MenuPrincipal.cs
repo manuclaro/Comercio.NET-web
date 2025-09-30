@@ -323,9 +323,9 @@ namespace Comercio.NET
                 // Solo mostrar configuración a administradores
                 bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
 
-                if (configuracionSistemaToolStripMenuItem != null)
+                if (InformesToolStripMenuItem != null)
                 {
-                    configuracionSistemaToolStripMenuItem.Visible = esAdministrador;
+                    InformesToolStripMenuItem.Visible = esAdministrador;
                 }
 
                 if (toolStripConfiguracion != null)
@@ -340,8 +340,8 @@ namespace Comercio.NET
                     gestionUsuariosToolStripMenuItem.Visible = false;
                 if (toolStripGestionUsuarios != null)
                     toolStripGestionUsuarios.Visible = false;
-                if (configuracionSistemaToolStripMenuItem != null)
-                    configuracionSistemaToolStripMenuItem.Visible = false;
+                if (InformesToolStripMenuItem != null)
+                    InformesToolStripMenuItem.Visible = false;
                 if (toolStripConfiguracion != null)
                     toolStripConfiguracion.Visible = false;
             }
@@ -635,7 +635,9 @@ namespace Comercio.NET
 
         private void configuracionSistemaToolStripMenuItem_Click_1(object sender, EventArgs e)
         {
-
+            var informesForm = new InformesForm();
+            informesForm.MdiParent = this;
+            informesForm.Show();
         }
     }
 }
