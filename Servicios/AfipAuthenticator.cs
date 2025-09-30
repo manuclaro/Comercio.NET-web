@@ -1,13 +1,14 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
+using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
+using System.ServiceModel;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using System.Net.Http;
-using System.ServiceModel;
-using System.Security.Cryptography.Pkcs;
-using System.Collections.Generic;
 
 namespace Comercio.NET.Servicios
 {
@@ -26,7 +27,8 @@ namespace Comercio.NET.Servicios
             public bool IsValid => DateTime.UtcNow < ExpirationTime.AddMinutes(-5); // 5 min de margen
         }
 
-        public static async Task<(string token, string sign)> GetTAAsync(string service, string pfxPath, string pfxPassword, string wsaaUrl)
+        public static async Task<(string token, string sign, DateTime expiration)> GetTAAsync(
+                                    string service, string pfxPath, string pfxPassword, string wsaaUrl)
         {
             try
             {
@@ -37,7 +39,7 @@ namespace Comercio.NET.Servicios
                 {
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Usando token en caché para servicio: {service}");
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Token expira en: {cachedToken.ExpirationTime}");
-                    return (cachedToken.Token, cachedToken.Sign);
+                    return (cachedToken.Token, cachedToken.Sign, cachedToken.ExpirationTime);
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[AFIP] Token no encontrado en caché o expirado, obteniendo nuevo token...");
@@ -45,6 +47,8 @@ namespace Comercio.NET.Servicios
                 // MODIFICADO: Intentar obtener token de AFIP con manejo especial
                 try
                 {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Iniciando autenticación para servicio: {service}");
+
                     var (token, sign, expirationTime) = await TryGetNewTokenFromAfip(service, pfxPath, pfxPassword, wsaaUrl);
 
                     // NUEVO: Guardar en caché
@@ -57,7 +61,7 @@ namespace Comercio.NET.Servicios
 
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Token guardado en caché hasta: {expirationTime}");
 
-                    return (token, sign);
+                    return (token, sign, expirationTime);
                 }
                 catch (TokenAlreadyExistsException ex)
                 {
@@ -74,7 +78,7 @@ namespace Comercio.NET.Servicios
                     _tokenCache[service] = placeholderToken;
 
                     // NUEVO: Devolver token especial que indica que hay que esperar
-                    return ("WAITING_FOR_EXPIRY", "WAITING_FOR_EXPIRY");
+                    return ("WAITING_FOR_EXPIRY", "WAITING_FOR_EXPIRY", DateTime.UtcNow.AddMinutes(10));
                 }
             }
             catch (Exception ex)
@@ -127,8 +131,10 @@ namespace Comercio.NET.Servicios
             string taXml = await SendToWSAA(cms, wsaaUrl);
             System.Diagnostics.Debug.WriteLine($"[AFIP] Respuesta WSAA recibida");
 
-            // Extraer token y sign del XML de respuesta
-            return ExtractTokenAndSign(taXml);
+            // CORREGIDO: Usar el método robusto para extraer token, sign y expiración
+            var (token, sign, expirationTime) = ExtractTokenAndSign(taXml);
+
+            return (token, sign, expirationTime);
         }
 
         // CORREGIDO: Formato exacto del TRA según especificaciones AFIP
@@ -366,9 +372,8 @@ namespace Comercio.NET.Servicios
                 var xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(xmlResponse);
 
-                // CORREGIDO: Primero extraer el contenido de loginCmsReturn y decodificarlo
                 var loginCmsReturnNode = xmlDoc.SelectSingleNode("//loginCmsReturn") ??
-                                        xmlDoc.SelectSingleNode("//*[local-name()='loginCmsReturn']");
+                                         xmlDoc.SelectSingleNode("//*[local-name()='loginCmsReturn']");
 
                 if (loginCmsReturnNode == null)
                 {
@@ -378,26 +383,22 @@ namespace Comercio.NET.Servicios
                     throw new Exception("No se encontró el nodo loginCmsReturn en la respuesta de AFIP");
                 }
 
-                // NUEVO: Decodificar las entidades HTML del contenido
                 string decodedXml = System.Net.WebUtility.HtmlDecode(loginCmsReturnNode.InnerText);
 
                 System.Diagnostics.Debug.WriteLine($"[AFIP] XML decodificado:");
                 System.Diagnostics.Debug.WriteLine(decodedXml);
 
-                // NUEVO: Cargar el XML decodificado en un nuevo documento
                 var decodedDoc = new XmlDocument();
                 decodedDoc.LoadXml(decodedXml);
 
-                // CORREGIDO: Buscar token y sign en el XML decodificado
                 var tokenNode = decodedDoc.SelectSingleNode("//token") ??
-                               decodedDoc.SelectSingleNode("//*[local-name()='token']");
+                                decodedDoc.SelectSingleNode("//*[local-name()='token']");
 
                 var signNode = decodedDoc.SelectSingleNode("//sign") ??
-                              decodedDoc.SelectSingleNode("//*[local-name()='sign']");
+                               decodedDoc.SelectSingleNode("//*[local-name()='sign']");
 
-                // NUEVO: Extraer fecha de expiración
                 var expirationNode = decodedDoc.SelectSingleNode("//expirationTime") ??
-                                    decodedDoc.SelectSingleNode("//*[local-name()='expirationTime']");
+                                     decodedDoc.SelectSingleNode("//*[local-name()='expirationTime']");
 
                 if (tokenNode == null || signNode == null)
                 {
@@ -405,14 +406,11 @@ namespace Comercio.NET.Servicios
                     System.Diagnostics.Debug.WriteLine($"[AFIP] XML decodificado completo:");
                     System.Diagnostics.Debug.WriteLine(decodedXml);
 
-                    // Intentar buscar errores en la respuesta
                     var errorNode = decodedDoc.SelectSingleNode("//faultstring") ??
-                                   decodedDoc.SelectSingleNode("//*[local-name()='faultstring']");
+                                    decodedDoc.SelectSingleNode("//*[local-name()='faultstring']");
 
                     if (errorNode != null)
-                    {
                         throw new Exception($"Error de AFIP: {errorNode.InnerText}");
-                    }
 
                     throw new Exception("No se pudo extraer token y sign del XML decodificado de AFIP");
                 }
@@ -420,11 +418,19 @@ namespace Comercio.NET.Servicios
                 string token = tokenNode.InnerText;
                 string sign = signNode.InnerText;
 
-                // NUEVO: Parsear fecha de expiración
-                DateTime expirationTime = DateTime.UtcNow.AddHours(12); // Default 12 horas
-                if (expirationNode != null && DateTime.TryParse(expirationNode.InnerText, out var parsedExpiration))
+                // Validar y parsear fecha de expiración
+                if (expirationNode == null || string.IsNullOrWhiteSpace(expirationNode.InnerText))
                 {
-                    expirationTime = parsedExpiration.ToUniversalTime();
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ERROR: No se encontró el nodo expirationTime o está vacío.");
+                    throw new Exception("No se pudo extraer la fecha de expiración del XML de AFIP.");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] expirationTime string: {expirationNode.InnerText}");
+
+                if (!DateTime.TryParse(expirationNode.InnerText, null, System.Globalization.DateTimeStyles.AdjustToUniversal, out var expirationTime))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ERROR: No se pudo parsear la fecha de expiración: {expirationNode.InnerText}");
+                    throw new Exception($"No se pudo parsear la fecha de expiración del TA: {expirationNode.InnerText}");
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[AFIP] Token extraído exitosamente. Length: {token.Length}");
@@ -577,7 +583,7 @@ namespace Comercio.NET.Servicios
                     return (false, "⚠️ Los servicios de AFIP no están disponibles temporalmente. Intente más tarde.", null, null);
                 }
 
-                var (token, sign) = await GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+                var (token, sign, expiration) = await GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
 
                 return (true, "Autenticación AFIP exitosa", token, sign);
             }

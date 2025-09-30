@@ -442,143 +442,71 @@ namespace Comercio.NET
                 string pfxPassword = "Micertificado";
                 string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
 
-                DebugMessage("Configuración cargada - Verificando certificado...");
-
                 // Verificar certificado antes de usarlo
                 var (valido, mensaje, vence) = AfipAuthenticator.VerificarCertificado(pfxPath, pfxPassword);
-
                 if (!valido)
                 {
                     MessageBox.Show($"❌ Problema con el certificado AFIP:\n\n{mensaje}", "Error Certificado", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
 
-                if (mensaje.Contains("⚠️"))
-                {
-                    DebugMessage($"ADVERTENCIA: {mensaje}");
-                }
-
-                DebugMessage("Certificado verificado, obteniendo token...");
-
-                // NUEVA ESTRATEGIA: Sistema de caché más robusto
                 string token = null, sign = null;
-                
-                // 1. Verificar caché local primero
-                DebugMessage("1. Verificando caché local...");
-                bool cacheLocalValido = !string.IsNullOrEmpty(_cachedTokenWsfe) && 
-                                       !string.IsNullOrEmpty(_cachedSignWsfe) && 
-                                       _cachedTokenExpiryWsfe > DateTime.UtcNow.AddMinutes(5);
+                DateTime expiracion = DateTime.MinValue;
 
-                if (cacheLocalValido)
+                // 1. Verificar caché local
+                if (!string.IsNullOrEmpty(_cachedTokenWsfe) && !string.IsNullOrEmpty(_cachedSignWsfe) && _cachedTokenExpiryWsfe > DateTime.UtcNow.AddMinutes(5))
                 {
-                    DebugMessage("✅ Usando token del caché local válido");
                     token = _cachedTokenWsfe;
                     sign = _cachedSignWsfe;
+                    expiracion = _cachedTokenExpiryWsfe;
+                    DebugMessage("✅ Usando token del caché local válido");
                 }
+                // 2. Verificar caché de AfipAuthenticator
+                else if (AfipAuthenticator.GetExistingToken("wsfe") is { } tokenExistente && 
+                         !string.IsNullOrEmpty(tokenExistente.token) && !string.IsNullOrEmpty(tokenExistente.sign))
+                {
+                    token = tokenExistente.token;
+                    sign = tokenExistente.sign;
+                    DebugMessage("✅ Token encontrado en caché de AfipAuthenticator");
+                    _cachedTokenWsfe = token;
+                    _cachedSignWsfe = sign;
+                    // No actualices expiración aquí porque no la tienes real
+                }
+                // 3. Verificar archivo persistente
                 else
                 {
-                    // 2. Verificar caché de AfipAuthenticator
-                    DebugMessage("2. Verificando caché de AfipAuthenticator...");
-                    var tokenExistente = AfipAuthenticator.GetExistingToken("wsfe");
-                    
-                    if (tokenExistente.HasValue && !string.IsNullOrEmpty(tokenExistente.Value.token) && !string.IsNullOrEmpty(tokenExistente.Value.sign))
+                    var (tokenPersistente, signPersistente, expiracionPersistente) = CargarTokenPersistente();
+                    if (!string.IsNullOrEmpty(tokenPersistente) && !string.IsNullOrEmpty(signPersistente) && expiracionPersistente > DateTime.UtcNow.AddMinutes(5))
                     {
-                        DebugMessage("✅ Token encontrado en caché de AfipAuthenticator");
-                        token = tokenExistente.Value.token;
-                        sign = tokenExistente.Value.sign;
-                        
-                        // Actualizar caché local
+                        token = tokenPersistente;
+                        sign = signPersistente;
+                        expiracion = expiracionPersistente;
+                        DebugMessage("✅ Token válido encontrado en caché persistente");
                         _cachedTokenWsfe = token;
                         _cachedSignWsfe = sign;
-                        _cachedTokenExpiryWsfe = DateTime.UtcNow.AddHours(12);
+                        _cachedTokenExpiryWsfe = expiracion;
                     }
                     else
                     {
-                        // 3. NUEVO: Intentar recuperar token persistente desde archivo
-                        DebugMessage("3. Verificando archivo de caché persistente...");
-                        var (tokenPersistente, signPersistente, expiracionPersistente) = CargarTokenPersistente();
-                        
-                        if (!string.IsNullOrEmpty(tokenPersistente) && 
-                            !string.IsNullOrEmpty(signPersistente) && 
-                            expiracionPersistente > DateTime.UtcNow.AddMinutes(5))
+                        // 4. Obtener uno nuevo automáticamente de AFIP
+                        DebugMessage("⏳ No hay token válido, obteniendo uno nuevo de AFIP automáticamente...");
+                        var (nuevoToken, nuevoSign, nuevaExpiracion) = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
+                        if (!string.IsNullOrEmpty(nuevoToken) && !string.IsNullOrEmpty(nuevoSign))
                         {
-                            DebugMessage("✅ Token válido encontrado en caché persistente");
-                            token = tokenPersistente;
-                            sign = signPersistente;
-                            
-                            // Actualizar cachés
-                            _cachedTokenWsfe = token;
-                            _cachedSignWsfe = sign;
-                            _cachedTokenExpiryWsfe = expiracionPersistente;
+                            token = nuevoToken;
+                            sign = nuevoSign;
+                            expiracion = nuevaExpiracion;
+                            ActualizarTodosLosCaches(token, sign, expiracion);
+                            GuardarTokenPersistente(token, sign, expiracion);
+                            DebugMessage("✅ Nuevo token obtenido y guardado en caché");
                         }
                         else
                         {
-                            // 4. ÚLTIMO RECURSO: Mostrar estrategias al usuario
-                            DebugMessage("4. No hay tokens válidos, consultando al usuario...");
-                            
-                            var estrategiaElegida = MostrarOpcionesToken();
-                            
-                            switch (estrategiaElegida)
-                            {
-                                case EstrategiaToken.Esperar:
-                                    DebugMessage("Usuario eligió esperar - Aplicando delay de 15 segundos...");
-                                    await Task.Delay(15000); // Esperar 15 segundos
-                                    
-                                    // Limpiar todos los cachés
-                                    LimpiarTodosLosCaches();
-                                    
-                                    try
-                                    {
-                                        DebugMessage("Reintentando obtener token después de espera...");
-                                        (token, sign) = await AfipAuthenticator.GetTAAsync("wsfe", pfxPath, pfxPassword, wsaaUrl);
-                                        DebugMessage($"✅ Token obtenido después de espera - Length: {token?.Length ?? 0}");
-                                        
-                                        // Guardar en todos los cachés
-                                        if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(sign))
-                                        {
-                                            var expiracion = DateTime.UtcNow.AddHours(12);
-                                            ActualizarTodosLosCaches(token, sign, expiracion);
-                                            GuardarTokenPersistente(token, sign, expiracion);
-                                        }
-                                    }
-                                    catch (Exception ex2)
-                                    {
-                                        DebugMessage($"❌ Reintento falló: {ex2.Message}");
-                                        MessageBox.Show(
-                                            "❌ No se pudo obtener token después de esperar\n\n" +
-                                            "💡 El token anterior sigue activo en AFIP.\n" +
-                                            "Intente nuevamente en 30-60 minutos o reinicie la aplicación completamente.", 
-                                            "Token AFIP Persistente", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                        return false;
-                                    }
-                                    break;
-                                    
-                                case EstrategiaToken.ReiniciarAplicacion:
-                                    MessageBox.Show(
-                                        "🔄 Reinicie la aplicación completamente\n\n" +
-                                        "💡 Cierre el programa y ábralo nuevamente.\n" +
-                                        "Esto limpiará todos los cachés y permitirá obtener un nuevo token.", 
-                                        "Reiniciar Aplicación", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                    return false;
-                                    
-                                case EstrategiaToken.Cancelar:
-                                default:
-                                    DebugMessage("Usuario canceló la operación");
-                                    return false;
-                            }
+                            MessageBox.Show("❌ No se pudo obtener un nuevo token de AFIP.", "Error Token AFIP", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
                         }
                     }
                 }
-
-                // Validar que tenemos tokens válidos
-                if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(sign))
-                {
-                    DebugMessage("❌ ERROR: No se pudieron obtener tokens válidos");
-                    MessageBox.Show("❌ No se pudieron obtener credenciales válidas de AFIP.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return false;
-                }
-
-                DebugMessage($"✅ Tokens válidos confirmados - Token length: {token.Length}, Sign length: {sign.Length}");
 
                 // Actualizar propiedades de instancia
                 TokenAfip = token;
@@ -1103,7 +1031,7 @@ namespace Comercio.NET
         private async Task<bool> EnsureTokenAndSignAsync()
         {
             // CORREGIDO: Declarar tipos explícitamente
-            (string tokenPadron, string signPadron) = await GetTokenAndSignAsync("ws_sr_padron_a5");
+            (var tokenPadron, var signPadron, _) = await GetTokenAndSignAsync("ws_sr_padron_a5");
 
             if (!string.IsNullOrEmpty(tokenPadron) && !string.IsNullOrEmpty(signPadron))
             {
@@ -1114,13 +1042,11 @@ namespace Comercio.NET
             return false;
         }
 
-        private async Task<(string token, string sign)> GetTokenAndSignAsync(string service)
+        private async Task<(string token, string sign, DateTime expiration)> GetTokenAndSignAsync(string service)
         {
             string pfxPath = @"C:\Certificados\certificado.pfx";
             string pfxPassword = "Micertificado";
             string wsaaUrl = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-            
-            // CAMBIO: Usar el servicio AfipAuthenticator en lugar de Ventas.AfipAuthenticator
             return await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
         }
 
@@ -1136,7 +1062,7 @@ namespace Comercio.NET
 
                 // CAMBIO: Usar el servicio AfipAuthenticator en lugar de Ventas.AfipAuthenticator
                 // CORREGIDO: Declarar tipos explícitamente
-                (string token, string sign) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
+                var (token, sign, expiration) = await AfipAuthenticator.GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
 
                 var client = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
                 
@@ -1161,8 +1087,6 @@ namespace Comercio.NET
         {
             try
             {
-                DebugMessage("[Impresión] >>> ENTRANDO a ImprimirTicketDespuesDeGuardar <<<");
-
                 DataTable datosTicket = formularioPadre?.GetRemitoActual();
 
                 if (datosTicket == null || datosTicket.Rows.Count == 0)
