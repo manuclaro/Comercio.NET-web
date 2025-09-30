@@ -13,12 +13,17 @@ namespace Comercio.NET.Formularios
 
         private TextBox txtCantidad; // Declarar como campo para acceder desde ConfigurarFormulario
 
+
         public ModalCantidadForm()
         {
             InitializeComponent();
             ConfigurarFormulario();
         }
-
+        public string DescripcionProducto
+        {
+            get => lblDescripcion.Text;
+            set => lblDescripcion.Text = value;
+        }
         private void ConfigurarFormulario()
         {
             this.Text = "Cantidad Personalizada";
@@ -34,7 +39,7 @@ namespace Comercio.NET.Formularios
             var lblTitulo = new Label
             {
                 Text = "Ingrese la cantidad:",
-                Location = new Point(20, 20),
+                Location = new Point(20, 40),
                 Size = new Size(250, 25),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(62, 80, 100)
@@ -43,7 +48,7 @@ namespace Comercio.NET.Formularios
             txtCantidad = new TextBox
             {
                 Name = "txtCantidad",
-                Location = new Point(20, 50),
+                Location = new Point(20, 60),
                 Size = new Size(100, 25),
                 Font = new Font("Segoe UI", 12F),
                 TextAlign = HorizontalAlignment.Center,
@@ -146,8 +151,26 @@ namespace Comercio.NET.Formularios
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();
-            this.ResumeLayout(false);
+            lblDescripcion = new Label();
+            SuspendLayout();
+            // 
+            // lblDescripcion
+            // 
+            lblDescripcion.AutoSize = true;
+            lblDescripcion.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lblDescripcion.Location = new Point(21, 9);
+            lblDescripcion.Name = "lblDescripcion";
+            lblDescripcion.Size = new Size(0, 17);
+            lblDescripcion.TabIndex = 0;
+            // 
+            // ModalCantidadForm
+            // 
+            ClientSize = new Size(284, 261);
+            Controls.Add(lblDescripcion);
+            Name = "ModalCantidadForm";
+            ResumeLayout(false);
+            PerformLayout();
         }
+        private Label lblDescripcion;
     }
 }

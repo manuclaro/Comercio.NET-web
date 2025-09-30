@@ -100,6 +100,7 @@ namespace Comercio.NET
             this.Load += Ventas_Load;
             btnFinalizarVenta.Click += btnFinalizarVenta_Click;
             cbnombreCtaCte.SelectedIndexChanged += cbnombreCtaCte_SelectedIndexChanged;
+            btnAgregar.Enter += (s, e) => btnAgregar.PerformClick();
 
             ConfigurarEventosTextBox();
             ConfigurarEventosDataGridView();
@@ -286,6 +287,13 @@ namespace Comercio.NET
             // NUEVO: Configuración adicional para mejor experiencia visual
             dataGridView1.RowTemplate.Height = 28; // Filas un poco más altas
             dataGridView1.GridColor = Color.FromArgb(220, 220, 220);
+
+            // Después de asignar el DataSource o en ConfigurarDataGridView, asegúrate de que la columna existe
+            if (dataGridView1.Columns["codigo"] != null)
+            {
+                dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dataGridView1.Columns["codigo"].Width = 100; // Puedes ajustar el valor a tu preferencia
+            }
         }
 
         private void btnSalir_Click(object sender, EventArgs e)
@@ -866,6 +874,8 @@ namespace Comercio.NET
                     dataGridView1.DataSource = dt;
                     remitoActual = dt;
                 }
+
+               
             }
 
             // Ocultar la columna id
@@ -911,6 +921,12 @@ namespace Comercio.NET
             if (dataGridView1.Columns["cantidad"] != null)
             {
                 dataGridView1.Columns["cantidad"].Width = 50;
+            }
+            // Después de asignar el DataSource o en ConfigurarDataGridView, asegúrate de que la columna existe
+            if (dataGridView1.Columns["codigo"] != null)
+            {
+                dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dataGridView1.Columns["codigo"].Width = 100; // Puedes ajustar el valor a tu preferencia
             }
             if (dataGridView1.Columns["total"] != null)
             {
@@ -1013,7 +1029,7 @@ namespace Comercio.NET
                 {
                     case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
                         config.TipoComprobante = "REMITO";
-                        config.NumeroComprobante = nroRemitoActual.ToString(); // Usar número de remito
+                        config.NumeroComprobante = $"Remito N° {nroRemitoActual}"; // Agrega la leyenda aquí
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
@@ -1450,6 +1466,12 @@ namespace Comercio.NET
                 columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 100, 0); // Verde oscuro
                 columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
+
+            if (dataGridView1.Columns["total"] != null)
+            {
+                dataGridView1.Columns["total"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+                dataGridView1.Columns["total"].DefaultCellStyle.ForeColor = Color.FromArgb(0, 80, 0); // Opcional
+            }
         }
 
         // Método para procesar códigos especiales de productos
@@ -1503,7 +1525,7 @@ namespace Comercio.NET
                 using (var cantidadForm = new ModalCantidadForm())
                 {
                     cantidadForm.CantidadInicial = cantidadPersonalizada; // CORREGIDO: Establecer cantidad inicial
-
+                    cantidadForm.DescripcionProducto = lbDescripcionProducto.Text;
                     if (cantidadForm.ShowDialog(this) == DialogResult.OK)
                     {
                         cantidadPersonalizada = cantidadForm.CantidadSeleccionada;
@@ -2055,6 +2077,7 @@ namespace Comercio.NET
                 {
                     cantidadForm.Text = "Editar Cantidad";
                     cantidadForm.CantidadInicial = cantidadActual;
+                    cantidadForm.DescripcionProducto = descripcion; // <-- Asigna la descripción aquí
 
                     if (cantidadForm.ShowDialog(this) == DialogResult.OK)
                     {
@@ -2269,6 +2292,8 @@ namespace Comercio.NET
                 throw new Exception($"Error al actualizar cantidad en venta: {ex.Message}");
             }
         }
+
+
 
         // MÉTODO FALTANTE: EliminarDeVentaActual
         private async Task EliminarDeVentaActual(SqlConnection connection, SqlTransaction transaction, string codigo, bool permiteAcumular, int? idVenta = null)

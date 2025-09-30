@@ -760,7 +760,7 @@ namespace Comercio.NET.Formularios
                     string numeroParaTicket;
                     if (datosFactura.TipoFactura == "Remito")
                     {
-                        numeroParaTicket = numeroRemito; // Usar número de remito
+                        numeroParaTicket = $"Remito N° {numeroRemito}"; // Usar número de remito
                     }
                     else
                     {
