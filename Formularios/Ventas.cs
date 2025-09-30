@@ -1537,7 +1537,13 @@ namespace Comercio.NET
         // Método para formatear número de factura para base de datos
         private string FormatearNumeroFacturaParaBD(int cbteTipo, int ptoVta, int numeroFactura)
         {
-            return $"{cbteTipo:D4}-{ptoVta:D5}-{numeroFactura:D8}";
+            string tipoTexto = cbteTipo switch
+            {
+                1 => "Factura A",
+                6 => "Factura B",
+                _ => cbteTipo.ToString("D4")
+            };
+            return $"{tipoTexto} N°:{ptoVta:D4}-{numeroFactura:D8}";
         }
 
         // Método para abrir formulario de agregar producto rápido

@@ -325,7 +325,7 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                DebugMessage($"Error en CrearFacturaAAsync: {ex.Message}");
+                DebugMessage($"{ex.Message} - {ex.GetType().Name}");
                 MessageBox.Show($"🚨 Error en CrearFacturaAAsync:\n{ex.Message}", 
                     "Error CrearFacturaAAsync", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
@@ -994,11 +994,10 @@ namespace Comercio.NET
             // Obtener la letra según el tipo de comprobante
             string letra = ObtenerLetraComprobante(cbteTipo);
             DebugMessage($"Letra obtenida: {letra}");
-            
+
             // FORMATO ESTÁNDAR AFIP: Letra + Espacio + PtoVenta(4) + Guión + Número(8)
             // Ejemplo: "A 0001-00000123" o "B 0001-00000456"
             string numeroFormateado = $"{letra} {ptoVta:D4}-{numeroFactura:D8}";
-            
             DebugMessage($"Número final formateado: {numeroFormateado}");
             DebugMessage($"=== FIN FORMATEO ===");
             
@@ -1162,48 +1161,60 @@ namespace Comercio.NET
         {
             try
             {
+                DebugMessage("[Impresión] >>> ENTRANDO a ImprimirTicketDespuesDeGuardar <<<");
+
                 DataTable datosTicket = formularioPadre?.GetRemitoActual();
-                
+
                 if (datosTicket == null || datosTicket.Rows.Count == 0)
                 {
                     MessageBox.Show("No hay productos para imprimir.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
-                // CORREGIDO: Determinar el número correcto a mostrar
                 string numeroParaTicket;
                 if (tipoComprobante == "REMITO")
                 {
-                    // Para remitos, usar el número de remito
                     numeroParaTicket = formularioPadre?.GetNroRemitoActual().ToString() ?? numeroComprobante;
+                    DebugMessage($"[Impresión] Remito - númeroParaTicket: {numeroParaTicket}");
                 }
                 else
                 {
-                    // CORRECCIÓN: Para facturas, determinar correctamente el tipo
                     if (NumeroFacturaAfip > 0)
                     {
-                        // CORREGIDO: Determinar correctamente el cbteTipo según el tipo de comprobante
                         int cbteTipo;
+                        string leyenda = "";
                         if (tipoComprobante == "FacturaA")
                         {
-                            cbteTipo = 1; // Factura A
+                            cbteTipo = 1;
+                            leyenda = "Factura A N° ";
                         }
                         else if (tipoComprobante == "FacturaB")
                         {
-                            cbteTipo = 6; // Factura B
+                            cbteTipo = 6;
+                            leyenda = "Factura B N° ";
                         }
                         else
                         {
-                            // Por defecto, asumir Factura B si no se especifica
                             cbteTipo = 6;
+                            leyenda = "Factura N° ";
                         }
 
-                        numeroParaTicket = FormatearNumeroFactura(cbteTipo, 1, NumeroFacturaAfip);
-                        DebugMessage($"Tipo: {tipoComprobante} → cbteTipo: {cbteTipo} → Número: {numeroParaTicket}");
+                        string numeroFormateado = FormatearNumeroFactura(cbteTipo, 1, NumeroFacturaAfip);
+                        DebugMessage($"[Impresión] Antes de manipular: leyenda='{leyenda}', numeroFormateado='{numeroFormateado}'");
+
+                        // Quitar la letra y el espacio inicial si lo deseas
+                        if (numeroFormateado.Length > 2 && (numeroFormateado[0] == 'A' || numeroFormateado[0] == 'B' || numeroFormateado[0] == 'C' || numeroFormateado[0] == 'M'))
+                            numeroFormateado = numeroFormateado.Substring(2);
+
+                        DebugMessage($"[Impresión] Después de manipular: numeroFormateado='{numeroFormateado}'");
+
+                        numeroParaTicket = $"{leyenda}{numeroFormateado}";
+                        DebugMessage($"[Impresión] Final numeroParaTicket: '{numeroParaTicket}'");
                     }
                     else
                     {
                         numeroParaTicket = numeroComprobante;
+                        DebugMessage($"[Impresión] Sin NumeroFacturaAfip, numeroParaTicket: '{numeroParaTicket}'");
                     }
                 }
 
@@ -1224,6 +1235,8 @@ namespace Comercio.NET
                         config.CUIT = txtCuit.Text.Trim();
                     }
                 }
+
+                DebugMessage($"[Impresión] Llamando a ImprimirTicket con NumeroComprobante: '{config.NumeroComprobante}'");
 
                 using (var ticketService = new TicketPrintingService())
                 {
