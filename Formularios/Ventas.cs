@@ -964,7 +964,7 @@ namespace Comercio.NET
             rtbTotal.AppendText($"IVA: {sumaIva:C2}");
         }
 
-        // Método btnFinalizarVenta_Click
+        // Método btnFinalizarVenta_Click - CORREGIDO
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
@@ -995,8 +995,8 @@ namespace Comercio.NET
 
                 if (resultado == DialogResult.OK)
                 {
-                    // SIMPLIFICADO: Solo llamar al servicio de impresión
-                    ImprimirConServicio(seleccion);
+                    // CORREGIDO: Usar await para esperar que se complete la impresión
+                    await ImprimirConServicioAsync(seleccion);
 
                     // Limpiar y reiniciar para nueva venta
                     LimpiarYReiniciarVenta();
@@ -1004,8 +1004,8 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO método simplificado para manejar la impresión
-        private void ImprimirConServicio(SeleccionImpresionForm seleccion)
+        // NUEVO: Método async separado para la impresión
+        private async Task ImprimirConServicioAsync(SeleccionImpresionForm seleccion)
         {
             try
             {
@@ -1029,36 +1029,42 @@ namespace Comercio.NET
                 {
                     case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
                         config.TipoComprobante = "REMITO";
-                        config.NumeroComprobante = $"Remito N° {nroRemitoActual}"; // Agrega la leyenda aquí
+                        config.NumeroComprobante = $"Remito N° {nroRemitoActual}";
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
-                        config.TipoComprobante = "FACTURA";
-                        // NUEVO: Formatear número de factura para mostrar
+                        config.TipoComprobante = "FacturaB"; // CORREGIDO: Usar "FacturaB" específicamente
                         config.NumeroComprobante = FormatearNumeroFacturaParaBD(6, 1, seleccion.NumeroFacturaAfip);
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaA:
-                        config.TipoComprobante = "FACTURA";
-                        // NUEVO: Formatear número de factura para mostrar
+                        config.TipoComprobante = "FacturaA"; // CORREGIDO: Usar "FacturaA" específicamente
                         config.NumeroComprobante = FormatearNumeroFacturaParaBD(1, 1, seleccion.NumeroFacturaAfip);
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
-                        // Obtener CUIT del formulario de selección si es necesario
                         break;
                 }
 
-                // Usar el servicio de impresión
+                System.Diagnostics.Debug.WriteLine("🖨️ === INICIO IMPRESIÓN ===");
+                System.Diagnostics.Debug.WriteLine($"TipoComprobante configurado: {config.TipoComprobante}");
+                System.Diagnostics.Debug.WriteLine($"NumeroComprobante: {config.NumeroComprobante}");
+                System.Diagnostics.Debug.WriteLine($"CAE: {config.CAE}");
+                System.Diagnostics.Debug.WriteLine($"===========================");
+
+                // CORREGIDO: Usar await con el servicio de impresión
                 using (var ticketService = new TicketPrintingService())
                 {
-                    ticketService.ImprimirTicket(remitoActual, config);
+                    await ticketService.ImprimirTicket(remitoActual, config);
                 }
+
+                System.Diagnostics.Debug.WriteLine("✅ Impresión completada correctamente");
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"❌ Error en impresión: {ex.Message}");
             }
         }
 

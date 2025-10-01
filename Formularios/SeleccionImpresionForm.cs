@@ -1082,8 +1082,8 @@ namespace Comercio.NET
             }
         }
 
-        // CORREGIDO: Método de impresión con lógica correcta para tipos de factura
-        public void ImprimirTicketDespuesDeGuardar(string tipoComprobante, string numeroComprobante)
+        // CORREGIDO: Método de impresión con await
+        public async Task ImprimirTicketDespuesDeGuardar(string tipoComprobante, string numeroComprobante)
         {
             try
             {
@@ -1154,6 +1154,7 @@ namespace Comercio.NET
                 {
                     config.CAE = CAENumero;
                     config.CAEVencimiento = CAEVencimiento;
+                    config.FormaPago = OpcionPagoSeleccionada.ToString(); // AGREGADO
                     if (tipoComprobante == "FacturaA")
                     {
                         config.CUIT = txtCuit.Text.Trim();
@@ -1161,10 +1162,12 @@ namespace Comercio.NET
                 }
 
                 DebugMessage($"[Impresión] Llamando a ImprimirTicket con NumeroComprobante: '{config.NumeroComprobante}'");
+                DebugMessage($"[Impresión] TipoComprobante: '{config.TipoComprobante}'");
 
                 using (var ticketService = new TicketPrintingService())
                 {
-                    ticketService.ImprimirTicket(datosTicket, config);
+                    // CORREGIDO: Usar await para esperar que se complete la carga de datos IVA
+                    await ticketService.ImprimirTicket(datosTicket, config);
                 }
             }
             catch (Exception ex)
