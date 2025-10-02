@@ -583,10 +583,10 @@ namespace Comercio.NET.Formularios
                 }
 
                 // Actualizar título para mostrar el tipo de ventas
-                string tipoVenta = chkCtaCte.Checked ? " (Cuenta Corriente)" : "";
+                string tipoVenta = chkCtaCte.Checked ? "Cuenta Corriente" : "Contado";
                 lblTitulo.Text = fecha.Date == DateTime.Today 
-                    ? $"Control de Facturas - Ventas del Día{tipoVenta}" 
-                    : $"Control de Facturas - Ventas del {fecha:dd/MM/yyyy}{tipoVenta}";
+                    ? $"Control de Facturas - Ventas del Día ({tipoVenta})" 
+                    : $"Control de Facturas - Ventas del {fecha:dd/MM/yyyy} ({tipoVenta})";
             }
             catch (Exception ex)
             {
@@ -760,7 +760,7 @@ namespace Comercio.NET.Formularios
                     string numeroParaTicket;
                     if (datosFactura.TipoFactura == "Remito")
                     {
-                        numeroParaTicket = $"Remito N° {numeroRemito}"; // Usar número de remito
+                        numeroParaTicket = numeroRemito; // Usar número de remito
                     }
                     else
                     {

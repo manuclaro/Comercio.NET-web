@@ -52,7 +52,7 @@ namespace Comercio.NET.Servicios
             configuracion = config;
 
             // NUEVO: Si es factura, obtener datos de IVA ANTES de mostrar el preview
-            if (config.TipoComprobante.Contains("Factura"))
+            if (config.TipoComprobante.Contains("Factura") || config.TipoComprobante.Contains("FACTURA"))
             {
                 System.Diagnostics.Debug.WriteLine("🔍 Detectada factura, cargando datos IVA...");
                 await CargarDatosIvaParaFactura();
@@ -81,7 +81,7 @@ namespace Comercio.NET.Servicios
             configuracion = config;
 
             // NUEVO: Si es factura, obtener datos de IVA ANTES de imprimir
-            if (config.TipoComprobante.Contains("Factura"))
+            if (config.TipoComprobante.Contains("Factura") || config.TipoComprobante.Contains("FACTURA"))
             {
                 await CargarDatosIvaParaFactura();
             }
@@ -215,11 +215,16 @@ namespace Comercio.NET.Servicios
             y = ImprimirTituloComprobante(e.Graphics, fontBold, leftMargin, rightMargin, y);
 
             // 4. ENCABEZADOS DE TABLA Y DETALLE DE PRODUCTOS
-            if (configuracion.TipoComprobante.Contains("Factura") && productosConIva != null && productosConIva.Count > 0)
+            // MEJORADO: Detectar mejor si es una factura
+            bool esFactura = configuracion.TipoComprobante.Contains("Factura") || 
+                           configuracion.TipoComprobante.Contains("FACTURA") ||
+                           !string.IsNullOrEmpty(configuracion.CAE);
+                           
+            if (esFactura && productosConIva != null && productosConIva.Count > 0)
             {
-                // FORMATO FACTURA: Con alícuota IVA
-                System.Diagnostics.Debug.WriteLine("🎯 Usando formato FACTURA con IVA");
-                y = ImprimirFacturaConIva(e.Graphics, fontNormal, fontBold, leftMargin, rightMargin, anchoTotal, y);
+                // FORMATO FACTURA: Con alícuota IVA usando el mismo formato del formulario
+                System.Diagnostics.Debug.WriteLine("🎯 Usando formato FACTURA con IVA (formato Control de Facturas)");
+                y = ImprimirFacturaConIvaFormatoControlFacturas(e.Graphics, fontNormal, fontBold, leftMargin, rightMargin, anchoTotal, y);
             }
             else
             {
@@ -241,8 +246,251 @@ namespace Comercio.NET.Servicios
             }
         }
 
-        // NUEVO: Método para imprimir factura con datos de IVA - AJUSTADO ALINEACIÓN IVA
-        
+        // NUEVO: Método para imprimir factura con el MISMO formato que Control de Facturas
+        private float ImprimirFacturaConIvaFormatoControlFacturas(Graphics graphics, Font fontNormal, Font fontBold, float leftMargin, float rightMargin, float anchoTotal, float y)
+        {
+            System.Diagnostics.Debug.WriteLine("🎯 Ejecutando ImprimirFacturaConIvaFormatoControlFacturas - MISMO FORMATO que Control de Facturas");
+            Pen linePen = new Pen(Color.Black, 1);
+
+            // FORMATO EXACTO DEL CONTROL DE FACTURAS: Descripción | Precio Unit. | Cantidad | Total
+            // Mismas proporciones que en el DataGridView del formulario
+            float colDescripcion = anchoTotal * 0.50f;    // 50% para descripción (igual que formulario)
+            float colPrecioUnit = anchoTotal * 0.20f;     // 20% para precio unitario
+            float colCantidad = anchoTotal * 0.10f;       // 10% para cantidad
+            float colTotal = anchoTotal * 0.20f;          // 20% para total
+
+            float[] colX = {
+                leftMargin,
+                leftMargin + colDescripcion,
+                leftMargin + colDescripcion + colPrecioUnit,
+                leftMargin + colDescripcion + colPrecioUnit + colCantidad
+            };
+
+            float tablaRight = leftMargin + anchoTotal;
+
+            // ENCABEZADOS EXACTOS DEL FORMULARIO CONTROL DE FACTURAS
+            string[] headers = { "PRODUCTO", "PRECIO UNIT.", "C", "TOTAL" };
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                float headerX = colX[i];
+                SizeF headerSize = graphics.MeasureString(headers[i], fontBold);
+
+                // Alineación según la columna (mismo estilo que formulario)
+                switch (i)
+                {
+                    case 0: // Producto - izquierda
+                        // Ya está alineado a la izquierda
+                        break;
+                    case 1: // Precio Unit. - centrado (como en formulario)
+                        headerX += (colPrecioUnit - headerSize.Width) / 2;
+                        break;
+                    case 2: // Cantidad - centrado
+                        headerX += (colCantidad - headerSize.Width) / 2;
+                        break;
+                    case 3: // Total - centrado (como en formulario)
+                        headerX += (colTotal - headerSize.Width) / 2;
+                        break;
+                }
+
+                graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
+            }
+
+            y += 16;
+
+            // LÍNEA SEPARADORA
+            graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 4;
+
+            // DETALLE DE PRODUCTOS CON FORMATO EXACTO DEL FORMULARIO
+            int cantidadTotal = 0;
+            decimal sumaTotal = 0;
+            float rowHeight = 16;
+
+            // Fuente para IVA (igual que en formulario)
+            Font fontIva = new Font("Arial", 6, FontStyle.Regular);
+            Brush ivaGrayBrush = new SolidBrush(Color.FromArgb(100, 100, 100));
+
+            System.Diagnostics.Debug.WriteLine($"🔄 Imprimiendo {productosConIva.Count} productos con formato Control de Facturas");
+
+            foreach (var producto in productosConIva)
+            {
+                float filaYInicial = y;
+
+                // DESCRIPCIÓN con texto de IVA al final de la línea (como en formulario)
+                string descripcionCompleta = producto.Descripcion;
+                string textoIva = producto.AlicuotaIva > 0 ? $"({producto.AlicuotaIva:N1}%)" : "";
+                
+                // Calcular espacio disponible para descripción
+                float anchoDisponibleDescripcion = colDescripcion - 4; // Margen interno
+                
+                // Si hay texto de IVA, reservar espacio
+                SizeF ivaSize = SizeF.Empty;
+                if (!string.IsNullOrEmpty(textoIva))
+                {
+                    ivaSize = graphics.MeasureString(textoIva, fontIva);
+                    anchoDisponibleDescripcion -= ivaSize.Width + 8; // Espacio para IVA + margen
+                }
+                
+                // Dividir descripción en líneas
+                List<string> lineasDescripcion = DividirTextoEnLineasMejorado(graphics, descripcionCompleta, fontNormal, anchoDisponibleDescripcion);
+
+                // PRECIO UNITARIO centrado (formato formulario)
+                string precioStr = producto.Precio.ToString("C2");
+                SizeF precioSize = graphics.MeasureString(precioStr, fontNormal);
+                float precioX = colX[1] + (colPrecioUnit - precioSize.Width) / 2;
+
+                // CANTIDAD centrada (formato formulario)
+                string cantidadStr = producto.Cantidad.ToString();
+                cantidadTotal += producto.Cantidad;
+                SizeF cantidadSize = graphics.MeasureString(cantidadStr, fontNormal);
+                float cantidadX = colX[2] + (colCantidad - cantidadSize.Width) / 2;
+
+                // TOTAL centrado (formato formulario)
+                decimal total = producto.Subtotal;
+                sumaTotal += total;
+                string totalStr = total.ToString("C2");
+                SizeF totalSize = graphics.MeasureString(totalStr, fontNormal);
+                float totalX = colX[3] + (colTotal - totalSize.Width) / 2;
+
+                // Imprimir líneas de descripción
+                float filaY = filaYInicial;
+                for (int i = 0; i < lineasDescripcion.Count; i++)
+                {
+                    // Precio, Cantidad y Total solo en la primera línea
+                    if (i == 0)
+                    {
+                        graphics.DrawString(precioStr, fontNormal, Brushes.Black, precioX, filaY);
+                        graphics.DrawString(cantidadStr, fontNormal, Brushes.Black, cantidadX, filaY);
+                        graphics.DrawString(totalStr, fontNormal, Brushes.Black, totalX, filaY);
+                    }
+
+                    // Descripción en cada línea
+                    graphics.DrawString(lineasDescripcion[i], fontNormal, Brushes.Black, colX[0], filaY);
+                    filaY += rowHeight;
+                }
+
+                // IVA alineado a la derecha del área de descripción (igual que formulario)
+                if (!string.IsNullOrEmpty(textoIva))
+                {
+                    float ivaX = leftMargin + colDescripcion - ivaSize.Width - 2;
+                    graphics.DrawString(textoIva, fontIva, ivaGrayBrush, ivaX, filaYInicial + 1);
+                }
+
+                y = filaY;
+                System.Diagnostics.Debug.WriteLine($"  📦 {producto.Codigo}: {descripcionCompleta} {textoIva}");
+            }
+
+            // Limpiar recursos
+            fontIva.Dispose();
+            ivaGrayBrush.Dispose();
+
+            // LÍNEA SEPARADORA FINAL
+            y += 4;
+            graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
+            y += 6;
+
+            // TOTALES BÁSICOS (igual formato que formulario)
+            y = ImprimirTotalesBasicosFormatoFactura(graphics, fontBold, leftMargin, rightMargin, y, cantidadTotal, sumaTotal);
+
+            // RESUMEN DE IVA PARA FACTURAS (igual que formulario)
+            if (resumenIva != null && resumenIva.Count > 0)
+            {
+                System.Diagnostics.Debug.WriteLine("💰 Imprimiendo resumen de IVA con formato Control de Facturas");
+                y = ImprimirResumenIvaFormatoFactura(graphics, fontBold, fontNormal, leftMargin, rightMargin, y);
+            }
+
+            return y;
+        }
+
+        // NUEVO: Totales básicos con formato específico para facturas
+        private float ImprimirTotalesBasicosFormatoFactura(Graphics graphics, Font fontBold, float leftMargin, float rightMargin, float y, int cantidadTotal, decimal sumaTotal)
+        {
+            float anchoUtil = rightMargin - leftMargin;
+
+            // Productos totales a la izquierda
+            string productosStr = $"PRODUCTOS: {cantidadTotal}";
+            graphics.DrawString(productosStr, fontBold, Brushes.Black, leftMargin, y);
+
+            // Total general a la derecha (más prominente para facturas)
+            string totalStr = $"TOTAL FACTURA: {sumaTotal:C2}";
+            SizeF totalSize = graphics.MeasureString(totalStr, fontBold);
+            float totalX = rightMargin - totalSize.Width;
+            
+            // Usar color diferente para facturas
+            using (Brush facturaColor = new SolidBrush(Color.FromArgb(40, 167, 69))) // Verde como en formulario
+            {
+                graphics.DrawString(totalStr, fontBold, facturaColor, totalX, y);
+            }
+
+            return y + totalSize.Height + 8;
+        }
+
+        // NUEVO: Resumen de IVA con formato específico para facturas (igual que formulario)
+        private float ImprimirResumenIvaFormatoFactura(Graphics graphics, Font fontBold, Font fontNormal, float leftMargin, float rightMargin, float y)
+        {
+            y += 8; // Espacio adicional
+
+            // Título del resumen (igual que formulario)
+            string tituloResumen = "=== RESUMEN IVA ===";
+            SizeF tituloSize = graphics.MeasureString(tituloResumen, fontBold);
+            float tituloX = leftMargin + ((rightMargin - leftMargin - tituloSize.Width) / 2);
+            graphics.DrawString(tituloResumen, fontBold, Brushes.Black, tituloX, y);
+            y += tituloSize.Height + 4;
+
+            // Fuente para detalle (igual que formulario)
+            Font fontIvaDetalle = new Font("Arial", 7, FontStyle.Regular);
+            Font fontIvaDetalleBold = new Font("Arial", 7, FontStyle.Bold);
+
+            decimal totalBaseImponible = 0;
+            decimal totalIva = 0;
+
+            // Detalle por alícuota ordenado (igual que formulario)
+            foreach (var kvp in resumenIva.OrderByDescending(x => x.Key))
+            {
+                decimal alicuota = kvp.Key;
+                decimal baseImponible = kvp.Value.BaseImponible;
+                decimal importeIva = kvp.Value.ImporteIva;
+
+                totalBaseImponible += baseImponible;
+                totalIva += importeIva;
+
+                // Formato exacto del formulario
+                string lineaIva = $"IVA {alicuota:N1}%: Base {baseImponible:C2} - IVA {importeIva:C2}";
+                graphics.DrawString(lineaIva, fontIvaDetalle, Brushes.Black, leftMargin, y);
+                y += 14;
+
+                System.Diagnostics.Debug.WriteLine($"  💰 {lineaIva}");
+            }
+
+            // Línea divisoria
+            Pen linePen = new Pen(Color.Black, 1);
+            graphics.DrawLine(linePen, leftMargin, y, rightMargin, y);
+            y += 4;
+
+            // Totales finales (igual que formulario)
+            string lineaTotalBase = $"TOTAL BASE IMPONIBLE: {totalBaseImponible:C2}";
+            graphics.DrawString(lineaTotalBase, fontIvaDetalleBold, Brushes.Black, leftMargin, y);
+            y += 16;
+
+            string lineaTotalIva = $"TOTAL IVA: {totalIva:C2}";
+            // Color distintivo para el total IVA (igual que formulario)
+            using (Brush ivaColor = new SolidBrush(Color.FromArgb(220, 53, 69))) // Rojo como en formulario
+            {
+                graphics.DrawString(lineaTotalIva, fontIvaDetalleBold, ivaColor, leftMargin, y);
+            }
+            y += 16;
+
+            System.Diagnostics.Debug.WriteLine($"💰 {lineaTotalBase}");
+            System.Diagnostics.Debug.WriteLine($"💰 {lineaTotalIva}");
+
+            // Limpiar recursos
+            linePen.Dispose();
+            fontIvaDetalle.Dispose();
+            fontIvaDetalleBold.Dispose();
+
+            return y;
+        }
 
         // Método para imprimir remito sin IVA - CORREGIDO CON NUEVO ORDEN
         private float ImprimirRemitoSinIva(Graphics graphics, Font fontNormal, Font fontBold, float leftMargin, float rightMargin, float anchoTotal, float y, Pen linePen)
@@ -263,7 +511,7 @@ namespace Comercio.NET.Servicios
             float tablaRight = leftMargin + anchoTotal;
 
             // ENCABEZADOS DE TABLA CON NUEVO ORDEN
-            string[] headers = { "DESCRIPCIÓN", "PRECIO", "CANT.", "TOTAL" };
+            string[] headers = { "DESCRIPCIÓN", "PRECIO", "C", "TOTAL" };
 
             for (int i = 0; i < headers.Length; i++)
             {
@@ -517,7 +765,7 @@ namespace Comercio.NET.Servicios
             float tablaRight = leftMargin + anchoTotal;
 
             // ENCABEZADOS DE TABLA CON NUEVO ORDEN
-            string[] headers = { "DESCRIPCIÓN", "PRECIO", "CANT.", "TOTAL" };
+            string[] headers = { "DESCRIPCIÓN", "PRECIO", "C", "TOTAL" };
 
             for (int i = 0; i < headers.Length; i++)
             {
