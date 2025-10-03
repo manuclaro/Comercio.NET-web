@@ -664,6 +664,9 @@ namespace Comercio.NET.Formularios
             {
                 System.Diagnostics.Debug.WriteLine("➕ Agregar nuevo producto");
                 
+                // Guardar el filtro actual antes de abrir el modal
+                string filtroActual = txtFiltroDescripcion.Text;
+                
                 using (var form = new frmAgregarProducto())
                 {
                     form.Modo = frmAgregarProducto.ModoFormulario.Agregar;
@@ -672,9 +675,8 @@ namespace Comercio.NET.Formularios
                     
                     if (form.ShowDialog() == DialogResult.OK)
                     {
-                        // Actualizar la grilla y el contador al agregar un nuevo producto
-                        LimpiarCache();
-                        await CargarProductosAsync();
+                        // Actualizar la grilla manteniendo el filtro aplicado
+                        await ActualizarDatosManteniendoFiltro(filtroActual);
                         txtFiltroDescripcion.Focus();
                     }
                 }
@@ -703,6 +705,9 @@ namespace Comercio.NET.Formularios
                 var filaSeleccionada = GrillaProductos.SelectedRows[0];
                 var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
                 
+                // Guardar el filtro actual antes de abrir el modal
+                string filtroActual = txtFiltroDescripcion.Text;
+                
                 // CORREGIDO: Usar frmActualizarProducto para modificar, no frmAgregarProducto
                 using (var form = new frmActualizarProducto(productoId))
                 {
@@ -710,9 +715,8 @@ namespace Comercio.NET.Formularios
                     
                     if (form.ShowDialog() == DialogResult.OK)
                     {
-                        // Actualizar la grilla y el contador después de modificar un producto
-                        LimpiarCache();
-                        await CargarProductosAsync();
+                        // Actualizar la grilla manteniendo el filtro aplicado
+                        await ActualizarDatosManteniendoFiltro(filtroActual);
                         txtFiltroDescripcion.Focus();
                     }
                 }
@@ -721,6 +725,51 @@ namespace Comercio.NET.Formularios
             {
                 System.Diagnostics.Debug.WriteLine($"Error en BtnModificarProducto_Click: {ex.Message}");
                 MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task ActualizarDatosManteniendoFiltro(string filtroAMantener)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"🔄 Actualizando datos manteniendo filtro: '{filtroAMantener}'");
+                
+                // Limpiar cache para forzar recarga desde BD
+                LimpiarCache();
+                
+                // Cargar datos frescos
+                await CargarProductosAsync();
+                
+                // Si había un filtro aplicado, reaplicarlo
+                if (!string.IsNullOrEmpty(filtroAMantener))
+                {
+                    // Temporalmente limpiar el textbox para evitar eventos duplicados
+                    txtFiltroDescripcion.TextChanged -= TxtFiltroDescripcion_TextChanged;
+                    
+                    // Restaurar el texto del filtro
+                    txtFiltroDescripcion.Text = filtroAMantener;
+                    
+                    // Reaplicar el filtro inmediatamente
+                    await AplicarFiltro(filtroAMantener);
+                    
+                    // Restaurar el evento
+                    txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
+                    
+                    // Actualizar la variable de seguimiento
+                    lastSearchText = filtroAMantener;
+                    
+                    System.Diagnostics.Debug.WriteLine($"✅ Filtro '{filtroAMantener}' reaplicado exitosamente");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("✅ Datos actualizados sin filtro");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error actualizando datos con filtro: {ex.Message}");
+                MessageBox.Show($"Error al actualizar datos: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -838,7 +887,7 @@ namespace Comercio.NET.Formularios
 
         #region Eventos de Grilla
 
-        private void GrillaProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        private async void GrillaProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
             {
@@ -850,8 +899,35 @@ namespace Comercio.NET.Formularios
                     return;
                 }
                 
-                // Para las demás columnas, usar la lógica del botón modificar (que ahora usa el formulario correcto)
-                BtnModificarProducto_Click(sender, EventArgs.Empty);
+                // Guardar el filtro actual antes de abrir el modal
+                string filtroActual = txtFiltroDescripcion.Text;
+                
+                // Obtener el código del producto de la fila seleccionada
+                var filaSeleccionada = GrillaProductos.Rows[e.RowIndex];
+                var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
+                
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"✏️ Modificar producto desde doble click: {productoId}");
+                    
+                    using (var form = new frmActualizarProducto(productoId))
+                    {
+                        form.Text = "Modificar Producto";
+                        
+                        if (form.ShowDialog() == DialogResult.OK)
+                        {
+                            // Actualizar la grilla manteniendo el filtro aplicado
+                            await ActualizarDatosManteniendoFiltro(filtroActual);
+                            txtFiltroDescripcion.Focus();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error en GrillaProductos_CellDoubleClick: {ex.Message}");
+                    MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 

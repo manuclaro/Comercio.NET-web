@@ -36,6 +36,7 @@ namespace Comercio.NET.Formularios
             txtStockActual.KeyPress += txtStockActual_KeyPress;
             txtNuevoCosto.KeyPress += txtNuevoCosto_KeyPress;
             txtNuevoPorcentaje.KeyPress += txtNuevoPorcentaje_KeyPress;
+            txtIva.KeyPress += txtIva_KeyPress;
             txtValorVenta.KeyPress += txtNuevoCosto_KeyPress;
             
             // Agregar eventos para detectar modificación manual del precio
@@ -54,6 +55,7 @@ namespace Comercio.NET.Formularios
             tooltip.SetToolTip(txtValorVenta, "Se calcula automáticamente. Puede modificarlo manualmente para ajustar el precio (ej: redondeo)");
             tooltip.SetToolTip(txtNuevoCosto, "Costo del producto sin IVA");
             tooltip.SetToolTip(txtNuevoPorcentaje, "Porcentaje de ganancia a aplicar sobre el costo");
+            tooltip.SetToolTip(txtIva, "Alícuota de IVA (ej: 21.00). Máximo 2 dígitos enteros y 2 decimales");
         }
 
         private void TxtValorVenta_Enter(object sender, EventArgs e)
@@ -105,6 +107,7 @@ namespace Comercio.NET.Formularios
             txtNombre.KeyDown += TextBox_KeyDown;
             txtNuevoCosto.KeyDown += TextBox_KeyDown;
             txtNuevoPorcentaje.KeyDown += TextBox_KeyDown;
+            txtIva.KeyDown += TextBox_KeyDown;
             txtValorVenta.KeyDown += TextBox_KeyDown;
             txtStockActual.KeyDown += TextBox_KeyDown;
         }
@@ -239,6 +242,60 @@ namespace Comercio.NET.Formularios
             e.Handled = true;
         }
 
+        // NUEVO: Validación para el TextBox de IVA: máximo 2 dígitos enteros y 2 decimales
+        private void txtIva_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Reemplazar punto del teclado numérico por coma
+            if (e.KeyChar == '.')
+                e.KeyChar = ',';
+
+            TextBox tb = sender as TextBox;
+            string text = tb.Text;
+
+            // Permitir teclas de control
+            if (char.IsControl(e.KeyChar))
+                return;
+
+            // Permitir solo dígitos y una coma
+            if (char.IsDigit(e.KeyChar))
+            {
+                if (text.Contains(","))
+                {
+                    int index = text.IndexOf(",");
+                    // Si el cursor está en la parte decimal, se permite máximo 2 decimales
+                    if (tb.SelectionStart > index)
+                    {
+                        string decimalPart = text.Substring(index + 1);
+                        if (decimalPart.Length >= 2 && tb.SelectionLength == 0)
+                            e.Handled = true;
+                    }
+                    // Si el cursor está en la parte entera, se permite máximo 2 dígitos
+                    else
+                    {
+                        string integerPart = text.Substring(0, index);
+                        if (integerPart.Length >= 2 && tb.SelectionLength == 0)
+                            e.Handled = true;
+                    }
+                }
+                else
+                {
+                    // Sin coma, se permite máximo 2 dígitos enteros
+                    if (text.Length >= 2 && tb.SelectionLength == 0)
+                        e.Handled = true;
+                }
+                return;
+            }
+            if (e.KeyChar == ',')
+            {
+                // Permitir coma si aún no existe
+                if (text.Contains(","))
+                    e.Handled = true;
+                return;
+            }
+            // Otros caracteres no permitidos
+            e.Handled = true;
+        }
+
         // En el botón Buscar, se formatean los valores para mostrar 2 decimales.
         private void btnBuscar_Click(object sender, EventArgs e)
         {
@@ -260,7 +317,6 @@ namespace Comercio.NET.Formularios
                 using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    // MODIFICADO: Agregar columna IVA a la consulta
                     string query = @"SELECT descripcion, marca, costo, porcentaje, precio, cantidad, iva 
                                      FROM Productos
                                      WHERE codigo = @codigo";
@@ -273,17 +329,14 @@ namespace Comercio.NET.Formularios
                             {
                                 // Cargar los datos del producto
                                 txtNombre.Text = reader["descripcion"].ToString();
-                                if (this.Controls.ContainsKey("txtMarca"))
-                                    ((TextBox)this.Controls["txtMarca"]).Text = reader["marca"].ToString();
 
                                 txtNuevoCosto.Text = Convert.ToDecimal(reader["costo"]).ToString("F2");
                                 txtNuevoPorcentaje.Text = Convert.ToDecimal(reader["porcentaje"]).ToString("F2");
                                 txtValorVenta.Text = Convert.ToDecimal(reader["precio"]).ToString("F2");
                                 txtStockActual.Text = reader["cantidad"].ToString();
                                 
-                                // NUEVO: Cargar valor de IVA
-                                if (this.Controls.ContainsKey("txtIva"))
-                                    ((TextBox)this.Controls["txtIva"]).Text = Convert.ToDecimal(reader["iva"]).ToString("F2");
+                                // Cargar valor de IVA
+                                txtIva.Text = Convert.ToDecimal(reader["iva"]).ToString("F2");
 
                                 // Resetear el flag de modificación manual y recalcular
                                 _precioModificadoManualmente = false;
@@ -354,7 +407,8 @@ namespace Comercio.NET.Formularios
             if (!decimal.TryParse(txtNuevoCosto.Text, out decimal nuevoCosto) ||
                 !decimal.TryParse(txtNuevoPorcentaje.Text, out decimal nuevoPorcentaje) ||
                 !decimal.TryParse(txtValorVenta.Text, out decimal nuevoPrecio) ||
-                !int.TryParse(txtStockActual.Text, out int nuevoStock))
+                !int.TryParse(txtStockActual.Text, out int nuevoStock) ||
+                !decimal.TryParse(txtIva.Text, out decimal nuevoIva))
             {
                 MessageBox.Show("Revise los valores ingresados. Todos los campos numéricos deben tener valores válidos.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -365,6 +419,13 @@ namespace Comercio.NET.Formularios
             {
                 MessageBox.Show("El costo no puede ser negativo.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtNuevoCosto.Focus();
+                return;
+            }
+            
+            if (nuevoIva < 0 || nuevoIva > 99.99m)
+            {
+                MessageBox.Show("La alícuota de IVA debe estar entre 0 y 99.99%.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtIva.Focus();
                 return;
             }
             
@@ -382,13 +443,6 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // NUEVO: Obtener valor de IVA si existe el control
-            decimal nuevoIva = 21.00m; // Valor por defecto
-            if (this.Controls.ContainsKey("txtIva"))
-            {
-                decimal.TryParse(((TextBox)this.Controls["txtIva"]).Text, out nuevoIva);
-            }
-
             try
             {
                 var config = new ConfigurationBuilder()
@@ -400,7 +454,6 @@ namespace Comercio.NET.Formularios
                 using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    // MODIFICADO: Agregar descripción al UPDATE
                     string updateQuery = @"UPDATE Productos
                                            SET descripcion = @nuevaDescripcion,
                                                cantidad = @nuevoStock,
@@ -443,15 +496,11 @@ namespace Comercio.NET.Formularios
         {
             txtCodigo.Clear();
             txtNombre.Clear();
-            if (this.Controls.ContainsKey("txtMarca"))
-                ((TextBox)this.Controls["txtMarca"]).Clear();
             txtNuevoCosto.Clear();
             txtNuevoPorcentaje.Clear();
             txtValorVenta.Clear();
             txtStockActual.Clear();
-            // NUEVO: Limpiar campo IVA si existe
-            if (this.Controls.ContainsKey("txtIva"))
-                ((TextBox)this.Controls["txtIva"]).Clear();
+            txtIva.Clear();
             
             // Resetear el flag de modificación manual
             _precioModificadoManualmente = false;
