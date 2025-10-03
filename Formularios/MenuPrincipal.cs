@@ -450,7 +450,7 @@ namespace Comercio.NET
                 // Solo permitir acceso si puede editar precios o es administrador
                 if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
                 {
-                    var productosForm = new Productos();
+                    var productosForm = new ProductosOptimizado();
                     productosForm.MdiParent = this;
                     productosForm.Show();
                 }

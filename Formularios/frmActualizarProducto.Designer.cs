@@ -67,13 +67,12 @@ namespace Comercio.NET.Formularios
             lblNombre.Name = "lblNombre";
             lblNombre.Size = new Size(106, 15);
             lblNombre.TabIndex = 3;
-            lblNombre.Text = "Producto Nombre:";
+            lblNombre.Text = "Descripción:";
             // 
             // txtNombre
             // 
             txtNombre.Location = new Point(136, 47);
             txtNombre.Name = "txtNombre";
-            txtNombre.ReadOnly = true;
             txtNombre.Size = new Size(245, 23);
             txtNombre.TabIndex = 4;
             // 
@@ -100,7 +99,7 @@ namespace Comercio.NET.Formularios
             lblNuevoCosto.Name = "lblNuevoCosto";
             lblNuevoCosto.Size = new Size(79, 15);
             lblNuevoCosto.TabIndex = 7;
-            lblNuevoCosto.Text = "Nuevo Costo:";
+            lblNuevoCosto.Text = "Costo:";
             // 
             // txtNuevoCosto
             // 
@@ -117,7 +116,7 @@ namespace Comercio.NET.Formularios
             lblNuevoPorcentaje.Name = "lblNuevoPorcentaje";
             lblNuevoPorcentaje.Size = new Size(122, 15);
             lblNuevoPorcentaje.TabIndex = 9;
-            lblNuevoPorcentaje.Text = "Nuevo % de Venta (x):";
+            lblNuevoPorcentaje.Text = "% de Ganancia:";
             // 
             // txtNuevoPorcentaje
             // 
@@ -134,13 +133,12 @@ namespace Comercio.NET.Formularios
             lblValorVenta.Name = "lblValorVenta";
             lblValorVenta.Size = new Size(68, 15);
             lblValorVenta.TabIndex = 11;
-            lblValorVenta.Text = "Valor Venta:";
+            lblValorVenta.Text = "Precio Venta:";
             // 
             // txtValorVenta
             // 
             txtValorVenta.Location = new Point(136, 187);
             txtValorVenta.Name = "txtValorVenta";
-            txtValorVenta.ReadOnly = true;
             txtValorVenta.Size = new Size(100, 23);
             txtValorVenta.TabIndex = 12;
             txtValorVenta.KeyPress += txtNuevoCosto_KeyPress;
@@ -186,7 +184,8 @@ namespace Comercio.NET.Formularios
             FormBorderStyle = FormBorderStyle.FixedDialog;
             Name = "frmActualizarProducto";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "Actualizar Stock y Precio";
+            Text = "Modificar Producto";
+            Load += frmActualizarProducto_Load;
             ResumeLayout(false);
             PerformLayout();
         }

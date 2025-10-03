@@ -9,18 +9,93 @@ namespace Comercio.NET.Formularios
 {
     public partial class frmActualizarProducto : Form
     {
+        private string _codigoProductoInicial = "";
+        private bool _precioModificadoManualmente = false;
+
         public frmActualizarProducto()
         {
             InitializeComponent();
+            ConfigurarFormulario();
+        }
+
+        // Nuevo constructor que recibe el código del producto
+        public frmActualizarProducto(string codigoProducto) : this()
+        {
+            _codigoProductoInicial = codigoProducto?.Trim() ?? "";
+        }
+
+        private void ConfigurarFormulario()
+        {
             this.KeyPreview = true;
             this.KeyDown += frmActualizarProducto_KeyDown;
+            
             // Asociar el evento KeyDown a los TextBox para tabular con ENTER.
             AsociarEventosEnter();
+            
             // Asociar los eventos KeyPress para validar la entrada numérica.
             txtStockActual.KeyPress += txtStockActual_KeyPress;
             txtNuevoCosto.KeyPress += txtNuevoCosto_KeyPress;
             txtNuevoPorcentaje.KeyPress += txtNuevoPorcentaje_KeyPress;
             txtValorVenta.KeyPress += txtNuevoCosto_KeyPress;
+            
+            // Agregar eventos para detectar modificación manual del precio
+            txtValorVenta.TextChanged += TxtValorVenta_TextChanged;
+            txtValorVenta.Enter += TxtValorVenta_Enter;
+            txtValorVenta.KeyDown += TxtValorVenta_KeyDown;
+            
+            // Configurar tooltip para ayudar al usuario
+            ConfigurarTooltips();
+        }
+
+        private void ConfigurarTooltips()
+        {
+            var tooltip = new ToolTip();
+            tooltip.SetToolTip(txtNombre, "Puede modificar la descripción del producto");
+            tooltip.SetToolTip(txtValorVenta, "Se calcula automáticamente. Puede modificarlo manualmente para ajustar el precio (ej: redondeo)");
+            tooltip.SetToolTip(txtNuevoCosto, "Costo del producto sin IVA");
+            tooltip.SetToolTip(txtNuevoPorcentaje, "Porcentaje de ganancia a aplicar sobre el costo");
+        }
+
+        private void TxtValorVenta_Enter(object sender, EventArgs e)
+        {
+            // Cuando el usuario entra al campo de precio, marcamos que puede ser modificado manualmente
+            _precioModificadoManualmente = false;
+        }
+
+        private void TxtValorVenta_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Si el usuario presiona una tecla de edición, marcar como modificación manual
+            if (e.KeyCode != Keys.Tab && e.KeyCode != Keys.Enter && e.KeyCode != Keys.Escape)
+            {
+                _precioModificadoManualmente = true;
+            }
+        }
+
+        private void TxtValorVenta_TextChanged(object sender, EventArgs e)
+        {
+            // Solo marcar como modificado manualmente si el control tiene el foco
+            if (txtValorVenta.Focused)
+            {
+                _precioModificadoManualmente = true;
+            }
+        }
+
+        // Evento Load para cargar automáticamente el producto si se pasó un código
+        private void frmActualizarProducto_Load(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_codigoProductoInicial))
+            {
+                txtCodigo.Text = _codigoProductoInicial;
+                // Cargar automáticamente los datos del producto
+                btnBuscar_Click(this, EventArgs.Empty);
+            }
+            else
+            {
+                txtCodigo.Focus();
+            }
+            
+            // Agregar información útil para el usuario
+            this.Text = "Modificar Producto - F5: Recalcular precio";
         }
 
         private void AsociarEventosEnter()
@@ -32,11 +107,6 @@ namespace Comercio.NET.Formularios
             txtNuevoPorcentaje.KeyDown += TextBox_KeyDown;
             txtValorVenta.KeyDown += TextBox_KeyDown;
             txtStockActual.KeyDown += TextBox_KeyDown;
-            // Si existe txtMarca, se añade también
-            if (this.Controls.ContainsKey("txtMarca"))
-            {
-                ((TextBox)this.Controls["txtMarca"]).KeyDown += TextBox_KeyDown;
-            }
         }
 
         private void TextBox_KeyDown(object sender, KeyEventArgs e)
@@ -201,6 +271,7 @@ namespace Comercio.NET.Formularios
                         {
                             if (reader.Read())
                             {
+                                // Cargar los datos del producto
                                 txtNombre.Text = reader["descripcion"].ToString();
                                 if (this.Controls.ContainsKey("txtMarca"))
                                     ((TextBox)this.Controls["txtMarca"]).Text = reader["marca"].ToString();
@@ -214,8 +285,12 @@ namespace Comercio.NET.Formularios
                                 if (this.Controls.ContainsKey("txtIva"))
                                     ((TextBox)this.Controls["txtIva"]).Text = Convert.ToDecimal(reader["iva"]).ToString("F2");
 
-                                txtStockActual.Focus();
-                                CalcularVenta(null, null);
+                                // Resetear el flag de modificación manual y recalcular
+                                _precioModificadoManualmente = false;
+                                
+                                // Enfocar en el primer campo editable
+                                txtNombre.Focus();
+                                txtNombre.SelectAll();
                             }
                             else
                             {
@@ -234,37 +309,78 @@ namespace Comercio.NET.Formularios
 
         private void CalcularVenta(object sender, EventArgs e)
         {
-            if (decimal.TryParse(txtNuevoCosto.Text, out decimal costo) &&
-                decimal.TryParse(txtNuevoPorcentaje.Text, out decimal porcentaje))
+            // Solo calcular automáticamente si el usuario no ha modificado el precio manualmente
+            if (!_precioModificadoManualmente)
             {
-                decimal valorVenta = costo + ((costo * porcentaje) / 100);
-                txtValorVenta.Text = valorVenta.ToString("F2");
+                if (decimal.TryParse(txtNuevoCosto.Text, out decimal costo) &&
+                    decimal.TryParse(txtNuevoPorcentaje.Text, out decimal porcentaje))
+                {
+                    decimal valorVenta = costo + ((costo * porcentaje) / 100);
+                    txtValorVenta.Text = valorVenta.ToString("F2");
+                }
+                else if (string.IsNullOrEmpty(txtNuevoCosto.Text) || string.IsNullOrEmpty(txtNuevoPorcentaje.Text))
+                {
+                    txtValorVenta.Clear();
+                }
             }
-            else
-            {
-                txtValorVenta.Clear();
-            }
+        }
+
+        private void RecalcularPrecio()
+        {
+            // Método para forzar el recálculo (usado cuando se carga un producto)
+            _precioModificadoManualmente = false;
+            CalcularVenta(null, null);
         }
 
         // Botón Aplicar: Actualiza el producto en la base de datos y limpia los controles
         private void btnAplicar_Click(object sender, EventArgs e)
         {
             string codigo = txtCodigo.Text.Trim();
+            string nuevaDescripcion = txtNombre.Text.Trim();
+            
             if (string.IsNullOrEmpty(codigo))
             {
                 MessageBox.Show("Código de producto no válido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             
+            if (string.IsNullOrEmpty(nuevaDescripcion))
+            {
+                MessageBox.Show("La descripción del producto no puede estar vacía.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                txtNombre.Focus();
+                return;
+            }
+            
             if (!decimal.TryParse(txtNuevoCosto.Text, out decimal nuevoCosto) ||
                 !decimal.TryParse(txtNuevoPorcentaje.Text, out decimal nuevoPorcentaje) ||
+                !decimal.TryParse(txtValorVenta.Text, out decimal nuevoPrecio) ||
                 !int.TryParse(txtStockActual.Text, out int nuevoStock))
             {
-                MessageBox.Show("Revise los valores ingresados.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Revise los valores ingresados. Todos los campos numéricos deben tener valores válidos.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            decimal nuevoPrecio = nuevoCosto + ((nuevoCosto * nuevoPorcentaje) / 100);
+            // Validaciones adicionales
+            if (nuevoCosto < 0)
+            {
+                MessageBox.Show("El costo no puede ser negativo.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtNuevoCosto.Focus();
+                return;
+            }
+            
+            if (nuevoPrecio < nuevoCosto)
+            {
+                DialogResult result = MessageBox.Show(
+                    "El precio de venta es menor que el costo. ¿Está seguro de que desea continuar?", 
+                    "Advertencia", 
+                    MessageBoxButtons.YesNo, 
+                    MessageBoxIcon.Warning);
+                if (result == DialogResult.No)
+                {
+                    txtValorVenta.Focus();
+                    return;
+                }
+            }
 
             // NUEVO: Obtener valor de IVA si existe el control
             decimal nuevoIva = 21.00m; // Valor por defecto
@@ -284,9 +400,10 @@ namespace Comercio.NET.Formularios
                 using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    // MODIFICADO: Agregar columna IVA al UPDATE
+                    // MODIFICADO: Agregar descripción al UPDATE
                     string updateQuery = @"UPDATE Productos
-                                           SET cantidad = @nuevoStock,
+                                           SET descripcion = @nuevaDescripcion,
+                                               cantidad = @nuevoStock,
                                                costo = @nuevoCosto,
                                                porcentaje = @nuevoPorcentaje,
                                                precio = @nuevoPrecio,
@@ -294,6 +411,7 @@ namespace Comercio.NET.Formularios
                                            WHERE codigo = @codigo";
                     using (var cmd = new SqlCommand(updateQuery, connection))
                     {
+                        cmd.Parameters.AddWithValue("@nuevaDescripcion", nuevaDescripcion);
                         cmd.Parameters.AddWithValue("@nuevoStock", nuevoStock);
                         cmd.Parameters.AddWithValue("@nuevoCosto", nuevoCosto);
                         cmd.Parameters.AddWithValue("@nuevoPorcentaje", nuevoPorcentaje);
@@ -304,7 +422,7 @@ namespace Comercio.NET.Formularios
                         int affected = cmd.ExecuteNonQuery();
                         if (affected > 0)
                         {
-                            MessageBox.Show("Datos actualizados correctamente.", "Actualización", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("Producto actualizado correctamente.", "Actualización", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             LimpiarControles();
                             txtCodigo.Focus();
                         }
@@ -334,6 +452,9 @@ namespace Comercio.NET.Formularios
             // NUEVO: Limpiar campo IVA si existe
             if (this.Controls.ContainsKey("txtIva"))
                 ((TextBox)this.Controls["txtIva"]).Clear();
+            
+            // Resetear el flag de modificación manual
+            _precioModificadoManualmente = false;
         }
 
         // Botón Cerrar: Antes de cerrar, se busca ejecutar el botón "Refrescar" del formulario Productos.
@@ -357,8 +478,13 @@ namespace Comercio.NET.Formularios
             }
 
             // Actualizar la grilla en el formulario principal.
-            var mainForm = Application.OpenForms.OfType<Productos>().FirstOrDefault();
-            mainForm?.RefrescarProductos();
+            var mainForm = Application.OpenForms.OfType<ProductosOptimizado>().FirstOrDefault();
+            if (mainForm != null)
+            {
+                // Como ProductosOptimizado maneja la actualización de manera diferente,
+                // podemos limpiar el cache para forzar una recarga
+                ProductosOptimizado.LimpiarCache();
+            }
             
             this.DialogResult = DialogResult.OK;
             this.Close();
@@ -370,6 +496,12 @@ namespace Comercio.NET.Formularios
             {
                 btnCerrar.PerformClick(); // Simula el clic en el botón Cerrar.
                 e.SuppressKeyPress = true; // Evita el sonido de beep.
+            }
+            else if (e.KeyCode == Keys.F5)
+            {
+                // Permitir al usuario forzar el recálculo del precio con F5
+                RecalcularPrecio();
+                e.SuppressKeyPress = true;
             }
         }
     }
