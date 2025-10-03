@@ -110,7 +110,7 @@ namespace Comercio.NET.Formularios
             lblFiltroFormaPago.ForeColor = Color.FromArgb(0, 120, 215);
             lblFiltroFormaPago.Location = new Point(150, 43); // MOVIDO: Segunda fila
             lblFiltroFormaPago.Name = "lblFiltroFormaPago";
-            lblFiltroFormaPago.Size = new Size(110, 28); // AUMENTADO: era 90, ahora 110 para que se vea completo
+            lblFiltroFormaPago.Size = new Size(90, 28);
             lblFiltroFormaPago.TabIndex = 7;
             lblFiltroFormaPago.Text = "Forma Pago:";
             lblFiltroFormaPago.TextAlign = ContentAlignment.MiddleLeft;
@@ -120,7 +120,7 @@ namespace Comercio.NET.Formularios
             // 
             cboFiltroFormaPago.DropDownStyle = ComboBoxStyle.DropDownList;
             cboFiltroFormaPago.Font = new Font("Segoe UI", 10F);
-            cboFiltroFormaPago.Location = new Point(270, 45); // AJUSTADO: era 250, ahora 270 para acomodar el label más ancho
+            cboFiltroFormaPago.Location = new Point(250, 45); // MOVIDO: Segunda fila
             cboFiltroFormaPago.Name = "cboFiltroFormaPago";
             cboFiltroFormaPago.Size = new Size(140, 25);
             cboFiltroFormaPago.TabIndex = 8;
@@ -261,7 +261,7 @@ namespace Comercio.NET.Formularios
             panelFiltros.Click += FrmControlFacturas_Click;
 
             txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
-            txtFiltroCtaCte.Location = new Point(651, 14); // AJUSTADO: era 551, ahora 651
+            txtFiltroCtaCte.Location = new Point(551, 14); // PRIMERA FILA - Mejor posicionado
             txtFiltroCtaCte.Name = "txtFiltroCtaCte";
             txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
             txtFiltroCtaCte.Size = new Size(176, 25);
@@ -271,7 +271,7 @@ namespace Comercio.NET.Formularios
 
             chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
-            chkCtaCte.Location = new Point(540, 14); // AJUSTADO: era 440, ahora 540 para dar espacio al botón IVA
+            chkCtaCte.Location = new Point(440, 14); // PRIMERA FILA
             chkCtaCte.Name = "chkCtaCte";
             chkCtaCte.Size = new Size(105, 28);
             chkCtaCte.TabIndex = 1;
@@ -356,16 +356,16 @@ namespace Comercio.NET.Formularios
             btnAuditoriaEliminados.UseVisualStyleBackColor = false;
             btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click;
 
-            // MOVIDO: Botón de IVA a la PRIMERA FILA (junto a Auditoría)
+            // SEGUNDA FILA - Botón de IVA
             var btnResumenIva = new Button();
             btnResumenIva.BackColor = Color.FromArgb(76, 175, 80); // Verde
             btnResumenIva.FlatStyle = FlatStyle.Flat;
             btnResumenIva.FlatAppearance.BorderSize = 0;
             btnResumenIva.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnResumenIva.ForeColor = Color.White;
-            btnResumenIva.Location = new Point(440, 14); // PRIMERA FILA - Después de Auditoría
+            btnResumenIva.Location = new Point(400, 45); // SEGUNDA FILA
             btnResumenIva.Name = "btnResumenIva";
-            btnResumenIva.Size = new Size(90, 28); // REDUCIDO: era 120, ahora 90 para que quepa mejor
+            btnResumenIva.Size = new Size(120, 28);
             btnResumenIva.TabIndex = 9;
             btnResumenIva.Text = "📊 IVA";
             btnResumenIva.UseVisualStyleBackColor = false;
@@ -377,31 +377,6 @@ namespace Comercio.NET.Formularios
             tooltipIva.SetToolTip(btnResumenIva, "Ver resumen de IVA discriminado por alícuotas");
 
             panelFiltros.Controls.Add(btnResumenIva);
-
-            chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
-            chkCtaCte.Location = new Point(540, 14); // AJUSTADO: era 440, ahora 540 para dar espacio al botón IVA
-            chkCtaCte.Name = "chkCtaCte";
-            chkCtaCte.Size = new Size(105, 28);
-            chkCtaCte.TabIndex = 1;
-            chkCtaCte.Text = "Cta. Cte.";
-            chkCtaCte.UseVisualStyleBackColor = true;
-            chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
-
-            txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
-            txtFiltroCtaCte.Location = new Point(651, 14); // AJUSTADO: era 551, ahora 651
-            txtFiltroCtaCte.Name = "txtFiltroCtaCte";
-            txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
-            txtFiltroCtaCte.Size = new Size(176, 25);
-            txtFiltroCtaCte.TabIndex = 0;
-            txtFiltroCtaCte.Visible = false;
-            txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
-
-            // SEGUNDA FILA - Controles de filtro (sin botón IVA)
-            // El botón IVA ahora está en la primera fila
-
-            // ELIMINADO: No crear el botón IVA aquí, ya está en la primera fila
-            // var btnResumenIva = new Button(); // Esta sección se eliminó
 
             // ELIMINADO: No cargar opciones del ComboBox aquí, se hará después de cargar datos
             // CargarFormasDePago();
@@ -474,6 +449,15 @@ namespace Comercio.NET.Formularios
 
                 // Seleccionar "Todas las formas" por defecto
                 cboFiltroFormaPago.SelectedIndex = 0;
+                
+                // Debug: mostrar cuántas formas de pago se cargaron
+                System.Diagnostics.Debug.WriteLine($"CargarFormasDePago: Se cargaron {cboFiltroFormaPago.Items.Count - 1} formas de pago disponibles en total");
+                
+                // Debug adicional: mostrar las formas de pago cargadas
+                for (int i = 1; i < cboFiltroFormaPago.Items.Count; i++)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - Forma de pago {i}: '{cboFiltroFormaPago.Items[i]}'");
+                }
             }
             catch (Exception ex)
             {
@@ -489,104 +473,6 @@ namespace Comercio.NET.Formularios
         private void CboFiltroFormaPago_SelectedIndexChanged(object sender, EventArgs e)
         {
             AplicarFiltros();
-        }
-
-        // AGREGAR: Event handler para el filtro por cajero
-        private void TxtFiltroCajero_TextChanged(object sender, EventArgs e)
-        {
-            AplicarFiltros();
-        }
-
-        // AGREGAR: Event handler para el TextBox de filtro
-        private void TxtFiltroCtaCte_TextChanged(object sender, EventArgs e)
-        {
-            if (chkCtaCte.Checked)
-            {
-                AplicarFiltros();
-            }
-        }
-
-        // MODIFICAR: Event handler para el checkbox
-        private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
-        {
-            // Mostrar/ocultar el TextBox de filtro
-            txtFiltroCtaCte.Visible = chkCtaCte.Checked;
-            
-            if (chkCtaCte.Checked)
-            {
-                // Limpiar el filtro y hacer foco
-                txtFiltroCtaCte.Text = "";
-                txtFiltroCtaCte.Focus();
-            }
-            
-            // Recargar los datos con el filtro actual
-            CargarVentasPorFecha(dtpFecha.Value.Date);
-        }
-
-        // AGREGAR: Event handler para el botón Buscar
-        private void BtnBuscar_Click(object sender, EventArgs e)
-        {
-            CargarVentasPorFecha(dtpFecha.Value.Date);
-        }
-
-        // AGREGAR: Event handler para el botón Hoy
-        private void BtnHoy_Click(object sender, EventArgs e)
-        {
-            dtpFecha.Value = DateTime.Today;
-            CargarVentasPorFecha(DateTime.Today);
-        }
-
-        // AGREGAR: Event handler para el click en las celdas del DataGridView
-        private void DgvVentas_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex >= 0)
-            {
-                var numeroRemito = dgvVentas.Rows[e.RowIndex].Cells["Remito"].Value?.ToString();
-                if (!string.IsNullOrEmpty(numeroRemito))
-                {
-                    CargarDetalleFactura(numeroRemito);
-                    MostrarVentanaDetalle();
-                }
-            }
-        }
-
-        // AGREGAR: Event handler para el click en el formulario
-        private void FrmControlFacturas_Click(object sender, EventArgs e)
-        {
-            if (frmDetalle != null && !frmDetalle.IsDisposed && frmDetalle.Visible)
-            {
-                frmDetalle.Hide();
-            }
-        }
-
-        // AGREGAR: Event handler para el botón de auditoría de eliminados
-        private void BtnAuditoriaEliminados_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                MessageBox.Show("Funcionalidad de Auditoría de Eliminados no implementada aún.", 
-                    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // AGREGAR: Event handler para el botón de resumen de IVA
-        private void BtnResumenIva_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                MessageBox.Show("Funcionalidad de Resumen de IVA no implementada aún.", 
-                    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al abrir el resumen de IVA: {ex.Message}", "Error", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         private void CrearVentanaDetalle()
@@ -776,6 +662,9 @@ namespace Comercio.NET.Formularios
                         AND esCtaCte = @esCtaCte
                         ORDER BY NumeroRemito DESC";
 
+                    System.Diagnostics.Debug.WriteLine($"🔍 DIAGNÓSTICO - Ejecutando consulta: {query}");
+                    System.Diagnostics.Debug.WriteLine($"🔍 DIAGNÓSTICO - Parámetros: fecha={fecha:yyyy-MM-dd}, esCtaCte={chkCtaCte.Checked}");
+
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
                         adapter.SelectCommand.Parameters.AddWithValue("@fecha", fecha.Date);
@@ -810,6 +699,38 @@ namespace Comercio.NET.Formularios
                 MessageBox.Show($"Error al cargar las ventas: {ex.Message}\n\nDetalles: {ex.ToString()}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // MODIFICAR: Event handler para el checkbox
+        private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
+        {
+            // Mostrar/ocultar el TextBox de filtro
+            txtFiltroCtaCte.Visible = chkCtaCte.Checked;
+            
+            if (chkCtaCte.Checked)
+            {
+                // Limpiar el filtro y hacer foco
+                txtFiltroCtaCte.Text = "";
+                txtFiltroCtaCte.Focus();
+            }
+            
+            // Recargar los datos con el filtro actual
+            CargarVentasPorFecha(dtpFecha.Value.Date);
+        }
+
+        // AGREGAR: Event handler para el TextBox de filtro
+        private void TxtFiltroCtaCte_TextChanged(object sender, EventArgs e)
+        {
+            if (chkCtaCte.Checked)
+            {
+                AplicarFiltros();
+            }
+        }
+
+        // AGREGAR: Event handler para el filtro por cajero
+        private void TxtFiltroCajero_TextChanged(object sender, EventArgs e)
+        {
+            AplicarFiltros();
         }
 
         // AGREGAR: Método unificado para aplicar filtros
@@ -940,6 +861,86 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error actualizando título con filtros: {ex.Message}");
+            }
+        }
+
+        // AGREGAR: Event handler para el botón Buscar
+        private void BtnBuscar_Click(object sender, EventArgs e)
+        {
+            CargarVentasPorFecha(dtpFecha.Value.Date);
+        }
+
+        // AGREGAR: Event handler para el botón Hoy
+        private void BtnHoy_Click(object sender, EventArgs e)
+        {
+            dtpFecha.Value = DateTime.Today;
+            CargarVentasPorFecha(DateTime.Today);
+        }
+
+        // AGREGAR: Event handler para el click en las celdas del DataGridView
+        private void DgvVentas_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                var numeroRemito = dgvVentas.Rows[e.RowIndex].Cells["Remito"].Value?.ToString();
+                if (!string.IsNullOrEmpty(numeroRemito))
+                {
+                    CargarDetalleFactura(numeroRemito);
+                    MostrarVentanaDetalle();
+                }
+            }
+        }
+
+        // AGREGAR: Event handler para el click en el formulario
+        private void FrmControlFacturas_Click(object sender, EventArgs e)
+        {
+            if (frmDetalle != null && !frmDetalle.IsDisposed && frmDetalle.Visible)
+            {
+                frmDetalle.Hide();
+            }
+        }
+
+        // AGREGAR: Event handler para el botón Imprimir
+        private void BtnImprimir_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Obtener el número de Remito actual desde el título de la ventana
+                string tituloCompleto = frmDetalle.Text;
+                string numeroRemito = ExtraerNumeroRemitoDelTitulo(tituloCompleto);
+                
+                if (string.IsNullOrEmpty(numeroRemito))
+                {
+                    MessageBox.Show("No se puede determinar el número de Remito para imprimir.", 
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                MessageBox.Show($"Imprimiendo remito: {numeroRemito}", "Información", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // AGREGAR: Método auxiliar para extraer número de remito del título
+        private string ExtraerNumeroRemitoDelTitulo(string titulo)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(titulo)) return "";
+                
+                // Buscar patrón "N°\s*(\d+)" en el título
+                var match = System.Text.RegularExpressions.Regex.Match(titulo, @"N°\s*(\d+)");
+                return match.Success ? match.Groups[1].Value : "";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error en ExtraerNumeroRemitoDelTitulo: {ex.Message}");
+                return "";
             }
         }
 
@@ -1223,50 +1224,6 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // AGREGAR: Event handler para el botón Imprimir
-        private void BtnImprimir_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // Obtener el número de Remito actual desde el título de la ventana
-                string tituloCompleto = frmDetalle.Text;
-                string numeroRemito = ExtraerNumeroRemitoDelTitulo(tituloCompleto);
-                
-                if (string.IsNullOrEmpty(numeroRemito))
-                {
-                    MessageBox.Show("No se puede determinar el número de Remito para imprimir.", 
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                MessageBox.Show($"Imprimiendo remito: {numeroRemito}", "Información", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // AGREGAR: Método auxiliar para extraer número de remito del título
-        private string ExtraerNumeroRemitoDelTitulo(string titulo)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(titulo)) return "";
-                
-                // Buscar patrón "N°\s*(\d+)" en el título
-                var match = System.Text.RegularExpressions.Regex.Match(titulo, @"N°\s*(\d+)");
-                return match.Success ? match.Groups[1].Value : "";
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error en ExtraerNumeroRemitoDelTitulo: {ex.Message}");
-                return "";
-            }
-        }
-
         // MODIFICAR: Método para formatear columnas con corrección de tipos
         private void FormatearColumnas()
         {
@@ -1424,6 +1381,10 @@ namespace Comercio.NET.Formularios
                 var tiposFactura = new Dictionary<string, int>();
                 var formasPago = new Dictionary<string, decimal>();
 
+                // Variables para debugging
+                int filasConErrores = 0;
+                var errores = new List<string>();
+
                 foreach (DataRow row in dt.Rows)
                 {
                     try
@@ -1451,6 +1412,11 @@ namespace Comercio.NET.Formularios
                                          decimal.TryParse(importeStr, NumberStyles.Number, CultureInfo.InvariantCulture, out importe))
                                 {
                                     totalVentas += importe;
+                                }
+                                else
+                                {
+                                    filasConErrores++;
+                                    errores.Add($"Fila {dt.Rows.IndexOf(row) + 1}: '{importeStr}' no es un número válido");
                                 }
                             }
                         }
@@ -1519,7 +1485,8 @@ namespace Comercio.NET.Formularios
                     }
                     catch (Exception rowEx)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Error procesando fila: {rowEx.Message}");
+                        filasConErrores++;
+                        errores.Add($"Fila {dt.Rows.IndexOf(row) + 1}: Error procesando fila - {rowEx.Message}");
                     }
                 }
 
@@ -1545,6 +1512,18 @@ namespace Comercio.NET.Formularios
                 string detalleFormas = string.Join(" | ", 
                     formasPago.Select(kv => $"{kv.Key}: {kv.Value:C2}"));
                 lblDetalleFormasPago.Text = detalleFormas;
+
+                // Debug información
+                if (filasConErrores > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ADVERTENCIA: {filasConErrores} filas con errores en ActualizarResumen:");
+                    foreach (var error in errores.Take(5))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  - {error}");
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentas} ventas, Total: {totalVentas:C2}, IVA: {totalIVA:C2}, Subtotal: {subtotalSinIVA:C2}, Errores: {filasConErrores}");
             }
             catch (Exception ex)
             {
@@ -1567,6 +1546,48 @@ namespace Comercio.NET.Formularios
                 
                 MessageBox.Show($"❌ Error calculando totales:\n{ex.Message}", 
                        "Error Cálculo Totales", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // AGREGAR: Event handler para el botón de auditoría de eliminados
+        private void BtnAuditoriaEliminados_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                MessageBox.Show("Funcionalidad de Auditoría de Eliminados no implementada aún.", 
+                    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                
+                // TODO: Implementar la ventana de auditoría de eliminados
+                // using (var consultaForm = new ConsultaAuditoriaEliminados())
+                // {
+                //     consultaForm.ShowDialog(this);
+                // }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // AGREGAR: Event handler para el botón de resumen de IVA
+        private void BtnResumenIva_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                MessageBox.Show("Funcionalidad de Resumen de IVA no implementada aún.", 
+                    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                
+                // TODO: Implementar la ventana de resumen de IVA
+                // using (var resumenForm = new ResumenIvaForm(dtpFecha.Value.Date, chkCtaCte.Checked))
+                // {
+                //     resumenForm.ShowDialog(this);
+                // }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir el resumen de IVA: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
