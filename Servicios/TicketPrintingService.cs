@@ -22,11 +22,48 @@ namespace Comercio.NET.Servicios
         private List<ProductoConIva> productosConIva;
         private Dictionary<decimal, (decimal BaseImponible, decimal ImporteIva)> resumenIva;
 
+        // NUEVO: Datos de facturación desde appsettings.json
+        private DatosFacturacion datosFacturacion;
+
         public TicketPrintingService()
         {
             printDocument = new PrintDocument();
             printDocument.PrintPage += PrintDocument_PrintPage;
             ConfigurarTamañoTicket();
+            
+            // NUEVO: Cargar datos de facturación
+            CargarDatosFacturacion();
+        }
+
+        // NUEVO: Método para cargar datos de facturación desde appsettings.json
+        private void CargarDatosFacturacion()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                datosFacturacion = new DatosFacturacion
+                {
+                    RazonSocial = config["Facturacion:RazonSocial"] ?? "",
+                    CUIT = config["Facturacion:CUIT"] ?? "",
+                    IngBrutos = config["Facturacion:IngBrutos"] ?? "",
+                    DomicilioFiscal = config["Facturacion:DomicilioFiscal"] ?? "",
+                    CodigoPostal = config["Facturacion:CodigoPostal"] ?? "",
+                    InicioActividades = config["Facturacion:InicioActividades"] ?? "",
+                    Condicion = config["Facturacion:Condicion"] ?? ""
+                };
+
+                System.Diagnostics.Debug.WriteLine($"✅ Datos de facturación cargados: {datosFacturacion.RazonSocial}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error cargando datos de facturación: {ex.Message}");
+                // Inicializar con valores por defecto en caso de error
+                datosFacturacion = new DatosFacturacion();
+            }
         }
 
         private void ConfigurarTamañoTicket()
@@ -208,18 +245,26 @@ namespace Comercio.NET.Servicios
             // 1. ENCABEZADO - Fecha y hora
             y = ImprimirFechaHora(e.Graphics, fontNormal, leftMargin, rightMargin, y);
 
-            // 2. INFORMACIÓN DEL COMERCIO
-            y = ImprimirInfoComercio(e.Graphics, fontTitulo, fontSubtitulo, leftMargin, rightMargin, y);
+            // DETECTAR SI ES FACTURA PARA MOSTRAR DATOS DE FACTURACIÓN
+            bool esFactura = configuracion.TipoComprobante.Contains("Factura") || 
+                           configuracion.TipoComprobante.Contains("FACTURA") ||
+                           !string.IsNullOrEmpty(configuracion.CAE);
+
+            if (esFactura)
+            {
+                // 2. INFORMACIÓN DE FACTURACIÓN (NUEVA SECCIÓN PARA FACTURAS)
+                y = ImprimirDatosFacturacion(e.Graphics, fontTitulo, fontSubtitulo, leftMargin, rightMargin, y);
+            }
+            else
+            {
+                // 2. INFORMACIÓN DEL COMERCIO (PARA REMITOS)
+                y = ImprimirInfoComercio(e.Graphics, fontTitulo, fontSubtitulo, leftMargin, rightMargin, y);
+            }
 
             // 3. TÍTULO DEL COMPROBANTE
             y = ImprimirTituloComprobante(e.Graphics, fontBold, leftMargin, rightMargin, y);
 
             // 4. ENCABEZADOS DE TABLA Y DETALLE DE PRODUCTOS
-            // MEJORADO: Detectar mejor si es una factura
-            bool esFactura = configuracion.TipoComprobante.Contains("Factura") || 
-                           configuracion.TipoComprobante.Contains("FACTURA") ||
-                           !string.IsNullOrEmpty(configuracion.CAE);
-                           
             if (esFactura && productosConIva != null && productosConIva.Count > 0)
             {
                 // FORMATO FACTURA: Con alícuota IVA usando el mismo formato del formulario
@@ -244,6 +289,94 @@ namespace Comercio.NET.Servicios
             {
                 y = ImprimirInformacionCAE(e.Graphics, fontSubtitulo, leftMargin, rightMargin, y);  
             }
+        }
+
+        // MODIFICADO: Método para imprimir los datos de facturación en la cabecera
+        private float ImprimirDatosFacturacion(Graphics graphics, Font fontTitulo, Font fontSubtitulo, float leftMargin, float rightMargin, float y)
+        {
+            float anchoUtil = rightMargin - leftMargin;
+
+            // ===== MANTENER CABECERA TRADICIONAL COMO EN REMITOS =====
+            
+            // Nombre del comercio (igual que remitos)
+            SizeF nombreSize = graphics.MeasureString(configuracion.NombreComercio, fontTitulo);
+            float nombreX = leftMargin + (anchoUtil - nombreSize.Width) / 2;
+            graphics.DrawString(configuracion.NombreComercio, fontTitulo, Brushes.Black, nombreX, y);
+            y += nombreSize.Height;
+
+            // Domicilio del comercio (igual que remitos)
+            if (!string.IsNullOrEmpty(configuracion.DomicilioComercio))
+            {
+                SizeF domicilioSize = graphics.MeasureString(configuracion.DomicilioComercio, fontSubtitulo);
+                float domicilioX = leftMargin + (anchoUtil - domicilioSize.Width) / 2;
+                graphics.DrawString(configuracion.DomicilioComercio, fontSubtitulo, Brushes.Black, domicilioX, y);
+                y += domicilioSize.Height;
+            }
+
+            y += 6; // Espacio después de la cabecera tradicional
+
+            // ===== DATOS DE FACTURACIÓN DISCRETOS (ALINEADOS A LA IZQUIERDA) =====
+            
+            // Fuente más pequeña y discreta para datos fiscales
+            Font fontDatosFiscales = new Font("Arial", 6, FontStyle.Regular);
+            
+            // Razón Social (más pequeña, alineada a la izquierda)
+            if (!string.IsNullOrEmpty(datosFacturacion.RazonSocial))
+            {
+                string razonText = $"Razón Social: {datosFacturacion.RazonSocial}";
+                graphics.DrawString(razonText, fontDatosFiscales, Brushes.Black, leftMargin, y);
+                y += 10; // Espaciado menor
+            }
+
+            // CUIT (alineado a la izquierda)
+            if (!string.IsNullOrEmpty(datosFacturacion.CUIT))
+            {
+                string cuitText = $"CUIT: {datosFacturacion.CUIT}";
+                graphics.DrawString(cuitText, fontDatosFiscales, Brushes.Black, leftMargin, y);
+                y += 10;
+            }
+
+            // Domicilio Fiscal (alineado a la izquierda)
+            if (!string.IsNullOrEmpty(datosFacturacion.DomicilioFiscal))
+            {
+                string domicilioCompleto = $"Dom. Fiscal: {datosFacturacion.DomicilioFiscal}";
+                if (!string.IsNullOrEmpty(datosFacturacion.CodigoPostal))
+                {
+                    domicilioCompleto += $" - CP: {datosFacturacion.CodigoPostal}";
+                }
+                
+                graphics.DrawString(domicilioCompleto, fontDatosFiscales, Brushes.Black, leftMargin, y);
+                y += 10;
+            }
+
+            // Ingresos Brutos (alineado a la izquierda)
+            if (!string.IsNullOrEmpty(datosFacturacion.IngBrutos))
+            {
+                string ingBrutosText = $"Ing. Brutos: {datosFacturacion.IngBrutos}";
+                graphics.DrawString(ingBrutosText, fontDatosFiscales, Brushes.Black, leftMargin, y);
+                y += 10;
+            }
+
+            // Condición ante IVA (alineado a la izquierda)
+            if (!string.IsNullOrEmpty(datosFacturacion.Condicion))
+            {
+                string condicionText = $"Condición IVA: {datosFacturacion.Condicion}";
+                graphics.DrawString(condicionText, fontDatosFiscales, Brushes.Black, leftMargin, y);
+                y += 10;
+            }
+
+            // Inicio de Actividades (alineado a la izquierda)
+            if (!string.IsNullOrEmpty(datosFacturacion.InicioActividades))
+            {
+                string inicioText = $"Inicio Actividades: {datosFacturacion.InicioActividades}";
+                graphics.DrawString(inicioText, fontDatosFiscales, Brushes.Black, leftMargin, y);
+                y += 10;
+            }
+
+            // Limpiar fuente temporal
+            fontDatosFiscales.Dispose();
+
+            return y + 8; // Espacio adicional antes del número de factura
         }
 
         // NUEVO: Método para imprimir factura con el MISMO formato que Control de Facturas
@@ -403,7 +536,7 @@ namespace Comercio.NET.Servicios
             return y;
         }
 
-        // NUEVO: Totales básicos con formato específico para facturas
+        // NUEVO: Totales básicos con formato específico para facturas - FUENTES EN NEGRO
         private float ImprimirTotalesBasicosFormatoFactura(Graphics graphics, Font fontBold, float leftMargin, float rightMargin, float y, int cantidadTotal, decimal sumaTotal)
         {
             float anchoUtil = rightMargin - leftMargin;
@@ -412,21 +545,18 @@ namespace Comercio.NET.Servicios
             string productosStr = $"PRODUCTOS: {cantidadTotal}";
             graphics.DrawString(productosStr, fontBold, Brushes.Black, leftMargin, y);
 
-            // Total general a la derecha (más prominente para facturas)
+            // Total general a la derecha - CAMBIO: usar negro en lugar de verde
             string totalStr = $"TOTAL FACTURA: {sumaTotal:C2}";
             SizeF totalSize = graphics.MeasureString(totalStr, fontBold);
             float totalX = rightMargin - totalSize.Width;
             
-            // Usar color diferente para facturas
-            using (Brush facturaColor = new SolidBrush(Color.FromArgb(40, 167, 69))) // Verde como en formulario
-            {
-                graphics.DrawString(totalStr, fontBold, facturaColor, totalX, y);
-            }
+            // CAMBIO: Usar negro en lugar de color verde para compatibilidad con impresoras monocromáticas
+            graphics.DrawString(totalStr, fontBold, Brushes.Black, totalX, y);
 
             return y + totalSize.Height + 8;
         }
 
-        // NUEVO: Resumen de IVA con formato específico para facturas (igual que formulario)
+        // NUEVO: Resumen de IVA con formato específico para facturas - FUENTES EN NEGRO
         private float ImprimirResumenIvaFormatoFactura(Graphics graphics, Font fontBold, Font fontNormal, float leftMargin, float rightMargin, float y)
         {
             y += 8; // Espacio adicional
@@ -468,17 +598,14 @@ namespace Comercio.NET.Servicios
             graphics.DrawLine(linePen, leftMargin, y, rightMargin, y);
             y += 4;
 
-            // Totales finales (igual que formulario)
+            // Totales finales - CAMBIO: usar negro en lugar de colores
             string lineaTotalBase = $"TOTAL BASE IMPONIBLE: {totalBaseImponible:C2}";
             graphics.DrawString(lineaTotalBase, fontIvaDetalleBold, Brushes.Black, leftMargin, y);
             y += 16;
 
             string lineaTotalIva = $"TOTAL IVA: {totalIva:C2}";
-            // Color distintivo para el total IVA (igual que formulario)
-            using (Brush ivaColor = new SolidBrush(Color.FromArgb(220, 53, 69))) // Rojo como en formulario
-            {
-                graphics.DrawString(lineaTotalIva, fontIvaDetalleBold, ivaColor, leftMargin, y);
-            }
+            // CAMBIO: Usar negro en lugar de rojo para compatibilidad con impresoras monocromáticas
+            graphics.DrawString(lineaTotalIva, fontIvaDetalleBold, Brushes.Black, leftMargin, y);
             y += 16;
 
             System.Diagnostics.Debug.WriteLine($"💰 {lineaTotalBase}");
@@ -492,7 +619,7 @@ namespace Comercio.NET.Servicios
             return y;
         }
 
-        // Método para imprimir remito sin IVA - CORREGIDO CON NUEVO ORDEN
+        // Método para imprimir remito sin IVA
         private float ImprimirRemitoSinIva(Graphics graphics, Font fontNormal, Font fontBold, float leftMargin, float rightMargin, float anchoTotal, float y, Pen linePen)
         {
             // NUEVA DISTRIBUCIÓN: Descripción | Precio | Cantidad | Total
@@ -561,7 +688,7 @@ namespace Comercio.NET.Servicios
             return y;
         }
 
-        // NUEVO MÉTODO: Para imprimir productos con el nuevo orden de columnas
+        // Método para imprimir productos con el nuevo orden de columnas
         private (float y, int cantidadTotal, decimal sumaTotal) ImprimirDetalleProductosNuevoOrden(Graphics graphics, Font font, float[] colX, float[] colWidths, float y)
         {
             int cantidadTotal = 0;
@@ -743,235 +870,6 @@ namespace Comercio.NET.Servicios
             return y;
         }
 
-        // CORREGIDO: Método para imprimir factura con datos de IVA - CON ESPACIO RESERVADO PARA IVA
-        private float ImprimirFacturaConIva(Graphics graphics, Font fontNormal, Font fontBold, float leftMargin, float rightMargin, float anchoTotal, float y)
-        {
-            System.Diagnostics.Debug.WriteLine("🎯 Ejecutando ImprimirFacturaConIva");
-            Pen linePen = new Pen(Color.Black, 1);
-
-            // NUEVA DISTRIBUCIÓN: Descripción + (IVA) | Precio | Cantidad | Total
-            float colDescripcion = anchoTotal * 0.50f;   // 50% para descripción (incluye IVA en paréntesis)
-            float colPrecio = anchoTotal * 0.20f;        // 20% para precio
-            float colCantidad = anchoTotal * 0.10f;      // 10% para cantidad (ahora en el medio)
-            float colTotal = anchoTotal * 0.20f;         // 20% para total
-
-            float[] colX = {
-                leftMargin,
-                leftMargin + colDescripcion,
-                leftMargin + colDescripcion + colPrecio,
-                leftMargin + colDescripcion + colPrecio + colCantidad
-            };
-
-            float tablaRight = leftMargin + anchoTotal;
-
-            // ENCABEZADOS DE TABLA CON NUEVO ORDEN
-            string[] headers = { "DESCRIPCIÓN", "PRECIO", "C", "TOTAL" };
-
-            for (int i = 0; i < headers.Length; i++)
-            {
-                float headerX = colX[i];
-                SizeF headerSize = graphics.MeasureString(headers[i], fontBold);
-
-                // Alineación según la columna
-                switch (i)
-                {
-                    case 0: // Descripción - izquierda
-                        // Ya está alineado a la izquierda
-                        break;
-                    case 1: // Precio - derecha
-                        headerX += colPrecio - headerSize.Width - 2;
-                        break;
-                    case 2: // Cantidad - centrado
-                        headerX += (colCantidad - headerSize.Width) / 2;
-                        break;
-                    case 3: // Total - derecha
-                        headerX += colTotal - headerSize.Width - 2;
-                        break;
-                }
-
-                graphics.DrawString(headers[i], fontBold, Brushes.Black, headerX, y);
-            }
-
-            y += 16;
-
-            // LÍNEA SEPARADORA
-            graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 4;
-
-            // DETALLE DE PRODUCTOS CON NUEVO FORMATO
-            int cantidadTotal = 0;
-            decimal sumaTotal = 0;
-            float rowHeight = 16;
-
-            // NUEVA FUENTE PEQUEÑA PARA IVA
-            Font fontIvaSmall = new Font("Arial", 6, FontStyle.Regular);
-
-            System.Diagnostics.Debug.WriteLine($"🔄 Imprimiendo {productosConIva.Count} productos con IVA en nuevo formato");
-
-            foreach (var producto in productosConIva)
-            {
-                float filaYInicial = y;
-
-                // DESCRIPCIÓN CON ESPACIO RESERVADO PARA IVA
-                string descripcionBase = producto.Descripcion;
-                string ivaTexto = producto.AlicuotaIva > 0 ? $"({producto.AlicuotaIva:N1}%)" : "";
-                
-                // NUEVO: Calcular espacio necesario para el IVA y restarlo del ancho disponible
-                float espacioIva = 0;
-                if (!string.IsNullOrEmpty(ivaTexto))
-                {
-                    SizeF ivaSize = graphics.MeasureString(ivaTexto, fontIvaSmall);
-                    espacioIva = ivaSize.Width + 8; // 8px de separación (4 antes + 4 después)
-                }
-                
-                // AJUSTADO: Reducir el ancho disponible para la descripción
-                float maxDescripcionWidth = colDescripcion - espacioIva - 4; // Reservar espacio para IVA
-                
-                // Dividir descripción en líneas con el nuevo ancho reducido
-                List<string> lineasDescripcion = DividirTextoEnLineasMejorado(graphics, descripcionBase, fontNormal, maxDescripcionWidth);
-
-                // PRECIO alineado a la derecha
-                decimal precio = producto.Precio;
-                string precioStr = precio < 1000 ? precio.ToString("C2") : precio.ToString("C0");
-                SizeF precioSize = graphics.MeasureString(precioStr, fontNormal);
-                float precioX = colX[1] + colPrecio - precioSize.Width - 2;
-
-                // CANTIDAD centrada (nueva posición)
-                string cantidadStr = producto.Cantidad.ToString();
-                cantidadTotal += producto.Cantidad;
-                SizeF cantidadSize = graphics.MeasureString(cantidadStr, fontNormal);
-                float cantidadX = colX[2] + (colCantidad - cantidadSize.Width) / 2;
-
-                // TOTAL alineado a la derecha
-                decimal total = producto.Subtotal;
-                sumaTotal += total;
-                string totalStr = total < 1000 ? total.ToString("C2") : total.ToString("C0");
-                SizeF totalSize = graphics.MeasureString(totalStr, fontNormal);
-                float totalX = colX[3] + colTotal - totalSize.Width - 2;
-
-                System.Diagnostics.Debug.WriteLine($"  📦 {producto.Codigo}: {descripcionBase} {ivaTexto} (Espacio reservado: {espacioIva}px)");
-
-                // Imprimir líneas de descripción
-                float filaY = filaYInicial;
-                for (int i = 0; i < lineasDescripcion.Count; i++)
-                {
-                    // Precio, Cantidad y Total solo en la primera línea
-                    if (i == 0)
-                    {
-                        graphics.DrawString(precioStr, fontNormal, Brushes.Black, precioX, filaY);
-
-                        float cantidadYLinea = filaY + ((rowHeight - cantidadSize.Height) / 2);
-                        graphics.DrawString(cantidadStr, fontNormal, Brushes.Black, cantidadX, cantidadYLinea);
-
-                        graphics.DrawString(totalStr, fontNormal, Brushes.Black, totalX, filaY);
-                    }
-
-                    // Descripción en cada línea
-                    graphics.DrawString(lineasDescripcion[i], fontNormal, Brushes.Black, colX[0], filaY);
-                    
-                    filaY += rowHeight;
-                }
-
-                // IVA alineado a la derecha del área de descripción (sin superposición)
-                if (!string.IsNullOrEmpty(ivaTexto))
-                {
-                    SizeF ivaSize = graphics.MeasureString(ivaTexto, fontIvaSmall);
-                    // POSICIÓN FIJA: Alineado a la derecha del área de descripción
-                    float ivaX = leftMargin + colDescripcion - ivaSize.Width - 2;
-                    
-                    // Color gris para el IVA
-                    using (Brush grayBrush = new SolidBrush(Color.FromArgb(100, 100, 100)))
-                    {
-                        graphics.DrawString(ivaTexto, fontIvaSmall, grayBrush, ivaX, filaYInicial + 1);
-                    }
-                }
-
-                y = filaY;
-            }
-
-            // Limpiar fuente temporal
-            fontIvaSmall.Dispose();
-
-            // LÍNEA SEPARADORA FINAL
-            y += 4;
-            graphics.DrawLine(linePen, leftMargin, y, tablaRight, y);
-            y += 6;
-
-            // TOTALES BÁSICOS
-            y = ImprimirTotalesBasicos(graphics, fontBold, leftMargin, rightMargin, y, cantidadTotal, sumaTotal);
-
-            // RESUMEN DE IVA PARA FACTURAS
-            if (resumenIva != null && resumenIva.Count > 0)
-            {
-                System.Diagnostics.Debug.WriteLine("💰 Imprimiendo resumen de IVA");
-                y = ImprimirResumenIva(graphics, fontBold, fontNormal, leftMargin, rightMargin, y);
-            }
-
-            return y;
-        }
-
-        // AJUSTADO: Método para imprimir resumen de IVA con fuente más pequeña
-        private float ImprimirResumenIva(Graphics graphics, Font fontBold, Font fontNormal, float leftMargin, float rightMargin, float y)
-        {
-            y += 8; // Espacio adicional
-
-            // Título del resumen (mantener tamaño normal)
-            string tituloResumen = "=== RESUMEN IVA ===";
-            SizeF tituloSize = graphics.MeasureString(tituloResumen, fontBold);
-            float tituloX = leftMargin + ((rightMargin - leftMargin - tituloSize.Width) / 2);
-            graphics.DrawString(tituloResumen, fontBold, Brushes.Black, tituloX, y);
-            y += tituloSize.Height + 4;
-
-            // NUEVA FUENTE MÁS PEQUEÑA PARA EL DETALLE DE IVA
-            Font fontIvaDetalle = new Font("Arial", 6, FontStyle.Regular);
-            Font fontIvaDetalleBold = new Font("Arial", 6, FontStyle.Bold);
-
-            decimal totalBaseImponible = 0;
-            decimal totalIva = 0;
-
-            // Detalle por alícuota - CON FUENTE MÁS PEQUEÑA
-            foreach (var kvp in resumenIva.OrderByDescending(x => x.Key))
-            {
-                decimal alicuota = kvp.Key;
-                decimal baseImponible = kvp.Value.BaseImponible;
-                decimal importeIva = kvp.Value.ImporteIva;
-
-                totalBaseImponible += baseImponible;
-                totalIva += importeIva;
-
-                // Formato: "IVA 21.0%: Base $xxx - IVA $xxx" - CON FUENTE PEQUEÑA
-                string lineaIva = $"IVA {alicuota:N1}%: Base {baseImponible:C2} - IVA {importeIva:C2}";
-                graphics.DrawString(lineaIva, fontIvaDetalle, Brushes.Black, leftMargin, y);
-                y += 12; // Espaciado reducido por fuente más pequeña
-
-                System.Diagnostics.Debug.WriteLine($"  💰 {lineaIva}");
-            }
-
-            // Línea divisoria
-            Pen linePen = new Pen(Color.Black, 1);
-            graphics.DrawLine(linePen, leftMargin, y, rightMargin, y);
-            y += 4;
-
-            // Totales finales - CON FUENTE PEQUEÑA PERO BOLD
-            string lineaTotalBase = $"TOTAL BASE IMPONIBLE: {totalBaseImponible:C2}";
-            graphics.DrawString(lineaTotalBase, fontIvaDetalleBold, Brushes.Black, leftMargin, y);
-            y += 14; // Espaciado reducido
-
-            string lineaTotalIva = $"TOTAL IVA: {totalIva:C2}";
-            graphics.DrawString(lineaTotalIva, fontIvaDetalleBold, Brushes.Black, leftMargin, y);
-            y += 14; // Espaciado reducido
-
-            System.Diagnostics.Debug.WriteLine($"💰 {lineaTotalBase}");
-            System.Diagnostics.Debug.WriteLine($"💰 {lineaTotalIva}");
-
-            // Limpiar recursos
-            linePen.Dispose();
-            fontIvaDetalle.Dispose();
-            fontIvaDetalleBold.Dispose();
-
-            return y;
-        }
-
         private List<string> DividirTextoEnLineasMejorado(Graphics graphics, string texto, Font font, float anchoMaximo)
         {
             var lineas = new List<string>();
@@ -1072,6 +970,18 @@ namespace Comercio.NET.Servicios
             public decimal BaseImponible { get; set; }
             public decimal ImporteIva { get; set; }
         }
+    }
+
+    // NUEVA: Clase para almacenar datos de facturación
+    public class DatosFacturacion
+    {
+        public string RazonSocial { get; set; } = "";
+        public string CUIT { get; set; } = "";
+        public string IngBrutos { get; set; } = "";
+        public string DomicilioFiscal { get; set; } = "";
+        public string CodigoPostal { get; set; } = "";
+        public string InicioActividades { get; set; } = "";
+        public string Condicion { get; set; } = "";
     }
 
     public class TicketConfig
