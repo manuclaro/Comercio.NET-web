@@ -928,8 +928,8 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
-                // Crear configuración de ticket
-                var config = CrearConfiguracionTicket(datosFactura);
+                // Crear configuración de ticket con el número correcto
+                var config = await CrearConfiguracionTicketAsync(datosFactura, numeroRemito);
 
                 // Obtener los productos de la factura
                 var datosProductos = await ObtenerProductosFactura(numeroRemito);
@@ -954,6 +954,57 @@ namespace Comercio.NET.Formularios
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // NUEVO: Método async para crear configuración de ticket con número correcto
+        private async Task<TicketConfig> CrearConfiguracionTicketAsync(DatosFactura datos, string numeroRemito)
+        {
+            // Obtener el número de factura correcto desde la base de datos
+            string numeroComprobanteFinal = numeroRemito; // Por defecto usar el número de remito
+            
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"SELECT NroFactura FROM Facturas WHERE NumeroRemito = @numeroRemito";
+                    
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                        await connection.OpenAsync();
+                        
+                        var nroFactura = await cmd.ExecuteScalarAsync();
+                        if (nroFactura != null && !string.IsNullOrEmpty(nroFactura.ToString()))
+                        {
+                            numeroComprobanteFinal = nroFactura.ToString();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error obteniendo número de factura: {ex.Message}");
+                // Usar número de remito como fallback
+            }
+
+            return new TicketConfig
+            {
+                NombreComercio = datos.NombreComercio,
+                DomicilioComercio = datos.DomicilioComercio,
+                TipoComprobante = datos.TipoFactura ?? "REMITO",
+                NumeroComprobante = numeroComprobanteFinal, // Solo el número correcto
+                FormaPago = datos.FormaPago,
+                CAE = datos.CAENumero,
+                CAEVencimiento = datos.CAEVencimiento,
+                CUIT = datos.CUITCliente,
+                MensajePie = "¡Gracias por su compra!"
+            };
         }
 
         // NUEVO: Método para obtener datos de la factura para impresión
@@ -1061,31 +1112,14 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // NUEVO: Método para crear configuración de ticket
-        private TicketConfig CrearConfiguracionTicket(DatosFactura datos)
-        {
-            return new TicketConfig
-            {
-                NombreComercio = datos.NombreComercio,
-                DomicilioComercio = datos.DomicilioComercio,
-                TipoComprobante = datos.TipoFactura ?? "REMITO",
-                NumeroComprobante = frmDetalle.Text, // Usar el título completo
-                FormaPago = datos.FormaPago,
-                CAE = datos.CAENumero,
-                CAEVencimiento = datos.CAEVencimiento,
-                CUIT = datos.CUITCliente,
-                MensajePie = "¡Gracias por su compra!"
-            };
-        }
-
-        // AGREGAR: Método auxiliar para extraer número de remito del título
+        // SIMPLIFICADO: Método auxiliar para extraer número de remito del título
         private string ExtraerNumeroRemitoDelTitulo(string titulo)
         {
             try
             {
                 if (string.IsNullOrEmpty(titulo)) return "";
                 
-                // Buscar patrón "N°\s*(\d+)" en el título
+                // Buscar el primer número que aparece después de "N°"
                 var match = System.Text.RegularExpressions.Regex.Match(titulo, @"N°\s*(\d+)");
                 return match.Success ? match.Groups[1].Value : "";
             }
