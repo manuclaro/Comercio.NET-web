@@ -1554,14 +1554,14 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                MessageBox.Show("Funcionalidad de Auditoría de Eliminados no implementada aún.", 
-                    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                
-                // TODO: Implementar la ventana de auditoría de eliminados
-                // using (var consultaForm = new ConsultaAuditoriaEliminados())
-                // {
-                //     consultaForm.ShowDialog(this);
-                // }
+                //MessageBox.Show("Funcionalidad de Auditoría de Eliminados no implementada aún.", 
+                //    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                 //TODO: Implementar la ventana de auditoría de eliminados
+                 using (var consultaForm = new ConsultaAuditoriaEliminados())
+                 {
+                     consultaForm.ShowDialog(this);
+                 }
             }
             catch (Exception ex)
             {
@@ -1575,14 +1575,14 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                MessageBox.Show("Funcionalidad de Resumen de IVA no implementada aún.", 
-                    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                
+                //MessageBox.Show("Funcionalidad de Resumen de IVA no implementada aún.", 
+                //    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                 // TODO: Implementar la ventana de resumen de IVA
-                // using (var resumenForm = new ResumenIvaForm(dtpFecha.Value.Date, chkCtaCte.Checked))
-                // {
-                //     resumenForm.ShowDialog(this);
-                // }
+                using (var resumenForm = new ResumenIvaForm(dtpFecha.Value.Date, chkCtaCte.Checked))
+                {
+                    resumenForm.ShowDialog(this);
+                }
             }
             catch (Exception ex)
             {
