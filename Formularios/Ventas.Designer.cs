@@ -149,7 +149,6 @@
             chkEsCtaCte.TabIndex = 12;
             chkEsCtaCte.Text = "Cta.Cte.";
             chkEsCtaCte.UseVisualStyleBackColor = true;
-            chkEsCtaCte.CheckedChanged += chkEsCtaCte_CheckedChanged;
             // 
             // cbnombreCtaCte
             // 

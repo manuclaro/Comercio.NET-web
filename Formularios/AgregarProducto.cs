@@ -1014,5 +1014,31 @@ namespace Comercio.NET.Formularios
         }
 
         public bool HuboCambios { get; private set; } = false;
+
+        // NUEVO: Método para precargar datos desde Ventas
+        public void PrecargarDatos(string codigo, decimal? precio)
+        {
+            Origen = OrigenLlamada.Ventas;
+
+            var txtCodigo = this.Controls.Find("txtCodigo", true).FirstOrDefault() as TextBox;
+            var txtDescripcion = this.Controls.Find("txtDescripcion", true).FirstOrDefault() as TextBox;
+            var txtPrecio = this.Controls.Find("txtPrecio", true).FirstOrDefault() as TextBox;
+
+            if (txtCodigo != null)
+            {
+                txtCodigo.Text = codigo;
+                txtCodigo.ReadOnly = true; // Bloquear edición del código desde Ventas
+            }
+
+            if (txtDescripcion != null)
+            {
+                txtDescripcion.Focus(); // Enfocar descripción para que el usuario la complete
+            }
+
+            if (txtPrecio != null && precio.HasValue)
+            {
+                txtPrecio.Text = precio.Value.ToString("F2");
+            }
+        }
     }
 }
