@@ -1,4 +1,4 @@
-Ôªøusing ArcaWS;
+using ArcaWS;
 using Microsoft.Extensions.Configuration;
 using Microsoft.VisualBasic;
 using System;
@@ -54,11 +54,17 @@ namespace Comercio.NET
         // En lugar del Label lbTotal, usar un RichTextBox para mejor control de formato
         private RichTextBox rtbTotal;
 
-        // NUEVO: Variable para controlar el estado de eliminaci√≥n
+        // NUEVO: Variable para controlar el estado de eliminaciÛn
         private bool procesandoEliminacion = false;
 
-        // NUEVO: Variable para controlar el estado de edici√≥n de cantidad
+        // NUEVO: Variable para controlar el estado de ediciÛn de cantidad
         private bool procesandoEdicionCantidad = false;
+
+        // NUEVO: Men˙ contextual para la grilla
+        private ContextMenuStrip contextMenuGrilla;
+        private ToolStripMenuItem menuEditarCantidad;
+        private ToolStripMenuItem menuEliminarProducto;
+        private ToolStripMenuItem menuInfoProducto;
 
         public Ventas()
         {
@@ -68,11 +74,12 @@ namespace Comercio.NET
             CargarConfiguracion();
             ConfigurarCheckboxCantidad();
             ConfigurarAtajosTeclado();
+            ConfigurarMenuContextual(); // NUEVO: Configurar men˙ contextual
 
-            // DEBUG: Verificar estado de autenticaci√≥n al abrir Ventas
+            // DEBUG: Verificar estado de autenticaciÛn al abrir Ventas
             System.Diagnostics.Debug.WriteLine($"=== DEBUG VENTAS CONSTRUCTOR ===");
             System.Diagnostics.Debug.WriteLine($"Login habilitado: {AuthenticationService.ConfiguracionLogin?.LoginHabilitado}");
-            System.Diagnostics.Debug.WriteLine($"Sesi√≥n activa: {AuthenticationService.SesionActual != null}");
+            System.Diagnostics.Debug.WriteLine($"SesiÛn activa: {AuthenticationService.SesionActual != null}");
             if (AuthenticationService.SesionActual?.Usuario != null)
             {
                 var usuario = AuthenticationService.SesionActual.Usuario;
@@ -84,6 +91,470 @@ namespace Comercio.NET
 
             // Agregar evento de redimensionamiento
             this.Resize += Ventas_Resize;
+        }
+
+        // NUEVO: Configurar men˙ contextual
+        private void ConfigurarMenuContextual()
+        {
+            contextMenuGrilla = new ContextMenuStrip();
+            
+            menuEditarCantidad = new ToolStripMenuItem("?? Editar Cantidad");
+            menuEditarCantidad.Click += MenuEditarCantidad_Click;
+            
+            menuEliminarProducto = new ToolStripMenuItem("??? Eliminar Producto");
+            menuEliminarProducto.Click += MenuEliminarProducto_Click;
+            
+            menuInfoProducto = new ToolStripMenuItem("?? InformaciÛn del Producto");
+            menuInfoProducto.Click += MenuInfoProducto_Click;
+            
+            // CORREGIDO: Agregar elementos individualmente en lugar de usar array
+            contextMenuGrilla.Items.Add(menuEditarCantidad);
+            contextMenuGrilla.Items.Add(new ToolStripSeparator());
+            contextMenuGrilla.Items.Add(menuEliminarProducto);
+            contextMenuGrilla.Items.Add(new ToolStripSeparator());
+            contextMenuGrilla.Items.Add(menuInfoProducto);
+            
+            // Configurar estilo
+            contextMenuGrilla.Font = new Font("Segoe UI", 9F);
+            contextMenuGrilla.BackColor = Color.White;
+        }
+
+        // NUEVO: Evento de editar cantidad desde men˙ contextual
+        private async void MenuEditarCantidad_Click(object sender, EventArgs e)
+        {
+            await EditarCantidadProductoSeleccionado();
+        }
+
+        // NUEVO: Evento de eliminar producto desde men˙ contextual
+        private async void MenuEliminarProducto_Click(object sender, EventArgs e)
+        {
+            await EliminarProductoConAuditoria();
+        }
+
+        // NUEVO: Evento de informaciÛn del producto desde men˙ contextual
+        private void MenuInfoProducto_Click(object sender, EventArgs e)
+        {
+            MostrarInformacionProducto();
+        }
+
+        // NUEVO: Mostrar informaciÛn del producto
+        private void MostrarInformacionProducto()
+        {
+            if (dataGridView1.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Seleccione un producto para ver su informaciÛn.", "InformaciÛn", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                var row = dataGridView1.SelectedRows[0];
+                var codigo = row.Cells["codigo"].Value?.ToString();
+                var descripcion = row.Cells["descripcion"].Value?.ToString();
+                var precio = row.Cells["precio"].Value?.ToString();
+                var cantidad = row.Cells["cantidad"].Value?.ToString();
+                var total = row.Cells["total"].Value?.ToString();
+                
+                // Obtener informaciÛn adicional del producto de la base de datos
+                string infoCompleta = ObtenerInformacionCompletaProducto(codigo);
+                
+                MessageBox.Show(
+                    $"INFORMACI”N DEL PRODUCTO\n\n" +
+                    $"CÛdigo: {codigo}\n" +
+                    $"DescripciÛn: {descripcion}\n" +
+                    $"Precio unitario: {precio}\n" +
+                    $"Cantidad: {cantidad}\n" +
+                    $"Total lÌnea: {total}\n\n" +
+                    infoCompleta,
+                    "InformaciÛn del Producto",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al obtener informaciÛn del producto: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // NUEVO: Obtener informaciÛn completa del producto
+        private string ObtenerInformacionCompletaProducto(string codigo)
+        {
+            try
+            {
+                string connectionString = GetConnectionString();
+                
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"SELECT rubro, marca, proveedor, costo, cantidad as stock, iva 
+                                  FROM Productos WHERE codigo = @codigo";
+                                  
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@codigo", codigo ?? "");
+                        connection.Open();
+                        
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                return $"Rubro: {reader["rubro"]}\n" +
+                                       $"Marca: {reader["marca"]}\n" +
+                                       $"Proveedor: {reader["proveedor"]}\n" +
+                                       $"Costo: ${reader["costo"]:N2}\n" +
+                                       $"Stock disponible: {reader["stock"]}\n" +
+                                       $"IVA: {reader["iva"]}%";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error obteniendo info producto: {ex.Message}");
+            }
+            
+            return "No se pudo obtener informaciÛn adicional.";
+        }
+
+        // NUEVO: Editar cantidad del producto seleccionado
+        private async Task EditarCantidadProductoSeleccionado()
+        {
+            if (procesandoEdicionCantidad) return;
+            
+            if (dataGridView1.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Seleccione un producto para editar su cantidad.", "InformaciÛn", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            procesandoEdicionCantidad = true;
+            
+            try
+            {
+                var row = dataGridView1.SelectedRows[0];
+                var codigo = row.Cells["codigo"].Value?.ToString();
+                var descripcion = row.Cells["descripcion"].Value?.ToString();
+                var cantidadActual = Convert.ToInt32(row.Cells["cantidad"].Value);
+                var precio = Convert.ToDecimal(row.Cells["precio"].Value);
+                
+                // MEJORADO: Usar el nuevo di·logo visual
+                using (var dialog = new EditarCantidadDialog(codigo, descripcion, cantidadActual))
+                {
+                    var resultado = dialog.ShowDialog(this);
+                    
+                    if (resultado == DialogResult.OK && dialog.Confirmado)
+                    {
+                        int nuevaCantidad = dialog.NuevaCantidad;
+                        
+                        // Actualizar en la base de datos
+                        await ActualizarCantidadEnVenta(codigo, nuevaCantidad, precio);
+                        
+                        // Recargar la vista
+                        CargarVentasActuales();
+                        
+                        System.Diagnostics.Debug.WriteLine($"? Cantidad actualizada: {codigo} - Nueva cantidad: {nuevaCantidad}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al editar cantidad: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                procesandoEdicionCantidad = false;
+            }
+        }
+
+        // NUEVO: Actualizar cantidad en la base de datos
+        private async Task ActualizarCantidadEnVenta(string codigo, int nuevaCantidad, decimal precio)
+        {
+            string connectionString = GetConnectionString();
+            
+            using (var connection = new SqlConnection(connectionString))
+            {
+                var query = @"UPDATE Ventas 
+                              SET cantidad = @nuevaCantidad, 
+                                  total = @nuevaCantidad * precio 
+                              WHERE codigo = @codigo AND nrofactura = @nrofactura";
+                              
+                using (var cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
+                    cmd.Parameters.AddWithValue("@codigo", codigo);
+                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                    
+                    connection.Open();
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+        }
+
+        // NUEVO: Eliminar producto con auditorÌa
+        private async Task EliminarProductoConAuditoria()
+        {
+            if (procesandoEliminacion) return;
+            
+            if (dataGridView1.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Seleccione un producto para eliminar.", "InformaciÛn", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            procesandoEliminacion = true;
+            
+            try
+            {
+                var row = dataGridView1.SelectedRows[0];
+                var codigo = row.Cells["codigo"].Value?.ToString();
+                var descripcion = row.Cells["descripcion"].Value?.ToString();
+                var cantidad = Convert.ToInt32(row.Cells["cantidad"].Value);
+                var precio = Convert.ToDecimal(row.Cells["precio"].Value);
+                var total = Convert.ToDecimal(row.Cells["total"].Value);
+                
+                // Verificar permisos de eliminaciÛn si el sistema de login est· habilitado
+                if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true)
+                {
+                    if (AuthenticationService.SesionActual?.Usuario == null)
+                    {
+                        MessageBox.Show("No hay una sesiÛn activa.", "Error de AutenticaciÛn",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    if (!usuario.PuedeEliminarProductos && usuario.Nivel != Models.NivelUsuario.Administrador)
+                    {
+                        MessageBox.Show(
+                            "?? ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para eliminar productos de la venta.\n\n" +
+                            "Este acciÛn requiere el permiso 'Eliminar Productos'.\n" +
+                            "Contacta a un administrador si necesitas realizar esta acciÛn.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
+                // MEJORADO: Usar el nuevo di·logo visual con soporte para eliminaciÛn parcial
+                using (var dialog = new EliminarProductoDialog(codigo, descripcion, cantidad, precio, total))
+                {
+                    var resultado = dialog.ShowDialog(this);
+                    
+                    if (resultado == DialogResult.OK && dialog.Confirmado)
+                    {
+                        string motivo = dialog.Motivo;
+                        int cantidadAEliminar = dialog.CantidadAEliminar;
+                        bool eliminarCompleto = dialog.EliminarCompleto;
+                        
+                        // Registrar auditorÌa y procesar eliminaciÛn
+                        await ProcesarEliminacionConAuditoria(codigo, descripcion, cantidad, cantidadAEliminar, 
+                            precio, eliminarCompleto, motivo);
+                        
+                        // Recargar la vista
+                        CargarVentasActuales();
+                        
+                        System.Diagnostics.Debug.WriteLine($"? Producto procesado - CÛdigo: {codigo}, " +
+                            $"Eliminado: {cantidadAEliminar}/{cantidad}, Completo: {eliminarCompleto}, Motivo: {motivo}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                procesandoEliminacion = false;
+            }
+        }
+
+        // MEJORADO: Procesar eliminaciÛn con auditorÌa (soporte para eliminaciÛn parcial)
+        private async Task ProcesarEliminacionConAuditoria(string codigo, string descripcion, int cantidadTotal, 
+            int cantidadAEliminar, decimal precio, bool eliminarCompleto, string motivo)
+        {
+            string connectionString = GetConnectionString();
+            string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName;
+            int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
+            
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Crear/verificar tabla de auditorÌa si no existe (usando la tabla existente)
+                        await VerificarTablaAuditoriaProductosEliminados(connection, transaction);
+                        
+                        // 2. Registrar la auditorÌa en AuditoriaProductosEliminados
+                        var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
+                                               (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+                                                TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+                                                MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+                                                NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
+                                               VALUES (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
+                                                       @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+                                                       @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
+                                                       @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+                        
+                        using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
+                            cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+                            cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
+                            cmd.Parameters.AddWithValue("@Cantidad", cantidadAEliminar); // Cantidad eliminada
+                            cmd.Parameters.AddWithValue("@TotalEliminado", precio * cantidadAEliminar);
+                            cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                            cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now); // Fecha de la venta original
+                            cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+                            cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
+                            cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+                            cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
+                            cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                            cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                            cmd.Parameters.AddWithValue("@EsEliminacionCompleta", eliminarCompleto);
+                            cmd.Parameters.AddWithValue("@CantidadOriginal", cantidadTotal); // Cantidad original
+                            
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+                        
+                        // 3. Procesar eliminaciÛn en la venta
+                        if (eliminarCompleto)
+                        {
+                            // Eliminar la lÌnea completa
+                            var queryEliminar = @"DELETE FROM Ventas 
+                                                 WHERE codigo = @codigo AND nrofactura = @nrofactura";
+                                                
+                            using (var cmd = new SqlCommand(queryEliminar, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+                        else
+                        {
+                            // Actualizar la cantidad restante
+                            int cantidadRestante = cantidadTotal - cantidadAEliminar;
+                            var queryActualizar = @"UPDATE Ventas 
+                                                   SET cantidad = @cantidadRestante,
+                                                       total = @cantidadRestante * precio
+                                                   WHERE codigo = @codigo AND nrofactura = @nrofactura";
+                                                   
+                            using (var cmd = new SqlCommand(queryActualizar, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@cantidadRestante", cantidadRestante);
+                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+                        
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        // NUEVO: Verificar/crear campos adicionales en AuditoriaProductosEliminados
+        private async Task VerificarTablaAuditoriaProductosEliminados(SqlConnection connection, SqlTransaction transaction)
+        {
+            var verificarCamposQuery = @"
+            -- Verificar y agregar campos adicionales si no existen en AuditoriaProductosEliminados
+            IF EXISTS (SELECT * FROM sysobjects WHERE name='AuditoriaProductosEliminados' AND xtype='U')
+            BEGIN
+                -- Verificar y agregar campo EsEliminacionCompleta si no existe
+                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'EsEliminacionCompleta')
+                BEGIN
+                    ALTER TABLE AuditoriaProductosEliminados ADD EsEliminacionCompleta bit NULL
+                    -- Actualizar valores existentes
+                    UPDATE AuditoriaProductosEliminados SET EsEliminacionCompleta = 1 WHERE EsEliminacionCompleta IS NULL
+                    ALTER TABLE AuditoriaProductosEliminados ALTER COLUMN EsEliminacionCompleta bit NOT NULL
+                END
+                
+                -- Verificar y agregar campo CantidadOriginal si no existe
+                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'CantidadOriginal')
+                BEGIN
+                    ALTER TABLE AuditoriaProductosEliminados ADD CantidadOriginal int NULL
+                    -- Actualizar valores existentes con la cantidad eliminada como original (para registros viejos)
+                    UPDATE AuditoriaProductosEliminados SET CantidadOriginal = Cantidad WHERE CantidadOriginal IS NULL
+                    ALTER TABLE AuditoriaProductosEliminados ALTER COLUMN CantidadOriginal int NOT NULL
+                END
+                
+                -- Verificar y agregar campo NombreEquipo si no existe
+                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'NombreEquipo')
+                BEGIN
+                    ALTER TABLE AuditoriaProductosEliminados ADD NombreEquipo nvarchar(100) NULL
+                    -- Actualizar valores existentes
+                    UPDATE AuditoriaProductosEliminados SET NombreEquipo = 'Equipo-Desconocido' WHERE NombreEquipo IS NULL
+                END
+                
+                -- Verificar y asegurar que el campo MotivoEliminacion existe
+                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'MotivoEliminacion')
+                BEGIN
+                    ALTER TABLE AuditoriaProductosEliminados ADD MotivoEliminacion nvarchar(500) NULL
+                    -- Actualizar valores existentes
+                    UPDATE AuditoriaProductosEliminados SET MotivoEliminacion = 'EliminaciÛn sin motivo especificado' WHERE MotivoEliminacion IS NULL
+                    ALTER TABLE AuditoriaProductosEliminados ALTER COLUMN MotivoEliminacion nvarchar(500) NOT NULL
+                END
+                
+                -- Verificar y agregar campo NombreCtaCte si no existe
+                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'NombreCtaCte')
+                BEGIN
+                    ALTER TABLE AuditoriaProductosEliminados ADD NombreCtaCte nvarchar(255) NULL
+                END
+                
+                -- Verificar que todos los campos requeridos existen
+                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'CodigoProducto')
+                OR NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'DescripcionProducto')
+                OR NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'UsuarioEliminacion')
+                OR NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'FechaEliminacion')
+                BEGIN
+                    RAISERROR('La tabla AuditoriaProductosEliminados no tiene la estructura esperada', 16, 1)
+                END
+            END
+            ELSE
+            BEGIN
+                -- Si la tabla no existe, crearla con la estructura completa
+                CREATE TABLE AuditoriaProductosEliminados (
+                    IdAuditoriaProductosEliminados int IDENTITY(1,1) PRIMARY KEY,
+                    CodigoProducto nvarchar(50) NOT NULL,
+                    DescripcionProducto nvarchar(255) NOT NULL,
+                    PrecioUnitario decimal(18,2) NOT NULL,
+                    Cantidad int NOT NULL, -- Cantidad eliminada
+                    CantidadOriginal int NOT NULL, -- Cantidad original en la lÌnea
+                    TotalEliminado decimal(18,2) NOT NULL,
+                    NumeroFactura int NOT NULL,
+                    FechaHoraVentaOriginal datetime NOT NULL,
+                    FechaEliminacion datetime NOT NULL,
+                    MotivoEliminacion nvarchar(500) NOT NULL,
+                    EsCtaCte bit NOT NULL DEFAULT 0,
+                    NombreCtaCte nvarchar(255) NULL,
+                    UsuarioEliminacion nvarchar(100) NOT NULL,
+                    NumeroCajero int NOT NULL,
+                    NombreEquipo nvarchar(100) NULL,
+                    EsEliminacionCompleta bit NOT NULL DEFAULT 1
+                )
+            END";
+
+            using (var cmd = new SqlCommand(verificarCamposQuery, connection, transaction))
+            {
+                await cmd.ExecuteNonQueryAsync();
+            }
         }
 
         private void Ventas_Resize(object sender, EventArgs e)
@@ -122,23 +593,56 @@ namespace Comercio.NET
             ConfigurarEventosPrecio();
         }
 
-        // NUEVO: Implementar m√©todo ConfigurarEventosPrecio
+        // CORREGIDO: Implementar correctamente los eventos de txtPrecio
         private void ConfigurarEventosPrecio()
         {
             if (txtPrecio != null)
             {
+                // CORREGIDO: Configurar evento Enter para txtPrecio
+                txtPrecio.KeyDown += (s, e) =>
+                {
+                    if (e.KeyCode == Keys.Enter)
+                    {
+                        e.SuppressKeyPress = true;
+                        // Si el precio est· habilitado y tiene valor v·lido, ir al botÛn agregar
+                        if (txtPrecio.Enabled && !string.IsNullOrWhiteSpace(txtPrecio.Text))
+                        {
+                            btnAgregar.Focus();
+                        }
+                        else
+                        {
+                            // Si no, seguir la navegaciÛn normal
+                            this.SelectNextControl(txtPrecio, true, true, true, true);
+                        }
+                    }
+                };
+
                 txtPrecio.KeyPress += (s, e) =>
                 {
-                    // Permitir solo n√∫meros, punto decimal y teclas de control
+                    // Permitir solo n˙meros, punto decimal, coma y teclas de control
                     if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && e.KeyChar != '.' && e.KeyChar != ',')
                     {
                         e.Handled = true;
                     }
+
+                    // Reemplazar coma por punto para consistencia
+                    if (e.KeyChar == ',')
+                    {
+                        e.KeyChar = '.';
+                    }
+
+                    // Permitir solo un punto decimal
+                    if (e.KeyChar == '.' && (s as TextBox).Text.Contains('.'))
+                    {
+                        e.Handled = true;
+                    }
                 };
+
+                txtPrecio.Enter += (s, e) => txtPrecio.SelectAll();
             }
         }
 
-        // NUEVO: Implementar m√©todo ConfigurarTextBoxes
+        // NUEVO: Implementar mÈtodo ConfigurarTextBoxes
         private void ConfigurarTextBoxes()
         {
             if (txtBuscarProducto != null)
@@ -156,7 +660,7 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Implementar m√©todo GetConnectionString
+        // NUEVO: Implementar mÈtodo GetConnectionString
         private string GetConnectionString()
         {
             var config = new ConfigurationBuilder()
@@ -166,12 +670,12 @@ namespace Comercio.NET
             return config.GetConnectionString("DefaultConnection");
         }
 
-        // NUEVO: Implementar m√©todo ProcesarCodigo
+        // NUEVO: Implementar mÈtodo ProcesarCodigo
         private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
         {
             if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
             {
-                // C√≥digo especial de balanza
+                // CÛdigo especial de balanza
                 string codigoProducto = textoIngresado.Substring(2, 5);
                 codigoProducto = codigoProducto.TrimStart('0');
                 if (string.IsNullOrEmpty(codigoProducto))
@@ -184,7 +688,7 @@ namespace Comercio.NET
             }
             else
             {
-                // C√≥digo normal
+                // CÛdigo normal
                 string codigo = textoIngresado.TrimStart('0');
                 if (string.IsNullOrEmpty(codigo))
                     codigo = "0";
@@ -193,7 +697,7 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Implementar m√©todo CalcularIvaDesdeTotal
+        // NUEVO: Implementar mÈtodo CalcularIvaDesdeTotal
         private decimal CalcularIvaDesdeTotal(decimal totalConIva, decimal porcentajeIva)
         {
             if (porcentajeIva <= 0)
@@ -202,23 +706,64 @@ namespace Comercio.NET
             return (totalConIva * porcentajeIva) / (100 + porcentajeIva);
         }
 
-        // NUEVO: Implementar m√©todo ConfigurarEventosDataGridView
+        // CORREGIDO: Implementar mÈtodo ConfigurarEventosDataGridView con todos los eventos necesarios
         private void ConfigurarEventosDataGridView()
         {
             if (dataGridView1 != null)
             {
+                // Evento de tecla Delete para eliminar
                 dataGridView1.KeyDown += (s, e) =>
                 {
                     if (e.KeyCode == Keys.Delete)
                     {
-                        // Eliminar producto seleccionado
-                        EliminarProductoSeleccionado();
+                        // Usar el mÈtodo con auditorÌa
+                        _ = EliminarProductoConAuditoria();
                     }
+                };
+
+                // RESTAURADO: Evento de doble click para editar cantidad
+                dataGridView1.CellDoubleClick += async (s, e) =>
+                {
+                    if (e.RowIndex >= 0) // Verificar que no sea el header
+                    {
+                        dataGridView1.Rows[e.RowIndex].Selected = true;
+                        await EditarCantidadProductoSeleccionado();
+                    }
+                };
+
+                // RESTAURADO: Evento de click derecho para men˙ contextual
+                dataGridView1.MouseClick += (s, e) =>
+                {
+                    if (e.Button == MouseButtons.Right)
+                    {
+                        var hit = dataGridView1.HitTest(e.X, e.Y);
+                        if (hit.RowIndex >= 0)
+                        {
+                            // Seleccionar la fila clickeada
+                            dataGridView1.ClearSelection();
+                            dataGridView1.Rows[hit.RowIndex].Selected = true;
+                            
+                            // Mostrar el men˙ contextual
+                            contextMenuGrilla.Show(dataGridView1, e.Location);
+                        }
+                    }
+                };
+
+                // Evento de selecciÛn de fila para actualizar estado del men˙
+                dataGridView1.SelectionChanged += (s, e) =>
+                {
+                    bool haySeleccion = dataGridView1.SelectedRows.Count > 0;
+                    if (menuEditarCantidad != null)
+                        menuEditarCantidad.Enabled = haySeleccion;
+                    if (menuEliminarProducto != null)
+                        menuEliminarProducto.Enabled = haySeleccion;
+                    if (menuInfoProducto != null)
+                        menuInfoProducto.Enabled = haySeleccion;
                 };
             }
         }
 
-        // NUEVO: Implementar m√©todo EliminarProductoSeleccionado
+        // NUEVO: Implementar mÈtodo EliminarProductoSeleccionado
         private void EliminarProductoSeleccionado()
         {
             if (dataGridView1.SelectedRows.Count > 0)
@@ -229,21 +774,21 @@ namespace Comercio.NET
                 if (!string.IsNullOrEmpty(codigo))
                 {
                     var resultado = MessageBox.Show(
-                        $"¬øEst√° seguro de eliminar el producto {codigo}?",
-                        "Confirmar eliminaci√≥n",
+                        $"øEst· seguro de eliminar el producto {codigo}?",
+                        "Confirmar eliminaciÛn",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
 
                     if (resultado == DialogResult.Yes)
                     {
-                        // Implementar l√≥gica de eliminaci√≥n
+                        // Implementar lÛgica de eliminaciÛn
                         EliminarProductoDeVenta(codigo);
                     }
                 }
             }
         }
 
-        // NUEVO: Implementar m√©todo EliminarProductoDeVenta
+        // NUEVO: Implementar mÈtodo EliminarProductoDeVenta
         private async void EliminarProductoDeVenta(string codigo)
         {
             try
@@ -272,7 +817,7 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Implementar m√©todo chkCantidad_CheckedChanged
+        // NUEVO: Implementar mÈtodo chkCantidad_CheckedChanged
         private void chkCantidad_CheckedChanged(object sender, EventArgs e)
         {
             if (chkCantidad.Checked)
@@ -298,16 +843,16 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Implementar m√©todo cbnombreCtaCte_SelectedIndexChanged
+        // NUEVO: Implementar mÈtodo cbnombreCtaCte_SelectedIndexChanged
         private void cbnombreCtaCte_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // L√≥gica para manejar cambio de cuenta corriente
+            // LÛgica para manejar cambio de cuenta corriente
         }
 
-        // NUEVO: Implementar m√©todo FormatearDataGridView
+        // NUEVO: Implementar mÈtodo FormatearDataGridView
         private void FormatearDataGridView()
         {
-            // Formatear columnas num√©ricas
+            // Formatear columnas numÈricas
             if (dataGridView1.Columns["precio"] != null)
             {
                 dataGridView1.Columns["precio"].DefaultCellStyle.Format = "C2";
@@ -326,25 +871,25 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Implementar m√©todo ObtenerUsuarioActual
+        // NUEVO: Implementar mÈtodo ObtenerUsuarioActual
         private string ObtenerUsuarioActual()
         {
             return AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
         }
 
-        // NUEVO: Implementar m√©todo obtenerNumeroCajero
+        // NUEVO: Implementar mÈtodo obtenerNumeroCajero
         private int obtenerNumeroCajero()
         {
             return AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
         }
 
-        // NUEVO: Implementar m√©todo FormatearNumeroFacturaParaBD
+        // NUEVO: Implementar mÈtodo FormatearNumeroFacturaParaBD
         private string FormatearNumeroFacturaParaBD(int tipoComprobante, int puntoVenta, int numeroFactura)
         {
             return $"{tipoComprobante:D4}-{puntoVenta:D8}-{numeroFactura:D8}";
         }
 
-        // NUEVO: Implementar m√©todo LimpiarYReiniciarVenta
+        // NUEVO: Implementar mÈtodo LimpiarYReiniciarVenta
         private void LimpiarYReiniciarVenta()
         {
             dataGridView1.DataSource = null;
@@ -366,12 +911,12 @@ namespace Comercio.NET
             txtBuscarProducto.Focus();
         }
 
-        // NUEVO: Implementar m√©todo AbrirFormularioAgregarProductoRapido
+        // NUEVO: Implementar mÈtodo AbrirFormularioAgregarProductoRapido
         private async Task AbrirFormularioAgregarProductoRapido(string codigo, decimal? precio)
         {
             using (var form = new frmAgregarProducto())
             {
-                // Pre-cargar c√≥digo y precio si se proporcionan
+                // Pre-cargar cÛdigo y precio si se proporcionan
                 form.PrecargarDatos(codigo, precio);
                 var resultado = form.ShowDialog(this);
                 
@@ -430,7 +975,7 @@ namespace Comercio.NET
                 else if (e.KeyCode == Keys.F6)
                 {
                     e.SuppressKeyPress = true;
-                    // Abrir consulta r√°pida de precios
+                    // Abrir consulta r·pida de precios
                     AbrirConsultaRapidaPrecios();
                 }
             };
@@ -447,11 +992,11 @@ namespace Comercio.NET
             nombreComercio = config["Comercio:Nombre"] ?? "Comercio";
             domicilioComercio = config["Comercio:Domicilio"] ?? "domicilio";
 
-            // NUEVO: Cargar configuraci√≥n de validaci√≥n de stock
+            // NUEVO: Cargar configuraciÛn de validaciÛn de stock
             validarStockHabilitado = config.GetValue<bool>("Validaciones:ValidarStockDisponible", true);
 
-            // DEBUG: Mostrar configuraci√≥n cargada
-            System.Diagnostics.Debug.WriteLine($"=== CONFIGURACI√ìN STOCK ===");
+            // DEBUG: Mostrar configuraciÛn cargada
+            System.Diagnostics.Debug.WriteLine($"=== CONFIGURACI”N STOCK ===");
             System.Diagnostics.Debug.WriteLine($"Validar stock habilitado: {validarStockHabilitado}");
             System.Diagnostics.Debug.WriteLine($"===========================");
         }
@@ -462,7 +1007,7 @@ namespace Comercio.NET
             chkCantidad = new CheckBox
             {
                 Text = "Cantidad",
-                Left = 500, // M√°s a la derecha, separado del chkEsCtaCte
+                Left = 500, // M·s a la derecha, separado del chkEsCtaCte
                 Top = 136,  // Misma altura que chkEsCtaCte
                 Width = 180,
                 Font = new Font("Segoe UI", 10F),
@@ -527,10 +1072,10 @@ namespace Comercio.NET
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
-            // MEJORADO: Estilos de selecci√≥n m√°s contrastantes
+            // MEJORADO: Estilos de selecciÛn m·s contrastantes
             dataGridView1.DefaultCellStyle.BackColor = Color.White;
             dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
-            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul m√°s intenso
+            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul m·s intenso
             dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White; // Texto blanco para mayor contraste
             dataGridView1.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
 
@@ -540,17 +1085,17 @@ namespace Comercio.NET
             headerStyle.BackColor = Color.FromArgb(248, 249, 250);
             headerStyle.ForeColor = Color.Black;
 
-            // MEJORADO: Filas alternadas m√°s oscuras para mejor diferenciaci√≥n
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(240, 245, 250); // M√°s oscuro
+            // MEJORADO: Filas alternadas m·s oscuras para mejor diferenciaciÛn
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(240, 245, 250); // M·s oscuro
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
 
-            // NUEVO: Configuraci√≥n adicional para mejor experiencia visual
-            dataGridView1.RowTemplate.Height = 28; // Filas un poco m√°s altas
+            // NUEVO: ConfiguraciÛn adicional para mejor experiencia visual
+            dataGridView1.RowTemplate.Height = 28; // Filas un poco m·s altas
             dataGridView1.GridColor = Color.FromArgb(220, 220, 220);
 
-            // Despu√©s de asignar el DataSource o en ConfigurarDataGridView, aseg√∫rate de que la columna existe
+            // DespuÈs de asignar el DataSource o en ConfigurarDataGridView, aseg˙rate de que la columna existe
             if (dataGridView1.Columns["codigo"] != null)
             {
                 dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
@@ -575,7 +1120,7 @@ namespace Comercio.NET
 
             try
             {
-                // Correcci√≥n: usar declaraciones separadas
+                // CorrecciÛn: usar declaraciones separadas
                 var resultado = ProcesarCodigo(textoIngresado);
                 await MostrarProductoAsync(resultado.codigoBuscado, resultado.precioPersonalizado, resultado.esEspecial);
             }
@@ -592,8 +1137,8 @@ namespace Comercio.NET
 
             if (producto == null)
             {
-                // MEJORADO: Mensaje m√°s claro para el usuario
-                lbDescripcionProducto.Text = $"‚ö†Ô∏è Producto '{codigo}' no encontrado - Presione 'Agregar' para crearlo";
+                // MEJORADO: Mensaje m·s claro para el usuario
+                lbDescripcionProducto.Text = $"?? Producto '{codigo}' no encontrado - Presione 'Agregar' para crearlo";
                 LimpiarCamposProducto();
                 return;
             }
@@ -623,8 +1168,7 @@ namespace Comercio.NET
                 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, 
-                                  PermiteAcumular, EditarPrecio, cantidad, iva 
+                    var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, EditarPrecio, cantidad, iva 
                                   FROM Productos WHERE codigo = @codigo";
                     
                     using (var adapter = new SqlDataAdapter(query, connection))
@@ -660,19 +1204,19 @@ namespace Comercio.NET
 
             if (string.IsNullOrEmpty(textoIngresado))
             {
-                MessageBox.Show("Ingrese un c√≥digo de producto v√°lido.");
+                MessageBox.Show("Ingrese un cÛdigo de producto v·lido.");
                 txtBuscarProducto.Focus();
                 return;
             }
 
-            // NUEVO: Procesar c√≥digo especial tambi√©n en btnAgregar_Click
+            // NUEVO: Procesar cÛdigo especial tambiÈn en btnAgregar_Click
             if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
             {
                 try
                 {
-                    string codigoProducto = textoIngresado.Substring(2, 5); // 5 d√≠gitos (posiciones 2-6)
+                    string codigoProducto = textoIngresado.Substring(2, 5); // 5 dÌgitos (posiciones 2-6)
 
-                    // NUEVO: Eliminar ceros a la izquierda del c√≥digo del producto
+                    // NUEVO: Eliminar ceros a la izquierda del cÛdigo del producto
                     codigoProducto = codigoProducto.TrimStart('0');
                     if (string.IsNullOrEmpty(codigoProducto))
                         codigoProducto = "0";
@@ -682,21 +1226,21 @@ namespace Comercio.NET
                 }
                 catch
                 {
-                    MessageBox.Show("Error procesando c√≥digo especial.");
+                    MessageBox.Show("Error procesando cÛdigo especial.");
                     txtBuscarProducto.Focus();
                     return;
                 }
             }
             else if (textoIngresado.Length == 8)
             {
-                // TRATamiento ESPECIAL PARA C√ìDIGOS TEMPORALES DE TESTING (8 D√çGITOS)
-                // Asumimos que vienen en el formato XXXXXXXX y son v√°lidos para testing
+                // TRATamiento ESPECIAL PARA C”DIGOS TEMPORALES DE TESTING (8 DÕGITOS)
+                // Asumimos que vienen en el formato XXXXXXXX y son v·lidos para testing
                 codigoBuscado = textoIngresado;
                 esCodigoTemporal = true;
             }
             else
             {
-                // NUEVO: Para c√≥digos normales tambi√©n eliminar ceros a la izquierda
+                // NUEVO: Para cÛdigos normales tambiÈn eliminar ceros a la izquierda
                 codigoBuscado = codigoBuscado.TrimStart('0');
                 if (string.IsNullOrEmpty(codigoBuscado))
                     codigoBuscado = "0";
@@ -722,17 +1266,17 @@ namespace Comercio.NET
                     adapter.Fill(dt);
                     if (dt.Rows.Count == 0)
                     {
-                        // Usar MessageBox est√°ndar en lugar de CustomMessageBox
+                        // Usar MessageBox est·ndar en lugar de CustomMessageBox
                         var resultado = MessageBox.Show(
-                            $"El producto con c√≥digo '{codigoBuscado}' no existe.\n\n" +
-                            "¬øDesea agregarlo ahora para continuar con la venta?",
+                            $"El producto con cÛdigo '{codigoBuscado}' no existe.\n\n" +
+                            "øDesea agregarlo ahora para continuar con la venta?",
                             "Producto no encontrado",
                             MessageBoxButtons.YesNo,
                             MessageBoxIcon.Question);
 
                         if (resultado == DialogResult.Yes)
                         {
-                            // Extraer precio si es c√≥digo especial
+                            // Extraer precio si es cÛdigo especial
                             decimal? precioPersonalizado = null;
                             if (esCodigoEspecial)
                             {
@@ -771,12 +1315,12 @@ namespace Comercio.NET
             {
                 // CAMBIADO: Mostrar advertencia pero permitir continuar
                 var resultado = MessageBox.Show(
-                    $"‚ö†Ô∏è ADVERTENCIA: Stock insuficiente\n\n" +
+                    $"?? ADVERTENCIA: Stock insuficiente\n\n" +
                     $"Producto: {producto["descripcion"]}\n" +
                     $"Stock disponible: {stockDisponible}\n" +
                     $"Cantidad solicitada: {cantidadPersonalizada}\n\n" +
-                    "¬øDesea continuar de todas formas?\n" +
-                    "(El stock quedar√° en negativo)",
+                    "øDesea continuar de todas formas?\n" +
+                    "(El stock quedar· en negativo)",
                     "Stock Insuficiente",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning);
@@ -788,7 +1332,7 @@ namespace Comercio.NET
                 }
             }
 
-            // 1. Si es el primer producto de la venta, incrementa el remito y obt√©n el nuevo valor
+            // 1. Si es el primer producto de la venta, incrementa el remito y obtÈn el nuevo valor
             if (!remitoIncrementado)
             {
                 using (var connection = new SqlConnection(connectionString))
@@ -810,7 +1354,7 @@ namespace Comercio.NET
                         var result = cmd.ExecuteScalar();
                         if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
                         {
-                            MessageBox.Show("No se pudo obtener el n√∫mero de remito.");
+                            MessageBox.Show("No se pudo obtener el n˙mero de remito.");
                             return;
                         }
                     }
@@ -822,7 +1366,7 @@ namespace Comercio.NET
             decimal precioUnitario;
             if (esCodigoEspecial)
             {
-                // Para c√≥digos especiales, SIEMPRE usar el precio del txtPrecio
+                // Para cÛdigos especiales, SIEMPRE usar el precio del txtPrecio
                 if (decimal.TryParse(txtPrecio.Text, out decimal precioEspecial))
                 {
                     precioUnitario = precioEspecial;
@@ -842,14 +1386,14 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    MessageBox.Show("Error: Precio inv√°lido en c√≥digo especial.");
+                    MessageBox.Show("Error: Precio inv·lido en cÛdigo especial.");
                     txtBuscarProducto.Focus();
                     return;
                 }
             }
             else
             {
-                // Para c√≥digos normales, usar la l√≥gica anterior
+                // Para cÛdigos normales, usar la lÛgica anterior
                 if (txtPrecio.Enabled && decimal.TryParse(txtPrecio.Text, out decimal precioEditado))
                 {
                     precioUnitario = precioEditado;
@@ -881,7 +1425,7 @@ namespace Comercio.NET
             // NUEVO: Calcular el IVA basado en el precio y porcentaje
             decimal ivaCalculado = CalcularIvaDesdeTotal(precioUnitario * cantidadPersonalizada, porcentajeIva);
 
-            // 4. Verificar si el producto ya est√° en la venta actual
+            // 4. Verificar si el producto ya est· en la venta actual
             bool productoYaAgregado = false;
             int cantidadActual = 0;
             using (var connection = new SqlConnection(connectionString))
@@ -900,7 +1444,7 @@ namespace Comercio.NET
                 }
             }
 
-            // MODIFICADO: Usar transacci√≥n para asegurar consistencia entre ventas y stock
+            // MODIFICADO: Usar transacciÛn para asegurar consistencia entre ventas y stock
             using (var connection = new SqlConnection(connectionString))
             {
                 connection.Open();
@@ -929,7 +1473,7 @@ namespace Comercio.NET
                         }
                         else
                         {
-                            // 4b. Si no existe o no permite acumular, hacer INSERT (nueva l√≠nea) - INCLUIR PorcentajeIva
+                            // 4b. Si no existe o no permite acumular, hacer INSERT (nueva lÌnea) - INCLUIR PorcentajeIva
                             var query = @"INSERT INTO Ventas 
                                         (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte, IvaCalculado, PorcentajeIva)
                                         VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte, @ivaCalculado, @porcentajeIva)";
@@ -972,13 +1516,13 @@ namespace Comercio.NET
                             }
                         }
 
-                        // Si llegamos aqu√≠, todo sali√≥ bien
+                        // Si llegamos aquÌ, todo saliÛ bien
                         transaction.Commit();
 
-                        // DEBUG: Confirmar la operaci√≥n con informaci√≥n m√°s detallada
+                        // DEBUG: Confirmar la operaciÛn con informaciÛn m·s detallada
                         int stockFinal = permiteAcumular ? (stockDisponible - cantidadPersonalizada) : stockDisponible;
                         System.Diagnostics.Debug.WriteLine($"=== DESCUENTO STOCK ===");
-                        System.Diagnostics.Debug.WriteLine($"Configuraci√≥n ValidarStock: {validarStockHabilitado}");
+                        System.Diagnostics.Debug.WriteLine($"ConfiguraciÛn ValidarStock: {validarStockHabilitado}");
                         System.Diagnostics.Debug.WriteLine($"Producto: {producto["codigo"]} - {producto["descripcion"]}");
                         System.Diagnostics.Debug.WriteLine($"PermiteAcumular: {permiteAcumular}");
                         System.Diagnostics.Debug.WriteLine($"Stock anterior: {stockDisponible}");
@@ -1000,14 +1544,14 @@ namespace Comercio.NET
             // 5. Mostrar todas las ventas del remito actual
             CargarVentasActuales();
 
-            // Formatear columnas y encabezados (resto del c√≥digo igual)
+            // Formatear columnas y encabezados (resto del cÛdigo igual)
             FormatearDataGridView();
 
-            // Dejar el foco en el campo buscar para el pr√≥ximo producto
+            // Dejar el foco en el campo buscar para el prÛximo producto
             txtBuscarProducto.Text = "";
             txtBuscarProducto.Focus();
 
-            // Desmarcar el checkbox de cantidad despu√©s de agregar el producto
+            // Desmarcar el checkbox de cantidad despuÈs de agregar el producto
             if (chkCantidad.Checked)
             {
                 chkCantidad.Checked = false;
@@ -1032,24 +1576,24 @@ namespace Comercio.NET
                     var result = cmd.ExecuteScalar();
                     if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
                     {
-                        MessageBox.Show("No se pudo obtener el n√∫mero de remito.");
+                        MessageBox.Show("No se pudo obtener el n˙mero de remito.");
                         nroRemitoActual = 0;
                     }
                 }
             }
 
-            // Deja la grilla vac√≠a al abrir el formulario
+            // Deja la grilla vacÌa al abrir el formulario
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear();
 
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
 
-            // CORREGIDO: Cambiar SelectionMode para permitir selecci√≥n de filas completas
+            // CORREGIDO: Cambiar SelectionMode para permitir selecciÛn de filas completas
             dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGridView1.MultiSelect = false; // Permitir solo una fila seleccionada
             dataGridView1.Enabled = true;
 
-            // CORREGIDO: Solo limpiar la selecci√≥n inicial, pero permitir selecciones futuras
+            // CORREGIDO: Solo limpiar la selecciÛn inicial, pero permitir selecciones futuras
             dataGridView1.ClearSelection();
             dataGridView1.CurrentCell = null;
 
@@ -1063,13 +1607,13 @@ namespace Comercio.NET
                 lbTotal.Text = "Total: $0,00";
             }
 
-            // Configuraci√≥n general del DataGridView
+            // ConfiguraciÛn general del DataGridView
             dataGridView1.AllowUserToAddRows = false;
             dataGridView1.AllowUserToDeleteRows = false;
             dataGridView1.ReadOnly = true;
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-            // MEJORADO: Personalizar estilo de DataGridView con mejor contraste de selecci√≥n
+            // MEJORADO: Personalizar estilo de DataGridView con mejor contraste de selecciÛn
             dataGridView1.EnableHeadersVisualStyles = false;
             dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
@@ -1077,28 +1621,28 @@ namespace Comercio.NET
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250);
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.Black;
 
-            // MEJORADO: Estilos de selecci√≥n m√°s contrastantes
+            // MEJORADO: Estilos de selecciÛn m·s contrastantes
             dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.DefaultCellStyle.BackColor = Color.White;
-            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul m√°s intenso
+            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul m·s intenso
             dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White; // Texto blanco para mayor contraste
 
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
-            // MEJORADO: Color m√°s oscuro para filas alternas con mejor selecci√≥n
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(235, 242, 248); // M√°s oscuro
+            // MEJORADO: Color m·s oscuro para filas alternas con mejor selecciÛn
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(235, 242, 248); // M·s oscuro
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
 
-            // AGREGADO: Configurar eventos para eliminar productos (llamar al m√©todo que ya tienes)
+            // AGREGADO: Configurar eventos para eliminar productos (llamar al mÈtodo que ya tienes)
             ConfigurarEventosDataGridView();
         }
 
         private void ConfigurarPanelFooter()
         {
-            // Crear el panel footer program√°ticamente
+            // Crear el panel footer program·ticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
             panelFooter.Height = 80; // Mantenemos la altura aumentada
@@ -1176,7 +1720,7 @@ namespace Comercio.NET
                 dataGridView1.Columns["id"].Visible = false;
             }
 
-            // MODIFICADO: Configurar la columna de porcentaje IVA primero (ahora aparecer√° antes)
+            // MODIFICADO: Configurar la columna de porcentaje IVA primero (ahora aparecer· antes)
             if (dataGridView1.Columns["PorcentajeIva"] != null)
             {
                 dataGridView1.Columns["PorcentajeIva"].HeaderText = "IVA %";
@@ -1186,19 +1730,19 @@ namespace Comercio.NET
                 //dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.ForeColor = Color.FromArgb(25, 118, 210);
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                // NUEVO: Establecer el orden de visualizaci√≥n
-                dataGridView1.Columns["PorcentajeIva"].DisplayIndex = 6; // Aparecer√° despu√©s de total
+                // NUEVO: Establecer el orden de visualizaciÛn
+                dataGridView1.Columns["PorcentajeIva"].DisplayIndex = 6; // Aparecer· despuÈs de total
             }
 
-            // MODIFICADO: Configurar la columna IVA calculado despu√©s
+            // MODIFICADO: Configurar la columna IVA calculado despuÈs
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
                 dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA $";
                 dataGridView1.Columns["IvaCalculado"].Width = 80;
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                // NUEVO: Establecer el orden de visualizaci√≥n
-                dataGridView1.Columns["IvaCalculado"].DisplayIndex = 7; // Aparecer√° despu√©s de IVA %
+                // NUEVO: Establecer el orden de visualizaciÛn
+                dataGridView1.Columns["IvaCalculado"].DisplayIndex = 7; // Aparecer· despuÈs de IVA %
             }
 
             // Ajustar anchos de columnas existentes para hacer espacio
@@ -1214,7 +1758,7 @@ namespace Comercio.NET
             {
                 dataGridView1.Columns["cantidad"].Width = 50;
             }
-            // Despu√©s de asignar el DataSource o en ConfigurarDataGridView, aseg√∫rate de que la columna existe
+            // DespuÈs de asignar el DataSource o en ConfigurarDataGridView, aseg˙rate de que la columna existe
             if (dataGridView1.Columns["codigo"] != null)
             {
                 dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
@@ -1240,7 +1784,7 @@ namespace Comercio.NET
                     sumaIva += valorIva;
             }
 
-            // NUEVO: Formatear con RichTextBox - Total grande e IVA peque√±o debajo
+            // NUEVO: Formatear con RichTextBox - Total grande e IVA pequeÒo debajo
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
 
@@ -1248,15 +1792,15 @@ namespace Comercio.NET
             rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}");
 
-            // Nueva l√≠nea
+            // Nueva lÌnea
             rtbTotal.AppendText("\n");
 
-            // IVA con fuente considerablemente m√°s peque√±a
+            // IVA con fuente considerablemente m·s pequeÒa
             rtbTotal.SelectionFont = new Font("Segoe UI", 11F, FontStyle.Regular);
             rtbTotal.AppendText($"IVA: {sumaIva:C2}");
         }
 
-        // M√©todo btnFinalizarVenta_Click - MODIFICADO para pagos m√∫ltiples
+        // MÈtodo btnFinalizarVenta_Click - MODIFICADO para pagos m˙ltiples
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
@@ -1268,21 +1812,21 @@ namespace Comercio.NET
             decimal importeTotal = 0;
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
-                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
-                    importeTotal += valor;
+                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
+                    importeTotal += valorTotal;
             }
 
-            // NUEVO: Variable para almacenar los pagos m√∫ltiples
+            // NUEVO: Variable para almacenar los pagos m˙ltiples
             List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null;
 
-            // Mostrar el modal de selecci√≥n
+            // Mostrar el modal de selecciÛn
             using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
             {
                 seleccion.TokenAfip = this.token;
                 seleccion.SignAfip = this.sign;
                 seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
                 {
-                    // NUEVO: Capturar los pagos m√∫ltiples antes de guardar
+                    // NUEVO: Capturar los pagos m˙ltiples antes de guardar
                     if (seleccion.EsPagoMultiple)
                     {
                         pagosMultiples = seleccion.PagosMultiples;
@@ -1295,7 +1839,7 @@ namespace Comercio.NET
 
                 if (resultado == DialogResult.OK)
                 {
-                    // CORREGIDO: Usar await para esperar que se complete la impresi√≥n
+                    // CORREGIDO: Usar await para esperar que se complete la impresiÛn
                     await ImprimirConServicioAsync(seleccion);
 
                     // Limpiar y reiniciar para nueva venta
@@ -1304,18 +1848,18 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: M√©todo async separado para la impresi√≥n
+        // NUEVO: MÈtodo async separado para la impresiÛn
         private async Task ImprimirConServicioAsync(SeleccionImpresionForm seleccion)
         {
             try
             {
                 if (remitoActual == null || remitoActual.Rows.Count == 0)
                 {
-                    MessageBox.Show("No hay productos para imprimir.", "Informaci√≥n", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("No hay productos para imprimir.", "InformaciÛn", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
-                // Configurar el ticket seg√∫n el tipo de comprobante
+                // Configurar el ticket seg˙n el tipo de comprobante
                 var config = new TicketConfig
                 {
                     NombreComercio = nombreComercio,
@@ -1324,75 +1868,75 @@ namespace Comercio.NET
                     MensajePie = "Gracias por su compra!"
                 };
 
-                // NUEVO: Configurar n√∫mero y tipo seg√∫n el comprobante seleccionado
+                // NUEVO: Configurar n˙mero y tipo seg˙n el comprobante seleccionado
                 switch (seleccion.OpcionSeleccionada)
                 {
                     case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
                         config.TipoComprobante = "REMITO";
-                        config.NumeroComprobante = $"Remito N¬∞ {nroRemitoActual}";
+                        config.NumeroComprobante = $"Remito N∞ {nroRemitoActual}";
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
-                        config.TipoComprobante = "FacturaB"; // CORREGIDO: Usar "FacturaB" espec√≠ficamente
+                        config.TipoComprobante = "FacturaB"; // CORREGIDO: Usar "FacturaB" especÌficamente
                         config.NumeroComprobante = FormatearNumeroFacturaParaBD(6, 1, seleccion.NumeroFacturaAfip);
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaA:
-                        config.TipoComprobante = "FacturaA"; // CORREGIDO: Usar "FacturaA" espec√≠ficamente
+                        config.TipoComprobante = "FacturaA"; // CORREGIDO: Usar "FacturaA" especÌficamente
                         config.NumeroComprobante = FormatearNumeroFacturaParaBD(1, 1, seleccion.NumeroFacturaAfip);
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
                         break;
                 }
 
-                System.Diagnostics.Debug.WriteLine("üñ®Ô∏è === INICIO IMPRESI√ìN ===");
+                System.Diagnostics.Debug.WriteLine("??? === INICIO IMPRESI”N ===");
                 System.Diagnostics.Debug.WriteLine($"TipoComprobante configurado: {config.TipoComprobante}");
                 System.Diagnostics.Debug.WriteLine($"NumeroComprobante: {config.NumeroComprobante}");
                 System.Diagnostics.Debug.WriteLine($"CAE: {config.CAE}");
                 System.Diagnostics.Debug.WriteLine($"===========================");
 
-                // CORREGIDO: Usar await con el servicio de impresi√≥n
+                // CORREGIDO: Usar await con el servicio de impresiÛn
                 using (var ticketService = new TicketPrintingService())
                 {
                     await ticketService.ImprimirTicket(remitoActual, config);
                 }
 
-                System.Diagnostics.Debug.WriteLine("‚úÖ Impresi√≥n completada correctamente");
+                System.Diagnostics.Debug.WriteLine("? ImpresiÛn completada correctamente");
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                System.Diagnostics.Debug.WriteLine($"‚ùå Error en impresi√≥n: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Error en impresiÛn: {ex.Message}");
             }
         }
 
-        // Agregar este m√©todo p√∫blico para que el modal pueda acceder a √©l
+        // Agregar este mÈtodo p˙blico para que el modal pueda acceder a Èl
         public DataTable GetRemitoActual()
         {
             return remitoActual;
         }
 
-        // Agregar este m√©todo p√∫blico para que el modal pueda acceder al n√∫mero de remito
+        // Agregar este mÈtodo p˙blico para que el modal pueda acceder al n˙mero de remito
         public int GetNroRemitoActual()
         {
             return nroRemitoActual;
         }
 
-        // Agregar este m√©todo p√∫blico para que el modal pueda acceder al nombre del comercio
+        // Agregar este mÈtodo p˙blico para que el modal pueda acceder al nombre del comercio
         public string GetNombreComercio()
         {
             return nombreComercio;
         }
 
-        // Agregar este m√©todo p√∫blica para que el modal pueda acceder al domicilio
+        // Agregar este mÈtodo p˙blica para que el modal pueda acceder al domicilio
         public string GetDomicilioComercio()
         {
             return domicilioComercio;
         }
 
-        // Modificar el m√©todo GuardarFacturaEnBD para usar el m√©todo existente obtenerNumeroCajero()
+        // Modificar el mÈtodo GuardarFacturaEnBD para usar el mÈtodo existente obtenerNumeroCajero()
         private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0, string numeroFormateado = "", List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null)
         {
             try
@@ -1417,11 +1961,11 @@ namespace Comercio.NET
                         ivaTotal += valorIva;
                 }
 
-                // SIMPLIFICADO: Usar los m√©todos helper existentes
+                // SIMPLIFICADO: Usar los mÈtodos helper existentes
                 string usuarioActual = ObtenerUsuarioActual();
                 int numeroCajero = obtenerNumeroCajero();
 
-                System.Diagnostics.Debug.WriteLine($"üîÑ === INICIANDO GUARDADO FACTURA ===");
+                System.Diagnostics.Debug.WriteLine($"?? === INICIANDO GUARDADO FACTURA ===");
                 System.Diagnostics.Debug.WriteLine($"Tipo: {tipoFactura}, Forma pago: {formaPago}");
                 System.Diagnostics.Debug.WriteLine($"Importe: {importeTotal:C2}, IVA: {ivaTotal:C2}");
                 System.Diagnostics.Debug.WriteLine($"Usuario: {usuarioActual}, Cajero: {numeroCajero}");
@@ -1490,33 +2034,33 @@ namespace Comercio.NET
                                 if (result != null && int.TryParse(result.ToString(), out int facturaId))
                                 {
                                     idFactura = facturaId;
-                                    System.Diagnostics.Debug.WriteLine($"‚úÖ Factura principal guardada con ID: {idFactura}");
+                                    System.Diagnostics.Debug.WriteLine($"? Factura principal guardada con ID: {idFactura}");
                                 }
                                 else
                                 {
-                                    System.Diagnostics.Debug.WriteLine("‚ö†Ô∏è No se pudo obtener el ID de la factura insertada");
+                                    System.Diagnostics.Debug.WriteLine("?? No se pudo obtener el ID de la factura insertada");
                                     idFactura = 1; // Valor por defecto para evitar errores
                                 }
                             }
 
-                            // 2. GUARDAR DETALLES DE PAGO M√öLTIPLE (si aplica)
+                            // 2. GUARDAR DETALLES DE PAGO M⁄LTIPLE (si aplica)
                             if (idFactura > 0)
                             {
                                 await GuardarDetallesPagoMultiple(connection, transaction, idFactura, formaPago, pagosMultiples, usuarioActual);
                             }
 
-                            // 3. CONFIRMAR TRANSACCI√ìN
+                            // 3. CONFIRMAR TRANSACCI”N
                             transaction.Commit();
 
                             // DEBUG: Resumen exitoso
-                            System.Diagnostics.Debug.WriteLine($"‚úÖ === FACTURA GUARDADA EXITOSAMENTE ===");
+                            System.Diagnostics.Debug.WriteLine($"? === FACTURA GUARDADA EXITOSAMENTE ===");
                             System.Diagnostics.Debug.WriteLine($"ID Factura: {idFactura}");
                             System.Diagnostics.Debug.WriteLine($"Importe: {importeTotal:C}, IVA: {ivaTotal:C}");
                             System.Diagnostics.Debug.WriteLine($"Subtotal: {(importeTotal - ivaTotal):C}");
                             System.Diagnostics.Debug.WriteLine($"Forma de pago: {formaPago}");
                             if (pagosMultiples != null && pagosMultiples.Any())
                             {
-                                System.Diagnostics.Debug.WriteLine($"Pagos m√∫ltiples: {pagosMultiples.Count} registros");
+                                System.Diagnostics.Debug.WriteLine($"Pagos m˙ltiples: {pagosMultiples.Count} registros");
                                 foreach (var pago in pagosMultiples)
                                 {
                                     System.Diagnostics.Debug.WriteLine($"  - {pago.MedioPago}: {pago.Importe:C2}");
@@ -1526,12 +2070,12 @@ namespace Comercio.NET
                         }
                         catch (Exception exTransaction)
                         {
-                            System.Diagnostics.Debug.WriteLine($"‚ùå Error en transacci√≥n: {exTransaction.Message}");
+                            System.Diagnostics.Debug.WriteLine($"? Error en transacciÛn: {exTransaction.Message}");
                             System.Diagnostics.Debug.WriteLine($"Stack trace: {exTransaction.StackTrace}");
                             
                             transaction.Rollback();
                             
-                            // Re-lanzar la excepci√≥n para mostrar el error al usuario
+                            // Re-lanzar la excepciÛn para mostrar el error al usuario
                             throw new Exception($"Error guardando factura: {exTransaction.Message}", exTransaction);
                         }
                     }
@@ -1539,14 +2083,14 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"‚ùå Error cr√≠tico en GuardarFacturaEnBD: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Error crÌtico en GuardarFacturaEnBD: {ex.Message}");
                 
-                MessageBox.Show($"Error al guardar la factura en base de datos:\n\n{ex.Message}\n\nLa venta se imprimi√≥ correctamente pero no se guard√≥ en la base de datos.", "Error de Base de Datos",
+                MessageBox.Show($"Error al guardar la factura en base de datos:\n\n{ex.Message}\n\nLa venta se imprimiÛ correctamente pero no se guardÛ en la base de datos.", "Error de Base de Datos",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
-        // MODIFICADO: M√©todo para guardar los detalles de pago m√∫ltiple
+        // MODIFICADO: MÈtodo para guardar los detalles de pago m˙ltiple
         private async Task GuardarDetallesPagoMultiple(SqlConnection connection, SqlTransaction transaction, int idFactura, string formaPago, List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples, string usuario)
         {
             try
@@ -1554,9 +2098,9 @@ namespace Comercio.NET
                 // CREAR TABLA DE DETALLES DE PAGO (si no existe)
                 await CrearTablaDetallesPagoSiNoExiste(connection, transaction);
 
-                if (formaPago == "M√∫ltiple" && pagosMultiples != null && pagosMultiples.Any())
+                if (formaPago == "M˙ltiple" && pagosMultiples != null && pagosMultiples.Any())
                 {
-                    System.Diagnostics.Debug.WriteLine($"=== GUARDANDO PAGOS M√öLTIPLES ===");
+                    System.Diagnostics.Debug.WriteLine($"=== GUARDANDO PAGOS M⁄LTIPLES ===");
                     System.Diagnostics.Debug.WriteLine($"ID Factura: {idFactura}");
                     System.Diagnostics.Debug.WriteLine($"Cantidad de pagos: {pagosMultiples.Count}");
 
@@ -1578,21 +2122,21 @@ namespace Comercio.NET
 
                                 await cmd.ExecuteNonQueryAsync();
 
-                                System.Diagnostics.Debug.WriteLine($"  ‚úÖ Guardado: {pago.MedioPago} - {pago.Importe:C2}");
+                                System.Diagnostics.Debug.WriteLine($"  ? Guardado: {pago.MedioPago} - {pago.Importe:C2}");
                             }
                         }
                         catch (Exception exPago)
                         {
-                            System.Diagnostics.Debug.WriteLine($"  ‚ùå Error guardando pago {pago.MedioPago}: {exPago.Message}");
+                            System.Diagnostics.Debug.WriteLine($"  ? Error guardando pago {pago.MedioPago}: {exPago.Message}");
                             // OPCIONAL: Continuar con los otros pagos en lugar de fallar completamente
                         }
                     }
 
                     System.Diagnostics.Debug.WriteLine($"=================================");
                 }
-                else if (formaPago != "M√∫ltiple")
+                else if (formaPago != "M˙ltiple")
                 {
-                    // Para pagos simples, tambi√©n crear un registro para mantener consistencia
+                    // Para pagos simples, tambiÈn crear un registro para mantener consistencia
                     try
                     {
                         var queryDetalle = @"INSERT INTO DetallesPagoFactura (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario)
@@ -1617,26 +2161,26 @@ namespace Comercio.NET
 
                             await cmd.ExecuteNonQueryAsync();
 
-                            System.Diagnostics.Debug.WriteLine($"‚úÖ Pago simple guardado: {formaPago} - {importeTotal:C2}");
+                            System.Diagnostics.Debug.WriteLine($"? Pago simple guardado: {formaPago} - {importeTotal:C2}");
                         }
                     }
                     catch (Exception exSimple)
                     {
-                        System.Diagnostics.Debug.WriteLine($"‚ö†Ô∏è Error guardando pago simple: {exSimple.Message}");
-                        // No re-lanzar para no romper la transacci√≥n principal
+                        System.Diagnostics.Debug.WriteLine($"?? Error guardando pago simple: {exSimple.Message}");
+                        // No re-lanzar para no romper la transacciÛn principal
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"‚ö†Ô∏è Error en GuardarDetallesPagoMultiple: {ex.Message}");
-                // CAMBIADO: No re-lanzar la excepci√≥n para evitar que falle toda la transacci√≥n
+                System.Diagnostics.Debug.WriteLine($"?? Error en GuardarDetallesPagoMultiple: {ex.Message}");
+                // CAMBIADO: No re-lanzar la excepciÛn para no romper la transacciÛn principal
                 // Si hay un problema con los detalles de pago, al menos que se guarde la factura principal
-                System.Diagnostics.Debug.WriteLine("‚ÑπÔ∏è Continuando sin guardar detalles de pago m√∫ltiple");
+                System.Diagnostics.Debug.WriteLine("?? Continuando sin guardar detalles de pago m˙ltiple");
             }
         }
 
-        // NUEVO: M√©todo para crear la tabla de detalles de pago si no existe
+        // NUEVO: MÈtodo para crear la tabla de detalles de pago si no existe
         private async Task CrearTablaDetallesPagoSiNoExiste(SqlConnection connection, SqlTransaction transaction)
         {
             try
@@ -1669,6 +2213,50 @@ namespace Comercio.NET
                             PRINT 'No se pudo crear la foreign key, pero la tabla funciona sin ella'
                         END CATCH
                     END
+                END
+                ELSE
+                BEGIN
+                    -- Verificar y agregar nuevas columnas si no existen
+                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'IdFactura')
+                    BEGIN
+                        ALTER TABLE DetallesPagoFactura ADD IdFactura int NOT NULL
+                    END
+                    
+                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'MedioPago')
+                    BEGIN
+                        ALTER TABLE DetallesPagoFactura ADD MedioPago nvarchar(50) NOT NULL
+                    END
+                    
+                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Importe')
+                    BEGIN
+                        ALTER TABLE DetallesPagoFactura ADD Importe decimal(18,2) NOT NULL
+                    END
+                    
+                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Observaciones')
+                    BEGIN
+                        ALTER TABLE DetallesPagoFactura ADD Observaciones nvarchar(500) NULL
+                    END
+                    
+                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'FechaPago')
+                    BEGIN
+                        ALTER TABLE DetallesPagoFactura ADD FechaPago datetime NOT NULL DEFAULT GETDATE()
+                    END
+                    
+                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Usuario')
+                    BEGIN
+                        ALTER TABLE DetallesPagoFactura ADD Usuario nvarchar(100) NULL
+                    END
+
+                    -- Intentar agregar la foreign key nuevamente si las columnas existen
+                    BEGIN TRY
+                        ALTER TABLE DetallesPagoFactura 
+                        ADD CONSTRAINT FK_DetallesPagoFactura_Facturas 
+                        FOREIGN KEY (IdFactura) REFERENCES Facturas(Id)
+                    END TRY
+                    BEGIN CATCH
+                        -- Si falla la foreign key, continuar sin ella
+                        PRINT 'No se pudo crear la foreign key, continuar· el proceso sin la restricciÛn'
+                    END CATCH
                 END";
 
                 using (var cmd = new SqlCommand(createTableQuery, connection, transaction))
@@ -1676,13 +2264,13 @@ namespace Comercio.NET
                     await cmd.ExecuteNonQueryAsync();
                 }
 
-                System.Diagnostics.Debug.WriteLine("‚úÖ Tabla DetallesPagoFactura verificada/creada correctamente");
+                System.Diagnostics.Debug.WriteLine("? Tabla DetallesPagoFactura verificada/creada correctamente");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"‚ö†Ô∏è Advertencia creando tabla DetallesPagoFactura: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"?? Advertencia creando tabla DetallesPagoFactura: {ex.Message}");
                 
-                // NUEVO: Intentar crear una versi√≥n simple de la tabla como fallback
+                // NUEVO: Intentar crear una versiÛn simple de la tabla como fallback
                 try
                 {
                     var fallbackQuery = @"
@@ -1701,12 +2289,12 @@ namespace Comercio.NET
                     {
                         await cmd.ExecuteNonQueryAsync();
                     }
-                    System.Diagnostics.Debug.WriteLine("‚úÖ Tabla DetallesPagoFactura creada con versi√≥n simple (sin foreign key)");
+                    System.Diagnostics.Debug.WriteLine("? Tabla DetallesPagoFactura creada con versiÛn simple (sin foreign key)");
                 }
                 catch (Exception ex2)
                 {
-                    System.Diagnostics.Debug.WriteLine($"‚ùå Error cr√≠tico creando tabla DetallesPagoFactura: {ex2.Message}");
-                    // No re-lanzar la excepci√≥n para no romper la transacci√≥n principal
+                    System.Diagnostics.Debug.WriteLine($"? Error crÌtico creando tabla DetallesPagoFactura: {ex2.Message}");
+                    // No re-lanzar la excepciÛn para no romper la transacciÛn principal
                 }
             }
         }
