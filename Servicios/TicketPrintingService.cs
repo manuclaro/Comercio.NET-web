@@ -793,12 +793,90 @@ namespace Comercio.NET.Servicios
         private float ImprimirTituloComprobante(Graphics graphics, Font fontBold, float leftMargin, float rightMargin, float y)
         {
             float anchoUtil = rightMargin - leftMargin;
-            // Mostrar solo el número formateado (ya incluye letra y guión)
-            string titulo = configuracion.NumeroComprobante;
+            
+            // CORREGIDO: Formatear el número según el tipo de comprobante
+            string titulo = FormatearNumeroParaImpresion(configuracion.NumeroComprobante, configuracion.TipoComprobante);
+            
             SizeF tituloSize = graphics.MeasureString(titulo, fontBold);
             float tituloX = leftMargin + (anchoUtil - tituloSize.Width) / 2;
             graphics.DrawString(titulo, fontBold, Brushes.Black, tituloX, y);
             return y + tituloSize.Height + 8;
+        }
+
+        // NUEVO: Método para formatear correctamente el número de comprobante para impresión
+        private string FormatearNumeroParaImpresion(string numeroCompleto, string tipoComprobante)
+        {  
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"🔧 Formateando número: '{numeroCompleto}' para tipo: '{tipoComprobante}'");
+                
+                // Si es un remito simple, usar el formato original
+                if (tipoComprobante.Contains("REMITO") || tipoComprobante.Contains("Remito"))
+                {
+                    // Para remitos, extraer solo el número si viene en formato complejo
+                    if (numeroCompleto.Contains("Remito N°"))
+                    {
+                        return numeroCompleto; // Ya está bien formateado
+                    }
+                    else if (numeroCompleto.Contains("-"))
+                    {
+                        // Si viene formato 0006-00000001-00000111, extraer solo la última parte
+                        string[] partes = numeroCompleto.Split('-');
+                        if (partes.Length >= 3 && int.TryParse(partes[2], out int numeroRemito))
+                        {
+                            return $"REMITO N° {numeroRemito}";
+                        }
+                    }
+                    return $"REMITO N° {numeroCompleto}";
+                }
+                
+                // Para facturas A y B
+                if (tipoComprobante.Contains("Factura") || tipoComprobante.Contains("FACTURA"))
+                {
+                    // Si ya viene formateado correctamente (ej: "0001-00000001-00000123"), usar formato simplificado
+                    if (numeroCompleto.Contains("-") && numeroCompleto.Length >= 19)
+                    {
+                        // Formato AFIP estándar: TTTT-PPPPPPPP-NNNNNNNN
+                        string[] partes = numeroCompleto.Split('-');
+                        if (partes.Length == 3)  
+                        {
+                            // Determinar el tipo según el primer dígito
+                            string tipoFormateado = "FACTURA";
+                            if (partes[0].StartsWith("0001") || partes[0].StartsWith("1"))
+                            {
+                                tipoFormateado = "FACTURA A";
+                            }
+                            else if (partes[0].StartsWith("0006") || partes[0].StartsWith("6"))
+                            {
+                                tipoFormateado = "FACTURA B";
+                            }
+                            
+                            // CORREGIDO: Formatear como: FACTURA A N° 0001-00000123 (sin punto de venta)
+                            return $"{tipoFormateado} N° {partes[0]}-{partes[2]}";
+                        }
+                    }
+                    
+                    // Si viene solo un número simple
+                    if (int.TryParse(numeroCompleto, out int numeroSimple))
+                    {
+                        string letra = tipoComprobante.Contains("FacturaA") ? "A" : "B";
+                        return $"FACTURA {letra} N° {numeroSimple:D8}";
+                    }
+                    
+                    // Fallback - mostrar tal como viene
+                    string letraFallback = tipoComprobante.Contains("FacturaA") ? "A" : "B";
+                    return $"FACTURA {letraFallback} N° {numeroCompleto}";
+                }
+                
+                // Para otros tipos de comprobante
+                return numeroCompleto;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error formateando número de comprobante: {ex.Message}");
+                // En caso de error, devolver el valor original
+                return numeroCompleto;
+            }
         }
 
         private float ImprimirTotalesBasicos(Graphics graphics, Font fontBold, float leftMargin, float rightMargin, float y, int cantidadTotal, decimal sumaTotal)

@@ -797,11 +797,11 @@ namespace Comercio.NET
                 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = "DELETE FROM Ventas WHERE codigo = @codigo AND nrofactura = @nrofactura";
+                    var query = "DELETE FROM Ventas WHERE codigo = @codigo AND nrofactura = @nrfactura";
                     using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo);
-                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                        cmd.Parameters.AddWithValue("@nrfactura", nroRemitoActual);
                         
                         connection.Open();
                         await cmd.ExecuteNonQueryAsync();
@@ -1015,6 +1015,74 @@ namespace Comercio.NET
             };
             chkCantidad.CheckedChanged += chkCantidad_CheckedChanged;
             this.Controls.Add(chkCantidad);
+
+            // NUEVO: Botón para verificar configuración de AFIP
+            Button btnVerificarAfip = new Button
+            {
+                Text = "?? Verificar AFIP",
+                Left = 690,
+                Top = 134,
+                Width = 120,
+                Height = 25,
+                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.FromArgb(255, 193, 7), // Amarillo/naranja
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnVerificarAfip.Click += (s, e) => 
+            {
+                try
+                {
+                    Comercio.NET.Utilidades.VerificadorCertificadoAfip.VerificarConfiguracionAfip();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error verificando configuración AFIP:\n{ex.Message}", "Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            this.Controls.Add(btnVerificarAfip);
+
+            // NUEVO: Botón para limpiar cache de tokens AFIP
+            Button btnLimpiarCacheAfip = new Button
+            {
+                Text = "??? Limpiar Cache AFIP",
+                Left = 820,
+                Top = 134,
+                Width = 140,
+                Height = 25,
+                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.FromArgb(220, 53, 69), // Rojo
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnLimpiarCacheAfip.Click += (s, e) => 
+            {
+                try
+                {
+                    // Limpiar cache de tokens AFIP
+                    AfipAuthenticator.ClearTokenCache();
+                    SeleccionImpresionForm.LimpiarCacheTokensAfip();
+                    
+                    MessageBox.Show(
+                        "? Cache de tokens AFIP limpiado exitosamente.\n\n" +
+                        "Esto puede ayudar a resolver errores de 'Token ya existe' en AFIP.\n" +
+                        "El próximo intento de facturación solicitará un nuevo token.",
+                        "Cache Limpiado", 
+                        MessageBoxButtons.OK, 
+                        MessageBoxIcon.Information);
+                    
+                    System.Diagnostics.Debug.WriteLine("??? Cache de tokens AFIP limpiado manualmente desde Ventas");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error limpiando cache AFIP:\n{ex.Message}", "Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            this.Controls.Add(btnLimpiarCacheAfip);
         }
 
         private void ConfigurarEstilosFormulario()
@@ -1810,10 +1878,15 @@ namespace Comercio.NET
 
             // Calcular el importe total antes de abrir el modal
             decimal importeTotal = 0;
+            decimal ivaTotal = 0;
+
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
                 if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
                     importeTotal += valorTotal;
+
+                if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
+                    ivaTotal += valorIva;
             }
 
             // NUEVO: Variable para almacenar los pagos múltiples
@@ -1979,11 +2052,27 @@ namespace Comercio.NET
                         
                         try
                         {
-                            // 1. INSERTAR FACTURA PRINCIPAL
-                            var queryFactura = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, IVA, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, UsuarioVenta) 
+                            // 1. VERIFICAR SI LA TABLA FACTURAS TIENE COLUMNA Id IDENTITY
+                            bool tieneColumnaId = await VerificarColumnaIdFacturas(connection, transaction);
+                            
+                            // 2. PREPARAR QUERY SEGÚN LA ESTRUCTURA DE LA TABLA
+                            string queryFactura;
+                            if (tieneColumnaId)
+                            {
+                                // Usar SCOPE_IDENTITY si existe la columna Id
+                                queryFactura = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, IVA, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, UsuarioVenta) 
                                                  VALUES (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @IVA, @FormadePago, @esCtaCte, @CtaCteNombre, 
                                                  @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente, @UsuarioVenta);
                                                  SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                            }
+                            else
+                            {
+                                // Usar NumeroRemito como clave si no existe columna Id
+                                queryFactura = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, IVA, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, UsuarioVenta) 
+                                                 VALUES (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @IVA, @FormadePago, @esCtaCte, @CtaCteNombre, 
+                                                 @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente, @UsuarioVenta);
+                                                 SELECT @NumeroRemito;";
+                            }
 
                             using (var cmd = new SqlCommand(queryFactura, connection, transaction))
                             {
@@ -2029,7 +2118,7 @@ namespace Comercio.NET
                                     cmd.Parameters.AddWithValue("@CUITCliente", DBNull.Value);
                                 }
 
-                                // CORREGIDO: Usar SCOPE_IDENTITY() para obtener el ID
+                                // CORREGIDO: Manejar ambos casos
                                 var result = await cmd.ExecuteScalarAsync();
                                 if (result != null && int.TryParse(result.ToString(), out int facturaId))
                                 {
@@ -2038,18 +2127,19 @@ namespace Comercio.NET
                                 }
                                 else
                                 {
-                                    System.Diagnostics.Debug.WriteLine("?? No se pudo obtener el ID de la factura insertada");
-                                    idFactura = 1; // Valor por defecto para evitar errores
+                                    // Si no se puede obtener ID, usar el número de remito como identificador
+                                    idFactura = nroRemitoActual;
+                                    System.Diagnostics.Debug.WriteLine($"?? Usando NumeroRemito como ID: {idFactura}");
                                 }
                             }
 
-                            // 2. GUARDAR DETALLES DE PAGO MÚLTIPLE (si aplica)
+                            // 3. GUARDAR DETALLES DE PAGO MÚLTIPLE (si aplica)
                             if (idFactura > 0)
                             {
-                                await GuardarDetallesPagoMultiple(connection, transaction, idFactura, formaPago, pagosMultiples, usuarioActual);
+                                await GuardarDetallesPagoMultiple(connection, transaction, idFactura, formaPago, pagosMultiples, usuarioActual, tieneColumnaId);
                             }
 
-                            // 3. CONFIRMAR TRANSACCIÓN
+                            // 4. CONFIRMAR TRANSACCIÓN
                             transaction.Commit();
 
                             // DEBUG: Resumen exitoso
@@ -2083,28 +2173,55 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"? Error crítico en GuardarFacturaEnBD: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"?? Error crítico en GuardarFacturaEnBD: {ex.Message}");
                 
                 MessageBox.Show($"Error al guardar la factura en base de datos:\n\n{ex.Message}\n\nLa venta se imprimió correctamente pero no se guardó en la base de datos.", "Error de Base de Datos",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
+        // NUEVO: Verificar si la tabla Facturas tiene columna Id IDENTITY
+        private async Task<bool> VerificarColumnaIdFacturas(SqlConnection connection, SqlTransaction transaction)
+        {
+            try
+            {
+                var queryVerificar = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                                      WHERE TABLE_NAME = 'Facturas' AND COLUMN_NAME = 'Id' 
+                                      AND DATA_TYPE = 'int' AND IS_NULLABLE = 'NO'";
+                
+                using (var cmd = new SqlCommand(queryVerificar, connection, transaction))
+                {
+                    var result = await cmd.ExecuteScalarAsync();
+                    bool tieneId = Convert.ToInt32(result) > 0;
+                    
+                    System.Diagnostics.Debug.WriteLine($"?? Verificación tabla Facturas - Tiene columna Id: {tieneId}");
+                    return tieneId;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"?? Error verificando estructura tabla Facturas: {ex.Message}");
+                return false; // Asumir que no tiene columna Id si hay error
+            }
+        }
+
         // MODIFICADO: Método para guardar los detalles de pago múltiple
-        private async Task GuardarDetallesPagoMultiple(SqlConnection connection, SqlTransaction transaction, int idFactura, string formaPago, List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples, string usuario)
+        private async Task GuardarDetallesPagoMultiple(SqlConnection connection, SqlTransaction transaction, int idFactura, string formaPago, List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples, string usuario, bool usarIdFactura = true)
         {
             try
             {
                 // CREAR TABLA DE DETALLES DE PAGO (si no existe)
-                await CrearTablaDetallesPagoSiNoExiste(connection, transaction);
+                await CrearTablaDetallesPagoSiNoExiste(connection, transaction, usarIdFactura);
 
                 if (formaPago == "Múltiple" && pagosMultiples != null && pagosMultiples.Any())
                 {
                     System.Diagnostics.Debug.WriteLine($"=== GUARDANDO PAGOS MÚLTIPLES ===");
-                    System.Diagnostics.Debug.WriteLine($"ID Factura: {idFactura}");
+                    System.Diagnostics.Debug.WriteLine($"ID/NumeroRemito Factura: {idFactura}");
                     System.Diagnostics.Debug.WriteLine($"Cantidad de pagos: {pagosMultiples.Count}");
 
-                    var queryDetalle = @"INSERT INTO DetallesPagoFactura (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario)
+                    // MODIFICADO: Usar el campo correcto según la estructura de tabla
+                    string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
+                    var queryDetalle = $@"INSERT INTO DetallesPagoFactura ({campoFactura}, MedioPago, Importe, Observaciones, FechaPago, Usuario)
                                         VALUES (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
 
                     foreach (var pago in pagosMultiples)
@@ -2139,7 +2256,8 @@ namespace Comercio.NET
                     // Para pagos simples, también crear un registro para mantener consistencia
                     try
                     {
-                        var queryDetalle = @"INSERT INTO DetallesPagoFactura (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario)
+                        string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
+                        var queryDetalle = $@"INSERT INTO DetallesPagoFactura ({campoFactura}, MedioPago, Importe, Observaciones, FechaPago, Usuario)
                                             VALUES (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
 
                         // Calcular importe total de la factura
@@ -2180,56 +2298,44 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Método para crear la tabla de detalles de pago si no existe
-        private async Task CrearTablaDetallesPagoSiNoExiste(SqlConnection connection, SqlTransaction transaction)
+        // MODIFICADO: Método para crear la tabla de detalles de pago con estructura flexible
+        private async Task CrearTablaDetallesPagoSiNoExiste(SqlConnection connection, SqlTransaction transaction, bool usarIdFactura = true)
         {
             try
             {
-                // CORREGIDO: Crear la tabla sin foreign key inicialmente para evitar errores
-                var createTableQuery = @"
+                string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
+                string tipoFactura = usarIdFactura ? "int" : "int";
+                
+                // CORREGIDO: Crear la tabla adaptándose a la estructura de la tabla Facturas
+                var createTableQuery = $@"
                 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DetallesPagoFactura' AND xtype='U')
                 BEGIN
                     CREATE TABLE DetallesPagoFactura (
                         Id int IDENTITY(1,1) PRIMARY KEY,
-                        IdFactura int NOT NULL,
+                        {campoFactura} {tipoFactura} NOT NULL,
                         MedioPago nvarchar(50) NOT NULL,
                         Importe decimal(18,2) NOT NULL,
                         Observaciones nvarchar(500) NULL,
                         FechaPago datetime NOT NULL DEFAULT GETDATE(),
                         Usuario nvarchar(100) NULL
                     )
-                    
-                    -- OPCIONAL: Intentar agregar foreign key solo si la tabla Facturas existe y tiene la columna Id
-                    IF EXISTS (SELECT * FROM sysobjects WHERE name='Facturas' AND xtype='U')
-                    AND EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('Facturas') AND name = 'Id')
-                    BEGIN
-                        BEGIN TRY
-                            ALTER TABLE DetallesPagoFactura 
-                            ADD CONSTRAINT FK_DetallesPagoFactura_Facturas 
-                            FOREIGN KEY (IdFactura) REFERENCES Facturas(Id)
-                        END TRY
-                        BEGIN CATCH
-                            -- Si falla la foreign key, continuar sin ella
-                            PRINT 'No se pudo crear la foreign key, pero la tabla funciona sin ella'
-                        END CATCH
-                    END
                 END
                 ELSE
                 BEGIN
                     -- Verificar y agregar nuevas columnas si no existen
-                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'IdFactura')
+                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = '{campoFactura}')
                     BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD IdFactura int NOT NULL
+                        ALTER TABLE DetallesPagoFactura ADD {campoFactura} {tipoFactura} NOT NULL DEFAULT 0
                     END
                     
                     IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'MedioPago')
                     BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD MedioPago nvarchar(50) NOT NULL
+                        ALTER TABLE DetallesPagoFactura ADD MedioPago nvarchar(50) NOT NULL DEFAULT 'Efectivo'
                     END
                     
                     IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Importe')
                     BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD Importe decimal(18,2) NOT NULL
+                        ALTER TABLE DetallesPagoFactura ADD Importe decimal(18,2) NOT NULL DEFAULT 0
                     END
                     
                     IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Observaciones')
@@ -2246,17 +2352,6 @@ namespace Comercio.NET
                     BEGIN
                         ALTER TABLE DetallesPagoFactura ADD Usuario nvarchar(100) NULL
                     END
-
-                    -- Intentar agregar la foreign key nuevamente si las columnas existen
-                    BEGIN TRY
-                        ALTER TABLE DetallesPagoFactura 
-                        ADD CONSTRAINT FK_DetallesPagoFactura_Facturas 
-                        FOREIGN KEY (IdFactura) REFERENCES Facturas(Id)
-                    END TRY
-                    BEGIN CATCH
-                        -- Si falla la foreign key, continuar sin ella
-                        PRINT 'No se pudo crear la foreign key, continuará el proceso sin la restricción'
-                    END CATCH
                 END";
 
                 using (var cmd = new SqlCommand(createTableQuery, connection, transaction))
@@ -2264,7 +2359,7 @@ namespace Comercio.NET
                     await cmd.ExecuteNonQueryAsync();
                 }
 
-                System.Diagnostics.Debug.WriteLine("? Tabla DetallesPagoFactura verificada/creada correctamente");
+                System.Diagnostics.Debug.WriteLine($"? Tabla DetallesPagoFactura verificada/creada correctamente con campo {campoFactura}");
             }
             catch (Exception ex)
             {
@@ -2273,11 +2368,12 @@ namespace Comercio.NET
                 // NUEVO: Intentar crear una versión simple de la tabla como fallback
                 try
                 {
-                    var fallbackQuery = @"
+                    string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
+                    var fallbackQuery = $@"
                     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DetallesPagoFactura' AND xtype='U')
                     CREATE TABLE DetallesPagoFactura (
                         Id int IDENTITY(1,1) PRIMARY KEY,
-                        IdFactura int NOT NULL,
+                        {campoFactura} int NOT NULL,
                         MedioPago nvarchar(50) NOT NULL,
                         Importe decimal(18,2) NOT NULL,
                         Observaciones nvarchar(500) NULL,
@@ -2289,11 +2385,11 @@ namespace Comercio.NET
                     {
                         await cmd.ExecuteNonQueryAsync();
                     }
-                    System.Diagnostics.Debug.WriteLine("? Tabla DetallesPagoFactura creada con versión simple (sin foreign key)");
+                    System.Diagnostics.Debug.WriteLine($"? Tabla DetallesPagoFactura creada con versión simple usando {campoFactura}");
                 }
                 catch (Exception ex2)
                 {
-                    System.Diagnostics.Debug.WriteLine($"? Error crítico creando tabla DetallesPagoFactura: {ex2.Message}");
+                    System.Diagnostics.Debug.WriteLine($"?? Error crítico creando tabla DetallesPagoFactura: {ex2.Message}");
                     // No re-lanzar la excepción para no romper la transacción principal
                 }
             }
