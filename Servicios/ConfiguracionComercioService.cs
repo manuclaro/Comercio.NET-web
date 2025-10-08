@@ -12,12 +12,24 @@ namespace Comercio.NET.Servicios
             _configuration = configuration;
         }
 
+        // NUEVO: Método para obtener nombre del comercio
+        public static string ObtenerNombreComercio()
+        {
+            return _configuration?["Comercio:Nombre"] ?? "Mi Comercio";
+        }
+
+        // NUEVO: Método para obtener domicilio del comercio
+        public static string ObtenerDomicilioComercio()
+        {
+            return _configuration?["Comercio:Domicilio"] ?? "";
+        }
+
         public static TicketConfig ObtenerConfiguracionTicket(string tipoComprobante, string numeroComprobante)
         {
             return new TicketConfig
             {
-                NombreComercio = _configuration?["Comercio:Nombre"] ?? "Mi Comercio",
-                DomicilioComercio = _configuration?["Comercio:Domicilio"] ?? "",
+                NombreComercio = ObtenerNombreComercio(),
+                DomicilioComercio = ObtenerDomicilioComercio(),
                 TipoComprobante = tipoComprobante,
                 NumeroComprobante = numeroComprobante,
                 MensajePie = _configuration?["Comercio:MensajePie"] ?? "Gracias por su compra!"

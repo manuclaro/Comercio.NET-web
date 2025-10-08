@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Globalization;  // AGREGAR: Para NumberStyles y CultureInfo
 using System.Linq;
 using System.Windows.Forms;
+using System.Threading.Tasks;  // NUEVO: Para métodos async
 using Comercio.NET.Servicios;
 using TicketConfig = Comercio.NET.Servicios.TicketConfig; // Alias específico
 
@@ -900,8 +901,8 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // AGREGAR: Event handler para el botón Imprimir
-        private void BtnImprimir_Click(object sender, EventArgs e)
+        // CORREGIDO: Event handler para el botón Imprimir - IMPLEMENTACIÓN COMPLETA
+        private async void BtnImprimir_Click(object sender, EventArgs e)
         {
             try
             {
@@ -916,14 +917,165 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
-                MessageBox.Show($"Imprimiendo remito: {numeroRemito}", "Información", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                System.Diagnostics.Debug.WriteLine($"🖨️ Iniciando impresión de factura/remito: {numeroRemito}");
+
+                // Obtener los datos de la factura desde la base de datos
+                var datosFactura = await ObtenerDatosParaImpresion(numeroRemito);
+                if (datosFactura == null)
+                {
+                    MessageBox.Show("No se pudieron obtener los datos de la factura para imprimir.", 
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Crear configuración de ticket
+                var config = CrearConfiguracionTicket(datosFactura);
+
+                // Obtener los productos de la factura
+                var datosProductos = await ObtenerProductosFactura(numeroRemito);
+                if (datosProductos == null || datosProductos.Rows.Count == 0)
+                {
+                    MessageBox.Show("No se encontraron productos para esta factura.", 
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Imprimir usando el servicio de impresión existente
+                using (var printingService = new TicketPrintingService())
+                {
+                    await printingService.ImprimirTicket(datosProductos, config);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"✅ Impresión completada para: {numeroRemito}");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"❌ Error en impresión: {ex.Message}");
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // NUEVO: Método para obtener datos de la factura para impresión
+        private async Task<DatosFactura> ObtenerDatosParaImpresion(string numeroRemito)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"
+                        SELECT 
+                            NumeroRemito,
+                            NroFactura,
+                            TipoFactura,
+                            FormadePago,
+                            CAENumero,
+                            CAEVencimiento,
+                            CUITCliente,
+                            CtaCteNombre,
+                            ImporteTotal,
+                            IVA,
+                            Fecha,
+                            Hora
+                        FROM Facturas 
+                        WHERE NumeroRemito = @numeroRemito";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                        await connection.OpenAsync();
+                        
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                return new DatosFactura
+                                {
+                                    TipoFactura = reader["TipoFactura"]?.ToString() ?? "",
+                                    FormaPago = reader["FormadePago"]?.ToString() ?? "",
+                                    CAENumero = reader["CAENumero"]?.ToString() ?? "",
+                                    CAEVencimiento = reader["CAEVencimiento"] as DateTime?,
+                                    CUITCliente = reader["CUITCliente"]?.ToString() ?? "",
+                                    NombreComercio = config["Comercio:Nombre"] ?? "Mi Comercio",
+                                    DomicilioComercio = config["Comercio:Domicilio"] ?? ""
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error obteniendo datos de factura: {ex.Message}");
+                throw;
+            }
+
+            return null;
+        }
+
+        // NUEVO: Método para obtener productos de la factura
+        private async Task<DataTable> ObtenerProductosFactura(string numeroRemito)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"
+                        SELECT 
+                            codigo,
+                            descripcion,
+                            cantidad,
+                            precio,
+                            total
+                        FROM Ventas 
+                        WHERE NroFactura = @numeroRemito
+                        ORDER BY descripcion";
+
+                    using (var adapter = new SqlDataAdapter(query, connection))
+                    {
+                        adapter.SelectCommand.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                        DataTable dt = new DataTable();
+                        await Task.Run(() => adapter.Fill(dt));
+                        
+                        System.Diagnostics.Debug.WriteLine($"📦 Productos obtenidos: {dt.Rows.Count} items");
+                        return dt;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error obteniendo productos: {ex.Message}");
+                throw;
+            }
+        }
+
+        // NUEVO: Método para crear configuración de ticket
+        private TicketConfig CrearConfiguracionTicket(DatosFactura datos)
+        {
+            return new TicketConfig
+            {
+                NombreComercio = datos.NombreComercio,
+                DomicilioComercio = datos.DomicilioComercio,
+                TipoComprobante = datos.TipoFactura ?? "REMITO",
+                NumeroComprobante = frmDetalle.Text, // Usar el título completo
+                FormaPago = datos.FormaPago,
+                CAE = datos.CAENumero,
+                CAEVencimiento = datos.CAEVencimiento,
+                CUIT = datos.CUITCliente,
+                MensajePie = "¡Gracias por su compra!"
+            };
         }
 
         // AGREGAR: Método auxiliar para extraer número de remito del título
@@ -944,7 +1096,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // Método para cargar detalle de una factura específica
+        // AGREGAR: Método para cargar detalle de una factura específica
         private void CargarDetalleFactura(string nroFactura)
         {
             try
@@ -1086,7 +1238,7 @@ namespace Comercio.NET.Formularios
                 lblTotalFactura.Text = $"Total: {totalFactura:C2}";
         }
 
-        // Método para actualizar el título de la ventana de detalle
+        // AGREGAR: Método para actualizar el título de la ventana de detalle
         private void ActualizarTituloDetalle(string nroFactura)
         {
             try
@@ -1167,7 +1319,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // Método para mostrar la ventana de detalle
+        // AGREGAR: Método para mostrar la ventana de detalle
         private void MostrarVentanaDetalle()
         {
             // Check if form is disposed and recreate if necessary
@@ -1554,14 +1706,11 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                //MessageBox.Show("Funcionalidad de Auditoría de Eliminados no implementada aún.", 
-                //    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                 //TODO: Implementar la ventana de auditoría de eliminados
-                 using (var consultaForm = new ConsultaAuditoriaEliminados())
-                 {
-                     consultaForm.ShowDialog(this);
-                 }
+                // TODO: Implementar la ventana de auditoría de eliminados
+                using (var consultaForm = new ConsultaAuditoriaEliminados())
+                {
+                    consultaForm.ShowDialog(this);
+                }
             }
             catch (Exception ex)
             {
@@ -1575,9 +1724,6 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                //MessageBox.Show("Funcionalidad de Resumen de IVA no implementada aún.", 
-                //    "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                 // TODO: Implementar la ventana de resumen de IVA
                 using (var resumenForm = new ResumenIvaForm(dtpFecha.Value.Date, chkCtaCte.Checked))
                 {
