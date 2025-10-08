@@ -851,8 +851,17 @@ namespace Comercio.NET.Servicios
                                 tipoFormateado = "FACTURA B";
                             }
                             
-                            // Formato final: FACTURA A/B N° punto_venta-numero
-                            return $"{tipoFormateado} N° {partes[1]}-{partes[2]}";
+                            // CORREGIDO: Formatear punto de venta a 4 dígitos (eliminar ceros a la izquierda y re-formatear)
+                            if (int.TryParse(partes[1], out int puntoVentaNumero))
+                            {
+                                string puntoVentaFormateado = puntoVentaNumero.ToString("D4"); // 4 dígitos con ceros a la izquierda
+                                return $"{tipoFormateado} N° {puntoVentaFormateado}-{partes[2]}";
+                            }
+                            else
+                            {
+                                // Fallback si no se puede parsear el punto de venta
+                                return $"{tipoFormateado} N° {partes[1]}-{partes[2]}";
+                            }
                         }
                     }
                     
