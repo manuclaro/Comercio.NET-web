@@ -840,7 +840,7 @@ namespace Comercio.NET.Servicios
                         string[] partes = numeroCompleto.Split('-');
                         if (partes.Length == 3)  
                         {
-                            // Determinar el tipo según el código de tipo de comprobante
+                            // CORREGIDO: Determinar el tipo solo según el código de tipo de comprobante (primera parte)
                             string tipoFormateado = "FACTURA";
                             if (partes[0].StartsWith("0001") || partes[0].StartsWith("1"))
                             {
@@ -851,25 +851,47 @@ namespace Comercio.NET.Servicios
                                 tipoFormateado = "FACTURA B";
                             }
                             
-                            // CORREGIDO: Usar el punto de venta (parte 1) en lugar del código de tipo (parte 0)
-                            // Formato correcto: FACTURA B N° 0001-00000123 (punto de venta - número)
-                            string puntoVenta = partes[1].TrimStart('0');
-                            if (string.IsNullOrEmpty(puntoVenta)) puntoVenta = "1";
-                            
-                            return $"{tipoFormateado} N° {puntoVenta.PadLeft(4, '0')}-{partes[2]}";
+                            // Formato final: FACTURA A/B N° punto_venta-numero
+                            return $"{tipoFormateado} N° {partes[1]}-{partes[2]}";
                         }
                     }
                     
-                    // Si viene solo un número simple
+                    // Si viene solo un número simple, determinar la letra SOLO desde el tipoComprobante
                     if (int.TryParse(numeroCompleto, out int numeroSimple))
                     {
-                        string letra = tipoComprobante.Contains("FacturaA") ? "A" : "B";
+                        // CORREGIDO: Solo una fuente para determinar la letra
+                        string letra = "";
+                        if (tipoComprobante.ToUpper().Contains("FACTURAA") || tipoComprobante.ToUpper().Contains("FACTURA A"))
+                        {
+                            letra = "A";
+                        }
+                        else if (tipoComprobante.ToUpper().Contains("FACTURAB") || tipoComprobante.ToUpper().Contains("FACTURA B"))
+                        {
+                            letra = "B";
+                        }
+                        else
+                        {
+                            // Si no se puede determinar, usar B por defecto
+                            letra = "B";
+                        }
+                        
                         return $"FACTURA {letra} N° 0001-{numeroSimple:D8}";
                     }
                     
-                    // Fallback - mostrar tal como viene
-                    string letraFallback = tipoComprobante.Contains("FacturaA") ? "A" : "B";
-                    return $"FACTURA {letraFallback} N° {numeroCompleto}";
+                    // Fallback - si el tipoComprobante ya contiene la letra correctamente formateada
+                    if (tipoComprobante.ToUpper().Contains("FACTURA A"))
+                    {
+                        return $"FACTURA A N° {numeroCompleto}";
+                    }
+                    else if (tipoComprobante.ToUpper().Contains("FACTURA B"))
+                    {
+                        return $"FACTURA B N° {numeroCompleto}";
+                    }
+                    else
+                    {
+                        // Genérico sin duplicar la letra
+                        return $"FACTURA N° {numeroCompleto}";
+                    }
                 }
                 
                 // Para otros tipos de comprobante
