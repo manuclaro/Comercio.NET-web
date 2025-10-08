@@ -840,7 +840,7 @@ namespace Comercio.NET.Servicios
                         string[] partes = numeroCompleto.Split('-');
                         if (partes.Length == 3)  
                         {
-                            // Determinar el tipo según el primer dígito
+                            // Determinar el tipo según el código de tipo de comprobante
                             string tipoFormateado = "FACTURA";
                             if (partes[0].StartsWith("0001") || partes[0].StartsWith("1"))
                             {
@@ -851,8 +851,12 @@ namespace Comercio.NET.Servicios
                                 tipoFormateado = "FACTURA B";
                             }
                             
-                            // CORREGIDO: Formatear como: FACTURA A N° 0001-00000123 (sin punto de venta)
-                            return $"{tipoFormateado} N° {partes[0]}-{partes[2]}";
+                            // CORREGIDO: Usar el punto de venta (parte 1) en lugar del código de tipo (parte 0)
+                            // Formato correcto: FACTURA B N° 0001-00000123 (punto de venta - número)
+                            string puntoVenta = partes[1].TrimStart('0');
+                            if (string.IsNullOrEmpty(puntoVenta)) puntoVenta = "1";
+                            
+                            return $"{tipoFormateado} N° {puntoVenta.PadLeft(4, '0')}-{partes[2]}";
                         }
                     }
                     
@@ -860,7 +864,7 @@ namespace Comercio.NET.Servicios
                     if (int.TryParse(numeroCompleto, out int numeroSimple))
                     {
                         string letra = tipoComprobante.Contains("FacturaA") ? "A" : "B";
-                        return $"FACTURA {letra} N° {numeroSimple:D8}";
+                        return $"FACTURA {letra} N° 0001-{numeroSimple:D8}";
                     }
                     
                     // Fallback - mostrar tal como viene
