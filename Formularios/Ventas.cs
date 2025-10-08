@@ -822,19 +822,31 @@ namespace Comercio.NET
         {
             if (chkCantidad.Checked)
             {
-                string input = Microsoft.VisualBasic.Interaction.InputBox(
-                    "Ingrese la cantidad:",
-                    "Cantidad personalizada",
-                    "1");
-
-                if (int.TryParse(input, out int cantidad) && cantidad > 0)
+                // MODERNIZADO: Usar el EditarCantidadDialog moderno en lugar del InputBox básico
+                using (var dialog = new EditarCantidadDialog("", "Cantidad personalizada", cantidadPersonalizada))
                 {
-                    cantidadPersonalizada = cantidad;
-                }
-                else
-                {
-                    chkCantidad.Checked = false;
-                    cantidadPersonalizada = 1;
+                    var resultado = dialog.ShowDialog(this);
+                    
+                    if (resultado == DialogResult.OK && dialog.Confirmado)
+                    {
+                        int nuevaCantidad = dialog.NuevaCantidad;
+                        if (nuevaCantidad > 0)
+                        {
+                            cantidadPersonalizada = nuevaCantidad;
+                            System.Diagnostics.Debug.WriteLine($"?? Cantidad personalizada establecida: {cantidadPersonalizada}");
+                        }
+                        else
+                        {
+                            chkCantidad.Checked = false;
+                            cantidadPersonalizada = 1;
+                        }
+                    }
+                    else
+                    {
+                        // Usuario canceló o no confirmó, desmarcar checkbox
+                        chkCantidad.Checked = false;
+                        cantidadPersonalizada = 1;
+                    }
                 }
             }
             else
@@ -1015,74 +1027,6 @@ namespace Comercio.NET
             };
             chkCantidad.CheckedChanged += chkCantidad_CheckedChanged;
             this.Controls.Add(chkCantidad);
-
-            // NUEVO: Botón para verificar configuración de AFIP
-            Button btnVerificarAfip = new Button
-            {
-                Text = "?? Verificar AFIP",
-                Left = 690,
-                Top = 134,
-                Width = 120,
-                Height = 25,
-                Font = new Font("Segoe UI", 9F),
-                BackColor = Color.FromArgb(255, 193, 7), // Amarillo/naranja
-                ForeColor = Color.Black,
-                FlatStyle = FlatStyle.Flat,
-                UseVisualStyleBackColor = false
-            };
-            btnVerificarAfip.Click += (s, e) => 
-            {
-                try
-                {
-                    Comercio.NET.Utilidades.VerificadorCertificadoAfip.VerificarConfiguracionAfip();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error verificando configuración AFIP:\n{ex.Message}", "Error", 
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-            this.Controls.Add(btnVerificarAfip);
-
-            // NUEVO: Botón para limpiar cache de tokens AFIP
-            Button btnLimpiarCacheAfip = new Button
-            {
-                Text = "??? Limpiar Cache AFIP",
-                Left = 820,
-                Top = 134,
-                Width = 140,
-                Height = 25,
-                Font = new Font("Segoe UI", 9F),
-                BackColor = Color.FromArgb(220, 53, 69), // Rojo
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                UseVisualStyleBackColor = false
-            };
-            btnLimpiarCacheAfip.Click += (s, e) => 
-            {
-                try
-                {
-                    // Limpiar cache de tokens AFIP
-                    AfipAuthenticator.ClearTokenCache();
-                    SeleccionImpresionForm.LimpiarCacheTokensAfip();
-                    
-                    MessageBox.Show(
-                        "? Cache de tokens AFIP limpiado exitosamente.\n\n" +
-                        "Esto puede ayudar a resolver errores de 'Token ya existe' en AFIP.\n" +
-                        "El próximo intento de facturación solicitará un nuevo token.",
-                        "Cache Limpiado", 
-                        MessageBoxButtons.OK, 
-                        MessageBoxIcon.Information);
-                    
-                    System.Diagnostics.Debug.WriteLine("??? Cache de tokens AFIP limpiado manualmente desde Ventas");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error limpiando cache AFIP:\n{ex.Message}", "Error", 
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-            this.Controls.Add(btnLimpiarCacheAfip);
         }
 
         private void ConfigurarEstilosFormulario()
@@ -1885,6 +1829,7 @@ namespace Comercio.NET
                 if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
                     importeTotal += valorTotal;
 
+                // NUEVO: Sumar el IVA de cada producto
                 if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
                     ivaTotal += valorIva;
             }
@@ -2091,7 +2036,7 @@ namespace Comercio.NET
 
                                 cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
                                 cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
-                                cmd.Parameters.AddWithValue("@ImporteTotal", importeTotal);
+                                cmd.Parameters.AddWithValue("@ImporteTotal",importeTotal);
                                 cmd.Parameters.AddWithValue("@IVA", ivaTotal);
                                 cmd.Parameters.AddWithValue("@FormadePago", formaPago ?? "Efectivo");
                                 cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
