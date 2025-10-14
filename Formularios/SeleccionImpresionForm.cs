@@ -611,26 +611,31 @@ namespace Comercio.NET
             }
         }
 
-        // MEJORADO: Método para autenticar con AFIP usando el servicio robusto existente con mejor manejo de cache
+        // MEJORADO: Autenticación completamente transparente para tokens existentes
         private async Task AutenticarConAfipReal(string cuitEmisor)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🔑 === INICIANDO AUTENTICACIÓN AFIP ===");
+                System.Diagnostics.Debug.WriteLine("🔑 === AUTENTICACIÓN AFIP TRANSPARENTE ===");
 
-                // PASO 1: Verificar si tenemos tokens válidos en el cache del AfipAuthenticator
-                var tokenCache = AfipAuthenticator.GetExistingToken("wsfe");
-                if (tokenCache.HasValue)
+                // PASO 1: Verificar tokens existentes ANTES de cualquier intento
+                var (tieneTokenValido, mensaje, minutosRestantes) = AfipAuthenticator.VerificarTokensExistentes("wsfe");
+                
+                if (tieneTokenValido && minutosRestantes > 2)
                 {
-                    TokenAfip = tokenCache.Value.token;
-                    SignAfip = tokenCache.Value.sign;
-                    System.Diagnostics.Debug.WriteLine("🔄 Usando tokens AFIP del cache global");
-                    return;
+                    var tokenExistente = AfipAuthenticator.GetExistingToken("wsfe");
+                    if (tokenExistente.HasValue)
+                    {
+                        TokenAfip = tokenExistente.Value.token;
+                        SignAfip = tokenExistente.Value.sign;
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Usando token válido existente: {mensaje}");
+                        return; // SALIR INMEDIATAMENTE sin más verificaciones
+                    }
                 }
 
-                System.Diagnostics.Debug.WriteLine("🔑 No hay tokens válidos en cache, obteniendo nueva autenticación...");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔍 Estado tokens: {mensaje}");
 
-                // PASO 2: Obtener configuración AFIP
+                // PASO 2: Obtener configuración
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                     .AddJsonFile("appsettings.json")
@@ -645,174 +650,57 @@ namespace Comercio.NET
                     certificadoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificado.p12");
                 }
 
-                // PASO 3: Verificar certificado antes de intentar autenticación
+                // PASO 3: Verificar certificado
                 var (esCertificadoValido, mensajeCert, fechaVencimiento) = AfipAuthenticator.VerificarCertificado(certificadoPath, certificadoPassword ?? "");
                 if (!esCertificadoValido)
                 {
                     throw new Exception($"Certificado AFIP no válido: {mensajeCert}");
                 }
 
-                System.Diagnostics.Debug.WriteLine($"✅ Certificado AFIP válido: {mensajeCert}");
-                System.Diagnostics.Debug.WriteLine($"[AFIP] Usando certificado: {certificadoPath}");
-                System.Diagnostics.Debug.WriteLine($"[AFIP] URL WSAA: {wsaaUrl}");
+                System.Diagnostics.Debug.WriteLine($"✅ Certificado válido: {mensajeCert}");
 
-                // PASO 4: Intentar autenticar con manejo robusto de errores de token existente
-                int intentos = 0;
-                const int maxIntentos = 3;
-                
-                while (intentos < maxIntentos)
+                // PASO 4: Usar el nuevo método transparente
+                try
                 {
+                    var (token, sign, expiration) = await AfipAuthenticator.GetTAAsync("wsfe", certificadoPath, certificadoPassword ?? "", wsaaUrl);
+
+                    TokenAfip = token;
+                    SignAfip = sign;
+
+                    System.Diagnostics.Debug.WriteLine("✅ Autenticación AFIP transparente completada");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Token válido hasta: {expiration:dd/MM/yyyy HH:mm:ss}");
+                    
+                    // NO mostrar ningún mensaje al usuario - proceso completamente transparente
+                }
+                catch (Exception ex) when (ex.Message.Contains("TOKEN") || ex.Message.Contains("token") || ex.Message.Contains("Ya existe"))
+                {
+                    // ÚLTIMO RECURSO: Forzar uso de token existente
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Forzando uso de token existente debido a: {ex.Message}");
+                    
                     try
                     {
-                        intentos++;
-                        System.Diagnostics.Debug.WriteLine($"🔄 Intento de autenticación #{intentos}");
+                        var (token, sign, expiration) = await AfipAuthenticator.ForzarUsoTokenExistente("wsfe", certificadoPath, certificadoPassword ?? "");
                         
-                        var (token, sign, expiration) = await AfipAuthenticator.GetTAAsync("wsfe", certificadoPath, certificadoPassword ?? "", wsaaUrl);
-
-                        // PASO 5: Manejar respuestas especiales del servicio
-                        if (token == "WAITING_FOR_EXPIRY" && sign == "WAITING_FOR_EXPIRY")
-                        {
-                            System.Diagnostics.Debug.WriteLine($"⏳ AFIP requiere esperar - Token anterior aún válido (intento {intentos})");
-                            
-                            if (intentos < maxIntentos)
-                            {
-                                // Esperar antes del siguiente intento (tiempo progresivo)
-                                int tiempoEspera = intentos * 30; // 30, 60, 90 segundos
-                                System.Diagnostics.Debug.WriteLine($"⏱️ Esperando {tiempoEspera} segundos antes del siguiente intento...");
-                                await Task.Delay(tiempoEspera * 1000);
-                                
-                                // Limpiar cache antes del siguiente intento
-                                AfipAuthenticator.ClearTokenCache("wsfe");
-                                continue;
-                            }
-                            else
-                            {
-                                // En el último intento, usar cualquier token disponible en cache
-                                var tokenCacheUltimoIntento = AfipAuthenticator.GetExistingToken("wsfe");
-                                if (tokenCacheUltimoIntento.HasValue)
-                                {
-                                    TokenAfip = tokenCacheUltimoIntento.Value.token;
-                                    SignAfip = tokenCacheUltimoIntento.Value.sign;
-                                    System.Diagnostics.Debug.WriteLine("🔄 Usando tokens del cache en último intento");
-                                    return;
-                                }
-                                
-                                throw new Exception("No se pudo obtener un token válido de AFIP después de varios intentos. El servicio indica que ya existe un token activo. Esto puede deberse a múltiples solicitudes simultáneas o problemas temporales del servicio.");
-                            }
-                        }
-
-                        // PASO 6: Tokens válidos obtenidos exitosamente
                         TokenAfip = token;
                         SignAfip = sign;
-
-                        System.Diagnostics.Debug.WriteLine("✅ Autenticación AFIP exitosa con servicio robusto");
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Token expira: {expiration:dd/MM/yyyy HH:mm:ss}");
-                        return; // Salir exitosamente
+                        
+                        System.Diagnostics.Debug.WriteLine("✅ Token forzado exitosamente - proceso transparente");
+                        return;
                     }
-                    catch (TokenAlreadyExistsException ex)
+                    catch (Exception exForzar)
                     {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ TokenAlreadyExistsException en intento #{intentos}: {ex.Message}");
-                        
-                        // Intentar usar tokens del cache después de la excepción específica
-                        var tokenCacheExcepcion = AfipAuthenticator.GetExistingToken("wsfe");
-                        if (tokenCacheExcepcion.HasValue)
-                        {
-                            TokenAfip = tokenCacheExcepcion.Value.token;
-                            SignAfip = tokenCacheExcepcion.Value.sign;
-                            System.Diagnostics.Debug.WriteLine("🔄 Usando tokens del cache después de TokenAlreadyExistsException");
-                            return;
-                        }
-                        
-                        if (intentos < maxIntentos)
-                        {
-                            // Esperar y limpiar cache antes del siguiente intento
-                            int tiempoEspera = intentos * 20; // 20, 40, 60 segundos
-                            System.Diagnostics.Debug.WriteLine($"⏱️ Token duplicado, esperando {tiempoEspera}s antes del siguiente intento...");
-                            
-                            // Limpiar cache completamente
-                            AfipAuthenticator.ClearTokenCache();
-                            await Task.Delay(tiempoEspera * 1000);
-                            continue;
-                        }
-                        
-                        throw new Exception($"Error persistente de token duplicado en AFIP. Verifique que no haya otros procesos de facturación ejecutándose simultáneamente.");
-                    }
-                    catch (Exception ex) when (ex.Message.Contains("Ya existe un token válido") || 
-                                             ex.Message.Contains("token válido para este servicio") ||
-                                             ex.Message.Contains("coe.alreadyAuthenticated"))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Error de token existente genérico en intento #{intentos}: {ex.Message}");
-                        
-                        // Intentar con cache existente
-                        var tokenCacheGenerico = AfipAuthenticator.GetExistingToken("wsfe");
-                        if (tokenCacheGenerico.HasValue)
-                        {
-                            TokenAfip = tokenCacheGenerico.Value.token;
-                            SignAfip = tokenCacheGenerico.Value.sign;
-                            System.Diagnostics.Debug.WriteLine("🔄 Usando tokens del cache después de error genérico de token existente");
-                            return;
-                        }
-                        
-                        if (intentos < maxIntentos)
-                        {
-                            // Estrategia más agresiva: esperar más tiempo
-                            int tiempoEspera = intentos * 45; // 45, 90, 135 segundos
-                            System.Diagnostics.Debug.WriteLine($"⏱️ Error de token, esperando {tiempoEspera}s (intento {intentos}/{maxIntentos})...");
-                            
-                            AfipAuthenticator.ClearTokenCache();
-                            await Task.Delay(tiempoEspera * 1000);
-                            continue;
-                        }
-                        
-                        throw new Exception("No se pudo resolver el conflicto de tokens con AFIP de forma automática. El sistema detectó que ya existe un token activo y no pudo obtener uno nuevo.");
-                    }
-                    catch (Exception ex) when (ex.Message.Contains("comunicar") || ex.Message.Contains("conexión") || 
-                                             ex.Message.Contains("timeout") || ex.Message.Contains("network"))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Error de conectividad en intento #{intentos}: {ex.Message}");
-                        
-                        // Para errores de conectividad, usar cache si está disponible
-                        var tokenCacheConexion = AfipAuthenticator.GetExistingToken("wsfe");
-                        if (tokenCacheConexion.HasValue)
-                        {
-                            TokenAfip = tokenCacheConexion.Value.token;
-                            SignAfip = tokenCacheConexion.Value.sign;
-                            System.Diagnostics.Debug.WriteLine("🔄 Usando tokens del cache debido a problemas de conectividad");
-                            return;
-                        }
-                        
-                        if (intentos < maxIntentos)
-                        {
-                            int tiempoEspera = 10; // Espera corta para problemas de red
-                            System.Diagnostics.Debug.WriteLine($"🌐 Problema de conectividad, reintentando en {tiempoEspera}s...");
-                            await Task.Delay(tiempoEspera * 1000);
-                            continue;
-                        }
-                        
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"❌ Error general de autenticación en intento #{intentos}: {ex.Message}");
-                        
-                        if (intentos >= maxIntentos)
-                        {
-                            throw;
-                        }
-                        
-                        // Para otros errores, esperar un poco antes del siguiente intento
-                        await Task.Delay(15000); // 15 segundos
-                        continue;
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error forzando token: {exForzar.Message}");
+                        throw new Exception($"No se pudo obtener token AFIP de manera transparente: {ex.Message}");
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine("✅ === AUTENTICACIÓN AFIP COMPLETADA ===");
+                System.Diagnostics.Debug.WriteLine("✅ === AUTENTICACIÓN TRANSPARENTE COMPLETADA ===");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"💥 Error crítico en AutenticarConAfipReal: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"💥 Error en autenticación transparente: {ex.Message}");
                 
-                // ÚLTIMO RECURSO: Intentar usar cualquier token disponible en cache
+                // ÚLTIMO RECURSO FINAL: Intentar cualquier token disponible
                 try
                 {
                     var tokenUltimoRecurso = AfipAuthenticator.GetExistingToken("wsfe");
@@ -820,16 +708,17 @@ namespace Comercio.NET
                     {
                         TokenAfip = tokenUltimoRecurso.Value.token;
                         SignAfip = tokenUltimoRecurso.Value.sign;
-                        System.Diagnostics.Debug.WriteLine("🆘 Usando tokens del cache como último recurso");
+                        System.Diagnostics.Debug.WriteLine("🆘 Usando token de último recurso de manera transparente");
                         return;
                     }
                 }
                 catch (Exception exCache)
                 {
-                    System.Diagnostics.Debug.WriteLine($"💥 Error también en último recurso de cache: {exCache.Message}");
+                    System.Diagnostics.Debug.WriteLine($"💥 Error en último recurso: {exCache.Message}");
                 }
                 
-                throw; // Re-lanzar para que el método caller pueda manejar
+                // Solo mostrar error al usuario si realmente no se puede continuar
+                throw new Exception($"Error crítico de autenticación AFIP: {ex.Message}\n\nNo se pudo obtener tokens válidos para continuar.");
             }
         }
 

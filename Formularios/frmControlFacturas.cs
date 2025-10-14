@@ -829,11 +829,11 @@ namespace Comercio.NET.Formularios
             try
             {
                 DateTime fechaSeleccionada = dtpFecha.Value.Date;
-                string tipoVenta = chkCtaCte.Checked ? "Cuenta Corriente" : "Contado";
+                //string tipoVenta = chkCtaCte.Checked ? "Cuenta Corriente" : "Contado";
                 
                 string tituloBase = fechaSeleccionada == DateTime.Today 
-                    ? $"Control de Facturas - Ventas del Día ({tipoVenta})" 
-                    : $"Control de Facturas - Ventas del {fechaSeleccionada:dd/MM/yyyy} ({tipoVenta})";
+                    ? $"Control de Facturas - Ventas del Día" 
+                    : $"Control de Facturas - Ventas del {fechaSeleccionada:dd/MM/yyyy}";
 
                 if (cantidadFiltros > 0)
                 {

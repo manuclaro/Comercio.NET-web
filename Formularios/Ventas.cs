@@ -98,13 +98,13 @@ namespace Comercio.NET
         {
             contextMenuGrilla = new ContextMenuStrip();
             
-            menuEditarCantidad = new ToolStripMenuItem("?? Editar Cantidad");
+            menuEditarCantidad = new ToolStripMenuItem("Editar Cantidad");
             menuEditarCantidad.Click += MenuEditarCantidad_Click;
             
-            menuEliminarProducto = new ToolStripMenuItem("??? Eliminar Producto");
+            menuEliminarProducto = new ToolStripMenuItem("Eliminar Producto");
             menuEliminarProducto.Click += MenuEliminarProducto_Click;
             
-            menuInfoProducto = new ToolStripMenuItem("?? Información del Producto");
+            menuInfoProducto = new ToolStripMenuItem("Información del Producto");
             menuInfoProducto.Click += MenuInfoProducto_Click;
             
             // CORREGIDO: Agregar elementos individualmente en lugar de usar array
@@ -237,8 +237,8 @@ namespace Comercio.NET
                 var row = dataGridView1.SelectedRows[0];
                 var codigo = row.Cells["codigo"].Value?.ToString();
                 var descripcion = row.Cells["descripcion"].Value?.ToString();
-                var cantidadActual = Convert.ToInt32(row.Cells["cantidad"].Value);
-                var precio = Convert.ToDecimal(row.Cells["precio"].Value);
+                var cantidadActual = Convert.ToInt32(row.Cells["cantidad"].Value);  
+                var precio = Convert.ToDecimal(row.Cells["precio"].Value);      
                 
                 // MEJORADO: Usar el nuevo diálogo visual
                 using (var dialog = new EditarCantidadDialog(codigo, descripcion, cantidadActual))
@@ -255,7 +255,7 @@ namespace Comercio.NET
                         // Recargar la vista
                         CargarVentasActuales();
                         
-                        System.Diagnostics.Debug.WriteLine($"? Cantidad actualizada: {codigo} - Nueva cantidad: {nuevaCantidad}");
+                        System.Diagnostics.Debug.WriteLine($"Cantidad actualizada: {codigo} - Nueva cantidad: {nuevaCantidad}");
                     }
                 }
             }
@@ -313,7 +313,7 @@ namespace Comercio.NET
                 var row = dataGridView1.SelectedRows[0];
                 var codigo = row.Cells["codigo"].Value?.ToString();
                 var descripcion = row.Cells["descripcion"].Value?.ToString();
-                var cantidad = Convert.ToInt32(row.Cells["cantidad"].Value);
+                var cantidad = Convert.ToInt32(row.Cells["cantidad"].Value);    
                 var precio = Convert.ToDecimal(row.Cells["precio"].Value);
                 var total = Convert.ToDecimal(row.Cells["total"].Value);
                 
@@ -562,7 +562,7 @@ namespace Comercio.NET
             // Ajustar el DataGridView cuando se redimensiona el formulario
             if (dataGridView1 != null)
             {
-                dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 60);
+                dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 120); // CAMBIADO: -120 en lugar de -60
             }
         }
         private void ConfigurarEventHandlers()
@@ -833,7 +833,7 @@ namespace Comercio.NET
                         if (nuevaCantidad > 0)
                         {
                             cantidadPersonalizada = nuevaCantidad;
-                            System.Diagnostics.Debug.WriteLine($"?? Cantidad personalizada establecida: {cantidadPersonalizada}");
+                            System.Diagnostics.Debug.WriteLine($"Cantidad personalizada establecida: {cantidadPersonalizada}");
                         }
                         else
                         {
@@ -1010,7 +1010,7 @@ namespace Comercio.NET
             // DEBUG: Mostrar configuración cargada
             System.Diagnostics.Debug.WriteLine($"=== CONFIGURACIÓN STOCK ===");
             System.Diagnostics.Debug.WriteLine($"Validar stock habilitado: {validarStockHabilitado}");
-            System.Diagnostics.Debug.WriteLine($"===========================");
+            System.Diagnostics.Debug.WriteLine($"================================");
         }
 
         private void ConfigurarCheckboxCantidad()
@@ -1327,7 +1327,7 @@ namespace Comercio.NET
             {
                 // CAMBIADO: Mostrar advertencia pero permitir continuar
                 var resultado = MessageBox.Show(
-                    $"?? ADVERTENCIA: Stock insuficiente\n\n" +
+                    $"ADVERTENCIA: Stock insuficiente\n\n" +
                     $"Producto: {producto["descripcion"]}\n" +
                     $"Stock disponible: {stockDisponible}\n" +
                     $"Cantidad solicitada: {cantidadPersonalizada}\n\n" +
@@ -1634,8 +1634,8 @@ namespace Comercio.NET
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.Black;
 
             // MEJORADO: Estilos de selección más contrastantes
-            dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.DefaultCellStyle.BackColor = Color.White;
+            dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul más intenso
             dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White; // Texto blanco para mayor contraste
 
@@ -1657,7 +1657,7 @@ namespace Comercio.NET
             // Crear el panel footer programáticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 80; // Mantenemos la altura aumentada
+            panelFooter.Height = 100; // AUMENTADO: era 80, ahora 120 para mostrar múltiples alícuotas
             panelFooter.BackColor = Color.FromArgb(0, 120, 215);
 
             // Configurar lbCantidadProductos
@@ -1669,7 +1669,7 @@ namespace Comercio.NET
             lbCantidadProductos.ForeColor = Color.White;
             lbCantidadProductos.Text = "Productos: 0";
 
-            // NUEVO: Usar RichTextBox para mejor control de formato
+            // MODIFICADO: Usar RichTextBox más alto para mostrar todas las alícuotas
             rtbTotal = new RichTextBox
             {
                 AutoSize = false,
@@ -1692,11 +1692,11 @@ namespace Comercio.NET
             this.Controls.Add(panelFooter);
             panelFooter.BringToFront();
 
-            // IMPORTANTE: Ajustar el DataGridView para que no se superponga
+            // MODIFICADO: Ajustar el DataGridView para el panel más alto
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridView1.Dock = DockStyle.None;
             dataGridView1.Location = new Point(0, 171);
-            dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 80);
+            dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 120); // CAMBIADO: -120 en lugar de -80
         }
 
         private void CargarVentasActuales()
@@ -1732,11 +1732,42 @@ namespace Comercio.NET
                 dataGridView1.Columns["id"].Visible = false;
             }
 
+            if (dataGridView1.Columns["codigo"] != null)
+            {
+                dataGridView1.Columns["codigo"].HeaderText = "Codigo";
+                //dataGridView1.Columns["codigo"].Width = 50;
+            }
+
+            if (dataGridView1.Columns["descripcion"] != null)
+            {
+                dataGridView1.Columns["descripcion"].HeaderText = "Descripcion";
+                //dataGridView1.Columns["descripcion"].Width = 50;
+            }
+
+            if (dataGridView1.Columns["precio"] != null)
+            {
+                dataGridView1.Columns["precio"].HeaderText = "Precio";
+                //dataGridView1.Columns["precio"].Width = 50;
+            }
+
+            if (dataGridView1.Columns["total"] != null)
+            {
+                dataGridView1.Columns["total"].HeaderText = "Total";
+                //dataGridView1.Columns["total"].Width = 50;
+            }
+
+            // NUEVO: Cambiar el título de la columna cantidad a "Cant."
+            if (dataGridView1.Columns["cantidad"] != null)
+            {
+                dataGridView1.Columns["cantidad"].HeaderText = "Cant.";
+                dataGridView1.Columns["cantidad"].Width = 50;
+            }
+
             // MODIFICADO: Configurar la columna de porcentaje IVA primero (ahora aparecerá antes)
             if (dataGridView1.Columns["PorcentajeIva"] != null)
             {
-                dataGridView1.Columns["PorcentajeIva"].HeaderText = "IVA %";
-                dataGridView1.Columns["PorcentajeIva"].Width = 40;
+                dataGridView1.Columns["PorcentajeIva"].HeaderText = "IVA%";
+                dataGridView1.Columns["PorcentajeIva"].Width = 30;
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Format = "N2";
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 //dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
@@ -1750,7 +1781,7 @@ namespace Comercio.NET
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
                 dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA $";
-                dataGridView1.Columns["IvaCalculado"].Width = 80;
+                dataGridView1.Columns["IvaCalculado"].Width = 50;
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                 // NUEVO: Establecer el orden de visualización
@@ -1787,82 +1818,62 @@ namespace Comercio.NET
             decimal sumaTotal = 0;
             decimal sumaIva = 0;
 
+            // NUEVO: Diccionario para agrupar IVA por alícuota
+            var ivaPorAlicuota = new Dictionary<decimal, decimal>();
+
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
                 if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
                     sumaTotal += valorTotal;
 
                 if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
+                {
                     sumaIva += valorIva;
+
+                    // NUEVO: Agrupar IVA por alícuota
+                    if (row.Cells["PorcentajeIva"].Value != null && decimal.TryParse(row.Cells["PorcentajeIva"].Value.ToString(), out decimal alicuota))
+                    {
+                        if (!ivaPorAlicuota.ContainsKey(alicuota))
+                            ivaPorAlicuota[alicuota] = 0;
+                        ivaPorAlicuota[alicuota] += valorIva;
+                    }
+                }
             }
 
-            // NUEVO: Formatear con RichTextBox - Total grande e IVA pequeño debajo
+            // MODIFICADO: Formatear con RichTextBox mostrando IVA discriminado por alícuota
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
 
             // Total con fuente grande
-            rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
+            rtbTotal.SelectionFont = new Font("Segoe UI", 22F, FontStyle.Bold); // REDUCIDO: era 24F, ahora 22F
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}");
 
             // Nueva línea
             rtbTotal.AppendText("\n");
 
-            // IVA con fuente considerablemente más pequeña
-            rtbTotal.SelectionFont = new Font("Segoe UI", 11F, FontStyle.Regular);
-            rtbTotal.AppendText($"IVA: {sumaIva:C2}");
-        }
-
-        // Método btnFinalizarVenta_Click - MODIFICADO para pagos múltiples
-        private async void btnFinalizarVenta_Click(object sender, EventArgs e)
-        {
-            remitoIncrementado = false;
-
-            if (remitoActual == null || remitoActual.Rows.Count == 0)
-                return;
-
-            // Calcular el importe total antes de abrir el modal
-            decimal importeTotal = 0;
-            decimal ivaTotal = 0;
-
-            foreach (DataGridViewRow row in dataGridView1.Rows)
+            // NUEVO: Mostrar IVA discriminado por alícuota si hay datos
+            if (ivaPorAlicuota.Any())
             {
-                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
-                    importeTotal += valorTotal;
-
-                // NUEVO: Sumar el IVA de cada producto
-                if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
-                    ivaTotal += valorIva;
-            }
-
-            // NUEVO: Variable para almacenar los pagos múltiples
-            List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null;
-
-            // Mostrar el modal de selección
-            using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
-            {
-                seleccion.TokenAfip = this.token;
-                seleccion.SignAfip = this.sign;
-                seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
+                rtbTotal.SelectionFont = new Font("Segoe UI", 9F, FontStyle.Regular); // REDUCIDO: era 10F, ahora 9F
+                
+                // Ordenar por alícuota
+                foreach (var kvp in ivaPorAlicuota.OrderBy(x => x.Key))
                 {
-                    // NUEVO: Capturar los pagos múltiples antes de guardar
-                    if (seleccion.EsPagoMultiple)
+                    if (kvp.Value > 0) // Solo mostrar alícuotas con valor
                     {
-                        pagosMultiples = seleccion.PagosMultiples;
+                        rtbTotal.AppendText($"IVA {kvp.Key:N2}%: {kvp.Value:C2}\n");
                     }
-
-                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado, pagosMultiples);
-                };
-
-                var resultado = seleccion.ShowDialog(this);
-
-                if (resultado == DialogResult.OK)
-                {
-                    // CORREGIDO: Usar await para esperar que se complete la impresión
-                    await ImprimirConServicioAsync(seleccion);
-
-                    // Limpiar y reiniciar para nueva venta
-                    LimpiarYReiniciarVenta();
                 }
+                
+                // Total de IVA con fuente un poco más grande
+                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Bold); // REDUCIDO: era 11F, ahora 10F
+                rtbTotal.AppendText($"IVA Total: {sumaIva:C2}");
+            }
+            else
+            {
+                // Si no hay discriminación, mostrar IVA total simple
+                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Regular); // REDUCIDO: era 11F, ahora 10F
+                rtbTotal.AppendText($"IVA: {sumaIva:C2}");
             }
         }
 
@@ -1909,7 +1920,7 @@ namespace Comercio.NET
                         break;
                 }
 
-                System.Diagnostics.Debug.WriteLine("??? === INICIO IMPRESIÓN ===");
+                System.Diagnostics.Debug.WriteLine("=== INICIO IMPRESIÓN ===");
                 System.Diagnostics.Debug.WriteLine($"TipoComprobante configurado: {config.TipoComprobante}");
                 System.Diagnostics.Debug.WriteLine($"NumeroComprobante: {config.NumeroComprobante}");
                 System.Diagnostics.Debug.WriteLine($"CAE: {config.CAE}");
@@ -1926,7 +1937,7 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                System.Diagnostics.Debug.WriteLine($"? Error en impresión: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error en impresión: {ex.Message}");
             }
         }
 
@@ -1983,7 +1994,7 @@ namespace Comercio.NET
                 string usuarioActual = ObtenerUsuarioActual();
                 int numeroCajero = obtenerNumeroCajero();
 
-                System.Diagnostics.Debug.WriteLine($"?? === INICIANDO GUARDADO FACTURA ===");
+                System.Diagnostics.Debug.WriteLine($"=== INICIANDO GUARDADO FACTURA ===");
                 System.Diagnostics.Debug.WriteLine($"Tipo: {tipoFactura}, Forma pago: {formaPago}");
                 System.Diagnostics.Debug.WriteLine($"Importe: {importeTotal:C2}, IVA: {ivaTotal:C2}");
                 System.Diagnostics.Debug.WriteLine($"Usuario: {usuarioActual}, Cajero: {numeroCajero}");
@@ -2068,13 +2079,13 @@ namespace Comercio.NET
                                 if (result != null && int.TryParse(result.ToString(), out int facturaId))
                                 {
                                     idFactura = facturaId;
-                                    System.Diagnostics.Debug.WriteLine($"? Factura principal guardada con ID: {idFactura}");
+                                    System.Diagnostics.Debug.WriteLine($"Factura principal guardada con ID: {idFactura}");
                                 }
                                 else
                                 {
                                     // Si no se puede obtener ID, usar el número de remito como identificador
                                     idFactura = nroRemitoActual;
-                                    System.Diagnostics.Debug.WriteLine($"?? Usando NumeroRemito como ID: {idFactura}");
+                                    System.Diagnostics.Debug.WriteLine($"Usando NumeroRemito como ID: {idFactura}");
                                 }
                             }
 
@@ -2088,7 +2099,7 @@ namespace Comercio.NET
                             transaction.Commit();
 
                             // DEBUG: Resumen exitoso
-                            System.Diagnostics.Debug.WriteLine($"? === FACTURA GUARDADA EXITOSAMENTE ===");
+                            System.Diagnostics.Debug.WriteLine($"=== FACTURA GUARDADA EXITOSAMENTE ===");
                             System.Diagnostics.Debug.WriteLine($"ID Factura: {idFactura}");
                             System.Diagnostics.Debug.WriteLine($"Importe: {importeTotal:C}, IVA: {ivaTotal:C}");
                             System.Diagnostics.Debug.WriteLine($"Subtotal: {(importeTotal - ivaTotal):C}");
@@ -2105,7 +2116,7 @@ namespace Comercio.NET
                         }
                         catch (Exception exTransaction)
                         {
-                            System.Diagnostics.Debug.WriteLine($"? Error en transacción: {exTransaction.Message}");
+                            System.Diagnostics.Debug.WriteLine($"Error en transacción: {exTransaction.Message}");
                             System.Diagnostics.Debug.WriteLine($"Stack trace: {exTransaction.StackTrace}");
                             
                             transaction.Rollback();
@@ -2118,7 +2129,7 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"?? Error crítico en GuardarFacturaEnBD: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error crítico en GuardarFacturaEnBD: {ex.Message}");
                 
                 MessageBox.Show($"Error al guardar la factura en base de datos:\n\n{ex.Message}\n\nLa venta se imprimió correctamente pero no se guardó en la base de datos.", "Error de Base de Datos",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -2139,13 +2150,13 @@ namespace Comercio.NET
                     var result = await cmd.ExecuteScalarAsync();
                     bool tieneId = Convert.ToInt32(result) > 0;
                     
-                    System.Diagnostics.Debug.WriteLine($"?? Verificación tabla Facturas - Tiene columna Id: {tieneId}");
+                    System.Diagnostics.Debug.WriteLine($"Verificación tabla Facturas - Tiene columna Id: {tieneId}");
                     return tieneId;
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"?? Error verificando estructura tabla Facturas: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error verificando estructura tabla Facturas: {ex.Message}");
                 return false; // Asumir que no tiene columna Id si hay error
             }
         }
@@ -2336,6 +2347,60 @@ namespace Comercio.NET
                 {
                     System.Diagnostics.Debug.WriteLine($"?? Error crítico creando tabla DetallesPagoFactura: {ex2.Message}");
                     // No re-lanzar la excepción para no romper la transacción principal
+                }
+            }
+        }
+
+        // Método btnFinalizarVenta_Click - MODIFICADO para pagos múltiples
+        private async void btnFinalizarVenta_Click(object sender, EventArgs e)
+        {
+            remitoIncrementado = false;
+
+            if (remitoActual == null || remitoActual.Rows.Count == 0)
+                return;
+
+            // Calcular el importe total antes de abrir el modal
+            decimal importeTotal = 0;
+            decimal ivaTotal = 0;
+
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
+                    importeTotal += valorTotal;
+
+                // NUEVO: Sumar el IVA de cada producto
+                if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
+                    ivaTotal += valorIva;
+            }
+
+            // NUEVO: Variable para almacenar los pagos múltiples
+            List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null;
+
+            // Mostrar el modal de selección
+            using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
+            {
+                seleccion.TokenAfip = this.token;
+                seleccion.SignAfip = this.sign;
+                seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
+                {
+                    // NUEVO: Capturar los pagos múltiples antes de guardar
+                    if (seleccion.EsPagoMultiple)
+                    {
+                        pagosMultiples = seleccion.PagosMultiples;
+                    }
+
+                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado, pagosMultiples);
+                };
+
+                var resultado = seleccion.ShowDialog(this);
+
+                if (resultado == DialogResult.OK)
+                {
+                    // CORREGIDO: Usar await para esperar que se complete la impresión
+                    await ImprimirConServicioAsync(seleccion);
+
+                    // Limpiar y reiniciar para nueva venta
+                    LimpiarYReiniciarVenta();
                 }
             }
         }
