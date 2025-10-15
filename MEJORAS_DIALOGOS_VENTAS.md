@@ -46,7 +46,7 @@ Se han implementado mejoras significativas en la estética y funcionalidad de los
 - NumericUpDown centrado y fácil de usar
 - Botones con colores corporativos
 
-### `EliminarProductoDialog.cs`
+### `MotivoEliminacionForm.cs`
 **Funcionalidades:**
 - Diálogo completo para eliminación de productos
 - Soporte para eliminación parcial cuando cantidad > 1

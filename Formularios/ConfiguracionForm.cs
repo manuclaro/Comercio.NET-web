@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Comercio.NET.Formularios
 {
@@ -20,11 +21,16 @@ namespace Comercio.NET.Formularios
         private DateTimePicker dtpInicioActividades;
         private ComboBox cmbCondicion;
         
+        // NUEVO: Controles para Cuentas Corrientes
+        private ListBox lstNombresCtaCte;
+        private TextBox txtNuevoNombreCtaCte;
+        private Button btnAgregarNombre, btnEliminarNombre, btnEditarNombre;
+        
         private Button btnGuardar, btnCancelar, btnTestearConexion, btnEditarBaseDatos;
-        private Button btnColapsarComercio, btnColapsarFacturacion, btnColapsarInventario, btnColapsarBaseDatos;
+        private Button btnColapsarComercio, btnColapsarFacturacion, btnColapsarInventario, btnColapsarBaseDatos, btnColapsarCuentasCorrientes;
         private CheckBox chkVerificarStock;
         private Label lblMensaje;
-        private Panel panelPrincipal, panelComercio, panelFacturacion, panelBaseDatos, panelInventario;
+        private Panel panelPrincipal, panelComercio, panelFacturacion, panelBaseDatos, panelInventario, panelCuentasCorrientes;
         
         private string _rutaAppsettings;
         private JObject _configuracionOriginal;
@@ -33,6 +39,7 @@ namespace Comercio.NET.Formularios
         private bool _comercioColapsado = false;
         private bool _facturacionColapsada = false;
         private bool _inventarioColapsado = false;
+        private bool _cuentasCorrientesColapsado = false; // NUEVO
         private bool _baseDatosColapsada = true;
         private bool _edicionBaseDatosHabilitada = false;
 
@@ -95,7 +102,7 @@ namespace Comercio.NET.Formularios
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new Size(650, 510); // Aumentar altura de 520 a 580
+            this.ClientSize = new Size(650, 580); // AUMENTADO: Aumentar altura para la nueva sección
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -138,7 +145,7 @@ namespace Comercio.NET.Formularios
             panelPrincipal = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(panelWidth, 385), // Aumentar altura de 385 a 420
+                Size = new Size(panelWidth, 450), // AUMENTADO: más altura para la nueva sección
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 AutoScroll = true
@@ -148,7 +155,7 @@ namespace Comercio.NET.Formularios
             // === CREAR TODAS LAS SECCIONES SIN POSICIONAMIENTO FIJO ===
             CrearTodasLasSecciones(panelWidth - 30);
 
-            currentY += 390; // Aumentar de 370 a 430 para dar más espacio
+            currentY += 455; // AUMENTADO: Ajustar para el panel más grande
 
             // Mensaje de estado
             lblMensaje = new Label
@@ -222,9 +229,188 @@ namespace Comercio.NET.Formularios
             };
             panelContenidoInventario.Controls.Add(lblDescripcion);
 
+            // === NUEVA SECCIÓN CUENTAS CORRIENTES ===
+            panelCuentasCorrientes = CrearSeccionCuentasCorrientesColapsable("💳 CUENTAS CORRIENTES", 0, ancho);
+            panelPrincipal.Controls.Add(panelCuentasCorrientes);
+
             // === SECCIÓN BASE DE DATOS ===
             panelBaseDatos = CrearSeccionBaseDatos("🗄️ BASE DE DATOS", 0, ancho);
             panelPrincipal.Controls.Add(panelBaseDatos);
+        }
+
+        // NUEVO: Crear sección de Cuentas Corrientes - AUMENTAR ALTURA
+        private Panel CrearSeccionCuentasCorrientesColapsable(string titulo, int y, int ancho)
+        {
+            var panel = new Panel
+            {
+                Location = new Point(10, y),
+                Size = new Size(ancho, 35),
+                BackColor = Color.FromArgb(248, 250, 252),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // Header con título y botón colapsar
+            var panelHeader = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(ancho, 30),
+                BackColor = Color.FromArgb(230, 235, 240),
+                Cursor = Cursors.Hand
+            };
+            panel.Controls.Add(panelHeader);
+
+            var lblTitulo = new Label
+            {
+                Text = titulo,
+                Location = new Point(10, 6),
+                Size = new Size(ancho - 50, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181),
+                Cursor = Cursors.Hand
+            };
+            panelHeader.Controls.Add(lblTitulo);
+
+            // Botón colapsar/expandir
+            btnColapsarCuentasCorrientes = new Button
+            {
+                Text = "▼", // Iniciar expandido
+                Location = new Point(ancho - 35, 3),
+                Size = new Size(25, 24),
+                BackColor = Color.FromArgb(200, 200, 200),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnColapsarCuentasCorrientes.FlatAppearance.BorderSize = 0;
+            panelHeader.Controls.Add(btnColapsarCuentasCorrientes);
+
+            // CORREGIDO: Contenido colapsable con altura aumentada
+            var panelContenido = new Panel
+            {
+                Name = "panelContenidoCuentasCorrientes",
+                Location = new Point(0, 30),
+                Size = new Size(ancho, 190), // AUMENTADO: de 160 a 190 para mejor visualización
+                BackColor = Color.FromArgb(248, 250, 252),
+                Visible = true // Iniciar expandido
+            };
+            panel.Controls.Add(panelContenido);
+
+            // Descripción
+            var lblDescripcionCtaCte = new Label
+            {
+                Text = "Lista de nombres para cuentas corrientes disponibles en el formulario de ventas:",
+                Location = new Point(15, 10),
+                Size = new Size(550, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblDescripcionCtaCte);
+
+            // CORREGIDO: Lista de nombres con mayor altura
+            lstNombresCtaCte = new ListBox
+            {
+                Location = new Point(15, 35),
+                Size = new Size(300, 130), // AUMENTADO: de 100 a 130 para mostrar más elementos
+                Font = new Font("Segoe UI", 9F),
+                SelectionMode = SelectionMode.One,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            panelContenido.Controls.Add(lstNombresCtaCte);
+
+            // CORREGIDO: Panel para agregar nuevo nombre con mayor altura
+            var panelAgregar = new Panel
+            {
+                Location = new Point(330, 35),
+                Size = new Size(240, 130), // AUMENTADO: de 100 a 130 para alinearse con la lista
+                BackColor = Color.FromArgb(240, 245, 250),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            panelContenido.Controls.Add(panelAgregar);
+
+            var lblNuevoNombre = new Label
+            {
+                Text = "Agregar nuevo nombre:",
+                Location = new Point(10, 10),
+                Size = new Size(220, 20),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelAgregar.Controls.Add(lblNuevoNombre);
+
+            txtNuevoNombreCtaCte = new TextBox
+            {
+                Location = new Point(10, 30),
+                Size = new Size(220, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "Ingrese el nombre..."
+            };
+            panelAgregar.Controls.Add(txtNuevoNombreCtaCte);
+
+            // CORREGIDO: Botones reposicionados para mejor distribución
+            btnAgregarNombre = new Button
+            {
+                Text = "➕ Agregar",
+                Location = new Point(10, 60),
+                Size = new Size(70, 25),
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                UseVisualStyleBackColor = false
+            };
+            btnAgregarNombre.FlatAppearance.BorderSize = 0;
+            panelAgregar.Controls.Add(btnAgregarNombre);
+
+            btnEditarNombre = new Button
+            {
+                Text = "✏️ Editar",
+                Location = new Point(85, 60),
+                Size = new Size(70, 25),
+                BackColor = Color.FromArgb(255, 152, 0),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                UseVisualStyleBackColor = false,
+                Enabled = false
+            };
+            btnEditarNombre.FlatAppearance.BorderSize = 0;
+            panelAgregar.Controls.Add(btnEditarNombre);
+
+            btnEliminarNombre = new Button
+            {
+                Text = "🗑️ Quitar",
+                Location = new Point(160, 60),
+                Size = new Size(70, 25),
+                BackColor = Color.FromArgb(244, 67, 54),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                UseVisualStyleBackColor = false,
+                Enabled = false
+            };
+            btnEliminarNombre.FlatAppearance.BorderSize = 0;
+            panelAgregar.Controls.Add(btnEliminarNombre);
+
+            // NUEVO: Agregar etiqueta informativa en la parte inferior
+            var lblInfo = new Label
+            {
+                Text = "💡 Tip: Estos nombres aparecerán como opciones al activar 'Cuenta Corriente' en ventas",
+                Location = new Point(10, 95),
+                Size = new Size(220, 30),
+                Font = new Font("Segoe UI", 7F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(100, 100, 100),
+                TextAlign = ContentAlignment.TopLeft
+            };
+            panelAgregar.Controls.Add(lblInfo);
+
+            // Configurar eventos
+            EventHandler clickHandler = (s, e) => ToggleColapsarCuentasCorrientes();
+            panelHeader.Click += clickHandler;
+            lblTitulo.Click += clickHandler;
+
+            return panel;
         }
 
         private Panel CrearSeccionColapsable(string titulo, int y, int ancho, string tipoSeccion)
@@ -609,7 +795,7 @@ namespace Comercio.NET.Formularios
             int espacioEntreBotones = 20;
             
             int totalAnchoBotones = anchoBotonGuardar + espacioEntreBotones + anchoBotonCancelar;
-            int inicioX = margin + (panelWidth - totalAnchoBotones) / 2; // CORREGIDO: cambiar totalAnchoBotonGuardar por totalAnchoBotones
+            int inicioX = margin + (panelWidth - totalAnchoBotones) / 2;
 
             btnGuardar = new Button
             {
@@ -654,11 +840,17 @@ namespace Comercio.NET.Formularios
             dtpInicioActividades.TabIndex = 7;
             cmbCondicion.TabIndex = 8;
             chkVerificarStock.TabIndex = 9;
-            txtConnectionString.TabIndex = 10;
-            btnTestearConexion.TabIndex = 11;
-            btnEditarBaseDatos.TabIndex = 12;
-            btnGuardar.TabIndex = 13;
-            btnCancelar.TabIndex = 14;
+            // NUEVO: TabIndex para controles de Cuentas Corrientes
+            lstNombresCtaCte.TabIndex = 10;
+            txtNuevoNombreCtaCte.TabIndex = 11;
+            btnAgregarNombre.TabIndex = 12;
+            btnEditarNombre.TabIndex = 13;
+            btnEliminarNombre.TabIndex = 14;
+            txtConnectionString.TabIndex = 15;
+            btnTestearConexion.TabIndex = 16;
+            btnEditarBaseDatos.TabIndex = 17;
+            btnGuardar.TabIndex = 18;
+            btnCancelar.TabIndex = 19;
         }
 
         private void ConfigurarEventos()
@@ -683,6 +875,22 @@ namespace Comercio.NET.Formularios
             btnColapsarComercio.Click += (s, e) => ToggleColapsarComercio();
             btnColapsarFacturacion.Click += (s, e) => ToggleColapsarFacturacion();
             btnColapsarInventario.Click += (s, e) => ToggleColapsarInventario();
+            btnColapsarCuentasCorrientes.Click += (s, e) => ToggleColapsarCuentasCorrientes(); // NUEVO
+
+            // NUEVOS: Eventos para gestión de nombres de cuenta corriente
+            btnAgregarNombre.Click += (s, e) => AgregarNombreCtaCte();
+            btnEditarNombre.Click += (s, e) => EditarNombreCtaCte();
+            btnEliminarNombre.Click += (s, e) => EliminarNombreCtaCte();
+            lstNombresCtaCte.SelectedIndexChanged += (s, e) => ActualizarBotonesCtaCte();
+            
+            // Permitir agregar con Enter en el TextBox
+            txtNuevoNombreCtaCte.KeyDown += (s, e) => {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    AgregarNombreCtaCte();
+                }
+            };
 
             // Formatear CUIT mientras el usuario escribe
             txtCUIT.TextChanged += (s, e) => FormatearCUIT();
@@ -693,6 +901,132 @@ namespace Comercio.NET.Formularios
             };
             
             System.Diagnostics.Debug.WriteLine("[CONFIG] Eventos configurados");
+        }
+
+        // NUEVOS: Métodos para gestionar nombres de cuenta corriente
+        private void AgregarNombreCtaCte()
+        {
+            string nuevoNombre = txtNuevoNombreCtaCte.Text.Trim();
+            
+            if (string.IsNullOrWhiteSpace(nuevoNombre))
+            {
+                MostrarMensaje("❌ Ingrese un nombre válido", Color.Red);
+                txtNuevoNombreCtaCte.Focus();
+                return;
+            }
+
+            // Verificar si ya existe
+            if (lstNombresCtaCte.Items.Contains(nuevoNombre))
+            {
+                MostrarMensaje("❌ Este nombre ya existe en la lista", Color.Red);
+                txtNuevoNombreCtaCte.Focus();
+                txtNuevoNombreCtaCte.SelectAll();
+                return;
+            }
+
+            // Agregar a la lista
+            lstNombresCtaCte.Items.Add(nuevoNombre);
+            txtNuevoNombreCtaCte.Clear();
+            txtNuevoNombreCtaCte.Focus();
+            
+            MostrarMensaje($"✅ Nombre '{nuevoNombre}' agregado correctamente", Color.Green);
+            
+            // Limpiar mensaje después de 2 segundos
+            var timer = new System.Windows.Forms.Timer { Interval = 2000 };
+            timer.Tick += (s, e) =>
+            {
+                if (lblMensaje.Text.Contains("agregado correctamente"))
+                    lblMensaje.Text = "";
+                timer.Stop();
+                timer.Dispose();
+            };
+            timer.Start();
+        }
+
+        private void EditarNombreCtaCte()
+        {
+            if (lstNombresCtaCte.SelectedIndex == -1)
+            {
+                MostrarMensaje("❌ Seleccione un nombre para editar", Color.Red);
+                return;
+            }
+
+            string nombreActual = lstNombresCtaCte.SelectedItem.ToString();
+            string nombreNuevo = Microsoft.VisualBasic.Interaction.InputBox(
+                $"Editar nombre:\n\nNombre actual: {nombreActual}\n\nIngrese el nuevo nombre:",
+                "Editar Nombre de Cuenta Corriente",
+                nombreActual);
+
+            if (string.IsNullOrWhiteSpace(nombreNuevo) || nombreNuevo == nombreActual)
+            {
+                return; // Usuario canceló o no cambió nada
+            }
+
+            // Verificar si el nuevo nombre ya existe
+            if (lstNombresCtaCte.Items.Contains(nombreNuevo))
+            {
+                MostrarMensaje("❌ Este nombre ya existe en la lista", Color.Red);
+                return;
+            }
+
+            // Actualizar el nombre
+            int indiceSeleccionado = lstNombresCtaCte.SelectedIndex;
+            lstNombresCtaCte.Items[indiceSeleccionado] = nombreNuevo;
+            lstNombresCtaCte.SelectedIndex = indiceSeleccionado; // Mantener seleccionado
+            
+            MostrarMensaje($"✅ Nombre actualizado a '{nombreNuevo}'", Color.Green);
+            
+            // Limpiar mensaje después de 2 segundos
+            var timer = new System.Windows.Forms.Timer { Interval = 2000 };
+            timer.Tick += (s, e) =>
+            {
+                if (lblMensaje.Text.Contains("actualizado"))
+                    lblMensaje.Text = "";
+                timer.Stop();
+                timer.Dispose();
+            };
+            timer.Start();
+        }
+
+        private void EliminarNombreCtaCte()
+        {
+            if (lstNombresCtaCte.SelectedIndex == -1)
+            {
+                MostrarMensaje("❌ Seleccione un nombre para eliminar", Color.Red);
+                return;
+            }
+
+            string nombreSeleccionado = lstNombresCtaCte.SelectedItem.ToString();
+            
+            var resultado = MessageBox.Show(
+                $"¿Está seguro de eliminar el siguiente nombre?\n\n'{nombreSeleccionado}'\n\nEsta acción no se puede deshacer.",
+                "Confirmar Eliminación",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (resultado == DialogResult.Yes)
+            {
+                lstNombresCtaCte.Items.RemoveAt(lstNombresCtaCte.SelectedIndex);
+                MostrarMensaje($"✅ Nombre '{nombreSeleccionado}' eliminado", Color.Green);
+                
+                // Limpiar mensaje después de 2 segundos
+                var timer = new System.Windows.Forms.Timer { Interval = 2000 };
+                timer.Tick += (s, e) =>
+                {
+                    if (lblMensaje.Text.Contains("eliminado"))
+                        lblMensaje.Text = "";
+                    timer.Stop();
+                    timer.Dispose();
+                };
+                timer.Start();
+            }
+        }
+
+        private void ActualizarBotonesCtaCte()
+        {
+            bool haySeleccion = lstNombresCtaCte.SelectedIndex != -1;
+            btnEditarNombre.Enabled = haySeleccion;
+            btnEliminarNombre.Enabled = haySeleccion;
         }
 
         private void CargarConfiguracion()
@@ -762,19 +1096,22 @@ namespace Comercio.NET.Formularios
                     cmbCondicion.SelectedIndex = 0; // Seleccionar el primero por defecto
                 }
 
-                // Cargar configuración de inventario - CORREGIDO: usar la sección correcta
+                // Cargar configuración de inventario
                 bool verificarStock = _configuracionOriginal["Inventario"]?["VerificarStock"]?.ToObject<bool>() ?? 
                                      _configuracionOriginal["Validaciones"]?["ValidarStockDisponible"]?.ToObject<bool>() ?? 
                                      true;
                 chkVerificarStock.Checked = verificarStock;
 
+                // NUEVO: Cargar nombres de cuenta corriente
+                CargarNombresCuentasCorrientes();
+
                 // Cargar cadena de conexión
                 txtConnectionString.Text = _configuracionOriginal["ConnectionStrings"]?["DefaultConnection"]?.ToString() ?? "";
 
-                // NUEVO: Debug para confirmar valores cargados
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Nombre: '{txtNombreComercio.Text}'");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - CUIT: '{txtCUIT.Text}'");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Stock: {chkVerificarStock.Checked}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Nombres CtaCte: {lstNombresCtaCte.Items.Count}");
 
                 MostrarMensaje("✅ Configuración cargada correctamente", Color.Green);
                 
@@ -791,6 +1128,54 @@ namespace Comercio.NET.Formularios
             {
                 System.Diagnostics.Debug.WriteLine($"[CONFIG ERROR] Error cargando: {ex}");
                 MostrarMensaje($"❌ Error cargando configuración: {ex.Message}", Color.Red);
+            }
+        }
+
+        // NUEVO: Cargar nombres de cuentas corrientes desde configuración
+        private void CargarNombresCuentasCorrientes()
+        {
+            try
+            {
+                lstNombresCtaCte.Items.Clear();
+
+                var nombresArray = _configuracionOriginal["CuentasCorrientes"]?["NombresCtaCte"] as JArray;
+                
+                if (nombresArray != null)
+                {
+                    foreach (var nombre in nombresArray)
+                    {
+                        string nombreTexto = nombre.ToString().Trim();
+                        if (!string.IsNullOrWhiteSpace(nombreTexto))
+                        {
+                            lstNombresCtaCte.Items.Add(nombreTexto);
+                        }
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargados {lstNombresCtaCte.Items.Count} nombres de cuenta corriente");
+                }
+                else
+                {
+                    // Si no existe la sección, crear algunos nombres por defecto
+                    lstNombresCtaCte.Items.AddRange(new string[] {
+                        "Cliente General",
+                        "Juan Pérez",
+                        "María García"
+                    });
+                    
+                    System.Diagnostics.Debug.WriteLine("[CONFIG] Sección CuentasCorrientes no encontrada, usando nombres por defecto");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CONFIG ERROR] Error cargando nombres cuenta corriente: {ex.Message}");
+                
+                // Cargar nombres por defecto en caso de error
+                lstNombresCtaCte.Items.Clear();
+                lstNombresCtaCte.Items.AddRange(new string[] {
+                    "Cliente General",
+                    "Juan Pérez",
+                    "María García"
+                });
             }
         }
 
@@ -831,6 +1216,17 @@ namespace Comercio.NET.Formularios
                     ["Validaciones"] = new JObject
                     {
                         ["ValidarStockDisponible"] = true
+                    },
+                    // NUEVO: Sección de Cuentas Corrientes por defecto
+                    ["CuentasCorrientes"] = new JObject
+                    {
+                        ["NombresCtaCte"] = new JArray
+                        {
+                            "Cliente General",
+                            "Juan Pérez",
+                            "María García",
+                            "Carlos López"
+                        }
                     }
                 };
 
@@ -840,6 +1236,9 @@ namespace Comercio.NET.Formularios
                 _configuracionOriginal = configuracionDefault;
                 System.Diagnostics.Debug.WriteLine("[CONFIG] Archivo por defecto creado");
                 MostrarMensaje("✅ Archivo de configuración creado", Color.Blue);
+                
+                // Cargar los nombres por defecto en la lista
+                CargarNombresCuentasCorrientes();
             }
             catch (Exception ex)
             {
@@ -851,9 +1250,7 @@ namespace Comercio.NET.Formularios
         private async Task GuardarConfiguracion()
         {
             System.Diagnostics.Debug.WriteLine("[SAVE] === INICIANDO GUARDADO ===");
-            System.Diagnostics.Debug.WriteLine($"[SAVE] Nombre actual: '{txtNombreComercio?.Text ?? "NULL"}'");
-            System.Diagnostics.Debug.WriteLine($"[SAVE] CUIT actual: '{txtCUIT?.Text ?? "NULL"}'");
-            System.Diagnostics.Debug.WriteLine($"[SAVE] Stock actual: {chkVerificarStock?.Checked ?? false}");
+            System.Diagnostics.Debug.WriteLine($"[SAVE] Nombres CtaCte: {lstNombresCtaCte.Items.Count}");
             
             if (!ValidarDatos())
             {
@@ -868,7 +1265,6 @@ namespace Comercio.NET.Formularios
                 MostrarMensaje("Guardando configuración...", Color.Blue);
 
                 System.Diagnostics.Debug.WriteLine($"[SAVE] Iniciando guardado en: {_rutaAppsettings}");
-                System.Diagnostics.Debug.WriteLine($"[SAVE] Archivo existe: {File.Exists(_rutaAppsettings)}");
 
                 // Verificar que tenemos la configuración original
                 if (_configuracionOriginal == null)
@@ -910,6 +1306,9 @@ namespace Comercio.NET.Formularios
                 nuevaConfiguracion["Validaciones"]["ValidarStockDisponible"] = chkVerificarStock.Checked;
 
                 System.Diagnostics.Debug.WriteLine($"[SAVE] Inventario - VerificarStock: {chkVerificarStock.Checked}");
+
+                // CORREGIDO: Agregar el guardado de los nombres de cuenta corriente
+                GuardarNombresCuentasCorrientes(nuevaConfiguracion);
 
                 // Actualizar cadena de conexión solo si la edición está habilitada
                 if (_edicionBaseDatosHabilitada)
@@ -985,6 +1384,38 @@ namespace Comercio.NET.Formularios
                 btnGuardar.Enabled = true;
                 btnGuardar.Text = "💾 Guardar Configuración";
                 System.Diagnostics.Debug.WriteLine("[SAVE] === GUARDADO FINALIZADO ===");
+            }
+        }
+
+        // NUEVO: Guardar nombres de cuentas corrientes en la configuración
+        private void GuardarNombresCuentasCorrientes(JObject configuracion)
+        {
+            try
+            {
+                // Obtener la sección de cuentas corrientes
+                if (configuracion["CuentasCorrientes"] == null)
+                    configuracion["CuentasCorrientes"] = new JObject();
+                
+                if (configuracion["CuentasCorrientes"]["NombresCtaCte"] == null)
+                    configuracion["CuentasCorrientes"]["NombresCtaCte"] = new JArray();
+
+                var nombresArray = configuracion["CuentasCorrientes"]["NombresCtaCte"] as JArray;
+
+                // Limpiar la lista actual
+                nombresArray.Clear();
+
+                // Agregar los nombres actuales de la lista
+                foreach (var item in lstNombresCtaCte.Items)
+                {
+                    nombresArray.Add(item.ToString());
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Nombres de cuentas corrientes guardados: {lstNombresCtaCte.Items.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SAVE ERROR] Error guardando nombres CtaCte: {ex.Message}");
+                MostrarMensaje($"❌ Error guardando nombres de cuenta corriente: {ex.Message}", Color.Red);
             }
         }
 
@@ -1174,6 +1605,14 @@ namespace Comercio.NET.Formularios
             ActualizarPosicionesTodasLasSecciones();
         }
 
+        private void ToggleColapsarCuentasCorrientes()
+        {
+            _cuentasCorrientesColapsado = !_cuentasCorrientesColapsado;
+            // CORREGIDO: Actualizar con la nueva altura aumentada
+            ActualizarEstadoSeccion(panelCuentasCorrientes, "panelContenidoCuentasCorrientes", _cuentasCorrientesColapsado, btnColapsarCuentasCorrientes, 35, 225); // AUMENTADO: de 150 a 225
+            ActualizarPosicionesTodasLasSecciones();
+        }
+
         private void ToggleColapsarBaseDatos()
         {
             _baseDatosColapsada = !_baseDatosColapsada;
@@ -1257,6 +1696,10 @@ namespace Comercio.NET.Formularios
             // Sección Inventario
             panelInventario.Location = new Point(10, currentY);
             currentY += panelInventario.Height + spacing;
+
+            // Sección Cuentas Corrientes
+            panelCuentasCorrientes.Location = new Point(10, currentY);
+            currentY += panelCuentasCorrientes.Height + spacing;
 
             // Sección Base de Datos
             panelBaseDatos.Location = new Point(10, currentY);
