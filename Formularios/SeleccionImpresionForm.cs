@@ -57,6 +57,10 @@ namespace Comercio.NET
         private RadioButton rbDNI;
         private RadioButton rbMercadoPago;
 
+        // CORREGIDO: Eliminar referencias a controles que no existen
+        private Label lblMensajeInformativo;
+        private CheckBox chkMultiplesPagos; // Referencia corregida
+
         // Delegate para el callback después de procesar la venta
         public Func<string, string, string, string, DateTime?, int, string, Task> OnProcesarVenta { get; set; }
 
@@ -131,6 +135,9 @@ namespace Comercio.NET
                 ForeColor = System.Drawing.Color.FromArgb(0, 120, 215),
                 Checked = false
             };
+
+            // CORREGIDO: Asignar referencia correcta
+            chkMultiplesPagos = chkPagoMultiple;
 
             // Panel para pago simple (modo original)
             panelPagoSimple = new Panel
@@ -235,6 +242,19 @@ namespace Comercio.NET
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
 
+            // NUEVO: Label para mensaje informativo
+            lblMensajeInformativo = new Label
+            {
+                Left = 40,
+                Top = 365,
+                Width = 600,
+                Height = 25,
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = System.Drawing.Color.Blue,
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                Text = ""
+            };
+
             // Botones de impresión - CORREGIDOS: Sin emojis y con mejor tamaño
             int topBotones = 380;
 
@@ -299,6 +319,7 @@ namespace Comercio.NET
                 lblCuit,
                 txtCuit,
                 lblRazonSocial,
+                lblMensajeInformativo,
                 btnRemito,
                 btnFacturaB,
                 btnFacturaA,
@@ -323,11 +344,12 @@ namespace Comercio.NET
                     
                     txtCuit.Top = 340;
                     lblRazonSocial.Top = 342;
+                    lblMensajeInformativo.Top = 365;
                     this.Controls.Find("lblCuit", true).FirstOrDefault()?.SetBounds(40, 342, 50, 20);
 
-                    btnRemito.Top = 380;
-                    btnFacturaB.Top = 380;
-                    btnFacturaA.Top = 380;
+                    btnRemito.Top = 390;
+                    btnFacturaB.Top = 390;
+                    btnFacturaA.Top = 390;
                 }
                 else
                 {
@@ -335,11 +357,12 @@ namespace Comercio.NET
                     
                     txtCuit.Top = 180;
                     lblRazonSocial.Top = 182;
+                    lblMensajeInformativo.Top = 205;
                     this.Controls.Find("lblCuit", true).FirstOrDefault()?.SetBounds(40, 182, 50, 20);
 
-                    btnRemito.Top = 220;
-                    btnFacturaB.Top = 220;
-                    btnFacturaA.Top = 220;
+                    btnRemito.Top = 230;
+                    btnFacturaB.Top = 230;
+                    btnFacturaA.Top = 230;
                 }
 
                 ActualizarOpcionesImpresion();
@@ -1216,23 +1239,33 @@ namespace Comercio.NET
             System.Drawing.Color colorFondo = System.Drawing.Color.Transparent;
             System.Drawing.Color colorTexto = System.Drawing.Color.Black;
 
+            // NUEVO: Verificar si las restricciones están deshabilitadas
+            bool debeRestringir = DebeRestringirRemitoPorTipoPago();
+
             if (EsPagoMultiple && !pagoCompleto)
             {
-                mensaje = "ATENCION: Complete el pago para habilitar las opciones de impresión"; // CORREGIDO: Sin emoji
+                mensaje = "ATENCION: Complete el pago para habilitar las opciones de impresión";
                 colorFondo = System.Drawing.Color.FromArgb(255, 248, 225);
                 colorTexto = System.Drawing.Color.FromArgb(133, 100, 4);
             }
-            else if (hayPagosDigitales)
+            else if (hayPagosDigitales && debeRestringir) // MODIFICADO: Solo mostrar si las restricciones están habilitadas
             {
-                mensaje = "INFO: Para pagos digitales solo se permiten facturas electrónicas"; // CORREGIDO: Sin emoji
+                mensaje = "INFO: Para pagos digitales solo se permiten facturas electrónicas";
                 colorFondo = System.Drawing.Color.FromArgb(217, 237, 247);
                 colorTexto = System.Drawing.Color.FromArgb(12, 84, 96);
             }
             else if (EsPagoMultiple && pagoCompleto)
             {
-                mensaje = "LISTO: Pago completo - Todas las opciones disponibles"; // CORREGIDO: Sin emoji
+                mensaje = "LISTO: Pago completo - Todas las opciones disponibles";
                 colorFondo = System.Drawing.Color.FromArgb(212, 237, 218);
                 colorTexto = System.Drawing.Color.FromArgb(21, 87, 36);
+            }
+            // NUEVO: Mostrar mensaje cuando las restricciones estén deshabilitadas y haya pagos digitales
+            else if (hayPagosDigitales && !debeRestringir)
+            {
+                mensaje = "INFO: Restricciones de remito deshabilitadas - Todas las opciones disponibles";
+                colorFondo = System.Drawing.Color.FromArgb(230, 245, 255);
+                colorTexto = System.Drawing.Color.FromArgb(0, 120, 215);
             }
 
             if (!string.IsNullOrEmpty(mensaje))
@@ -1255,6 +1288,8 @@ namespace Comercio.NET
                 this.Controls.Add(lblMensajeEstado);
                 lblMensajeEstado.BringToFront();
             }
+
+            System.Diagnostics.Debug.WriteLine($"[INFO ESTADO] Debe restringir: {debeRestringir}, Hay pagos digitales: {hayPagosDigitales}, Mensaje: '{mensaje}'");
         }
 
         private void ActualizarOpcionesImpresion()
@@ -1273,24 +1308,29 @@ namespace Comercio.NET
                 pagoCompleto = true;
             }
 
-            // Aplicar restricciones de impresión
-            bool puedeRemito = !hayPagosDigitales && pagoCompleto;
+            // CORREGIDO: Aplicar restricciones de impresión según configuración
+            bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
+            bool puedeRemito = pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales);
             bool puedeFacturas = pagoCompleto;
+
+            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Debe restringir: {debeRestringirPorPago}");
+            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Hay pagos digitales: {hayPagosDigitales}");
+            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Puede remito: {puedeRemito}");
 
             btnRemito.Enabled = puedeRemito;
             btnFacturaA.Enabled = puedeFacturas;
             btnFacturaB.Enabled = puedeFacturas;
 
-            // Actualizar apariencia visual - CORREGIDO: Mejor texto cuando está deshabilitado
+            // Actualizar apariencia visual
             if (!puedeRemito)
             {
                 btnRemito.BackColor = System.Drawing.Color.LightGray;
                 btnRemito.ForeColor = System.Drawing.Color.DarkGray;
-                btnRemito.Text = "Remito";// (No disponible)
+                btnRemito.Text = "Remito";
             }
             else
             {
-                btnRemito.BackColor = System.Drawing.Color.FromArgb(102, 51, 153); // CAMBIADO: Mismo morado oscuro
+                btnRemito.BackColor = System.Drawing.Color.FromArgb(102, 51, 153);
                 btnRemito.ForeColor = System.Drawing.Color.White;
                 btnRemito.Text = "Remito";
             }
@@ -1450,9 +1490,8 @@ namespace Comercio.NET
                             {
                                 System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp acumulada muy grande: {nuevaBase:N2}, ajustando...");
                                 nuevaBase = Math.Min(nuevaBase, 9999999999999.99m);
-                                // Recalcular IVA para mantener consistencia
-                                decimal totalAcumulado = nuevaBase + nuevoIva;
-                                nuevoIva = Math.Round(totalAcumulado - nuevaBase, 2);
+                                // Recalar IVA para mantener consistencia
+                                nuevoIva = Math.Round(nuevaBase * porcIva / 100, 2);
                             }
                             
                             resultado[porcIva] = (nuevaBase, nuevoIva);
@@ -1505,6 +1544,98 @@ namespace Comercio.NET
             System.Diagnostics.Debug.WriteLine("=============================");
 
             return resultado;
+        }
+
+
+
+        // Método para verificar si se debe restringir el remito por tipo de pago
+        private bool DebeRestringirRemitoPorTipoPago()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                return config.GetValue<bool>("RestriccionesImpresion:RestringirRemitoPorPago", true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error leyendo configuración de restricciones: {ex.Message}");
+                return true; // Por defecto restringir para cumplimiento normativo
+            }
+        }
+
+        // Método para actualizar el estado del remito basado en el tipo de pago
+        private void ActualizarEstadoRemitoPorTipoPago()
+        {
+            if (!DebeRestringirRemitoPorTipoPago())
+            {
+                // Si está deshabilitada la restricción, permitir remito siempre
+                return;
+            }
+
+            // Si la restricción está habilitada, verificar el tipo de pago
+            bool esEfectivo = false;
+
+            if (rbEfectivo?.Checked == true)
+            {
+                esEfectivo = true;
+            }
+            else if (chkMultiplesPagos?.Checked == true && multiplePagosControl != null)
+            {
+                // Para pagos múltiples, verificar si solo es efectivo
+                var pagos = multiplePagosControl.ObtenerPagosPorMedio();
+                esEfectivo = pagos.Count == 1 && pagos.ContainsKey("Efectivo");
+            }
+
+            // CORREGIDO: Usar btnRemito en lugar de rbRemito
+            if (btnRemito != null)
+            {
+                // No cambiar enabled aquí, se maneja en ActualizarOpcionesImpresion()
+                // Solo actualizar mensaje informativo
+            }
+
+            // Actualizar mensaje informativo
+            ActualizarMensajeInformativo();
+        }
+
+        private void ActualizarMensajeInformativo()
+        {
+            if (lblMensajeInformativo == null) return;
+
+            bool debeRestringir = DebeRestringirRemitoPorTipoPago();
+            
+            if (!debeRestringir)
+            {
+                lblMensajeInformativo.Text = "ℹ️ Restricciones de remito deshabilitadas en configuración";
+                lblMensajeInformativo.ForeColor = Color.Blue;
+                lblMensajeInformativo.Visible = true;
+                return;
+            }
+
+            bool esEfectivo = rbEfectivo?.Checked == true;
+            
+            if (chkMultiplesPagos?.Checked == true && multiplePagosControl != null)
+            {
+                var pagos = multiplePagosControl.ObtenerPagosPorMedio();
+                esEfectivo = pagos.Count == 1 && pagos.ContainsKey("Efectivo");
+            }
+
+            if (esEfectivo)
+            {
+                // NUEVO: Ocultar el mensaje cuando es solo efectivo (no hay restricciones activas)
+                lblMensajeInformativo.Visible = false;
+            }
+            else
+            {
+                lblMensajeInformativo.Text = "⚠️ Para pagos no efectivo solo se permiten Facturas A o B";
+                lblMensajeInformativo.ForeColor = Color.Orange;
+                lblMensajeInformativo.Visible = true;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[MENSAJE INFO] Debe restringir: {debeRestringir}, Es efectivo: {esEfectivo}, Visible: {lblMensajeInformativo.Visible}");
         }
     }
 }
