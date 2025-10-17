@@ -218,7 +218,7 @@ namespace Comercio.NET
             return "No se pudo obtener información adicional.";
         }
 
-        // NUEVO: Editar cantidad del producto seleccionado
+        // NUEVO: Editar cantidad del producto seleccionado - MODIFICADO para usar ID único
         private async Task EditarCantidadProductoSeleccionado()
         {
             if (procesandoEdicionCantidad) return;
@@ -235,6 +235,15 @@ namespace Comercio.NET
             try
             {
                 var row = dataGridView1.SelectedRows[0];
+                
+                // MODIFICADO: Obtener el ID único de la fila en lugar del código
+                if (!int.TryParse(row.Cells["id"].Value?.ToString(), out int idVenta))
+                {
+                    MessageBox.Show("Error: No se pudo obtener el ID de la venta.", "Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                
                 var codigo = row.Cells["codigo"].Value?.ToString();
                 var descripcion = row.Cells["descripcion"].Value?.ToString();
                 var cantidadActual = Convert.ToInt32(row.Cells["cantidad"].Value);  
@@ -249,13 +258,13 @@ namespace Comercio.NET
                     {
                         int nuevaCantidad = dialog.NuevaCantidad;
                         
-                        // Actualizar en la base de datos
-                        await ActualizarCantidadEnVenta(codigo, nuevaCantidad, precio);
+                        // MODIFICADO: Actualizar usando el ID único de la fila
+                        await ActualizarCantidadEnVentaPorId(idVenta, nuevaCantidad, precio);
                         
                         // Recargar la vista
                         CargarVentasActuales();
                         
-                        System.Diagnostics.Debug.WriteLine($"Cantidad actualizada: {codigo} - Nueva cantidad: {nuevaCantidad}");
+                        System.Diagnostics.Debug.WriteLine($"Cantidad actualizada: ID {idVenta} (código {codigo}) - Nueva cantidad: {nuevaCantidad}");
                     }
                 }
             }
@@ -270,23 +279,23 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Actualizar cantidad en la base de datos
-        private async Task ActualizarCantidadEnVenta(string codigo, int nuevaCantidad, decimal precio)
+        // NUEVO: Actualizar cantidad en la base de datos por ID único - REEMPLAZA ActualizarCantidadEnVenta
+        private async Task ActualizarCantidadEnVentaPorId(int idVenta, int nuevaCantidad, decimal precio)
         {
             string connectionString = GetConnectionString();
             
             using (var connection = new SqlConnection(connectionString))
             {
+                // MODIFICADO: Usar el ID único en lugar de código + nrofactura
                 var query = @"UPDATE Ventas 
                               SET cantidad = @nuevaCantidad, 
                                   total = @nuevaCantidad * precio 
-                              WHERE codigo = @codigo AND nrofactura = @nrofactura";
+                              WHERE id = @idVenta";
                               
                 using (var cmd = new SqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
-                    cmd.Parameters.AddWithValue("@codigo", codigo);
-                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                    cmd.Parameters.AddWithValue("@idVenta", idVenta);
                     
                     connection.Open();
                     await cmd.ExecuteNonQueryAsync();
@@ -294,7 +303,7 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Eliminar producto con auditoría
+        // NUEVO: Eliminar producto con auditoría - MODIFICADO para usar ID único
         private async Task EliminarProductoConAuditoria()
         {
             if (procesandoEliminacion) return;
@@ -311,6 +320,15 @@ namespace Comercio.NET
             try
             {
                 var row = dataGridView1.SelectedRows[0];
+                
+                // MODIFICADO: Obtener el ID único de la fila en lugar del código
+                if (!int.TryParse(row.Cells["id"].Value?.ToString(), out int idVenta))
+                {
+                    MessageBox.Show("Error: No se pudo obtener el ID de la venta.", "Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                
                 var codigo = row.Cells["codigo"].Value?.ToString();
                 var descripcion = row.Cells["descripcion"].Value?.ToString();
                 var cantidad = Convert.ToInt32(row.Cells["cantidad"].Value);    
@@ -331,7 +349,7 @@ namespace Comercio.NET
                     if (!usuario.PuedeEliminarProductos && usuario.Nivel != Models.NivelUsuario.Administrador)
                     {
                         MessageBox.Show(
-                            "?? ACCESO DENEGADO\n\n" +
+                            "❌ ACCESO DENEGADO\n\n" +
                             "No tienes permisos para eliminar productos de la venta.\n\n" +
                             "Este acción requiere el permiso 'Eliminar Productos'.\n" +
                             "Contacta a un administrador si necesitas realizar esta acción.",
@@ -353,14 +371,14 @@ namespace Comercio.NET
                         int cantidadAEliminar = dialog.CantidadAEliminar;
                         bool eliminarCompleto = (cantidadAEliminar >= cantidad);
                         
-                        // Registrar auditoría y procesar eliminación
-                        await ProcesarEliminacionConAuditoria(codigo, descripcion, cantidad, cantidadAEliminar, 
-                            precio, eliminarCompleto, motivo);
+                        // MODIFICADO: Registrar auditoría y procesar eliminación usando ID único
+                        await ProcesarEliminacionConAuditoriaPorId(idVenta, codigo, descripcion, cantidad, 
+                            cantidadAEliminar, precio, eliminarCompleto, motivo);
                         
                         // Recargar la vista
                         CargarVentasActuales();
                         
-                        System.Diagnostics.Debug.WriteLine($"Producto procesado - Código: {codigo}, " +
+                        System.Diagnostics.Debug.WriteLine($"Producto procesado - ID: {idVenta}, Código: {codigo}, " +
                             $"Eliminado: {cantidadAEliminar}/{cantidad}, Completo: {eliminarCompleto}, Motivo: {motivo}");
                     }
                 }
@@ -376,9 +394,9 @@ namespace Comercio.NET
             }
         }
 
-        // MEJORADO: Procesar eliminación con auditoría (soporte para eliminación parcial)
-        private async Task ProcesarEliminacionConAuditoria(string codigo, string descripcion, int cantidadTotal, 
-            int cantidadAEliminar, decimal precio, bool eliminarCompleto, string motivo)
+        // NUEVO: Procesar eliminación con auditoría por ID único - REEMPLAZA ProcesarEliminacionConAuditoria
+        private async Task ProcesarEliminacionConAuditoriaPorId(int idVenta, string codigo, string descripcion, 
+            int cantidadTotal, int cantidadAEliminar, decimal precio, bool eliminarCompleto, string motivo)
         {
             string connectionString = GetConnectionString();
             string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName;
@@ -392,7 +410,7 @@ namespace Comercio.NET
                     try
                     {
                         // 1. Crear/verificar tabla de auditoría si no existe (usando la tabla existente)
-                        await VerificarTablaAuditoriaProductosEliminados(connection, transaction);
+                        //await VerificarTablaAuditoriaProductosEliminados(connection, transaction);
                         
                         // 2. Registrar la auditoría en AuditoriaProductosEliminados
                         var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
@@ -427,133 +445,46 @@ namespace Comercio.NET
                             await cmd.ExecuteNonQueryAsync();
                         }
                         
-                        // 3. Procesar eliminación en la venta
+                        // 3. CORREGIDO: Procesar eliminación en la venta usando ID único
                         if (eliminarCompleto)
                         {
-                            // Eliminar la línea completa
-                            var queryEliminar = @"DELETE FROM Ventas 
-                                                 WHERE codigo = @codigo AND nrofactura = @nrofactura";
+                            // Eliminar la línea completa usando el ID único
+                            var queryEliminar = @"DELETE FROM Ventas WHERE id = @idVenta";
                                                 
                             using (var cmd = new SqlCommand(queryEliminar, connection, transaction))
                             {
-                                cmd.Parameters.AddWithValue("@codigo", codigo);
-                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                cmd.Parameters.AddWithValue("@idVenta", idVenta);
                                 await cmd.ExecuteNonQueryAsync();
                             }
                         }
                         else
                         {
-                            // Actualizar la cantidad restante
+                            // Actualizar la cantidad restante usando el ID único
                             int cantidadRestante = cantidadTotal - cantidadAEliminar;
                             var queryActualizar = @"UPDATE Ventas 
                                                    SET cantidad = @cantidadRestante,
                                                        total = @cantidadRestante * precio
-                                                   WHERE codigo = @codigo AND nrofactura = @nrofactura";
+                                                   WHERE id = @idVenta";
                                                    
                             using (var cmd = new SqlCommand(queryActualizar, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@cantidadRestante", cantidadRestante);
-                                cmd.Parameters.AddWithValue("@codigo", codigo);
-                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                cmd.Parameters.AddWithValue("@idVenta", idVenta);
                                 await cmd.ExecuteNonQueryAsync();
                             }
                         }
                         
                         transaction.Commit();
+                        
+                        System.Diagnostics.Debug.WriteLine($"✅ Eliminación procesada correctamente - ID: {idVenta}, Código: {codigo}, Eliminado: {cantidadAEliminar}/{cantidadTotal}, Completo: {eliminarCompleto}");
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         transaction.Rollback();
+                        System.Diagnostics.Debug.WriteLine($"❌ Error en ProcesarEliminacionConAuditoriaPorId: {ex.Message}");
                         throw;
                     }
                 }
-            }
-        }
-
-        // NUEVO: Verificar/crear campos adicionales en AuditoriaProductosEliminados
-        private async Task VerificarTablaAuditoriaProductosEliminados(SqlConnection connection, SqlTransaction transaction)
-        {
-            var verificarCamposQuery = @"
-            -- Verificar y agregar campos adicionales si no existen en AuditoriaProductosEliminados
-            IF EXISTS (SELECT * FROM sysobjects WHERE name='AuditoriaProductosEliminados' AND xtype='U')
-            BEGIN
-                -- Verificar y agregar campo EsEliminacionCompleta si no existe
-                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'EsEliminacionCompleta')
-                BEGIN
-                    ALTER TABLE AuditoriaProductosEliminados ADD EsEliminacionCompleta bit NULL
-                    -- Actualizar valores existentes
-                    UPDATE AuditoriaProductosEliminados SET EsEliminacionCompleta = 1 WHERE EsEliminacionCompleta IS NULL
-                    ALTER TABLE AuditoriaProductosEliminados ALTER COLUMN EsEliminacionCompleta bit NOT NULL
-                END
-                
-                -- Verificar y agregar campo CantidadOriginal si no existe
-                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'CantidadOriginal')
-                BEGIN
-                    ALTER TABLE AuditoriaProductosEliminados ADD CantidadOriginal int NULL
-                    -- Actualizar valores existentes con la cantidad eliminada como original (para registros viejos)
-                    UPDATE AuditoriaProductosEliminados SET CantidadOriginal = Cantidad WHERE CantidadOriginal IS NULL
-                    ALTER TABLE AuditoriaProductosEliminados ALTER COLUMN CantidadOriginal int NOT NULL
-                END
-                
-                -- Verificar y agregar campo NombreEquipo si no existe
-                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'NombreEquipo')
-                BEGIN
-                    ALTER TABLE AuditoriaProductosEliminados ADD NombreEquipo nvarchar(100) NULL
-                    -- Actualizar valores existentes
-                    UPDATE AuditoriaProductosEliminados SET NombreEquipo = 'Equipo-Desconocido' WHERE NombreEquipo IS NULL
-                END
-                
-                -- Verificar y asegurar que el campo MotivoEliminacion existe
-                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'MotivoEliminacion')
-                BEGIN
-                    ALTER TABLE AuditoriaProductosEliminados ADD MotivoEliminacion nvarchar(500) NULL
-                    -- Actualizar valores existentes
-                    UPDATE AuditoriaProductosEliminados SET MotivoEliminacion = 'Eliminación sin motivo especificado' WHERE MotivoEliminacion IS NULL
-                    ALTER TABLE AuditoriaProductosEliminados ALTER COLUMN MotivoEliminacion nvarchar(500) NOT NULL
-                END
-                
-                -- Verificar y agregar campo NombreCtaCte si no existe
-                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'NombreCtaCte')
-                BEGIN
-                    ALTER TABLE AuditoriaProductosEliminados ADD NombreCtaCte nvarchar(255) NULL
-                END
-                
-                -- Verificar que todos los campos requeridos existen
-                IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'CodigoProducto')
-                OR NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'DescripcionProducto')
-                OR NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'UsuarioEliminacion')
-                OR NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('AuditoriaProductosEliminados') AND name = 'FechaEliminacion')
-                BEGIN
-                    RAISERROR('La tabla AuditoriaProductosEliminados no tiene la estructura esperada', 16, 1)
-                END
-            END
-            ELSE
-            BEGIN
-                -- Si la tabla no existe, crearla con la estructura completa
-                CREATE TABLE AuditoriaProductosEliminados (
-                    IdAuditoriaProductosEliminados int IDENTITY(1,1) PRIMARY KEY,
-                    CodigoProducto nvarchar(50) NOT NULL,
-                    DescripcionProducto nvarchar(255) NOT NULL,
-                    PrecioUnitario decimal(18,2) NOT NULL,
-                    Cantidad int NOT NULL, -- Cantidad eliminada
-                    CantidadOriginal int NOT NULL, -- Cantidad original en la línea
-                    TotalEliminado decimal(18,2) NOT NULL,
-                    NumeroFactura int NOT NULL,
-                    FechaHoraVentaOriginal datetime NOT NULL,
-                    FechaEliminacion datetime NOT NULL,
-                    MotivoEliminacion nvarchar(500) NOT NULL,
-                    EsCtaCte bit NOT NULL DEFAULT 0,
-                    NombreCtaCte nvarchar(255) NULL,
-                    UsuarioEliminacion nvarchar(100) NOT NULL,
-                    NumeroCajero int NOT NULL,
-                    NombreEquipo nvarchar(100) NULL,
-                    EsEliminacionCompleta bit NOT NULL DEFAULT 1
-                )
-            END";
-
-            using (var cmd = new SqlCommand(verificarCamposQuery, connection, transaction))
-            {
-                await cmd.ExecuteNonQueryAsync();
             }
         }
 
@@ -910,19 +841,29 @@ namespace Comercio.NET
             if (dataGridView1.SelectedRows.Count > 0)
             {
                 var row = dataGridView1.SelectedRows[0];
+
+                // MODIFICADO: Obtener el ID único en lugar del código
+                if (!int.TryParse(row.Cells["id"].Value?.ToString(), out int idVenta))
+                {
+                    MessageBox.Show("Error: No se pudo obtener el ID de la venta.", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
                 var codigo = row.Cells["codigo"].Value?.ToString();
-                
+                var descripcion = row.Cells["descripcion"].Value?.ToString();
+
                 if (!string.IsNullOrEmpty(codigo))
                 {
                     var resultado = MessageBox.Show(
-                        $"¿Está seguro de eliminar el producto {codigo}?",
+                        $"¿Está seguro de eliminar el producto:\n{descripcion}?",
                         "Confirmar eliminación",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
 
                     if (resultado == DialogResult.Yes)
                     {
-                        // Implementar lógica de eliminación
+                        // CORREGIDO: Pasar el código pero el método usará el ID internamente
                         EliminarProductoDeVenta(codigo);
                     }
                 }
@@ -934,22 +875,52 @@ namespace Comercio.NET
         {
             try
             {
+                if (dataGridView1.SelectedRows.Count == 0)
+                {
+                    MessageBox.Show("Seleccione un producto para eliminar.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var row = dataGridView1.SelectedRows[0];
+
+                // MODIFICADO: Obtener el ID único de la fila seleccionada
+                if (!int.TryParse(row.Cells["id"].Value?.ToString(), out int idVenta))
+                {
+                    MessageBox.Show("Error: No se pudo obtener el ID de la venta.", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                var descripcion = row.Cells["descripcion"].Value?.ToString();
+
+                var resultado = MessageBox.Show(
+                    $"¿Está seguro de eliminar el producto:\n{descripcion}?",
+                    "Confirmar eliminación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (resultado != DialogResult.Yes)
+                    return;
+
                 string connectionString = GetConnectionString();
-                
+
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = "DELETE FROM Ventas WHERE codigo = @codigo AND nrofactura = @nrfactura";
+                    // CORREGIDO: Usar el ID único en lugar del código + nrofactura
+                    var query = "DELETE FROM Ventas WHERE id = @idVenta";
                     using (var cmd = new SqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@codigo", codigo);
-                        cmd.Parameters.AddWithValue("@nrfactura", nroRemitoActual);
-                        
+                        cmd.Parameters.AddWithValue("@idVenta", idVenta);
+
                         connection.Open();
                         await cmd.ExecuteNonQueryAsync();
                     }
                 }
 
                 CargarVentasActuales();
+
+                System.Diagnostics.Debug.WriteLine($"Producto eliminado - ID: {idVenta}, Código: {codigo}");
             }
             catch (Exception ex)
             {

@@ -1261,12 +1261,12 @@ namespace Comercio.NET
                 colorTexto = System.Drawing.Color.FromArgb(21, 87, 36);
             }
             // NUEVO: Mostrar mensaje cuando las restricciones estén deshabilitadas y haya pagos digitales
-            else if (hayPagosDigitales && !debeRestringir)
-            {
-                mensaje = "INFO: Restricciones de remito deshabilitadas - Todas las opciones disponibles";
-                colorFondo = System.Drawing.Color.FromArgb(230, 245, 255);
-                colorTexto = System.Drawing.Color.FromArgb(0, 120, 215);
-            }
+            //else if (hayPagosDigitales && !debeRestringir)
+            //{
+            //    mensaje = "INFO: Restricciones de remito deshabilitadas - Todas las opciones disponibles";
+            //    colorFondo = System.Drawing.Color.FromArgb(230, 245, 255);
+            //    colorTexto = System.Drawing.Color.FromArgb(0, 120, 215);
+            //}
 
             if (!string.IsNullOrEmpty(mensaje))
             {
@@ -1275,7 +1275,7 @@ namespace Comercio.NET
                     Name = "lblMensajeEstado",
                     Text = mensaje,
                     Left = 40,
-                    Top = EsPagoMultiple ? 435 : 275,
+                    Top = EsPagoMultiple ? 455 : 255,
                     Width = 600,
                     Height = 25,
                     Font = new Font("Segoe UI", 9F, FontStyle.Regular),
