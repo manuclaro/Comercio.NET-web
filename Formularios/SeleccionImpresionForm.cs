@@ -61,6 +61,9 @@ namespace Comercio.NET
         private Label lblMensajeInformativo;
         private CheckBox chkMultiplesPagos; // Referencia corregida
 
+        // NUEVO: Label para mostrar el importe total a pagar
+        private Label lblImporteTotal;
+
         // Delegate para el callback después de procesar la venta
         public Func<string, string, string, string, DateTime?, int, string, Task> OnProcesarVenta { get; set; }
 
@@ -112,7 +115,7 @@ namespace Comercio.NET
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Width = 700;
-            this.Height = 550;
+            this.Height = 400; // CAMBIADO de 550 a 400 para que inicie en modo simple
 
             CrearControles();
             ConfigurarEventos();
@@ -193,6 +196,22 @@ namespace Comercio.NET
 
             panelPagoSimple.Controls.AddRange(new Control[] { lblPago, rbEfectivo, rbDNI, rbMercadoPago });
 
+            // AJUSTADO: Label para mostrar el importe total a pagar con fuente grande
+            lblImporteTotal = new Label
+            {
+                Left = 40,
+                Top = 120, // CAMBIADO de 130 a 120 para dar más espacio
+                Width = 600,
+                Height = 80,
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold), // Fuente grande y negrita
+                ForeColor = System.Drawing.Color.FromArgb(0, 102, 204), // Color azul
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                Text = $"TOTAL A PAGAR: {importeTotalVenta:C2}",
+                BackColor = System.Drawing.Color.FromArgb(240, 248, 255), // Fondo azul claro
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = true
+            };
+
             // Panel para pago múltiple
             panelPagoMultiple = new Panel
             {
@@ -212,8 +231,8 @@ namespace Comercio.NET
 
             panelPagoMultiple.Controls.Add(multiplePagosControl);
 
-            // Controles para CUIT y Razón Social
-            int topCuit = 340; // Ajustar posición según el modo
+            // AJUSTADO: Controles para CUIT y Razón Social con nueva posición inicial
+            int topCuit = 220; // Posición inicial para modo simple
 
             txtCuit = new TextBox
             {
@@ -233,20 +252,23 @@ namespace Comercio.NET
                 ForeColor = System.Drawing.Color.DarkGreen
             };
 
+            // CORREGIDO: Crear label CUIT con nombre específico para poder encontrarlo fácilmente
             var lblCuit = new Label
             {
+                Name = "lblCuit", // NUEVO: Asignar nombre para búsqueda
                 Text = "CUIT:",
                 Left = 40,
                 Top = topCuit + 2,
                 Width = 50,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Visible = true // NUEVO: Asegurar visibilidad inicial
             };
 
-            // NUEVO: Label para mensaje informativo
+            // AJUSTADO: Label para mensaje informativo
             lblMensajeInformativo = new Label
             {
                 Left = 40,
-                Top = 365,
+                Top = 245, // AJUSTADO para la nueva altura
                 Width = 600,
                 Height = 25,
                 Font = new Font("Segoe UI", 9F, FontStyle.Italic),
@@ -255,18 +277,18 @@ namespace Comercio.NET
                 Text = ""
             };
 
-            // Botones de impresión - CORREGIDOS: Sin emojis y con mejor tamaño
-            int topBotones = 380;
+            // AJUSTADO: Botones de impresión
+            int topBotones = 270; // AJUSTADO para la nueva altura
 
             btnRemito = new Button 
             { 
                 Text = "Remito", 
-                Width = 130, // AUMENTADO para que no se corte
+                Width = 130,
                 Left = 60, 
                 Top = topBotones, 
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                BackColor = System.Drawing.Color.FromArgb(102, 51, 153), // CAMBIADO: Morado oscuro en lugar de gris
+                BackColor = System.Drawing.Color.FromArgb(102, 51, 153),
                 ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat
             };
@@ -274,7 +296,7 @@ namespace Comercio.NET
             btnFacturaB = new Button 
             { 
                 Text = "Factura B", 
-                Width = 130, // AUMENTADO para consistencia
+                Width = 130,
                 Left = 200, 
                 Top = topBotones, 
                 Height = 45,
@@ -287,7 +309,7 @@ namespace Comercio.NET
             btnFacturaA = new Button 
             { 
                 Text = "Factura A", 
-                Width = 130, // AUMENTADO para consistencia
+                Width = 130,
                 Left = 340, 
                 Top = topBotones, 
                 Height = 45,
@@ -302,7 +324,7 @@ namespace Comercio.NET
                 Text = "Cancelar",
                 Width = 100,
                 Left = 480,
-                Top = topBotones,
+                Top = topBotones, // AJUSTADO
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 BackColor = System.Drawing.Color.FromArgb(220, 53, 69),
@@ -315,8 +337,9 @@ namespace Comercio.NET
             this.Controls.AddRange(new Control[] {
                 chkPagoMultiple,
                 panelPagoSimple,
+                lblImporteTotal,
                 panelPagoMultiple,
-                lblCuit,
+                lblCuit,        // CORREGIDO: Asegurar que se agregue correctamente
                 txtCuit,
                 lblRazonSocial,
                 lblMensajeInformativo,
@@ -336,38 +359,73 @@ namespace Comercio.NET
                 
                 panelPagoSimple.Visible = !esPagoMultiple;
                 panelPagoMultiple.Visible = esPagoMultiple;
+                
+                // NUEVO: Controlar visibilidad del label de importe total
+                lblImporteTotal.Visible = !esPagoMultiple; // Solo visible en modo pago simple
 
                 if (esPagoMultiple)
                 {
                     multiplePagosControl.EstablecerImporteTotal(importeTotalVenta);
                     this.Height = 550;
                     
+                    // CORREGIDO: Ajustar posiciones para que CUIT sea visible en modo múltiple
                     txtCuit.Top = 340;
                     lblRazonSocial.Top = 342;
                     lblMensajeInformativo.Top = 365;
-                    this.Controls.Find("lblCuit", true).FirstOrDefault()?.SetBounds(40, 342, 50, 20);
+                    
+                    // CORREGIDO: Asegurar que el label CUIT también se posicione correctamente
+                    var lblCuit = this.Controls.Find("lblCuit", true).FirstOrDefault();
+                    if (lblCuit != null)
+                    {
+                        lblCuit.SetBounds(40, 342, 50, 20);
+                        lblCuit.Visible = true; // NUEVO: Asegurar que sea visible
+                    }
 
+                    // AJUSTADO: Posicionar botones más abajo para dar espacio al CUIT
                     btnRemito.Top = 390;
                     btnFacturaB.Top = 390;
                     btnFacturaA.Top = 390;
+                    
+                    // NUEVO: También posicionar el botón Cancelar
+                    var btnCancelar = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Cancelar");
+                    if (btnCancelar != null)
+                    {
+                        btnCancelar.Top = 390;
+                    }
                 }
                 else
                 {
-                    this.Height = 320;
+                    // CORREGIDO: Aumentar altura para que se vea el CUIT y todos los elementos
+                    this.Height = 400;
+                     
+                    // AJUSTADO: Reposicionar elementos para el nuevo tamaño
+                    txtCuit.Top = 220;
+                    lblRazonSocial.Top = 222;
+                    lblMensajeInformativo.Top = 245;
                     
-                    txtCuit.Top = 180;
-                    lblRazonSocial.Top = 182;
-                    lblMensajeInformativo.Top = 205;
-                    this.Controls.Find("lblCuit", true).FirstOrDefault()?.SetBounds(40, 182, 50, 20);
+                    // CORREGIDO: Posicionar también el label CUIT correctamente
+                    var lblCuit = this.Controls.Find("lblCuit", true).FirstOrDefault();
+                    if (lblCuit != null)
+                    {
+                        lblCuit.SetBounds(40, 222, 50, 20);
+                        lblCuit.Visible = true; // NUEVO: Asegurar que sea visible
+                    }
 
-                    btnRemito.Top = 230;
-                    btnFacturaB.Top = 230;
-                    btnFacturaA.Top = 230;
+                    btnRemito.Top = 270;
+                    btnFacturaB.Top = 270;
+                    btnFacturaA.Top = 270;
+                    
+                    // NUEVO: Posicionar también el botón Cancelar
+                    var btnCancelar = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Cancelar");
+                    if (btnCancelar != null)
+                    {
+                        btnCancelar.Top = 270;
+                    }
                 }
 
                 ActualizarOpcionesImpresion();
             };
-
+            
             // Eventos de RadioButtons originales
             rbEfectivo.CheckedChanged += (s, e) => 
             { 
@@ -804,6 +862,7 @@ namespace Comercio.NET
                     long docNro;
                     int ivaPerNro; // NUEVO: Condición IVA del receptor
                     
+
                     if (tipoComprobante == 1) // Factura A
                     {
                         docTipo = 80; // CUIT
@@ -1275,7 +1334,8 @@ namespace Comercio.NET
                     Name = "lblMensajeEstado",
                     Text = mensaje,
                     Left = 40,
-                    Top = EsPagoMultiple ? 455 : 255,
+                    // CORREGIDO: Ajustar posición según el modo para no tapar el CUIT
+                    Top = EsPagoMultiple ? 450 : 245, // CAMBIADO: Más abajo en modo múltiple
                     Width = 600,
                     Height = 25,
                     Font = new Font("Segoe UI", 9F, FontStyle.Regular),
@@ -1308,14 +1368,29 @@ namespace Comercio.NET
                 pagoCompleto = true;
             }
 
-            // CORREGIDO: Aplicar restricciones de impresión según configuración
+            // MODIFICADO: Para pagos múltiples, siempre permitir remito independientemente de restricciones
             bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
-            bool puedeRemito = pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales);
+            bool puedeRemito;
+            
+            if (EsPagoMultiple)
+            {
+                // NUEVO: En modo pago múltiple, solo verificar que el pago esté completo
+                puedeRemito = pagoCompleto;
+            }
+            else
+            {
+                // Para pago simple, aplicar las restricciones normales
+                puedeRemito = pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales);
+            }
+            
             bool puedeFacturas = pagoCompleto;
 
+            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Es pago múltiple: {EsPagoMultiple}");
             System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Debe restringir: {debeRestringirPorPago}");
             System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Hay pagos digitales: {hayPagosDigitales}");
+            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Pago completo: {pagoCompleto}");
             System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Puede remito: {puedeRemito}");
+            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Puede facturas: {puedeFacturas}");
 
             btnRemito.Enabled = puedeRemito;
             btnFacturaA.Enabled = puedeFacturas;
@@ -1381,12 +1456,15 @@ namespace Comercio.NET
         {
             try
             {
+                // MODIFICADO: Verificar las restricciones según el modo de pago
+                bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
+                
                 if (EsPagoMultiple)
                 {
                     if (!multiplePagosControl.PagoCompleto)
                     {
                         MessageBox.Show(
-                            $"ERROR: El pago no está completo.\n\n" + // CORREGIDO: Sin emoji
+                            $"ERROR: El pago no está completo.\n\n" +
                             $"Total factura: {importeTotalVenta:C2}\n" +
                             $"Importe asignado: {multiplePagosControl.ImporteAsignado:C2}\n" +
                             $"Importe pendiente: {multiplePagosControl.ImportePendiente:C2}\n\n" +
@@ -1397,30 +1475,36 @@ namespace Comercio.NET
                         return;
                     }
 
-                    if (multiplePagosControl.TienePagoDigital())
-                    {
-                        MessageBox.Show(
-                            "ERROR: No se puede generar un remito cuando hay pagos digitales.\n\n" + // CORREGIDO: Sin emoji
-                            $"Medios de pago registrados:\n{multiplePagosControl.ObtenerResumenPagos()}\n\n" +
-                            "Para pagos digitales debe generar una factura electrónica (A o B).",
-                            "Método de pago no compatible",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        return;
-                    }
+                    // NUEVO: En modo pago múltiple, NO aplicar restricciones por tipo de pago digital
+                    // Solo verificar que el pago esté completo (ya se verificó arriba)
+                    System.Diagnostics.Debug.WriteLine("[PROCESAMIENTO REMITO] Modo pago múltiple - Remito permitido sin restricciones");
                 }
                 else
                 {
-                    if (OpcionPagoSeleccionada == OpcionPago.DNI || OpcionPagoSeleccionada == OpcionPago.MercadoPago)
+                    // MANTENIDO: Para pago simple, aplicar las restricciones normales
+                    if (debeRestringirPorPago && 
+                        (OpcionPagoSeleccionada == OpcionPago.DNI || OpcionPagoSeleccionada == OpcionPago.MercadoPago))
                     {
                         MessageBox.Show(
-                            "ERROR: No se puede generar un remito con métodos de pago digitales.\n\n" + // CORREGIDO: Sin emoji
+                            "ERROR: No se puede generar un remito con métodos de pago digitales.\n\n" +
                             "Para pagos con DNI o MercadoPago debe generar una factura electrónica (A o B).",
                             "Método de pago no compatible",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Warning);
                         return;
                     }
+                }
+
+                // NUEVO: Log para debugging
+                System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Es pago múltiple: {EsPagoMultiple}");
+                System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Restricciones habilitadas: {debeRestringirPorPago}");
+                if (EsPagoMultiple)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Pago múltiple - Tiene digitales: {multiplePagosControl.TienePagoDigital()} (PERMITIDO)");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Pago simple: {OpcionPagoSeleccionada}");
                 }
 
                 OpcionSeleccionada = OpcionImpresion.RemitoTicket;
@@ -1532,9 +1616,10 @@ namespace Comercio.NET
                 // VALIDACIÓN FINAL: Verificar que BaseImp cumple formato AFIP
                 string baseStr = iva.Value.baseImponible.ToString("F2", CultureInfo.InvariantCulture);
                 string[] partes = baseStr.Split('.');
-                if (partes[0].Length > 13)
+
+                if (partes.Length == 2 && (partes[0].Length > 13 || partes[1].Length != 2))
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ ERROR: BaseImp {baseStr} excede 13 dígitos enteros");
+                    System.Diagnostics.Debug.WriteLine($"❌ ERROR: BaseImp {baseStr} no cumple formato AFIP");
                 }
                 else
                 {

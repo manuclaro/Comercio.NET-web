@@ -153,7 +153,7 @@
             // cbnombreCtaCte
             // 
             cbnombreCtaCte.FormattingEnabled = true;
-            cbnombreCtaCte.Location = new Point(456, 132);
+            cbnombreCtaCte.Location = new Point(456, 131);
             cbnombreCtaCte.Name = "cbnombreCtaCte";
             cbnombreCtaCte.Size = new Size(121, 23);
             cbnombreCtaCte.TabIndex = 13;

@@ -1113,8 +1113,8 @@ namespace Comercio.NET
             chkCantidad = new CheckBox
             {
                 Text = "Cantidad",
-                Left = 500, // Más a la derecha, separado del chkEsCtaCte
-                Top = 136,  // Misma altura que chkEsCtaCte
+                Left = 600, // Más a la derecha, separado del chkEsCtaCte
+                Top = 135,  // Misma altura que chkEsCtaCte
                 Width = 180,
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.Black

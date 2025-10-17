@@ -1,4 +1,4 @@
-using System;
+Ôªøusing System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -29,7 +29,7 @@ namespace Comercio.NET.Formularios
         {
             this.SuspendLayout();
             
-            // ConfiguraciÛn del formulario
+            // Configuraci√≥n del formulario
             this.Text = "Editar Cantidad";
             this.Size = new Size(450, 280);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -40,7 +40,7 @@ namespace Comercio.NET.Formularios
             this.BackColor = Color.White;
             this.Font = new Font("Segoe UI", 9F);
 
-            // Panel superior con icono y tÌtulo
+            // Panel superior con icono y t√≠tulo
             var panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
@@ -51,7 +51,7 @@ namespace Comercio.NET.Formularios
 
             var lblTitulo = new Label
             {
-                Text = "?? Editar Cantidad",
+                Text = "üìù Editar Cantidad",
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
@@ -68,7 +68,7 @@ namespace Comercio.NET.Formularios
                 Padding = new Padding(25, 20, 25, 20)
             };
 
-            // InformaciÛn del producto
+            // Informaci√≥n del producto
             var lblProducto = new Label
             {
                 Text = "Producto:",
@@ -147,7 +147,7 @@ namespace Comercio.NET.Formularios
 
             var btnAceptar = new Button
             {
-                Text = "? Confirmar",
+                Text = "‚úì Confirmar",
                 Size = new Size(110, 32),
                 Location = new Point(310, 15),
                 FlatStyle = FlatStyle.Flat,
@@ -205,7 +205,7 @@ namespace Comercio.NET.Formularios
 
         private void ConfigurarFormulario()
         {
-            // ConfiguraciÛn adicional si es necesaria
+            // Configuraci√≥n adicional si es necesaria
         }
 
         private void CargarDatos()
