@@ -1,7 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Windows.Forms;
-using WSconsultaCUIT;
+//using WSconsultaCUIT;
 using Microsoft.Extensions.Configuration;
 using System.Data.SqlClient;
 using System.Data;
@@ -13,6 +12,7 @@ using Comercio.NET.Servicios;
 using Comercio.NET.Controles; // NUEVO: Para el control de múltiples pagos
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading; // NUEVO: Para CancellationTokenSource
 
 namespace Comercio.NET
 {
@@ -82,12 +82,12 @@ namespace Comercio.NET
         public static bool TieneCacheTokensValido()
         {
             var tokenCache = AfipAuthenticator.GetExistingToken("wsfe");
-            bool esValido = tokenCache.HasValue && 
-                           !string.IsNullOrEmpty(tokenCache.Value.token) && 
+            bool esValido = tokenCache.HasValue &&
+                           !string.IsNullOrEmpty(tokenCache.Value.token) &&
                            !string.IsNullOrEmpty(tokenCache.Value.sign);
-            
+
             System.Diagnostics.Debug.WriteLine($"🔍 Estado cache tokens: {(esValido ? "VÁLIDO" : "INVÁLIDO")}");
-            
+
             return esValido;
         }
 
@@ -154,44 +154,44 @@ namespace Comercio.NET
                 Visible = true
             };
 
-            var lblPago = new Label 
-            { 
-                Text = "Forma de pago:", 
-                Left = 10, 
-                Top = 10, 
-                Width = 120, 
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold) 
+            var lblPago = new Label
+            {
+                Text = "Forma de pago:",
+                Left = 10,
+                Top = 10,
+                Width = 120,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
 
-            rbEfectivo = new RadioButton 
-            { 
-                Text = "Efectivo", 
-                Left = 10, 
-                Top = 30, 
-                Width = 100, 
-                Height = 25, 
-                Font = fontRadio, 
-                Checked = true 
+            rbEfectivo = new RadioButton
+            {
+                Text = "Efectivo",
+                Left = 10,
+                Top = 30,
+                Width = 100,
+                Height = 25,
+                Font = fontRadio,
+                Checked = true
             };
 
-            rbDNI = new RadioButton 
-            { 
-                Text = "DNI", 
-                Left = 120, 
-                Top = 30, 
-                Width = 100, 
-                Height = 25, 
-                Font = fontRadio 
+            rbDNI = new RadioButton
+            {
+                Text = "DNI",
+                Left = 120,
+                Top = 30,
+                Width = 100,
+                Height = 25,
+                Font = fontRadio
             };
 
-            rbMercadoPago = new RadioButton 
-            { 
-                Text = "MercadoPago", 
-                Left = 230, 
-                Top = 30, 
-                Width = 140, 
-                Height = 25, 
-                Font = fontRadio 
+            rbMercadoPago = new RadioButton
+            {
+                Text = "MercadoPago",
+                Left = 230,
+                Top = 30,
+                Width = 140,
+                Height = 25,
+                Font = fontRadio
             };
 
             panelPagoSimple.Controls.AddRange(new Control[] { lblPago, rbEfectivo, rbDNI, rbMercadoPago });
@@ -232,7 +232,7 @@ namespace Comercio.NET
             panelPagoMultiple.Controls.Add(multiplePagosControl);
 
             // AJUSTADO: Controles para CUIT y Razón Social con nueva posición inicial
-            int topCuit = 220; // Posición inicial para modo simple
+            int topCuit = 220; // CAMBIADO de 340 a 220 para modo simple inicialmente
 
             txtCuit = new TextBox
             {
@@ -252,16 +252,13 @@ namespace Comercio.NET
                 ForeColor = System.Drawing.Color.DarkGreen
             };
 
-            // CORREGIDO: Crear label CUIT con nombre específico para poder encontrarlo fácilmente
             var lblCuit = new Label
             {
-                Name = "lblCuit", // NUEVO: Asignar nombre para búsqueda
                 Text = "CUIT:",
                 Left = 40,
                 Top = topCuit + 2,
                 Width = 50,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                Visible = true // NUEVO: Asegurar visibilidad inicial
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
 
             // AJUSTADO: Label para mensaje informativo
@@ -280,12 +277,12 @@ namespace Comercio.NET
             // AJUSTADO: Botones de impresión
             int topBotones = 270; // AJUSTADO para la nueva altura
 
-            btnRemito = new Button 
-            { 
-                Text = "Remito", 
+            btnRemito = new Button
+            {
+                Text = "Remito",
                 Width = 130,
-                Left = 60, 
-                Top = topBotones, 
+                Left = 60,
+                Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 BackColor = System.Drawing.Color.FromArgb(102, 51, 153),
@@ -293,12 +290,12 @@ namespace Comercio.NET
                 FlatStyle = FlatStyle.Flat
             };
 
-            btnFacturaB = new Button 
-            { 
-                Text = "Factura B", 
+            btnFacturaB = new Button
+            {
+                Text = "Factura B",
                 Width = 130,
-                Left = 200, 
-                Top = topBotones, 
+                Left = 200,
+                Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 BackColor = System.Drawing.Color.FromArgb(0, 123, 255),
@@ -306,12 +303,12 @@ namespace Comercio.NET
                 FlatStyle = FlatStyle.Flat
             };
 
-            btnFacturaA = new Button 
-            { 
-                Text = "Factura A", 
+            btnFacturaA = new Button
+            {
+                Text = "Factura A",
                 Width = 130,
-                Left = 340, 
-                Top = topBotones, 
+                Left = 340,
+                Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 BackColor = System.Drawing.Color.FromArgb(40, 167, 69),
@@ -337,9 +334,9 @@ namespace Comercio.NET
             this.Controls.AddRange(new Control[] {
                 chkPagoMultiple,
                 panelPagoSimple,
-                lblImporteTotal,
+                lblImporteTotal, // NUEVO: Agregar el label del importe total
                 panelPagoMultiple,
-                lblCuit,        // CORREGIDO: Asegurar que se agregue correctamente
+                lblCuit,
                 txtCuit,
                 lblRazonSocial,
                 lblMensajeInformativo,
@@ -356,10 +353,10 @@ namespace Comercio.NET
             chkPagoMultiple.CheckedChanged += (s, e) =>
             {
                 bool esPagoMultiple = chkPagoMultiple.Checked;
-                
+
                 panelPagoSimple.Visible = !esPagoMultiple;
                 panelPagoMultiple.Visible = esPagoMultiple;
-                
+
                 // NUEVO: Controlar visibilidad del label de importe total
                 lblImporteTotal.Visible = !esPagoMultiple; // Solo visible en modo pago simple
 
@@ -367,12 +364,12 @@ namespace Comercio.NET
                 {
                     multiplePagosControl.EstablecerImporteTotal(importeTotalVenta);
                     this.Height = 550;
-                    
+
                     // CORREGIDO: Ajustar posiciones para que CUIT sea visible en modo múltiple
                     txtCuit.Top = 340;
                     lblRazonSocial.Top = 342;
                     lblMensajeInformativo.Top = 365;
-                    
+
                     // CORREGIDO: Asegurar que el label CUIT también se posicione correctamente
                     var lblCuit = this.Controls.Find("lblCuit", true).FirstOrDefault();
                     if (lblCuit != null)
@@ -385,7 +382,7 @@ namespace Comercio.NET
                     btnRemito.Top = 390;
                     btnFacturaB.Top = 390;
                     btnFacturaA.Top = 390;
-                    
+
                     // NUEVO: También posicionar el botón Cancelar
                     var btnCancelar = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Cancelar");
                     if (btnCancelar != null)
@@ -397,12 +394,12 @@ namespace Comercio.NET
                 {
                     // CORREGIDO: Aumentar altura para que se vea el CUIT y todos los elementos
                     this.Height = 400;
-                     
+
                     // AJUSTADO: Reposicionar elementos para el nuevo tamaño
                     txtCuit.Top = 220;
                     lblRazonSocial.Top = 222;
                     lblMensajeInformativo.Top = 245;
-                    
+
                     // CORREGIDO: Posicionar también el label CUIT correctamente
                     var lblCuit = this.Controls.Find("lblCuit", true).FirstOrDefault();
                     if (lblCuit != null)
@@ -414,7 +411,7 @@ namespace Comercio.NET
                     btnRemito.Top = 270;
                     btnFacturaB.Top = 270;
                     btnFacturaA.Top = 270;
-                    
+
                     // NUEVO: Posicionar también el botón Cancelar
                     var btnCancelar = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Cancelar");
                     if (btnCancelar != null)
@@ -425,29 +422,29 @@ namespace Comercio.NET
 
                 ActualizarOpcionesImpresion();
             };
-            
+
             // Eventos de RadioButtons originales
-            rbEfectivo.CheckedChanged += (s, e) => 
-            { 
-                if (rbEfectivo.Checked) 
+            rbEfectivo.CheckedChanged += (s, e) =>
+            {
+                if (rbEfectivo.Checked)
                 {
                     OpcionPagoSeleccionada = OpcionPago.Efectivo;
                     ActualizarOpcionesImpresion();
                 }
             };
 
-            rbDNI.CheckedChanged += (s, e) => 
-            { 
-                if (rbDNI.Checked) 
+            rbDNI.CheckedChanged += (s, e) =>
+            {
+                if (rbDNI.Checked)
                 {
                     OpcionPagoSeleccionada = OpcionPago.DNI;
                     ActualizarOpcionesImpresion();
                 }
             };
 
-            rbMercadoPago.CheckedChanged += (s, e) => 
-            { 
-                if (rbMercadoPago.Checked) 
+            rbMercadoPago.CheckedChanged += (s, e) =>
+            {
+                if (rbMercadoPago.Checked)
                 {
                     OpcionPagoSeleccionada = OpcionPago.MercadoPago;
                     ActualizarOpcionesImpresion();
@@ -463,7 +460,8 @@ namespace Comercio.NET
                 };
             }
 
-            // Eventos CUIT
+            // Eventos CUIT mejorados
+            txtCuit.TextChanged += TxtCuit_TextChanged;
             txtCuit.Leave += async (s, e) => await ConsultarCuitAsync();
             txtCuit.KeyDown += async (s, e) =>
             {
@@ -475,7 +473,7 @@ namespace Comercio.NET
             };
 
             // Eventos de botones de impresión
-            btnRemito.Click += async (s, e) => 
+            btnRemito.Click += async (s, e) =>
             {
                 try
                 {
@@ -487,7 +485,7 @@ namespace Comercio.NET
                 }
             };
 
-            btnFacturaB.Click += async (s, e) => 
+            btnFacturaB.Click += async (s, e) =>
             {
                 try
                 {
@@ -500,15 +498,39 @@ namespace Comercio.NET
                 }
             };
 
-            btnFacturaA.Click += async (s, e) => 
+            btnFacturaA.Click += async (s, e) =>
             {
                 try
                 {
-                    // Validar CUIT para Factura A
-                    string cuit = txtCuit.Text.Trim();
-                    if (string.IsNullOrEmpty(cuit) || cuit.Length != 11)
+                    // MEJORADO: Validación completa de CUIT para Factura A
+                    string cuitFormateado = txtCuit.Text.Trim();
+                    string cuitLimpio = cuitFormateado.Replace("-", "");
+
+                    if (string.IsNullOrEmpty(cuitLimpio))
                     {
-                        MessageBox.Show("Para Factura A debe ingresar un CUIT válido.", "CUIT Requerido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show("Para Factura A debe ingresar un CUIT.", "CUIT Requerido",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtCuit.Focus();
+                        return;
+                    }
+
+                    if (cuitLimpio.Length != 11)
+                    {
+                        MessageBox.Show("El CUIT debe tener exactamente 11 dígitos.", "CUIT Inválido",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtCuit.Focus();
+                        return;
+                    }
+
+                    // NUEVO: Validar código verificador según la ley
+                    if (!ValidarCuitVerificador(cuitLimpio))
+                    {
+                        MessageBox.Show(
+                            "El CUIT ingresado no es válido.\n\n" +
+                            "El código verificador no cumple con el algoritmo oficial.\n" +
+                            "Por favor verifique los dígitos ingresados.",
+                            "CUIT Inválido",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         txtCuit.Focus();
                         return;
                     }
@@ -522,7 +544,7 @@ namespace Comercio.NET
                 }
             };
 
-            this.Shown += (s, e) => 
+            this.Shown += (s, e) =>
             {
                 if (btnRemito.Enabled)
                     btnRemito.Focus();
@@ -533,13 +555,106 @@ namespace Comercio.NET
             };
         }
 
+        /// <summary>
+        /// Evento para formatear automáticamente el CUIT mientras se escribe - CORREGIDO: Manejo mejorado del cursor
+        /// </summary>
+        private void TxtCuit_TextChanged(object sender, EventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            // NUEVO: Flag para evitar recursión
+            if (textBox.Tag?.ToString() == "FORMATTING")
+                return;
+
+            // Guardar posición del cursor y texto actual
+            int cursorPosition = textBox.SelectionStart;
+            string textoOriginal = textBox.Text;
+
+            // Limpiar solo números
+            string soloNumeros = new string(textoOriginal.Where(char.IsDigit).ToArray());
+
+            // Limitar a 11 dígitos
+            if (soloNumeros.Length > 11)
+            {
+                soloNumeros = soloNumeros.Substring(0, 11);
+            }
+
+            string textoFormateado = "";
+
+            // Formatear según la longitud
+            if (soloNumeros.Length <= 2)
+            {
+                textoFormateado = soloNumeros;
+            }
+            else if (soloNumeros.Length <= 10)
+            {
+                textoFormateado = $"{soloNumeros.Substring(0, 2)}-{soloNumeros.Substring(2)}";
+            }
+            else
+            {
+                textoFormateado = $"{soloNumeros.Substring(0, 2)}-{soloNumeros.Substring(2, 8)}-{soloNumeros.Substring(10)}";
+            }
+
+            // Actualizar texto solo si cambió
+            if (textoFormateado != textoOriginal)
+            {
+                // NUEVO: Marcar como formateando para evitar recursión
+                textBox.Tag = "FORMATTING";
+
+                // MEJORADO: Calcular nueva posición del cursor basado en dígitos
+                int digitosAntesDelCursor = 0;
+                for (int i = 0; i < Math.Min(cursorPosition, textoOriginal.Length); i++)
+                {
+                    if (char.IsDigit(textoOriginal[i]))
+                        digitosAntesDelCursor++;
+                }
+
+                // Encontrar la nueva posición basada en la cantidad de dígitos
+                int nuevaPosicion = 0;
+                int digitosContados = 0;
+
+                for (int i = 0; i < textoFormateado.Length && digitosContados < digitosAntesDelCursor; i++)
+                {
+                    if (char.IsDigit(textoFormateado[i]))
+                    {
+                        digitosContados++;
+                    }
+                    nuevaPosicion = i + 1;
+                }
+
+                // CORREGIDO: Si estamos al final de un grupo de dígitos y hay un guión después,positionar después del guión
+                if (nuevaPosicion < textoFormateado.Length && textoFormateado[nuevaPosicion] == '-')
+                {
+                    nuevaPosicion++;
+                }
+
+                // Asegurar que la posición esté dentro de los límites
+                nuevaPosicion = Math.Max(0, Math.Min(nuevaPosicion, textoFormateado.Length));
+
+                // Actualizar el texto y posición
+                textBox.Text = textoFormateado;
+                textBox.SelectionStart = nuevaPosicion;
+                textBox.SelectionLength = 0;
+
+                // NUEVO: Quitar flag de formateo
+                textBox.Tag = null;
+            }
+
+            // Limpiar label si se está editando
+            if (!string.IsNullOrEmpty(textoOriginal) && lblRazonSocial.Text.Contains("✓"))
+            {
+                lblRazonSocial.Text = "";
+            }
+        }
+
         // RESTAURADO: Método centralizado para procesar facturas electrónicas con AFIP REAL
         private async Task ProcesarFacturaElectronica(OpcionImpresion tipoFactura)
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine($"🔄 === INICIANDO PROCESAMIENTO {tipoFactura} CON AFIP REAL ===");
-                
+
                 // 1. VALIDAR PAGO COMPLETO
                 if (EsPagoMultiple && !multiplePagosControl.PagoCompleto)
                 {
@@ -564,7 +679,7 @@ namespace Comercio.NET
                 string cuitEmisor = config["AFIP:CUIT"];
                 if (string.IsNullOrEmpty(cuitEmisor))
                 {
-                    MessageBox.Show("Error: CUIT del emisor no configurado en appsettings.json", "Error de Configuración", 
+                    MessageBox.Show("Error: CUIT del emisor no configurado en appsettings.json", "Error de Configuración",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
@@ -615,7 +730,7 @@ namespace Comercio.NET
 
                     await AutenticarConAfipReal(cuitEmisor);
 
-                    // 5. OBTENER ÚLTIMO NÚMERO DE COMPROBANTE
+                    // 5. OBTENERÚLTIMO NÚMERO DE COMPROBANTE
                     lblProgress.Text = "Obteniendo número de comprobante...";
                     Application.DoEvents();
 
@@ -636,7 +751,7 @@ namespace Comercio.NET
                     if (!resultadoCAE.exito)
                     {
                         progressForm.Close();
-                        MessageBox.Show($"Error obteniendo CAE de AFIP:\n\n{resultadoCAE.error}", 
+                        MessageBox.Show($"Error obteniendo CAE de AFIP:\n\n{resultadoCAE.error}",
                             "Error AFIP", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
@@ -659,7 +774,7 @@ namespace Comercio.NET
 
                     if (OnProcesarVenta != null)
                     {
-                        await OnProcesarVenta(tipoFacturaString, formaPago, cuitCliente, 
+                        await OnProcesarVenta(tipoFacturaString, formaPago, cuitCliente,
                             CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
                     }
 
@@ -669,7 +784,7 @@ namespace Comercio.NET
                     MessageBox.Show($"✅ {tipoFactura} procesada exitosamente con AFIP\n\n" +
                         $"Número: {numeroFormateado}\n" +
                         $"CAE: {CAENumero}\n" +
-                        $"Vencimiento: {CAEVencimiento:dd/MM/yyyy}", 
+                        $"Vencimiento: {CAEVencimiento:dd/MM/yyyy}",
                         "Factura Electrónica", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                     this.DialogResult = DialogResult.OK;
@@ -687,7 +802,7 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error en ProcesarFacturaElectronica: {ex.Message}");
-                MessageBox.Show($"Error procesando factura electrónica:\n\n{ex.Message}", 
+                MessageBox.Show($"Error procesando factura electrónica:\n\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -701,7 +816,7 @@ namespace Comercio.NET
 
                 // PASO 1: Verificar tokens existentes ANTES de cualquier intento
                 var (tieneTokenValido, mensaje, minutosRestantes) = AfipAuthenticator.VerificarTokensExistentes("wsfe");
-                
+
                 if (tieneTokenValido && minutosRestantes > 2)
                 {
                     var tokenExistente = AfipAuthenticator.GetExistingToken("wsfe");
@@ -750,21 +865,21 @@ namespace Comercio.NET
 
                     System.Diagnostics.Debug.WriteLine("✅ Autenticación AFIP transparente completada");
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Token válido hasta: {expiration:dd/MM/yyyy HH:mm:ss}");
-                    
+
                     // NO mostrar ningún mensaje al usuario - proceso completamente transparente
                 }
                 catch (Exception ex) when (ex.Message.Contains("TOKEN") || ex.Message.Contains("token") || ex.Message.Contains("Ya existe"))
                 {
                     // ÚLTIMO RECURSO: Forzar uso de token existente
                     System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Forzando uso de token existente debido a: {ex.Message}");
-                    
+
                     try
                     {
                         var (token, sign, expiration) = await AfipAuthenticator.ForzarUsoTokenExistente("wsfe", certificadoPath, certificadoPassword ?? "");
-                        
+
                         TokenAfip = token;
                         SignAfip = sign;
-                        
+
                         System.Diagnostics.Debug.WriteLine("✅ Token forzado exitosamente - proceso transparente");
                         return;
                     }
@@ -780,7 +895,7 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"💥 Error en autenticación transparente: {ex.Message}");
-                
+
                 // ÚLTIMO RECURSO FINAL: Intentar cualquier token disponible
                 try
                 {
@@ -797,7 +912,7 @@ namespace Comercio.NET
                 {
                     System.Diagnostics.Debug.WriteLine($"💥 Error en último recurso: {exCache.Message}");
                 }
-                
+
                 // Solo mostrar error al usuario si realmente no se puede continuar
                 throw new Exception($"Error crítico de autenticación AFIP: {ex.Message}\n\nNo se pudo obtener tokens válidos para continuar.");
             }
@@ -831,7 +946,7 @@ namespace Comercio.NET
 
                     int ultimoNumero = resultado?.CbteNro ?? 0;
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Último número autorizado: {ultimoNumero}");
-                    
+
                     return ultimoNumero;
                 }
             }
@@ -861,7 +976,7 @@ namespace Comercio.NET
                     int docTipo;
                     long docNro;
                     int ivaPerNro; // NUEVO: Condición IVA del receptor
-                    
+
 
                     if (tipoComprobante == 1) // Factura A
                     {
@@ -913,7 +1028,7 @@ namespace Comercio.NET
                     // MEJORADO: Preparar array de IVA con validaciones estrictas
                     var ivaArray = new List<ArcaWS.AlicIva>();
                     var datosIva = CalcularDetalleIVA();
-                    
+
                     // NUEVO: Validar datos antes de enviar a AFIP
                     var (esValido, errorValidacion) = ValidarDatosParaAfip(datosIva, importeTotalCalculado);
                     if (!esValido)
@@ -921,7 +1036,7 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Validación falló: {errorValidacion}");
                         return (false, "", null, $"Error de validación: {errorValidacion}");
                     }
-                    
+
                     foreach (var iva in datosIva)
                     {
                         if (iva.Value.baseImponible > 0)
@@ -929,7 +1044,7 @@ namespace Comercio.NET
                             // NUEVO: Validar y formatear BaseImp antes de enviar a AFIP
                             decimal baseImponible = Math.Round(iva.Value.baseImponible, 2);
                             decimal importeIva = Math.Round(iva.Value.importeIva, 2);
-                            
+
                             // CRÍTICO: Asegurar que BaseImp cumple exactamente con el formato AFIP
                             if (baseImponible >= 10000000000000m) // 13 dígitos
                             {
@@ -938,11 +1053,11 @@ namespace Comercio.NET
                                 importeIva = Math.Round(iva.Value.baseImponible + iva.Value.importeIva - baseImponible, 2);
                                 System.Diagnostics.Debug.WriteLine($"🔧 BaseImp ajustada: {baseImponible:F2}, IVA ajustado: {importeIva:F2}");
                             }
-                            
-                            // NUEVO: Validar formato exacto con regex-like check
+
+                            // NUEVO: Validación formato exacto con regex-like check
                             string baseFormateada = baseImponible.ToString("F2", CultureInfo.InvariantCulture);
                             string[] partesBase = baseFormateada.Split('.');
-                            
+
                             if (partesBase[0].Length > 13 || partesBase[1].Length != 2)
                             {
                                 System.Diagnostics.Debug.WriteLine($"❌ Formato inválido BaseImp: {baseFormateada}");
@@ -954,17 +1069,17 @@ namespace Comercio.NET
 
                             // Mapear porcentaje de IVA a código AFIP
                             int codigoAfip = MapearPorcentajeIvaACodigoAfip(iva.Key);
-                            
+
                             // NUEVO: Validación final antes de agregar al array
                             double baseImpDouble = (double)baseImponible;
                             double importeIvaDouble = (double)importeIva;
-                            
+
                             // Verificar que los valores double mantengan la precisión
                             if (Math.Abs((decimal)baseImpDouble - baseImponible) > 0.01m)
                             {
                                 System.Diagnostics.Debug.WriteLine($"⚠️ Pérdida de precisión en BaseImp: {baseImponible:F2} -> {baseImpDouble:F2}");
                             }
-                            
+
                             ivaArray.Add(new ArcaWS.AlicIva
                             {
                                 Id = codigoAfip,
@@ -1014,13 +1129,13 @@ namespace Comercio.NET
                     if (resultado?.FeDetResp != null && resultado.FeDetResp.Length > 0)
                     {
                         var detalle = resultado.FeDetResp[0];
-                        
+
                         if (!string.IsNullOrEmpty(detalle.CAE))
                         {
                             DateTime? fechaVencimiento = null;
                             if (!string.IsNullOrEmpty(detalle.CAEFchVto))
                             {
-                                if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd", 
+                                if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd",
                                     CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fecha))
                                 {
                                     fechaVencimiento = fecha;
@@ -1090,12 +1205,17 @@ namespace Comercio.NET
 
             if (tipoComprobante == 1) // Factura A
             {
-                if (string.IsNullOrEmpty(cuitCliente) || cuitCliente.Length != 11)
+                string cuitLimpio = cuitCliente?.Replace("-", "") ?? "";
+
+                if (string.IsNullOrEmpty(cuitLimpio) || cuitLimpio.Length != 11)
                 {
-                    return 0; // CUIT inválido, no se puede determinar condición IVA
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] CUIT inválido para Factura A: '{cuitCliente}' -> usando Responsable Inscripto (1)");
+                    return 1; // NUNCA retornar 0 - usar Responsable Inscripto por defecto
                 }
-                
-                // Devolver 1 (IVA Responsable Inscripto) si el CUIT es válido y pertenece a un contribuyente inscripto
+
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Factura A con CUIT válido: '{cuitCliente}' -> Responsable Inscripto (1)");
+
+                // Dejar como 1 (IVA Responsable Inscripto) si el CUIT es válido - AFIP no permite otra cosa
                 return 1;
             }
             else // Factura B
@@ -1111,73 +1231,73 @@ namespace Comercio.NET
             try
             {
                 System.Diagnostics.Debug.WriteLine("🔍 === VALIDACIÓN DATOS AFIP ===");
-                
+
                 // 1. Validar formato de importes totales
                 if (importeTotal >= 10000000000000m)
                 {
                     return (false, $"Importe total excede límite AFIP: {importeTotal:F2} (máximo: 9,999,999,999,999.99)");
                 }
-                
+
                 if (importeTotal <= 0)
                 {
                     return (false, $"Importe total debe ser mayor a cero: {importeTotal:F2}");
                 }
-                
+
                 // 2. Validar cada alícuota de IVA
                 decimal sumaBaseImponible = 0;
                 decimal sumaIva = 0;
-                
+
                 foreach (var iva in datosIva)
                 {
                     decimal baseImponible = Math.Round(iva.Value.baseImponible, 2);
                     decimal importeIva = Math.Round(iva.Value.importeIva, 2);
-                    
+
                     // Validar BaseImp - CRÍTICO para el error de AFIP
                     string baseStr = baseImponible.ToString("F2", CultureInfo.InvariantCulture);
                     string[] partesBase = baseStr.Split('.');
-                    
+
                     if (partesBase[0].Length > 13)
                     {
                         return (false, $"BaseImp para IVA {iva.Key}% excede 13 dígitos enteros: {baseStr} (valor: {baseImponible})");
                     }
-                    
+
                     if (partesBase[1].Length != 2)
                     {
                         return (false, $"BaseImp para IVA {iva.Key}% debe tener exactamente 2 decimales: {baseStr}");
                     }
-                    
+
                     // Validar que BaseImp sea positiva
                     if (baseImponible <= 0)
                     {
                         return (false, $"BaseImp para IVA {iva.Key}% debe ser mayor a cero: {baseImponible:F2}");
                     }
-                    
+
                     // Validar Importe IVA
                     if (importeIva < 0)
                     {
                         return (false, $"Importe IVA para alícuota {iva.Key}% no puede ser negativo: {importeIva:F2}");
                     }
-                    
+
                     // Validar coherencia entre porcentaje, base e importe
                     decimal ivaCalculadoEsperado = Math.Round(baseImponible * iva.Key / 100, 2);
                     decimal diferencia = Math.Abs(importeIva - ivaCalculadoEsperado);
-                    
+
                     if (diferencia > 0.05m) // Tolerancia de 5 centavos por redondeos
                     {
                         System.Diagnostics.Debug.WriteLine($"⚠️ Diferencia en cálculo IVA {iva.Key}%: Calculado={ivaCalculadoEsperado:F2}, Enviado={importeIva:F2}, Diferencia={diferencia:F2}");
                         // Solo advertencia, no error crítico
                     }
-                    
+
                     sumaBaseImponible += baseImponible;
                     sumaIva += importeIva;
-                    
+
                     System.Diagnostics.Debug.WriteLine($"✅ IVA {iva.Key}%: Base={baseImponible:F2}, IVA={importeIva:F2} - VÁLIDO");
                 }
-                
+
                 // 3. Validar coherencia de totales
                 decimal totalCalculado = Math.Round(sumaBaseImponible + sumaIva, 2);
                 decimal diferenciaTotales = Math.Abs(totalCalculado - importeTotal);
-                
+
                 if (diferenciaTotales > 0.02m) // Tolerancia de 2 centavos
                 {
                     System.Diagnostics.Debug.WriteLine($"⚠️ Diferencia en totales: Calculado={totalCalculado:F2}, Esperado={importeTotal:F2}, Diferencia={diferenciaTotales:F2}");
@@ -1187,7 +1307,7 @@ namespace Comercio.NET
                         return (false, $"Diferencia excesiva en totales: Calculado={totalCalculado:F2}, Esperado={importeTotal:F2}");
                     }
                 }
-                
+
                 System.Diagnostics.Debug.WriteLine($"💰 Resumen validación:");
                 System.Diagnostics.Debug.WriteLine($"   Total factura: {importeTotal:F2}");
                 System.Diagnostics.Debug.WriteLine($"   Suma BaseImp: {sumaBaseImponible:F2}");
@@ -1195,7 +1315,7 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"   Total calculado: {totalCalculado:F2}");
                 System.Diagnostics.Debug.WriteLine($"   Diferencia: {diferenciaTotales:F2}");
                 System.Diagnostics.Debug.WriteLine("===============================");
-                
+
                 return (true, "");
             }
             catch (Exception ex)
@@ -1221,7 +1341,7 @@ namespace Comercio.NET
                         neto += baseImponible;
                     }
                 }
-                
+
                 // NUEVO: Validar que el neto total no exceda límites AFIP
                 neto = Math.Round(neto, 2);
                 if (neto >= 10000000000000m) // 13 dígitos
@@ -1230,13 +1350,13 @@ namespace Comercio.NET
                     neto = Math.Min(neto, 9999999999999.99m);
                     System.Diagnostics.Debug.WriteLine($"🔧 Importe neto ajustado: {neto:N2}");
                 }
-                
+
                 return neto;
             }
-            
+
             // Aproximación si no hay datos detallados
             decimal netoAproximado = Math.Round(importeTotalVenta / 1.21m, 2);
-            
+
             // NUEVO: Validar aproximación también
             if (netoAproximado >= 10000000000000m)
             {
@@ -1244,7 +1364,7 @@ namespace Comercio.NET
                 netoAproximado = Math.Min(netoAproximado, 9999999999999.99m);
                 System.Diagnostics.Debug.WriteLine($"🔧 Importe neto aproximado ajustado: {netoAproximado:N2}");
             }
-            
+
             return netoAproximado;
         }
 
@@ -1252,14 +1372,14 @@ namespace Comercio.NET
         {
             decimal neto = CalcularImporteNeto();
             decimal iva = Math.Round(importeTotalVenta - neto, 2);
-            
+
             // NUEVO: Asegurar que el IVA también esté dentro de límites razonables
             if (iva < 0)
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ IVA negativo calculado: {iva:N2}, corrigiendo...");
                 iva = 0;
             }
-            
+
             // Si el IVA resultante es muy grande (edge case), ajustar
             if (iva >= 10000000000000m)
             {
@@ -1267,7 +1387,7 @@ namespace Comercio.NET
                 iva = Math.Min(iva, 9999999999999.99m);
                 System.Diagnostics.Debug.WriteLine($"🔧 IVA ajustado: {iva:N2}");
             }
-            
+
             return iva;
         }
 
@@ -1334,8 +1454,7 @@ namespace Comercio.NET
                     Name = "lblMensajeEstado",
                     Text = mensaje,
                     Left = 40,
-                    // CORREGIDO: Ajustar posición según el modo para no tapar el CUIT
-                    Top = EsPagoMultiple ? 450 : 245, // CAMBIADO: Más abajo en modo múltiple
+                    Top = EsPagoMultiple ? 455 : 255,
                     Width = 600,
                     Height = 25,
                     Font = new Font("Segoe UI", 9F, FontStyle.Regular),
@@ -1371,7 +1490,7 @@ namespace Comercio.NET
             // MODIFICADO: Para pagos múltiples, siempre permitir remito independientemente de restricciones
             bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
             bool puedeRemito;
-            
+
             if (EsPagoMultiple)
             {
                 // NUEVO: En modo pago múltiple, solo verificar que el pago esté completo
@@ -1382,7 +1501,7 @@ namespace Comercio.NET
                 // Para pago simple, aplicar las restricciones normales
                 puedeRemito = pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales);
             }
-            
+
             bool puedeFacturas = pagoCompleto;
 
             System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Es pago múltiple: {EsPagoMultiple}");
@@ -1430,35 +1549,74 @@ namespace Comercio.NET
 
         private async Task ConsultarCuitAsync()
         {
-            // Implementación simplificada para consultar CUIT
-            string cuit = txtCuit.Text.Trim();
+            // Implementación mejorada para consultar CUIT con razón social
+            string cuitFormateado = txtCuit.Text.Trim();
             lblRazonSocial.Text = "";
+            lblRazonSocial.ForeColor = System.Drawing.Color.DarkGreen;
 
-            if (cuit.Length == 11 && long.TryParse(cuit, out long cuitLong))
+            if (string.IsNullOrEmpty(cuitFormateado))
             {
-                try
-                {
-                    lblRazonSocial.Text = "CUIT válido";
-                    // Aquí se podría implementar la consulta real a AFIP
-                }
-                catch (Exception ex)
-                {
-                    lblRazonSocial.Text = "Error consultando CUIT: " + ex.Message;
-                }
+                return;
             }
-            else if (!string.IsNullOrEmpty(cuit))
+
+            try
             {
-                lblRazonSocial.Text = "CUIT inválido.";
+                // Limpiar guiones para validación
+                string cuitLimpio = cuitFormateado.Replace("-", "");
+
+                // PASO 1: Validar longitud
+                if (cuitLimpio.Length != 11)
+                {
+                    lblRazonSocial.Text = "❌ CUIT debe tener 11 dígitos";
+                    lblRazonSocial.ForeColor = System.Drawing.Color.Red;
+                    System.Diagnostics.Debug.WriteLine($"[CUIT] ❌ Longitud incorrecta: {cuitLimpio.Length} dígitos");
+                    return;
+                }
+
+                // PASO 2: Validar que sean solo números
+                if (!cuitLimpio.All(char.IsDigit))
+                {
+                    lblRazonSocial.Text = "❌ CUIT debe contener solo números";
+                    lblRazonSocial.ForeColor = System.Drawing.Color.Red;
+                    System.Diagnostics.Debug.WriteLine($"[CUIT] ❌ Contiene caracteres no numéricos");
+                    return;
+                }
+
+                // PASO 3: Validar código verificador según la ley argentina
+                if (!ValidarCuitVerificador(cuitLimpio))
+                {
+                    lblRazonSocial.Text = "❌ CUIT inválido - Código verificador incorrecto";
+                    lblRazonSocial.ForeColor = System.Drawing.Color.Red;
+                    System.Diagnostics.Debug.WriteLine($"[CUIT] ❌ Código verificador incorrecto para: {cuitFormateado}");
+                    return;
+                }
+
+                // PASO 4: CUIT válido - mostrar estado de consulta
+                string tipoContribuyente = DeterminarTipoContribuyente(cuitLimpio);
+                lblRazonSocial.Text = $"✅ CUIT válido - {tipoContribuyente}";
+                lblRazonSocial.ForeColor = System.Drawing.Color.Green;
+                Application.DoEvents();
+
+                System.Diagnostics.Debug.WriteLine($"[CUIT] ✅ CUIT válido: {cuitFormateado}");
+
+            }
+            catch (Exception ex)
+            {
+                lblRazonSocial.Text = $"❌ Error consultando CUIT: {ex.Message}";
+                lblRazonSocial.ForeColor = System.Drawing.Color.Red;
+                System.Diagnostics.Debug.WriteLine($"[CUIT] 💥 Error crítico: {ex.Message}");
+
             }
         }
 
+        
         private async Task ProcesarRemito()
         {
             try
             {
                 // MODIFICADO: Verificar las restricciones según el modo de pago
                 bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
-                
+
                 if (EsPagoMultiple)
                 {
                     if (!multiplePagosControl.PagoCompleto)
@@ -1482,7 +1640,7 @@ namespace Comercio.NET
                 else
                 {
                     // MANTENIDO: Para pago simple, aplicar las restricciones normales
-                    if (debeRestringirPorPago && 
+                    if (debeRestringirPorPago &&
                         (OpcionPagoSeleccionada == OpcionPago.DNI || OpcionPagoSeleccionada == OpcionPago.MercadoPago))
                     {
                         MessageBox.Show(
@@ -1509,7 +1667,7 @@ namespace Comercio.NET
 
                 OpcionSeleccionada = OpcionImpresion.RemitoTicket;
                 string formaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString();
-                
+
                 if (OnProcesarVenta != null)
                 {
                     await OnProcesarVenta("Remito", formaPago, "", "", null, 0, "");
@@ -1536,14 +1694,14 @@ namespace Comercio.NET
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json")
                 .Build();
-            
+
             return config["AFIP:CUIT"] ?? "";
         }
 
         private Dictionary<decimal, (decimal baseImponible, decimal importeIva)> CalcularDetalleIVA()
         {
             var resultado = new Dictionary<decimal, (decimal baseImponible, decimal importeIva)>();
-            
+
             if (formularioPadre?.GetRemitoActual() != null)
             {
                 foreach (DataRow row in formularioPadre.GetRemitoActual().Rows)
@@ -1555,20 +1713,20 @@ namespace Comercio.NET
                         decimal baseImponible = Math.Round(total / (1 + porcIva / 100), 2);
                         decimal importeIva = Math.Round(total - baseImponible, 2);
 
-                        // NUEVO: Validar que BaseImp no exceda el límite de AFIP (13 dígitos enteros)
+                        // NUEVO: Validar que BaseImp no exceda el límite de AFIP (13 dígitos)
                         if (baseImponible >= 10000000000000m) // 13 dígitos
                         {
                             System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp muy grande: {baseImponible:N2}, ajustando...");
                             baseImponible = Math.Min(baseImponible, 9999999999999.99m); // Máximo permitido
                             importeIva = Math.Round(total - baseImponible, 2);
                         }
-                        
+
                         if (resultado.ContainsKey(porcIva))
                         {
                             var actual = resultado[porcIva];
                             decimal nuevaBase = Math.Round(actual.baseImponible + baseImponible, 2);
                             decimal nuevoIva = Math.Round(actual.importeIva + importeIva, 2);
-                            
+
                             // NUEVO: Validar el acumulado también
                             if (nuevaBase >= 10000000000000m) // 13 dígitos
                             {
@@ -1577,7 +1735,7 @@ namespace Comercio.NET
                                 // Recalar IVA para mantener consistencia
                                 nuevoIva = Math.Round(nuevaBase * porcIva / 100, 2);
                             }
-                            
+
                             resultado[porcIva] = (nuevaBase, nuevoIva);
                         }
                         else
@@ -1595,7 +1753,7 @@ namespace Comercio.NET
                 // Valores por defecto si no hay datos detallados
                 decimal baseImponible = Math.Round(CalcularImporteNeto(), 2);
                 decimal importeIva = Math.Round(CalcularImporteIVA(), 2);
-                
+
                 // NUEVO: Validar valores por defecto también
                 if (baseImponible >= 10000000000000m)
                 {
@@ -1603,7 +1761,7 @@ namespace Comercio.NET
                     baseImponible = Math.Min(baseImponible, 9999999999999.99m);
                     importeIva = Math.Round(importeTotalVenta - baseImponible, 2);
                 }
-                
+
                 resultado[21] = (baseImponible, importeIva);
             }
 
@@ -1612,7 +1770,7 @@ namespace Comercio.NET
             foreach (var iva in resultado)
             {
                 System.Diagnostics.Debug.WriteLine($"IVA {iva.Key}%: Base={iva.Value.baseImponible:N2}, IVA={iva.Value.importeIva:N2}");
-                
+
                 // VALIDACIÓN FINAL: Verificar que BaseImp cumple formato AFIP
                 string baseStr = iva.Value.baseImponible.ToString("F2", CultureInfo.InvariantCulture);
                 string[] partes = baseStr.Split('.');
@@ -1630,8 +1788,6 @@ namespace Comercio.NET
 
             return resultado;
         }
-
-
 
         // Método para verificar si se debe restringir el remito por tipo de pago
         private bool DebeRestringirRemitoPorTipoPago()
@@ -1691,17 +1847,17 @@ namespace Comercio.NET
             if (lblMensajeInformativo == null) return;
 
             bool debeRestringir = DebeRestringirRemitoPorTipoPago();
-            
+
             if (!debeRestringir)
             {
                 lblMensajeInformativo.Text = "ℹ️ Restricciones de remito deshabilitadas en configuración";
-                lblMensajeInformativo.ForeColor = Color.Blue;
+                lblMensajeInformativo.ForeColor = System.Drawing.Color.Blue;
                 lblMensajeInformativo.Visible = true;
                 return;
             }
 
             bool esEfectivo = rbEfectivo?.Checked == true;
-            
+
             if (chkMultiplesPagos?.Checked == true && multiplePagosControl != null)
             {
                 var pagos = multiplePagosControl.ObtenerPagosPorMedio();
@@ -1716,11 +1872,99 @@ namespace Comercio.NET
             else
             {
                 lblMensajeInformativo.Text = "⚠️ Para pagos no efectivo solo se permiten Facturas A o B";
-                lblMensajeInformativo.ForeColor = Color.Orange;
+                lblMensajeInformativo.ForeColor = System.Drawing.Color.Orange;
                 lblMensajeInformativo.Visible = true;
             }
 
             System.Diagnostics.Debug.WriteLine($"[MENSAJE INFO] Debe restringir: {debeRestringir}, Es efectivo: {esEfectivo}, Visible: {lblMensajeInformativo.Visible}");
+        }
+
+        /// <summary>
+        /// Valida un CUIT según el algoritmo oficial argentino
+        /// </summary>
+        /// <param name="cuit">CUIT sin guiones (11 dígitos)</param>
+        /// <returns>True si el CUIT es válido</returns>
+        private bool ValidarCuitVerificador(string cuit)
+        {
+            try
+            {
+                // Validar que tenga exactamente 11 dígitos
+                if (string.IsNullOrEmpty(cuit) || cuit.Length != 11 || !cuit.All(char.IsDigit))
+                {
+                    return false;
+                }
+
+                // Convertir a array de enteros
+                int[] digitos = cuit.Select(c => int.Parse(c.ToString())).ToArray();
+
+                // Secuencia multiplicadora oficial para CUIT
+                int[] multiplicadores = { 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
+
+                // Calcular suma ponderada de los primeros 10 dígitos
+                int suma = 0;
+                for (int i = 0; i < 10; i++)
+                {
+                    suma += digitos[i] * multiplicadores[i];
+                }
+
+                // Calcular resto de la división por 11
+                int resto = suma % 11;
+
+                // Determinar dígito verificador según las reglas oficiales
+                int digitoVerificadorCalculado;
+                if (resto < 2)
+                {
+                    digitoVerificadorCalculado = resto;
+                }
+                else
+                {
+                    digitoVerificadorCalculado = 11 - resto;
+                }
+
+                // Comparar con el dígito verificador real (posición 10)
+                int digitoVerificadorReal = digitos[10];
+
+                bool esValido = digitoVerificadorCalculado == digitoVerificadorReal;
+
+                System.Diagnostics.Debug.WriteLine($"[CUIT VALIDACIÓN] CUIT: {cuit}");
+                System.Diagnostics.Debug.WriteLine($"[CUIT VALIDACIÓN] Suma ponderada: {suma}");
+                System.Diagnostics.Debug.WriteLine($"[CUIT VALIDACIÓN] Resto: {resto}");
+                System.Diagnostics.Debug.WriteLine($"[CUIT VALIDACIÓN] DV calculado: {digitoVerificadorCalculado}");
+                System.Diagnostics.Debug.WriteLine($"[CUIT VALIDACIÓN] DV real: {digitoVerificadorReal}");
+                System.Diagnostics.Debug.WriteLine($"[CUIT VALIDACIÓN] Resultado: {(esValido ? "VÁLIDO" : "INVÁLIDO")}");
+
+                return esValido;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CUIT VALIDACIÓN] Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Determina el tipo de contribuyente basado en los primeros 2 dígitos del CUIT
+        /// </summary>
+        /// <param name="cuit">CUIT sin guiones (11 dígitos)</param>
+        /// <returns>Descripción del tipo de contribuyente</returns>
+        private string DeterminarTipoContribuyente(string cuit)
+        {
+            if (string.IsNullOrEmpty(cuit) || cuit.Length < 2)
+                return "Indeterminado";
+
+            string prefijo = cuit.Substring(0, 2);
+
+            return prefijo switch
+            {
+                "20" => "Persona Física Masculino",
+                "23" => "Persona Física Femenino",
+                "24" => "Persona Física Femenino",
+                "27" => "Persona Física Masculino",
+                "30" => "Persona Jurídica",
+                "33" => "Persona Jurídica",
+                "34" => "Persona Jurídica",
+                _ => $"Tipo {prefijo} (Otros)"
+            };
         }
     }
 }
