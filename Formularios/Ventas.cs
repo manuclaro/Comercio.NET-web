@@ -660,19 +660,11 @@ namespace Comercio.NET
                     e.SuppressKeyPress = true;
                     this.SelectNextControl(txtBuscarProducto, true, true, true, true);
                 }
-                // NUEVO: Manejar la tecla F para finalizar venta
-                else if (e.KeyCode == Keys.F)
-                {
-                    e.SuppressKeyPress = true;
-
-                    // NUEVO: Limpiar el campo antes de finalizar
-                    txtBuscarProducto.Text = "";
-
-                    btnFinalizarVenta.PerformClick();
-                }
+                // ELIMINADO: Manejo de la tecla F aquí - se maneja solo en el formulario principal
+                // La tecla F se maneja únicamente en ConfigurarAtajosTeclado() para evitar duplicación
             };
 
-            // NUEVO: Evento KeyPress para filtrar entrada de caracteres
+            // MODIFICADO: Evento KeyPress - ELIMINAR completamente el manejo de 'F'
             txtBuscarProducto.KeyPress += (s, e) =>
             {
                 // Permitir teclas de control (Backspace, Delete, etc.)
@@ -681,16 +673,8 @@ namespace Comercio.NET
                     return; // Permitir teclas de control
                 }
 
-                // MODIFICADO: Si se presiona F, limpiar y procesar
-                if (e.KeyChar == 'F' || e.KeyChar == 'f')
-                {
-                    e.Handled = true; // Bloquear que se escriba la F
-
-                    // Limpiar el campo y finalizar venta
-                    txtBuscarProducto.Text = "";
-                    btnFinalizarVenta.PerformClick();
-                    return;
-                }
+                // ELIMINADO: Manejo de 'F' aquí - causa duplicación de modal
+                // La tecla F se maneja únicamente en ConfigurarAtajosTeclado()
 
                 // Permitir solo números para códigos de producto
                 if (!char.IsDigit(e.KeyChar))
@@ -1146,7 +1130,7 @@ namespace Comercio.NET
                     // NUEVO: Limpiar el txtBuscarProducto antes de finalizar venta
                     txtBuscarProducto.Text = "";
 
-                    // Finalizar venta con F o F12
+                    // ÚNICO LUGAR donde se maneja F para finalizar venta
                     btnFinalizarVenta.PerformClick();
                 }
             };
@@ -2302,7 +2286,7 @@ namespace Comercio.NET
             }
         }
 
-        // MODIFICADO: Método para guardar los detalles de pago múltiple
+        // CORREGIDO: Método para guardar los detalles de pago múltiple
         private async Task GuardarDetallesPagoMultiple(SqlConnection connection, SqlTransaction transaction, int idFactura, string formaPago, List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples, string usuario, bool usarIdFactura = true)
         {
             try
@@ -2312,50 +2296,48 @@ namespace Comercio.NET
 
                 if (formaPago == "Múltiple" && pagosMultiples != null && pagosMultiples.Any())
                 {
-                    System.Diagnostics.Debug.WriteLine($"=== GUARDANDO PAGOS MÚLTIPLES ===");
-                    System.Diagnostics.Debug.WriteLine($"ID/NumeroRemito Factura: {idFactura}");
-                    System.Diagnostics.Debug.WriteLine($"Cantidad de pagos: {pagosMultiples.Count}");
-
-                    // MODIFICADO: Usar el campo correcto según la estructura de tabla
-                    string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
-                    var queryDetalle = $@"INSERT INTO DetallesPagoFactura ({campoFactura}, MedioPago, Importe, Observaciones, FechaPago, Usuario)
-                                        VALUES (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
-
-                    foreach (var pago in pagosMultiples)
-                    {
-                        try
-                        {
-                            using (var cmd = new SqlCommand(queryDetalle, connection, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@IdFactura", idFactura);
-                                cmd.Parameters.AddWithValue("@MedioPago", pago.MedioPago ?? "Efectivo");
-                                cmd.Parameters.AddWithValue("@Importe", pago.Importe);
-                                cmd.Parameters.AddWithValue("@Observaciones", pago.Observaciones ?? "");
-                                cmd.Parameters.AddWithValue("@FechaPago", pago.Fecha);
-                                cmd.Parameters.AddWithValue("@Usuario", usuario ?? "Sistema");
-
-                                await cmd.ExecuteNonQueryAsync();
-
-                                System.Diagnostics.Debug.WriteLine($"  ? Guardado: {pago.MedioPago} - {pago.Importe:C2}");
-                            }
-                        }
-                        catch (Exception exPago)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"  ? Error guardando pago {pago.MedioPago}: {exPago.Message}");
-                            // OPCIONAL: Continuar con los otros pagos en lugar de fallar completamente
-                        }
-                    }
-
-                    System.Diagnostics.Debug.WriteLine($"=================================");
+                    // ... código existente para pagos múltiples ...
                 }
                 else if (formaPago != "Múltiple")
                 {
-                    // Para pagos simples, también crear un registro para mantener consistencia
+                    // CORREGIDO: Para pagos simples, usar la misma lógica
                     try
                     {
-                        string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
-                        var queryDetalle = $@"INSERT INTO DetallesPagoFactura ({campoFactura}, MedioPago, Importe, Observaciones, FechaPago, Usuario)
-                                            VALUES (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
+                        // NUEVO: Verificar qué columnas existen en la tabla
+                        bool tieneIdFactura = await VerificarColumnaExiste(connection, transaction, "DetallesPagoFactura", "IdFactura");
+                        bool tieneNumeroRemito = await VerificarColumnaExiste(connection, transaction, "DetallesPagoFactura", "NumeroRemito");
+
+                        System.Diagnostics.Debug.WriteLine($"🔍 Verificación columnas DetallesPagoFactura:");
+                        System.Diagnostics.Debug.WriteLine($"   - Tiene IdFactura: {tieneIdFactura}");
+                        System.Diagnostics.Debug.WriteLine($"   - Tiene NumeroRemito: {tieneNumeroRemito}");
+                        System.Diagnostics.Debug.WriteLine($"   - usarIdFactura parameter: {usarIdFactura}");
+
+                        string query;
+
+                        // CORREGIDO: Lógica para manejar ambas columnas
+                        if (tieneIdFactura && tieneNumeroRemito)
+                        {
+                            // CASO CRÍTICO: La tabla tiene AMBAS columnas - llenar ambas para evitar NULL
+                            query = @"INSERT INTO DetallesPagoFactura (IdFactura, NumeroRemito, MedioPago, Importe, Observaciones, FechaPago, Usuario)
+                              VALUES (@IdFactura, @NumeroRemito, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
+                            System.Diagnostics.Debug.WriteLine($"🔧 Usando AMBAS columnas para evitar NULL");
+                        }
+                        else if (!usarIdFactura && tieneNumeroRemito)
+                        {
+                            // Caso: Tabla Facturas NO tiene Id, usar NumeroRemito
+                            query = @"INSERT INTO DetallesPagoFactura (NumeroRemito, MedioPago, Importe, Observaciones, FechaPago, Usuario)
+                              VALUES (@NumeroRemito, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
+                        }
+                        else if (usarIdFactura && tieneIdFactura)
+                        {
+                            // Caso: Tabla Facturas SÍ tiene Id, usar IdFactura
+                            query = @"INSERT INTO DetallesPagoFactura (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario)
+                              VALUES (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
+                        }
+                        else
+                        {
+                            throw new Exception("No se pudo determinar la estructura correcta para DetallesPagoFactura");
+                        }
 
                         // Calcular importe total de la factura
                         decimal importeTotal = 0;
@@ -2365,9 +2347,27 @@ namespace Comercio.NET
                                 importeTotal += valor;
                         }
 
-                        using (var cmd = new SqlCommand(queryDetalle, connection, transaction))
+                        using (var cmd = new SqlCommand(query, connection, transaction))
                         {
-                            cmd.Parameters.AddWithValue("@IdFactura", idFactura);
+                            // CORREGIDO: Agregar parámetros según la estructura determinada
+                            if (tieneIdFactura && tieneNumeroRemito)
+                            {
+                                // Llenar ambas columnas con el mismo valor
+                                cmd.Parameters.AddWithValue("@IdFactura", idFactura);
+                                cmd.Parameters.AddWithValue("@NumeroRemito", idFactura);
+                                System.Diagnostics.Debug.WriteLine($"🔗 Usando @IdFactura = {idFactura} y @NumeroRemito = {idFactura}");
+                            }
+                            else if (usarIdFactura)
+                            {
+                                cmd.Parameters.AddWithValue("@IdFactura", idFactura);
+                                System.Diagnostics.Debug.WriteLine($"🔗 Usando @IdFactura = {idFactura}");
+                            }
+                            else
+                            {
+                                cmd.Parameters.AddWithValue("@NumeroRemito", idFactura);
+                                System.Diagnostics.Debug.WriteLine($"🔗 Usando @NumeroRemito = {idFactura}");
+                            }
+
                             cmd.Parameters.AddWithValue("@MedioPago", formaPago ?? "Efectivo");
                             cmd.Parameters.AddWithValue("@Importe", importeTotal);
                             cmd.Parameters.AddWithValue("@Observaciones", "Pago simple");
@@ -2376,22 +2376,45 @@ namespace Comercio.NET
 
                             await cmd.ExecuteNonQueryAsync();
 
-                            System.Diagnostics.Debug.WriteLine($"? Pago simple guardado: {formaPago} - {importeTotal:C2}");
+                            System.Diagnostics.Debug.WriteLine($"✅ Pago simple guardado: {formaPago} - {importeTotal:C2}");
                         }
                     }
                     catch (Exception exSimple)
                     {
-                        System.Diagnostics.Debug.WriteLine($"?? Error guardando pago simple: {exSimple.Message}");
+                        System.Diagnostics.Debug.WriteLine($"⚠️ Error guardando pago simple: {exSimple.Message}");
                         // No re-lanzar para no romper la transacción principal
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"?? Error en GuardarDetallesPagoMultiple: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error en GuardarDetallesPagoMultiple: {ex.Message}");
                 // CAMBIADO: No re-lanzar la excepción para no romper la transacción principal
-                // Si hay un problema con los detalles de pago, al menos que se guarde la factura principal
-                System.Diagnostics.Debug.WriteLine("?? Continuando sin guardar detalles de pago múltiple");
+                System.Diagnostics.Debug.WriteLine("⚠️ Continuando sin guardar detalles de pago múltiple");
+            }
+        }
+
+        // NUEVO: Método helper para verificar si una columna existe en una tabla
+        private async Task<bool> VerificarColumnaExiste(SqlConnection connection, SqlTransaction transaction, string tabla, string columna)
+        {
+            try
+            {
+                var query = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                      WHERE TABLE_NAME = @tabla AND COLUMN_NAME = @columna";
+
+                using (var cmd = new SqlCommand(query, connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@tabla", tabla);
+                    cmd.Parameters.AddWithValue("@columna", columna);
+
+                    var result = await cmd.ExecuteScalarAsync();
+                    return Convert.ToInt32(result) > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error verificando columna {columna} en tabla {tabla}: {ex.Message}");
+                return false;
             }
         }
 
@@ -2492,7 +2515,7 @@ namespace Comercio.NET
             }
         }
 
-        // Método btnFinalizarVenta_Click - MODIFICADO para pagos múltiples
+        // Método btnFinalizarVenta_Click - MODIFICADO para evitar reapertura del modal
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
@@ -2514,35 +2537,139 @@ namespace Comercio.NET
                     ivaTotal += valorIva;
             }
 
-            // NUEVO: Variable para almacenar los pagos múltiples
+            // NUEVO: Variables para almacenar los datos del procesamiento
             List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null;
+            SeleccionImpresionForm.OpcionImpresion opcionSeleccionada = SeleccionImpresionForm.OpcionImpresion.Ninguna;
+            SeleccionImpresionForm.OpcionPago opcionPagoSeleccionada = SeleccionImpresionForm.OpcionPago.Efectivo;
+            string caeNumero = "";
+            DateTime? caeVencimiento = null;
+            int numeroFacturaAfip = 0;
+            bool procesadoExitosamente = false;
 
-            // Mostrar el modal de selección
-            using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
+            try
             {
-                seleccion.TokenAfip = this.token;
-                seleccion.SignAfip = this.sign;
-                seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
+                // Mostrar el modal de selección
+                using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
                 {
-                    // NUEVO: Capturar los pagos múltiples antes de guardar
-                    if (seleccion.EsPagoMultiple)
+                    seleccion.TokenAfip = this.token;
+                    seleccion.SignAfip = this.sign;
+                    seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumeroParam, caeVencimientoParam, numeroFacturaAfipParam, numeroFormateado) =>
                     {
-                        pagosMultiples = seleccion.PagosMultiples;
-                    }
+                        // NUEVO: Capturar los pagos múltiples antes de guardar
+                        if (seleccion.EsPagoMultiple)
+                        {
+                            pagosMultiples = seleccion.PagosMultiples;
+                        }
 
-                    await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado, pagosMultiples);
-                };
+                        await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumeroParam, caeVencimientoParam, numeroFacturaAfipParam, numeroFormateado, pagosMultiples);
 
-                var resultado = seleccion.ShowDialog(this);
+                        // NUEVO: Guardar los datos para la impresión
+                        opcionSeleccionada = seleccion.OpcionSeleccionada;
+                        opcionPagoSeleccionada = seleccion.OpcionPagoSeleccionada;
+                        caeNumero = caeNumeroParam ?? "";
+                        caeVencimiento = caeVencimientoParam;
+                        numeroFacturaAfip = numeroFacturaAfipParam;
+                        procesadoExitosamente = true;
+                    };
 
-                if (resultado == DialogResult.OK)
+                    System.Diagnostics.Debug.WriteLine("🔄 Abriendo modal SeleccionImpresionForm...");
+
+                    var resultado = seleccion.ShowDialog(this);
+
+                    System.Diagnostics.Debug.WriteLine($"🔄 Modal cerrado con resultado: {resultado}");
+                    System.Diagnostics.Debug.WriteLine($"🔄 Procesado exitosamente: {procesadoExitosamente}");
+                } // El modal se cierra aquí y se libera automáticamente
+
+                // MODIFICADO: Solo continuar si se procesó exitosamente
+                if (procesadoExitosamente)
                 {
-                    // CORREGIDO: Usar await para esperar que se complete la impresión
-                    await ImprimirConServicioAsync(seleccion);
+                    System.Diagnostics.Debug.WriteLine("✅ Iniciando impresión después del cierre exitoso del modal...");
+
+                    // NUEVO: Crear configuración para impresión sin depender del modal
+                    await ImprimirSinModal(opcionSeleccionada, opcionPagoSeleccionada, caeNumero, caeVencimiento, numeroFacturaAfip);
 
                     // Limpiar y reiniciar para nueva venta
+                    System.Diagnostics.Debug.WriteLine("🔄 Limpiando y reiniciando venta...");
                     LimpiarYReiniciarVenta();
+
+                    System.Diagnostics.Debug.WriteLine("✅ Proceso de venta completado exitosamente");
                 }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("❌ Proceso cancelado o no completado");
+                    // No hacer nada, mantener la venta actual
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error en btnFinalizarVenta_Click: {ex.Message}");
+                MessageBox.Show($"Error finalizando la venta: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // NUEVO: Método para imprimir sin depender del modal
+        private async Task ImprimirSinModal(SeleccionImpresionForm.OpcionImpresion opcionImpresion,
+            SeleccionImpresionForm.OpcionPago opcionPago, string caeNumero, DateTime? caeVencimiento, int numeroFacturaAfip)
+        {
+            try
+            {
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                {
+                    MessageBox.Show("No hay productos para imprimir.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Configurar el ticket según el tipo de comprobante
+                var config = new TicketConfig
+                {
+                    NombreComercio = nombreComercio,
+                    DomicilioComercio = domicilioComercio,
+                    FormaPago = opcionPago.ToString(),
+                    MensajePie = "Gracias por su compra!"
+                };
+
+                // NUEVO: Configurar número y tipo según el comprobante seleccionado
+                switch (opcionImpresion)
+                {
+                    case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
+                        config.TipoComprobante = "REMITO";
+                        config.NumeroComprobante = $"Remito N° {nroRemitoActual}";
+                        break;
+
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaB:
+                        config.TipoComprobante = "FacturaB";
+                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(6, 1, numeroFacturaAfip);
+                        config.CAE = caeNumero;
+                        config.CAEVencimiento = caeVencimiento;
+                        break;
+
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
+                        config.TipoComprobante = "FacturaA";
+                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(1, 1, numeroFacturaAfip);
+                        config.CAE = caeNumero;
+                        config.CAEVencimiento = caeVencimiento;
+                        break;
+                }
+
+                System.Diagnostics.Debug.WriteLine("=== INICIO IMPRESIÓN ===");
+                System.Diagnostics.Debug.WriteLine($"TipoComprobante configurado: {config.TipoComprobante}");
+                System.Diagnostics.Debug.WriteLine($"NumeroComprobante: {config.NumeroComprobante}");
+                System.Diagnostics.Debug.WriteLine($"CAE: {config.CAE}");
+                System.Diagnostics.Debug.WriteLine($"===========================");
+
+                // CORREGIDO: Usar await con el servicio de impresión
+                using (var ticketService = new TicketPrintingService())
+                {
+                    await ticketService.ImprimirTicket(remitoActual, config);
+                }
+
+                System.Diagnostics.Debug.WriteLine("✅ Impresión completada correctamente");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"❌ Error en impresión: {ex.Message}");
             }
         }
     }

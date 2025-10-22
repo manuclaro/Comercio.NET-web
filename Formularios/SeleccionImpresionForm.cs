@@ -683,6 +683,11 @@ namespace Comercio.NET
                     return;
                 }
 
+                // NUEVO: Deshabilitar TODOS los botones para evitar múltiples clicks
+                btnRemito.Enabled = false;
+                btnFacturaA.Enabled = false;
+                btnFacturaB.Enabled = false;
+
                 // 2. OBTENER CONFIGURACIÓN AFIP
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -785,26 +790,29 @@ namespace Comercio.NET
                     string formaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString();
                     string tipoFacturaString = tipoFactura == OpcionImpresion.FacturaA ? "FacturaA" : "FacturaB";
 
+                    // NUEVO: Log antes del callback
+                    System.Diagnostics.Debug.WriteLine($"🔄 Ejecutando callback OnProcesarVenta para {tipoFacturaString}...");
+
                     if (OnProcesarVenta != null)
                     {
                         await OnProcesarVenta(tipoFacturaString, formaPago, cuitCliente,
                             CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
+                        System.Diagnostics.Debug.WriteLine("✅ Callback OnProcesarVenta completado exitosamente");
                     }
 
                     progressForm.Close();
 
-                    // 8. CONFIRMAR ÉXITO
-                    MessageBox.Show($"✅ {tipoFactura} procesada exitosamente con AFIP\n\n" +
-                        $"Número: {numeroFormateado}\n" +
-                        $"CAE: {CAENumero}\n" +
-                        $"Vencimiento: {CAEVencimiento:dd/MM/yyyy}",
-                        "Factura Electrónica", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    System.Diagnostics.Debug.WriteLine($"✅ {tipoFactura} completada exitosamente con AFIP REAL");
+                    System.Diagnostics.Debug.WriteLine($"CAE: {CAENumero}, Vencimiento: {CAEVencimiento:dd/MM/yyyy}");
 
+                    // ELIMINADO: MessageBox de confirmación de éxito
+                    // MODIFICADO: Cerrar directamente sin mostrar mensaje
+
+                    // NUEVO: Cerrar el modal inmediatamente después del procesamiento exitoso
                     this.DialogResult = DialogResult.OK;
                     this.Close();
 
-                    System.Diagnostics.Debug.WriteLine($"✅ {tipoFactura} completada exitosamente con AFIP REAL");
-                    System.Diagnostics.Debug.WriteLine($"CAE: {CAENumero}, Vencimiento: {CAEVencimiento:dd/MM/yyyy}");
+                    System.Diagnostics.Debug.WriteLine("✅ Modal cerrado directamente sin MessageBox - Procediendo con impresión");
                 }
                 catch (Exception ex)
                 {
@@ -815,6 +823,14 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error en ProcesarFacturaElectronica: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+
+                // NUEVO: Restaurar botones en caso de error
+                btnRemito.Enabled = true;
+                btnFacturaA.Enabled = true;
+                btnFacturaB.Enabled = true;
+                ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
+
                 MessageBox.Show($"Error procesando factura electrónica:\n\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -1622,11 +1638,13 @@ namespace Comercio.NET
             }
         }
 
-        
+
         private async Task ProcesarRemito()
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("🔄 === INICIANDO PROCESAMIENTO REMITO ===");
+
                 // MODIFICADO: Verificar las restricciones según el modo de pago
                 bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
 
@@ -1645,10 +1663,6 @@ namespace Comercio.NET
                             MessageBoxIcon.Warning);
                         return;
                     }
-
-                    // NUEVO: En modo pago múltiple, NO aplicar restricciones por tipo de pago digital
-                    // Solo verificar que el pago esté completo (ya se verificó arriba)
-                    System.Diagnostics.Debug.WriteLine("[PROCESAMIENTO REMITO] Modo pago múltiple - Remito permitido sin restricciones");
                 }
                 else
                 {
@@ -1666,32 +1680,77 @@ namespace Comercio.NET
                     }
                 }
 
-                // NUEVO: Log para debugging
-                System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Es pago múltiple: {EsPagoMultiple}");
-                System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Restricciones habilitadas: {debeRestringirPorPago}");
-                if (EsPagoMultiple)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Pago múltiple - Tiene digitales: {multiplePagosControl.TienePagoDigital()} (PERMITIDO)");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[PROCESAMIENTO REMITO] Pago simple: {OpcionPagoSeleccionada}");
-                }
+                // NUEVO: Deshabilitar TODOS los botones para evitar múltiples clicks
+                btnRemito.Enabled = false;
+                btnFacturaA.Enabled = false;
+                btnFacturaB.Enabled = false;
+
+                // NUEVO: Cambiar cursor para indicar procesamiento
+                this.Cursor = Cursors.WaitCursor;
 
                 OpcionSeleccionada = OpcionImpresion.RemitoTicket;
                 string formaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString();
 
-                if (OnProcesarVenta != null)
-                {
-                    await OnProcesarVenta("Remito", formaPago, "", "", null, 0, "");
-                }
+                System.Diagnostics.Debug.WriteLine($"📋 Procesando remito - Forma de pago: {formaPago}");
 
-                this.DialogResult = DialogResult.OK;
-                this.Close();
+                try
+                {
+                    if (OnProcesarVenta != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("🔄 Ejecutando callback OnProcesarVenta...");
+                        await OnProcesarVenta("Remito", formaPago, "", "", null, 0, "");
+                        System.Diagnostics.Debug.WriteLine("✅ Callback OnProcesarVenta completado exitosamente");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("⚠️ OnProcesarVenta es null");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("✅ Procesamiento de remito completado exitosamente");
+
+                    // ELIMINADO: MessageBox de "Proceso Completado" 
+                    // MODIFICADO: Cerrar directamente sin mostrar mensaje
+
+                    // NUEVO: Cerrar el modal inmediatamente después del procesamiento exitoso
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+
+                    System.Diagnostics.Debug.WriteLine("✅ Modal cerrado directamente sin MessageBox - Procediendo con impresión");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Error en callback OnProcesarVenta: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+
+                    // NUEVO: Restaurar cursor y botones en caso de error
+                    this.Cursor = Cursors.Default;
+                    btnRemito.Enabled = true;
+                    btnFacturaA.Enabled = true;
+                    btnFacturaB.Enabled = true;
+                    ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
+
+                    throw; // Re-lanzar la excepción para que sea manejada por el catch exterior
+                }
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"❌ Error general en ProcesarRemito: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+
+                // NUEVO: Restaurar cursor y rehabilitar botones en caso de error
+                this.Cursor = Cursors.Default;
+                btnRemito.Enabled = true;
+                btnFacturaA.Enabled = true;
+                btnFacturaB.Enabled = true;
+                ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
+
                 MessageBox.Show($"Error procesando remito: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // NUEVO: Asegurar que el cursor siempre se restaure
+                this.Cursor = Cursors.Default;
+                System.Diagnostics.Debug.WriteLine("🔄 === FIN PROCESAMIENTO REMITO ===");
             }
         }
 
