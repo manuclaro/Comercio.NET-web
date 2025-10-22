@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Extensions.Configuration;
 using Comercio.NET.Servicios;
+using Comercio.NET.Formularios;
+using Comercio.NET;
 
 namespace Comercio.NET.Formularios
 {
@@ -50,7 +52,7 @@ namespace Comercio.NET.Formularios
 
             // Configuración del formulario
             this.Text = "Generador de Cartelitos de Precios";
-            this.Size = new Size(1000, 700);
+            this.Size = new Size(1000, 550);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.WhiteSmoke;
             this.Font = new Font("Segoe UI", 10F);
@@ -67,9 +69,9 @@ namespace Comercio.NET.Formularios
             // Configurar columnas y filas
             layoutPrincipal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
             layoutPrincipal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
-            layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
+            layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Absolute, 70F));
             layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
+            layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
 
             // Panel de entrada de productos
             var panelEntrada = CrearPanelEntrada();

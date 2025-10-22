@@ -79,6 +79,14 @@ namespace Comercio.NET
             return bitmap;
         }
 
+        private void ShowNewForm(object sender, EventArgs e)
+        {
+            Form childForm = new Form();
+            childForm.MdiParent = this;
+            childForm.Text = "Ventana " + childFormNumber++;
+            childForm.Show();
+        }
+
         // NUEVO: Método para configurar la información del usuario en el StatusStrip
         private void ConfigurarInformacionUsuario()
         {
@@ -354,14 +362,6 @@ namespace Comercio.NET
                 if (toolStripCartelitos != null)
                     toolStripCartelitos.Visible = false;
             }
-        }
-
-        private void ShowNewForm(object sender, EventArgs e)
-        {
-            Form childForm = new Form();
-            childForm.MdiParent = this;
-            childForm.Text = "Ventana " + childFormNumber++;
-            childForm.Show();
         }
 
         private void OpenFile(object sender, EventArgs e)

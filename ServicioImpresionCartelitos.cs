@@ -1,4 +1,4 @@
-using System;
+Ôªøusing System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Printing;
@@ -11,35 +11,35 @@ namespace Comercio.NET.Servicios
     public class ServicioImpresionCartelitos : IDisposable
     {
         private readonly List<ProductoCartelito> productos;
-        private readonly TamaÒoCartelito tamaÒoCartelito;
+        private readonly Tama√±oCartelito tama√±oCartelito;
         private readonly PrintDocument printDocument;
         private int indicePaginaActual = 0;
         private int indiceProductoActual = 0;
         private bool disposed = false;
 
-        // Configuraciones de tamaÒo (en pulgadas)
-        private readonly Dictionary<TamaÒoCartelito, (float ancho, float alto)> tamaÒosCartelito = 
-            new Dictionary<TamaÒoCartelito, (float, float)>
+        // Configuraciones de tama√±o (en pulgadas) - M√ÅS RECTANGULARES
+        private readonly Dictionary<Tama√±oCartelito, (float ancho, float alto)> tama√±osCartelito =
+            new Dictionary<Tama√±oCartelito, (float, float)>
             {
-                { TamaÒoCartelito.Estandar, (2.76f, 1.97f) },    // 7x5 cm
-                { TamaÒoCartelito.Perfumeria, (1.97f, 1.18f) },  // 5x3 cm
-                { TamaÒoCartelito.Oferta, (3.94f, 2.76f) }       // 10x7 cm
+                { Tama√±oCartelito.Estandar, (3.15f, 1.53f) },    // 8x4 cm - m√°s rectangular
+                { Tama√±oCartelito.Perfumeria, (2.36f, 1.15f) },  // 6x3 cm - m√°s rectangular  
+                { Tama√±oCartelito.Oferta, (6.33f, 2.17f) }       // 11x5.5 cm - m√°s rectangular
             };
 
-        // Configuraciones de layout
-        private readonly Dictionary<TamaÒoCartelito, (int columnas, int filas)> layoutCartelitos = 
-            new Dictionary<TamaÒoCartelito, (int, int)>
+        // Configuraciones de layout - M√ÅS CARTELITOS POR P√ÅGINA
+        private readonly Dictionary<Tama√±oCartelito, (int columnas, int filas)> layoutCartelitos =
+            new Dictionary<Tama√±oCartelito, (int, int)>
             {
-                { TamaÒoCartelito.Estandar, (3, 4) },     // 12 cartelitos por p·gina
-                { TamaÒoCartelito.Perfumeria, (4, 6) },   // 24 cartelitos por p·gina
-                { TamaÒoCartelito.Oferta, (2, 3) }        // 6 cartelitos por p·gina
+                { Tama√±oCartelito.Estandar, (2, 6) },     // 12 cartelitos por p√°gina
+                { Tama√±oCartelito.Perfumeria, (3, 8) },   // 24 cartelitos por p√°gina
+                { Tama√±oCartelito.Oferta, (1, 4) }        // 8 cartelitos por p√°gina
             };
 
-        public ServicioImpresionCartelitos(List<ProductoCartelito> productos, TamaÒoCartelito tamaÒo)
+        public ServicioImpresionCartelitos(List<ProductoCartelito> productos, Tama√±oCartelito tama√±o)
         {
             this.productos = productos ?? throw new ArgumentNullException(nameof(productos));
-            this.tamaÒoCartelito = tamaÒo;
-            
+            this.tama√±oCartelito = tama√±o;
+
             printDocument = new PrintDocument();
             printDocument.PrintPage += PrintDocument_PrintPage;
             ConfigurarPagina();
@@ -47,9 +47,9 @@ namespace Comercio.NET.Servicios
 
         private void ConfigurarPagina()
         {
-            // Configurar tamaÒo de p·gina A4
-            printDocument.DefaultPageSettings.PaperSize = new PaperSize("A4", 827, 1169); // A4 en centÈsimas de pulgada
-            printDocument.DefaultPageSettings.Margins = new Margins(50, 50, 50, 50); // M·rgenes mÌnimos
+            // Configurar tama√±o de p√°gina A4
+            printDocument.DefaultPageSettings.PaperSize = new PaperSize("A4", 827, 1169); // A4 en cent√©simas de pulgada
+            printDocument.DefaultPageSettings.Margins = new Margins(30, 30, 30, 30); // M√°rgenes reducidos
             printDocument.DefaultPageSettings.Landscape = false;
         }
 
@@ -86,52 +86,52 @@ namespace Comercio.NET.Servicios
         {
             var graphics = e.Graphics;
             var margenes = e.MarginBounds;
-            
-            // Obtener configuraciones para el tamaÒo seleccionado
-            var tamaÒoPulgadas = tamaÒosCartelito[tamaÒoCartelito];
-            var layout = layoutCartelitos[tamaÒoCartelito];
-            
-            // Convertir tamaÒo a pÌxeles (96 DPI)
-            float anchoCartelitoPx = tamaÒoPulgadas.ancho * 96f;
-            float altoCartelitoPx = tamaÒoPulgadas.alto * 96f;
-            
-            // Calcular espaciado
-            float espacioHorizontal = (margenes.Width - (layout.columnas * anchoCartelitoPx)) / (layout.columnas - 1);
-            float espacioVertical = (margenes.Height - (layout.filas * altoCartelitoPx)) / (layout.filas - 1);
-            
+
+            // Obtener configuraciones para el tama√±o seleccionado
+            var tama√±oPulgadas = tama√±osCartelito[tama√±oCartelito];
+            var layout = layoutCartelitos[tama√±oCartelito];
+
+            // Convertir tama√±o a p√≠xeles (96 DPI)
+            float anchoCartelitoPx = tama√±oPulgadas.ancho * 96f;
+            float altoCartelitoPx = tama√±oPulgadas.alto * 96f;
+
+            // Calcular espaciado - REDUCIDO
+            float espacioHorizontal = Math.Max(5f, (margenes.Width - (layout.columnas * anchoCartelitoPx)) / (layout.columnas + 1));
+            float espacioVertical = Math.Max(3f, (margenes.Height - (layout.filas * altoCartelitoPx)) / (layout.filas + 1));
+
             int cartelitosEnPagina = layout.columnas * layout.filas;
             int productosRestantes = productos.Count - indiceProductoActual;
             int cartelitosAImprimir = Math.Min(cartelitosEnPagina, productosRestantes);
-            
-            System.Diagnostics.Debug.WriteLine($"??? Imprimiendo p·gina {indicePaginaActual + 1}");
-            System.Diagnostics.Debug.WriteLine($"?? Productos desde Ìndice {indiceProductoActual}, cantidad: {cartelitosAImprimir}");
-            System.Diagnostics.Debug.WriteLine($"?? TamaÒo: {tamaÒoCartelito} ({tamaÒoPulgadas.ancho}\"x{tamaÒoPulgadas.alto}\")");
-            System.Diagnostics.Debug.WriteLine($"?? Layout: {layout.columnas}x{layout.filas}");
+
+            System.Diagnostics.Debug.WriteLine($"üñ®Ô∏è Imprimiendo p√°gina {indicePaginaActual + 1}");
+            System.Diagnostics.Debug.WriteLine($"üì¶ Productos desde √≠ndice {indiceProductoActual}, cantidad: {cartelitosAImprimir}");
+            System.Diagnostics.Debug.WriteLine($"üìè Tama√±o: {tama√±oCartelito} ({tama√±oPulgadas.ancho}\"x{tama√±oPulgadas.alto}\")");
+            System.Diagnostics.Debug.WriteLine($"üî¢ Layout: {layout.columnas}x{layout.filas}");
 
             // Imprimir cartelitos en grid
             for (int i = 0; i < cartelitosAImprimir; i++)
             {
                 int fila = i / layout.columnas;
                 int columna = i % layout.columnas;
-                
-                float x = margenes.Left + columna * (anchoCartelitoPx + espacioHorizontal);
-                float y = margenes.Top + fila * (altoCartelitoPx + espacioVertical);
-                
+
+                float x = margenes.Left + espacioHorizontal + columna * (anchoCartelitoPx + espacioHorizontal);
+                float y = margenes.Top + espacioVertical + fila * (altoCartelitoPx + espacioVertical);
+
                 var rectCartelito = new RectangleF(x, y, anchoCartelitoPx, altoCartelitoPx);
                 var producto = productos[indiceProductoActual + i];
-                
+
                 DibujarCartelito(graphics, rectCartelito, producto);
             }
-            
+
             indiceProductoActual += cartelitosAImprimir;
             indicePaginaActual++;
-            
-            // Verificar si hay m·s p·ginas
+
+            // Verificar si hay m√°s p√°ginas
             e.HasMorePages = indiceProductoActual < productos.Count;
-            
+
             if (!e.HasMorePages)
             {
-                // Resetear para prÛxima impresiÛn
+                // Resetear para pr√≥xima impresi√≥n
                 indiceProductoActual = 0;
                 indicePaginaActual = 0;
             }
@@ -149,11 +149,11 @@ namespace Comercio.NET.Servicios
                 graphics.DrawRectangle(borderPen, Rectangle.Round(rect));
             }
 
-            // ConfiguraciÛn de fuentes seg˙n el tamaÒo
-            var configuracionFuente = ObtenerConfiguracionFuente(tamaÒoCartelito);
+            // Configuraci√≥n de fuentes seg√∫n el tama√±o
+            var configuracionFuente = ObtenerConfiguracionFuente(tama√±oCartelito);
 
-            // ¡reas del cartelito
-            float padding = rect.Width * 0.05f; // 5% de padding
+            // √Åreas del cartelito - NUEVO LAYOUT
+            float padding = rect.Width * 0.04f; // Padding reducido
             var areaContent = new RectangleF(
                 rect.X + padding,
                 rect.Y + padding,
@@ -161,37 +161,51 @@ namespace Comercio.NET.Servicios
                 rect.Height - (padding * 2)
             );
 
-            // Calcular alturas proporcionales
-            float alturaDescripcion = areaContent.Height * 0.50f;
-            float alturaPrecio = areaContent.Height * 0.35f;
-            float alturaMarca = areaContent.Height * 0.15f;
+            // Calcular alturas proporcionales - REORGANIZADO
+            float alturaDescripcion = areaContent.Height * 0.30f;  // Descripci√≥n
+            float alturaMarca = areaContent.Height * 0.10f;        // Marca (nueva)
+            float alturaPrecio = areaContent.Height * 0.50f;       // Precio
+            float alturaCodigo = areaContent.Height * 0.20f;       // C√≥digo (en lugar de rubro)
 
-            // ¡rea para descripciÛn
+            float yActual = areaContent.Y;
+
+            // √Årea para descripci√≥n
             var areaDescripcion = new RectangleF(
                 areaContent.X,
-                areaContent.Y,
+                yActual,
                 areaContent.Width,
                 alturaDescripcion
             );
+            yActual += alturaDescripcion;
 
-            // ¡rea para precio (centrada y destacada)
-            var areaPrecio = new RectangleF(
-                areaContent.X,
-                areaDescripcion.Bottom,
-                areaContent.Width,
-                alturaPrecio
-            );
-
-            // ¡rea para marca (parte inferior)
+            // √Årea para marca (NUEVA)
             var areaMarca = new RectangleF(
                 areaContent.X,
-                areaPrecio.Bottom,
+                yActual,
                 areaContent.Width,
                 alturaMarca
             );
+            yActual += alturaMarca;
 
-            // Dibujar descripciÛn del producto
-            using (var fontDescripcion = new Font("Arial", configuracionFuente.tamaÒoDescripcion, FontStyle.Bold))
+            // √Årea para precio
+            var areaPrecio = new RectangleF(
+                areaContent.X,
+                yActual,
+                areaContent.Width,
+                alturaPrecio
+            );
+            yActual += alturaPrecio;
+
+            // √Årea para c√≥digo (en lugar de rubro)
+            var areaCodigo = new RectangleF(
+                areaContent.X,
+                yActual,
+                areaContent.Width,
+                alturaCodigo
+            );
+
+            // Dibujar descripci√≥n del producto
+            using (var fontDescripcion = new Font("Arial", configuracionFuente.tama√±oDescripcion, FontStyle.Bold))
             {
                 var formatoDescripcion = new StringFormat
                 {
@@ -209,8 +223,30 @@ namespace Comercio.NET.Servicios
                 );
             }
 
-            // Dibujar precio (destacado)
-            using (var fontPrecio = new Font("Arial", configuracionFuente.tamaÒoPrecio, FontStyle.Bold))
+            // Dibujar marca (NUEVA SECCI√ìN)
+            if (!string.IsNullOrEmpty(producto.Marca))
+            {
+                using (var fontMarca = new Font("Arial", configuracionFuente.tama√±oMarca, FontStyle.Regular))
+                {
+                    var formatoMarca = new StringFormat
+                    {
+                        Alignment = StringAlignment.Center,
+                        LineAlignment = StringAlignment.Center,
+                        Trimming = StringTrimming.EllipsisCharacter
+                    };
+
+                    graphics.DrawString(
+                        producto.Marca,
+                        fontMarca,
+                        Brushes.Gray,
+                        areaMarca,
+                        formatoMarca
+                    );
+                }
+            }
+
+            // Dibujar precio (SIN FONDO DE COLOR)
+            using (var fontPrecio = new Font("Arial", configuracionFuente.tama√±oPrecio, FontStyle.Bold))
             {
                 var formatoPrecio = new StringFormat
                 {
@@ -218,60 +254,52 @@ namespace Comercio.NET.Servicios
                     LineAlignment = StringAlignment.Center
                 };
 
-                // Fondo del precio
-                using (var brushPrecio = new SolidBrush(Color.FromArgb(255, 255, 200)))
-                {
-                    var rectPrecioFondo = areaPrecio;
-                    rectPrecioFondo.Inflate(-2, -2);
-                    graphics.FillRectangle(brushPrecio, rectPrecioFondo);
-                    graphics.DrawRectangle(Pens.DarkGray, Rectangle.Round(rectPrecioFondo));
-                }
+                //// Solo borde simple, sin fondo de color
+                //var rectPrecioBorde = areaPrecio;
+                //rectPrecioBorde.Inflate(-2, -2);
+                //graphics.DrawRectangle(Pens.Black, Rectangle.Round(rectPrecioBorde));
 
                 string textoPrecio = producto.Precio.ToString("C2");
                 graphics.DrawString(
                     textoPrecio,
                     fontPrecio,
-                    Brushes.DarkRed,
+                    Brushes.Black, // Color negro en lugar de rojo
                     areaPrecio,
                     formatoPrecio
                 );
             }
 
-            // Dibujar marca e informaciÛn adicional
-            using (var fontMarca = new Font("Arial", configuracionFuente.tamaÒoMarca, FontStyle.Regular))
+            // Dibujar c√≥digo (EN LUGAR DE RUBRO)
+            using (var fontCodigo = new Font("Arial", configuracionFuente.tama√±oCodigo, FontStyle.Regular))
             {
-                var formatoMarca = new StringFormat
+                var formatoCodigo = new StringFormat
                 {
                     Alignment = StringAlignment.Center,
-                    LineAlignment = StringAlignment.Center,
-                    Trimming = StringTrimming.EllipsisCharacter
+                    LineAlignment = StringAlignment.Center
                 };
 
-                string textoMarca = !string.IsNullOrEmpty(producto.Marca) 
-                    ? producto.Marca 
-                    : $"CÛd: {producto.Codigo}";
-
+                string textoCodigo = $"C√≥d: {producto.Codigo}";
                 graphics.DrawString(
-                    textoMarca,
-                    fontMarca,
+                    textoCodigo,
+                    fontCodigo,
                     Brushes.DarkGray,
-                    areaMarca,
-                    formatoMarca
+                    areaCodigo,
+                    formatoCodigo
                 );
             }
 
-            // Debug: mostrar informaciÛn del cartelito
-            System.Diagnostics.Debug.WriteLine($"  ??? {producto.Codigo}: {producto.Descripcion} - {producto.Precio:C2}");
+            // Debug: mostrar informaci√≥n del cartelito
+            System.Diagnostics.Debug.WriteLine($"  üè∑Ô∏è {producto.Codigo}: {producto.Descripcion} - {producto.Precio:C2}");
         }
 
-        private (float tamaÒoDescripcion, float tamaÒoPrecio, float tamaÒoMarca) ObtenerConfiguracionFuente(TamaÒoCartelito tamaÒo)
+        private (float tama√±oDescripcion, float tama√±oPrecio, float tama√±oMarca, float tama√±oCodigo) ObtenerConfiguracionFuente(Tama√±oCartelito tama√±o)
         {
-            return tamaÒo switch
+            return tama√±o switch
             {
-                TamaÒoCartelito.Perfumeria => (6f, 8f, 5f),   // Fuentes pequeÒas
-                TamaÒoCartelito.Estandar => (8f, 12f, 6f),    // Fuentes medianas
-                TamaÒoCartelito.Oferta => (12f, 18f, 8f),     // Fuentes grandes
-                _ => (8f, 12f, 6f)
+                Tama√±oCartelito.Perfumeria => (10f, 16, 6f, 6f),   // Fuentes peque√±as
+                Tama√±oCartelito.Estandar => (12f, 32f, 8f, 7f),    // Fuentes medianas
+                Tama√±oCartelito.Oferta => (24f, 48f, 16f, 12f),     // Fuentes grandes
+                _ => (7f, 10f, 5f, 5f)
             };
         }
 
