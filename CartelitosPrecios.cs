@@ -67,8 +67,8 @@ namespace Comercio.NET.Formularios
             };
 
             // Configurar columnas y filas
-            layoutPrincipal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
-            layoutPrincipal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
+            layoutPrincipal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65F));
+            layoutPrincipal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35F));
             layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Absolute, 70F));
             layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layoutPrincipal.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
@@ -194,8 +194,8 @@ namespace Comercio.NET.Formularios
             dgv.Columns.Add("Marca", "Marca");
 
             // Configurar anchos
-            dgv.Columns["Codigo"].Width = 80;
-            dgv.Columns["Descripcion"].Width = 300;
+            dgv.Columns["Codigo"].Width = 60;
+            dgv.Columns["Descripcion"].Width = 200;
             dgv.Columns["Precio"].Width = 100;
             dgv.Columns["Marca"].Width = 120;
 
@@ -211,7 +211,7 @@ namespace Comercio.NET.Formularios
             var panel = new Panel
             {
                 Dock = DockStyle.Fill,
-                Margin = new Padding(5, 0, 10, 0),
+                Margin = new Padding(5, 0, 5, 0),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -324,7 +324,7 @@ namespace Comercio.NET.Formularios
             {
                 Text = "IMPRIMIR CARTELITOS",
                 Location = new Point(10, 15),
-                Size = new Size(180, 40),
+                Size = new Size(180, 25),
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -338,7 +338,7 @@ namespace Comercio.NET.Formularios
             {
                 Text = "CERRAR",
                 Location = new Point(200, 15),
-                Size = new Size(100, 40),
+                Size = new Size(100, 25),
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
