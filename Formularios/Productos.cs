@@ -234,6 +234,7 @@ namespace Comercio.NET.Formularios
                 GrillaProductos.CellValueChanged += GrillaProductos_CellValueChanged;
                 GrillaProductos.CurrentCellDirtyStateChanged += GrillaProductos_CurrentCellDirtyStateChanged;
                 GrillaProductos.CellBeginEdit += GrillaProductos_CellBeginEdit;
+                GrillaProductos.CellDoubleClick += GrillaProductos_CellDoubleClick;
             }
             finally
             {
@@ -565,7 +566,12 @@ namespace Comercio.NET.Formularios
                     int total = productosTable.Rows.Count;
                     int filtrados = productosTable.DefaultView.Count;
                     
-                    string textoFiltro = txtFiltroDescripcion?.Text?.Trim() ?? "";
+                    // CORREGIDO: Obtener texto de manera segura
+                    string textoFiltro = "";
+                    if (txtFiltroDescripcion?.Text != null)
+                    {
+                        textoFiltro = txtFiltroDescripcion.Text.Trim();
+                    }
                     
                     if (string.IsNullOrEmpty(textoFiltro))
                     {
@@ -663,20 +669,27 @@ namespace Comercio.NET.Formularios
             try
             {
                 System.Diagnostics.Debug.WriteLine("➕ Agregar nuevo producto");
-                
+
                 // Guardar el filtro actual antes de abrir el modal
                 string filtroActual = txtFiltroDescripcion.Text;
-                
-                using (var form = new frmAgregarProducto())
+
+                // CORREGIDO: Usar el nuevo ProductoFormUnificado
+                using (var form = new ProductoFormUnificado(
+                    ProductoFormUnificado.ModoOperacion.Agregar,
+                    "",
+                    ProductoFormUnificado.OrigenLlamada.Productos))
                 {
-                    form.Modo = frmAgregarProducto.ModoFormulario.Agregar;
-                    form.Origen = frmAgregarProducto.OrigenLlamada.Productos;
-                    form.Text = "Agregar Nuevo Producto";
-                    
                     if (form.ShowDialog() == DialogResult.OK)
                     {
                         // Actualizar la grilla manteniendo el filtro aplicado
                         await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                        // Si se agregó un producto, intentar seleccionarlo en la grilla
+                        if (!string.IsNullOrEmpty(form.CodigoAgregado))
+                        {
+                            await SeleccionarProductoEnGrilla(form.CodigoAgregado);
+                        }
+
                         txtFiltroDescripcion.Focus();
                     }
                 }
@@ -694,29 +707,34 @@ namespace Comercio.NET.Formularios
             try
             {
                 System.Diagnostics.Debug.WriteLine("✏️ Modificar producto seleccionado");
-                
+
                 if (GrillaProductos.SelectedRows.Count == 0)
                 {
                     MessageBox.Show("Seleccione un producto para modificar.", "Información",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                
+
                 var filaSeleccionada = GrillaProductos.SelectedRows[0];
                 var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
-                
+
                 // Guardar el filtro actual antes de abrir el modal
                 string filtroActual = txtFiltroDescripcion.Text;
-                
-                // CORREGIDO: Usar frmActualizarProducto para modificar, no frmAgregarProducto
-                using (var form = new frmActualizarProducto(productoId))
+
+                // CORREGIDO: Usar el nuevo ProductoFormUnificado
+                using (var form = new ProductoFormUnificado(
+                    ProductoFormUnificado.ModoOperacion.Modificar,
+                    productoId,
+                    ProductoFormUnificado.OrigenLlamada.Productos))
                 {
-                    form.Text = "Modificar Producto";
-                    
                     if (form.ShowDialog() == DialogResult.OK)
                     {
                         // Actualizar la grilla manteniendo el filtro aplicado
                         await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                        // Mantener la selección en el producto modificado
+                        await SeleccionarProductoEnGrilla(productoId);
+
                         txtFiltroDescripcion.Focus();
                     }
                 }
@@ -726,6 +744,84 @@ namespace Comercio.NET.Formularios
                 System.Diagnostics.Debug.WriteLine($"Error en BtnModificarProducto_Click: {ex.Message}");
                 MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ÚNICO método GrillaProductos_CellDoubleClick corregido
+        private async void GrillaProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                // Verificar si es una columna editable (checkbox)
+                var columnName = GrillaProductos.Columns[e.ColumnIndex].Name;
+                if (columnName == "PermiteAcumular" || columnName == "EditarPrecio")
+                {
+                    // No abrir el modal de edición para estas columnas
+                    return;
+                }
+
+                // Guardar el filtro actual antes de abrir el modal
+                string filtroActual = txtFiltroDescripcion.Text;
+
+                // Obtener el código del producto de la fila seleccionada
+                var filaSeleccionada = GrillaProductos.Rows[e.RowIndex];
+                var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
+
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"✏️ Modificar producto desde doble click: {productoId}");
+
+                    // CORREGIDO: Usar el nuevo ProductoFormUnificado
+                    using (var form = new ProductoFormUnificado(
+                        ProductoFormUnificado.ModoOperacion.Modificar,
+                        productoId,
+                        ProductoFormUnificado.OrigenLlamada.Productos))
+                    {
+                        if (form.ShowDialog() == DialogResult.OK)
+                        {
+                            // Actualizar la grilla manteniendo el filtro aplicado
+                            await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                            // Mantener la selección en el producto modificado
+                            await SeleccionarProductoEnGrilla(productoId);
+
+                            txtFiltroDescripcion.Focus();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error en GrillaProductos_CellDoubleClick: {ex.Message}");
+                    MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        // MÉTODO SeleccionarProductoEnGrilla agregado
+        private async Task SeleccionarProductoEnGrilla(string codigo)
+        {
+            try
+            {
+                await Task.Delay(100); // Pequeña pausa para asegurar que la grilla esté actualizada
+
+                if (GrillaProductos?.Rows != null)
+                {
+                    foreach (DataGridViewRow row in GrillaProductos.Rows)
+                    {
+                        if (row.Cells["codigo"]?.Value?.ToString() == codigo)
+                        {
+                            GrillaProductos.ClearSelection();
+                            row.Selected = true;
+                            GrillaProductos.FirstDisplayedScrollingRowIndex = row.Index;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error seleccionando producto en grilla: {ex.Message}");
             }
         }
 
@@ -886,50 +982,6 @@ namespace Comercio.NET.Formularios
         }
 
         #region Eventos de Grilla
-
-        private async void GrillaProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex >= 0)
-            {
-                // Verificar si es una columna editable (checkbox)
-                var columnName = GrillaProductos.Columns[e.ColumnIndex].Name;
-                if (columnName == "PermiteAcumular" || columnName == "EditarPrecio")
-                {
-                    // No abrir el modal de edición para estas columnas
-                    return;
-                }
-                
-                // Guardar el filtro actual antes de abrir el modal
-                string filtroActual = txtFiltroDescripcion.Text;
-                
-                // Obtener el código del producto de la fila seleccionada
-                var filaSeleccionada = GrillaProductos.Rows[e.RowIndex];
-                var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
-                
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine($"✏️ Modificar producto desde doble click: {productoId}");
-                    
-                    using (var form = new frmActualizarProducto(productoId))
-                    {
-                        form.Text = "Modificar Producto";
-                        
-                        if (form.ShowDialog() == DialogResult.OK)
-                        {
-                            // Actualizar la grilla manteniendo el filtro aplicado
-                            await ActualizarDatosManteniendoFiltro(filtroActual);
-                            txtFiltroDescripcion.Focus();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error en GrillaProductos_CellDoubleClick: {ex.Message}");
-                    MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
 
         private void GrillaProductos_SelectionChanged(object sender, EventArgs e)
         {
