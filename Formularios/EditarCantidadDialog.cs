@@ -91,14 +91,14 @@ namespace Comercio.NET.Formularios
             {
                 Text = "Cantidad actual:",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Location = new Point(0, 85),
+                Location = new Point(20, 85),
                 AutoSize = true
             };
 
             var lblCantidadActual = new Label
             {
                 Text = cantidadActual.ToString(),
-                Location = new Point(120, 85),
+                Location = new Point(120, 80),
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 120, 215),
                 AutoSize = true
@@ -109,11 +109,11 @@ namespace Comercio.NET.Formularios
             {
                 Text = "Nueva cantidad:",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Location = new Point(0, 115),
+                Location = new Point(20, 115),
                 AutoSize = true
             };
 
-            nudCantidad = new NumericUpDown // Change from 'var' to direct assignment
+            nudCantidad = new NumericUpDown 
             {
                 Location = new Point(120, 113),
                 Size = new Size(80, 25),

@@ -1774,7 +1774,8 @@ namespace Comercio.NET
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
 
             // AGREGADO: Configurar eventos para eliminar productos (llamar al método que ya tienes)
-            ConfigurarEventosDataGridView();
+            // NOTA: Ya se configura en el constructor mediante ConfigurarEventHandlers(), 
+            // por eso evitamos hacerlo nuevamente para no duplicar handlers.
         }
 
         private void ConfigurarPanelFooter()

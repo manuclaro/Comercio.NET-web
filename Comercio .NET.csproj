@@ -7,7 +7,11 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Imagenes\Icon\ico\icons8-shop-40.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Imagenes\Icon\ico\icons8-shop-40.ico" />
+  </ItemGroup>
   <ItemGroup>
     <None Include="DebugAfip.csproj" />
   </ItemGroup>
