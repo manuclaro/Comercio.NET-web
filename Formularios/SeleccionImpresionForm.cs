@@ -254,6 +254,7 @@ namespace Comercio.NET
 
             var lblCuit = new Label
             {
+                Name = "lblCuit", // NUEVO: Asignar nombre para poder encontrarlo
                 Text = "CUIT:",
                 Left = 40,
                 Top = topCuit + 2,
@@ -336,7 +337,7 @@ namespace Comercio.NET
                 panelPagoSimple,
                 lblImporteTotal, // NUEVO: Agregar el label del importe total
                 panelPagoMultiple,
-                lblCuit,
+                lblCuit, // IMPORTANTE: Asegurarse de que se agregue al formulario
                 txtCuit,
                 lblRazonSocial,
                 lblMensajeInformativo,
@@ -349,6 +350,18 @@ namespace Comercio.NET
 
         private void ConfigurarEventos()
         {
+            // NUEVO: Configurar KeyPreview y manejo de tecla Escape
+            this.KeyPreview = true;
+            this.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape)
+                {
+                    e.SuppressKeyPress = true;
+                    this.DialogResult = DialogResult.Cancel;
+                    this.Close();
+                }
+            };
+
             // Evento para cambiar modo de pago
             chkPagoMultiple.CheckedChanged += (s, e) =>
             {

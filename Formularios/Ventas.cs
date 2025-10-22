@@ -660,6 +660,43 @@ namespace Comercio.NET
                     e.SuppressKeyPress = true;
                     this.SelectNextControl(txtBuscarProducto, true, true, true, true);
                 }
+                // NUEVO: Manejar la tecla F para finalizar venta
+                else if (e.KeyCode == Keys.F)
+                {
+                    e.SuppressKeyPress = true;
+
+                    // NUEVO: Limpiar el campo antes de finalizar
+                    txtBuscarProducto.Text = "";
+
+                    btnFinalizarVenta.PerformClick();
+                }
+            };
+
+            // NUEVO: Evento KeyPress para filtrar entrada de caracteres
+            txtBuscarProducto.KeyPress += (s, e) =>
+            {
+                // Permitir teclas de control (Backspace, Delete, etc.)
+                if (char.IsControl(e.KeyChar))
+                {
+                    return; // Permitir teclas de control
+                }
+
+                // MODIFICADO: Si se presiona F, limpiar y procesar
+                if (e.KeyChar == 'F' || e.KeyChar == 'f')
+                {
+                    e.Handled = true; // Bloquear que se escriba la F
+
+                    // Limpiar el campo y finalizar venta
+                    txtBuscarProducto.Text = "";
+                    btnFinalizarVenta.PerformClick();
+                    return;
+                }
+
+                // Permitir solo números para códigos de producto
+                if (!char.IsDigit(e.KeyChar))
+                {
+                    e.Handled = true; // Bloquear cualquier otro carácter
+                }
             };
 
             ConfigurarEventosPrecio();
@@ -1102,10 +1139,20 @@ namespace Comercio.NET
                     // Abrir consulta rápida de precios
                     AbrirConsultaRapidaPrecios();
                 }
+                else if (e.KeyCode == Keys.F || e.KeyCode == Keys.F12)
+                {
+                    e.SuppressKeyPress = true;
+
+                    // NUEVO: Limpiar el txtBuscarProducto antes de finalizar venta
+                    txtBuscarProducto.Text = "";
+
+                    // Finalizar venta con F o F12
+                    btnFinalizarVenta.PerformClick();
+                }
             };
         }
 
-        
+
 
         private void ConfigurarCheckboxCantidad()
         {
