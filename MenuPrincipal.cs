@@ -1,6 +1,6 @@
-﻿using Comercio.NET.Formularios;
+using Comercio.NET.Formularios;
 using Comercio.NET.Services;
-using Comercio.NET;
+using Comercio.NET.Formularios;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -17,21 +17,21 @@ namespace Comercio.NET
     {
         private int childFormNumber = 0;
 
-        // NUEVOS: Controles para información del usuario
+        // NUEVOS: Controles para informaci�n del usuario
         private ToolStripStatusLabel lblUsuarioActual;
         private ToolStripSplitButton btnCambiarUsuario;
 
         public MenuPrincipal()
         {
             InitializeComponent();
-            ConfigurarInformacionUsuario(); // NUEVO: Configurar información del usuario
+            ConfigurarInformacionUsuario(); // NUEVO: Configurar informaci�n del usuario
             ConfigurarMenuSegunPermisos();
 
-            // NUEVO: Configurar ícono de configuración en tiempo de ejecución
+            // NUEVO: Configurar �cono de configuraci�n en tiempo de ejecuci�n
             ConfigurarIconoConfiguracion();
         }
 
-        // NUEVO: Método para configurar el ícono de configuración
+        // NUEVO: M�todo para configurar el �cono de configuraci�n
         private void ConfigurarIconoConfiguracion()
         {
             try
@@ -43,12 +43,12 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error configurando ícono: {ex.Message}");
-                // Si hay error, seguir sin ícono
+                System.Diagnostics.Debug.WriteLine($"Error configurando �cono: {ex.Message}");
+                // Si hay error, seguir sin �cono
             }
         }
 
-        // NUEVO: Método local para crear el ícono (copia del método de ConfiguracionForm)
+        // NUEVO: M�todo local para crear el �cono (copia del m�todo de ConfiguracionForm)
         private Bitmap CrearIconoConfiguracionLocal()
         {
             var bitmap = new Bitmap(16, 16);
@@ -59,7 +59,7 @@ namespace Comercio.NET
                 // Dibujar una rueda dentada simple
                 using (var brush = new SolidBrush(Color.Gray))
                 {
-                    // Centro del ícono
+                    // Centro del �cono
                     g.FillEllipse(brush, 6, 6, 4, 4);
 
                     // Dientes de la rueda
@@ -79,7 +79,7 @@ namespace Comercio.NET
             return bitmap;
         }
 
-        // NUEVO: Método para configurar la información del usuario en el StatusStrip
+        // NUEVO: M�todo para configurar la informaci�n del usuario en el StatusStrip
         private void ConfigurarInformacionUsuario()
         {
             // Crear separador flexible para empujar los controles de usuario a la derecha
@@ -92,28 +92,28 @@ namespace Comercio.NET
             // Crear label para mostrar el usuario actual
             lblUsuarioActual = new ToolStripStatusLabel()
             {
-                Text = "👤 No logueado",
+                Text = "?? No logueado",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181),
                 AutoSize = true,
                 Margin = new Padding(0, 0, 10, 0)
             };
 
-            // Crear botón para cambiar usuario
+            // Crear bot�n para cambiar usuario
             btnCambiarUsuario = new ToolStripSplitButton()
             {
-                Text = "⚙️",
+                Text = "??",
                 ToolTipText = "Opciones de usuario",
                 Font = new Font("Segoe UI", 9F),
                 AutoSize = true,
                 DisplayStyle = ToolStripItemDisplayStyle.Text
             };
 
-            // Agregar opciones al menú del botón
-            var menuCambiarUsuario = new ToolStripMenuItem("🔄 Cambiar Usuario", null, CambiarUsuario_Click);
-            var menuCerrarSesion = new ToolStripMenuItem("🚪 Cerrar Sesión", null, CerrarSesion_Click);
+            // Agregar opciones al men� del bot�n
+            var menuCambiarUsuario = new ToolStripMenuItem("?? Cambiar Usuario", null, CambiarUsuario_Click);
+            var menuCerrarSesion = new ToolStripMenuItem("?? Cerrar Sesi�n", null, CerrarSesion_Click);
             var separadorMenu = new ToolStripSeparator();
-            var menuInfoUsuario = new ToolStripMenuItem("ℹ️ Info del Usuario", null, InfoUsuario_Click);
+            var menuInfoUsuario = new ToolStripMenuItem("?? Info del Usuario", null, InfoUsuario_Click);
 
             btnCambiarUsuario.DropDownItems.Add(menuCambiarUsuario);
             btnCambiarUsuario.DropDownItems.Add(separadorMenu);
@@ -126,17 +126,17 @@ namespace Comercio.NET
             statusStrip.Items.Insert(1, lblUsuarioActual);
             statusStrip.Items.Insert(2, btnCambiarUsuario);
 
-            // Actualizar la información del usuario
+            // Actualizar la informaci�n del usuario
             ActualizarInformacionUsuario();
         }
 
-        // NUEVO: Método para actualizar la información del usuario mostrada
+        // NUEVO: M�todo para actualizar la informaci�n del usuario mostrada
         private void ActualizarInformacionUsuario()
         {
             if (AuthenticationService.SesionActual?.Usuario != null)
             {
                 var usuario = AuthenticationService.SesionActual.Usuario;
-                lblUsuarioActual.Text = $"👤 {usuario.Nombre} {usuario.Apellido} ({usuario.NombreUsuario})";
+                lblUsuarioActual.Text = $"?? {usuario.Nombre} {usuario.Apellido} ({usuario.NombreUsuario})";
                 lblUsuarioActual.ForeColor = Color.FromArgb(76, 175, 80); // Verde para logueado
 
                 // Mostrar nivel del usuario con color
@@ -155,7 +155,7 @@ namespace Comercio.NET
             }
             else
             {
-                lblUsuarioActual.Text = "👤 No logueado";
+                lblUsuarioActual.Text = "?? No logueado";
                 lblUsuarioActual.ForeColor = Color.FromArgb(244, 67, 54); // Rojo para no logueado
                 btnCambiarUsuario.Enabled = false;
             }
@@ -168,7 +168,7 @@ namespace Comercio.NET
             {
                 // Confirmar cambio de usuario
                 var resultado = MessageBox.Show(
-                    "¿Está seguro que desea cambiar de usuario?\n\nSe cerrarán todas las ventanas abiertas.",
+                    "�Est� seguro que desea cambiar de usuario?\n\nSe cerrar�n todas las ventanas abiertas.",
                     "Cambiar Usuario",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
@@ -181,7 +181,7 @@ namespace Comercio.NET
                         childForm.Close();
                     }
 
-                    // Cerrar sesión actual
+                    // Cerrar sesi�n actual
                     var authService = new AuthenticationService();
                     authService.CerrarSesion();
 
@@ -192,7 +192,7 @@ namespace Comercio.NET
 
                         if (loginResult == DialogResult.OK && loginForm.LoginExitoso)
                         {
-                            // Login exitoso - actualizar información
+                            // Login exitoso - actualizar informaci�n
                             ActualizarInformacionUsuario();
                             ConfigurarMenuSegunPermisos();
 
@@ -203,8 +203,8 @@ namespace Comercio.NET
                         }
                         else
                         {
-                            // Login cancelado o fallido - cerrar aplicación
-                            MessageBox.Show("No se pudo cambiar de usuario. La aplicación se cerrará.",
+                            // Login cancelado o fallido - cerrar aplicaci�n
+                            MessageBox.Show("No se pudo cambiar de usuario. La aplicaci�n se cerrar�.",
                                 "Cambio de Usuario Cancelado",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Warning);
@@ -223,20 +223,20 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Evento para cerrar sesión
+        // NUEVO: Evento para cerrar sesi�n
         private void CerrarSesion_Click(object sender, EventArgs e)
         {
             try
             {
                 var resultado = MessageBox.Show(
-                    "¿Está seguro que desea cerrar la sesión?\n\nLa aplicación se cerrará.",
-                    "Cerrar Sesión",
+                    "�Est� seguro que desea cerrar la sesi�n?\n\nLa aplicaci�n se cerrar�.",
+                    "Cerrar Sesi�n",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
 
                 if (resultado == DialogResult.Yes)
                 {
-                    // Cerrar sesión y salir
+                    // Cerrar sesi�n y salir
                     var authService = new AuthenticationService();
                     authService.CerrarSesion();
                     Application.Exit();
@@ -244,14 +244,14 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al cerrar sesión: {ex.Message}",
+                MessageBox.Show($"Error al cerrar sesi�n: {ex.Message}",
                     "Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
         }
 
-        // NUEVO: Evento para mostrar información del usuario
+        // NUEVO: Evento para mostrar informaci�n del usuario
         private void InfoUsuario_Click(object sender, EventArgs e)
         {
             try
@@ -261,37 +261,37 @@ namespace Comercio.NET
                     var usuario = AuthenticationService.SesionActual.Usuario;
                     var sesion = AuthenticationService.SesionActual;
 
-                    string info = $"INFORMACIÓN DEL USUARIO\n" +
-                                 $"━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                                 $"👤 Usuario: {usuario.NombreUsuario}\n" +
-                                 $"📝 Nombre: {usuario.Nombre} {usuario.Apellido}\n" +
-                                 $"📧 Email: {usuario.Email ?? "No especificado"}\n" +
-                                 $"🏷️ Nivel: {usuario.Nivel}\n" +
-                                 $"💳 Cajero #: {usuario.NumeroCajero}\n" +
-                                 $"📅 Creado: {usuario.FechaCreacion:dd/MM/yyyy HH:mm}\n" +
-                                 $"🕒 Último acceso: {usuario.UltimoAcceso?.ToString("dd/MM/yyyy HH:mm") ?? "Primera vez"}\n" +
-                                 $"🔐 Inicio sesión: {sesion.InicioSesion:dd/MM/yyyy HH:mm}\n" +
-                                 $"⏰ Última actividad: {sesion.UltimaActividad:dd/MM/yyyy HH:mm}\n\n" +
+                    string info = $"INFORMACI�N DEL USUARIO\n" +
+                                 $"?????????????????????????\n" +
+                                 $"?? Usuario: {usuario.NombreUsuario}\n" +
+                                 $"?? Nombre: {usuario.Nombre} {usuario.Apellido}\n" +
+                                 $"?? Email: {usuario.Email ?? "No especificado"}\n" +
+                                 $"??? Nivel: {usuario.Nivel}\n" +
+                                 $"?? Cajero #: {usuario.NumeroCajero}\n" +
+                                 $"?? Creado: {usuario.FechaCreacion:dd/MM/yyyy HH:mm}\n" +
+                                 $"?? �ltimo acceso: {usuario.UltimoAcceso?.ToString("dd/MM/yyyy HH:mm") ?? "Primera vez"}\n" +
+                                 $"?? Inicio sesi�n: {sesion.InicioSesion:dd/MM/yyyy HH:mm}\n" +
+                                 $"? �ltima actividad: {sesion.UltimaActividad:dd/MM/yyyy HH:mm}\n\n" +
                                  $"PERMISOS:\n" +
-                                 $"━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                                 $"🗑️ Eliminar productos: {(usuario.PuedeEliminarProductos ? "✅" : "❌")}\n" +
-                                 $"💰 Editar precios: {(usuario.PuedeEditarPrecios ? "✅" : "❌")}\n" +
-                                 $"📊 Ver reportes: {(usuario.PuedeVerReportes ? "✅" : "❌")}\n" +
-                                 $"👥 Gestionar usuarios: {(usuario.PuedeGestionarUsuarios ? "✅" : "❌")}\n" +
-                                 $"❌ Anular facturas: {(usuario.PuedeAnularFacturas ? "✅" : "❌")}";
-                    MessageBox.Show(info, "Información del Usuario", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                 $"?????????????????????????\n" +
+                                 $"??? Eliminar productos: {(usuario.PuedeEliminarProductos ? "?" : "?")}\n" +
+                                 $"?? Editar precios: {(usuario.PuedeEditarPrecios ? "?" : "?")}\n" +
+                                 $"?? Ver reportes: {(usuario.PuedeVerReportes ? "?" : "?")}\n" +
+                                 $"?? Gestionar usuarios: {(usuario.PuedeGestionarUsuarios ? "?" : "?")}\n" +
+                                 $"? Anular facturas: {(usuario.PuedeAnularFacturas ? "?" : "?")}";
+                    MessageBox.Show(info, "Informaci�n del Usuario", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al mostrar información: {ex.Message}",
+                MessageBox.Show($"Error al mostrar informaci�n: {ex.Message}",
                     "Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
         }
 
-        // MODIFICADO: Actualizar también la información del usuario al cargar
+        // MODIFICADO: Actualizar tambi�n la informaci�n del usuario al cargar
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -305,7 +305,7 @@ namespace Comercio.NET
             {
                 var usuario = AuthenticationService.SesionActual.Usuario;
 
-                // Solo mostrar gestión de usuarios si tiene permisos
+                // Solo mostrar gesti�n de usuarios si tiene permisos
                 bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador ||
                                              usuario.PuedeGestionarUsuarios;
 
@@ -320,7 +320,7 @@ namespace Comercio.NET
                     toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
                 }
 
-                // Solo mostrar configuración a administradores
+                // Solo mostrar configuraci�n a administradores
                 bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
 
                 if (InformesToolStripMenuItem != null)
@@ -333,8 +333,8 @@ namespace Comercio.NET
                     toolStripConfiguracion.Visible = esAdministrador;
                 }
 
-                // NUEVO: Los cartelitos están disponibles para todos los usuarios logueados (no requieren permisos especiales)
-                // Cartelitos de precios no necesita verificación de permisos - disponible para todos
+                // NUEVO: Los cartelitos est�n disponibles para todos los usuarios (no requieren permisos especiales)
+                // Cartelitos de precios no necesita verificaci�n de permisos - disponible para todos
             }
             else
             {
@@ -347,8 +347,8 @@ namespace Comercio.NET
                     InformesToolStripMenuItem.Visible = false;
                 if (toolStripConfiguracion != null)
                     toolStripConfiguracion.Visible = false;
-                
-                // NUEVO: También ocultar cartelitos si no hay usuario
+
+                // NUEVO: Tambi�n ocultar cartelitos si no hay usuario
                 if (cartelitosToolStripMenuItem != null)
                     cartelitosToolStripMenuItem.Visible = false;
                 if (toolStripCartelitos != null)
@@ -466,9 +466,9 @@ namespace Comercio.NET
                 else
                 {
                     MessageBox.Show(
-                        "⚠️ ACCESO DENEGADO\n\n" +
-                        "No tienes permisos para acceder a la gestión de productos.\n\n" +
-                        "Este módulo requiere el permiso 'Editar Precios'.\n" +
+                        "?? ACCESO DENEGADO\n\n" +
+                        "No tienes permisos para acceder a la gesti�n de productos.\n\n" +
+                        "Este m�dulo requiere el permiso 'Editar Precios'.\n" +
                         "Contacta a un administrador si necesitas acceso.",
                         "Permisos Insuficientes",
                         MessageBoxButtons.OK,
@@ -477,7 +477,7 @@ namespace Comercio.NET
             }
             else
             {
-                MessageBox.Show("No hay una sesión activa.", "Error",
+                MessageBox.Show("No hay una sesi�n activa.", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -507,9 +507,9 @@ namespace Comercio.NET
                 else
                 {
                     MessageBox.Show(
-                        "⚠️ ACCESO DENEGADO\n\n" +
+                        "?? ACCESO DENEGADO\n\n" +
                         "No tienes permisos para acceder al control de facturas.\n\n" +
-                        "Este módulo requiere el permiso 'Ver Reportes'.\n" +
+                        "Este m�dulo requiere el permiso 'Ver Reportes'.\n" +
                         "Contacta a un administrador si necesitas acceso.",
                         "Permisos Insuficientes",
                         MessageBoxButtons.OK,
@@ -518,25 +518,25 @@ namespace Comercio.NET
             }
             else
             {
-                MessageBox.Show("No hay una sesión activa.", "Error",
+                MessageBox.Show("No hay una sesi�n activa.", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // NUEVO: Método para abrir cartelitos de precios desde el menú
+        // NUEVO: M�todo para abrir cartelitos de precios desde el men�
         private void cartelitosToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
             {
-                // Verificar si hay una sesión activa
+                // Verificar si hay una sesi�n activa
                 if (AuthenticationService.SesionActual?.Usuario == null)
                 {
-                    MessageBox.Show("No hay una sesión activa.", "Error",
+                    MessageBox.Show("No hay una sesi�n activa.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
-                // Verificar si ya está abierto el formulario
+                // Verificar si ya est� abierto el formulario
                 foreach (Form form in this.MdiChildren)
                 {
                     if (form is CartelitosPrecios)
@@ -558,7 +558,7 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Método para el botón de cartelitos en la toolbar
+        // NUEVO: M�todo para el bot�n de cartelitos en la toolbar
         private void toolStripCartelitos_Click(object sender, EventArgs e)
         {
             cartelitosToolStripMenuItem_Click(sender, e);
@@ -567,18 +567,18 @@ namespace Comercio.NET
         // MODIFICADO: Verificar permisos antes de abrir productos desde toolbar
         private void toolStripProductos_Click(object sender, EventArgs e)
         {
-            // Reutilizar la lógica del menú
+            // Reutilizar la l�gica del men�
             productosToolStripMenuItem_Click(sender, e);
         }
 
         // MODIFICADO: Verificar permisos antes de abrir control de facturas desde toolbar
         private void toolStripButton1_Click(object sender, EventArgs e)
         {
-            // Reutilizar la lógica del menú
+            // Reutilizar la l�gica del men�
             controlFacturasToolStripMenuItem_Click(sender, e);
         }
 
-        // NUEVO: Método para abrir gestión de usuarios
+        // NUEVO: M�todo para abrir gesti�n de usuarios
         private void gestionUsuariosToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
@@ -592,12 +592,12 @@ namespace Comercio.NET
 
                     if (!puedeGestionar)
                     {
-                        MessageBox.Show("No tienes permisos para acceder a la gestión de usuarios.",
+                        MessageBox.Show("No tienes permisos para acceder a la gesti�n de usuarios.",
                             "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
 
-                    // Verificar si ya está abierto
+                    // Verificar si ya est� abierto
                     foreach (Form form in this.MdiChildren)
                     {
                         if (form is GestionUsuariosMainForm)
@@ -614,24 +614,24 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    MessageBox.Show("No hay una sesión activa.", "Error",
+                    MessageBox.Show("No hay una sesi�n activa.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al abrir gestión de usuarios: {ex.Message}", "Error",
+                MessageBox.Show($"Error al abrir gesti�n de usuarios: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // NUEVO: Método para el botón de gestión de usuarios en la toolbar
+        // NUEVO: M�todo para el bot�n de gesti�n de usuarios en la toolbar
         private void toolStripGestionUsuarios_Click(object sender, EventArgs e)
         {
             gestionUsuariosToolStripMenuItem_Click(sender, e);
         }
 
-        // NUEVO: Método para abrir configuración del sistema
+        // NUEVO: M�todo para abrir configuraci�n del sistema
         private void configuracionSistemaToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
@@ -644,12 +644,12 @@ namespace Comercio.NET
 
                     if (!esAdministrador)
                     {
-                        MessageBox.Show("Solo los administradores pueden acceder a la configuración del sistema.",
+                        MessageBox.Show("Solo los administradores pueden acceder a la configuraci�n del sistema.",
                             "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
 
-                    // Verificar si ya está abierto
+                    // Verificar si ya est� abierto
                     foreach (Form form in this.MdiChildren)
                     {
                         if (form is ConfiguracionForm)
@@ -659,25 +659,25 @@ namespace Comercio.NET
                         }
                     }
 
-                    // Abrir formulario de configuración
+                    // Abrir formulario de configuraci�n
                     var configuracionForm = new ConfiguracionForm();
                     configuracionForm.MdiParent = this;
                     configuracionForm.Show();
                 }
                 else
                 {
-                    MessageBox.Show("No hay una sesión activa.", "Error",
+                    MessageBox.Show("No hay una sesi�n activa.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al abrir configuración: {ex.Message}", "Error",
+                MessageBox.Show($"Error al abrir configuraci�n: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // NUEVO: Método para el botón de configuración en la toolbar
+        // NUEVO: M�todo para el bot�n de configuraci�n en la toolbar
         private void toolStripConfiguracion_Click(object sender, EventArgs e)
         {
             configuracionSistemaToolStripMenuItem_Click(sender, e);

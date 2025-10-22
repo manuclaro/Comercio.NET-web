@@ -47,6 +47,7 @@
             ventasToolStripMenuItem = new ToolStripMenuItem();
             productosToolStripMenuItem = new ToolStripMenuItem();
             controlFacturasToolStripMenuItem = new ToolStripMenuItem();
+            cartelitosToolStripMenuItem = new ToolStripMenuItem(); // NUEVO: Cartelitos de precios
             toolStripSeparator9 = new ToolStripSeparator();
             gestionUsuariosToolStripMenuItem = new ToolStripMenuItem();
             InformesToolStripMenuItem = new ToolStripMenuItem();
@@ -72,6 +73,7 @@
             toolStripSeparator2 = new ToolStripSeparator();
             toolStripButton1 = new ToolStripButton();
             toolStripSeparator6 = new ToolStripSeparator();
+            toolStripCartelitos = new ToolStripButton(); // NUEVO: Botón cartelitos en toolbar
             toolStripSeparator7 = new ToolStripSeparator();
             toolStripGestionUsuarios = new ToolStripButton();
             toolStripConfiguracion = new ToolStripButton();
@@ -185,7 +187,7 @@
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem });
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";
@@ -210,6 +212,13 @@
             controlFacturasToolStripMenuItem.Size = new Size(180, 22);
             controlFacturasToolStripMenuItem.Text = "Control Facturas";
             controlFacturasToolStripMenuItem.Click += controlFacturasToolStripMenuItem_Click;
+            // 
+            // cartelitosToolStripMenuItem
+            // 
+            cartelitosToolStripMenuItem.Name = "cartelitosToolStripMenuItem";
+            cartelitosToolStripMenuItem.Size = new Size(180, 22);
+            cartelitosToolStripMenuItem.Text = "🏷️ Cartelitos Precios";
+            cartelitosToolStripMenuItem.Click += cartelitosToolStripMenuItem_Click;
             // 
             // toolStripSeparator9
             // 
@@ -342,7 +351,7 @@
             // 
             // toolStrip
             // 
-            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripSeparator7, toolStripGestionUsuarios, toolStripSeparator8, toolStripConfiguracion });
+            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripCartelitos, toolStripSeparator7, toolStripGestionUsuarios, toolStripSeparator8, toolStripConfiguracion });
             toolStrip.Location = new Point(0, 24);
             toolStrip.Name = "toolStrip";
             toolStrip.Size = new Size(1054, 25);
@@ -395,6 +404,16 @@
             // 
             toolStripSeparator6.Name = "toolStripSeparator6";
             toolStripSeparator6.Size = new Size(6, 25);
+            // 
+            // toolStripCartelitos
+            // 
+            toolStripCartelitos.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            toolStripCartelitos.ImageTransparentColor = Color.Magenta;
+            toolStripCartelitos.Name = "toolStripCartelitos";
+            toolStripCartelitos.Size = new Size(60, 22);
+            toolStripCartelitos.Text = "🏷️ Carteles";
+            toolStripCartelitos.ToolTipText = "Generador de Cartelitos de Precios";
+            toolStripCartelitos.Click += toolStripCartelitos_Click;
             // 
             // toolStripSeparator7
             // 
@@ -507,9 +526,11 @@
         private ToolStripMenuItem ventasToolStripMenuItem;
         private ToolStripMenuItem productosToolStripMenuItem;
         private ToolStripMenuItem controlFacturasToolStripMenuItem;
+        private ToolStripMenuItem cartelitosToolStripMenuItem; // NUEVO: Declaración del menú cartelitos
         private ToolStripButton toolStripProductos;
         private ToolStripButton toolStripButton1;
         private ToolStripSeparator toolStripSeparator6;
+        private ToolStripButton toolStripCartelitos; // NUEVO: Declaración del botón cartelitos en toolbar
         private ToolStripSeparator toolStripSeparator7;
         private ToolStripButton toolStripGestionUsuarios;
         private ToolStripMenuItem InformesToolStripMenuItem;
@@ -518,6 +539,326 @@
         private ToolStripMenuItem gestionUsuariosToolStripMenuItem;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
