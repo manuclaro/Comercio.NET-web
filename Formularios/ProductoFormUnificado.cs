@@ -280,18 +280,18 @@ namespace Comercio.NET.Formularios
                 panelContenido.Controls.Add(chkEditarPrecio);
                 yPos += 30;
                 
-                // Nota explicativa
-                var lblNota = new Label
-                {
-                    Text = "Nota: Las opciones 'Permite Acumular' y 'Editar Precio' son excluyentes",
-                    Location = new Point(xLabel, yPos),
-                    Size = new Size(450, 30),
-                    Font = new Font("Segoe UI", 7.5F, FontStyle.Italic),
-                    ForeColor = Color.FromArgb(120, 120, 120),
-                    AutoSize = false
-                };
-                panelContenido.Controls.Add(lblNota);
-                yPos += 35;
+                //// Nota explicativa
+                //var lblNota = new Label
+                //{
+                //    Text = "Nota: Las opciones 'Permite Acumular' y 'Editar Precio' son excluyentes",
+                //    Location = new Point(xLabel, yPos),
+                //    Size = new Size(450, 30),
+                //    Font = new Font("Segoe UI", 7.5F, FontStyle.Italic),
+                //    ForeColor = Color.FromArgb(120, 120, 120),
+                //    AutoSize = false
+                //};
+                //panelContenido.Controls.Add(lblNota);
+                //yPos += 35;
             }
             
             // Ajustar altura dinámicamente

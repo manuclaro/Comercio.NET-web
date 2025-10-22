@@ -12,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using Comercio.NET.Servicios;
 using Comercio.NET.Formularios;
 using Comercio.NET;
+using System.IO;
+using System.Text.Json;
 
 namespace Comercio.NET.Formularios
 {
@@ -19,6 +21,9 @@ namespace Comercio.NET.Formularios
     {
         private List<ProductoCartelito> productosSeleccionados;
         private DataTable tablaProductos;
+        
+        // NUEVO: Ruta del archivo para persistencia
+        private readonly string archivoCartelitos = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cartelitos_productos.json");
         
         // Controles del formulario
         private TextBox txtCodigoProducto;
@@ -44,6 +49,68 @@ namespace Comercio.NET.Formularios
             productosSeleccionados = new List<ProductoCartelito>();
             ConfigurarFormulario();
             ConfigurarEventos();
+            
+            // NUEVO: Cargar productos guardados
+            CargarProductosGuardados();
+        }
+
+        // NUEVO: Método para cargar productos guardados
+        private void CargarProductosGuardados()
+        {
+            try
+            {
+                if (File.Exists(archivoCartelitos))
+                {
+                    string jsonContent = File.ReadAllText(archivoCartelitos);
+                    if (!string.IsNullOrEmpty(jsonContent))
+                    {
+                        var productosGuardados = System.Text.Json.JsonSerializer.Deserialize<List<ProductoCartelito>>(jsonContent);
+                        if (productosGuardados != null && productosGuardados.Count > 0)
+                        {
+                            productosSeleccionados.AddRange(productosGuardados);
+                            ActualizarDataGridView();
+                            ActualizarContador();
+                            
+                            System.Diagnostics.Debug.WriteLine($"✅ Cargados {productosGuardados.Count} productos desde archivo");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error cargando productos: {ex.Message}");
+                // No mostrar error al usuario, simplemente continuar sin productos guardados
+            }
+        }
+
+        // NUEVO: Método para guardar productos
+        private void GuardarProductos()
+        {
+            try
+            {
+                if (productosSeleccionados.Count > 0)
+                {
+                    string jsonContent = System.Text.Json.JsonSerializer.Serialize(productosSeleccionados, new JsonSerializerOptions 
+                    { 
+                        WriteIndented = true 
+                    });
+                    File.WriteAllText(archivoCartelitos, jsonContent);
+                    System.Diagnostics.Debug.WriteLine($"✅ Guardados {productosSeleccionados.Count} productos");
+                }
+                else
+                {
+                    // Si no hay productos, eliminar el archivo
+                    if (File.Exists(archivoCartelitos))
+                    {
+                        File.Delete(archivoCartelitos);
+                        System.Diagnostics.Debug.WriteLine("✅ Archivo de productos eliminado (lista vacía)");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error guardando productos: {ex.Message}");
+            }
         }
 
         private void InitializeComponent()
@@ -168,7 +235,10 @@ namespace Comercio.NET.Formularios
                 EnableHeadersVisualStyles = false,
                 BorderStyle = BorderStyle.None,
                 BackgroundColor = Color.White,
-                GridColor = Color.FromArgb(230, 230, 230)
+                GridColor = Color.FromArgb(230, 230, 230),
+                AllowUserToResizeColumns = true, // NUEVO: Permitir redimensionar columnas
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                RowHeadersVisible = false
             };
 
             // Estilos
@@ -180,28 +250,60 @@ namespace Comercio.NET.Formularios
 
             dgv.DefaultCellStyle.BackColor = Color.White;
             dgv.DefaultCellStyle.ForeColor = Color.Black;
-            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
-            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
-            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
 
+            // Selección menos agresiva: gris claro y texto negro
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            dgv.DefaultCellStyle.SelectionForeColor = Color.Black;
+
+            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
             dgv.RowTemplate.Height = 28;
 
-            // Columnas
-            dgv.Columns.Add("Codigo", "Código");
-            dgv.Columns.Add("Descripcion", "Descripción");
-            dgv.Columns.Add("Precio", "Precio");
-            dgv.Columns.Add("Marca", "Marca");
+            // Columnas con anchos específicos y mejor legibilidad
+            var colCodigo = new DataGridViewTextBoxColumn
+            {
+                Name = "Codigo",
+                HeaderText = "Código",
+                Width = 80,
+                MinimumWidth = 60,
+                Resizable = DataGridViewTriState.True
+            };
 
-            // Configurar anchos
-            dgv.Columns["Codigo"].Width = 60;
-            dgv.Columns["Descripcion"].Width = 200;
-            dgv.Columns["Precio"].Width = 100;
-            dgv.Columns["Marca"].Width = 120;
+            var colDescripcion = new DataGridViewTextBoxColumn
+            {
+                Name = "Descripcion",
+                HeaderText = "Descripción",
+                Width = 280, // AUMENTADO para mejor lectura
+                MinimumWidth = 200,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill // Se expande con el formulario
+            };
 
-            // Formato de precio
-            dgv.Columns["Precio"].DefaultCellStyle.Format = "C2";
-            dgv.Columns["Precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            var colPrecio = new DataGridViewTextBoxColumn
+            {
+                Name = "Precio",
+                HeaderText = "Precio",
+                Width = 80, // AUMENTADO para mejor lectura de precios
+                MinimumWidth = 60,
+                Resizable = DataGridViewTriState.True,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "C2",
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold), // Precio en negrita
+                    ForeColor = Color.FromArgb(0, 100, 0) // Verde oscuro para precios
+                }
+            };
+
+            var colMarca = new DataGridViewTextBoxColumn
+            {
+                Name = "Marca",
+                HeaderText = "Marca",
+                Width = 140,
+                MinimumWidth = 100,
+                Resizable = DataGridViewTriState.True
+            };
+
+            dgv.Columns.AddRange(new DataGridViewColumn[] { colCodigo, colDescripcion, colPrecio, colMarca });
 
             return dgv;
         }
@@ -226,50 +328,56 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(25, 118, 210)
             };
 
-            // GroupBox para tamaños
+            // GroupBox para tamaños (altura aumentada para permitir texto multilínea)
             gbTamañosCartel = new GroupBox
             {
                 Text = "Tamaño del cartelito",
                 Location = new Point(10, 45),
-                Size = new Size(320, 150),
+                Size = new Size(320, 180),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
 
-            // RadioButtons para tamaños
+            // RadioButtons para tamaños - AutoSize desactivado y mayor altura para permitir wrap
             rbTamañoEstandar = new RadioButton
             {
-                Text = "Estándar (7x5 cm)\nProductos generales",
+                Text = "Estándar (7x5 cm)\r\nProductos generales",
                 Location = new Point(15, 25),
-                Size = new Size(280, 35),
+                Size = new Size(290, 42),
+                AutoSize = false,
                 Checked = true,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9F),
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             rbTamañoPerfumeria = new RadioButton
             {
-                Text = "Perfumería (5x3 cm)\nProductos pequeños",
-                Location = new Point(15, 65),
-                Size = new Size(280, 35),
-                Font = new Font("Segoe UI", 9F)
+                Text = "Perfumería (5x3 cm)\r\nProductos pequeños",
+                Location = new Point(15, 70),
+                Size = new Size(290, 42),
+                AutoSize = false,
+                Font = new Font("Segoe UI", 9F),
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             rbTamañoOferta = new RadioButton
             {
-                Text = "Oferta (10x7 cm)\nProductos destacados",
-                Location = new Point(15, 105),
-                Size = new Size(280, 35),
-                Font = new Font("Segoe UI", 9F)
+                Text = "Oferta (10x7 cm)\r\nProductos destacados",
+                Location = new Point(15, 115),
+                Size = new Size(290, 42),
+                AutoSize = false,
+                Font = new Font("Segoe UI", 9F),
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
-            gbTamañosCartel.Controls.AddRange(new Control[] { 
-                rbTamañoEstandar, rbTamañoPerfumeria, rbTamañoOferta 
-            });
+            gbTamañosCartel.Controls.AddRange(new Control[] {
+        rbTamañoEstandar, rbTamañoPerfumeria, rbTamañoOferta
+    });
 
-            // Botones de acción
+            // Botones de acción (posición ajustada)
             btnEliminarSeleccionado = new Button
             {
                 Text = "Eliminar\nSeleccionado",
-                Location = new Point(15, 210),
+                Location = new Point(15, 270),
                 Size = new Size(90, 50),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
@@ -281,7 +389,7 @@ namespace Comercio.NET.Formularios
             btnLimpiarLista = new Button
             {
                 Text = "Limpiar\nTodo",
-                Location = new Point(115, 210),
+                Location = new Point(115, 270),
                 Size = new Size(90, 50),
                 BackColor = Color.FromArgb(255, 193, 7),
                 ForeColor = Color.Black,
@@ -293,7 +401,7 @@ namespace Comercio.NET.Formularios
             btnVistaPrevia = new Button
             {
                 Text = "Vista\nPrevia",
-                Location = new Point(215, 210),
+                Location = new Point(215, 270),
                 Size = new Size(90, 50),
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
@@ -302,10 +410,9 @@ namespace Comercio.NET.Formularios
             };
             btnVistaPrevia.FlatAppearance.BorderSize = 0;
 
-            panel.Controls.AddRange(new Control[] { 
-                lblTitulo, gbTamañosCartel, btnEliminarSeleccionado, 
-                btnLimpiarLista, btnVistaPrevia 
-            });
+            panel.Controls.AddRange(new Control[] {
+            lblTitulo, gbTamañosCartel, btnEliminarSeleccionado, btnLimpiarLista, btnVistaPrevia
+        });
 
             return panel;
         }
@@ -460,6 +567,9 @@ namespace Comercio.NET.Formularios
                 productosSeleccionados.Add(producto);
                 ActualizarDataGridView();
                 ActualizarContador();
+                
+                // NUEVO: Guardar automáticamente
+                GuardarProductos();
 
                 // Limpiar y enfocar para el siguiente producto
                 txtCodigoProducto.Clear();
@@ -540,6 +650,11 @@ namespace Comercio.NET.Formularios
                 );
             }
 
+            // Quitar selección por defecto para que no aparezca la primera fila en azul
+            dgvProductosSeleccionados.ClearSelection();
+            // Alternativa si ClearSelection no basta:
+            // if (dgvProductosSeleccionados.Rows.Count > 0) dgvProductosSeleccionados.CurrentCell = null;
+
             // Actualizar estado de botones
             bool hayProductos = productosSeleccionados.Count > 0;
             btnImprimir.Enabled = hayProductos;
@@ -592,6 +707,9 @@ namespace Comercio.NET.Formularios
                 productosSeleccionados.RemoveAll(p => p.Codigo == codigo);
                 ActualizarDataGridView();
                 ActualizarContador();
+                
+                // NUEVO: Guardar automáticamente después de eliminar
+                GuardarProductos();
             }
         }
 
@@ -615,6 +733,10 @@ namespace Comercio.NET.Formularios
                 productosSeleccionados.Clear();
                 ActualizarDataGridView();
                 ActualizarContador();
+                
+                // NUEVO: Guardar automáticamente (eliminará el archivo)
+                GuardarProductos();
+                
                 txtCodigoProducto.Focus();
             }
         }
@@ -693,6 +815,13 @@ namespace Comercio.NET.Formularios
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // NUEVO: Guardar al cerrar el formulario
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            GuardarProductos();
+            base.OnFormClosed(e);
         }
     }
 
