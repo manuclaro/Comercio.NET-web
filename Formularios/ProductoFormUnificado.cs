@@ -223,8 +223,8 @@ namespace Comercio.NET.Formularios
                 // CORREGIDO: Mejor posicionamiento para Rubro
                 int xRubroLabel = xControl + 150; // Más espacio entre controles
                 int xRubroControl = xRubroLabel + 55; // Espacio para la label "Rubro:"
-                txtRubro = CrearTextBox(xRubroControl, yPos - 2, 140);
-                CrearLabelSecundario("Rubro:", xRubroLabel, yPos, 50);
+                txtRubro = CrearTextBox(xRubroControl, yPos - 2, 150);
+                CrearLabelSecundario("Rubro:", xRubroLabel, yPos, 55);
                 panelContenido.Controls.Add(txtRubro);
                 yPos += margenCampo;
                 
@@ -242,9 +242,9 @@ namespace Comercio.NET.Formularios
                 
                 // CORREGIDO: Mejor posicionamiento para % Ganancia
                 int xPorcentajeLabel = xControl + 100; // Más espacio
-                int xPorcentajeControl = xPorcentajeLabel + 75; // Espacio para "% Ganancia:"
-                txtPorcentaje = CrearTextBox(xPorcentajeControl, yPos - 2, 70);
-                CrearLabelSecundario("% Ganancia:", xPorcentajeLabel, yPos, 70);
+                int xPorcentajeControl = xPorcentajeLabel + 80; // Espacio para "% Ganancia:"
+                txtPorcentaje = CrearTextBox(xPorcentajeControl, yPos - 2, 100);
+                CrearLabelSecundario("% Ganancia:", xPorcentajeLabel, yPos, 80);
                 panelContenido.Controls.Add(txtPorcentaje);
                 yPos += margenCampo;
             }
