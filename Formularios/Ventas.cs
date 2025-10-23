@@ -1282,7 +1282,9 @@ namespace Comercio.NET
             }
 
             lbDescripcionProducto.Text = producto["descripcion"].ToString();
-            bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
+            bool editarPrecio = producto.Table.Columns.Contains("EditarPrecio") &&
+                                producto["EditarPrecio"] != DBNull.Value &&
+                                Convert.ToBoolean(producto["EditarPrecio"]);
 
             if (precioPersonalizado.HasValue)
             {
@@ -1295,6 +1297,31 @@ namespace Comercio.NET
             }
 
             txtPrecio.Enabled = editarPrecio;
+
+            // Si el producto permite editar precio y el precio cargado difiere del de la BD,
+            // actualizar la tabla Productos con el nuevo precio (solo para productos con EditarPrecio = true).
+            if (editarPrecio)
+            {
+                try
+                {
+                    decimal precioActualEnBD = Convert.ToDecimal(producto["precio"]);
+                    if (decimal.TryParse(txtPrecio.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioMostrado))
+                    {
+                        // Comparar con tolerancia de 0.01
+                        if (Math.Abs(precioMostrado - precioActualEnBD) > 0.005m)
+                        {
+                            // Actualizar de forma asíncrona y no bloquear la UI si hay algún error
+                            await ActualizarPrecioProductoAsync(producto["codigo"].ToString(), precioMostrado);
+                            System.Diagnostics.Debug.WriteLine($"Precio actualizado en BD: Código={producto["codigo"]}, NuevoPrecio={precioMostrado:F2}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error actualizando precio al cargar producto: {ex.Message}");
+                    // No interrumpir al usuario por un fallo al persistir el precio
+                }
+            }
         }
 
         // CORREGIDO: Cambiar el tipo de retorno a Task<DataRow>
@@ -1395,8 +1422,8 @@ namespace Comercio.NET
             using (var connection = new SqlConnection(connectionString))
             {
                 // MODIFICADO: Incluir el campo cantidad (stock) en la consulta
-                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, cantidad 
-                              FROM Productos WHERE codigo = @codigo";
+                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, cantidad, EditarPrecio 
+                      FROM Productos WHERE codigo = @codigo";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
@@ -1509,17 +1536,15 @@ namespace Comercio.NET
                 {
                     precioUnitario = precioEspecial;
 
-                    // ACTUALIZAR el precio en la tabla Productos
-                    using (var connection = new SqlConnection(connectionString))
+                    // ACTUALIZAR el precio en la tabla Productos SOLO si el producto permite editar precio
+                    bool editarPrecioFlag = false;
+                    if (producto.Table.Columns.Contains("EditarPrecio") && producto["EditarPrecio"] != DBNull.Value)
+                        editarPrecioFlag = Convert.ToBoolean(producto["EditarPrecio"]);
+
+                    if (editarPrecioFlag)
                     {
-                        var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
-                        using (var cmd = new SqlCommand(query, connection))
-                        {
-                            cmd.Parameters.AddWithValue("@precio", precioUnitario);
-                            cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
-                            connection.Open();
-                            cmd.ExecuteNonQuery();
-                        }
+                        // Usar el helper asíncrono
+                        await ActualizarPrecioProductoAsync(codigoBuscado, precioUnitario);
                     }
                 }
                 else
@@ -1535,6 +1560,20 @@ namespace Comercio.NET
                 if (txtPrecio.Enabled && decimal.TryParse(txtPrecio.Text, out decimal precioEditado))
                 {
                     precioUnitario = precioEditado;
+
+                    // Si el campo precio estaba habilitado (producto con EditarPrecio),
+                    // actualizar el valor persistente en Productos para mantener consistencia.
+                    if (txtPrecio.Enabled)
+                    {
+                        try
+                        {
+                            await ActualizarPrecioProductoAsync(codigoBuscado, precioUnitario);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error actualizando precio al agregar: {ex.Message}");
+                        }
+                    }
                 }
                 else
                 {
@@ -1542,6 +1581,7 @@ namespace Comercio.NET
                 }
             }
 
+            // (resto del método sigue igual...)
             // NUEVO: Obtener el porcentaje de IVA del producto (async-resiliente, sin .Value ni .Close redundante)
             decimal porcentajeIva = 0m;
             using (var connection = new SqlConnection(connectionString))
@@ -1599,11 +1639,11 @@ namespace Comercio.NET
                         {
                             // 4a. Si ya existe y permite acumular, hacer UPDATE sumando cantidad y recalculando total e IVA
                             var query = @"UPDATE Ventas 
-                                          SET cantidad = cantidad + @nuevaCantidad, 
-                                              total = (cantidad + @nuevaCantidad) * @precio,
-                                              IvaCalculado = (@precio * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva),
-                                              PorcentajeIva = @porcentajeIva
-                                          WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                                  SET cantidad = cantidad + @nuevaCantidad, 
+                                      total = (cantidad + @nuevaCantidad) * @precio,
+                                      IvaCalculado = (@precio * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva),
+                                      PorcentajeIva = @porcentajeIva
+                                  WHERE nrofactura = @nrofactura AND codigo = @codigo";
                             using (var cmd = new SqlCommand(query, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
@@ -1618,8 +1658,8 @@ namespace Comercio.NET
                         {
                             // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea) - INCLUIR PorcentajeIva
                             var query = @"INSERT INTO Ventas 
-                                        (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte, IvaCalculado, PorcentajeIva)
-                                        VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte, @ivaCalculado, @porcentajeIva)";
+                                (codigo, descripcion, precio, rubro, marca, proveedor, costo, fecha, hora, cantidad, total, nrofactura, EsCtaCte, NombreCtaCte, IvaCalculado, PorcentajeIva)
+                                VALUES (@codigo, @descripcion, @precio, @rubro, @marca, @proveedor, @costo, @fecha, @hora, @cantidad, @total, @nrofactura, @EsCtaCte, @NombreCtaCte, @ivaCalculado, @porcentajeIva)";
                             using (var cmd = new SqlCommand(query, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
@@ -1649,8 +1689,8 @@ namespace Comercio.NET
                         if (permiteAcumular)
                         {
                             var queryStock = @"UPDATE Productos 
-                                               SET cantidad = cantidad - @cantidadVendida 
-                                               WHERE codigo = @codigo";
+                                       SET cantidad = cantidad - @cantidadVendida 
+                                       WHERE codigo = @codigo";
                             using (var cmd = new SqlCommand(queryStock, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
