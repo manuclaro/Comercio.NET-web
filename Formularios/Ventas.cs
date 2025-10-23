@@ -817,7 +817,8 @@ namespace Comercio.NET
                 // RESTAURADO: Evento de doble click para editar cantidad
                 dataGridView1.CellDoubleClick += async (s, e) =>
                 {
-                    if (e.RowIndex >= 0) // Verificar que no sea el header
+                    if (e.RowIndex >= 0 // Verificar que no sea el header
+                    && dataGridView1.SelectedRows.Count > 0)
                     {
                         dataGridView1.Rows[e.RowIndex].Selected = true;
                         await EditarCantidadProductoSeleccionado();
@@ -1068,7 +1069,7 @@ namespace Comercio.NET
                 if (resultado == DialogResult.OK)
                 {
                     // Producto agregado exitosamente, continuar con la venta
-                    System.Diagnostics.Debug.WriteLine($"Producto {codigo} agregado correctamente");
+                    System.Diagnostics.Debug.WriteLine($"{DateTime.Now} - Producto {codigo} agregado correctamente");
                 }
             }
         }
@@ -1541,22 +1542,27 @@ namespace Comercio.NET
                 }
             }
 
-            // NUEVO: Obtener el porcentaje de IVA del producto
-            decimal porcentajeIva = 0;
+            // NUEVO: Obtener el porcentaje de IVA del producto (async-resiliente, sin .Value ni .Close redundante)
+            decimal porcentajeIva = 0m;
             using (var connection = new SqlConnection(connectionString))
             {
                 var queryIva = @"SELECT iva FROM Productos WHERE codigo = @codigo";
                 using (var cmd = new SqlCommand(queryIva, connection))
                 {
-                    cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
-                    connection.Open();
-                    var resultIva = cmd.ExecuteScalar();
-                    if (resultIva != null && resultIva != DBNull.Value)
+                    cmd.Parameters.AddWithValue("@codigo", codigoBuscado ?? "");
+                    await connection.OpenAsync();
+                    var result = await cmd.ExecuteScalarAsync();
+
+                    if (result != null && result != DBNull.Value)
                     {
-                        porcentajeIva = Convert.ToDecimal(resultIva);
+                        // Intentar parsear respetando la cultura actual; fallback reemplazando separador si hace falta
+                        var text = result.ToString();
+                        if (!decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out porcentajeIva))
+                        {
+                            decimal.TryParse(text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out porcentajeIva);
+                        }
                     }
                 }
-                connection.Close();
             }
 
             // NUEVO: Calcular el IVA basado en el precio y porcentaje
@@ -1837,9 +1843,9 @@ namespace Comercio.NET
             {
                 // MODIFICADO: Cambiar el orden de las columnas - PorcentajeIva antes que IvaCalculado
                 var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, PorcentajeIva, IvaCalculado
-                              FROM Ventas
-                              WHERE nrofactura = @nrofactura
-                              ORDER BY id DESC";
+                      FROM Ventas
+                      WHERE nrofactura = @nrofactura
+                      ORDER BY id DESC";
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
@@ -1848,8 +1854,6 @@ namespace Comercio.NET
                     dataGridView1.DataSource = dt;
                     remitoActual = dt;
                 }
-
-               
             }
 
             // Ocultar la columna id
@@ -1861,25 +1865,21 @@ namespace Comercio.NET
             if (dataGridView1.Columns["codigo"] != null)
             {
                 dataGridView1.Columns["codigo"].HeaderText = "Codigo";
-                //dataGridView1.Columns["codigo"].Width = 50;
             }
 
             if (dataGridView1.Columns["descripcion"] != null)
             {
                 dataGridView1.Columns["descripcion"].HeaderText = "Descripcion";
-                //dataGridView1.Columns["descripcion"].Width = 50;
             }
 
             if (dataGridView1.Columns["precio"] != null)
             {
                 dataGridView1.Columns["precio"].HeaderText = "Precio";
-                //dataGridView1.Columns["precio"].Width = 50;
             }
 
             if (dataGridView1.Columns["total"] != null)
             {
                 dataGridView1.Columns["total"].HeaderText = "Total";
-                //dataGridView1.Columns["total"].Width = 50;
             }
 
             // NUEVO: Cambiar el título de la columna cantidad a "Cant."
@@ -1889,54 +1889,41 @@ namespace Comercio.NET
                 dataGridView1.Columns["cantidad"].Width = 50;
             }
 
-            // MODIFICADO: Configurar la columna de porcentaje IVA primero (ahora aparecerá antes)
+            // Configurar PorcentajeIva e IvaCalculado si existen
             if (dataGridView1.Columns["PorcentajeIva"] != null)
             {
                 dataGridView1.Columns["PorcentajeIva"].HeaderText = "IVA%";
                 dataGridView1.Columns["PorcentajeIva"].Width = 30;
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Format = "N2";
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                //dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.ForeColor = Color.FromArgb(25, 118, 210);
                 dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                // NUEVO: Establecer el orden de visualización
-                dataGridView1.Columns["PorcentajeIva"].DisplayIndex = 6; // Aparecerá después de total
+                dataGridView1.Columns["PorcentajeIva"].DisplayIndex = 6;
             }
 
-            // MODIFICADO: Configurar la columna IVA calculado después
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
                 dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA $";
                 dataGridView1.Columns["IvaCalculado"].Width = 50;
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                // NUEVO: Establecer el orden de visualización
-                dataGridView1.Columns["IvaCalculado"].DisplayIndex = 7; // Aparecerá después de IVA %
+                dataGridView1.Columns["IvaCalculado"].DisplayIndex = 7;
             }
 
             // Ajustar anchos de columnas existentes para hacer espacio
             if (dataGridView1.Columns["descripcion"] != null)
-            {
-                dataGridView1.Columns["descripcion"].Width = 240; // Reducido para hacer espacio
-            }
+                dataGridView1.Columns["descripcion"].Width = 240;
             if (dataGridView1.Columns["precio"] != null)
-            {
                 dataGridView1.Columns["precio"].Width = 100;
-            }
             if (dataGridView1.Columns["cantidad"] != null)
-            {
                 dataGridView1.Columns["cantidad"].Width = 50;
-            }
-            // Después de asignar el DataSource o en ConfigurarDataGridView, asegúrate de que la columna existe
             if (dataGridView1.Columns["codigo"] != null)
             {
                 dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["codigo"].Width = 100; // Puedes ajustar el valor a tu preferencia
+                dataGridView1.Columns["codigo"].Width = 100;
             }
             if (dataGridView1.Columns["total"] != null)
-            {
                 dataGridView1.Columns["total"].Width = 100;
-            }
 
             // Actualizar totales
             lbCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
@@ -1944,61 +1931,55 @@ namespace Comercio.NET
             decimal sumaTotal = 0;
             decimal sumaIva = 0;
 
-            // NUEVO: Diccionario para agrupar IVA por alícuota
             var ivaPorAlicuota = new Dictionary<decimal, decimal>();
 
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
-                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
+                // total
+                if (row.Cells["total"]?.Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
                     sumaTotal += valorTotal;
 
-                if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
+                // iva de la fila (si existe la columna y el valor)
+                decimal valorIva = 0;
+                if (dataGridView1.Columns.Contains("IvaCalculado") && row.Cells["IvaCalculado"]?.Value != null &&
+                    decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal tmpIva))
                 {
+                    valorIva = tmpIva;
                     sumaIva += valorIva;
+                }
 
-                    // NUEVO: Agrupar IVA por alícuota
-                    if (row.Cells["PorcentajeIva"].Value != null && decimal.TryParse(row.Cells["PorcentajeIva"].Value.ToString(), out decimal alicuota))
-                    {
-                        if (!ivaPorAlicuota.ContainsKey(alicuota))
-                            ivaPorAlicuota[alicuota] = 0;
-                        ivaPorAlicuota[alicuota] += valorIva;
-                    }
+                // agrupar por alícuota (si existe)
+                if (dataGridView1.Columns.Contains("PorcentajeIva") && row.Cells["PorcentajeIva"]?.Value != null &&
+                    decimal.TryParse(row.Cells["PorcentajeIva"].Value.ToString(), out decimal alicuota))
+                {
+                    if (!ivaPorAlicuota.ContainsKey(alicuota))
+                        ivaPorAlicuota[alicuota] = 0;
+                    ivaPorAlicuota[alicuota] += valorIva;
                 }
             }
 
-            // MODIFICADO: Formatear con RichTextBox mostrando IVA discriminado por alícuota
+            // Mostrar en RichTextBox
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
 
-            // Total con fuente grande
-            rtbTotal.SelectionFont = new Font("Segoe UI", 22F, FontStyle.Bold); // REDUCIDO: era 24F, ahora 22F
-            rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}");
+            rtbTotal.SelectionFont = new Font("Segoe UI", 22F, FontStyle.Bold);
+            rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
 
-            // Nueva línea
-            rtbTotal.AppendText("\n");
-
-            // NUEVO: Mostrar IVA discriminado por alícuota si hay datos
             if (ivaPorAlicuota.Any())
             {
-                rtbTotal.SelectionFont = new Font("Segoe UI", 9F, FontStyle.Regular); // REDUCIDO: era 10F, ahora 9F
-                
-                // Ordenar por alícuota
+                rtbTotal.SelectionFont = new Font("Segoe UI", 9F, FontStyle.Regular);
                 foreach (var kvp in ivaPorAlicuota.OrderBy(x => x.Key))
                 {
-                    if (kvp.Value > 0) // Solo mostrar alícuotas con valor
-                    {
+                    if (kvp.Value > 0)
                         rtbTotal.AppendText($"IVA {kvp.Key:N2}%: {kvp.Value:C2}\n");
-                    }
                 }
-                
-                // Total de IVA con fuente un poco más grande
-                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Bold); // REDUCIDO: era 11F, ahora 10F
+
+                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Bold);
                 rtbTotal.AppendText($"IVA Total: {sumaIva:C2}");
             }
             else
             {
-                // Si no hay discriminación, mostrar IVA total simple
-                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Regular); // REDUCIDO: era 11F, ahora 10F
+                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Regular);
                 rtbTotal.AppendText($"IVA: {sumaIva:C2}");
             }
         }
@@ -2067,456 +2048,29 @@ namespace Comercio.NET
             }
         }
 
-        // Agregar este método público para que el modal pueda acceder a él
+       
+
+        // Agregado: métodos públicos y handlers que faltaban para compilar y enlazar con SeleccionImpresionForm
+
+        // Devuelve el DataTable del remito actual para que el modal lo consulte
         public DataTable GetRemitoActual()
         {
             return remitoActual;
         }
 
-        // Agregar este método público para que el modal pueda acceder al número de remito
+        // Devuelve el número de remito actual
         public int GetNroRemitoActual()
         {
             return nroRemitoActual;
         }
 
-        // Agregar este método público para que el modal pueda acceder al nombre del comercio
+        // Devuelve el nombre del comercio
         public string GetNombreComercio()
         {
             return nombreComercio;
         }
 
-        // Agregar este método pública para que el modal pueda acceder al domicilio
-        public string GetDomicilioComercio()
-        {
-            return domicilioComercio;
-        }
-
-        // Modificar el método GuardarFacturaEnBD para usar el método existente obtenerNumeroCajero()
-        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0, string numeroFormateado = "", List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null)
-        {
-            try
-            {
-                var config = new ConfigurationBuilder()
-                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json")
-                    .Build();
-                string connectionString = config.GetConnectionString("DefaultConnection");
-
-                // CORREGIDO: Calcular el importe total e IVA directamente del DataGridView
-                decimal importeTotal = 0;
-                decimal ivaTotal = 0;
-
-                foreach (DataGridViewRow row in dataGridView1.Rows)
-                {
-                    if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
-                        importeTotal += valorTotal;
-
-                    // NUEVO: Sumar el IVA de cada producto
-                    if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
-                        ivaTotal += valorIva;
-                }
-
-                // SIMPLIFICADO: Usar los métodos helper existentes
-                string usuarioActual = ObtenerUsuarioActual();
-                int numeroCajero = obtenerNumeroCajero();
-
-                System.Diagnostics.Debug.WriteLine($"=== INICIANDO GUARDADO FACTURA ===");
-                System.Diagnostics.Debug.WriteLine($"Tipo: {tipoFactura}, Forma pago: {formaPago}");
-                System.Diagnostics.Debug.WriteLine($"Importe: {importeTotal:C2}, IVA: {ivaTotal:C2}");
-                System.Diagnostics.Debug.WriteLine($"Usuario: {usuarioActual}, Cajero: {numeroCajero}");
-
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        int idFactura = 0;
-                        
-                        try
-                        {
-                            // 1. VERIFICAR SI LA TABLA FACTURAS TIENE COLUMNA Id IDENTITY
-                            bool tieneColumnaId = await VerificarColumnaIdFacturas(connection, transaction);
-                            
-                            // 2. PREPARAR QUERY SEGÚN LA ESTRUCTURA DE LA TABLA
-                            string queryFactura;
-                            if (tieneColumnaId)
-                            {
-                                // Usar SCOPE_IDENTITY si existe la columna Id
-                                queryFactura = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, IVA, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, UsuarioVenta) 
-                                                 VALUES (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @IVA, @FormadePago, @esCtaCte, @CtaCteNombre, 
-                                                 @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente, @UsuarioVenta);
-                                                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                            }
-                            else
-                            {
-                                // Usar NumeroRemito como clave si no existe columna Id
-                                queryFactura = @"INSERT INTO Facturas (NumeroRemito, NroFactura, Fecha, Hora, ImporteTotal, IVA, FormadePago, esCtaCte, CtaCteNombre, Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, UsuarioVenta) 
-                                                 VALUES (@NumeroRemito, @NroFactura, @Fecha, @Hora, @ImporteTotal, @IVA, @FormadePago, @esCtaCte, @CtaCteNombre, 
-                                                 @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente, @UsuarioVenta);
-                                                 SELECT @NumeroRemito;";
-                            }
-
-                            using (var cmd = new SqlCommand(queryFactura, connection, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
-
-                                if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
-                                {
-                                    cmd.Parameters.AddWithValue("@NroFactura", !string.IsNullOrEmpty(numeroFormateado) ? numeroFormateado : DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@CAENumero", !string.IsNullOrEmpty(caeNumero) ? (object)caeNumero : DBNull.Value);
-                                }
-                                else
-                                {
-                                    cmd.Parameters.AddWithValue("@NroFactura", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@CAENumero", DBNull.Value);
-                                }
-
-                                cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
-                                cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
-                                cmd.Parameters.AddWithValue("@ImporteTotal",importeTotal);
-                                cmd.Parameters.AddWithValue("@IVA", ivaTotal);
-                                cmd.Parameters.AddWithValue("@FormadePago", formaPago ?? "Efectivo");
-                                cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
-                                cmd.Parameters.AddWithValue("@CtaCteNombre", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-                                cmd.Parameters.AddWithValue("@Cajero", numeroCajero);
-                                cmd.Parameters.AddWithValue("@TipoFactura", tipoFactura ?? "Remito");
-                                cmd.Parameters.AddWithValue("@UsuarioVenta", usuarioActual);
-
-                                if (tipoFactura == "FacturaA" || tipoFactura == "FacturaB")
-                                {
-                                    cmd.Parameters.AddWithValue("@CAEVencimiento", caeVencimiento.HasValue ? (object)caeVencimiento.Value : DBNull.Value);
-                                }
-                                else
-                                {
-                                    cmd.Parameters.AddWithValue("@CAEVencimiento", DBNull.Value);
-                                }
-
-                                if (tipoFactura == "FacturaA" && !string.IsNullOrEmpty(cuitCliente))
-                                {
-                                    cmd.Parameters.AddWithValue("@CUITCliente", cuitCliente);
-                                }
-                                else
-                                {
-                                    cmd.Parameters.AddWithValue("@CUITCliente", DBNull.Value);
-                                }
-
-                                // CORREGIDO: Manejar ambos casos
-                                var result = await cmd.ExecuteScalarAsync();
-                                if (result != null && int.TryParse(result.ToString(), out int facturaId))
-                                {
-                                    idFactura = facturaId;
-                                    System.Diagnostics.Debug.WriteLine($"Factura principal guardada con ID: {idFactura}");
-                                }
-                                else
-                                {
-                                    // Si no se puede obtener ID, usar el número de remito como identificador
-                                    idFactura = nroRemitoActual;
-                                    System.Diagnostics.Debug.WriteLine($"Usando NumeroRemito como ID: {idFactura}");
-                                }
-                            }
-
-                            // 3. GUARDAR DETALLES DE PAGO MÚLTIPLE (si aplica)
-                            if (idFactura > 0)
-                            {
-                                await GuardarDetallesPagoMultiple(connection, transaction, idFactura, formaPago, pagosMultiples, usuarioActual, tieneColumnaId);
-                            }
-
-                            // 4. CONFIRMAR TRANSACCIÓN
-                            transaction.Commit();
-
-                            // DEBUG: Resumen exitoso
-                            System.Diagnostics.Debug.WriteLine($"=== FACTURA GUARDADA EXITOSAMENTE ===");
-                            System.Diagnostics.Debug.WriteLine($"ID Factura: {idFactura}");
-                            System.Diagnostics.Debug.WriteLine($"Importe: {importeTotal:C}, IVA: {ivaTotal:C}");
-                            System.Diagnostics.Debug.WriteLine($"Subtotal: {(importeTotal - ivaTotal):C}");
-                            System.Diagnostics.Debug.WriteLine($"Forma de pago: {formaPago}");
-                            if (pagosMultiples != null && pagosMultiples.Any())
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Pagos múltiples: {pagosMultiples.Count} registros");
-                                foreach (var pago in pagosMultiples)
-                                {
-                                    System.Diagnostics.Debug.WriteLine($"  - {pago.MedioPago}: {pago.Importe:C2}");
-                                }
-                            }
-                            System.Diagnostics.Debug.WriteLine($"========================================");
-                        }
-                        catch (Exception exTransaction)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error en transacción: {exTransaction.Message}");
-                            System.Diagnostics.Debug.WriteLine($"Stack trace: {exTransaction.StackTrace}");
-                            
-                            transaction.Rollback();
-                            
-                            // Re-lanzar la excepción para mostrar el error al usuario
-                            throw new Exception($"Error guardando factura: {exTransaction.Message}", exTransaction);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error crítico en GuardarFacturaEnBD: {ex.Message}");
-                
-                MessageBox.Show($"Error al guardar la factura en base de datos:\n\n{ex.Message}\n\nLa venta se imprimió correctamente pero no se guardó en la base de datos.", "Error de Base de Datos",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-
-        // NUEVO: Verificar si la tabla Facturas tiene columna Id IDENTITY
-        private async Task<bool> VerificarColumnaIdFacturas(SqlConnection connection, SqlTransaction transaction)
-        {
-            try
-            {
-                var queryVerificar = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                                      WHERE TABLE_NAME = 'Facturas' AND COLUMN_NAME = 'Id' 
-                                      AND DATA_TYPE = 'int' AND IS_NULLABLE = 'NO'";
-                
-                using (var cmd = new SqlCommand(queryVerificar, connection, transaction))
-                {
-                    var result = await cmd.ExecuteScalarAsync();
-                    bool tieneId = Convert.ToInt32(result) > 0;
-                    
-                    System.Diagnostics.Debug.WriteLine($"Verificación tabla Facturas - Tiene columna Id: {tieneId}");
-                    return tieneId;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error verificando estructura tabla Facturas: {ex.Message}");
-                return false; // Asumir que no tiene columna Id si hay error
-            }
-        }
-
-        // CORREGIDO: Método para guardar los detalles de pago múltiple
-        private async Task GuardarDetallesPagoMultiple(SqlConnection connection, SqlTransaction transaction, int idFactura, string formaPago, List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples, string usuario, bool usarIdFactura = true)
-        {
-            try
-            {
-                // CREAR TABLA DE DETALLES DE PAGO (si no existe)
-                await CrearTablaDetallesPagoSiNoExiste(connection, transaction, usarIdFactura);
-
-                if (formaPago == "Múltiple" && pagosMultiples != null && pagosMultiples.Any())
-                {
-                    // ... código existente para pagos múltiples ...
-                }
-                else if (formaPago != "Múltiple")
-                {
-                    // CORREGIDO: Para pagos simples, usar la misma lógica
-                    try
-                    {
-                        // NUEVO: Verificar qué columnas existen en la tabla
-                        bool tieneIdFactura = await VerificarColumnaExiste(connection, transaction, "DetallesPagoFactura", "IdFactura");
-                        bool tieneNumeroRemito = await VerificarColumnaExiste(connection, transaction, "DetallesPagoFactura", "NumeroRemito");
-
-                        System.Diagnostics.Debug.WriteLine($"🔍 Verificación columnas DetallesPagoFactura:");
-                        System.Diagnostics.Debug.WriteLine($"   - Tiene IdFactura: {tieneIdFactura}");
-                        System.Diagnostics.Debug.WriteLine($"   - Tiene NumeroRemito: {tieneNumeroRemito}");
-                        System.Diagnostics.Debug.WriteLine($"   - usarIdFactura parameter: {usarIdFactura}");
-
-                        string query;
-
-                        // CORREGIDO: Lógica para manejar ambas columnas
-                        if (tieneIdFactura && tieneNumeroRemito)
-                        {
-                            // CASO CRÍTICO: La tabla tiene AMBAS columnas - llenar ambas para evitar NULL
-                            query = @"INSERT INTO DetallesPagoFactura (IdFactura, NumeroRemito, MedioPago, Importe, Observaciones, FechaPago, Usuario)
-                              VALUES (@IdFactura, @NumeroRemito, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
-                            System.Diagnostics.Debug.WriteLine($"🔧 Usando AMBAS columnas para evitar NULL");
-                        }
-                        else if (!usarIdFactura && tieneNumeroRemito)
-                        {
-                            // Caso: Tabla Facturas NO tiene Id, usar NumeroRemito
-                            query = @"INSERT INTO DetallesPagoFactura (NumeroRemito, MedioPago, Importe, Observaciones, FechaPago, Usuario)
-                              VALUES (@NumeroRemito, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
-                        }
-                        else if (usarIdFactura && tieneIdFactura)
-                        {
-                            // Caso: Tabla Facturas SÍ tiene Id, usar IdFactura
-                            query = @"INSERT INTO DetallesPagoFactura (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario)
-                              VALUES (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario)";
-                        }
-                        else
-                        {
-                            throw new Exception("No se pudo determinar la estructura correcta para DetallesPagoFactura");
-                        }
-
-                        // Calcular importe total de la factura
-                        decimal importeTotal = 0;
-                        foreach (DataGridViewRow row in dataGridView1.Rows)
-                        {
-                            if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valor))
-                                importeTotal += valor;
-                        }
-
-                        using (var cmd = new SqlCommand(query, connection, transaction))
-                        {
-                            // CORREGIDO: Agregar parámetros según la estructura determinada
-                            if (tieneIdFactura && tieneNumeroRemito)
-                            {
-                                // Llenar ambas columnas con el mismo valor
-                                cmd.Parameters.AddWithValue("@IdFactura", idFactura);
-                                cmd.Parameters.AddWithValue("@NumeroRemito", idFactura);
-                                System.Diagnostics.Debug.WriteLine($"🔗 Usando @IdFactura = {idFactura} y @NumeroRemito = {idFactura}");
-                            }
-                            else if (usarIdFactura)
-                            {
-                                cmd.Parameters.AddWithValue("@IdFactura", idFactura);
-                                System.Diagnostics.Debug.WriteLine($"🔗 Usando @IdFactura = {idFactura}");
-                            }
-                            else
-                            {
-                                cmd.Parameters.AddWithValue("@NumeroRemito", idFactura);
-                                System.Diagnostics.Debug.WriteLine($"🔗 Usando @NumeroRemito = {idFactura}");
-                            }
-
-                            cmd.Parameters.AddWithValue("@MedioPago", formaPago ?? "Efectivo");
-                            cmd.Parameters.AddWithValue("@Importe", importeTotal);
-                            cmd.Parameters.AddWithValue("@Observaciones", "Pago simple");
-                            cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
-                            cmd.Parameters.AddWithValue("@Usuario", usuario ?? "Sistema");
-
-                            await cmd.ExecuteNonQueryAsync();
-
-                            System.Diagnostics.Debug.WriteLine($"✅ Pago simple guardado: {formaPago} - {importeTotal:C2}");
-                        }
-                    }
-                    catch (Exception exSimple)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Error guardando pago simple: {exSimple.Message}");
-                        // No re-lanzar para no romper la transacción principal
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"⚠️ Error en GuardarDetallesPagoMultiple: {ex.Message}");
-                // CAMBIADO: No re-lanzar la excepción para no romper la transacción principal
-                System.Diagnostics.Debug.WriteLine("⚠️ Continuando sin guardar detalles de pago múltiple");
-            }
-        }
-
-        // NUEVO: Método helper para verificar si una columna existe en una tabla
-        private async Task<bool> VerificarColumnaExiste(SqlConnection connection, SqlTransaction transaction, string tabla, string columna)
-        {
-            try
-            {
-                var query = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                      WHERE TABLE_NAME = @tabla AND COLUMN_NAME = @columna";
-
-                using (var cmd = new SqlCommand(query, connection, transaction))
-                {
-                    cmd.Parameters.AddWithValue("@tabla", tabla);
-                    cmd.Parameters.AddWithValue("@columna", columna);
-
-                    var result = await cmd.ExecuteScalarAsync();
-                    return Convert.ToInt32(result) > 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error verificando columna {columna} en tabla {tabla}: {ex.Message}");
-                return false;
-            }
-        }
-
-        // MODIFICADO: Método para crear la tabla de detalles de pago con estructura flexible
-        private async Task CrearTablaDetallesPagoSiNoExiste(SqlConnection connection, SqlTransaction transaction, bool usarIdFactura = true)
-        {
-            try
-            {
-                string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
-                string tipoFactura = usarIdFactura ? "int" : "int";
-                
-                // CORREGIDO: Crear la tabla adaptándose a la estructura de la tabla Facturas
-                var createTableQuery = $@"
-                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DetallesPagoFactura' AND xtype='U')
-                BEGIN
-                    CREATE TABLE DetallesPagoFactura (
-                        Id int IDENTITY(1,1) PRIMARY KEY,
-                        {campoFactura} {tipoFactura} NOT NULL,
-                        MedioPago nvarchar(50) NOT NULL,
-                        Importe decimal(18,2) NOT NULL,
-                        Observaciones nvarchar(500) NULL,
-                        FechaPago datetime NOT NULL DEFAULT GETDATE(),
-                        Usuario nvarchar(100) NULL
-                    )
-                END
-                ELSE
-                BEGIN
-                    -- Verificar y agregar nuevas columnas si no existen
-                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = '{campoFactura}')
-                    BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD {campoFactura} {tipoFactura} NOT NULL DEFAULT 0
-                    END
-                    
-                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'MedioPago')
-                    BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD MedioPago nvarchar(50) NOT NULL DEFAULT 'Efectivo'
-                    END
-                    
-                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Importe')
-                    BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD Importe decimal(18,2) NOT NULL DEFAULT 0
-                    END
-                    
-                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Observaciones')
-                    BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD Observaciones nvarchar(500) NULL
-                    END
-                    
-                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'FechaPago')
-                    BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD FechaPago datetime NOT NULL DEFAULT GETDATE()
-                    END
-                    
-                    IF NOT EXISTS (SELECT * FROM syscolumns WHERE id = OBJECT_ID('DetallesPagoFactura') AND name = 'Usuario')
-                    BEGIN
-                        ALTER TABLE DetallesPagoFactura ADD Usuario nvarchar(100) NULL
-                    END
-                END";
-
-                using (var cmd = new SqlCommand(createTableQuery, connection, transaction))
-                {
-                    await cmd.ExecuteNonQueryAsync();
-                }
-
-                System.Diagnostics.Debug.WriteLine($"? Tabla DetallesPagoFactura verificada/creada correctamente con campo {campoFactura}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ Error creando tabla DetallesPagoFactura: {ex.Message}");
-                
-                // NUEVO: Intentar crear una versión simple de la tabla como fallback
-                try
-                {
-                    string campoFactura = usarIdFactura ? "IdFactura" : "NumeroRemito";
-                    var fallbackQuery = $@"
-                    IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DetallesPagoFactura' AND xtype='U')
-                    CREATE TABLE DetallesPagoFactura (
-                        Id int IDENTITY(1,1) PRIMARY KEY,
-                        {campoFactura} int NOT NULL,
-                        MedioPago nvarchar(50) NOT NULL,
-                        Importe decimal(18,2) NOT NULL,
-                        Observaciones nvarchar(500) NULL,
-                        FechaPago datetime NOT NULL DEFAULT GETDATE(),
-                        Usuario nvarchar(100) NULL
-                    )";
-                    
-                    using (var cmd = new SqlCommand(fallbackQuery, connection, transaction))
-                    {
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                    System.Diagnostics.Debug.WriteLine($"? Tabla DetallesPagoFactura creada con versión simple usando {campoFactura}");
-                }
-                catch (Exception ex2)
-                {
-                    System.Diagnostics.Debug.WriteLine($"❌ Error crítico creando tabla DetallesPagoFactura: {ex2.Message}");
-                    // No re-lanzar la excepción para no romper la transacción principal
-                }
-            }
-        }
-
-        // Método btnFinalizarVenta_Click - MODIFICADO para evitar reapertura del modal
+        // Handler del botón Finalizar Venta (construido para usar el modal SeleccionImpresionForm)
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
             remitoIncrementado = false;
@@ -2528,17 +2082,20 @@ namespace Comercio.NET
             decimal importeTotal = 0;
             decimal ivaTotal = 0;
 
-            foreach (DataGridViewRow row in dataGridView1.Rows)
+            foreach (DataRow row in remitoActual.Rows)
             {
-                if (row.Cells["total"].Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
+                if (row["total"] != null && decimal.TryParse(row["total"].ToString(), out decimal valorTotal))
                     importeTotal += valorTotal;
 
-                // NUEVO: Sumar el IVA de cada producto
-                if (row.Cells["IvaCalculado"].Value != null && decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal valorIva))
-                    ivaTotal += valorIva;
+                // Comprobar existencia de la columna y que no sea DBNull
+                if (row.Table != null && row.Table.Columns.Contains("IvaCalculado") && !row.IsNull("IvaCalculado"))
+                {
+                    if (decimal.TryParse(row["IvaCalculado"].ToString(), out decimal valorIva))
+                        ivaTotal += valorIva;
+                }
             }
 
-            // NUEVO: Variables para almacenar los datos del procesamiento
+            // Variables para almacenar los datos del procesamiento
             List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null;
             SeleccionImpresionForm.OpcionImpresion opcionSeleccionada = SeleccionImpresionForm.OpcionImpresion.Ninguna;
             SeleccionImpresionForm.OpcionPago opcionPagoSeleccionada = SeleccionImpresionForm.OpcionPago.Efectivo;
@@ -2549,22 +2106,24 @@ namespace Comercio.NET
 
             try
             {
-                // Mostrar el modal de selección
                 using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
                 {
+                    // Pasar tokens si los tenemos
                     seleccion.TokenAfip = this.token;
                     seleccion.SignAfip = this.sign;
+
                     seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumeroParam, caeVencimientoParam, numeroFacturaAfipParam, numeroFormateado) =>
                     {
-                        // NUEVO: Capturar los pagos múltiples antes de guardar
+                        // Capturar pagos múltiples si aplica
                         if (seleccion.EsPagoMultiple)
                         {
                             pagosMultiples = seleccion.PagosMultiples;
                         }
 
+                        // Guardar en BD (implementación mínima / placeholder más abajo)
                         await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumeroParam, caeVencimientoParam, numeroFacturaAfipParam, numeroFormateado, pagosMultiples);
 
-                        // NUEVO: Guardar los datos para la impresión
+                        // Guardar para impresión posterior
                         opcionSeleccionada = seleccion.OpcionSeleccionada;
                         opcionPagoSeleccionada = seleccion.OpcionPagoSeleccionada;
                         caeNumero = caeNumeroParam ?? "";
@@ -2573,43 +2132,171 @@ namespace Comercio.NET
                         procesadoExitosamente = true;
                     };
 
-                    System.Diagnostics.Debug.WriteLine("🔄 Abriendo modal SeleccionImpresionForm...");
-
                     var resultado = seleccion.ShowDialog(this);
 
-                    System.Diagnostics.Debug.WriteLine($"🔄 Modal cerrado con resultado: {resultado}");
-                    System.Diagnostics.Debug.WriteLine($"🔄 Procesado exitosamente: {procesadoExitosamente}");
-                } // El modal se cierra aquí y se libera automáticamente
+                    // Si el usuario seleccionó Finalizar (sin impresión) desde el modal,
+                    // el callback ya guardó y devolvió DialogResult.OK; dejamos procesadoExitosamente en true.
+                    if (resultado == DialogResult.OK && procesadoExitosamente)
+                    {
+                        // Si el modal indicó explícitamente "FinalizadoSinImpresion", NO imprimir
+                        if (seleccion.FinalizadoSinImpresion)
+                        {
+                            LimpiarYReiniciarVenta();
+                            return;
+                        }
 
-                // MODIFICADO: Solo continuar si se procesó exitosamente
-                if (procesadoExitosamente)
-                {
-                    System.Diagnostics.Debug.WriteLine("✅ Iniciando impresión después del cierre exitoso del modal...");
+                        // Proceder con impresión según la opción seleccionada
+                        await ImprimirSinModal(opcionSeleccionada, opcionPagoSeleccionada, caeNumero, caeVencimiento, numeroFacturaAfip);
 
-                    // NUEVO: Crear configuración para impresión sin depender del modal
-                    await ImprimirSinModal(opcionSeleccionada, opcionPagoSeleccionada, caeNumero, caeVencimiento, numeroFacturaAfip);
-
-                    // Limpiar y reiniciar para nueva venta
-                    System.Diagnostics.Debug.WriteLine("🔄 Limpiando y reiniciando venta...");
-                    LimpiarYReiniciarVenta();
-
-                    System.Diagnostics.Debug.WriteLine("✅ Proceso de venta completado exitosamente");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("❌ Proceso cancelado o no completado");
-                    // No hacer nada, mantener la venta actual
+                        // Limpiar y reiniciar
+                        LimpiarYReiniciarVenta();
+                    }
+                    else
+                    {
+                        // Modal cancelado o no procesado
+                    }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error en btnFinalizarVenta_Click: {ex.Message}");
-                MessageBox.Show($"Error finalizando la venta: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error finalizando la venta: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // NUEVO: Método para imprimir sin depender del modal
+        // GuardarFacturaEnBD: implementación mínima que compila y puede ampliarse.
+        // Actualmente registra en debug y retorna; si necesitas persistir realmente, lo integro con la lógica completa.
+        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0, string numeroFormateado = "", List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null)
+        {
+            if (remitoActual == null || remitoActual.Rows.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("GuardarFacturaEnBD: no hay remitoActual para guardar.");
+                return;
+            }
+
+            // Calcular totales desde remitoActual (defensivo)
+            decimal totalFactura = 0m;
+            decimal ivaTotal = 0m;
+            foreach (DataRow r in remitoActual.Rows)
+            {
+                if (r.Table.Columns.Contains("total") && r["total"] != DBNull.Value && decimal.TryParse(r["total"].ToString(), out decimal t))
+                    totalFactura += t;
+                if (r.Table.Columns.Contains("IvaCalculado") && r["IvaCalculado"] != DBNull.Value && decimal.TryParse(r["IvaCalculado"].ToString(), out decimal iv))
+                    ivaTotal += iv;
+            }
+
+            string connectionString = GetConnectionString();
+
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Insertar cabecera en Facturas (mapeado a tu esquema)
+                            var insertFacturaSql = @"
+                        INSERT INTO Facturas
+                            (NumeroRemito, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre,
+                             Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, NroFactura, UsuarioVenta, IVA)
+                        VALUES
+                            (@NumeroRemito, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre,
+                             @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente, @NroFactura, @UsuarioVenta, @IVA);
+                        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+                            int facturaId;
+                            using (var cmd = new SqlCommand(insertFacturaSql, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                                cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
+                                cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
+                                cmd.Parameters.AddWithValue("@ImporteTotal", totalFactura);
+                                cmd.Parameters.AddWithValue("@FormadePago", string.IsNullOrEmpty(formaPago) ? (object)DBNull.Value : formaPago);
+                                cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
+                                cmd.Parameters.AddWithValue("@CtaCteNombre", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+
+                                int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 0;
+                                cmd.Parameters.AddWithValue("@Cajero", numeroCajero.ToString());
+
+                                cmd.Parameters.AddWithValue("@TipoFactura", string.IsNullOrEmpty(tipoFactura) ? (object)DBNull.Value : tipoFactura);
+                                cmd.Parameters.AddWithValue("@CAENumero", string.IsNullOrEmpty(caeNumero) ? (object)DBNull.Value : caeNumero);
+                                cmd.Parameters.AddWithValue("@CAEVencimiento", caeVencimiento.HasValue ? (object)caeVencimiento.Value : DBNull.Value);
+                                cmd.Parameters.AddWithValue("@CUITCliente", string.IsNullOrEmpty(cuitCliente) ? (object)DBNull.Value : cuitCliente);
+                                cmd.Parameters.AddWithValue("@NroFactura", !string.IsNullOrEmpty(numeroFormateado) ? (object)numeroFormateado : (numeroFacturaAfip > 0 ? (object)numeroFacturaAfip.ToString() : (object)DBNull.Value));
+                                cmd.Parameters.AddWithValue("@UsuarioVenta", ObtenerUsuarioActual());
+                                cmd.Parameters.AddWithValue("@IVA", ivaTotal);
+
+                                var result = await cmd.ExecuteScalarAsync();
+                                facturaId = result != null && int.TryParse(result.ToString(), out int id) ? id : 0;
+                                System.Diagnostics.Debug.WriteLine($"GuardarFacturaEnBD: Factura insertada con Id={facturaId}");
+                            }
+
+                            // Insertar registros en DetallesPagoFactura
+                            var insertDetalleSql = @"
+                        INSERT INTO DetallesPagoFactura
+                            (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario, NumeroRemito)
+                        VALUES
+                            (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario, @NumeroRemito);";
+
+                            if (pagosMultiples != null && pagosMultiples.Any())
+                            {
+                                foreach (var pago in pagosMultiples)
+                                {
+                                    using (var cmdPago = new SqlCommand(insertDetalleSql, connection, transaction))
+                                    {
+                                        cmdPago.Parameters.AddWithValue("@IdFactura", facturaId);
+                                        cmdPago.Parameters.AddWithValue("@MedioPago", pago.MedioPago ?? "");
+                                        cmdPago.Parameters.AddWithValue("@Importe", pago.Importe);
+
+                                        // GRABAR Observaciones correctamente (usar DBNull si vacío)
+                                        var obsVal = string.IsNullOrWhiteSpace(pago.Observaciones) ? (object)DBNull.Value : pago.Observaciones;
+                                        cmdPago.Parameters.AddWithValue("@Observaciones", obsVal);
+
+                                        var fechaPago = pago.Fecha != default ? pago.Fecha : DateTime.Now;
+                                        cmdPago.Parameters.AddWithValue("@FechaPago", fechaPago);
+                                        cmdPago.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
+                                        cmdPago.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                                        await cmdPago.ExecuteNonQueryAsync();
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // Pago simple: registrar un único detalle con la forma de pago y el total
+                                using (var cmdPago = new SqlCommand(insertDetalleSql, connection, transaction))
+                                {
+                                    cmdPago.Parameters.AddWithValue("@IdFactura", facturaId);
+                                    cmdPago.Parameters.AddWithValue("@MedioPago", string.IsNullOrEmpty(formaPago) ? "Desconocido" : formaPago);
+                                    cmdPago.Parameters.AddWithValue("@Importe", totalFactura);
+                                    cmdPago.Parameters.AddWithValue("@Observaciones", DBNull.Value);
+                                    cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+                                    cmdPago.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
+                                    cmdPago.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                                    await cmdPago.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            transaction.Commit();
+                        }
+                        catch (Exception exTx)
+                        {
+                            transaction.Rollback();
+                            System.Diagnostics.Debug.WriteLine($"GuardarFacturaEnBD ERROR: {exTx.Message}");
+                            MessageBox.Show($"Error al guardar la factura en la base de datos: {exTx.Message}", "Error BD", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GuardarFacturaEnBD (conexion) ERROR: {ex.Message}");
+                MessageBox.Show($"Error al guardar la factura: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ImprimirSinModal: imprime usando el servicio de tickets y los datos actuales en memoria (remitoActual)
         private async Task ImprimirSinModal(SeleccionImpresionForm.OpcionImpresion opcionImpresion,
             SeleccionImpresionForm.OpcionPago opcionPago, string caeNumero, DateTime? caeVencimiento, int numeroFacturaAfip)
         {
@@ -2621,7 +2308,6 @@ namespace Comercio.NET
                     return;
                 }
 
-                // Configurar el ticket según el tipo de comprobante
                 var config = new TicketConfig
                 {
                     NombreComercio = nombreComercio,
@@ -2630,47 +2316,44 @@ namespace Comercio.NET
                     MensajePie = "Gracias por su compra!"
                 };
 
-                // NUEVO: Configurar número y tipo según el comprobante seleccionado
                 switch (opcionImpresion)
                 {
                     case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
                         config.TipoComprobante = "REMITO";
                         config.NumeroComprobante = $"Remito N° {nroRemitoActual}";
                         break;
-
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
                         config.TipoComprobante = "FacturaB";
                         config.NumeroComprobante = FormatearNumeroFacturaParaBD(6, 1, numeroFacturaAfip);
                         config.CAE = caeNumero;
                         config.CAEVencimiento = caeVencimiento;
                         break;
-
                     case SeleccionImpresionForm.OpcionImpresion.FacturaA:
                         config.TipoComprobante = "FacturaA";
                         config.NumeroComprobante = FormatearNumeroFacturaParaBD(1, 1, numeroFacturaAfip);
                         config.CAE = caeNumero;
                         config.CAEVencimiento = caeVencimiento;
                         break;
+                    default:
+                        config.TipoComprobante = "SINCOMPROBANTE";
+                        config.NumeroComprobante = "";
+                        break;
                 }
 
-                System.Diagnostics.Debug.WriteLine("=== INICIO IMPRESIÓN ===");
-                System.Diagnostics.Debug.WriteLine($"TipoComprobante configurado: {config.TipoComprobante}");
-                System.Diagnostics.Debug.WriteLine($"NumeroComprobante: {config.NumeroComprobante}");
-                System.Diagnostics.Debug.WriteLine($"CAE: {config.CAE}");
-                System.Diagnostics.Debug.WriteLine($"===========================");
+                System.Diagnostics.Debug.WriteLine("🖨️ Iniciando impresión (sin modal)...");
+                System.Diagnostics.Debug.WriteLine($"   Tipo: {config.TipoComprobante}, Num: {config.NumeroComprobante}, CAE: {config.CAE}");
 
-                // CORREGIDO: Usar await con el servicio de impresión
                 using (var ticketService = new TicketPrintingService())
                 {
                     await ticketService.ImprimirTicket(remitoActual, config);
                 }
 
-                System.Diagnostics.Debug.WriteLine("✅ Impresión completada correctamente");
+                System.Diagnostics.Debug.WriteLine("✅ Impresión completada");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"❌ Error en ImprimirSinModal: {ex.Message}");
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                System.Diagnostics.Debug.WriteLine($"❌ Error en impresión: {ex.Message}");
             }
         }
     }

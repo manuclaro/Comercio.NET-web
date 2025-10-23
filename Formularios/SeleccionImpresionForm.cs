@@ -44,6 +44,9 @@ namespace Comercio.NET
         private Button btnFacturaB;
         private Button btnFacturaA;
 
+        // NUEVO: Botón para finalizar sin imprimir
+        private Button btnFinalizarSinImpresion;
+
         // NUEVO: Control de múltiples pagos
         private MultiplePagosControl multiplePagosControl;
 
@@ -63,6 +66,9 @@ namespace Comercio.NET
 
         // NUEVO: Label para mostrar el importe total a pagar
         private Label lblImporteTotal;
+
+        // NUEVO: Referencia al botón Cancelar (antes era variable local)
+        private Button btnCancelar;
 
         // Delegate para el callback después de procesar la venta
         public Func<string, string, string, string, DateTime?, int, string, Task> OnProcesarVenta { get; set; }
@@ -95,6 +101,7 @@ namespace Comercio.NET
         public string CAENumero { get; private set; } = "";
         public DateTime? CAEVencimiento { get; private set; } = null;
         public int NumeroFacturaAfip { get; private set; } = 0;
+        public bool FinalizadoSinImpresion { get; private set; } = false;
 
         public string TokenAfip { get; set; }
         public string SignAfip { get; set; }
@@ -120,6 +127,9 @@ namespace Comercio.NET
             CrearControles();
             ConfigurarEventos();
             ActualizarOpcionesImpresion();
+
+            // Asegurar reposicionado si por alguna razón cambia el tamaño del cliente (defensivo)
+            this.Resize += (s, e) => PosicionarBotones();
         }
 
         private void CrearControles()
@@ -282,7 +292,7 @@ namespace Comercio.NET
             {
                 Text = "Remito",
                 Width = 130,
-                Left = 60,
+                //Left = 60, <-- ahora se posicionan con PosicionarBotones()
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -295,7 +305,7 @@ namespace Comercio.NET
             {
                 Text = "Factura B",
                 Width = 130,
-                Left = 200,
+                //Left = 200,
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -308,7 +318,7 @@ namespace Comercio.NET
             {
                 Text = "Factura A",
                 Width = 130,
-                Left = 340,
+                //Left = 340,
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -317,11 +327,25 @@ namespace Comercio.NET
                 FlatStyle = FlatStyle.Flat
             };
 
-            var btnCancelar = new Button
+            // NUEVO: Botón para finalizar sin imprimir
+            btnFinalizarSinImpresion = new Button
+            {
+                Text = "Finalizar (Sin impresión)",
+                Width = 120,
+                //Left = 480,
+                Top = topBotones,
+                Height = 45,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                BackColor = System.Drawing.Color.FromArgb(255, 193, 7),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            btnCancelar = new Button
             {
                 Text = "Cancelar",
-                Width = 100,
-                Left = 480,
+                Width = 90,
+                //Left = 610, // REPOSICIONADO para dar espacio al nuevo botón (ahora se posiciona centralmente más a la izquierda)
                 Top = topBotones, // AJUSTADO
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -344,8 +368,51 @@ namespace Comercio.NET
                 btnRemito,
                 btnFacturaB,
                 btnFacturaA,
+                btnFinalizarSinImpresion,
                 btnCancelar
             });
+
+            // Posicionar botones de forma consistente y más a la izquierda
+            PosicionarBotones();
+        }
+
+        // Método que posiciona secuencialmente los botones pero CENTRADOS en el ancho del formulario.
+        private void PosicionarBotones()
+        {
+            try
+            {
+                // Lista de botones en el orden visual. Solo considerar los visibles (por si los ocultas algún día).
+                var botones = new List<Button> { btnRemito, btnFacturaB, btnFacturaA, btnFinalizarSinImpresion, btnCancelar }
+                    .Where(b => b != null && b.Visible)
+                    .ToList();
+
+                if (!botones.Any())
+                    return;
+
+                int spacing = 15; // espacio entre botones
+                int totalButtonsWidth = botones.Sum(b => b.Width);
+                int totalSpacing = spacing * Math.Max(0, botones.Count - 1);
+                int totalWidth = totalButtonsWidth + totalSpacing;
+
+                // Calcular inicio centrado
+                int startLeft = (this.ClientSize.Width - totalWidth) / 2;
+
+                // Mantener un margen mínimo (evitar que queden pegados al borde)
+                int minMargin = 10;
+                if (startLeft < minMargin)
+                    startLeft = minMargin;
+
+                int left = startLeft;
+                foreach (var b in botones)
+                {
+                    b.Left = left;
+                    left += b.Width + spacing;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error en PosicionarBotones: {ex.Message}");
+            }
         }
 
         private void ConfigurarEventos()
@@ -395,13 +462,11 @@ namespace Comercio.NET
                     btnRemito.Top = 390;
                     btnFacturaB.Top = 390;
                     btnFacturaA.Top = 390;
+                    btnFinalizarSinImpresion.Top = 390;
+                    btnCancelar.Top = 390;
 
-                    // NUEVO: También posicionar el botón Cancelar
-                    var btnCancelar = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Cancelar");
-                    if (btnCancelar != null)
-                    {
-                        btnCancelar.Top = 390;
-                    }
+                    // Recalcular lefts para mantener cluster hacia la izquierda
+                    PosicionarBotones();
                 }
                 else
                 {
@@ -424,13 +489,11 @@ namespace Comercio.NET
                     btnRemito.Top = 270;
                     btnFacturaB.Top = 270;
                     btnFacturaA.Top = 270;
+                    btnFinalizarSinImpresion.Top = 270;
+                    btnCancelar.Top = 270;
 
-                    // NUEVO: Posicionar también el botón Cancelar
-                    var btnCancelar = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Cancelar");
-                    if (btnCancelar != null)
-                    {
-                        btnCancelar.Top = 270;
-                    }
+                    // Recalcular lefts para modo simple
+                    PosicionarBotones();
                 }
 
                 ActualizarOpcionesImpresion();
@@ -557,14 +620,32 @@ namespace Comercio.NET
                 }
             };
 
+            // NUEVO: Evento para finalizar sin imprimir
+            btnFinalizarSinImpresion.Click += async (s, e) =>
+            {
+                try
+                {
+                    await ProcesarFinalizarSinImpresion();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al finalizar sin impresión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
             this.Shown += (s, e) =>
             {
+                // Reposicionar botones al mostrarse (asegura centrado en start)
+                PosicionarBotones();
+
                 if (btnRemito.Enabled)
                     btnRemito.Focus();
                 else if (btnFacturaB.Enabled)
                     btnFacturaB.Focus();
-                else
+                else if (btnFacturaA.Enabled)
                     btnFacturaA.Focus();
+                else if (btnFinalizarSinImpresion.Enabled)
+                    btnFinalizarSinImpresion.Focus();
             };
         }
 
@@ -687,6 +768,7 @@ namespace Comercio.NET
                 btnRemito.Enabled = false;
                 btnFacturaA.Enabled = false;
                 btnFacturaB.Enabled = false;
+                btnFinalizarSinImpresion.Enabled = false;
 
                 // 2. OBTENER CONFIGURACIÓN AFIP
                 var config = new ConfigurationBuilder()
@@ -706,6 +788,7 @@ namespace Comercio.NET
                 var progressForm = new Form
                 {
                     Text = "Procesando factura electrónica con AFIP...",
+
                     Width = 400,
                     Height = 150,
                     StartPosition = FormStartPosition.CenterParent,
@@ -829,6 +912,7 @@ namespace Comercio.NET
                 btnRemito.Enabled = true;
                 btnFacturaA.Enabled = true;
                 btnFacturaB.Enabled = true;
+                btnFinalizarSinImpresion.Enabled = true;
                 ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
 
                 MessageBox.Show($"Error procesando factura electrónica:\n\n{ex.Message}",
@@ -1357,10 +1441,14 @@ namespace Comercio.NET
         // NUEVO: Métodos helper para cálculos de facturación
         private decimal CalcularImporteNeto()
         {
-            if (formularioPadre?.GetRemitoActual() != null)
+            // Variable acumuladora
+            decimal neto = 0;
+
+            // Obtener remito de forma segura
+            var remito = formularioPadre != null ? formularioPadre.GetRemitoActual() : null;
+            if (remito != null)
             {
-                decimal neto = 0;
-                foreach (DataRow row in formularioPadre.GetRemitoActual().Rows)
+                foreach (DataRow row in remito.Rows)
                 {
                     if (decimal.TryParse(row["total"].ToString(), out decimal total) &&
                         decimal.TryParse(row["PorcentajeIva"].ToString(), out decimal porcIva))
@@ -1468,22 +1556,34 @@ namespace Comercio.NET
                 colorFondo = System.Drawing.Color.FromArgb(212, 237, 218);
                 colorTexto = System.Drawing.Color.FromArgb(21, 87, 36);
             }
-            // NUEVO: Mostrar mensaje cuando las restricciones estén deshabilitadas y haya pagos digitales
-            //else if (hayPagosDigitales && !debeRestringir)
-            //{
-            //    mensaje = "INFO: Restricciones de remito deshabilitadas - Todas las opciones disponibles";
-            //    colorFondo = System.Drawing.Color.FromArgb(230, 245, 255);
-            //    colorTexto = System.Drawing.Color.FromArgb(0, 120, 215);
-            //}
 
             if (!string.IsNullOrEmpty(mensaje))
             {
+                // Calcular la posición Y para que quede debajo de los botones
+                int buttonsBottom = 0;
+                var botones = new Button[] { btnRemito, btnFacturaB, btnFacturaA, btnFinalizarSinImpresion, btnCancelar };
+                foreach (var b in botones)
+                {
+                    if (b != null && b.Visible)
+                    {
+                        buttonsBottom = Math.Max(buttonsBottom, b.Top + b.Height);
+                    }
+                }
+
+                // Fallback si por alguna razón no hay botones inicializados aún
+                if (buttonsBottom == 0)
+                {
+                    buttonsBottom = EsPagoMultiple ? (390 + 45) : (270 + 45);
+                }
+
+                int topPos = buttonsBottom + 8; // margen de 8px por debajo de los botones
+
                 lblMensajeEstado = new Label
                 {
                     Name = "lblMensajeEstado",
                     Text = mensaje,
                     Left = 40,
-                    Top = EsPagoMultiple ? 455 : 255,
+                    Top = topPos,
                     Width = 600,
                     Height = 25,
                     Font = new Font("Segoe UI", 9F, FontStyle.Regular),
@@ -1544,6 +1644,9 @@ namespace Comercio.NET
             btnFacturaA.Enabled = puedeFacturas;
             btnFacturaB.Enabled = puedeFacturas;
 
+            // NUEVO: Finalizar sin impresión solo requiere pago completo (no aplica restricción por tipo de medio)
+            btnFinalizarSinImpresion.Enabled = pagoCompleto;
+
             // Actualizar apariencia visual
             if (!puedeRemito)
             {
@@ -1571,6 +1674,18 @@ namespace Comercio.NET
                 btnFacturaA.ForeColor = System.Drawing.Color.White;
                 btnFacturaB.BackColor = System.Drawing.Color.FromArgb(0, 123, 255);
                 btnFacturaB.ForeColor = System.Drawing.Color.White;
+            }
+
+            // Actualizar apariencia del botón Finalizar (Sin impresión)
+            if (!btnFinalizarSinImpresion.Enabled)
+            {
+                btnFinalizarSinImpresion.BackColor = System.Drawing.Color.LightGray;
+                btnFinalizarSinImpresion.ForeColor = System.Drawing.Color.DarkGray;
+            }
+            else
+            {
+                btnFinalizarSinImpresion.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
+                btnFinalizarSinImpresion.ForeColor = System.Drawing.Color.White;
             }
 
             MostrarInformacionEstado(hayPagosDigitales, pagoCompleto);
@@ -1614,7 +1729,7 @@ namespace Comercio.NET
                 // PASO 3: Validar código verificador según la ley argentina
                 if (!ValidarCuitVerificador(cuitLimpio))
                 {
-                    lblRazonSocial.Text = "❌ CUIT inválido - Código verificador incorrecto";
+                    lblRazonSocial.Text = "❌ CUIT inválido - Código verificadorincorrecto";
                     lblRazonSocial.ForeColor = System.Drawing.Color.Red;
                     System.Diagnostics.Debug.WriteLine($"[CUIT] ❌ Código verificador incorrecto para: {cuitFormateado}");
                     return;
@@ -1684,6 +1799,7 @@ namespace Comercio.NET
                 btnRemito.Enabled = false;
                 btnFacturaA.Enabled = false;
                 btnFacturaB.Enabled = false;
+                btnFinalizarSinImpresion.Enabled = false;
 
                 // NUEVO: Cambiar cursor para indicar procesamiento
                 this.Cursor = Cursors.WaitCursor;
@@ -1727,6 +1843,7 @@ namespace Comercio.NET
                     btnRemito.Enabled = true;
                     btnFacturaA.Enabled = true;
                     btnFacturaB.Enabled = true;
+                    btnFinalizarSinImpresion.Enabled = true;
                     ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
 
                     throw; // Re-lanzar la excepción para que sea manejada por el catch exterior
@@ -1742,6 +1859,7 @@ namespace Comercio.NET
                 btnRemito.Enabled = true;
                 btnFacturaA.Enabled = true;
                 btnFacturaB.Enabled = true;
+                btnFinalizarSinImpresion.Enabled = true;
                 ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
 
                 MessageBox.Show($"Error procesando remito: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1751,6 +1869,102 @@ namespace Comercio.NET
                 // NUEVO: Asegurar que el cursor siempre se restaure
                 this.Cursor = Cursors.Default;
                 System.Diagnostics.Debug.WriteLine("🔄 === FIN PROCESAMIENTO REMITO ===");
+            }
+        }
+
+        // NUEVO: Procesar finalizar venta sin imprimir nada
+        private async Task ProcesarFinalizarSinImpresion()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🔄 === INICIANDO FINALIZAR SIN IMPRESIÓN ===");
+
+                bool pagoCompleto = true;
+                if (EsPagoMultiple)
+                {
+                    pagoCompleto = multiplePagosControl?.PagoCompleto ?? false;
+                    if (!pagoCompleto)
+                    {
+                        MessageBox.Show(
+                            $"ERROR: El pago no está completo.\n\n" +
+                            $"Total factura: {importeTotalVenta:C2}\n" +
+                            $"Importe asignado: {multiplePagosControl.ImporteAsignado:C2}\n" +
+                            $"Importe pendiente: {multiplePagosControl.ImportePendiente:C2}\n\n" +
+                            "Complete el pago antes de continuar.",
+                            "Pago incompleto",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
+                if (!pagoCompleto)
+                {
+                    MessageBox.Show("ERROR: Pago incompleto.", "Pago incompleto", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Deshabilitar botones
+                btnRemito.Enabled = false;
+                btnFacturaA.Enabled = false;
+                btnFacturaB.Enabled = false;
+                btnFinalizarSinImpresion.Enabled = false;
+
+                this.Cursor = Cursors.WaitCursor;
+
+                // MARCAR explícitamente que se finaliza sin imprimir
+                FinalizadoSinImpresion = true;
+                OpcionSeleccionada = OpcionImpresion.Ninguna;
+
+                string formaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString();
+                string cuitCliente = txtCuit?.Text.Trim() ?? "";
+
+                try
+                {
+                    if (OnProcesarVenta != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("🔄 Ejecutando callback OnProcesarVenta para SinImpresion...");
+                        await OnProcesarVenta("SinImpresion", formaPago, cuitCliente, "", null, 0, "");
+                        System.Diagnostics.Debug.WriteLine("✅ Callback OnProcesarVenta (SinImpresion) completado");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("⚠️ OnProcesarVenta es null para SinImpresion");
+                    }
+
+                    // Cerrar modal indicando OK
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+
+                    System.Diagnostics.Debug.WriteLine("✅ Finalizar sin impresión completado y modal cerrado");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ Error en callback OnProcesarVenta (SinImpresion): {ex.Message}");
+                    this.Cursor = Cursors.Default;
+                    btnRemito.Enabled = true;
+                    btnFacturaA.Enabled = true;
+                    btnFacturaB.Enabled = true;
+                    btnFinalizarSinImpresion.Enabled = true;
+                    ActualizarOpcionesImpresion();
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error general en ProcesarFinalizarSinImpresion: {ex.Message}");
+                this.Cursor = Cursors.Default;
+                btnRemito.Enabled = true;
+                btnFacturaA.Enabled = true;
+                btnFacturaB.Enabled = true;
+                btnFinalizarSinImpresion.Enabled = true;
+                ActualizarOpcionesImpresion();
+                MessageBox.Show($"Error al finalizar sin impresión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+                System.Diagnostics.Debug.WriteLine("🔄 === FIN FINALIZAR SIN IMPRESIÓN ===");
             }
         }
 
@@ -1774,9 +1988,10 @@ namespace Comercio.NET
         {
             var resultado = new Dictionary<decimal, (decimal baseImponible, decimal importeIva)>();
 
-            if (formularioPadre?.GetRemitoActual() != null)
+            var remito = formularioPadre != null ? formularioPadre.GetRemitoActual() : null;
+            if (remito != null)
             {
-                foreach (DataRow row in formularioPadre.GetRemitoActual().Rows)
+                foreach (DataRow row in remito.Rows)
                 {
                     if (decimal.TryParse(row["total"].ToString(), out decimal total) &&
                         decimal.TryParse(row["PorcentajeIva"].ToString(), out decimal porcIva))
