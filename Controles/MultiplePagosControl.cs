@@ -323,6 +323,7 @@ namespace Comercio.NET.Controles
             this.ResumeLayout(false);
         }
 
+
         private void ConfigurarDataGridView()
         {
             dgvPagos.Columns.Clear();
@@ -593,16 +594,16 @@ namespace Comercio.NET.Controles
         public void EstablecerImporteTotal(decimal total)
         {
             ImporteTotal = total;
-            LimpiarPagos();
-            ActualizarVista();
-            
+            LimpiarPagos(); // LimpiarPagos ya llama a ActualizarVista()
+
             // Sugerir el total como primer importe (redondeado)
             if (total > 0)
             {
                 decimal totalRedondeado = Math.Round(total, 0);
                 nudImporte.Value = Math.Min(totalRedondeado, nudImporte.Maximum);
             }
-            
+
+            // Actualizar estado de botones (pero no volver a forzar ActualizarVista)
             ActualizarEstadoBotones();
         }
 
@@ -623,12 +624,11 @@ namespace Comercio.NET.Controles
                     dgvPagos.Rows.Add(pago.MedioPago, pago.Importe, pago.Observaciones, pago.Fecha);
                 }
 
-                // Actualizar labels - MODIFICADO para números enteros
+                // Actualizar labels
                 lblTotal.Text = $"Total: ${ImporteTotal:N0}";
                 lblAsignado.Text = $"Asignado: ${ImporteAsignado:N0}";
                 lblPendiente.Text = $"Pendiente: ${ImportePendiente:N0}";
 
-                // Actualizar colores según estado
                 if (PagoCompleto)
                 {
                     lblPendiente.ForeColor = Color.LightGreen;
@@ -645,29 +645,25 @@ namespace Comercio.NET.Controles
                     lblPendiente.Text = $"PENDIENTE: ${ImportePendiente:N0}";
                 }
 
-                // Actualizar progress bar
+                // Progress bar seguro
                 if (ImporteTotal > 0)
                 {
                     var porcentaje = (int)Math.Min(100, (ImporteAsignado / ImporteTotal) * 100);
                     progressBar.Value = porcentaje;
-                    
-                    // Cambiar color según estado
-                    if (porcentaje == 100)
-                    {
-                        progressBar.ForeColor = Color.Green;
-                    }
-                    else if (porcentaje > 100)
-                    {
-                        progressBar.ForeColor = Color.Red;
-                    }
                 }
 
-                // CORREGIDO: Actualizar estado de botones correctamente
                 btnEliminar.Enabled = _pagos.Count > 0;
-                ActualizarEstadoBotones(); // Usar el nuevo método
+                ActualizarEstadoBotones();
 
-                // Disparar evento de cambio
-                OnPagosChanged?.Invoke(this, EventArgs.Empty);
+                // Disparar evento de cambio de forma asíncrona para evitar reentradas
+                if (this.IsHandleCreated)
+                {
+                    this.BeginInvoke(new Action(() => OnPagosChanged?.Invoke(this, EventArgs.Empty)));
+                }
+                else
+                {
+                    OnPagosChanged?.Invoke(this, EventArgs.Empty);
+                }
 
                 System.Diagnostics.Debug.WriteLine($"?? Vista actualizada - Pagos: {_pagos.Count}, Total: ${ImporteTotal:N0}, Asignado: ${ImporteAsignado:N0}");
             }

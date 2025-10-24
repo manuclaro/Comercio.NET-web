@@ -130,6 +130,27 @@ namespace Comercio.NET
 
             // Asegurar reposicionado si por alguna razón cambia el tamaño del cliente (defensivo)
             this.Resize += (s, e) => PosicionarBotones();
+
+            // en el constructor, después de Initialize / CrearControles / ConfigurarEventos / ActualizarOpcionesImpresion:
+            SettingsManager.SettingsReloaded += () =>
+            {
+                // Ejecutar en hilo UI
+                if (this.IsHandleCreated)
+                {
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        try
+                        {
+                            AplicarConfiguracionFacturacion();
+                            ActualizarOpcionesImpresion();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error aplicando configuración recargada: {ex.Message}");
+                        }
+                    }));
+                }
+            };
         }
 
         private void CrearControles()
@@ -638,6 +659,9 @@ namespace Comercio.NET
                 // Reposicionar botones al mostrarse (asegura centrado en start)
                 PosicionarBotones();
 
+                // Aplicar visibilidad de Factura A/B por configuración (por si cambió)
+                AplicarConfiguracionFacturacion();
+
                 if (btnRemito.Enabled)
                     btnRemito.Focus();
                 else if (btnFacturaB.Enabled)
@@ -836,18 +860,18 @@ namespace Comercio.NET
                     Application.DoEvents();
 
                     int tipoComprobante = tipoFactura == OpcionImpresion.FacturaA ? 1 : 6;
-                    int puntoVenta = 1; // Configurar según necesidad
-                    int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVenta);
+                    int puntoVista = 1; // Configurar según necesidad
+                    int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVista);
                     int numeroFactura = ultimoNumero + 1;
 
-                    System.Diagnostics.Debug.WriteLine($"📋 Tipo: {tipoComprobante}, PV: {puntoVenta}, Último: {ultimoNumero}, Nuevo: {numeroFactura}");
+                    System.Diagnostics.Debug.WriteLine($"📋 Tipo: {tipoComprobante}, PV: {puntoVista}, Último: {ultimoNumero}, Nuevo: {numeroFactura}");
 
                     // 6. SOLICITAR CAE A AFIP REAL
                     lblProgress.Text = "Solicitando CAE a AFIP...";
                     Application.DoEvents();
 
                     string cuitCliente = tipoFactura == OpcionImpresion.FacturaA ? txtCuit.Text.Trim() : "";
-                    var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVenta, numeroFactura, cuitCliente);
+                    var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVista, numeroFactura, cuitCliente);
 
                     if (!resultadoCAE.exito)
                     {
@@ -868,7 +892,7 @@ namespace Comercio.NET
                     OpcionSeleccionada = tipoFactura;
 
                     // Formatear número de factura
-                    string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVenta, numeroFactura);
+                    string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVista, numeroFactura);
 
                     string formaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString();
                     string tipoFacturaString = tipoFactura == OpcionImpresion.FacturaA ? "FacturaA" : "FacturaB";
@@ -1438,6 +1462,32 @@ namespace Comercio.NET
             }
         }
 
+        private void AplicarConfiguracionFacturacion()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                    .Build();
+
+                bool permitirA = config.GetValue<bool>("Facturacion:PermitirFacturaA", true);
+                bool permitirB = config.GetValue<bool>("Facturacion:PermitirFacturaB", true);
+
+                if (btnFacturaA != null) btnFacturaA.Visible = permitirA;
+                if (btnFacturaB != null) btnFacturaB.Visible = permitirB;
+
+                // Recalcular posiciones si cambió la visibilidad
+                PosicionarBotones();
+
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] FacturaA visible={permitirA}, FacturaB visible={permitirB}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CONFIG ERROR] AplicarConfiguracionFacturacion: {ex.Message}");
+            }
+        }
+
         // NUEVO: Métodos helper para cálculos de facturación
         private decimal CalcularImporteNeto()
         {
@@ -1600,96 +1650,58 @@ namespace Comercio.NET
             System.Diagnostics.Debug.WriteLine($"[INFO ESTADO] Debe restringir: {debeRestringir}, Hay pagos digitales: {hayPagosDigitales}, Mensaje: '{mensaje}'");
         }
 
+        // csharp
         private void ActualizarOpcionesImpresion()
         {
-            bool hayPagosDigitales = false;
-            bool pagoCompleto = true;
-
-            if (EsPagoMultiple)
+            // No recrear controles ni reconfigurar eventos aquí.
+            // Solo actualizar estados y UI según el estado actual.
+            try
             {
-                hayPagosDigitales = multiplePagosControl?.TienePagoDigital() ?? false;
-                pagoCompleto = multiplePagosControl?.PagoCompleto ?? false;
+                // Aplicar visibilidad de Factura A/B según appsettings.json
+                AplicarConfiguracionFacturacion();
+
+                // Asegurar reposicionado (solo agregar una vez al constructor preferentemente)
+                // this.Resize += (s, e) => PosicionarBotones(); // NO re-agregar en cada llamada
+
+                bool hayPagosDigitales = false;
+                bool pagoCompleto = true;
+
+                if (EsPagoMultiple)
+                {
+                    hayPagosDigitales = multiplePagosControl?.TienePagoDigital() ?? false;
+                    pagoCompleto = multiplePagosControl?.PagoCompleto ?? false;
+                }
+                else
+                {
+                    hayPagosDigitales = OpcionPagoSeleccionada == OpcionPago.DNI || OpcionPagoSeleccionada == OpcionPago.MercadoPago;
+                    pagoCompleto = true;
+                }
+
+                bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
+                bool puedeRemito = EsPagoMultiple ? pagoCompleto : (pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales));
+                bool puedeFacturas = pagoCompleto;
+
+                btnRemito.Enabled = puedeRemito;
+                btnFacturaA.Enabled = puedeFacturas;
+                btnFacturaB.Enabled = puedeFacturas;
+                btnFinalizarSinImpresion.Enabled = pagoCompleto;
+
+                // Actualizar apariencia
+                btnRemito.BackColor = puedeRemito ? Color.FromArgb(102, 51, 153) : Color.LightGray;
+                btnFacturaA.BackColor = puedeFacturas ? Color.FromArgb(40, 167, 69) : Color.LightGray;
+                btnFacturaB.BackColor = puedeFacturas ? Color.FromArgb(0, 123, 255) : Color.LightGray;
+                btnFinalizarSinImpresion.BackColor = btnFinalizarSinImpresion.Enabled ? Color.FromArgb(255, 193, 7) : Color.LightGray;
+
+                MostrarInformacionEstado(hayPagosDigitales, pagoCompleto);
+                PosicionarBotones();
             }
-            else
+            catch (Exception ex)
             {
-                hayPagosDigitales = OpcionPagoSeleccionada == OpcionPago.DNI || OpcionPagoSeleccionada == OpcionPago.MercadoPago;
-                pagoCompleto = true;
+                System.Diagnostics.Debug.WriteLine($"Error en ActualizarOpcionesImpresion: {ex.Message}");
             }
-
-            // MODIFICADO: Para pagos múltiples, siempre permitir remito independientemente de restricciones
-            bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
-            bool puedeRemito;
-
-            if (EsPagoMultiple)
-            {
-                // NUEVO: En modo pago múltiple, solo verificar que el pago esté completo
-                puedeRemito = pagoCompleto;
-            }
-            else
-            {
-                // Para pago simple, aplicar las restricciones normales
-                puedeRemito = pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales);
-            }
-
-            bool puedeFacturas = pagoCompleto;
-
-            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Es pago múltiple: {EsPagoMultiple}");
-            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Debe restringir: {debeRestringirPorPago}");
-            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Hay pagos digitales: {hayPagosDigitales}");
-            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Pago completo: {pagoCompleto}");
-            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Puede remito: {puedeRemito}");
-            System.Diagnostics.Debug.WriteLine($"[RESTRICCIONES] Puede facturas: {puedeFacturas}");
-
-            btnRemito.Enabled = puedeRemito;
-            btnFacturaA.Enabled = puedeFacturas;
-            btnFacturaB.Enabled = puedeFacturas;
-
-            // NUEVO: Finalizar sin impresión solo requiere pago completo (no aplica restricción por tipo de medio)
-            btnFinalizarSinImpresion.Enabled = pagoCompleto;
-
-            // Actualizar apariencia visual
-            if (!puedeRemito)
-            {
-                btnRemito.BackColor = System.Drawing.Color.LightGray;
-                btnRemito.ForeColor = System.Drawing.Color.DarkGray;
-                btnRemito.Text = "Remito";
-            }
-            else
-            {
-                btnRemito.BackColor = System.Drawing.Color.FromArgb(102, 51, 153);
-                btnRemito.ForeColor = System.Drawing.Color.White;
-                btnRemito.Text = "Remito";
-            }
-
-            if (!puedeFacturas)
-            {
-                btnFacturaA.BackColor = System.Drawing.Color.LightGray;
-                btnFacturaA.ForeColor = System.Drawing.Color.DarkGray;
-                btnFacturaB.BackColor = System.Drawing.Color.LightGray;
-                btnFacturaB.ForeColor = System.Drawing.Color.DarkGray;
-            }
-            else
-            {
-                btnFacturaA.BackColor = System.Drawing.Color.FromArgb(40, 167, 69);
-                btnFacturaA.ForeColor = System.Drawing.Color.White;
-                btnFacturaB.BackColor = System.Drawing.Color.FromArgb(0, 123, 255);
-                btnFacturaB.ForeColor = System.Drawing.Color.White;
-            }
-
-            // Actualizar apariencia del botón Finalizar (Sin impresión)
-            if (!btnFinalizarSinImpresion.Enabled)
-            {
-                btnFinalizarSinImpresion.BackColor = System.Drawing.Color.LightGray;
-                btnFinalizarSinImpresion.ForeColor = System.Drawing.Color.DarkGray;
-            }
-            else
-            {
-                btnFinalizarSinImpresion.BackColor = System.Drawing.Color.FromArgb(255, 193, 7);
-                btnFinalizarSinImpresion.ForeColor = System.Drawing.Color.White;
-            }
-
-            MostrarInformacionEstado(hayPagosDigitales, pagoCompleto);
         }
+
+
 
         private async Task ConsultarCuitAsync()
         {

@@ -1549,7 +1549,7 @@ namespace Comercio.NET.Formularios
             System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP CUIT: {txtAfipCuit.Text}");
             System.Diagnostics.Debug.WriteLine($"[SAVE] Certificado: {txtAfipCertificadoPath.Text}");
             System.Diagnostics.Debug.WriteLine($"[SAVE] Restringir Remito: {chkRestringirRemitoPorPago.Checked}");
-            
+
             if (!ValidarDatos())
             {
                 System.Diagnostics.Debug.WriteLine("[SAVE] Validación falló, cancelando guardado");
@@ -1577,7 +1577,7 @@ namespace Comercio.NET.Formularios
                 // Actualizar información del comercio
                 if (nuevaConfiguracion["Comercio"] == null)
                     nuevaConfiguracion["Comercio"] = new JObject();
-    
+
                 nuevaConfiguracion["Comercio"]["Nombre"] = txtNombreComercio.Text.Trim();
                 nuevaConfiguracion["Comercio"]["Domicilio"] = txtDomicilioComercio.Text.Trim();
 
@@ -1622,7 +1622,7 @@ namespace Comercio.NET.Formularios
                 // Mantener compatibilidad con sección "Validaciones" existente
                 if (nuevaConfiguracion["Validaciones"] == null)
                     nuevaConfiguracion["Validaciones"] = new JObject();
-    
+
                 nuevaConfiguracion["Validaciones"]["ValidarStockDisponible"] = chkVerificarStock.Checked;
 
                 // Guardar nombres de cuentas corrientes
@@ -1633,7 +1633,7 @@ namespace Comercio.NET.Formularios
                 {
                     if (nuevaConfiguracion["ConnectionStrings"] == null)
                         nuevaConfiguracion["ConnectionStrings"] = new JObject();
-                
+
                     nuevaConfiguracion["ConnectionStrings"]["DefaultConnection"] = txtConnectionString.Text.Trim();
                     System.Diagnostics.Debug.WriteLine("[SAVE] Connection String actualizada");
                 }
@@ -1649,7 +1649,7 @@ namespace Comercio.NET.Formularios
                 // Guardar nueva configuración con formato JSON legible
                 string jsonFormateado = JsonConvert.SerializeObject(nuevaConfiguracion, Formatting.Indented);
                 System.Diagnostics.Debug.WriteLine($"[SAVE] JSON a guardar:\n{jsonFormateado}");
-        
+
                 await File.WriteAllTextAsync(_rutaAppsettings, jsonFormateado);
                 System.Diagnostics.Debug.WriteLine("[SAVE] Archivo escrito");
 
@@ -1658,32 +1658,45 @@ namespace Comercio.NET.Formularios
                 {
                     string contenidoGuardado = await File.ReadAllTextAsync(_rutaAppsettings);
                     System.Diagnostics.Debug.WriteLine($"[SAVE] Verificación - Archivo guardado correctamente. Tamaño: {contenidoGuardado.Length} caracteres");
-                    
+
                     // Actualizar configuración original para futuras comparaciones
                     _configuracionOriginal = nuevaConfiguracion;
-                    
+
                     MostrarMensaje("✅ Configuración guardada correctamente", Color.Green);
-                    
+
+                    // Nuevo comportamiento: informar que no es necesario reloguear/reiniciar y ofrecer aplicar en caliente
                     var result = MessageBox.Show(
-                        $"✅ Configuración guardada exitosamente.\n\n" +
-                        $"Se creó un backup en:\n{Path.GetFileName(backupPath)}\n\n" +
-                        "⚠️ IMPORTANTE: Reinicie la aplicación para que todos los cambios surtan efecto.\n\n" +
-                        "¿Desea reiniciar la aplicación ahora?",
+                        "✅ Configuración guardada exitosamente.\n\n" +
+                        "Los cambios se aplicarán en caliente y no es necesario volver a iniciar sesión.\n\n" +
+                        "¿Desea aplicar los cambios ahora en las ventanas abiertas?",
                         "Configuración Guardada",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Information);
 
+                    // ... dentro de GuardarConfiguracion(), en el bloque donde result == DialogResult.Yes
                     if (result == DialogResult.Yes)
                     {
-                        System.Diagnostics.Debug.WriteLine("[SAVE] Usuario eligió reiniciar");
-                        Application.Restart();
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("[SAVE] Usuario eligió no reiniciar, cerrando formulario");
-                        await Task.Delay(2000);
-                        this.DialogResult = DialogResult.OK;
-                        this.Close();
+                        try
+                        {
+                            // Forzar recarga y notificar a suscriptores de manera segura
+                            try
+                            {
+                                Comercio.NET.Servicios.SettingsManager.ReloadConfiguration();
+                                MostrarMensaje("✅ Cambios aplicados en caliente", Color.Green);
+                                System.Diagnostics.Debug.WriteLine("[SAVE] SettingsManager.ReloadConfiguration invocado");
+                            }
+                            catch (Exception exNotify)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[SAVE] Error notificando cambios: {exNotify.Message}");
+                                MostrarMensaje("⚠️ No se pudieron notificar todos los formularios. Reinicie si observa inconsistencias.", Color.Orange);
+                            }
+                        }
+                        finally
+                        {
+                            await Task.Delay(800);
+                            this.DialogResult = DialogResult.OK;
+                            this.Close();
+                        }
                     }
                 }
                 else
