@@ -51,6 +51,9 @@ namespace Comercio.NET
 
         private bool validarStockHabilitado = true;
 
+        // NUEVO: botón para anular factura completa
+        private Button btnAnularFactura;
+
         // En lugar del Label lbTotal, usar un RichTextBox para mejor control de formato
         private RichTextBox rtbTotal;
 
@@ -1042,9 +1045,9 @@ namespace Comercio.NET
             dataGridView1.Rows.Clear();
             remitoActual = null;
             remitoIncrementado = false;
-            
+
             lbCantidadProductos.Text = "Productos: 0";
-            
+
             if (rtbTotal != null)
             {
                 rtbTotal.Clear();
@@ -1052,7 +1055,14 @@ namespace Comercio.NET
                 rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
                 rtbTotal.AppendText("TOTAL: $0,00");
             }
-            
+
+            // dentro de LimpiarYReiniciarVenta():
+            if (btnAnularFactura != null)
+            {
+                btnAnularFactura.Enabled = false;
+                btnAnularFactura.Visible = true;
+            }
+
             txtBuscarProducto.Text = "";
             txtBuscarProducto.Focus();
         }
@@ -1194,8 +1204,72 @@ namespace Comercio.NET
             };
             panelHeader.Controls.Add(lblTitulo);
 
-            // Panel inferior
+            // Mantener el footer como antes
             ConfigurarPanelFooter();
+
+            // Crear el botón "Anular" pero añadirlo AL MISMO CONTENEDOR que los botones grandes
+            // (btnAgregar/btnFinalizarVenta/btnSalir suelen existir en el diseñador y comparten padre).
+            btnAnularFactura = new Button
+            {
+                Text = "Anular",
+                Size = new Size(64, 28),                // mucho más pequeño
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Enabled = false,
+                Visible = true,
+                TabStop = false
+            };
+            btnAnularFactura.FlatAppearance.BorderSize = 0;
+            btnAnularFactura.Click += BtnEliminarFacturaCompleta_Click;
+
+            // Intentar añadir al mismo padre que btnAgregar (si existe), sino al formulario
+            Control buttonContainer = btnAgregar?.Parent ?? this;
+            buttonContainer.Controls.Add(btnAnularFactura);
+            btnAnularFactura.BringToFront();
+
+            // Función de posicionamiento relativa a btnFinalizarVenta (si existe) o btnAgregar
+            void ReposicionarAnular()
+            {
+                try
+                {
+                    if (btnFinalizarVenta != null && btnFinalizarVenta.Parent != null)
+                    {
+                        // Si btnFinalizarVenta comparte el mismo padre, posicionar a su derecha
+                        if (btnFinalizarVenta.Parent == buttonContainer)
+                        {
+                            btnAnularFactura.Left = btnFinalizarVenta.Right + 20;
+                            btnAnularFactura.Top = btnFinalizarVenta.Top + (btnFinalizarVenta.Height - btnAnularFactura.Height) / 2;
+                            return;
+                        }
+                    }
+
+                    // Fallback: posicionar junto a btnAgregar si está en el mismo contenedor
+                    if (btnAgregar != null && btnAgregar.Parent == buttonContainer)
+                    {
+                        btnAnularFactura.Left = btnAgregar.Right + 8;
+                        btnAnularFactura.Top = btnAgregar.Top + (btnAgregar.Height - btnAnularFactura.Height) / 2;
+                        return;
+                    }
+
+                    // Último recurso: esquina superior derecha del formulario, con márgen
+                    btnAnularFactura.Left = Math.Max(8, this.ClientSize.Width - btnAnularFactura.Width - 12);
+                    btnAnularFactura.Top = panelHeader.Bottom - btnAnularFactura.Height - 10;
+                }
+                catch
+                {
+                    // Silenciar errores de posicionamiento en tiempo de diseño/ejecución temprana
+                }
+            }
+
+            // Posicionar ahora y al cambiar tamaño del contenedor/formulario
+            ReposicionarAnular();
+            buttonContainer.SizeChanged += (s, e) => ReposicionarAnular();
+            this.Resize += (s, e) => ReposicionarAnular();
+
+            // Asegurar que el título no tape controles si usa DockFill
+            lblTitulo.SendToBack();
         }
 
         private void ConfigurarDataGridView()
@@ -1744,6 +1818,13 @@ namespace Comercio.NET
 
         private void Ventas_Load(object sender, EventArgs e)
         {
+            // Abrir un poco más ancho si la ventana de diseño es más pequeña
+            const int anchoDeseado = 850;
+            if (this.ClientSize.Width < anchoDeseado)
+            {
+                this.ClientSize = new Size(anchoDeseado, this.ClientSize.Height);
+            }
+
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json")
@@ -1765,6 +1846,10 @@ namespace Comercio.NET
                 }
             }
 
+            // Reposicionar el botón anular ahora que el tamaño inicial se ha establecido
+            //ReposicionarBotonAnular();
+
+            // (resto del Ventas_Load original sigue igual...)
             // Deja la grilla vacía al abrir el formulario
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear();
@@ -1829,19 +1914,19 @@ namespace Comercio.NET
             // Crear el panel footer programáticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 100; // AUMENTADO: era 80, ahora 120 para mostrar múltiples alícuotas
+            panelFooter.Height = 100;
             panelFooter.BackColor = Color.FromArgb(0, 120, 215);
 
-            // Configurar lbCantidadProductos
+            // Configurar lbCantidadProductos (dock left)
             lbCantidadProductos.AutoSize = false;
             lbCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
             lbCantidadProductos.Dock = DockStyle.Left;
-            lbCantidadProductos.Width = 250;
+            lbCantidadProductos.Width = 220;
             lbCantidadProductos.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
             lbCantidadProductos.ForeColor = Color.White;
             lbCantidadProductos.Text = "Productos: 0";
 
-            // MODIFICADO: Usar RichTextBox más alto para mostrar todas las alícuotas
+            // RichTextBox para totales (dock right)
             rtbTotal = new RichTextBox
             {
                 AutoSize = false,
@@ -1856,19 +1941,19 @@ namespace Comercio.NET
                 Multiline = true
             };
 
-            // Agregar los controles al panel
-            panelFooter.Controls.Add(lbCantidadProductos);
+            // Agregar controles al panel footer
             panelFooter.Controls.Add(rtbTotal);
+            panelFooter.Controls.Add(lbCantidadProductos);
 
             // Agregar el panel al formulario
             this.Controls.Add(panelFooter);
             panelFooter.BringToFront();
 
-            // MODIFICADO: Ajustar el DataGridView para el panel más alto
+            // Ajustar el DataGridView para dejar espacio al footer
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridView1.Dock = DockStyle.None;
             dataGridView1.Location = new Point(0, 171);
-            dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 120); // CAMBIADO: -120 en lugar de -80
+            dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - panelFooter.Height);
         }
 
         private void CargarVentasActuales()
@@ -1917,53 +2002,76 @@ namespace Comercio.NET
                 dataGridView1.Columns["precio"].HeaderText = "Precio";
             }
 
+            // Dentro de CargarVentasActuales(), justo después de configurar columnas y antes de calcular totales:
+            // (esta sección reemplaza o se inserta junto a la existente para resaltar la columna "total")
             if (dataGridView1.Columns["total"] != null)
             {
-                dataGridView1.Columns["total"].HeaderText = "Total";
+                var colTotal = dataGridView1.Columns["total"];
+                colTotal.HeaderText = "Total";
+                colTotal.DefaultCellStyle.Format = "C2";
+                colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                // Quitar color de fondo (usar el fondo por defecto del DataGridView)
+                colTotal.DefaultCellStyle.BackColor = dataGridView1.DefaultCellStyle.BackColor;
+                // Mantener la fuente en negrita para destacar sin color
+                colTotal.DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+                colTotal.Width = 120;
             }
 
-            // NUEVO: Cambiar el título de la columna cantidad a "Cant."
-            if (dataGridView1.Columns["cantidad"] != null)
-            {
-                dataGridView1.Columns["cantidad"].HeaderText = "Cant.";
-                dataGridView1.Columns["cantidad"].Width = 50;
-            }
-
-            // Configurar PorcentajeIva e IvaCalculado si existen
+            // IVA%: ancho fijo
             if (dataGridView1.Columns["PorcentajeIva"] != null)
             {
-                dataGridView1.Columns["PorcentajeIva"].HeaderText = "IVA%";
-                dataGridView1.Columns["PorcentajeIva"].Width = 30;
-                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Format = "N2";
-                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.ForeColor = Color.FromArgb(25, 118, 210);
-                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                dataGridView1.Columns["PorcentajeIva"].DisplayIndex = 6;
+                var colIvaPct = dataGridView1.Columns["PorcentajeIva"];
+                colIvaPct.HeaderText = "IVA%";
+                colIvaPct.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                colIvaPct.Width = 60;         // ancho fijo, ajustar si quieres otro valor
+                colIvaPct.MinimumWidth = 50;
+                colIvaPct.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
 
+            // IVA $: ancho fijo
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
-                dataGridView1.Columns["IvaCalculado"].HeaderText = "IVA $";
-                dataGridView1.Columns["IvaCalculado"].Width = 50;
-                dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Format = "C2";
-                dataGridView1.Columns["IvaCalculado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dataGridView1.Columns["IvaCalculado"].DisplayIndex = 7;
+                var colIvaPesos = dataGridView1.Columns["IvaCalculado"];
+                colIvaPesos.HeaderText = "IVA $";
+                colIvaPesos.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                colIvaPesos.Width = 100;      // ancho fijo, ajustar si quieres otro valor
+                colIvaPesos.MinimumWidth = 80;
+                colIvaPesos.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                colIvaPesos.DefaultCellStyle.Format = "C2";
             }
 
-            // Ajustar anchos de columnas existentes para hacer espacio
+            // Descripcion: permitir que CREZCA (llenar espacio restante)
             if (dataGridView1.Columns["descripcion"] != null)
-                dataGridView1.Columns["descripcion"].Width = 240;
+            {
+                dataGridView1.Columns["descripcion"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dataGridView1.Columns["descripcion"].FillWeight = 200; // darle más prioridad para crecer
+            }
             if (dataGridView1.Columns["precio"] != null)
+            {
+                dataGridView1.Columns["precio"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dataGridView1.Columns["precio"].Width = 100;
+                dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
+            // Cantidad: ancho fijo pequeño
             if (dataGridView1.Columns["cantidad"] != null)
+            {
+                dataGridView1.Columns["cantidad"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dataGridView1.Columns["cantidad"].HeaderText = "Cant.";
                 dataGridView1.Columns["cantidad"].Width = 50;
+                dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+            // Ajustar anchos y comportamiento de auto-resize
             if (dataGridView1.Columns["codigo"] != null)
             {
                 dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dataGridView1.Columns["codigo"].Width = 100;
             }
             if (dataGridView1.Columns["total"] != null)
+            {
+                dataGridView1.Columns["total"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dataGridView1.Columns["total"].Width = 100;
+                dataGridView1.Columns["total"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
 
             // Actualizar totales
             lbCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
@@ -1996,6 +2104,15 @@ namespace Comercio.NET
                         ivaPorAlicuota[alicuota] = 0;
                     ivaPorAlicuota[alicuota] += valorIva;
                 }
+            }
+
+            // Al final de CargarVentasActuales(), justo después de actualizar rtbTotal:
+            if (btnAnularFactura != null)
+            {
+                btnAnularFactura.Visible = true;
+                btnAnularFactura.Enabled = (remitoActual != null && remitoActual.Rows.Count > 0);
+                // Asegurar que no esté cubierto
+                btnAnularFactura.BringToFront();
             }
 
             // Mostrar en RichTextBox
@@ -2202,6 +2319,208 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"❌ Error en btnFinalizarVenta_Click: {ex.Message}");
                 MessageBox.Show($"Error finalizando la venta: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // NUEVO: Eliminar factura completa (todas las líneas) con devolución de stock y auditoría
+        private async Task EliminarFacturaCompletaAsync()
+        {
+            if (procesandoEliminacion) return;
+
+            if (nroRemitoActual <= 0)
+            {
+                MessageBox.Show("No hay un remito/factura seleccionado para eliminar.", "Información",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Asegurar que tenemos las líneas cargadas
+            if (remitoActual == null || remitoActual.Rows.Count == 0)
+            {
+                // Intentar recargar
+                CargarVentasActuales();
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                {
+                    MessageBox.Show("No se encontraron productos para el remito actual.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+            }
+
+            // Confirmación por parte del usuario (mostrar resumen mínimo)
+            decimal importeTotal = 0m;
+            foreach (DataRow r in remitoActual.Rows)
+            {
+                if (r["total"] != null && decimal.TryParse(r["total"].ToString(), out decimal t))
+                    importeTotal += t;
+            }
+
+            var confirmar = MessageBox.Show(
+                $"¿Confirma la eliminación TOTAL del remito/factura N° {nroRemitoActual}?\n\n" +
+                $"Se eliminarán {remitoActual.Rows.Count} líneas por un total de {importeTotal:C2}.\n\n" +
+                "Esta acción devolverá las cantidades vendidas al stock y registrará una auditoría.",
+                "Confirmar eliminación completa",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirmar != DialogResult.Yes)
+                return;
+
+            // Verificar permisos si aplica
+            if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true)
+            {
+                if (AuthenticationService.SesionActual?.Usuario == null)
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error de Autenticación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var usuario = AuthenticationService.SesionActual.Usuario;
+                if (!usuario.PuedeEliminarProductos && usuario.Nivel != Models.NivelUsuario.Administrador)
+                {
+                    MessageBox.Show(
+                        "❌ ACCESO DENEGADO\n\n" +
+                        "No tienes permisos para eliminar facturas completas.\n" +
+                        "Contacta a un administrador si necesitas realizar esta acción.",
+                        "Permisos Insuficientes",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
+            procesandoEliminacion = true;
+
+            try
+            {
+                string connectionString = GetConnectionString();
+                string usuarioNombre = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName;
+                int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Por cada línea: insertar auditoría y devolver stock (solo si el producto permite acumular)
+                            foreach (DataRow row in remitoActual.Rows)
+                            {
+                                string codigo = row["codigo"]?.ToString() ?? "";
+                                string descripcion = row["descripcion"]?.ToString() ?? "";
+                                int cantidad = row["cantidad"] != DBNull.Value && int.TryParse(row["cantidad"].ToString(), out int c) ? c : 0;
+                                decimal precioUnitario = row["precio"] != DBNull.Value && decimal.TryParse(row["precio"].ToString(), out decimal p) ? p : 0m;
+                                decimal totalLinea = row["total"] != DBNull.Value && decimal.TryParse(row["total"].ToString(), out decimal tl) ? tl : precioUnitario * cantidad;
+
+                                // 1) Registrar auditoría por línea (marca como eliminación completa)
+                                var insertAudSql = @"INSERT INTO AuditoriaProductosEliminados 
+                                               (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+                                                TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+                                                MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+                                                NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
+                                            VALUES
+                                               (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
+                                                @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+                                                @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
+                                                @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+
+                                using (var cmdAud = new SqlCommand(insertAudSql, connection, transaction))
+                                {
+                                    cmdAud.Parameters.AddWithValue("@CodigoProducto", codigo);
+                                    cmdAud.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+                                    cmdAud.Parameters.AddWithValue("@PrecioUnitario", precioUnitario);
+                                    cmdAud.Parameters.AddWithValue("@Cantidad", cantidad);
+                                    cmdAud.Parameters.AddWithValue("@TotalEliminado", totalLinea);
+                                    cmdAud.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                                    // Si tuvieses la fecha original de la venta, sería mejor usarla; usamos Now como fallback
+                                    cmdAud.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
+                                    cmdAud.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+                                    cmdAud.Parameters.AddWithValue("@MotivoEliminacion", "Anulación factura completa");
+                                    cmdAud.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+                                    cmdAud.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+                                    cmdAud.Parameters.AddWithValue("@UsuarioEliminacion", usuarioNombre);
+                                    cmdAud.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                                    cmdAud.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                                    cmdAud.Parameters.AddWithValue("@EsEliminacionCompleta", true);
+                                    cmdAud.Parameters.AddWithValue("@CantidadOriginal", cantidad);
+
+                                    await cmdAud.ExecuteNonQueryAsync();
+                                }
+
+                                // 2) Comprobar si el producto en Productos tiene PermiteAcumular = 1
+                                bool permiteAcumular = false;
+                                var selPermiteSql = "SELECT PermiteAcumular FROM Productos WHERE codigo = @codigo";
+                                using (var cmdSel = new SqlCommand(selPermiteSql, connection, transaction))
+                                {
+                                    cmdSel.Parameters.AddWithValue("@codigo", codigo);
+                                    var scalar = await cmdSel.ExecuteScalarAsync();
+                                    if (scalar != null && scalar != DBNull.Value)
+                                    {
+                                        if (bool.TryParse(scalar.ToString(), out bool pa))
+                                            permiteAcumular = pa;
+                                        else
+                                        {
+                                            // En algunas schemas puede estar como int
+                                            if (int.TryParse(scalar.ToString(), out int pi))
+                                                permiteAcumular = pi != 0;
+                                        }
+                                    }
+                                }
+
+                                // 3) Si permite acumular, devolver stock sumando la cantidad
+                                if (permiteAcumular && cantidad > 0)
+                                {
+                                    var updStockSql = @"UPDATE Productos SET cantidad = cantidad + @cantidadDevuelta WHERE codigo = @codigo";
+                                    using (var cmdUpd = new SqlCommand(updStockSql, connection, transaction))
+                                    {
+                                        cmdUpd.Parameters.AddWithValue("@cantidadDevuelta", cantidad);
+                                        cmdUpd.Parameters.AddWithValue("@codigo", codigo);
+                                        await cmdUpd.ExecuteNonQueryAsync();
+                                    }
+                                }
+                            }
+
+                            // 4) Eliminar todas las líneas de Ventas para este remito
+                            var deleteVentasSql = "DELETE FROM Ventas WHERE nrofactura = @nrofactura";
+                            using (var cmdDel = new SqlCommand(deleteVentasSql, connection, transaction))
+                            {
+                                cmdDel.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                await cmdDel.ExecuteNonQueryAsync();
+                            }
+
+                            transaction.Commit();
+
+                            // Actualizar UI y estado interno
+                            LimpiarYReiniciarVenta();
+
+                            System.Diagnostics.Debug.WriteLine($"✅ Factura/remito {nroRemitoActual} eliminada por {usuarioNombre}. Stock devuelto donde aplica.");
+                        }
+                        catch (Exception exTx)
+                        {
+                            transaction.Rollback();
+                            System.Diagnostics.Debug.WriteLine($"❌ Error al eliminar factura completa: {exTx.Message}");
+                            MessageBox.Show($"Error al eliminar la factura completa: {exTx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error al procesar eliminación completa: {ex.Message}");
+                MessageBox.Show($"Error al procesar la eliminación: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                procesandoEliminacion = false;
+            }
+        }
+
+        // NUEVO: Método público para vincular a un botón o menú (handler UI)
+        public async void BtnEliminarFacturaCompleta_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("BtnEliminarFacturaCompleta_Click invoked");
+            await EliminarFacturaCompletaAsync();
         }
 
         // GuardarFacturaEnBD: implementación mínima que compila y puede ampliarse.
