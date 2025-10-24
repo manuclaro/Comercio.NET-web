@@ -45,7 +45,11 @@ namespace Comercio.NET.Formularios
         
         private string _rutaAppsettings;
         private JObject _configuracionOriginal;
-        
+
+        // NUEVO: Opciones para permitir Factura A / Factura B
+        private CheckBox chkPermitirFacturaA;
+        private CheckBox chkPermitirFacturaB;
+
         // Estados de colapso para cada sección
         private bool _comercioColapsado = false;
         private bool _facturacionColapsada = false;
@@ -64,6 +68,7 @@ namespace Comercio.NET.Formularios
             System.Diagnostics.Debug.WriteLine("[CONFIG] Iniciando ConfiguracionForm");
             
             InitializeComponent();
+
             
             // NUEVO: Inicializar ToolTip
             toolTip = new ToolTip();
@@ -105,6 +110,184 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(62, 80, 100),
                 TextAlign = ContentAlignment.MiddleLeft
             };
+        }
+
+        private Panel CrearSeccionFacturacionColapsable(string titulo, int y, int ancho)
+        {
+            var panel = new Panel
+            {
+                Location = new Point(10, y),
+                Size = new Size(ancho, 35),
+                BackColor = Color.FromArgb(248, 250, 252),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // Header con título y botón colapsar
+            var panelHeader = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(ancho, 30),
+                BackColor = Color.FromArgb(230, 235, 240),
+                Cursor = Cursors.Hand
+            };
+            panel.Controls.Add(panelHeader);
+
+            var lblTitulo = new Label
+            {
+                Text = titulo,
+                Location = new Point(10, 6),
+                Size = new Size(ancho - 50, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181),
+                Cursor = Cursors.Hand
+            };
+            panelHeader.Controls.Add(lblTitulo);
+
+            // Botón colapsar/expandir
+            btnColapsarFacturacion = new Button
+            {
+                Text = "▼", // Iniciar expandido
+                Location = new Point(ancho - 35, 3),
+                Size = new Size(25, 24),
+                BackColor = Color.FromArgb(200, 200, 200),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnColapsarFacturacion.FlatAppearance.BorderSize = 0;
+            panelHeader.Controls.Add(btnColapsarFacturacion);
+
+            // Contenido colapsable con todos los campos de facturación
+            var panelContenido = new Panel
+            {
+                Name = "panelContenidoFacturacion",
+                Location = new Point(0, 30),
+                Size = new Size(ancho, 180), // Aumentada ligeramente para alojar checkboxes
+                BackColor = Color.FromArgb(248, 250, 252),
+                Visible = true // Iniciar expandido
+            };
+            panel.Controls.Add(panelContenido);
+
+            // Agregar campos de facturación al contenido
+            // Primera fila: Razón Social y CUIT
+            panelContenido.Controls.Add(CrearLabel("Razón Social:", 15, 10));
+            txtRazonSocial = CrearTextBox(120, 8, 200);
+            panelContenido.Controls.Add(txtRazonSocial);
+
+            // CUIT: etiqueta corta, alineada a la derecha
+            var lblCUIT = new Label
+            {
+                Name = "lblCUIT",
+                Text = "CUIT:",
+                Location = new Point(340, 10),
+                Size = new Size(44, 22),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            panelContenido.Controls.Add(lblCUIT);
+
+            txtCUIT = new TextBox
+            {
+                Name = "txtCUIT",
+                Location = new Point(390, 8),
+                Size = new Size(170, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "XX-XXXXXXXX-X"
+            };
+            panelContenido.Controls.Add(txtCUIT);
+
+            // Segunda fila: Ingresos Brutos y Condición
+            panelContenido.Controls.Add(CrearLabel("Ing. Brutos:", 15, 40));
+            txtIngBrutos = CrearTextBox(120, 38, 200);
+            panelContenido.Controls.Add(txtIngBrutos);
+
+            var lblCondicion = new Label
+            {
+                Name = "lblCondicion",
+                Text = "Cond.:",
+                Location = new Point(340, 40),
+                Size = new Size(44, 22),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            panelContenido.Controls.Add(lblCondicion);
+
+            cmbCondicion = new ComboBox
+            {
+                Name = "cmbCondicion",
+                Location = new Point(390, 38),
+                Size = new Size(170, 22),
+                Font = new Font("Segoe UI", 9F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbCondicion.Items.AddRange(new string[] {
+        "Responsable Inscripto",
+        "Monotributo",
+        "Exento",
+        "Consumidor Final",
+        "Responsable No Inscripto"
+    });
+            panelContenido.Controls.Add(cmbCondicion);
+
+            // Tercera fila: Domicilio Fiscal
+            panelContenido.Controls.Add(CrearLabel("Domicilio Fiscal:", 15, 70));
+            txtDomicilioFiscal = CrearTextBox(120, 68, 440);
+            panelContenido.Controls.Add(txtDomicilioFiscal);
+
+            // Cuarta fila: Código Postal e Inicio de Actividades
+            panelContenido.Controls.Add(CrearLabel("C.P.:", 15, 100));
+            txtCodigoPostal = CrearTextBox(120, 98, 100);
+            panelContenido.Controls.Add(txtCodigoPostal);
+
+            panelContenido.Controls.Add(CrearLabelLarga("Inicio de Actividades:", 330, 100));
+            dtpInicioActividades = new DateTimePicker
+            {
+                Location = new Point(460, 98),
+                Size = new Size(100, 22),
+                Font = new Font("Segoe UI", 9F),
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Now
+            };
+            panelContenido.Controls.Add(dtpInicioActividades);
+
+            // NUEVO: Checkboxes para permitir Factura A / Factura B (espacio sin solapamiento)
+            chkPermitirFacturaA = new CheckBox
+            {
+                Name = "chkPermitirFacturaA",
+                Text = "Permitir Factura A",
+                Location = new Point(15, 130),
+                Size = new Size(160, 22),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = true
+            };
+            panelContenido.Controls.Add(chkPermitirFacturaA);
+
+            chkPermitirFacturaB = new CheckBox
+            {
+                Name = "chkPermitirFacturaB",
+                Text = "Permitir Factura B",
+                Location = new Point(190, 130),
+                Size = new Size(160, 22),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = true
+            };
+            panelContenido.Controls.Add(chkPermitirFacturaB);
+
+            // Ajuste final: aumentar altura visible del panel si es necesario
+            panelContenido.Height = 160 + 20;
+
+            // Configurar eventos
+            EventHandler clickHandler = (s, e) => ToggleColapsarFacturacion();
+            panelHeader.Click += clickHandler;
+            lblTitulo.Click += clickHandler;
+
+            return panel;
         }
 
         private Label CrearLabelCorta(string texto, int x, int y)
@@ -184,6 +367,45 @@ namespace Comercio.NET.Formularios
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Configuración del Sistema";
             this.ResumeLayout(false);
+        }
+
+        // Añadir en la clase del formulario (por ejemplo, justo después de InitializeComponent o en una región de utilidades)
+        private void AjustarEtiquetasDatosFacturacion()
+        {
+            try
+            {
+                // Reemplaza los nombres de controles por los que uses en tu form:
+                // txtCUIT       -> TextBox (o control) donde se muestra el CUIT
+                // cboCondicion  -> ComboBox (o control) de condición ante IVA
+                // lblCUIT       -> Label de "CUIT"
+                // lblCondicion  -> Label de "Cond." (o como se llame)
+
+                if (this.Controls.Find("txtCUIT", true).FirstOrDefault() is Control txtCUIT &&
+                    this.Controls.Find("cboCondicion", true).FirstOrDefault() is Control cboCondicion &&
+                    this.Controls.Find("lblCUIT", true).FirstOrDefault() is Label lblCUIT &&
+                    this.Controls.Find("lblCondicion", true).FirstOrDefault() is Label lblCondicion)
+                {
+                    // Fijar ancho cómodo para etiquetas y alinear texto a la derecha
+                    int labelWidth = 70; // ajustar (60..90) según fuentes. Prueba localmente.
+                    int espacio = 6;     // separación entre label y control
+
+                    lblCUIT.AutoSize = false;
+                    lblCUIT.Size = new Size(labelWidth, txtCUIT.Height);
+                    lblCUIT.TextAlign = ContentAlignment.MiddleRight;
+                    lblCUIT.Anchor = AnchorStyles.Left;
+                    lblCUIT.Location = new Point(Math.Max(6, txtCUIT.Left - labelWidth - espacio), txtCUIT.Top);
+
+                    lblCondicion.AutoSize = false;
+                    lblCondicion.Size = new Size(labelWidth, cboCondicion.Height);
+                    lblCondicion.TextAlign = ContentAlignment.MiddleRight;
+                    lblCondicion.Anchor = AnchorStyles.Left;
+                    lblCondicion.Location = new Point(Math.Max(6, cboCondicion.Left - labelWidth - espacio), cboCondicion.Top);
+                }
+            }
+            catch
+            {
+                // No bloquear la inicialización si falla el ajuste automático
+            }
         }
 
         private void ConfigurarFormulario()
@@ -580,130 +802,6 @@ namespace Comercio.NET.Formularios
             return panel;
         }
 
-        private Panel CrearSeccionFacturacionColapsable(string titulo, int y, int ancho)
-        {
-            var panel = new Panel
-            {
-                Location = new Point(10, y),
-                Size = new Size(ancho, 35),
-                BackColor = Color.FromArgb(248, 250, 252),
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            // Header con título y botón colapsar
-            var panelHeader = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(ancho, 30),
-                BackColor = Color.FromArgb(230, 235, 240),
-                Cursor = Cursors.Hand
-            };
-            panel.Controls.Add(panelHeader);
-
-            var lblTitulo = new Label
-            {
-                Text = titulo,
-                Location = new Point(10, 6),
-                Size = new Size(ancho - 50, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(63, 81, 181),
-                Cursor = Cursors.Hand
-            };
-            panelHeader.Controls.Add(lblTitulo);
-
-            // Botón colapsar/expandir
-            btnColapsarFacturacion = new Button
-            {
-                Text = "▼", // Iniciar expandido
-                Location = new Point(ancho - 35, 3),
-                Size = new Size(25, 24),
-                BackColor = Color.FromArgb(200, 200, 200),
-                ForeColor = Color.Black,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false
-            };
-            btnColapsarFacturacion.FlatAppearance.BorderSize = 0;
-            panelHeader.Controls.Add(btnColapsarFacturacion);
-
-            // Contenido colapsable con todos los campos de facturación
-            var panelContenido = new Panel
-            {
-                Name = "panelContenidoFacturacion",
-                Location = new Point(0, 30),
-                Size = new Size(ancho, 160),
-                BackColor = Color.FromArgb(248, 250, 252),
-                Visible = true // Iniciar expandido
-            };
-            panel.Controls.Add(panelContenido);
-
-            // Agregar campos de facturación al contenido
-            // Primera fila: Razón Social y CUIT
-            panelContenido.Controls.Add(CrearLabel("Razón Social:", 15, 10));
-            txtRazonSocial = CrearTextBox(120, 8, 200);
-            panelContenido.Controls.Add(txtRazonSocial);
-
-            panelContenido.Controls.Add(CrearLabelCorta("CUIT:", 340, 10));
-            txtCUIT = new TextBox
-            {
-                Location = new Point(390, 8),
-                Size = new Size(170, 22),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "XX-XXXXXXXX-X"
-            };
-            panelContenido.Controls.Add(txtCUIT);
-
-            // Segunda fila: Ingresos Brutos y Condición
-            panelContenido.Controls.Add(CrearLabel("Ing. Brutos:", 15, 40));
-            txtIngBrutos = CrearTextBox(120, 38, 200);
-            panelContenido.Controls.Add(txtIngBrutos);
-
-            panelContenido.Controls.Add(CrearLabelCorta("Cond.:", 340, 40));
-            cmbCondicion = new ComboBox
-            {
-                Location = new Point(390, 38),
-                Size = new Size(170, 22),
-                Font = new Font("Segoe UI", 9F),
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cmbCondicion.Items.AddRange(new string[] {
-                "Responsable Inscripto",
-                "Monotributo",
-                "Exento",
-                "Consumidor Final",
-                "Responsable No Inscripto"
-            });
-            panelContenido.Controls.Add(cmbCondicion);
-
-            // Tercera fila: Domicilio Fiscal
-            panelContenido.Controls.Add(CrearLabel("Domicilio Fiscal:", 15, 70));
-            txtDomicilioFiscal = CrearTextBox(120, 68, 440);
-            panelContenido.Controls.Add(txtDomicilioFiscal);
-
-            // Cuarta fila: Código Postal e Inicio de Actividades
-            panelContenido.Controls.Add(CrearLabel("C.P.:", 15, 100));
-            txtCodigoPostal = CrearTextBox(120, 98, 100);
-            panelContenido.Controls.Add(txtCodigoPostal);
-
-            panelContenido.Controls.Add(CrearLabelLarga("Inicio de Actividades:", 330, 100));
-            dtpInicioActividades = new DateTimePicker
-            {
-                Location = new Point(460, 98),
-                Size = new Size(100, 22),
-                Font = new Font("Segoe UI", 9F),
-                Format = DateTimePickerFormat.Short,
-                Value = DateTime.Now
-            };
-            panelContenido.Controls.Add(dtpInicioActividades);
-
-            // Configurar eventos
-            EventHandler clickHandler = (s, e) => ToggleColapsarFacturacion();
-            panelHeader.Click += clickHandler;
-            lblTitulo.Click += clickHandler;
-
-            return panel;
-        }
 
         private Panel CrearSeccionBaseDatos(string titulo, int y, int ancho)
         {
@@ -975,30 +1073,34 @@ namespace Comercio.NET.Formularios
             txtCodigoPostal.TabIndex = 6;
             dtpInicioActividades.TabIndex = 7;
             cmbCondicion.TabIndex = 8;
-            
-            // TabIndex para controles AFIP
-            txtAfipCuit.TabIndex = 9;
-            txtAfipCertificadoPath.TabIndex = 10;
-            txtAfipCertificadoPassword.TabIndex = 11;
-            txtAfipWSAAUrl.TabIndex = 12;
-            txtAfipWSFEUrl.TabIndex = 13;
-            btnSeleccionarCertificado.TabIndex = 14;
-            btnVerificarCertificado.TabIndex = 15;
-            
+
+            // Nuevos checkboxes
+            chkPermitirFacturaA.TabIndex = 9;
+            chkPermitirFacturaB.TabIndex = 10;
+
+            // TabIndex para controles AFIP (desplazados)
+            txtAfipCuit.TabIndex = 11;
+            txtAfipCertificadoPath.TabIndex = 12;
+            txtAfipCertificadoPassword.TabIndex = 13;
+            txtAfipWSAAUrl.TabIndex = 14;
+            txtAfipWSFEUrl.TabIndex = 15;
+            btnSeleccionarCertificado.TabIndex = 16;
+            btnVerificarCertificado.TabIndex = 17;
+
             // NUEVO: TabIndex para restricciones de impresión
-            chkRestringirRemitoPorPago.TabIndex = 16;
-            
-            chkVerificarStock.TabIndex = 17;
-            lstNombresCtaCte.TabIndex = 18;
-            txtNuevoNombreCtaCte.TabIndex = 19;
-            btnAgregarNombre.TabIndex = 20;
-            btnEditarNombre.TabIndex = 21;
-            btnEliminarNombre.TabIndex = 22;
-            txtConnectionString.TabIndex = 23;
-            btnTestearConexion.TabIndex = 24;
-            btnEditarBaseDatos.TabIndex = 25;
-            btnGuardar.TabIndex = 26;
-            btnCancelar.TabIndex = 27;
+            chkRestringirRemitoPorPago.TabIndex = 18;
+
+            chkVerificarStock.TabIndex = 19;
+            lstNombresCtaCte.TabIndex = 20;
+            txtNuevoNombreCtaCte.TabIndex = 21;
+            btnAgregarNombre.TabIndex = 22;
+            btnEditarNombre.TabIndex = 23;
+            btnEliminarNombre.TabIndex = 24;
+            txtConnectionString.TabIndex = 25;
+            btnTestearConexion.TabIndex = 26;
+            btnEditarBaseDatos.TabIndex = 27;
+            btnGuardar.TabIndex = 28;
+            btnCancelar.TabIndex = 29;
         }
 
         private void ConfigurarEventos()
@@ -1231,7 +1333,13 @@ namespace Comercio.NET.Formularios
                 txtIngBrutos.Text = _configuracionOriginal["Facturacion"]?["IngBrutos"]?.ToString() ?? "";
                 txtDomicilioFiscal.Text = _configuracionOriginal["Facturacion"]?["DomicilioFiscal"]?.ToString() ?? "";
                 txtCodigoPostal.Text = _configuracionOriginal["Facturacion"]?["CodigoPostal"]?.ToString() ?? "";
-                
+
+                // Cargar opciones de facturación: permitir Factura A / B
+                bool permitirA = _configuracionOriginal["Facturacion"]?["PermitirFacturaA"]?.ToObject<bool>() ?? true;
+                bool permitirB = _configuracionOriginal["Facturacion"]?["PermitirFacturaB"]?.ToObject<bool>() ?? true;
+                if (chkPermitirFacturaA != null) chkPermitirFacturaA.Checked = permitirA;
+                if (chkPermitirFacturaB != null) chkPermitirFacturaB.Checked = permitirB;
+
                 // Cargar fecha de inicio de actividades
                 if (DateTime.TryParse(_configuracionOriginal["Facturacion"]?["InicioActividades"]?.ToString(), out DateTime fechaInicio))
                 {
@@ -1358,7 +1466,7 @@ namespace Comercio.NET.Formularios
             try
             {
                 System.Diagnostics.Debug.WriteLine("[CONFIG] Creando archivo por defecto");
-                
+
                 var configuracionDefault = new JObject
                 {
                     ["ConnectionStrings"] = new JObject
@@ -1378,7 +1486,9 @@ namespace Comercio.NET.Formularios
                         ["DomicilioFiscal"] = "",
                         ["CodigoPostal"] = "",
                         ["InicioActividades"] = DateTime.Now.ToString("yyyy-MM-dd"),
-                        ["Condicion"] = ""
+                        ["Condicion"] = "",
+                        ["PermitirFacturaA"] = true,
+                        ["PermitirFacturaB"] = true
                     },
                     ["Inventario"] = new JObject
                     {
@@ -1392,12 +1502,12 @@ namespace Comercio.NET.Formularios
                     ["CuentasCorrientes"] = new JObject
                     {
                         ["NombresCtaCte"] = new JArray
-                        {
-                            "Cliente General",
-                            "Juan Pérez",
-                            "María García",
-                            "Carlos López"
-                        }
+                {
+                    "Cliente General",
+                    "Juan Pérez",
+                    "María García",
+                    "Carlos López"
+                }
                     },
                     // Sección de configuración AFIP por defecto
                     ["AFIP"] = new JObject
@@ -1417,11 +1527,11 @@ namespace Comercio.NET.Formularios
 
                 string jsonFormateado = JsonConvert.SerializeObject(configuracionDefault, Formatting.Indented);
                 File.WriteAllText(_rutaAppsettings, jsonFormateado);
-                
+
                 _configuracionOriginal = configuracionDefault;
                 System.Diagnostics.Debug.WriteLine("[CONFIG] Archivo por defecto creado");
                 MostrarMensaje("✅ Archivo de configuración creado", Color.Blue);
-                
+
                 // Cargar los nombres por defecto en la lista
                 CargarNombresCuentasCorrientes();
             }
@@ -1494,6 +1604,10 @@ namespace Comercio.NET.Formularios
                 nuevaConfiguracion["AFIP"]["CertificadoPassword"] = txtAfipCertificadoPassword.Text;
                 nuevaConfiguracion["AFIP"]["WSAAUrl"] = txtAfipWSAAUrl.Text.Trim();
                 nuevaConfiguracion["AFIP"]["WSFEUrl"] = txtAfipWSFEUrl.Text.Trim();
+
+                // Opciones adicionales de facturación
+                nuevaConfiguracion["Facturacion"]["PermitirFacturaA"] = chkPermitirFacturaA?.Checked ?? true;
+                nuevaConfiguracion["Facturacion"]["PermitirFacturaB"] = chkPermitirFacturaB?.Checked ?? true;
 
                 System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP configurado - CUIT: '{txtAfipCuit.Text.Trim()}'");
 
@@ -2334,7 +2448,11 @@ namespace Comercio.NET.Formularios
             txtCodigoPostal.Text = "1234";
             dtpInicioActividades.Value = new DateTime(2022, 1, 1);
             cmbCondicion.SelectedItem = "Responsable Inscripto";
-            
+
+            // Opciones de facturación de prueba
+            chkPermitirFacturaA.Checked = true;
+            chkPermitirFacturaB.Checked = true;
+
             chkVerificarStock.Checked = true;
             
             // Datos de AFIP

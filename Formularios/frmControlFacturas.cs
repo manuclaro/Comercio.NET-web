@@ -220,7 +220,8 @@ namespace Comercio.NET.Formularios
             // Ancho reducido (se ajustará más abajo para coincidir con el TextBox)
             clbFiltroTipoFactura.Size = new Size(100, clbFiltroTipoFactura.ItemHeight * 4 + 8);
             clbFiltroTipoFactura.FormattingEnabled = true;
-
+            // Suscribir para que al tildar/destildar se aplique el filtro automáticamente
+            clbFiltroTipoFactura.ItemCheck += ClbFiltroTipoFactura_ItemCheck;
 
             // dtp layout: reubicamos todo dentro de panelFiltros en dos filas
             panelFiltros.BackColor = Color.FromArgb(248, 249, 250);
@@ -507,9 +508,6 @@ namespace Comercio.NET.Formularios
             // Cargar los eventos de las columnas
             CargarEventosColumnas();
 
-            // NO formatear columnas aquí, se hará después de cargar datos
-            // FormatearColumnas(); // COMENTAR esta línea
-
             // Establecer el rango de fechas por defecto
             dtpDesde.Value = DateTime.Today;
             dtpHasta.Value = DateTime.Today;
@@ -671,8 +669,6 @@ namespace Comercio.NET.Formularios
             }
         }
 
-
-
         // NUEVO: Event handler para cambio en el ComboBox de forma de pago
         private void CboFiltroFormaPago_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -824,7 +820,6 @@ namespace Comercio.NET.Formularios
                 btnImprimir.Location = new Point(panelBotones.Width - 180, 10);
             };
         }
-
         private void CargarVentasDelDia()
         {
             // Por defecto ambas fechas hoy
@@ -935,7 +930,6 @@ namespace Comercio.NET.Formularios
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
 
         // MODIFICAR: Event handler para el checkbox
         private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
@@ -1437,7 +1431,6 @@ namespace Comercio.NET.Formularios
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void ActualizarFormasPagoDetalle(string nroFactura)
         {
             try

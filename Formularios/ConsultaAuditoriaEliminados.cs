@@ -78,7 +78,8 @@ namespace Comercio.NET.Formularios
             // PRIMERA FILA - Filtros de fecha, código, remito y usuario
             var lblDesde = new Label { Text = "Desde:", Location = new Point(10, 15), Size = new Size(50, 20) };
             dtpDesde = new DateTimePicker { Location = new Point(65, 12), Size = new Size(120, 23), TabIndex = 0 }; // NUEVO: TabIndex
-            dtpDesde.Value = DateTime.Now.AddDays(-30);
+            //dtpDesde.Value = DateTime.Now.AddDays(-30);
+            dtpDesde.Value = DateTime.Now;
 
             var lblHasta = new Label { Text = "Hasta:", Location = new Point(200, 15), Size = new Size(50, 20) };
             dtpHasta = new DateTimePicker { Location = new Point(255, 12), Size = new Size(120, 23), TabIndex = 1 }; // NUEVO: TabIndex
