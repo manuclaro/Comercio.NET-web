@@ -31,6 +31,8 @@ namespace Comercio.NET
             // NUEVO: Configurar ícono de configuración en tiempo de ejecución
             ConfigurarIconoConfiguracion();
             // llamar a la creación dinámica del menú y botón
+            AgregarMenuProveedores();
+            MoverCompraProveedoresAMenuProveedores();
         }
 
         // NUEVO: Método para configurar el ícono de configuración
@@ -735,6 +737,147 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 MessageBox.Show($"Error abriendo Compras Proveedores: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Agregar este método a la clase MenuPrincipal
+        private void AgregarMenuProveedores()
+        {
+            try
+            {
+                if (this.menuStrip != null)
+                {
+                    if (!this.menuStrip.Items.Cast<ToolStripItem>().Any(i => i.Name == "proveedoresToolStripMenuItem"))
+                    {
+                        var menu = new ToolStripMenuItem("Proveedores") { Name = "proveedoresToolStripMenuItem" };
+
+                        var submenuAbm = new ToolStripMenuItem("ABM Proveedores", null, (s, e) =>
+                        {
+                            // abrir como MDI child
+                            foreach (Form f in this.MdiChildren)
+                                if (f is Comercio.NET.Formularios.ProveedoresForm) { f.Activate(); return; }
+
+                            var frm = new Comercio.NET.Formularios.ProveedoresForm { MdiParent = this };
+                            frm.Show();
+                        }) { Name = "abmProveedoresToolStripMenuItem" };
+
+                        // Nuevo item: Control Compras
+                        var submenuControlCompras = new ToolStripMenuItem("Control Compras", null, ControlComprasToolStripMenuItem_Click)
+                        {
+                            Name = "controlComprasToolStripMenuItem"
+                        };
+
+                        menu.DropDownItems.Add(submenuAbm);
+                        menu.DropDownItems.Add(new ToolStripSeparator());
+                        menu.DropDownItems.Add(submenuControlCompras);
+
+                        this.menuStrip.Items.Add(menu);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error agregando menu Proveedores: {ex.Message}");
+            }
+        }
+
+        // Handler que abre el Control de Compras como MDI child (evita duplicados)
+        private void ControlComprasToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar si ya está abierto
+                foreach (Form f in this.MdiChildren)
+                {
+                    if (f is Comercio.NET.Formularios.ComprasProveedorControlForm)
+                    {
+                        f.Activate();
+                        return;
+                    }
+                }
+
+                var controlForm = new Comercio.NET.Formularios.ComprasProveedorControlForm
+                {
+                    MdiParent = this
+                };
+                controlForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo Control Compras Proveedores: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // NUEVO: Método para mover "Compra Proveedores" al menú Proveedores
+        private void MoverCompraProveedoresAMenuProveedores()
+        {
+            try
+            {
+                if (menuStrip == null) return;
+
+                // Buscar el menú "Proveedores" (ya creado por AgregarMenuProveedores)
+                var proveedoresMenuItem = menuStrip.Items
+                    .OfType<ToolStripItem>()
+                    .FirstOrDefault(i => string.Equals(i.Name, "proveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase))
+                    as ToolStripMenuItem;
+
+                if (proveedoresMenuItem == null)
+                {
+                    // No existe el menú Proveedores todavía
+                    return;
+                }
+
+                // Función recursiva para buscar el ToolStripItem por Name o por texto exacto "Compra Proveedores"
+                ToolStripItem EncontrarItem(ToolStripItemCollection items)
+                {
+                    foreach (ToolStripItem it in items)
+                    {
+                        if (string.Equals(it.Name, "compraProveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(it.Text, "Compra Proveedores", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(it.Text, "Compras Proveedores", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return it;
+                        }
+
+                        if (it is ToolStripMenuItem mi && mi.DropDownItems.Count > 0)
+                        {
+                            var found = EncontrarItem(mi.DropDownItems);
+                            if (found != null) return found;
+                        }
+                    }
+                    return null;
+                }
+
+                // Buscar el item en todo el menuStrip
+                var itemEncontrado = EncontrarItem(menuStrip.Items);
+                if (itemEncontrado == null)
+                {
+                    // No se encontró; puede que ya esté en Proveedores o tenga otro nombre
+                    return;
+                }
+
+                // Si ya está bajo el menú Proveedores, nada que hacer
+                if (itemEncontrado.OwnerItem == proveedoresMenuItem)
+                    return;
+
+                // Remover del padre actual
+                if (itemEncontrado.OwnerItem is ToolStripMenuItem ownerMenu)
+                {
+                    ownerMenu.DropDownItems.Remove(itemEncontrado);
+                }
+                else
+                {
+                    // Podría ser top-level
+                    menuStrip.Items.Remove(itemEncontrado);
+                }
+
+                // Agregar al final del menú Proveedores
+                proveedoresMenuItem.DropDownItems.Add(itemEncontrado);
+                System.Diagnostics.Debug.WriteLine("✅ 'Compra Proveedores' reubicado bajo 'Proveedores'.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error reubicando Compra Proveedores: {ex.Message}");
             }
         }
     }
