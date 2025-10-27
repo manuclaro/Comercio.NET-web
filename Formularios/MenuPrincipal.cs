@@ -21,6 +21,7 @@ namespace Comercio.NET
         private ToolStripStatusLabel lblUsuarioActual;
         private ToolStripSplitButton btnCambiarUsuario;
 
+
         public MenuPrincipal()
         {
             InitializeComponent();
@@ -29,6 +30,7 @@ namespace Comercio.NET
 
             // NUEVO: Configurar ícono de configuración en tiempo de ejecución
             ConfigurarIconoConfiguracion();
+            // llamar a la creación dinámica del menú y botón
         }
 
         // NUEVO: Método para configurar el ícono de configuración
@@ -47,6 +49,7 @@ namespace Comercio.NET
                 // Si hay error, seguir sin ícono
             }
         }
+
 
         // NUEVO: Método local para crear el ícono (copia del método de ConfiguracionForm)
         private Bitmap CrearIconoConfiguracionLocal()
@@ -340,9 +343,6 @@ namespace Comercio.NET
                 {
                     toolStripConfiguracion.Visible = esAdministrador;
                 }
-
-                // NUEVO: Los cartelitos están disponibles para todos los usuarios logueados (no requieren permisos especiales)
-                // Cartelitos de precios no necesita verificación de permisos - disponible para todos
             }
             else
             {
@@ -355,7 +355,7 @@ namespace Comercio.NET
                     InformesToolStripMenuItem.Visible = false;
                 if (toolStripConfiguracion != null)
                     toolStripConfiguracion.Visible = false;
-                
+
                 // NUEVO: También ocultar cartelitos si no hay usuario
                 if (cartelitosToolStripMenuItem != null)
                     cartelitosToolStripMenuItem.Visible = false;
@@ -688,6 +688,54 @@ namespace Comercio.NET
             var informesForm = new InformesForm();
             informesForm.MdiParent = this;
             informesForm.Show();
+        }
+
+        private void toolBotonCompras_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar si ya está abierto
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is Comercio.NET.Formularios.ComprasProveedorForm)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                var comprasForm = new Comercio.NET.Formularios.ComprasProveedorForm();
+                comprasForm.MdiParent = this;
+                comprasForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo Compras Proveedores: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void compraProveedoresToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar si ya está abierto
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is Comercio.NET.Formularios.ComprasProveedorForm)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                var comprasForm = new Comercio.NET.Formularios.ComprasProveedorForm();
+                comprasForm.MdiParent = this;
+                comprasForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo Compras Proveedores: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

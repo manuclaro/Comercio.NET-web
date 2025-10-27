@@ -47,10 +47,11 @@
             ventasToolStripMenuItem = new ToolStripMenuItem();
             productosToolStripMenuItem = new ToolStripMenuItem();
             controlFacturasToolStripMenuItem = new ToolStripMenuItem();
-            cartelitosToolStripMenuItem = new ToolStripMenuItem(); // NUEVO: Cartelitos de precios
+            cartelitosToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator9 = new ToolStripSeparator();
             gestionUsuariosToolStripMenuItem = new ToolStripMenuItem();
             InformesToolStripMenuItem = new ToolStripMenuItem();
+            compraProveedoresToolStripMenuItem = new ToolStripMenuItem();
             viewMenu = new ToolStripMenuItem();
             toolBarToolStripMenuItem = new ToolStripMenuItem();
             statusBarToolStripMenuItem = new ToolStripMenuItem();
@@ -73,10 +74,13 @@
             toolStripSeparator2 = new ToolStripSeparator();
             toolStripButton1 = new ToolStripButton();
             toolStripSeparator6 = new ToolStripSeparator();
-            toolStripCartelitos = new ToolStripButton(); // NUEVO: Botón cartelitos en toolbar
+            toolStripCartelitos = new ToolStripButton();
+            toolStripSeparator10 = new ToolStripSeparator();
+            toolBotonCompras = new ToolStripButton();
             toolStripSeparator7 = new ToolStripSeparator();
             toolStripGestionUsuarios = new ToolStripButton();
             toolStripConfiguracion = new ToolStripButton();
+            toolStripSeparator = new ToolStripSeparator();
             statusStrip = new StatusStrip();
             toolStripStatusLabel = new ToolStripStatusLabel();
             toolTip = new ToolTip(components);
@@ -187,7 +191,7 @@
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem, compraProveedoresToolStripMenuItem });
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";
@@ -195,49 +199,56 @@
             // ventasToolStripMenuItem
             // 
             ventasToolStripMenuItem.Name = "ventasToolStripMenuItem";
-            ventasToolStripMenuItem.Size = new Size(180, 22);
+            ventasToolStripMenuItem.Size = new Size(185, 22);
             ventasToolStripMenuItem.Text = "Ventas";
             ventasToolStripMenuItem.Click += ventasToolStripMenuItem_Click;
             // 
             // productosToolStripMenuItem
             // 
             productosToolStripMenuItem.Name = "productosToolStripMenuItem";
-            productosToolStripMenuItem.Size = new Size(180, 22);
+            productosToolStripMenuItem.Size = new Size(185, 22);
             productosToolStripMenuItem.Text = "Productos";
             productosToolStripMenuItem.Click += productosToolStripMenuItem_Click;
             // 
             // controlFacturasToolStripMenuItem
             // 
             controlFacturasToolStripMenuItem.Name = "controlFacturasToolStripMenuItem";
-            controlFacturasToolStripMenuItem.Size = new Size(180, 22);
+            controlFacturasToolStripMenuItem.Size = new Size(185, 22);
             controlFacturasToolStripMenuItem.Text = "Control Facturas";
             controlFacturasToolStripMenuItem.Click += controlFacturasToolStripMenuItem_Click;
             // 
             // cartelitosToolStripMenuItem
             // 
             cartelitosToolStripMenuItem.Name = "cartelitosToolStripMenuItem";
-            cartelitosToolStripMenuItem.Size = new Size(180, 22);
+            cartelitosToolStripMenuItem.Size = new Size(185, 22);
             cartelitosToolStripMenuItem.Text = "🏷️ Cartelitos Precios";
             cartelitosToolStripMenuItem.Click += cartelitosToolStripMenuItem_Click;
             // 
             // toolStripSeparator9
             // 
             toolStripSeparator9.Name = "toolStripSeparator9";
-            toolStripSeparator9.Size = new Size(177, 6);
+            toolStripSeparator9.Size = new Size(182, 6);
             // 
             // gestionUsuariosToolStripMenuItem
             // 
             gestionUsuariosToolStripMenuItem.Name = "gestionUsuariosToolStripMenuItem";
-            gestionUsuariosToolStripMenuItem.Size = new Size(180, 22);
+            gestionUsuariosToolStripMenuItem.Size = new Size(185, 22);
             gestionUsuariosToolStripMenuItem.Text = "👥 Gestión Usuarios";
             gestionUsuariosToolStripMenuItem.Click += gestionUsuariosToolStripMenuItem_Click;
             // 
             // InformesToolStripMenuItem
             // 
             InformesToolStripMenuItem.Name = "InformesToolStripMenuItem";
-            InformesToolStripMenuItem.Size = new Size(180, 22);
+            InformesToolStripMenuItem.Size = new Size(185, 22);
             InformesToolStripMenuItem.Text = "Informes";
             InformesToolStripMenuItem.Click += configuracionSistemaToolStripMenuItem_Click_1;
+            // 
+            // compraProveedoresToolStripMenuItem
+            // 
+            compraProveedoresToolStripMenuItem.Name = "compraProveedoresToolStripMenuItem";
+            compraProveedoresToolStripMenuItem.Size = new Size(185, 22);
+            compraProveedoresToolStripMenuItem.Text = "Compra Proveedores";
+            compraProveedoresToolStripMenuItem.Click += compraProveedoresToolStripMenuItem_Click;
             // 
             // viewMenu
             // 
@@ -351,7 +362,7 @@
             // 
             // toolStrip
             // 
-            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripCartelitos, toolStripSeparator7, toolStripGestionUsuarios, toolStripSeparator8, toolStripConfiguracion });
+            toolStrip.Items.AddRange(new ToolStripItem[] { printPreviewToolStripButton, toolStripSeparator1, toolStripProductos, toolStripSeparator2, toolStripButton1, toolStripSeparator6, toolStripCartelitos, toolStripSeparator10, toolBotonCompras, toolStripSeparator7, toolStripGestionUsuarios, toolStripSeparator8, toolStripConfiguracion, toolStripSeparator });
             toolStrip.Location = new Point(0, 24);
             toolStrip.Name = "toolStrip";
             toolStrip.Size = new Size(1054, 25);
@@ -410,10 +421,26 @@
             toolStripCartelitos.DisplayStyle = ToolStripItemDisplayStyle.Text;
             toolStripCartelitos.ImageTransparentColor = Color.Magenta;
             toolStripCartelitos.Name = "toolStripCartelitos";
-            toolStripCartelitos.Size = new Size(60, 22);
+            toolStripCartelitos.Size = new Size(68, 22);
             toolStripCartelitos.Text = "🏷️ Carteles";
             toolStripCartelitos.ToolTipText = "Generador de Cartelitos de Precios";
             toolStripCartelitos.Click += toolStripCartelitos_Click;
+            // 
+            // toolStripSeparator10
+            // 
+            toolStripSeparator10.Name = "toolStripSeparator10";
+            toolStripSeparator10.Size = new Size(6, 25);
+            // 
+            // toolBotonCompras
+            // 
+            toolBotonCompras.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolBotonCompras.Image = Properties.Resources.supply_chain;
+            toolBotonCompras.ImageTransparentColor = Color.Magenta;
+            toolBotonCompras.Name = "toolBotonCompras";
+            toolBotonCompras.Size = new Size(23, 22);
+            toolBotonCompras.Text = "Compras";
+            toolBotonCompras.ToolTipText = "Cargar Compra de Proveedores";
+            toolBotonCompras.Click += toolBotonCompras_Click;
             // 
             // toolStripSeparator7
             // 
@@ -437,6 +464,11 @@
             toolStripConfiguracion.Size = new Size(87, 22);
             toolStripConfiguracion.Text = "Configuración";
             toolStripConfiguracion.Click += toolStripConfiguracion_Click;
+            // 
+            // toolStripSeparator
+            // 
+            toolStripSeparator.Name = "toolStripSeparator";
+            toolStripSeparator.Size = new Size(6, 25);
             // 
             // statusStrip
             // 
@@ -537,6 +569,11 @@
         private ToolStripButton toolStripConfiguracion;
         private ToolStripSeparator toolStripSeparator9;
         private ToolStripMenuItem gestionUsuariosToolStripMenuItem;
+        private ToolStripButton toolBotonCompras;
+        private ToolStripMenuItem compraProveedoresToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator10;
+        private ToolStripSeparator toolStripSeparator;
+        //private ToolStripButton toolStripButton2;
     }
 }
 
