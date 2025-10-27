@@ -747,7 +747,8 @@ namespace Comercio.NET
             {
                 if (this.menuStrip != null)
                 {
-                    if (!this.menuStrip.Items.Cast<ToolStripItem>().Any(i => i.Name == "proveedoresToolStripMenuItem"))
+                    // Evitar duplicados
+                    if (!this.menuStrip.Items.Cast<ToolStripItem>().Any(i => string.Equals(i.Name, "proveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase)))
                     {
                         var menu = new ToolStripMenuItem("Proveedores") { Name = "proveedoresToolStripMenuItem" };
 
@@ -759,19 +760,71 @@ namespace Comercio.NET
 
                             var frm = new Comercio.NET.Formularios.ProveedoresForm { MdiParent = this };
                             frm.Show();
-                        }) { Name = "abmProveedoresToolStripMenuItem" };
+                        })
+                        { Name = "abmProveedoresToolStripMenuItem" };
 
-                        // Nuevo item: Control Compras
+                        // Intentar detectar si ya existe el item top-level "compraProveedoresToolStripMenuItem"
+                        ToolStripItem existingCompraItem = this.menuStrip.Items
+                            .Cast<ToolStripItem>()
+                            .FirstOrDefault(i =>
+                                string.Equals(i.Name, "compraProveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(i.Text, "Compras Proveedores", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(i.Text, "Compra Proveedores", StringComparison.OrdinalIgnoreCase));
+
+                        // Construir menú en el orden deseado:
+                        // 1) ABM Proveedores
+                        // 2) separador
+                        // 3) Cargar Compra (existingCompraItem si existe)
+                        // 4) separador
+                        // 5) Control Compras
+                        menu.DropDownItems.Add(submenuAbm);
+                        menu.DropDownItems.Add(new ToolStripSeparator());
+
+                        // Preparar el item "Control Compras" (siempre disponible)
                         var submenuControlCompras = new ToolStripMenuItem("Control Compras", null, ControlComprasToolStripMenuItem_Click)
                         {
                             Name = "controlComprasToolStripMenuItem"
                         };
 
-                        menu.DropDownItems.Add(submenuAbm);
-                        menu.DropDownItems.Add(new ToolStripSeparator());
-                        menu.DropDownItems.Add(submenuControlCompras);
+                        if (existingCompraItem != null)
+                        {
+                            // Si ya existe, removerlo de su ubicación actual y reubicarlo aquí (evita duplicados)
+                            if (existingCompraItem.OwnerItem is ToolStripMenuItem ownerMenu)
+                            {
+                                ownerMenu.DropDownItems.Remove(existingCompraItem);
+                            }
+                            else
+                            {
+                                // era top-level
+                                menuStrip.Items.Remove(existingCompraItem);
+                            }
 
-                        this.menuStrip.Items.Add(menu);
+                            // Añadir "Cargar Compra" justo debajo del separador
+                            menu.DropDownItems.Add(existingCompraItem);
+
+                            // separador entre Cargar Compra y Control Compras
+                            menu.DropDownItems.Add(new ToolStripSeparator());
+
+                            // añadir Control Compras debajo de Cargar Compra
+                            menu.DropDownItems.Add(submenuControlCompras);
+                        }
+                        else
+                        {
+                            // Si no existe el item "Cargar Compra" se añade sólo Control Compras
+                            menu.DropDownItems.Add(submenuControlCompras);
+                        }
+
+                        // Insertar el menú "Proveedores" antes de "Ver" (viewMenu) si existe, para moverlo más a la izquierda
+                        int insertIndex = -1;
+                        if (menuStrip.Items.Contains(viewMenu))
+                        {
+                            insertIndex = menuStrip.Items.IndexOf(viewMenu);
+                        }
+
+                        if (insertIndex >= 0)
+                            menuStrip.Items.Insert(insertIndex, menu);
+                        else
+                            this.menuStrip.Items.Add(menu);
                     }
                 }
             }
@@ -871,9 +924,31 @@ namespace Comercio.NET
                     menuStrip.Items.Remove(itemEncontrado);
                 }
 
-                // Agregar al final del menú Proveedores
-                proveedoresMenuItem.DropDownItems.Add(itemEncontrado);
-                System.Diagnostics.Debug.WriteLine("✅ 'Compra Proveedores' reubicado bajo 'Proveedores'.");
+                // Intentar insertar antes del item "Control Compras" si existe,
+                // para que "Compra Proveedores" quede arriba y "Control Compras" abajo.
+                var dropItems = proveedoresMenuItem.DropDownItems.Cast<ToolStripItem>().ToList();
+                int indexControl = dropItems.FindIndex(i => string.Equals(i.Name, "controlComprasToolStripMenuItem", StringComparison.OrdinalIgnoreCase));
+
+                if (indexControl >= 0)
+                {
+                    proveedoresMenuItem.DropDownItems.Insert(indexControl, itemEncontrado);
+                }
+                else
+                {
+                    // Si no existe "Control Compras", intentar insertar después de "ABM Proveedores"
+                    int indexAbm = dropItems.FindIndex(i => string.Equals(i.Name, "abmProveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase));
+                    if (indexAbm >= 0)
+                    {
+                        proveedoresMenuItem.DropDownItems.Insert(indexAbm + 1, itemEncontrado);
+                    }
+                    else
+                    {
+                        // fallback: añadir al final
+                        proveedoresMenuItem.DropDownItems.Add(itemEncontrado);
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine("✅ 'Compra Proveedores' reubicado bajo 'Proveedores' (antes de Control Compras).");
             }
             catch (Exception ex)
             {

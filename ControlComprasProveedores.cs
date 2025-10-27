@@ -500,11 +500,12 @@ ORDER BY d.Alicuota DESC;";
             public DetalleCompraForm(int compraId)
             {
                 this.Text = $"Detalle compra #{compraId}";
-                this.ClientSize = new Size(320, 260);
+                this.ClientSize = new Size(420, 160);
                 this.StartPosition = FormStartPosition.CenterParent;
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
                 this.MinimizeBox = false;
+
                 var dgvDet = new DataGridView
                 {
                     Dock = DockStyle.Fill,
@@ -516,7 +517,25 @@ ORDER BY d.Alicuota DESC;";
                     RowHeadersVisible = false,
                     SelectionMode = DataGridViewSelectionMode.FullRowSelect
                 };
+
+                // Panel footer con totalizador
+                var pnlFooter = new Panel
+                {
+                    Dock = DockStyle.Bottom,
+                    Height = 36,
+                    Padding = new Padding(6)
+                };
+                var lblTotal = new Label
+                {
+                    Dock = DockStyle.Fill,
+                    Text = "Totales: Base $0.00 | IVA $0.00 | Total $0.00",
+                    TextAlign = ContentAlignment.MiddleRight,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+                pnlFooter.Controls.Add(lblTotal);
+
                 this.Controls.Add(dgvDet);
+                this.Controls.Add(pnlFooter);
 
                 Load += async (s, e) =>
                 {
@@ -552,6 +571,16 @@ ORDER BY d.Alicuota DESC;";
                         if (dgvDet.Columns.Contains("Alicuota")) dgvDet.Columns["Alicuota"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                         if (dgvDet.Columns.Contains("BaseImponible")) dgvDet.Columns["BaseImponible"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                         if (dgvDet.Columns.Contains("ImporteIva")) dgvDet.Columns["ImporteIva"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                        // Calcular totales y actualizar label
+                        decimal sumaBase = 0m, sumaIva = 0m;
+                        foreach (DataRow r in dt.Rows)
+                        {
+                            if (r["BaseImponible"] != DBNull.Value && decimal.TryParse(r["BaseImponible"].ToString(), out decimal b)) sumaBase += b;
+                            if (r["ImporteIva"] != DBNull.Value && decimal.TryParse(r["ImporteIva"].ToString(), out decimal iv)) sumaIva += iv;
+                        }
+                        var sumaTotal = sumaBase + sumaIva;
+                        lblTotal.Text = $"Totales: Base {sumaBase:C2} | IVA {sumaIva:C2} | Total {sumaTotal:C2}";
                     }
                     catch (Exception ex)
                     {
@@ -569,7 +598,7 @@ ORDER BY d.Alicuota DESC;";
         public ComprasProveedorControlForm()
         {
             this.Text = "Control Compras Proveedores";
-            this.ClientSize = new Size(900, 500);
+            this.ClientSize = new Size(900, 515);
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             this.BackColor = Color.FromArgb(250, 250, 250);
