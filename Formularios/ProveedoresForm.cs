@@ -35,7 +35,7 @@ namespace Comercio.NET.Formularios
         {
             // Form general
             this.Text = "Proveedores";
-            this.ClientSize = new Size(900, 520);
+            this.ClientSize = new Size(900, 500);
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
             this.BackColor = Color.FromArgb(250, 250, 250);
@@ -56,9 +56,9 @@ namespace Comercio.NET.Formularios
             {
                 Text = "+",
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 20F, FontStyle.Bold, GraphicsUnit.Point),
+                Font = new Font("Segoe UI", 36F, FontStyle.Bold, GraphicsUnit.Point),
                 Left = 12,
-                Top = 8,
+                Top = -6,
                 AutoSize = true
             };
 
@@ -78,7 +78,7 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(230, 230, 255),
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular),
                 Left = lblIcon.Right + 8,
-                Top = lblTitle.Bottom - 6,
+                Top = lblTitle.Bottom - 4,
                 AutoSize = true
             };
 

@@ -400,7 +400,7 @@ namespace Comercio.NET.Formularios
             dgvVentas.RowHeadersVisible = false;
             dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvVentas.Size = new Size(909, 311);
-            dgvVentas.CellClick += DgvVentas_CellClick;
+            dgvVentas.CellDoubleClick += DgvVentas_CellDoubleClick;
             dgvVentas.Click += FrmControlFacturas_Click;
             dgvVentas.AllowUserToAddRows = false;
             //dgvVentas.AllowUserToDeleteRowsChanged += FrmControlFacturas_Click;    
@@ -1124,7 +1124,7 @@ namespace Comercio.NET.Formularios
         }
 
         // AGREGAR: Event handler para el click en las celdas del DataGridView
-        private void DgvVentas_CellClick(object sender, DataGridViewCellEventArgs e)
+        private void DgvVentas_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
             {
