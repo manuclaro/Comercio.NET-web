@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static System.Windows.Forms.AxHost;
 
 namespace Comercio.NET.Formularios
 {
@@ -26,14 +27,25 @@ namespace Comercio.NET.Formularios
         private Panel pnlHeader;
         private Panel pnlContent;
 
+        // Nuevo filtro por proveedor
+        private ComboBox cmbProveedor;
+        private Label lblProveedor; // nueva label
+        private Label lblFecha; // nueva label para el filtro Fecha
+
+        // Flag para evitar reentradas mientras poblamos el combo
+        private bool isPopulatingProveedor = false;
+
         // padding usado en todo el control (antes era variable local)
         private readonly int contentPadding = 12;
 
         public ControlComprasProveedores()
         {
             InitializeComponent();
-            // carga inicial: hoy
-            this.Load += async (s, e) => await AplicarRangoYCargarAsync();
+            // carga inicial: solo aplicar rango (antes cargábamos proveedores desde la tabla)
+            this.Load += async (s, e) =>
+            {
+                await AplicarRangoYCargarAsync();
+            };
         }
 
         private void InitializeComponent()
@@ -101,24 +113,94 @@ namespace Comercio.NET.Formularios
             };
             pnlContent.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
 
+
             // Controles dentro de pnlContent
+
+            // Label para el filtro Fecha (añadir antes de cmbRango)
+            lblFecha = new Label
+            {
+                Left = 12,
+                Top = 14,
+                AutoSize = true,
+                Text = "Fecha:",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = Color.Black
+            };
+
+            cmbRango = new ComboBox
+            {
+                Left = lblFecha.Right + 6, // ahora a la derecha de lblFecha
+                Top = 12,
+                Width = 180, // reducido
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+
+            // Hice los controles más compactos para que quepan en pantallas pequeñas
             cmbRango = new ComboBox
             {
                 Left = 12,
                 Top = 12,
-                Width = 220,
+                Width = 180, // reducido
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cmbRango.Items.AddRange(new object[] { "Hoy", "Esta semana", "Este mes", "Rango personalizado" });
             cmbRango.SelectedIndex = 0;
             cmbRango.SelectedIndexChanged += CmbRango_SelectedIndexChanged;
 
-            dtpDesde = new DateTimePicker { Left = cmbRango.Right + 8, Top = 12, Width = 120, Format = DateTimePickerFormat.Short, Visible = false };
-            dtpHasta = new DateTimePicker { Left = dtpDesde.Right + 8, Top = 12, Width = 120, Format = DateTimePickerFormat.Short, Visible = false };
+            dtpDesde = new DateTimePicker { Left = cmbRango.Right + 8, Top = 12, Width = 100, Format = DateTimePickerFormat.Short, Visible = false };
+            dtpHasta = new DateTimePicker { Left = dtpDesde.Right + 8, Top = 12, Width = 100, Format = DateTimePickerFormat.Short, Visible = false };
 
+            // Label para el combo proveedor
+            lblProveedor = new Label
+            {
+                Left = 12,
+                Top = 14,
+                AutoSize = true,
+                Text = "Proveedor:",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = Color.Black
+            };
+
+            // Combo de Proveedores
+            cmbProveedor = new ComboBox
+            {
+                Left = lblProveedor.Right + 6,
+                Top = 12,
+                Width = 120,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbProveedor.SelectedIndexChanged += CmbProveedor_SelectedIndexChanged;
+
+            // Label para el filtro Fecha (después de Proveedor)
+            lblFecha = new Label
+            {
+                Left = cmbProveedor.Right + 8,
+                Top = 14,
+                AutoSize = true,
+                Text = "Fecha:",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = Color.Black
+            };
+
+            // Combo de rango de fecha (a la derecha de lblFecha)
+            cmbRango = new ComboBox
+            {
+                Left = lblFecha.Right + 6,
+                Top = 12,
+                Width = 180,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbRango.Items.AddRange(new object[] { "Hoy", "Esta semana", "Este mes", "Rango personalizado" });
+            cmbRango.SelectedIndex = 0;
+            cmbRango.SelectedIndexChanged += CmbRango_SelectedIndexChanged;
+
+            // DatePickers (a la derecha de cmbRango)
+            dtpDesde = new DateTimePicker { Left = cmbRango.Right + 8, Top = 12, Width = 100, Format = DateTimePickerFormat.Short, Visible = false };
+            dtpHasta = new DateTimePicker { Left = dtpDesde.Right + 8, Top = 12, Width = 100, Format = DateTimePickerFormat.Short, Visible = false };
+
+            // Botones (se colocan después; posicionamiento final en Resize)
             btnRefrescar = new Button
             {
-                Left = dtpHasta.Right + 12,
                 Top = 10,
                 Width = 100,
                 Text = "Refrescar",
@@ -131,7 +213,6 @@ namespace Comercio.NET.Formularios
 
             btnNuevo = new Button
             {
-                Left = btnRefrescar.Right + 8,
                 Top = 10,
                 Width = 100,
                 Text = "Nuevo",
@@ -167,11 +248,12 @@ namespace Comercio.NET.Formularios
             {
                 Left = 12,
                 Top = dgv.Bottom + 6,
-                Width = pnlContent.Width - 24,
+                Width = 500, // ancho fijo para centrar después
                 Height = 22,
-                Anchor = AnchorStyles.Left | AnchorStyles.Bottom | AnchorStyles.Right,
+                Anchor = AnchorStyles.Bottom,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Text = "Totales: Neto $0.00 | IVA $0.00 | Total $0.00"
+                Text = "Totales: Neto $0.00 | IVA $0.00 | Total $0.00",
+                TextAlign = ContentAlignment.MiddleCenter // centrar texto
             };
 
             // Grilla para totalización por alícuota (será más angosta y centrada)
@@ -203,12 +285,12 @@ namespace Comercio.NET.Formularios
             dgvIvaTotals.Columns["Base"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
             dgvIvaTotals.Columns["ImporteIva"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            pnlContent.Controls.AddRange(new Control[] { cmbRango, dtpDesde, dtpHasta, btnRefrescar, btnNuevo, dgv, lblTotales, dgvIvaTotals });
-
+        pnlContent.Controls.AddRange(new Control[] { lblProveedor, cmbProveedor, lblFecha, cmbRango, dtpDesde, dtpHasta, btnRefrescar, btnNuevo, dgv, lblTotales, dgvIvaTotals });
             // Añadir header y contenido al control
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlContent);
 
+    
             // Manejo de resize para ajustar dgv y paneles y centrar la grilla de alícuotas
             this.Resize += (s, e) =>
             {
@@ -218,20 +300,65 @@ namespace Comercio.NET.Formularios
                 pnlContent.Width = this.ClientSize.Width - contentPadding * 2;
                 pnlContent.Height = Math.Max(220, this.ClientSize.Height - pnlHeader.Height - contentPadding * 2);
 
-                // Ajustar altura de la grilla principal para ocupar el espacio restante
+                // Colocación horizontal de controles de filtros (más robusta)
+                int startX = 12;
+                int gap = 8;
+
+                // ajustar ancho de controles según espacio disponible
+                int availableWidth = pnlContent.ClientSize.Width - 24;
+                int btnsTotalWidth = btnNuevo.Width + gap + btnRefrescar.Width + 12; // margen derecho
+                int maxFiltersWidth = Math.Max(200, availableWidth - btnsTotalWidth - 40);
+
+                // Proveedor a la izquierda
+                lblProveedor.Left = startX;
+                lblProveedor.Top = 14;
+                cmbProveedor.Left = lblProveedor.Right + 6;
+                //cmbProveedor.Width = Math.Min(220, Math.Max(90, maxFiltersWidth / 3));
+
+                // Fecha a la derecha de Proveedor
+                lblFecha.Left = cmbProveedor.Right + gap;
+                lblFecha.Top = 14;
+                cmbRango.Left = lblFecha.Right + gap;
+                cmbRango.Width = Math.Min(220, Math.Max(140, maxFiltersWidth / 4));
+
+                // DatePickers a la derecha de cmbRango
+                dtpDesde.Left = cmbRango.Right + gap;
+                dtpDesde.Width = Math.Min(120, Math.Max(90, (maxFiltersWidth / 8)));
+                dtpHasta.Left = dtpDesde.Right + gap;
+                dtpHasta.Width = dtpDesde.Width;
+
+                // colocar botones alineados a la derecha
+                int rightPadding = 12;
+                btnNuevo.Left = pnlContent.ClientSize.Width - rightPadding - btnNuevo.Width;
+                btnRefrescar.Left = btnNuevo.Left - gap - btnRefrescar.Width;
+
+                // Si los filtros invaden el espacio de los botones, reducir ancho del combo proveedor
+                if (cmbProveedor.Right + 12 > btnRefrescar.Left)
+                {
+                    int allowed = Math.Max(80, btnRefrescar.Left - cmbProveedor.Left - 12);
+                    cmbProveedor.Width = allowed;
+                }
+
+                // Asegurar que dtp y combos no queden fuera
+                if (cmbProveedor.Right + 12 > pnlContent.ClientSize.Width - btnsTotalWidth)
+                {
+                    // mover botones debajo de filtros si no hay espacio horizontal
+                    btnRefrescar.Top = dtpDesde.Bottom + 8;
+                    btnNuevo.Top = btnRefrescar.Top;
+                }
+                else
+                {
+                    btnRefrescar.Top = 10;
+                    btnNuevo.Top = 10;
+                }
+
+                // Ajustar altura y ancho de la grilla principal
                 dgv.Left = 12;
                 dgv.Top = cmbRango.Bottom + 12;
                 dgv.Width = pnlContent.ClientSize.Width - 24;
 
                 // lblTotales y posicionamiento de la grilla de alícuotas se calcularán dentro AjustarIvaTotalsSize
                 AjustarIvaTotalsSize();
-
-                // colocar botones a la derecha si cabe
-                var rightStart = pnlContent.ClientSize.Width - 12 - btnNuevo.Width;
-                btnNuevo.Left = Math.Max(btnNuevo.Left, rightStart);
-                btnRefrescar.Left = Math.Max(12 + cmbRango.Width + 8, btnNuevo.Left - 8 - btnRefrescar.Width);
-                dtpDesde.Left = Math.Min(dtpDesde.Left, Math.Max(12 + cmbRango.Width + 8, pnlContent.ClientSize.Width - 360));
-                dtpHasta.Left = dtpDesde.Right + 8;
             };
         }
 
@@ -276,9 +403,11 @@ namespace Comercio.NET.Formularios
             dgvIvaTotals.Left = (pnlContent.ClientSize.Width - dgvIvaTotals.Width) / 2;
             dgvIvaTotals.Top = pnlContent.ClientSize.Height - contentPadding - dgvIvaTotals.Height;
 
-            // lblTotales justo encima de la grilla de alícuotas
+            // lblTotales justo encima de la grilla de alícuotas, centrado horizontalmente
+            int lblWidth = Math.Min(600, pnlContent.ClientSize.Width - 24);
+            lblTotales.Width = lblWidth;
+            lblTotales.Left = (pnlContent.ClientSize.Width - lblTotales.Width) / 2;
             lblTotales.Top = dgvIvaTotals.Top - 6 - lblTotales.Height;
-            lblTotales.Width = pnlContent.ClientSize.Width - 24;
 
             // ajustar altura de la grilla principal según la nueva posición
             dgv.Height = Math.Max(80, lblTotales.Top - dgv.Top - 12);
@@ -288,6 +417,13 @@ namespace Comercio.NET.Formularios
         {
             bool personalizado = cmbRango.SelectedItem?.ToString() == "Rango personalizado";
             dtpDesde.Visible = dtpHasta.Visible = personalizado;
+            await AplicarRangoYCargarAsync();
+        }
+
+        // Nuevo handler seguro para el combo de proveedores (evita reentradas)
+        private async void CmbProveedor_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (isPopulatingProveedor) return;
             await AplicarRangoYCargarAsync();
         }
 
@@ -352,7 +488,8 @@ namespace Comercio.NET.Formularios
                     var desdeFecha = desde.Date;
                     var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
 
-                    var sql = @"
+                    // OBTENER compras SIN FILTRO POR PROVEEDOR — necesitaremos la lista de proveedores desde estos registros
+                    string sql = @"
 SELECT cp.Id, cp.NumeroFactura, cp.Fecha, ISNULL(p.Nombre, cp.Proveedor) AS Proveedor, 
        cp.ImporteNeto, cp.ImporteIVA, cp.ImporteTotal, cp.Usuario
 FROM ComprasProveedores cp
@@ -370,40 +507,71 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         }
                     }
 
-                    // también obtener totales por alícuota agrupados
-                    var dtAlicuotas = new DataTable();
-                    var sqlAlicuotas = @"
-SELECT d.Alicuota, SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
-FROM ComprasProveedoresIvaDetalle d
-INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
-WHERE cp.Fecha BETWEEN @desde AND @hasta
-GROUP BY d.Alicuota
-ORDER BY d.Alicuota DESC;";
-                    using (var cmdA = new SqlCommand(sqlAlicuotas, conn))
+                    // POPULAR combo de proveedores desde los registros obtenidos
+                    ActualizarComboProveedorDesdeCompras(dt);
+
+                    // Determinar proveedor seleccionado (nombre). Si es "Todos" o vacío -> sin filtro por proveedor
+                    string proveedorSeleccionado = "";
+                    if (cmbProveedor?.SelectedValue != null)
+                        proveedorSeleccionado = cmbProveedor.SelectedValue.ToString();
+
+                    // Filtrar en memoria la tabla de compras para mostrar sólo el proveedor seleccionado (si corresponde)
+                    DataTable dtParaMostrar = dt;
+                    if (!string.IsNullOrEmpty(proveedorSeleccionado))
                     {
-                        cmdA.Parameters.AddWithValue("@desde", desdeFecha);
-                        cmdA.Parameters.AddWithValue("@hasta", hastaFecha);
-                        using (var da2 = new SqlDataAdapter(cmdA))
-                        {
-                            await Task.Run(() => da2.Fill(dtAlicuotas));
-                        }
+                        // Escapar comillas simples para RowFilter
+                        var escaped = proveedorSeleccionado.Replace("'", "''");
+                        var dv = new DataView(dt) { RowFilter = $"Proveedor = '{escaped}'" };
+                        dtParaMostrar = dv.ToTable();
                     }
 
                     // asignar valores a la UI (fuera del using de conexión)
-                    dgv.DataSource = dt;
+                    dgv.DataSource = dtParaMostrar;
 
                     FormatearGrilla();
+                    
 
-                    // Calcular totales
+                    // Calcular totales sobre dtParaMostrar
                     decimal sumaNeto = 0m, sumaIva = 0m, sumaTotal = 0m;
-                    foreach (DataRow row in dt.Rows)
+                    foreach (DataRow row in dtParaMostrar.Rows)
                     {
                         if (row["ImporteNeto"] != DBNull.Value && decimal.TryParse(row["ImporteNeto"].ToString(), out decimal n)) sumaNeto += n;
                         if (row["ImporteIVA"] != DBNull.Value && decimal.TryParse(row["ImporteIVA"].ToString(), out decimal v)) sumaIva += v;
                         if (row["ImporteTotal"] != DBNull.Value && decimal.TryParse(row["ImporteTotal"].ToString(), out decimal t)) sumaTotal += t;
                     }
 
-                    lblTotales.Text = $"Totales ({desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}): Neto {sumaNeto:C2} | IVA {sumaIva:C2} | Total {sumaTotal:C2}";
+                    lblTotales.Text = $"Totales ({desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}):     Neto {sumaNeto:C2}    |    IVA {sumaIva:C2}    |    Total {sumaTotal:C2}";
+
+                    // OBTENER totales por alícuota desde la BD:
+                    var dtAlicuotas = new DataTable();
+
+                    // Base SQL y, si hay proveedor seleccionado, se agrega condición de nombre de proveedor
+                    string sqlAlicuotas = @"
+                        SELECT d.Alicuota, SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
+                        FROM ComprasProveedoresIvaDetalle d
+                        INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
+                        LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+                        WHERE cp.Fecha BETWEEN @desde AND @hasta
+                        ";
+                    if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                    {
+                        sqlAlicuotas += "  AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                    }
+                    sqlAlicuotas += @"
+                        GROUP BY d.Alicuota
+                        ORDER BY d.Alicuota DESC;";
+
+                    using (var cmdA = new SqlCommand(sqlAlicuotas, conn))
+                    {
+                        cmdA.Parameters.AddWithValue("@desde", desdeFecha);
+                        cmdA.Parameters.AddWithValue("@hasta", hastaFecha);
+                        if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                            cmdA.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
+                        using (var da2 = new SqlDataAdapter(cmdA))
+                        {
+                            await Task.Run(() => da2.Fill(dtAlicuotas));
+                        }
+                    }
 
                     // rellenar dgvIvaTotals desde dtAlicuotas
                     dgvIvaTotals.Rows.Clear();
@@ -427,6 +595,73 @@ ORDER BY d.Alicuota DESC;";
             catch (Exception ex)
             {
                 MessageBox.Show($"Error cargando compras: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Rellena el combo de proveedores usando la columna "Proveedor" del DataTable de compras
+        private void ActualizarComboProveedorDesdeCompras(DataTable comprasDt)
+        {
+            try
+            {
+                var dtProv = new DataTable();
+                dtProv.Columns.Add("Nombre", typeof(string)); // texto mostrado
+                dtProv.Columns.Add("Value", typeof(string));  // valor real usado para filtrar
+
+                // Opción "Todos" -> mostrar "Todos", valor vacío para indicar sin filtro
+                var rowTodos = dtProv.NewRow();
+                rowTodos["Nombre"] = "Todos";
+                rowTodos["Value"] = "";
+                dtProv.Rows.Add(rowTodos);
+
+                if (comprasDt != null && comprasDt.Rows.Count > 0)
+                {
+                    var providers = comprasDt.AsEnumerable()
+                        .Select(r => r["Proveedor"] == DBNull.Value ? "" : r["Proveedor"].ToString())
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                        .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase)
+                        .ToList();
+
+                    foreach (var p in providers)
+                    {
+                        var r = dtProv.NewRow();
+                        r["Nombre"] = p;
+                        r["Value"] = p;
+                        dtProv.Rows.Add(r);
+                    }
+                }
+
+                // Evitar que la asignación del DataSource dispare SelectedIndexChanged y cause reentrada
+                isPopulatingProveedor = true;
+                try
+                {
+                    // preservar selección previa (por valor)
+                    var previous = cmbProveedor?.SelectedValue?.ToString();
+
+                    cmbProveedor.DataSource = dtProv;
+                    cmbProveedor.DisplayMember = "Nombre";
+                    cmbProveedor.ValueMember = "Value";
+
+                    // restaurar selección previa si existe en la nueva lista; sino "Todos" (valor "")
+                    if (!string.IsNullOrEmpty(previous))
+                    {
+                        var exists = dtProv.AsEnumerable().Any(r => string.Equals(r.Field<string>("Value"), previous, StringComparison.CurrentCultureIgnoreCase));
+                        cmbProveedor.SelectedValue = exists ? previous : "";
+                    }
+                    else
+                    {
+                        cmbProveedor.SelectedValue = "";
+                    }
+                }
+                finally
+                {
+                    isPopulatingProveedor = false;
+                }
+            }
+            catch
+            {
+                // no interrumpir la carga por fallos al poblar el combo
+                cmbProveedor.DataSource = null;
             }
         }
 
