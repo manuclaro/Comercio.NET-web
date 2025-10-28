@@ -513,6 +513,7 @@ namespace Comercio.NET
 
             ConfigurarEventosTextBox();
             ConfigurarEventosDataGridView();
+            this.FormClosing += Ventas_FormClosing;
         }
 
         // NUEVO: Método para manejar el evento del checkbox de cuenta corriente
@@ -2713,6 +2714,92 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error en ImprimirSinModal: {ex.Message}");
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        // Agregar este método a la clase Ventas (por ejemplo al final del archivo)
+        private async void Ventas_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            try
+            {
+                // Si no hay remito cargado o está vacío, permitir cierre
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                    return;
+
+                // Hay productos cargados -> ofrecer opciones
+                var mensaje =
+                    "Hay productos cargados en la venta actual.\n\n" +
+                    "Debe finalizar la venta (usar __Finalizar__ o la tecla F) o eliminar todos los productos antes de cerrar.\n\n" +
+                    "¿Desea finalizar ahora, eliminar todos los productos (anular la venta) o cancelar y volver a la venta?\n\n" +
+                    "Sí = Finalizar  |  No = Eliminar todos  |  Cancelar = Volver";
+
+                var resultado = MessageBox.Show(this, mensaje, "Venta en curso - Confirmar", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Indicar al usuario la acción a realizar; no forzamos la finalización automática
+                    e.Cancel = true;
+                    MessageBox.Show(this,
+                        "Pulse el botón __Finalizar__ (o presione F) para completar la venta y elegir la opción de impresión.\n\n" +
+                        "El cierre del formulario se reintentará una vez la venta esté finalizada.",
+                        "Finalizar venta", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    txtBuscarProducto?.Focus();
+                    return;
+                }
+                else if (resultado == DialogResult.No)
+                {
+                    // Ejecutar eliminación completa de forma asíncrona y esperarla sin bloquear el UI.
+                    e.Cancel = true; // cancelamos mientras procesamos la anulación
+                    try
+                    {
+                        // Feedback visual mínimo
+                        var previousCursor = Cursor.Current;
+                        Cursor.Current = Cursors.WaitCursor;
+                        this.Enabled = false;
+
+                        await EliminarFacturaCompletaAsync().ConfigureAwait(true);
+
+                        this.Enabled = true;
+                        Cursor.Current = previousCursor;
+
+                        // Si quedó vacío, permitir cierre
+                        if (remitoActual == null || remitoActual.Rows.Count == 0)
+                        {
+                            // No cancelar: dejar que el cierre continúe
+                            e.Cancel = false;
+                            return;
+                        }
+                        else
+                        {
+                            // Si por alguna razón no se vació, impedir cierre y notificar
+                            e.Cancel = true;
+                            MessageBox.Show(this, "No se pudo anular completamente la venta. Revise el estado y vuelva a intentar.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Enabled = true;
+                        Cursor.Current = Cursors.Default;
+                        e.Cancel = true;
+                        System.Diagnostics.Debug.WriteLine($"Error anulando venta en cierre: {ex.Message}");
+                        MessageBox.Show(this, $"Error anulando la venta: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                }
+                else
+                {
+                    // Cancel -> no hacer nada, quedarse en el formulario
+                    e.Cancel = true;
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                // En caso de fallo, evitar que se cierre por defecto si hay productos
+                e.Cancel = true;
+                System.Diagnostics.Debug.WriteLine($"Error en Ventas_FormClosing: {ex.Message}");
+                MessageBox.Show(this, "Error comprobando estado de la venta. No se permite cerrar el formulario.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
