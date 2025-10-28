@@ -6,6 +6,9 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Drawing.Printing;
+using System.Collections.Generic;
+using System.Globalization;
 using static System.Windows.Forms.AxHost;
 
 namespace Comercio.NET.Formularios
@@ -17,6 +20,9 @@ namespace Comercio.NET.Formularios
         private DateTimePicker dtpHasta;
         private Button btnRefrescar;
         private Button btnNuevo;
+        private Button btnImprimir; // boton existente (totales por día)
+        private Button btnImprimirMensual; // nuevo botón (totales por mes)
+        private Button btnImprimirMensualProveedor; // nuevo botón (mensual detallado por proveedor)
         private DataGridView dgv;
         private Label lblTotales;
 
@@ -37,6 +43,19 @@ namespace Comercio.NET.Formularios
 
         // padding usado en todo el control (antes era variable local)
         private readonly int contentPadding = 12;
+
+        // Datos y rango actuales (para impresión / reuso)
+        private DataTable currentComprasDt;
+        private DataTable currentAlicuotasDt;
+        private DateTime lastDesde;
+        private DateTime lastHasta;
+        private string lastProveedorSeleccionado = "";
+
+        // Impresión
+        private PrintDocument printDoc;
+        private List<string> printLines;
+        private Font printFont = new Font("Consolas", 9F);
+        private int currentPrintLine;
 
         public ControlComprasProveedores()
         {
@@ -223,6 +242,44 @@ namespace Comercio.NET.Formularios
             btnNuevo.FlatAppearance.BorderSize = 0;
             btnNuevo.Click += BtnNuevo_Click;
 
+            btnImprimir = new Button
+            {
+                Top = 10,
+                Width = 100,
+                Text = "Imprimir (día)",
+                BackColor = Color.FromArgb(33, 150, 243),
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.White
+            };
+            btnImprimir.FlatAppearance.BorderSize = 0;
+            btnImprimir.Click += async (s, e) => await BtnImprimir_Click(s, e);
+
+            // Nuevo botón: imprimir resumen mensual (1 total por mes)
+            btnImprimirMensual = new Button
+            {
+                Top = 10,
+                Width = 130,
+                Text = "Imprimir (meses)",
+                BackColor = Color.FromArgb(0, 150, 136),
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.White
+            };
+            btnImprimirMensual.FlatAppearance.BorderSize = 0;
+            btnImprimirMensual.Click += async (s, e) => await BtnImprimirMensual_Click(s, e);
+
+            // Nuevo botón: imprimir resumen mensual detallado por proveedor
+            btnImprimirMensualProveedor = new Button
+            {
+                Top = 10,
+                Width = 170,
+                Text = "Imprimir (meses x proveedor)",
+                BackColor = Color.FromArgb(0, 121, 107),
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.White
+            };
+            btnImprimirMensualProveedor.FlatAppearance.BorderSize = 0;
+            btnImprimirMensualProveedor.Click += async (s, e) => await BtnImprimirMensualPorProveedor_Click(s, e);
+
             // Por defecto dejaremos la grilla principal más alta; la altura final se ajusta en Resize
             dgv = new DataGridView
             {
@@ -285,12 +342,12 @@ namespace Comercio.NET.Formularios
             dgvIvaTotals.Columns["Base"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
             dgvIvaTotals.Columns["ImporteIva"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-        pnlContent.Controls.AddRange(new Control[] { lblProveedor, cmbProveedor, lblFecha, cmbRango, dtpDesde, dtpHasta, btnRefrescar, btnNuevo, dgv, lblTotales, dgvIvaTotals });
+            pnlContent.Controls.AddRange(new Control[] { lblProveedor, cmbProveedor, lblFecha, cmbRango, dtpDesde, dtpHasta, btnRefrescar, btnImprimirMensualProveedor, btnImprimirMensual, btnImprimir, btnNuevo, dgv, lblTotales, dgvIvaTotals });
             // Añadir header y contenido al control
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlContent);
 
-    
+
             // Manejo de resize para ajustar dgv y paneles y centrar la grilla de alícuotas
             this.Resize += (s, e) =>
             {
@@ -306,7 +363,7 @@ namespace Comercio.NET.Formularios
 
                 // ajustar ancho de controles según espacio disponible
                 int availableWidth = pnlContent.ClientSize.Width - 24;
-                int btnsTotalWidth = btnNuevo.Width + gap + btnRefrescar.Width + 12; // margen derecho
+                int btnsTotalWidth = btnNuevo.Width + gap + btnImprimir.Width + gap + btnImprimirMensual.Width + gap + btnImprimirMensualProveedor.Width + gap + btnRefrescar.Width + 12; // margen derecho
                 int maxFiltersWidth = Math.Max(200, availableWidth - btnsTotalWidth - 40);
 
                 // Proveedor a la izquierda
@@ -327,10 +384,11 @@ namespace Comercio.NET.Formularios
                 dtpHasta.Left = dtpDesde.Right + gap;
                 dtpHasta.Width = dtpDesde.Width;
 
-                // colocar botones alineados a la derecha
+                // colocar botones de acciones principales (excluyendo botones de impresión)
                 int rightPadding = 12;
                 btnNuevo.Left = pnlContent.ClientSize.Width - rightPadding - btnNuevo.Width;
                 btnRefrescar.Left = btnNuevo.Left - gap - btnRefrescar.Width;
+                // dejamos botones de impresión para posicionarlos junto a dgvIvaTotals en AjustarIvaTotalsSize
 
                 // Si los filtros invaden el espacio de los botones, reducir ancho del combo proveedor
                 if (cmbProveedor.Right + 12 > btnRefrescar.Left)
@@ -403,7 +461,7 @@ namespace Comercio.NET.Formularios
             dgvIvaTotals.Left = (pnlContent.ClientSize.Width - dgvIvaTotals.Width) / 2;
             dgvIvaTotals.Top = pnlContent.ClientSize.Height - contentPadding - dgvIvaTotals.Height;
 
-            // lblTotales justo encima de la grilla de alícuotas, centrado horizontalmente
+            // lblTotales justo encima de la grilla de alícuatas, centrado horizontalmente
             int lblWidth = Math.Min(600, pnlContent.ClientSize.Width - 24);
             lblTotales.Width = lblWidth;
             lblTotales.Left = (pnlContent.ClientSize.Width - lblTotales.Width) / 2;
@@ -411,6 +469,59 @@ namespace Comercio.NET.Formularios
 
             // ajustar altura de la grilla principal según la nueva posición
             dgv.Height = Math.Max(80, lblTotales.Top - dgv.Top - 12);
+
+            // -----------------------------
+            // Posicionar botones de impresión a la derecha de la grilla de alícuotas
+            // -----------------------------
+            try
+            {
+                int gap = 8;
+                int rightPadding = 12;
+
+                // espacio a la derecha de la grilla
+                int gridRight = dgvIvaTotals.Left + dgvIvaTotals.Width;
+                int spaceRight = pnlContent.ClientSize.Width - rightPadding - gridRight;
+
+                // intentamos colocar los botones a la derecha de la grilla (apilados verticalmente)
+                int btnsTotalHeight = btnImprimir.Height + gap + btnImprimirMensual.Height + gap + btnImprimirMensualProveedor.Height;
+                int startTop = dgvIvaTotals.Top + Math.Max(0, (dgvIvaTotals.Height - btnsTotalHeight) / 2);
+
+                if (spaceRight >= Math.Max(Math.Max(btnImprimir.Width, btnImprimirMensual.Width), btnImprimirMensualProveedor.Width) + gap)
+                {
+                    // colocamos a la derecha, alineados al borde izquierdo del espacio disponible
+                    int left = gridRight + gap;
+                    // si no caben ambos botones en ancho, alineamos al borde derecho del panel
+                    if (left + Math.Max(Math.Max(btnImprimirMensual.Width, btnImprimir.Width), btnImprimirMensualProveedor.Width) > pnlContent.ClientSize.Width - rightPadding)
+                    {
+                        left = pnlContent.ClientSize.Width - rightPadding - Math.Max(Math.Max(btnImprimirMensual.Width, btnImprimir.Width), btnImprimirMensualProveedor.Width);
+                    }
+
+                    btnImprimir.Left = left;
+                    btnImprimirMensual.Left = left;
+                    btnImprimirMensualProveedor.Left = left;
+                    btnImprimir.Top = startTop;
+                    btnImprimirMensual.Top = startTop + btnImprimir.Height + gap;
+                    btnImprimirMensualProveedor.Top = startTop + btnImprimir.Height + gap + btnImprimirMensual.Height + gap;
+                }
+                else
+                {
+                    // fallback: si no hay suficiente espacio a la derecha, centramos los botones debajo de la grilla
+                    int totalBtnsWidth = btnImprimir.Width + gap + btnImprimirMensual.Width + gap + btnImprimirMensualProveedor.Width;
+                    int centerLeft = dgvIvaTotals.Left + Math.Max(0, (dgvIvaTotals.Width - totalBtnsWidth) / 2);
+                    int btnTop = dgvIvaTotals.Bottom + gap;
+
+                    btnImprimir.Left = Math.Max(12, centerLeft);
+                    btnImprimirMensual.Left = btnImprimir.Left + btnImprimir.Width + gap;
+                    btnImprimirMensualProveedor.Left = btnImprimirMensual.Left + btnImprimirMensual.Width + gap;
+                    btnImprimir.Top = btnTop;
+                    btnImprimirMensual.Top = btnTop;
+                    btnImprimirMensualProveedor.Top = btnTop;
+                }
+            }
+            catch
+            {
+                // no interrumpir layout por fallos en posicionamiento de botones
+            }
         }
 
         private async void CmbRango_SelectedIndexChanged(object sender, EventArgs e)
@@ -457,6 +568,11 @@ namespace Comercio.NET.Formularios
                     hasta = hoy;
                     break;
             }
+
+            // guardar últimos valores para impresión
+            lastDesde = desde;
+            lastHasta = hasta;
+            lastProveedorSeleccionado = cmbProveedor?.SelectedValue?.ToString() ?? "";
 
             await CargarComprasAsync(desde, hasta);
         }
@@ -573,7 +689,7 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         }
                     }
 
-                    // rellenar dgvIvaTotals desde dtAlicuotas
+                    // rellenar dgvIvaTotals desde dtAlicuatas
                     dgvIvaTotals.Rows.Clear();
                     foreach (DataRow r in dtAlicuotas.Rows)
                     {
@@ -582,6 +698,13 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         var ivaSum = r["IvaSum"] == DBNull.Value ? 0m : Convert.ToDecimal(r["IvaSum"]);
                         dgvIvaTotals.Rows.Add(ali.ToString("N2"), baseSum.ToString("C2"), ivaSum.ToString("C2"));
                     }
+
+                    // Guardar datos actuales para impresión / reuso
+                    currentComprasDt = dt;
+                    currentAlicuotasDt = dtAlicuotas;
+                    lastDesde = desde;
+                    lastHasta = hasta;
+                    lastProveedorSeleccionado = proveedorSeleccionado;
                 }
 
                 // Alineaciones de celdas de la grilla de alícuotas (fuera del using)
@@ -822,6 +945,675 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         MessageBox.Show($"Error cargando detalle: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 };
+            }
+        }
+
+        // -----------------------------
+        // IMPRESIÓN: totales por día
+        // -----------------------------
+
+        // Obtiene desde la BD los totales por día y alícuota (agrupados por fecha)
+        private async Task<DataTable> ObtenerTotalesPorDiaAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
+        {
+            var dt = new DataTable();
+            try
+            {
+                string cs = GetConnectionString();
+                using (var conn = new SqlConnection(cs))
+                {
+                    var desdeFecha = desde.Date;
+                    var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
+
+                    string sql = @"
+SELECT CAST(cp.Fecha AS DATE) AS Fecha, d.Alicuota, SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
+FROM ComprasProveedoresIvaDetalle d
+INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
+LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+WHERE cp.Fecha BETWEEN @desde AND @hasta
+";
+                    if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                    {
+                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                    }
+                    sql += @"
+GROUP BY CAST(cp.Fecha AS DATE), d.Alicuota
+ORDER BY CAST(cp.Fecha AS DATE) DESC, d.Alicuota DESC;";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@desde", desdeFecha);
+                        cmd.Parameters.AddWithValue("@hasta", hastaFecha);
+                        if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                            cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
+                        using (var da = new SqlDataAdapter(cmd))
+                        {
+                            await Task.Run(() => da.Fill(dt));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // dejar dt vacío si falla
+            }
+            return dt;
+        }
+
+        // -----------------------------
+        // IMPRESIÓN: totales por mes (resumen mensual simple)
+        // -----------------------------
+        private async Task<DataTable> ObtenerTotalesPorMesAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
+        {
+            var dt = new DataTable();
+            try
+            {
+                string cs = GetConnectionString();
+                using (var conn = new SqlConnection(cs))
+                {
+                    var desdeFecha = desde.Date;
+                    var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
+
+                    string sql = @"
+SELECT YEAR(cp.Fecha) AS [Year], MONTH(cp.Fecha) AS [Month],
+       SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
+FROM ComprasProveedoresIvaDetalle d
+INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
+LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+WHERE cp.Fecha BETWEEN @desde AND @hasta
+";
+                    if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                    {
+                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                    }
+                    sql += @"
+GROUP BY YEAR(cp.Fecha), MONTH(cp.Fecha)
+ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC;";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@desde", desdeFecha);
+                        cmd.Parameters.AddWithValue("@hasta", hastaFecha);
+                        if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                            cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
+                        using (var da = new SqlDataAdapter(cmd))
+                        {
+                            await Task.Run(() => da.Fill(dt));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // dejar dt vacío si falla
+            }
+            return dt;
+        }
+
+        // -----------------------------
+        // IMPRESIÓN: totales por mes + desglose por alícuota
+        // -----------------------------
+        private async Task<DataTable> ObtenerTotalesPorMesYAlicuotaAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
+        {
+            var dt = new DataTable();
+            try
+            {
+                string cs = GetConnectionString();
+                using (var conn = new SqlConnection(cs))
+                {
+                    var desdeFecha = desde.Date;
+                    var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
+
+                    string sql = @"
+SELECT YEAR(cp.Fecha) AS [Year], MONTH(cp.Fecha) AS [Month], d.Alicuota, 
+       SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
+FROM ComprasProveedoresIvaDetalle d
+INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
+LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+WHERE cp.Fecha BETWEEN @desde AND @hasta
+";
+                    if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                    {
+                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                    }
+                    sql += @"
+GROUP BY YEAR(cp.Fecha), MONTH(cp.Fecha), d.Alicuota
+ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, d.Alicuota DESC;";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@desde", desdeFecha);
+                        cmd.Parameters.AddWithValue("@hasta", hastaFecha);
+                        if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                            cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
+                        using (var da = new SqlDataAdapter(cmd))
+                        {
+                            await Task.Run(() => da.Fill(dt));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // dejar dt vacío si falla
+            }
+            return dt;
+        }
+
+        // -----------------------------
+        // IMPRESIÓN: totales por mes por proveedor (desglose mensual por proveedor)
+        // -----------------------------
+        private async Task<DataTable> ObtenerTotalesPorMesPorProveedorAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
+        {
+            var dt = new DataTable();
+            try
+            {
+                string cs = GetConnectionString();
+                using (var conn = new SqlConnection(cs))
+                {
+                    var desdeFecha = desde.Date;
+                    var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
+
+                    string sql = @"
+SELECT YEAR(cp.Fecha) AS [Year], MONTH(cp.Fecha) AS [Month], ISNULL(p.Nombre, cp.Proveedor) AS Proveedor, d.Alicuota,
+       SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
+FROM ComprasProveedoresIvaDetalle d
+INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
+LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+WHERE cp.Fecha BETWEEN @desde AND @hasta
+";
+                    if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                    {
+                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                    }
+                    sql += @"
+GROUP BY YEAR(cp.Fecha), MONTH(cp.Fecha), ISNULL(p.Nombre, cp.Proveedor), d.Alicuota
+ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DESC;";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@desde", desdeFecha);
+                        cmd.Parameters.AddWithValue("@hasta", hastaFecha);
+                        if (!string.IsNullOrEmpty(proveedorSeleccionado))
+                            cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
+                        using (var da = new SqlDataAdapter(cmd))
+                        {
+                            await Task.Run(() => da.Fill(dt));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // dejar dt vacío si falla
+            }
+            return dt;
+        }
+
+        // Evento del botón Imprimir: prepara datos y muestra vista previa (por día)
+        private async Task BtnImprimir_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // usar últimos filtros aplicados
+                var desde = lastDesde;
+                var hasta = lastHasta;
+                var proveedor = lastProveedorSeleccionado;
+
+                var dtPorDia = await ObtenerTotalesPorDiaAsync(desde, hasta, proveedor);
+
+                // preparar líneas de texto para imprimir
+                printLines = new List<string>();
+                printLines.Add("Control Compras Proveedores - Totales por día");
+                printLines.Add($"Rango: {desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}");
+                var provLabel = string.IsNullOrEmpty(proveedor) ? "Todos" : proveedor;
+                printLines.Add($"Proveedor: {provLabel}");
+                printLines.Add(new string('-', 80));
+                printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-12} {1,10} {2,15} {3,15}", "Fecha", "Alicuota", "Base", "IVA"));
+                printLines.Add(new string('-', 80));
+
+                // agrupar por fecha
+                var rows = dtPorDia.AsEnumerable().Select(r => new
+                {
+                    Fecha = r.Field<DateTime>("Fecha"),
+                    Alicuota = r.Field<decimal>("Alicuota"),
+                    Base = r.Field<decimal>("BaseSum"),
+                    Iva = r.Field<decimal>("IvaSum")
+                }).OrderByDescending(x => x.Fecha).ThenByDescending(x => x.Alicuota).ToList();
+
+                DateTime? lastDate = null;
+                decimal dayBaseSum = 0m, dayIvaSum = 0m;
+                foreach (var r in rows)
+                {
+                    if (!lastDate.HasValue || r.Fecha.Date != lastDate.Value.Date)
+                    {
+                        if (lastDate.HasValue)
+                        {
+                            // imprimir totales del día anterior
+                            printLines.Add(new string('-', 60));
+                            printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-12} {1,10} {2,15} {3,15}", "", "Total:", "", (dayBaseSum + dayIvaSum).ToString("C2")));
+                            printLines.Add("");
+                        }
+                        lastDate = r.Fecha.Date;
+                        dayBaseSum = 0m;
+                        dayIvaSum = 0m;
+                        printLines.Add(r.Fecha.ToString("dd/MM/yyyy"));
+                    }
+
+                    printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-12} {1,10} {2,15} {3,15}",
+                        "", // espacio para fecha ya impresa
+                        r.Alicuota.ToString("N2"),
+                        r.Base.ToString("C2"),
+                        r.Iva.ToString("C2")));
+
+                    dayBaseSum += r.Base;
+                    dayIvaSum += r.Iva;
+                }
+
+                if (lastDate.HasValue)
+                {
+                    printLines.Add(new string('-', 60));
+                    printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-12} {1,10} {2,15} {3,15}", "", "Total del día:", dayBaseSum.ToString("C2"), dayIvaSum.ToString("C2")));
+                }
+                else
+                {
+                    printLines.Add("No hay datos para el rango seleccionado.");
+                }
+
+                // inicializar PrintDocument
+                printDoc = new PrintDocument();
+                printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
+                printDoc.PrintPage += PrintDoc_PrintPage;
+
+                currentPrintLine = 0;
+
+                using (var pp = new PrintPreviewDialog { Document = printDoc, Width = 900, Height = 700 })
+                {
+                    // ShowDialog puede lanzarlo como modal con el control padre
+                    pp.ShowDialog(this.FindForm());
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error preparando impresión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Evento del botón ImprimirMensual: prepara datos y muestra vista previa (por mes, 1 total por mes
+        // pero ahora incluyendo desglose por alícuotas)
+        private async Task BtnImprimirMensual_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var desde = lastDesde;
+                var hasta = lastHasta;
+                var proveedor = lastProveedorSeleccionado;
+
+                // obtenemos por mes+alícuota
+                var dtPorMesAlicuota = await ObtenerTotalesPorMesYAlicuotaAsync(desde, hasta, proveedor);
+
+                // preparar líneas de texto para imprimir
+                printLines = new List<string>();
+                printLines.Add("Control Compras Proveedores - Totales por mes (desglose por alícuota)");
+                printLines.Add($"Rango: {desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}");
+                var provLabel = string.IsNullOrEmpty(proveedor) ? "Todos" : proveedor;
+                printLines.Add($"Proveedor: {provLabel}");
+                printLines.Add(new string('-', 100));
+                printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-20} {1,10} {2,18} {3,18} {4,18}", "Mes", "Alicuota", "Base", "IVA", "Total"));
+                printLines.Add(new string('-', 100));
+
+                var rows = dtPorMesAlicuota.AsEnumerable().Select(r => new
+                {
+                    Year = r.Field<int>("Year"),
+                    Month = r.Field<int>("Month"),
+                    Alicuota = r.Field<decimal>("Alicuota"),
+                    Base = r.Field<decimal>("BaseSum"),
+                    Iva = r.Field<decimal>("IvaSum")
+                }).OrderByDescending(x => x.Year).ThenByDescending(x => x.Month).ThenByDescending(x => x.Alicuota).ToList();
+
+                if (rows.Count == 0)
+                {
+                    printLines.Add("No hay datos para el rango seleccionado.");
+                }
+                else
+                {
+                    decimal grandBase = 0m, grandIva = 0m;
+                    int curYear = -1, curMonth = -1;
+                    decimal monthBase = 0m, monthIva = 0m;
+
+                    foreach (var r in rows)
+                    {
+                        if (r.Year != curYear || r.Month != curMonth)
+                        {
+                            // cerrar mes anterior
+                            if (curYear != -1)
+                            {
+                                printLines.Add(new string('-', 100));
+                                // ahora colocamos "Total mes:" en la columna Mes (primera columna)
+                                var monthTotal = monthBase + monthIva;
+                                printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-20} {1,10} {2,18} {3,18} {4,18}",
+                                    "Total mes:", "", monthBase.ToString("C2"), monthIva.ToString("C2"), monthTotal.ToString("C2")));
+                                printLines.Add("");
+                                monthBase = 0m; monthIva = 0m;
+                            }
+
+                            // nuevo encabezado de mes
+                            curYear = r.Year; curMonth = r.Month;
+                            var dtMonth = new DateTime(curYear, curMonth, 1);
+                            printLines.Add(dtMonth.ToString("MMMM yyyy", CultureInfo.CurrentCulture).ToUpperInvariant());
+                        }
+
+                        var lineTotal = (r.Base + r.Iva);
+                        printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-20} {1,10} {2,18} {3,18} {4,18}",
+                            "", // espacio para mes ya impreso
+                            r.Alicuota.ToString("N2"),
+                            r.Base.ToString("C2"),
+                            r.Iva.ToString("C2"),
+                            lineTotal.ToString("C2")));
+
+                        monthBase += r.Base;
+                        monthIva += r.Iva;
+                        grandBase += r.Base;
+                        grandIva += r.Iva;
+                    }
+
+                    // totales último mes
+                    printLines.Add(new string('-', 100));
+                    var lastMonthTotal = monthBase + monthIva;
+                    printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-20} {1,10} {2,18} {3,18} {4,18}",
+                        "Total mes:", "", monthBase.ToString("C2"), monthIva.ToString("C2"), lastMonthTotal.ToString("C2")));
+                    printLines.Add(new string('-', 100));
+                    printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-20} {1,10} {2,18} {3,18} {4,18}",
+                        "TOTAL GENERAL", "", grandBase.ToString("C2"), grandIva.ToString("C2"), (grandBase + grandIva).ToString("C2")));
+                }
+
+                // inicializar PrintDocument
+                printDoc = new PrintDocument();
+                printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
+                printDoc.PrintPage += PrintDoc_PrintPage;
+
+                currentPrintLine = 0;
+
+                using (var pp = new PrintPreviewDialog { Document = printDoc, Width = 900, Height = 700 })
+                {
+                    pp.ShowDialog(this.FindForm());
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error preparando impresión mensual: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // -----------------------------
+        // IMPRESIÓN: Totales por mes DETALLADO POR PROVEEDOR
+        // -----------------------------
+        private async Task BtnImprimirMensualPorProveedor_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var desde = lastDesde;
+                var hasta = lastHasta;
+                var proveedorFiltro = lastProveedorSeleccionado;
+
+                var dt = await ObtenerTotalesPorMesPorProveedorAsync(desde, hasta, proveedorFiltro);
+
+                // Column widths reducidos: Proveedor más angosto
+                const int monthW = 20;
+                const int provW = 18; // más angosto según tu petición
+                const int aliW = 6;
+                const int baseW = 15;
+                const int ivaW = 15;
+                const int totalW = 15;
+
+                printLines = new List<string>();
+                printLines.Add("Control Compras Proveedores - Totales por mes (detallado por proveedor y alícuota)");
+                printLines.Add($"Rango: {desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}");
+                var provLabel = string.IsNullOrEmpty(proveedorFiltro) ? "Todos" : proveedorFiltro;
+                printLines.Add($"Proveedor (filtro): {provLabel}");
+                printLines.Add(new string('-', monthW + provW + aliW + baseW + ivaW + totalW + 10));
+                printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                    "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                    "Mes", "Proveedor", "Ali%", "Base", "IVA", "Total"));
+                printLines.Add(new string('-', monthW + provW + aliW + baseW + ivaW + totalW + 10));
+
+                var rows = dt.AsEnumerable().Select(r => new
+                {
+                    Year = r.Field<int>("Year"),
+                    Month = r.Field<int>("Month"),
+                    Proveedor = r.Field<string>("Proveedor") ?? "(Sin proveedor)",
+                    Alicuota = r.Field<decimal>("Alicuota"),
+                    Base = r.Field<decimal>("BaseSum"),
+                    Iva = r.Field<decimal>("IvaSum")
+                })
+                .OrderByDescending(x => x.Year)
+                .ThenByDescending(x => x.Month)
+                .ThenBy(x => x.Proveedor, StringComparer.CurrentCultureIgnoreCase)
+                .ThenByDescending(x => x.Alicuota)
+                .ToList();
+
+                if (rows.Count == 0)
+                {
+                    printLines.Add("No hay datos para el rango seleccionado.");
+                }
+                else
+                {
+                    decimal grandBase = 0m, grandIva = 0m;
+                    int curYear = -1, curMonth = -1;
+                    string curProveedor = null;
+                    decimal monthBase = 0m, monthIva = 0m;
+                    decimal provBase = 0m, provIva = 0m;
+
+                    // Totales por alícuota para el mes actual y global
+                    var monthAliTotals = new Dictionary<decimal, (decimal Base, decimal Iva)>();
+                    var grandAliTotals = new Dictionary<decimal, (decimal Base, decimal Iva)>();
+
+                    foreach (var r in rows)
+                    {
+                        // cambio de mes
+                        if (r.Year != curYear || r.Month != curMonth)
+                        {
+                            // cerrar proveedor anterior (del mes previo)
+                            if (curProveedor != null)
+                            {
+                                var provTotal = provBase + provIva;
+                                // subtotal proveedor: no repetir nombre, usar etiqueta
+                                printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                                    "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                                    "", "Total proveedor:", "", provBase.ToString("C2"), provIva.ToString("C2"), provTotal.ToString("C2")));
+                                printLines.Add("");
+                                provBase = 0m; provIva = 0m;
+                                curProveedor = null;
+                            }
+
+                            // cerrar mes anterior
+                            if (curYear != -1)
+                            {
+                                // imprimir desglose por alícuota del mes anterior (si existen)
+                                if (monthAliTotals.Count > 0)
+                                {
+                                    printLines.Add("  Desglose alícuotas (mes):");
+                                    foreach (var kv in monthAliTotals.OrderByDescending(k => k.Key))
+                                    {
+                                        var ali = kv.Key;
+                                        var b = kv.Value.Base;
+                                        var iv = kv.Value.Iva;
+                                        var tot = b + iv;
+                                        printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                                            "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                                            "", "", ali.ToString("N2"), b.ToString("C2"), iv.ToString("C2"), tot.ToString("C2")));
+                                    }
+                                    printLines.Add("");
+                                }
+
+                                printLines.Add(new string('-', monthW + provW + aliW + baseW + ivaW + totalW + 10));
+                                var monthTotal = monthBase + monthIva;
+                                printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                                    "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                                    "Total mes:", "", "", monthBase.ToString("C2"), monthIva.ToString("C2"), monthTotal.ToString("C2")));
+                                printLines.Add("");
+                                monthBase = 0m; monthIva = 0m;
+
+                                // limpiar acumulador de alícuotas del mes
+                                monthAliTotals.Clear();
+                            }
+
+                            // nuevo encabezado de mes
+                            curYear = r.Year; curMonth = r.Month;
+                            var dtMonth = new DateTime(curYear, curMonth, 1);
+                            printLines.Add(dtMonth.ToString("MMMM yyyy", CultureInfo.CurrentCulture).ToUpperInvariant());
+                        }
+
+                        // cambio de proveedor dentro del mismo mes
+                        if (!string.Equals(r.Proveedor, curProveedor, StringComparison.CurrentCultureIgnoreCase))
+                        {
+                            // cerrar proveedor anterior
+                            if (curProveedor != null)
+                            {
+                                var provTotal = provBase + provIva;
+                                printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                                    "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                                    "", "Total proveedor:", "", provBase.ToString("C2"), provIva.ToString("C2"), provTotal.ToString("C2")));
+                                printLines.Add("");
+                                provBase = 0m; provIva = 0m;
+                            }
+
+                            // nuevo proveedor: imprimir una sola vez (encabezado de proveedor)
+                            curProveedor = r.Proveedor;
+                            printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                                "{0,-" + monthW + "} {1,-" + provW + "}", "", TruncateForPrint(curProveedor, provW)));
+                        }
+
+                        // línea por alícuota bajo el proveedor actual (no repetimos el proveedor)
+                        var lineTotal = r.Base + r.Iva;
+                        printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                            "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                            "", "", r.Alicuota.ToString("N2"), r.Base.ToString("C2"), r.Iva.ToString("C2"), lineTotal.ToString("C2")));
+
+                        // acumular subtotales
+                        provBase += r.Base;
+                        provIva += r.Iva;
+                        monthBase += r.Base;
+                        monthIva += r.Iva;
+                        grandBase += r.Base;
+                        grandIva += r.Iva;
+
+                        // actualizar acumuladores de alícuota (mes y global)
+                        if (!monthAliTotals.TryGetValue(r.Alicuota, out var mtuple))
+                            monthAliTotals[r.Alicuota] = (r.Base, r.Iva);
+                        else
+                            monthAliTotals[r.Alicuota] = (mtuple.Base + r.Base, mtuple.Iva + r.Iva);
+
+                        if (!grandAliTotals.TryGetValue(r.Alicuota, out var gtuple))
+                            grandAliTotals[r.Alicuota] = (r.Base, r.Iva);
+                        else
+                            grandAliTotals[r.Alicuota] = (gtuple.Base + r.Base, gtuple.Iva + r.Iva);
+                    }
+
+                    // cerrar último proveedor del último mes
+                    if (curProveedor != null)
+                    {
+                        var provTotal = provBase + provIva;
+                        printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                            "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                            "", "Total proveedor:", "", provBase.ToString("C2"), provIva.ToString("C2"), provTotal.ToString("C2")));
+                        printLines.Add("");
+                    }
+
+                    // imprimir desglose por alícuota del último mes
+                    if (monthAliTotals.Count > 0)
+                    {
+                        printLines.Add("  Desglose alícuotas (mes):");
+                        foreach (var kv in monthAliTotals.OrderByDescending(k => k.Key))
+                        {
+                            var ali = kv.Key;
+                            var b = kv.Value.Base;
+                            var iv = kv.Value.Iva;
+                            var tot = b + iv;
+                            printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                                "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                                "", "", ali.ToString("N2"), b.ToString("C2"), iv.ToString("C2"), tot.ToString("C2")));
+                        }
+                        printLines.Add("");
+                    }
+
+                    // totales último mes
+                    printLines.Add(new string('-', monthW + provW + aliW + baseW + ivaW + totalW + 10));
+                    var lastMonthTotal = monthBase + monthIva;
+                    printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                        "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                        "Total mes:", "", "", monthBase.ToString("C2"), monthIva.ToString("C2"), lastMonthTotal.ToString("C2")));
+                    printLines.Add(new string('-', monthW + provW + aliW + baseW + ivaW + totalW + 10));
+
+                    // imprimir desglose por alícuota GLOBAL antes del TOTAL GENERAL
+                    if (grandAliTotals.Count > 0)
+                    {
+                        printLines.Add("  Desglose alícuotas (total general):");
+                        foreach (var kv in grandAliTotals.OrderByDescending(k => k.Key))
+                        {
+                            var ali = kv.Key;
+                            var b = kv.Value.Base;
+                            var iv = kv.Value.Iva;
+                            var tot = b + iv;
+                            printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                                "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                                "", "", ali.ToString("N2"), b.ToString("C2"), iv.ToString("C2"), tot.ToString("C2")));
+                        }
+                        printLines.Add("");
+                    }
+
+                    // TOTAL GENERAL
+                    printLines.Add(string.Format(CultureInfo.CurrentCulture,
+                        "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
+                        "TOTAL GENERAL", "", "", grandBase.ToString("C2"), grandIva.ToString("C2"), (grandBase + grandIva).ToString("C2")));
+                }
+
+                // inicializar PrintDocument
+                printDoc = new PrintDocument();
+                printDoc.DefaultPageSettings.Margins = new Margins(40, 40, 40, 40);
+                printDoc.PrintPage += PrintDoc_PrintPage;
+
+                currentPrintLine = 0;
+
+                using (var pp = new PrintPreviewDialog { Document = printDoc, Width = 900, Height = 700 })
+                {
+                    pp.ShowDialog(this.FindForm());
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error preparando impresión mensual por proveedor: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Helper para recortar texto largo para impresión en columna fija
+        private string TruncateForPrint(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            if (text.Length <= maxLength) return text;
+            return text.Substring(0, maxLength - 3) + "...";
+        }
+
+        private void PrintDoc_PrintPage(object sender, PrintPageEventArgs e)
+        {
+            float left = e.MarginBounds.Left;
+            float top = e.MarginBounds.Top;
+            float lineHeight = printFont.GetHeight(e.Graphics) + 2;
+            int linesPerPage = (int)(e.MarginBounds.Height / lineHeight);
+
+            int line = 0;
+            while (currentPrintLine < printLines.Count && line < linesPerPage)
+            {
+                string text = printLines[currentPrintLine];
+                e.Graphics.DrawString(text, printFont, Brushes.Black, left, top + line * lineHeight);
+                currentPrintLine++;
+                line++;
+            }
+
+            e.HasMorePages = currentPrintLine < printLines.Count;
+            if (!e.HasMorePages)
+            {
+                // restablecer para próxima impresión
+                currentPrintLine = 0;
             }
         }
     }
