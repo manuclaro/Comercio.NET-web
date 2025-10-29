@@ -607,7 +607,7 @@ namespace Comercio.NET.Formularios
                     // OBTENER compras SIN FILTRO POR PROVEEDOR — necesitaremos la lista de proveedores desde estos registros
                     string sql = @"
 SELECT cp.Id, cp.NumeroFactura, cp.Fecha, ISNULL(p.Nombre, cp.Proveedor) AS Proveedor, 
-       cp.ImporteNeto, cp.ImporteIVA, cp.ImporteTotal, cp.Usuario
+       cp.ImporteNeto, cp.ImporteIVA, cp.ImporteTotal, cp.Usuario, cp.Cajero
 FROM ComprasProveedores cp
 LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
 WHERE cp.Fecha BETWEEN @desde AND @hasta
@@ -643,6 +643,16 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
 
                     // asignar valores a la UI (fuera del using de conexión)
                     dgv.DataSource = dtParaMostrar;
+
+                    if (dgv.Columns["Cajero"] != null)
+                    {
+                        var colCajero = dgv.Columns["Cajero"];
+                        colCajero.HeaderText = "Cajero";
+                        colCajero.Width = 80;
+                        colCajero.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        // Si quieres que sea la última columna:
+                        colCajero.DisplayIndex = dgv.Columns.Count - 1;
+                    }
 
                     FormatearGrilla();
                     

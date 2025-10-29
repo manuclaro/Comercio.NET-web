@@ -1,3 +1,4 @@
+using Comercio.NET.Services;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -563,9 +564,9 @@ namespace Comercio.NET.Formularios
                             int? proveedorId = ObtenerProveedorIdSeleccionado();
 
                             var insertSql = @"INSERT INTO ComprasProveedores
-                                (NumeroFactura, Fecha, Proveedor, ProveedorId, CUIT, ImporteNeto, ImporteIVA, ImporteTotal, EsCtaCte, NombreCtaCte, Observaciones, Usuario)
-                                VALUES (@Numero, @Fecha, @Proveedor, @ProveedorId, @CUIT, @ImporteNeto, @ImporteIVA, @ImporteTotal, @EsCtaCte, @NombreCtaCte, @Observaciones, @Usuario);
-                                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+    (NumeroFactura, Fecha, Proveedor, ProveedorId, CUIT, ImporteNeto, ImporteIVA, ImporteTotal, EsCtaCte, NombreCtaCte, Observaciones, Usuario, Cajero)
+    VALUES (@Numero, @Fecha, @Proveedor, @ProveedorId, @CUIT, @ImporteNeto, @ImporteIVA, @ImporteTotal, @EsCtaCte, @NombreCtaCte, @Observaciones, @Usuario, @Cajero);
+    SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                             int compraId;
                             using (var cmd = new SqlCommand(insertSql, conn, tx))
@@ -582,6 +583,10 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@NombreCtaCte", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@Observaciones", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
+
+                                // NUEVO: número de cajero del usuario logueado
+                                int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 0;
+                                cmd.Parameters.AddWithValue("@Cajero", numeroCajero);
 
                                 var res = await cmd.ExecuteScalarAsync();
                                 compraId = res != null && int.TryParse(res.ToString(), out int id) ? id : 0;

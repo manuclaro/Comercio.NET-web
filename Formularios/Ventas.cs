@@ -1118,6 +1118,25 @@ namespace Comercio.NET
             }
         }
 
+        private async Task AbrirFormularioComprasAsync()
+        {
+            await Task.Yield(); // asegura regresar al hilo de UI en llamadas "fire-and-forget"
+
+            try
+            {
+                using (var frm = new ComprasProveedorForm())
+                {
+                    frm.StartPosition = FormStartPosition.CenterParent;
+                    frm.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error abriendo ComprasProveedorForm: {ex.Message}");
+                MessageBox.Show($"No se pudo abrir el formulario de Compras: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void ConfigurarAtajosTeclado()
         {
             this.KeyPreview = true; // Importante: permite que el formulario capture las teclas
@@ -1134,6 +1153,11 @@ namespace Comercio.NET
                     e.SuppressKeyPress = true;
                     // Abrir consulta rápida de precios
                     AbrirConsultaRapidaPrecios();
+                }
+                else if (e.KeyCode == Keys.F8) // <-- AÑADIDO: abrir Compras con F8
+                {
+                    e.SuppressKeyPress = true;
+                    _ = AbrirFormularioComprasAsync();
                 }
                 else if (e.KeyCode == Keys.F || e.KeyCode == Keys.F12)
                 {
