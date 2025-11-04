@@ -1057,11 +1057,16 @@ namespace Comercio.NET
                 rtbTotal.AppendText("TOTAL: $0,00");
             }
 
-            // dentro de LimpiarYReiniciarVenta():
             if (btnAnularFactura != null)
             {
                 btnAnularFactura.Enabled = false;
                 btnAnularFactura.Visible = true;
+            }
+
+            if (chkEsCtaCte != null)
+            {
+                chkEsCtaCte.Checked = false;
+                cbnombreCtaCte.Visible = false;
             }
 
             txtBuscarProducto.Text = "";
@@ -1136,7 +1141,7 @@ namespace Comercio.NET
                 MessageBox.Show($"No se pudo abrir el formulario de Compras: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
+       
         private void ConfigurarAtajosTeclado()
         {
             this.KeyPreview = true; // Importante: permite que el formulario capture las teclas
@@ -1457,6 +1462,7 @@ namespace Comercio.NET
             txtPrecio.Text = "";
             txtPrecio.Enabled = false;
             lbDescripcionProducto.Text = "";
+            
         }
 
         private async void btnAgregar_Click(object sender, EventArgs e)

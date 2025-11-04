@@ -38,6 +38,9 @@ namespace Comercio.NET.Formularios
         private Label lblProveedor; // nueva label
         private Label lblFecha; // nueva label para el filtro Fecha
 
+        // Nuevo botón para registrar pagos sobre una compra seleccionada
+        private Button btnRegistrarPago;
+
         // Flag para evitar reentradas mientras poblamos el combo
         private bool isPopulatingProveedor = false;
 
@@ -280,13 +283,26 @@ namespace Comercio.NET.Formularios
             btnImprimirMensualProveedor.FlatAppearance.BorderSize = 0;
             btnImprimirMensualProveedor.Click += async (s, e) => await BtnImprimirMensualPorProveedor_Click(s, e);
 
+            // Nuevo botón: Registrar Pago sobre compra seleccionada
+            btnRegistrarPago = new Button
+            {
+                Top = 10,
+                Width = 120,
+                Text = "Registrar Pago",
+                BackColor = Color.FromArgb(220, 57, 18), // color distintivo
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.White
+            };
+            btnRegistrarPago.FlatAppearance.BorderSize = 0;
+            btnRegistrarPago.Click += BtnRegistrarPago_Click;
+
             // Por defecto dejaremos la grilla principal más alta; la altura final se ajusta en Resize
             dgv = new DataGridView
             {
                 Left = 12,
                 Top = cmbRango.Bottom + 12,
                 Width = pnlContent.Width - 24,
-                Height = Math.Max(100, pnlContent.Height - 200),
+                Height = Math.Max(100, pnlContent.Height - 260),
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
@@ -318,7 +334,7 @@ namespace Comercio.NET.Formularios
             {
                 // width y left se calcularán en el Resize para centrarla
                 Top = lblTotales.Bottom + 1,
-                Height = 110,
+                Height = 160,
                 Anchor = AnchorStyles.Bottom,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
@@ -342,7 +358,7 @@ namespace Comercio.NET.Formularios
             dgvIvaTotals.Columns["Base"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
             dgvIvaTotals.Columns["ImporteIva"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            pnlContent.Controls.AddRange(new Control[] { lblProveedor, cmbProveedor, lblFecha, cmbRango, dtpDesde, dtpHasta, btnRefrescar, btnImprimirMensualProveedor, btnImprimirMensual, btnImprimir, btnNuevo, dgv, lblTotales, dgvIvaTotals });
+            pnlContent.Controls.AddRange(new Control[] { lblProveedor, cmbProveedor, lblFecha, cmbRango, dtpDesde, dtpHasta, btnRefrescar, btnRegistrarPago, btnImprimirMensualProveedor, btnImprimirMensual, btnImprimir, btnNuevo, dgv, lblTotales, dgvIvaTotals });
             // Añadir header y contenido al control
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlContent);
@@ -355,15 +371,16 @@ namespace Comercio.NET.Formularios
                 pnlContent.Left = contentPadding;
                 pnlContent.Top = pnlHeader.Bottom + contentPadding;
                 pnlContent.Width = this.ClientSize.Width - contentPadding * 2;
-                pnlContent.Height = Math.Max(220, this.ClientSize.Height - pnlHeader.Height - contentPadding * 2);
-
+                // Dentro del manejador this.Resize, reemplazar la asignación de Height de pnlContent:
+                pnlContent.Height = Math.Max(220, this.ClientSize.Height - pnlHeader.Height - contentPadding * 2 );
+                
                 // Colocación horizontal de controles de filtros (más robusta)
                 int startX = 12;
                 int gap = 8;
 
                 // ajustar ancho de controles según espacio disponible
                 int availableWidth = pnlContent.ClientSize.Width - 24;
-                int btnsTotalWidth = btnNuevo.Width + gap + btnImprimir.Width + gap + btnImprimirMensual.Width + gap + btnImprimirMensualProveedor.Width + gap + btnRefrescar.Width + 12; // margen derecho
+                int btnsTotalWidth = btnNuevo.Width + gap + btnImprimir.Width + gap + btnImprimirMensual.Width + gap + btnImprimirMensualProveedor.Width + gap + btnRegistrarPago.Width + gap + btnRefrescar.Width + 12; // margen derecho
                 int maxFiltersWidth = Math.Max(200, availableWidth - btnsTotalWidth - 40);
 
                 // Proveedor a la izquierda
@@ -388,12 +405,14 @@ namespace Comercio.NET.Formularios
                 int rightPadding = 12;
                 btnNuevo.Left = pnlContent.ClientSize.Width - rightPadding - btnNuevo.Width;
                 btnRefrescar.Left = btnNuevo.Left - gap - btnRefrescar.Width;
+                // nuevo: colocar btnRegistrarPago a la izquierda de btnRefrescar
+                btnRegistrarPago.Left = btnRefrescar.Left - gap - btnRegistrarPago.Width;
                 // dejamos botones de impresión para posicionarlos junto a dgvIvaTotals en AjustarIvaTotalsSize
 
                 // Si los filtros invaden el espacio de los botones, reducir ancho del combo proveedor
-                if (cmbProveedor.Right + 12 > btnRefrescar.Left)
+                if (cmbProveedor.Right + 12 > btnRegistrarPago.Left)
                 {
-                    int allowed = Math.Max(80, btnRefrescar.Left - cmbProveedor.Left - 12);
+                    int allowed = Math.Max(80, btnRegistrarPago.Left - cmbProveedor.Left - 12);
                     cmbProveedor.Width = allowed;
                 }
 
@@ -402,11 +421,13 @@ namespace Comercio.NET.Formularios
                 {
                     // mover botones debajo de filtros si no hay espacio horizontal
                     btnRefrescar.Top = dtpDesde.Bottom + 8;
+                    btnRegistrarPago.Top = btnRefrescar.Top;
                     btnNuevo.Top = btnRefrescar.Top;
                 }
                 else
                 {
                     btnRefrescar.Top = 10;
+                    btnRegistrarPago.Top = 10;
                     btnNuevo.Top = 10;
                 }
 
@@ -448,16 +469,17 @@ namespace Comercio.NET.Formularios
             else
                 dgvIvaTotals.ScrollBars = ScrollBars.None;
 
-            // altura: header + filas (ajustada)
+            // Reemplazar el cálculo de altura máxima y asignación dentro de `AjustarIvaTotalsSize()`
+            // para permitir que la grilla de alícuotas sea más alta y forzar un mínimo razonable.
             int headerH = dgvIvaTotals.ColumnHeadersHeight;
             int rowsH = dgvIvaTotals.RowTemplate.Height * Math.Max(1, dgvIvaTotals.Rows.Count);
-            int desiredHeight = headerH + rowsH + 4;
+            int desiredHeight = headerH + rowsH + 8;
 
-            // dejar un máximo razonable (evita comer toda la pantalla)
-            int maxHeight = Math.Min(200, pnlContent.ClientSize.Height / 3 + 20);
-            dgvIvaTotals.Height = Math.Min(desiredHeight, maxHeight);
+            // permitir un máximo mayor (hasta la mitad del panel) y garantizar mínimo visual
+            int maxHeight = Math.Min(320, pnlContent.ClientSize.Height / 2);
+            dgvIvaTotals.Height = Math.Min(Math.Max(desiredHeight, 120), maxHeight);
 
-            // centrar horizontalmente y pegar al borde inferior
+            // ajustar posición como antes
             dgvIvaTotals.Left = (pnlContent.ClientSize.Width - dgvIvaTotals.Width) / 2;
             dgvIvaTotals.Top = pnlContent.ClientSize.Height - contentPadding - dgvIvaTotals.Height;
 
@@ -467,8 +489,8 @@ namespace Comercio.NET.Formularios
             lblTotales.Left = (pnlContent.ClientSize.Width - lblTotales.Width) / 2;
             lblTotales.Top = dgvIvaTotals.Top - 6 - lblTotales.Height;
 
-            // ajustar altura de la grilla principal según la nueva posición
-            dgv.Height = Math.Max(80, lblTotales.Top - dgv.Top - 12);
+            // ajustar altura de la grilla principal según la nueva posición (dejamos un poco más de separación)
+            dgv.Height = Math.Max(60, lblTotales.Top - dgv.Top - 24);
 
             // -----------------------------
             // Posicionar botones de impresión a la derecha de la grilla de alícuotas
@@ -859,6 +881,217 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                 // Asegurar centrado respecto al owner
                 detalle.StartPosition = FormStartPosition.CenterParent;
                 detalle.ShowDialog(ownerForm);
+            }
+        }
+
+        // Nuevo: abrir modal de pago para la compra seleccionada (similar a ProveedoresCtaCteForm)
+        private async void BtnRegistrarPago_Click(object sender, EventArgs e)
+        {
+            if (dgv.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Seleccione una compra.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var row = dgv.SelectedRows[0];
+            if (row.Cells["Id"].Value == null)
+            {
+                MessageBox.Show("La fila seleccionada no contiene una compra válida.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (!int.TryParse(row.Cells["Id"].Value.ToString(), out int compraId))
+            {
+                MessageBox.Show("Id de compra inválido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            try
+            {
+                string cs = GetConnectionString();
+                decimal importeTotal = 0m;
+                int? proveedorId = null;
+                string proveedorNombre = "";
+
+                using (var conn = new SqlConnection(cs))
+                {
+                    await conn.OpenAsync();
+
+                    // Obtener importe total y proveedor
+                    var sql = @"
+SELECT cp.ImporteTotal, cp.ProveedorId, ISNULL(p.Nombre, cp.Proveedor) AS ProveedorNombre
+FROM ComprasProveedores cp
+LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+WHERE cp.Id = @id;
+";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", compraId);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                importeTotal = reader.IsDBNull(0) ? 0m : reader.GetDecimal(0);
+                                proveedorId = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1);
+                                proveedorNombre = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            }
+                            else
+                            {
+                                MessageBox.Show("Compra no encontrada en la base de datos.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+                        }
+                    }
+
+                    // Sumar pagos ya registrados para esta compra
+                    var cmdSum = new SqlCommand("SELECT ISNULL(SUM(Monto),0) FROM ComprasProveedoresPagos WHERE CompraId = @id;", conn);
+                    cmdSum.Parameters.AddWithValue("@id", compraId);
+                    var obj = await cmdSum.ExecuteScalarAsync();
+                    decimal totalPagado = obj == null ? 0m : Convert.ToDecimal(obj);
+
+                    decimal saldo = importeTotal - totalPagado;
+                    if (saldo <= 0m)
+                    {
+                        var resp = MessageBox.Show("La compra ya figura como saldada. ¿Desea registrar un pago igualmente?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (resp == DialogResult.No) return;
+                    }
+
+                    // Abrir modal de forma de pago
+                    using (var frmPago = new FormaPagoProveedorForm(saldo, proveedorId, compraId, proveedorNombre))
+                    {
+                        var dr = frmPago.ShowDialog(this.FindForm());
+                        if (dr != DialogResult.OK) return;
+                        var pagos = frmPago.Pagos ?? new List<PagoInfo>();
+                        if (pagos.Count == 0)
+                        {
+                            MessageBox.Show("No se registraron pagos.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        // Guardar pagos y actualizar CtaCte si corresponde
+                        await GuardarPagosYActualizarCtaCteAsync(compraId, proveedorId, pagos, importeTotal, proveedorNombre);
+                        // refrescar vista
+                        await AplicarRangoYCargarAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error procesando pago: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Guarda pagos asociados a una compra y mantiene/crea/actualiza registro en ProveedoresCtaCte si queda saldo.
+        private async Task GuardarPagosYActualizarCtaCteAsync(int compraId, int? proveedorId, List<PagoInfo> pagos, decimal importeTotal, string proveedorNombre)
+        {
+            string cs = GetConnectionString();
+            try
+            {
+                using (var conn = new SqlConnection(cs))
+                {
+                    await conn.OpenAsync();
+                    using (var tx = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            decimal totalPagadoNuevo = 0m;
+                            var insertPagoSql = @"
+INSERT INTO ComprasProveedoresPagos
+(CompraId, Metodo, Monto, Referencia, Fecha, Usuario)
+VALUES (@CompraId, @Metodo, @Monto, @Referencia, @Fecha, @Usuario);";
+
+                            foreach (var p in pagos)
+                            {
+                                using (var cmd = new SqlCommand(insertPagoSql, conn, tx))
+                                {
+                                    cmd.Parameters.AddWithValue("@CompraId", compraId);
+                                    cmd.Parameters.AddWithValue("@Metodo", string.IsNullOrWhiteSpace(p.Metodo) ? (object)DBNull.Value : p.Metodo);
+                                    cmd.Parameters.AddWithValue("@Monto", p.Monto);
+                                    cmd.Parameters.AddWithValue("@Referencia", string.IsNullOrWhiteSpace(p.Referencia) ? (object)DBNull.Value : p.Referencia);
+                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                                totalPagadoNuevo += p.Monto;
+                            }
+
+                            // recalcular total pagado para la compra (incluye pagos previos)
+                            var cmdSum = new SqlCommand("SELECT ISNULL(SUM(Monto),0) FROM ComprasProveedoresPagos WHERE CompraId = @id;", conn, tx);
+                            cmdSum.Parameters.AddWithValue("@id", compraId);
+                            var obj = await cmdSum.ExecuteScalarAsync();
+                            decimal totalPagado = obj == null ? 0m : Convert.ToDecimal(obj);
+
+                            decimal saldo = importeTotal - totalPagado;
+
+                            // Si queda saldo, crear o actualizar ProveedoresCtaCte; si no, dejar saldo en 0
+                            var selectCta = new SqlCommand("SELECT Id FROM ProveedoresCtaCte WHERE CompraId = @compraId;", conn, tx);
+                            selectCta.Parameters.AddWithValue("@compraId", compraId);
+                            var existing = await selectCta.ExecuteScalarAsync();
+
+                            if (saldo > 0m)
+                            {
+                                if (existing != null)
+                                {
+                                    // actualizar
+                                    var upd = new SqlCommand(@"UPDATE ProveedoresCtaCte SET MontoAdeudado = @montoAdeudado, Saldo = @saldo WHERE Id = @id;", conn, tx);
+                                    upd.Parameters.AddWithValue("@montoAdeudado", saldo);
+                                    upd.Parameters.AddWithValue("@saldo", saldo);
+                                    upd.Parameters.AddWithValue("@id", Convert.ToInt32(existing));
+                                    await upd.ExecuteNonQueryAsync();
+                                }
+                                else
+                                {
+                                    // insertar nuevo registro de CtaCte
+                                    var ins = new SqlCommand(@"
+INSERT INTO ProveedoresCtaCte
+(ProveedorId, CompraId, Fecha, MontoTotal, MontoAdeudado, Saldo, Observaciones, Usuario)
+VALUES (@ProveedorId, @CompraId, @Fecha, @MontoTotal, @MontoAdeudado, @Saldo, @Observaciones, @Usuario);", conn, tx);
+                                    ins.Parameters.AddWithValue("@ProveedorId", proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
+                                    ins.Parameters.AddWithValue("@CompraId", compraId);
+                                    ins.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    ins.Parameters.AddWithValue("@MontoTotal", importeTotal);
+                                    ins.Parameters.AddWithValue("@MontoAdeudado", saldo);
+                                    ins.Parameters.AddWithValue("@Saldo", saldo);
+                                    ins.Parameters.AddWithValue("@Observaciones", "Deuda generada por pagos parciales desde Control Compras");
+                                    ins.Parameters.AddWithValue("@Usuario", Environment.UserName);
+                                    await ins.ExecuteNonQueryAsync();
+                                }
+
+                                // marcar compra como CtaCte
+                                var updCompra = new SqlCommand("UPDATE ComprasProveedores SET EsCtaCte = 1, NombreCtaCte = @nombre WHERE Id = @id;", conn, tx);
+                                updCompra.Parameters.AddWithValue("@nombre", string.IsNullOrWhiteSpace(proveedorNombre) ? (object)DBNull.Value : proveedorNombre);
+                                updCompra.Parameters.AddWithValue("@id", compraId);
+                                await updCompra.ExecuteNonQueryAsync();
+                            }
+                            else
+                            {
+                                // saldo <= 0: si hay registro de ctacte, poner saldo 0; además marcar compra como no cta cte
+                                if (existing != null)
+                                {
+                                    var upd = new SqlCommand(@"UPDATE ProveedoresCtaCte SET MontoAdeudado = 0, Saldo = 0 WHERE Id = @id;", conn, tx);
+                                    upd.Parameters.AddWithValue("@id", Convert.ToInt32(existing));
+                                    await upd.ExecuteNonQueryAsync();
+                                }
+
+                                var updCompra = new SqlCommand("UPDATE ComprasProveedores SET EsCtaCte = 0, NombreCtaCte = @nombre WHERE Id = @id;", conn, tx);
+                                updCompra.Parameters.AddWithValue("@nombre", string.IsNullOrWhiteSpace(proveedorNombre) ? (object)DBNull.Value : proveedorNombre);
+                                updCompra.Parameters.AddWithValue("@id", compraId);
+                                await updCompra.ExecuteNonQueryAsync();
+                            }
+
+                            tx.Commit();
+                            MessageBox.Show("Pago(s) registrado(s) correctamente.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            tx.Rollback();
+                            MessageBox.Show($"Error guardando pagos y actualizando CtaCte: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error de conexión al guardar pagos: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1639,6 +1872,9 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             this.BackColor = Color.FromArgb(250, 250, 250);
+
+            // <-- línea añadida -->
+            this.WindowState = FormWindowState.Maximized;
 
             control = new ControlComprasProveedores { Dock = DockStyle.Fill };
             this.Controls.Add(control);

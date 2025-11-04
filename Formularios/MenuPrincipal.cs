@@ -740,6 +740,31 @@ namespace Comercio.NET
             }
         }
 
+        private void ControlComprasToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                foreach (Form f in this.MdiChildren)
+                {
+                    if (f is Comercio.NET.Formularios.ComprasProveedorControlForm)
+                    {
+                        f.Activate();
+                        return;
+                    }
+                }
+
+                var controlForm = new Comercio.NET.Formularios.ComprasProveedorControlForm
+                {
+                    MdiParent = this
+                };
+                controlForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo Control Compras Proveedores: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         // Agregar este método a la clase MenuPrincipal
         private void AgregarMenuProveedores()
         {
@@ -786,6 +811,12 @@ namespace Comercio.NET
                             Name = "controlComprasToolStripMenuItem"
                         };
 
+                        // Nuevo: item para CtaCte Proveedores
+                        var submenuCtaCte = new ToolStripMenuItem("CtaCte Proveedores", null, CtaCteProveedoresToolStripMenuItem_Click)
+                        {
+                            Name = "ctaCteProveedoresToolStripMenuItem"
+                        };
+
                         if (existingCompraItem != null)
                         {
                             // Si ya existe, removerlo de su ubicación actual y reubicarlo aquí (evita duplicados)
@@ -814,6 +845,10 @@ namespace Comercio.NET
                             menu.DropDownItems.Add(submenuControlCompras);
                         }
 
+                        // Añadir separador y luego el item CtaCte (colocado después de Control Compras)
+                        menu.DropDownItems.Add(new ToolStripSeparator());
+                        menu.DropDownItems.Add(submenuCtaCte);
+
                         // Insertar el menú "Proveedores" antes de "Ver" (viewMenu) si existe, para moverlo más a la izquierda
                         int insertIndex = -1;
                         if (menuStrip.Items.Contains(viewMenu))
@@ -834,26 +869,25 @@ namespace Comercio.NET
             }
         }
 
-        // Handler que abre el Control de Compras como MDI child (evita duplicados)
-        private void ControlComprasToolStripMenuItem_Click(object sender, EventArgs e)
+        // Handler para abrir CtaCte Proveedores como MDI child
+        private void CtaCteProveedoresToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
             {
-                // Verificar si ya está abierto
                 foreach (Form f in this.MdiChildren)
                 {
-                    if (f is Comercio.NET.Formularios.ComprasProveedorControlForm)
+                    if (f is Comercio.NET.Formularios.ProveedoresCtaCteForm)
                     {
                         f.Activate();
                         return;
                     }
                 }
 
-                var controlForm = new Comercio.NET.Formularios.ComprasProveedorControlForm
+                var frm = new Comercio.NET.Formularios.ProveedoresCtaCteForm
                 {
                     MdiParent = this
                 };
-                controlForm.Show();
+                frm.Show();
             }
             catch (Exception ex)
             {

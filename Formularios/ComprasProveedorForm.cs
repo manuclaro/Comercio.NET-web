@@ -11,6 +11,14 @@ using System.Windows.Forms;
 
 namespace Comercio.NET.Formularios
 {
+    // DTO público para intercambio de pagos entre formularios
+    public class PagoInfo
+    {
+        public string Metodo { get; set; } = "";
+        public decimal Monto { get; set; }
+        public string Referencia { get; set; } = "";
+    }
+
     public class ComprasProveedorForm : Form
     {
         private TextBox txtNumero;
@@ -615,6 +623,26 @@ namespace Comercio.NET.Formularios
                             }
 
                             tx.Commit();
+
+                            // Abrir modal de forma de pago después de guardar la compra
+                            try
+                            {
+                                using (var frmPago = new FormaPagoProveedorForm(total, proveedorId, compraId, cmbProveedor.Text.Trim()))
+                                {
+                                    var dr = frmPago.ShowDialog(this);
+                                    if (dr == DialogResult.OK)
+                                    {
+                                        var pagos = frmPago.Pagos ?? new List<PagoInfo>();
+                                        await GuardarPagosYDeudaAsync(compraId, proveedorId, pagos, total);
+                                    }
+                                }
+                            }
+                            catch (Exception exModal)
+                            {
+                                // No interrumpir flujo principal en caso de error en el modal; informar
+                                MessageBox.Show($"La compra fue guardada pero ocurrió un error al procesar los pagos: {exModal.Message}", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            }
+
                             MessageBox.Show("Compra guardada correctamente.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             this.Close();
                         }
@@ -629,6 +657,92 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 MessageBox.Show($"Error de conexión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Guarda pagos y, si hay saldo, deja registro de deuda. Ajusta nombres de tablas según tu BD.
+        private async Task GuardarPagosYDeudaAsync(int compraId, int? proveedorId, List<PagoInfo> pagos, decimal totalCompra)
+        {
+            if ((pagos == null || pagos.Count == 0) && (proveedorId == null))
+            {
+                // nada que hacer, no hay pagos ni proveedor asociado
+                return;
+            }
+
+            var cs = GetConnectionString();
+            try
+            {
+                using (var conn = new SqlConnection(cs))
+                {
+                    await conn.OpenAsync();
+                    using (var tx = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            decimal totalPagado = 0m;
+                            var insertPagoSql = @"INSERT INTO ComprasProveedoresPagos
+                                (CompraId, Metodo, Monto, Referencia, Fecha, Usuario)
+                                VALUES (@CompraId, @Metodo, @Monto, @Referencia, @Fecha, @Usuario);";
+
+                            foreach (var p in pagos)
+                            {
+                                using (var cmd = new SqlCommand(insertPagoSql, conn, tx))
+                                {
+                                    cmd.Parameters.AddWithValue("@CompraId", compraId);
+                                    cmd.Parameters.AddWithValue("@Metodo", string.IsNullOrWhiteSpace(p.Metodo) ? (object)DBNull.Value : p.Metodo);
+                                    cmd.Parameters.AddWithValue("@Monto", p.Monto);
+                                    cmd.Parameters.AddWithValue("@Referencia", string.IsNullOrWhiteSpace(p.Referencia) ? (object)DBNull.Value : p.Referencia);
+                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                                totalPagado += p.Monto;
+                            }
+
+                            decimal saldo = totalCompra - totalPagado;
+                            if (saldo > 0)
+                            {
+                                // Insertar registro de deuda (ajusta la tabla/columnas según tu BD)
+                                var insertDeudaSql = @"INSERT INTO ProveedoresCtaCte
+                                    (ProveedorId, CompraId, Fecha, MontoTotal, MontoAdeudado, Saldo, Observaciones, Usuario)
+                                    VALUES (@ProveedorId, @CompraId, @Fecha, @MontoTotal, @MontoAdeudado, @Saldo, @Observaciones, @Usuario);";
+
+                                using (var cmd = new SqlCommand(insertDeudaSql, conn, tx))
+                                {
+                                    cmd.Parameters.AddWithValue("@ProveedorId", proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@CompraId", compraId);
+                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@MontoTotal", totalCompra);
+                                    cmd.Parameters.AddWithValue("@MontoAdeudado", saldo);
+                                    cmd.Parameters.AddWithValue("@Saldo", saldo);
+                                    cmd.Parameters.AddWithValue("@Observaciones", "Deuda generada por compra parcialmente pagada");
+                                    cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+
+                                // Marcar compra como cuenta corriente
+                                var updCompra = @"UPDATE ComprasProveedores SET EsCtaCte = 1, NombreCtaCte = @Nombre WHERE Id = @Id;";
+                                using (var cmd = new SqlCommand(updCompra, conn, tx))
+                                {
+                                    cmd.Parameters.AddWithValue("@Nombre", cmbProveedor.Text.Trim());
+                                    cmd.Parameters.AddWithValue("@Id", compraId);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            tx.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            tx.Rollback();
+                            MessageBox.Show($"Error guardando pagos/deuda: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error de conexión al guardar pagos/deuda: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
