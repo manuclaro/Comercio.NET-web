@@ -25,14 +25,13 @@ namespace Comercio.NET
         public MenuPrincipal()
         {
             InitializeComponent();
-            ConfigurarInformacionUsuario(); // NUEVO: Configurar información del usuario
+            ConfigurarInformacionUsuario();
             ConfigurarMenuSegunPermisos();
-
-            // NUEVO: Configurar ícono de configuración en tiempo de ejecución
             ConfigurarIconoConfiguracion();
-            // llamar a la creación dinámica del menú y botón
             AgregarMenuProveedores();
             MoverCompraProveedoresAMenuProveedores();
+            AgregarMenuCaja();
+            AgregarBotonCierreTurnoToolbar(); // ✅ AGREGAR ESTA LÍNEA
         }
 
         // NUEVO: Método para configurar el ícono de configuración
@@ -311,60 +310,60 @@ namespace Comercio.NET
             ActualizarInformacionUsuario();
         }
 
-        private void ConfigurarMenuSegunPermisos()
-        {
-            // Verificar permisos del usuario actual para mostrar/ocultar opciones
-            if (AuthenticationService.SesionActual?.Usuario != null)
-            {
-                var usuario = AuthenticationService.SesionActual.Usuario;
+        //private void ConfigurarMenuSegunPermisos()
+        //{
+        //    // Verificar permisos del usuario actual para mostrar/ocultar opciones
+        //    if (AuthenticationService.SesionActual?.Usuario != null)
+        //    {
+        //        var usuario = AuthenticationService.SesionActual.Usuario;
 
-                // Solo mostrar gestión de usuarios si tiene permisos
-                bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador ||
-                                             usuario.PuedeGestionarUsuarios;
+        //        // Solo mostrar gestión de usuarios si tiene permisos
+        //        bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador ||
+        //                                     usuario.PuedeGestionarUsuarios;
 
-                // CORREGIDO: Verificar que los controles existen antes de usarlos
-                if (gestionUsuariosToolStripMenuItem != null)
-                {
-                    gestionUsuariosToolStripMenuItem.Visible = puedeGestionarUsuarios;
-                }
+        //        // CORREGIDO: Verificar que los controles existen antes de usarlos
+        //        if (gestionUsuariosToolStripMenuItem != null)
+        //        {
+        //            gestionUsuariosToolStripMenuItem.Visible = puedeGestionarUsuarios;
+        //        }
 
-                if (toolStripGestionUsuarios != null)
-                {
-                    toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
-                }
+        //        if (toolStripGestionUsuarios != null)
+        //        {
+        //            toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
+        //        }
 
-                // Solo mostrar configuración a administradores
-                bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
+        //        // Solo mostrar configuración a administradores
+        //        bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
 
-                if (InformesToolStripMenuItem != null)
-                {
-                    InformesToolStripMenuItem.Visible = esAdministrador;
-                }
+        //        if (InformesToolStripMenuItem != null)
+        //        {
+        //            InformesToolStripMenuItem.Visible = esAdministrador;
+        //        }
 
-                if (toolStripConfiguracion != null)
-                {
-                    toolStripConfiguracion.Visible = esAdministrador;
-                }
-            }
-            else
-            {
-                // Si no hay usuario logueado, ocultar opciones administrativas
-                if (gestionUsuariosToolStripMenuItem != null)
-                    gestionUsuariosToolStripMenuItem.Visible = false;
-                if (toolStripGestionUsuarios != null)
-                    toolStripGestionUsuarios.Visible = false;
-                if (InformesToolStripMenuItem != null)
-                    InformesToolStripMenuItem.Visible = false;
-                if (toolStripConfiguracion != null)
-                    toolStripConfiguracion.Visible = false;
+        //        if (toolStripConfiguracion != null)
+        //        {
+        //            toolStripConfiguracion.Visible = esAdministrador;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        // Si no hay usuario logueado, ocultar opciones administrativas
+        //        if (gestionUsuariosToolStripMenuItem != null)
+        //            gestionUsuariosToolStripMenuItem.Visible = false;
+        //        if (toolStripGestionUsuarios != null)
+        //            toolStripGestionUsuarios.Visible = false;
+        //        if (InformesToolStripMenuItem != null)
+        //            InformesToolStripMenuItem.Visible = false;
+        //        if (toolStripConfiguracion != null)
+        //            toolStripConfiguracion.Visible = false;
 
-                // NUEVO: También ocultar cartelitos si no hay usuario
-                if (cartelitosToolStripMenuItem != null)
-                    cartelitosToolStripMenuItem.Visible = false;
-                if (toolStripCartelitos != null)
-                    toolStripCartelitos.Visible = false;
-            }
-        }
+        //        // NUEVO: También ocultar cartelitos si no hay usuario
+        //        if (cartelitosToolStripMenuItem != null)
+        //            cartelitosToolStripMenuItem.Visible = false;
+        //        if (toolStripCartelitos != null)
+        //            toolStripCartelitos.Visible = false;
+        //    }
+        //}
 
         private void OpenFile(object sender, EventArgs e)
         {
@@ -740,7 +739,7 @@ namespace Comercio.NET
             }
         }
 
-        // MODIFICAR el método AgregarMenuProveedores existente:
+        // MODIFICADO el método AgregarMenuProveedores existente:
         private void AgregarMenuProveedores()
         {
             try
@@ -1013,6 +1012,455 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ Error reubicando Compra Proveedores: {ex.Message}");
             }
+        }
+
+        // En el método ConfigurarMenuSegunPermisos() o donde tengas tus opciones de menú
+        private void cierreTurnoToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar permisos
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    
+                    // Solo supervisores y administradores pueden cerrar turnos
+                    if (usuario.Nivel != Models.NivelUsuario.Administrador && 
+                        usuario.Nivel != Models.NivelUsuario.Supervisor)
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "Solo los supervisores y administradores pueden acceder al cierre de turnos.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // Verificar si ya está abierto
+                    foreach (Form form in this.MdiChildren)
+                    {
+                        if (form is Comercio.NET.Formularios.CierreTurnoCajeroForm)
+                        {
+                            form.Activate();
+                            return;
+                        }
+                    }
+
+                    // Abrir formulario
+                    var cierreForm = new Comercio.NET.Formularios.CierreTurnoCajeroForm();
+                    cierreForm.MdiParent = this;
+                    cierreForm.Show();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo cierre de turno: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Busca en el Designer o agrega dinámicamente:
+        private void AgregarMenuCaja()
+        {
+            try
+            {
+                if (this.menuStrip == null) return;
+
+                // Verificar si ya existe el menú Caja
+                var menuCajaExistente = this.menuStrip.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => string.Equals(i.Name, "cajaToolStripMenuItem", StringComparison.OrdinalIgnoreCase));
+
+                if (menuCajaExistente == null)
+                {
+                    // ========================================
+                    // CREAR MENÚ PRINCIPAL "CAJA"
+                    // ========================================
+                    var menuCaja = new ToolStripMenuItem("💰 Caja")
+                    {
+                        Name = "cajaToolStripMenuItem"
+                    };
+
+                    // ========================================
+                    // 1. CIERRE DE TURNO (Habilitado)
+                    // ========================================
+                    var itemCierreTurno = new ToolStripMenuItem("💵 Cierre de Turno", null, cierreTurnoToolStripMenuItem_Click)
+                    {
+                        Name = "cierreTurnoToolStripMenuItem",
+                        ShortcutKeys = Keys.Control | Keys.Shift | Keys.T,
+                        ToolTipText = "Realizar cierre de turno del cajero"
+                    };
+
+                    // ========================================
+                    // 2. APERTURA DE TURNO (Deshabilitado - futuro)
+                    // ========================================
+                    var itemAperturaTurno = new ToolStripMenuItem("🔓 Apertura de Turno", null, (s, e) =>
+                    {
+                        MessageBox.Show(
+                            "Esta funcionalidad estará disponible próximamente.\n\n" +
+                            "Permitirá registrar la apertura del turno con el monto inicial en caja.",
+                            "Funcionalidad en Desarrollo",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    })
+                    {
+                        Name = "aperturaTurnoToolStripMenuItem",
+                        Enabled = false,
+                        ToolTipText = "Funcionalidad en desarrollo"
+                    };
+
+                    // ========================================
+                    // 3. SEPARADOR
+                    // ========================================
+                    var separador1 = new ToolStripSeparator();
+
+                    // ========================================
+                    // 4. HISTORIAL DE CIERRES (Deshabilitado - futuro)
+                    // ========================================
+                    var itemHistorialCierres = new ToolStripMenuItem("📊 Historial de Cierres", null, (s, e) =>
+                    {
+                        MessageBox.Show(
+                            "Esta funcionalidad estará disponible próximamente.\n\n" +
+                            "Permitirá consultar el historial completo de cierres de turno.",
+                            "Funcionalidad en Desarrollo",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    })
+                    {
+                        Name = "historialCierresToolStripMenuItem",
+                        Enabled = false,
+                        ToolTipText = "Funcionalidad en desarrollo"
+                    };
+
+                    // ========================================
+                    // 5. ARQUEO DE CAJA (Deshabilitado - futuro)
+                    // ========================================
+                    var itemArqueoCaja = new ToolStripMenuItem("📋 Arqueo de Caja", null, (s, e) =>
+                    {
+                        MessageBox.Show(
+                            "Esta funcionalidad estará disponible próximamente.\n\n" +
+                            "Permitirá realizar un arqueo de caja en cualquier momento.",
+                            "Funcionalidad en Desarrollo",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    })
+                    {
+                        Name = "arqueoCajaToolStripMenuItem",
+                        Enabled = false,
+                        ToolTipText = "Funcionalidad en desarrollo"
+                    };
+
+                    // ========================================
+                    // AGREGAR TODOS LOS ITEMS AL MENÚ CAJA
+                    // ========================================
+                    menuCaja.DropDownItems.Add(itemCierreTurno);        // ✅ Habilitado
+                    menuCaja.DropDownItems.Add(itemAperturaTurno);      // 🔒 Deshabilitado
+                    menuCaja.DropDownItems.Add(separador1);             // ────────
+                    menuCaja.DropDownItems.Add(itemHistorialCierres);   // 🔒 Deshabilitado
+                    menuCaja.DropDownItems.Add(itemArqueoCaja);         // 🔒 Deshabilitado
+
+                    // ========================================
+                    // INSERTAR EL MENÚ EN LA POSICIÓN CORRECTA
+                    // ========================================
+                    int insertIndex = -1;
+
+                    // Buscar el menú "Ventas" para insertar después
+                    var ventasMenu = this.menuStrip.Items
+                        .OfType<ToolStripMenuItem>()
+                        .FirstOrDefault(i => i.Text.Contains("Ventas") || i.Text.Contains("Facturación"));
+
+                    if (ventasMenu != null)
+                    {
+                        insertIndex = this.menuStrip.Items.IndexOf(ventasMenu) + 1;
+                    }
+                    else
+                    {
+                        // Si no se encuentra "Ventas", buscar "Proveedores" para insertar antes
+                        var proveedoresMenu = this.menuStrip.Items
+                            .OfType<ToolStripMenuItem>()
+                            .FirstOrDefault(i => string.Equals(i.Name, "proveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase));
+
+                        if (proveedoresMenu != null)
+                        {
+                            insertIndex = this.menuStrip.Items.IndexOf(proveedoresMenu);
+                        }
+                    }
+
+                    // Insertar en la posición correcta o al principio como fallback
+                    if (insertIndex >= 0 && insertIndex <= this.menuStrip.Items.Count)
+                    {
+                        this.menuStrip.Items.Insert(insertIndex, menuCaja);
+                        System.Diagnostics.Debug.WriteLine($"✅ Menú 'Caja' agregado en posición {insertIndex}");
+                    }
+                    else
+                    {
+                        // Fallback: agregar después del menú File (índice 1 o 2)
+                        this.menuStrip.Items.Insert(Math.Min(2, this.menuStrip.Items.Count), menuCaja);
+                        System.Diagnostics.Debug.WriteLine("✅ Menú 'Caja' agregado en posición fallback");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("ℹ️ Menú 'Caja' ya existe");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando menú Caja: {ex.Message}");
+                MessageBox.Show($"Error al configurar menú Caja: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // NUEVO: Método para agregar botón de Cierre Turno a la toolbar
+        private void AgregarBotonCierreTurnoToolbar()
+        {
+            try
+            {
+                if (this.toolStrip == null) return;
+
+                // Verificar si ya existe el botón
+                var botonExistente = this.toolStrip.Items
+                    .OfType<ToolStripButton>()
+                    .FirstOrDefault(b => b.Name == "toolStripCierreTurno");
+
+                if (botonExistente == null)
+                {
+                    // Crear el botón de cierre de turno
+                    var btnCierreTurno = new ToolStripButton
+                    {
+                        Name = "toolStripCierreTurno",
+                        Text = "💵 Cierre Turno",
+                        ToolTipText = "Cierre de Turno de Cajero (Ctrl+Shift+T)",
+                        DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                        ImageTransparentColor = System.Drawing.Color.Magenta,
+                        TextImageRelation = TextImageRelation.ImageBeforeText
+                    };
+
+                    // Crear ícono personalizado para el botón
+                    btnCierreTurno.Image = CrearIconoCierreTurno();
+
+                    // Asignar el evento Click
+                    btnCierreTurno.Click += (s, e) => cierreTurnoToolStripMenuItem_Click(s, e);
+
+                    // Buscar la posición ideal: después del botón de Control Facturas
+                    int insertIndex = -1;
+                    
+                    // Intentar encontrar el botón de Control Facturas
+                    var btnControlFacturas = this.toolStrip.Items
+                        .OfType<ToolStripButton>()
+                        .FirstOrDefault(b => b.Name == "toolStripButton1" || b.Text.Contains("Facturas"));
+
+                    if (btnControlFacturas != null)
+                    {
+                        insertIndex = this.toolStrip.Items.IndexOf(btnControlFacturas) + 1;
+                    }
+                    else
+                    {
+                        // Si no se encuentra, buscar el botón de Ventas
+                        var btnVentas = this.toolStrip.Items
+                            .OfType<ToolStripButton>()
+                            .FirstOrDefault(b => b.Name == "printPreviewToolStripButton" || b.Text.Contains("Venta"));
+
+                        if (btnVentas != null)
+                        {
+                            insertIndex = this.toolStrip.Items.IndexOf(btnVentas) + 1;
+                        }
+                    }
+
+                    // Insertar en la posición correcta
+                    if (insertIndex >= 0 && insertIndex < this.toolStrip.Items.Count)
+                    {
+                        // Agregar separador antes del botón si no existe
+                        if (!(this.toolStrip.Items[insertIndex - 1] is ToolStripSeparator))
+                        {
+                            this.toolStrip.Items.Insert(insertIndex, new ToolStripSeparator());
+                            insertIndex++;
+                        }
+                        
+                        this.toolStrip.Items.Insert(insertIndex, btnCierreTurno);
+                    }
+                    else
+                    {
+                        // Fallback: agregar al final
+                        this.toolStrip.Items.Add(new ToolStripSeparator());
+                        this.toolStrip.Items.Add(btnCierreTurno);
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("✅ Botón 'Cierre Turno' agregado a la toolbar");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando botón Cierre Turno a toolbar: {ex.Message}");
+            }
+        }
+
+        // NUEVO: Método para crear ícono de Cierre Turno
+        private Bitmap CrearIconoCierreTurno()
+        {
+            var bitmap = new Bitmap(32, 32);
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent);
+
+                // Dibujar billete de dinero (rectángulo con bordes redondeados)
+                using (var pen = new Pen(Color.FromArgb(76, 175, 80), 2))
+                using (var brush = new SolidBrush(Color.FromArgb(200, 230, 201)))
+                {
+                    // Fondo del billete
+                    var rect = new Rectangle(4, 8, 24, 16);
+                    g.FillRectangle(brush, rect);
+                    g.DrawRectangle(pen, rect);
+
+                    // Símbolo de dinero ($) en el centro
+                    using (var fontBold = new Font("Arial", 10F, FontStyle.Bold))
+                    using (var brushText = new SolidBrush(Color.FromArgb(27, 94, 32)))
+                    {
+                        var textRect = new RectangleF(rect.X, rect.Y, rect.Width, rect.Height);
+                        var format = new StringFormat
+                        {
+                            Alignment = StringAlignment.Center,
+                            LineAlignment = StringAlignment.Center
+                        };
+                        g.DrawString("$", fontBold, brushText, textRect, format);
+                    }
+
+                    // Detalle de esquinas (círculos pequeños)
+                    using (var brushCircle = new SolidBrush(Color.FromArgb(139, 195, 74)))
+                    {
+                        g.FillEllipse(brushCircle, 6, 10, 4, 4);
+                        g.FillEllipse(brushCircle, 22, 10, 4, 4);
+                        g.FillEllipse(brushCircle, 6, 18, 4, 4);
+                        g.FillEllipse(brushCircle, 22, 18, 4, 4);
+                    }
+                }
+
+                // Dibujar calculadora o reloj pequeño en la esquina inferior derecha
+                using (var penClock = new Pen(Color.FromArgb(33, 150, 243), 1.5f))
+                using (var brushClock = new SolidBrush(Color.FromArgb(227, 242, 253)))
+                {
+                    // Fondo del reloj
+                    g.FillEllipse(brushClock, 19, 20, 10, 10);
+                    g.DrawEllipse(penClock, 19, 20, 10, 10);
+
+                    // Manecillas del reloj
+                    g.DrawLine(penClock, 24, 25, 24, 22); // Manecilla de hora
+                    g.DrawLine(penClock, 24, 25, 26, 25); // Manecilla de minuto
+                }
+            }
+            return bitmap;
+        }
+
+        // ✅ OPCIONAL: Método para actualizar visibilidad del botón según permisos
+        // Agrégalo dentro de ConfigurarMenuSegunPermisos():
+        private void ConfigurarMenuSegunPermisos()
+        {
+            // Verificar permisos del usuario actual para mostrar/ocultar opciones
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                var usuario = AuthenticationService.SesionActual.Usuario;
+
+                // Solo mostrar gestión de usuarios si tiene permisos
+                bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador ||
+                                             usuario.PuedeGestionarUsuarios;
+
+                // CORREGIDO: Verificar que los controles existen antes de usarlos
+                if (gestionUsuariosToolStripMenuItem != null)
+                {
+                    gestionUsuariosToolStripMenuItem.Visible = puedeGestionarUsuarios;
+                }
+
+                if (toolStripGestionUsuarios != null)
+                {
+                    toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
+                }
+
+                // Solo mostrar configuración a administradores
+                bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
+
+                if (InformesToolStripMenuItem != null)
+                {
+                    InformesToolStripMenuItem.Visible = esAdministrador;
+                }
+
+                if (toolStripConfiguracion != null)
+                {
+                    toolStripConfiguracion.Visible = esAdministrador;
+                }
+
+                // ✅ NUEVO: Controlar visibilidad del menú Caja según permisos
+                bool puedeCerrarTurnos = usuario.Nivel == Models.NivelUsuario.Administrador ||
+                                        usuario.Nivel == Models.NivelUsuario.Supervisor;
+
+                // Menú Caja en menuStrip
+                var menuCaja = this.menuStrip?.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "cajaToolStripMenuItem");
+
+                if (menuCaja != null)
+                {
+                    menuCaja.Visible = puedeCerrarTurnos;
+                }
+
+                // Botón Cierre Turno en toolbar
+                var btnCierreTurno = this.toolStrip?.Items
+                    .OfType<ToolStripButton>()
+                    .FirstOrDefault(b => b.Name == "toolStripCierreTurno");
+
+                if (btnCierreTurno != null)
+                {
+                    btnCierreTurno.Visible = puedeCerrarTurnos;
+                }
+            }
+            else
+            {
+                // Si no hay usuario logueado, ocultar opciones administrativas
+                if (gestionUsuariosToolStripMenuItem != null)
+                    gestionUsuariosToolStripMenuItem.Visible = false;
+                if (toolStripGestionUsuarios != null)
+                    toolStripGestionUsuarios.Visible = false;
+                if (InformesToolStripMenuItem != null)
+                    InformesToolStripMenuItem.Visible = false;
+                if (toolStripConfiguracion != null)
+                    toolStripConfiguracion.Visible = false;
+
+                // NUEVO: También ocultar cartelitos si no hay usuario
+                if (cartelitosToolStripMenuItem != null)
+                    cartelitosToolStripMenuItem.Visible = false;
+                if (toolStripCartelitos != null)
+                    toolStripCartelitos.Visible = false;
+
+                // ✅ NUEVO: Ocultar menú Caja si no hay sesión
+                var menuCaja = this.menuStrip?.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "cajaToolStripMenuItem");
+
+                if (menuCaja != null)
+                    menuCaja.Visible = false;
+
+                // Ocultar botón toolbar
+                var btnCierreTurno = this.toolStrip?.Items
+                    .OfType<ToolStripButton>()
+                    .FirstOrDefault(b => b.Name == "toolStripCierreTurno");
+
+                if (btnCierreTurno != null)
+                    btnCierreTurno.Visible = false;
+            }
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Atajo para Cierre de Turno: Ctrl+Shift+T
+            if (keyData == (Keys.Control | Keys.Shift | Keys.T))
+            {
+                cierreTurnoToolStripMenuItem_Click(this, EventArgs.Empty);
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
     }
 }
