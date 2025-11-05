@@ -554,6 +554,58 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
+                // ✅ NUEVO: Verificar si hay un turno abierto
+                int? turnoAbiertoId = await ObtenerTurnoAbiertoId(numeroCajero);
+                
+                if (turnoAbiertoId == null)
+                {
+                    var resultado = MessageBox.Show(
+                        "⚠️ No hay un turno abierto para este cajero.\n\n" +
+                        "Para realizar un cierre, primero debe abrir un turno.\n\n" +
+                        "¿Desea abrir un turno ahora?",
+                        "Sin Turno Abierto",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (resultado == DialogResult.Yes)
+                    {
+                        using var formApertura = new AperturaTurnoCajeroForm();
+                        if (formApertura.ShowDialog() == DialogResult.OK)
+                        {
+                            MessageBox.Show(
+                                "✅ Turno abierto correctamente.\n\n" +
+                                "Ahora puede calcular y cerrar el turno.",
+                                "Información",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+                        }
+                    }
+                    return;
+                }
+
+                // Guardar el ID del turno abierto para usarlo al cerrar
+                turnoActualId = turnoAbiertoId.Value;
+
+                // ✅ Verificar si el turno ya fue cerrado
+                bool turnoCerrado = await VerificarTurnoCerrado(numeroCajero, dtpFechaInicio.Value.Date, dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
+                
+                if (turnoCerrado)
+                {
+                    var resultado = MessageBox.Show(
+                        "⚠️ Ya existe un cierre de turno para este cajero en el período seleccionado.\n\n" +
+                        "¿Desea ver el historial de cierres?",
+                        "Turno Ya Cerrado",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (resultado == DialogResult.Yes)
+                    {
+                        // Abrir el historial de cierres (implementar más adelante)
+                        MostrarHistorialCierres(numeroCajero);
+                    }
+                    return;
+                }
+
                 btnCalcular.Enabled = false;
                 btnCalcular.Text = "⏳ Calculando...";
 
@@ -967,45 +1019,68 @@ namespace Comercio.NET.Formularios
                 int numeroCajero = cajeroSeleccionado.NumeroCajero;
                 string usuarioCierre = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
 
-                // Crear o actualizar turno
-                var queryTurno = @"
-                    INSERT INTO TurnosCajero (NumeroCajero, Usuario, FechaApertura, FechaCierre, Estado, Observaciones)
-                    OUTPUT INSERTED.Id
-                    VALUES (@numeroCajero, @usuario, @fechaInicio, @fechaFin, 'Cerrado', @observaciones)";
-
                 int idTurno;
-                using (var cmdTurno = new SqlCommand(queryTurno, connection))
-                {
-                    cmdTurno.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                    cmdTurno.Parameters.AddWithValue("@usuario", usuarioCierre);
-                    cmdTurno.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-                    cmdTurno.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
-                    cmdTurno.Parameters.AddWithValue("@observaciones", txtObservaciones.Text ?? "");
 
-                    idTurno = (int)await cmdTurno.ExecuteScalarAsync();
+                if (turnoActualId > 0)
+                {
+                    // ✅ MEJORADO: Actualizar el turno existente
+                    var queryActualizar = @"
+                        UPDATE TurnosCajero 
+                        SET FechaCierre = @fechaCierre, 
+                            Estado = 'Cerrado',
+                            Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + 'CIERRE: ' + @observacionesCierre
+                        WHERE Id = @idTurno";
+
+                    using (var cmdActualizar = new SqlCommand(queryActualizar, connection))
+                    {
+                        cmdActualizar.Parameters.AddWithValue("@idTurno", turnoActualId);
+                        cmdActualizar.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
+                        cmdActualizar.Parameters.AddWithValue("@observacionesCierre", txtObservaciones.Text ?? "Sin observaciones");
+
+                        await cmdActualizar.ExecuteNonQueryAsync();
+                    }
+
+                    idTurno = turnoActualId;
+                }
+                else
+                {
+                    // Crear nuevo turno (fallback por compatibilidad)
+                    var queryTurno = @"
+                        INSERT INTO TurnosCajero (NumeroCajero, Usuario, FechaApertura, FechaCierre, Estado, Observaciones)
+                        OUTPUT INSERTED.Id
+                        VALUES (@numeroCajero, @usuario, @fechaInicio, @fechaFin, 'Cerrado', @observaciones)";
+
+                    using (var cmdTurno = new SqlCommand(queryTurno, connection))
+                    {
+                        cmdTurno.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                        cmdTurno.Parameters.AddWithValue("@usuario", usuarioCierre);
+                        cmdTurno.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+                        cmdTurno.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
+                        cmdTurno.Parameters.AddWithValue("@observaciones", txtObservaciones.Text ?? "");
+
+                        idTurno = (int)await cmdTurno.ExecuteScalarAsync();
+                    }
                 }
 
-                // Guardar detalle del cierre
+                // Guardar detalle del cierre (código existente)
                 foreach (DataGridViewRow row in dgvResumenPorMedio.Rows)
                 {
                     if (row.IsNewRow) continue;
 
                     string medioPago = row.Cells["MedioPago"].Value.ToString();
                     int cantidad = int.Parse(row.Cells["Cantidad"].Value.ToString());
-                    // ✅ CORREGIDO: Usar NumberStyles.Currency para todos los valores
                     decimal esperado = decimal.Parse(row.Cells["Neto"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
                     decimal declarado = decimal.Parse(row.Cells["Declarado"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
                     decimal diferencia = decimal.Parse(row.Cells["Diferencia"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
 
                     var queryCierre = @"
                         INSERT INTO CierreTurnoCajero 
-                        (IdTurno,  MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
+                        (IdTurno, MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
                         VALUES 
                         (@idTurno, @medioPago, @esperado, @declarado, @diferencia, @cantidad, @fechaCierre, @usuarioCierre)";
 
                     using var cmdCierre = new SqlCommand(queryCierre, connection);
                     cmdCierre.Parameters.AddWithValue("@idTurno", idTurno);
-                    //cmdCierre.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmdCierre.Parameters.AddWithValue("@medioPago", medioPago);
                     cmdCierre.Parameters.AddWithValue("@esperado", esperado);
                     cmdCierre.Parameters.AddWithValue("@declarado", declarado);
@@ -1020,6 +1095,7 @@ namespace Comercio.NET.Formularios
                 MessageBox.Show("✅ Turno cerrado exitosamente", "Éxito",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
+                turnoActualId = 0; // Resetear
                 LimpiarFormulario();
             }
             catch (Exception ex)
@@ -1055,6 +1131,94 @@ namespace Comercio.NET.Formularios
             btnDeclarar.Enabled = false;
             btnCerrarTurno.Enabled = false;
             btnImprimir.Enabled = false;
+        }
+
+        private async Task<bool> VerificarTurnoCerrado(int numeroCajero, DateTime fechaInicio, DateTime fechaFin)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                var query = @"
+                    SELECT COUNT(*) 
+                    FROM TurnosCajero 
+                    WHERE NumeroCajero = @numeroCajero 
+                    AND Estado = 'Cerrado'
+                    AND (
+                        (FechaApertura <= @fechaFin AND FechaCierre >= @fechaInicio)
+                        OR (FechaApertura BETWEEN @fechaInicio AND @fechaFin)
+                        OR (FechaCierre BETWEEN @fechaInicio AND @fechaFin)
+                    )";
+
+                using var cmd = new SqlCommand(query, connection);
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                cmd.Parameters.AddWithValue("@fechaInicio", fechaInicio);
+                cmd.Parameters.AddWithValue("@fechaFin", fechaFin);
+
+                int count = (int)await cmd.ExecuteScalarAsync();
+                return count > 0;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error verificando turno: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private void MostrarHistorialCierres(int numeroCajero)
+        {
+            try
+            {
+                using var formHistorial = new HistorialCierresForm();
+                formHistorial.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error mostrando historial: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task<int?> ObtenerTurnoAbiertoId(int numeroCajero)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                var query = @"
+                    SELECT TOP 1 Id
+                    FROM TurnosCajero 
+                    WHERE NumeroCajero = @numeroCajero 
+                    AND Estado = 'Abierto'
+                    ORDER BY FechaApertura DESC";
+
+                using var cmd = new SqlCommand(query, connection);
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+
+                var result = await cmd.ExecuteScalarAsync();
+                return result != null ? (int?)result : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 

@@ -31,6 +31,7 @@ namespace Comercio.NET
             AgregarMenuProveedores();
             MoverCompraProveedoresAMenuProveedores();
             AgregarMenuCaja();
+            ConfigurarMenuCaja(); // ✅ AGREGAR ESTA LÍNEA
             AgregarBotonCierreTurnoToolbar(); // ✅ AGREGAR ESTA LÍNEA
         }
 
@@ -1083,31 +1084,25 @@ namespace Comercio.NET
                     };
 
                     // ========================================
-                    // 1. CIERRE DE TURNO (Habilitado)
+                    // 1. APERTURA DE TURNO ✅ AHORA HABILITADO
+                    // ========================================
+                    var itemAperturaTurno = new ToolStripMenuItem("🔓 Apertura de Turno", null, (s, e) => AbrirAperturaTurno())
+                    {
+                        Name = "aperturaTurnoToolStripMenuItem",
+                        Enabled = true, // ✅ HABILITADO
+                        ShortcutKeys = Keys.Control | Keys.Shift | Keys.A,
+                        ToolTipText = "Abrir turno de cajero (Ctrl+Shift+A)"
+                    };
+
+                    // ========================================
+                    // 2. CIERRE DE TURNO ✅ HABILITADO
                     // ========================================
                     var itemCierreTurno = new ToolStripMenuItem("💵 Cierre de Turno", null, cierreTurnoToolStripMenuItem_Click)
                     {
                         Name = "cierreTurnoToolStripMenuItem",
+                        Enabled = true, // ✅ HABILITADO
                         ShortcutKeys = Keys.Control | Keys.Shift | Keys.T,
-                        ToolTipText = "Realizar cierre de turno del cajero"
-                    };
-
-                    // ========================================
-                    // 2. APERTURA DE TURNO (Deshabilitado - futuro)
-                    // ========================================
-                    var itemAperturaTurno = new ToolStripMenuItem("🔓 Apertura de Turno", null, (s, e) =>
-                    {
-                        MessageBox.Show(
-                            "Esta funcionalidad estará disponible próximamente.\n\n" +
-                            "Permitirá registrar la apertura del turno con el monto inicial en caja.",
-                            "Funcionalidad en Desarrollo",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
-                    })
-                    {
-                        Name = "aperturaTurnoToolStripMenuItem",
-                        Enabled = false,
-                        ToolTipText = "Funcionalidad en desarrollo"
+                        ToolTipText = "Realizar cierre de turno del cajero (Ctrl+Shift+T)"
                     };
 
                     // ========================================
@@ -1116,48 +1111,32 @@ namespace Comercio.NET
                     var separador1 = new ToolStripSeparator();
 
                     // ========================================
-                    // 4. HISTORIAL DE CIERRES (Deshabilitado - futuro)
+                    // 4. HISTORIAL DE CIERRES ✅ AHORA HABILITADO
                     // ========================================
-                    var itemHistorialCierres = new ToolStripMenuItem("📊 Historial de Cierres", null, (s, e) =>
-                    {
-                        MessageBox.Show(
-                            "Esta funcionalidad estará disponible próximamente.\n\n" +
-                            "Permitirá consultar el historial completo de cierres de turno.",
-                            "Funcionalidad en Desarrollo",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
-                    })
+                    var itemHistorialCierres = new ToolStripMenuItem("📊 Historial de Cierres", null, (s, e) => AbrirHistorialCierres())
                     {
                         Name = "historialCierresToolStripMenuItem",
-                        Enabled = false,
-                        ToolTipText = "Funcionalidad en desarrollo"
+                        Enabled = true, // ✅ HABILITADO
+                        ToolTipText = "Consultar historial de cierres de turno"
                     };
 
                     // ========================================
                     // 5. ARQUEO DE CAJA (Deshabilitado - futuro)
                     // ========================================
-                    var itemArqueoCaja = new ToolStripMenuItem("📋 Arqueo de Caja", null, (s, e) =>
-                    {
-                        MessageBox.Show(
-                            "Esta funcionalidad estará disponible próximamente.\n\n" +
-                            "Permitirá realizar un arqueo de caja en cualquier momento.",
-                            "Funcionalidad en Desarrollo",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
-                    })
+                    var itemArqueoCaja = new ToolStripMenuItem("📋 Arqueo de Caja", null, (s, e) => AbrirArqueoCaja())
                     {
                         Name = "arqueoCajaToolStripMenuItem",
-                        Enabled = false,
-                        ToolTipText = "Funcionalidad en desarrollo"
+                        Enabled = true, // ✅ HABILITADO
+                        ToolTipText = "Realizar arqueo de caja (verificación sin cerrar turno)"
                     };
 
                     // ========================================
                     // AGREGAR TODOS LOS ITEMS AL MENÚ CAJA
                     // ========================================
+                    menuCaja.DropDownItems.Add(itemAperturaTurno);      // ✅ Habilitado
                     menuCaja.DropDownItems.Add(itemCierreTurno);        // ✅ Habilitado
-                    menuCaja.DropDownItems.Add(itemAperturaTurno);      // 🔒 Deshabilitado
                     menuCaja.DropDownItems.Add(separador1);             // ────────
-                    menuCaja.DropDownItems.Add(itemHistorialCierres);   // 🔒 Deshabilitado
+                    menuCaja.DropDownItems.Add(itemHistorialCierres);   // ✅ Habilitado
                     menuCaja.DropDownItems.Add(itemArqueoCaja);         // 🔒 Deshabilitado
 
                     // ========================================
@@ -1210,6 +1189,52 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando menú Caja: {ex.Message}");
                 MessageBox.Show($"Error al configurar menú Caja: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // NUEVO: Método para abrir el arqueo de caja
+        private void AbrirArqueoCaja()
+        {
+            try
+            {
+                // Verificar permisos
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+
+                    // Solo supervisores y administradores
+                    if (usuario.Nivel != Models.NivelUsuario.Administrador &&
+                        usuario.Nivel != Models.NivelUsuario.Supervisor)
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "Solo los supervisores y administradores pueden realizar arqueos de caja.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // Verificar si ya está abierto
+                    foreach (Form form in this.MdiChildren)
+                    {
+                        if (form is ArqueoCajaForm)
+                        {
+                            form.Activate();
+                            return;
+                        }
+                    }
+
+                    // Abrir formulario
+                    var arqueoForm = new ArqueoCajaForm();
+                    arqueoForm.MdiParent = this;
+                    arqueoForm.Show();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo arqueo de caja: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1461,6 +1486,76 @@ namespace Comercio.NET
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // NUEVO: Método para configurar el menú Caja y sus eventos
+        private void ConfigurarMenuCaja()
+        {
+            // Habilitar el menú Caja si corresponde
+            var menuCaja = this.menuStrip?.Items
+                .OfType<ToolStripMenuItem>()
+                .FirstOrDefault(i => i.Name == "cajaToolStripMenuItem");
+
+            if (menuCaja != null)
+            {
+                bool puedeCerrarTurnos = AuthenticationService.SesionActual?.Usuario != null &&
+                                        (AuthenticationService.SesionActual.Usuario.Nivel == Models.NivelUsuario.Administrador ||
+                                         AuthenticationService.SesionActual.Usuario.Nivel == Models.NivelUsuario.Supervisor);
+
+                menuCaja.Visible = puedeCerrarTurnos;
+
+                // Para el item de "Apertura de Turno"
+                var aperturaTurnoItem = menuCaja.DropDownItems
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(x => x.Text.Contains("Apertura de Turno"));
+                
+                if (aperturaTurnoItem != null)
+                {
+                    aperturaTurnoItem.Enabled = true; // Habilitar el menú
+                    aperturaTurnoItem.Click += (s, e) => AbrirAperturaTurno();
+                }
+
+                // NUEVO: Para el item de "Historial de Cierres"
+                var historialCierresItem = menuCaja.DropDownItems
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(x => x.Text.Contains("Historial de Cierres"));
+                
+                if (historialCierresItem != null)
+                {
+                    historialCierresItem.Enabled = true; // Habilitar el menú
+                    historialCierresItem.Click += (s, e) => AbrirHistorialCierres();
+                }
+            }
+        }
+
+        // NUEVO: Método para abrir el formulario de Apertura de Turno
+        private void AbrirAperturaTurno()
+        {
+            try
+            {
+                using var formApertura = new AperturaTurnoCajeroForm();
+                formApertura.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo formulario: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // NUEVO: Método para abrir el historial de cierres
+        private void AbrirHistorialCierres()
+        {
+            try
+            {
+                using var formHistorial = new HistorialCierresForm();
+                formHistorial.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo historial: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
