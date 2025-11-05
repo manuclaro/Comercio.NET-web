@@ -740,32 +740,7 @@ namespace Comercio.NET
             }
         }
 
-        private void ControlComprasToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                foreach (Form f in this.MdiChildren)
-                {
-                    if (f is Comercio.NET.Formularios.ComprasProveedorControlForm)
-                    {
-                        f.Activate();
-                        return;
-                    }
-                }
-
-                var controlForm = new Comercio.NET.Formularios.ComprasProveedorControlForm
-                {
-                    MdiParent = this
-                };
-                controlForm.Show();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error abriendo Control Compras Proveedores: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // Agregar este método a la clase MenuPrincipal
+        // MODIFICAR el método AgregarMenuProveedores existente:
         private void AgregarMenuProveedores()
         {
             try
@@ -802,6 +777,8 @@ namespace Comercio.NET
                         // 3) Cargar Compra (existingCompraItem si existe)
                         // 4) separador
                         // 5) Control Compras
+                        // 6) separador
+                        // 7) Cuenta Corriente <- NUEVO
                         menu.DropDownItems.Add(submenuAbm);
                         menu.DropDownItems.Add(new ToolStripSeparator());
 
@@ -811,10 +788,11 @@ namespace Comercio.NET
                             Name = "controlComprasToolStripMenuItem"
                         };
 
-                        // Nuevo: item para CtaCte Proveedores
-                        var submenuCtaCte = new ToolStripMenuItem("CtaCte Proveedores", null, CtaCteProveedoresToolStripMenuItem_Click)
+                        // ✅ NUEVO: item para CtaCte Proveedores (SIN ÍCONO)
+                        var submenuCtaCte = new ToolStripMenuItem("Cuenta Corriente Proveedores", null, CtaCteProveedoresToolStripMenuItem_Click)
                         {
                             Name = "ctaCteProveedoresToolStripMenuItem"
+                            // Sin propiedad Image - no hay ícono
                         };
 
                         if (existingCompraItem != null)
@@ -845,7 +823,7 @@ namespace Comercio.NET
                             menu.DropDownItems.Add(submenuControlCompras);
                         }
 
-                        // Añadir separador y luego el item CtaCte (colocado después de Control Compras)
+                        // ✅ Añadir separador y luego el item CtaCte (colocado después de Control Compras)
                         menu.DropDownItems.Add(new ToolStripSeparator());
                         menu.DropDownItems.Add(submenuCtaCte);
 
@@ -869,33 +847,75 @@ namespace Comercio.NET
             }
         }
 
-        // Handler para abrir CtaCte Proveedores como MDI child
+        // ✅ MODIFICAR el handler para abrir CtaCte con el Form contenedor correcto:
         private void CtaCteProveedoresToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
             {
+                // Verificar si ya está abierto (con nombre correcto del Form)
                 foreach (Form f in this.MdiChildren)
                 {
-                    if (f is Comercio.NET.Formularios.ProveedoresCtaCteForm)
+                    if (f.Name == "FormCtaCteProveedores")
                     {
                         f.Activate();
                         return;
                     }
                 }
 
-                var frm = new Comercio.NET.Formularios.ProveedoresCtaCteForm
+                // Crear Form contenedor
+                var form = new Form
                 {
-                    MdiParent = this
+                    Text = "Cuenta Corriente Proveedores",
+                    Name = "FormCtaCteProveedores",
+                    MdiParent = this,
+                    WindowState = FormWindowState.Maximized
                 };
-                frm.Show();
+
+                // Agregar el control
+                var control = new Comercio.NET.Formularios.ProveedoresCtaCteControl
+                {
+                    Dock = DockStyle.Fill
+                };
+                form.Controls.Add(control);
+                form.Show();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error abriendo Control Compras Proveedores: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error abriendo Cuenta Corriente Proveedores: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // NUEVO: Método para mover "Compra Proveedores" al menú Proveedores
+        // ✅ AGREGAR: Método para abrir Control de Compras
+        private void ControlComprasToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar si ya está abierto
+                foreach (Form f in this.MdiChildren)
+                {
+                    if (f is Comercio.NET.Formularios.ComprasProveedorControlForm)
+                    {
+                        f.Activate();
+                        return;
+                    }
+                }
+
+                // Crear y mostrar el formulario
+                var controlForm = new Comercio.NET.Formularios.ComprasProveedorControlForm
+                {
+                    MdiParent = this
+                };
+                controlForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo Control Compras Proveedores: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ AGREGAR: Método para mover "Compra Proveedores" al menú Proveedores
         private void MoverCompraProveedoresAMenuProveedores()
         {
             try
@@ -940,12 +960,16 @@ namespace Comercio.NET
                 if (itemEncontrado == null)
                 {
                     // No se encontró; puede que ya esté en Proveedores o tenga otro nombre
+                    System.Diagnostics.Debug.WriteLine("⚠️ No se encontró 'Compra Proveedores' para mover.");
                     return;
                 }
 
                 // Si ya está bajo el menú Proveedores, nada que hacer
                 if (itemEncontrado.OwnerItem == proveedoresMenuItem)
+                {
+                    System.Diagnostics.Debug.WriteLine("✅ 'Compra Proveedores' ya está bajo 'Proveedores'.");
                     return;
+                }
 
                 // Remover del padre actual
                 if (itemEncontrado.OwnerItem is ToolStripMenuItem ownerMenu)
@@ -973,7 +997,8 @@ namespace Comercio.NET
                     int indexAbm = dropItems.FindIndex(i => string.Equals(i.Name, "abmProveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase));
                     if (indexAbm >= 0)
                     {
-                        proveedoresMenuItem.DropDownItems.Insert(indexAbm + 1, itemEncontrado);
+                        // Insertar después del ABM y su separador
+                        proveedoresMenuItem.DropDownItems.Insert(indexAbm + 2, itemEncontrado);
                     }
                     else
                     {
@@ -986,7 +1011,7 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error reubicando Compra Proveedores: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error reubicando Compra Proveedores: {ex.Message}");
             }
         }
     }

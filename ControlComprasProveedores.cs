@@ -371,74 +371,69 @@ namespace Comercio.NET.Formularios
                 pnlContent.Left = contentPadding;
                 pnlContent.Top = pnlHeader.Bottom + contentPadding;
                 pnlContent.Width = this.ClientSize.Width - contentPadding * 2;
-                // Dentro del manejador this.Resize, reemplazar la asignación de Height de pnlContent:
-                pnlContent.Height = Math.Max(220, this.ClientSize.Height - pnlHeader.Height - contentPadding * 2 );
-                
+                pnlContent.Height = Math.Max(220, this.ClientSize.Height - pnlHeader.Height - contentPadding * 2);
+
                 // Colocación horizontal de controles de filtros (más robusta)
                 int startX = 12;
                 int gap = 8;
-
-                // ajustar ancho de controles según espacio disponible
-                int availableWidth = pnlContent.ClientSize.Width - 24;
-                int btnsTotalWidth = btnNuevo.Width + gap + btnImprimir.Width + gap + btnImprimirMensual.Width + gap + btnImprimirMensualProveedor.Width + gap + btnRegistrarPago.Width + gap + btnRefrescar.Width + 12; // margen derecho
-                int maxFiltersWidth = Math.Max(200, availableWidth - btnsTotalWidth - 40);
 
                 // Proveedor a la izquierda
                 lblProveedor.Left = startX;
                 lblProveedor.Top = 14;
                 cmbProveedor.Left = lblProveedor.Right + 6;
-                //cmbProveedor.Width = Math.Min(220, Math.Max(90, maxFiltersWidth / 3));
 
                 // Fecha a la derecha de Proveedor
                 lblFecha.Left = cmbProveedor.Right + gap;
                 lblFecha.Top = 14;
                 cmbRango.Left = lblFecha.Right + gap;
-                cmbRango.Width = Math.Min(220, Math.Max(140, maxFiltersWidth / 4));
+                cmbRango.Width = Math.Min(220, Math.Max(140, 180));
 
                 // DatePickers a la derecha de cmbRango
                 dtpDesde.Left = cmbRango.Right + gap;
-                dtpDesde.Width = Math.Min(120, Math.Max(90, (maxFiltersWidth / 8)));
+                dtpDesde.Width = 100;
                 dtpHasta.Left = dtpDesde.Right + gap;
-                dtpHasta.Width = dtpDesde.Width;
+                dtpHasta.Width = 100;
 
-                // colocar botones de acciones principales (excluyendo botones de impresión)
+                // Colocar botones de acciones principales alineados a la derecha
                 int rightPadding = 12;
-                btnNuevo.Left = pnlContent.ClientSize.Width - rightPadding - btnNuevo.Width;
+                int availableWidth = pnlContent.ClientSize.Width;
+
+                // Calcular posiciones de derecha a izquierda
+                btnNuevo.Left = availableWidth - rightPadding - btnNuevo.Width;
+                btnNuevo.Top = 10;
+
                 btnRefrescar.Left = btnNuevo.Left - gap - btnRefrescar.Width;
-                // nuevo: colocar btnRegistrarPago a la izquierda de btnRefrescar
+                btnRefrescar.Top = 10;
+
                 btnRegistrarPago.Left = btnRefrescar.Left - gap - btnRegistrarPago.Width;
-                // dejamos botones de impresión para posicionarlos junto a dgvIvaTotals en AjustarIvaTotalsSize
+                btnRegistrarPago.Top = 10;
 
-                // Si los filtros invaden el espacio de los botones, reducir ancho del combo proveedor
-                if (cmbProveedor.Right + 12 > btnRegistrarPago.Left)
+                // Verificar si los filtros invaden el espacio de los botones
+                int filterEndX = dtpHasta.Visible ? dtpHasta.Right : cmbRango.Right;
+                if (filterEndX + gap > btnRegistrarPago.Left)
                 {
-                    int allowed = Math.Max(80, btnRegistrarPago.Left - cmbProveedor.Left - 12);
-                    cmbProveedor.Width = allowed;
-                }
+                    // Mover botones debajo de filtros si no hay espacio horizontal
+                    btnRegistrarPago.Top = Math.Max(cmbRango.Bottom, dtpDesde.Bottom) + 8;
+                    btnRefrescar.Top = btnRegistrarPago.Top;
+                    btnNuevo.Top = btnRegistrarPago.Top;
 
-                // Asegurar que dtp y combos no queden fuera
-                if (cmbProveedor.Right + 12 > pnlContent.ClientSize.Width - btnsTotalWidth)
-                {
-                    // mover botones debajo de filtros si no hay espacio horizontal
-                    btnRefrescar.Top = dtpDesde.Bottom + 8;
-                    btnRegistrarPago.Top = btnRefrescar.Top;
-                    btnNuevo.Top = btnRefrescar.Top;
+                    // Ajustar top de la grilla para dar espacio a los botones
+                    dgv.Top = btnRefrescar.Bottom + 12;
                 }
                 else
                 {
-                    btnRefrescar.Top = 10;
-                    btnRegistrarPago.Top = 10;
-                    btnNuevo.Top = 10;
+                    // Hay espacio horizontal, mantener botones arriba
+                    dgv.Top = cmbRango.Bottom + 12;
                 }
 
                 // Ajustar altura y ancho de la grilla principal
                 dgv.Left = 12;
-                dgv.Top = cmbRango.Bottom + 12;
                 dgv.Width = pnlContent.ClientSize.Width - 24;
 
                 // lblTotales y posicionamiento de la grilla de alícuotas se calcularán dentro AjustarIvaTotalsSize
                 AjustarIvaTotalsSize();
-            };
+            }
+            ;
         }
 
         // Ajusta el tamaño de dgvIvaTotals para que calce exactamente a sus columnas y filas
