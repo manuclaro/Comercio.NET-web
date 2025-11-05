@@ -1,13 +1,14 @@
-﻿using System;
+﻿using Comercio.NET.Services;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.Extensions.Configuration;
-using Comercio.NET.Services;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Comercio.NET.Formularios
 {
@@ -459,7 +460,6 @@ namespace Comercio.NET.Formularios
                             CREATE TABLE CierreTurnoCajero (
                                 Id INT IDENTITY(1,1) PRIMARY KEY,
                                 IdTurno INT NULL,
-                                NumeroCajero INT NOT NULL,
                                 MedioPago NVARCHAR(50) NOT NULL,
                                 TotalEsperado DECIMAL(18,2) NOT NULL,
                                 TotalDeclarado DECIMAL(18,2) NULL,
@@ -494,6 +494,7 @@ namespace Comercio.NET.Formularios
 
                 using var connection = new SqlConnection(connectionString);
                 
+                // Usar NumeroCajero directamente según el esquema de tu BD
                 var query = @"
                     SELECT DISTINCT NumeroCajero, 
                            COALESCE(MIN(Nombre + ' ' + Apellido), 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
@@ -526,7 +527,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error cargando cajeros: {ex.Message}", "Error",
+                MessageBox.Show($"Error cargando cajeros: {ex.Message}\n\nStack Trace: {ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -566,15 +567,15 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // ✅ CORREGIDO: Usar nombres REALES de columnas de la tabla Facturas
-                var queryResumen = @"
+                // ========================================
+                // 1. CALCULAR INGRESOS POR VENTAS
+                // ========================================
+                var queryIngresos = @"
                     WITH TransaccionesSimples AS (
                         SELECT 
                             COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
                             f.ImporteTotal as Importe,
-                            f.Fecha,
-                            COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                            CASE WHEN f.TipoFactura LIKE 'NC%' THEN 'Egreso' ELSE 'Ingreso' END as TipoMovimiento
+                            'Ingreso' as TipoMovimiento
                         FROM Facturas f
                         INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                         WHERE u.NumeroCajero = @numeroCajero
@@ -585,60 +586,116 @@ namespace Comercio.NET.Formularios
                         SELECT 
                             dp.MedioPago,
                             dp.Importe,
-                            f.Fecha,
-                            COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                            CASE WHEN f.TipoFactura LIKE 'NC%' THEN 'Egreso' ELSE 'Ingreso' END as TipoMovimiento
+                            'Ingreso' as TipoMovimiento
                         FROM DetallesPagoFactura dp
                         INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
                         INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                         WHERE u.NumeroCajero = @numeroCajero
                         AND f.Fecha BETWEEN @fechaInicio AND @fechaFin
                         AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-                    ),
-                    TodasTransacciones AS (
-                        SELECT * FROM TransaccionesSimples
-                        UNION ALL
-                        SELECT * FROM TransaccionesMultiples
                     )
                     SELECT 
                         MedioPago,
-                        COUNT(*) as Cantidad,
-                        SUM(CASE WHEN TipoMovimiento = 'Ingreso' THEN Importe ELSE 0 END) as Ingresos,
-                        SUM(CASE WHEN TipoMovimiento = 'Egreso' THEN Importe ELSE 0 END) as Egresos,
-                        SUM(CASE WHEN TipoMovimiento = 'Ingreso' THEN Importe ELSE -Importe END) as Neto
-                    FROM TodasTransacciones
-                    GROUP BY MedioPago
-                    ORDER BY MedioPago";
+                        SUM(Importe) as TotalIngresos,
+                        COUNT(*) as CantidadIngresos
+                    FROM (
+                        SELECT * FROM TransaccionesSimples
+                        UNION ALL
+                        SELECT * FROM TransaccionesMultiples
+                    ) TodasTransacciones
+                    GROUP BY MedioPago";
 
-                using var cmdResumen = new SqlCommand(queryResumen, connection);
-                cmdResumen.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                cmdResumen.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value.Date);
-                cmdResumen.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
+                // ========================================
+                // 2. CALCULAR EGRESOS POR PAGOS A PROVEEDORES
+                // ========================================
+                var queryEgresos = @"
+                    SELECT 
+                        COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
+                        SUM(cpp.Monto) as TotalEgresos,
+                        COUNT(*) as CantidadEgresos
+                    FROM ComprasProveedoresPagos cpp
+                    INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
+                    WHERE cp.Cajero = @numeroCajero
+                    AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
+                    GROUP BY COALESCE(cpp.Metodo, 'Efectivo')";
 
-                dgvResumenPorMedio.Rows.Clear();
-                decimal totalEsperado = 0;
+                // Diccionario para consolidar ingresos y egresos por medio de pago
+                var resumenPorMedio = new Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>();
 
-                using (var reader = await cmdResumen.ExecuteReaderAsync())
+                // Cargar ingresos
+                using (var cmdIngresos = new SqlCommand(queryIngresos, connection))
                 {
+                    cmdIngresos.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmdIngresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value.Date);
+                    cmdIngresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
+
+                    using var reader = await cmdIngresos.ExecuteReaderAsync();
                     while (reader.Read())
                     {
                         string medioPago = reader.GetString(0);
-                        int cantidad = reader.GetInt32(1);
-                        decimal ingresos = reader.GetDecimal(2);
-                        decimal egresos = reader.GetDecimal(3);
-                        decimal neto = reader.GetDecimal(4);
+                        decimal ingresos = reader.GetDecimal(1);
+                        int cantidad = reader.GetInt32(2);
 
-                        dgvResumenPorMedio.Rows.Add(
-                            medioPago,
-                            cantidad,
-                            ingresos.ToString("C2"),
-                            egresos.ToString("C2"),
-                            neto.ToString("C2"),
-                            "$0.00", // Declarado (a completar)
-                            "$0.00"  // Diferencia (a calcular)
-                        );
+                        if (!resumenPorMedio.ContainsKey(medioPago))
+                            resumenPorMedio[medioPago] = (0m, 0m, 0, 0);
 
-                        totalEsperado += neto;
+                        var actual = resumenPorMedio[medioPago];
+                        resumenPorMedio[medioPago] = (ingresos, actual.Egresos, cantidad, actual.CantEgresos);
+                    }
+                }
+
+                // Cargar egresos
+                using (var cmdEgresos = new SqlCommand(queryEgresos, connection))
+                {
+                    cmdEgresos.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmdEgresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value.Date);
+                    cmdEgresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
+
+                    using var reader = await cmdEgresos.ExecuteReaderAsync();
+                    while (reader.Read())
+                    {
+                        string medioPago = reader.GetString(0);
+                        decimal egresos = reader.GetDecimal(1);
+                        int cantidad = reader.GetInt32(2);
+
+                        if (!resumenPorMedio.ContainsKey(medioPago))
+                            resumenPorMedio[medioPago] = (0m, 0m, 0, 0);
+
+                        var actual = resumenPorMedio[medioPago];
+                        resumenPorMedio[medioPago] = (actual.Ingresos, egresos, actual.CantIngresos, cantidad);
+                    }
+                }
+
+                // Llenar la grilla con el resumen consolidado
+                dgvResumenPorMedio.Rows.Clear();
+                decimal totalEsperado = 0;
+
+                foreach (var kvp in resumenPorMedio.OrderBy(x => x.Key))
+                {
+                    string medioPago = kvp.Key;
+                    decimal ingresos = kvp.Value.Ingresos;
+                    decimal egresos = kvp.Value.Egresos;
+                    int cantIngresos = kvp.Value.CantIngresos;
+                    int cantEgresos = kvp.Value.CantEgresos;
+                    int cantidadTotal = cantIngresos + cantEgresos;
+                    decimal neto = ingresos - egresos;
+
+                    dgvResumenPorMedio.Rows.Add(
+                        medioPago,
+                        cantidadTotal,
+                        ingresos.ToString("C2"),
+                        egresos.ToString("C2"),
+                        neto.ToString("C2"),
+                        "$0.00", // Declarado (a completar)
+                        "$0.00"  // Diferencia (a calcular)
+                    );
+
+                    totalEsperado += neto;
+
+                    // Colorear egresos en rojo si hay
+                    if (egresos > 0)
+                    {
+                        dgvResumenPorMedio.Rows[dgvResumenPorMedio.Rows.Count - 1].Cells["Egresos"].Style.ForeColor = Color.Red;
                     }
                 }
 
@@ -652,8 +709,19 @@ namespace Comercio.NET.Formularios
                 btnCalcular.Text = "📊 Calcular Turno";
                 btnCalcular.Enabled = true;
 
-                MessageBox.Show("✅ Cálculo completado correctamente", "Éxito",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Mensaje informativo
+                int totalTransacciones = resumenPorMedio.Sum(x => x.Value.CantIngresos + x.Value.CantEgresos);
+                int totalIngresos = resumenPorMedio.Sum(x => x.Value.CantIngresos);
+                int totalEgresos = resumenPorMedio.Sum(x => x.Value.CantEgresos);
+
+                MessageBox.Show($"✅ Cálculo completado correctamente\n\n" +
+                               $"Total transacciones: {totalTransacciones}\n" +
+                               $"• Ingresos (Ventas): {totalIngresos}\n" +
+                               $"• Egresos (Pagos a Proveedores): {totalEgresos}\n\n" +
+                               $"Saldo neto esperado: {totalEsperado:C2}", 
+                               "Éxito",
+                               MessageBoxButtons.OK, 
+                               MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -669,38 +737,54 @@ namespace Comercio.NET.Formularios
             using var connection = new SqlConnection(connectionString);
             connection.Open();
 
-            // ✅ CORREGIDO: Usar nombres REALES de columnas de la tabla Facturas
+            // Query combinada: Ventas + Pagos a Proveedores
             var queryDetalle = @"
-                WITH TransaccionesSimples AS (
+                -- Transacciones de Ventas (Ingresos)
+                WITH TransaccionesVentasSimples AS (
                     SELECT 
                         f.Fecha,
                         COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
                         COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
                         f.ImporteTotal as Importe,
-                        CASE WHEN f.TipoFactura LIKE 'NC%' THEN 'Egreso' ELSE 'Ingreso' END as Tipo
+                        'Ingreso (Venta)' as Tipo
                     FROM Facturas f
                     INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                     WHERE u.NumeroCajero = @numeroCajero
                     AND f.Fecha BETWEEN @fechaInicio AND @fechaFin
                     AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
                 ),
-                TransaccionesMultiples AS (
+                TransaccionesVentasMultiples AS (
                     SELECT 
                         f.Fecha,
                         COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
                         dp.MedioPago,
                         dp.Importe,
-                        CASE WHEN f.TipoFactura LIKE 'NC%' THEN 'Egreso' ELSE 'Ingreso' END as Tipo
+                        'Ingreso (Venta)' as Tipo
                     FROM DetallesPagoFactura dp
                     INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
                     INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                     WHERE u.NumeroCajero = @numeroCajero
                     AND f.Fecha BETWEEN @fechaInicio AND @fechaFin
                     AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+                ),
+                -- Pagos a Proveedores (Egresos)
+                TransaccionesPagosProveedores AS (
+                    SELECT 
+                        cpp.Fecha,
+                        'Pago #' + CAST(cpp.Id AS NVARCHAR) + ' - ' + cp.Proveedor as NumeroFactura,
+                        COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
+                        cpp.Monto as Importe,
+                        'Egreso (Pago Prov.)' as Tipo
+                    FROM ComprasProveedoresPagos cpp
+                    INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
+                    WHERE cp.Cajero = @numeroCajero
+                    AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
                 )
-                SELECT * FROM TransaccionesSimples
+                SELECT * FROM TransaccionesVentasSimples
                 UNION ALL
-                SELECT * FROM TransaccionesMultiples
+                SELECT * FROM TransaccionesVentasMultiples
+                UNION ALL
+                SELECT * FROM TransaccionesPagosProveedores
                 ORDER BY Fecha DESC";
 
             using var cmdDetalle = new SqlCommand(queryDetalle, connection);
@@ -729,13 +813,14 @@ namespace Comercio.NET.Formularios
 
                 // Colorear según tipo
                 int rowIndex = dgvDetalleTransacciones.Rows.Count - 1;
-                if (tipo == "Egreso")
+                if (tipo.Contains("Egreso"))
                 {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54);
+                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54); // Rojo para egresos
+                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDetalleTransacciones.Font, FontStyle.Bold);
                 }
                 else
                 {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
+                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80); // Verde para ingresos
                 }
             }
         }
@@ -822,18 +907,20 @@ namespace Comercio.NET.Formularios
             {
                 // Actualizar totales
                 decimal totalDeclarado = 0;
-                decimal totalEsperado = decimal.Parse(lblTotalEsperado.Text.Replace("$", "").Replace(",", ""));
+                decimal totalEsperado = decimal.Parse(lblTotalEsperado.Text, NumberStyles.Currency, CultureInfo.CurrentCulture);
 
                 foreach (DataGridViewRow row in dgvResumenPorMedio.Rows)
                 {
                     if (row.IsNewRow) continue;
 
                     string declaradoStr = row.Cells["Declarado"].Value?.ToString() ?? "$0.00";
-                    decimal declarado = decimal.Parse(declaradoStr.Replace("$", "").Replace(",", ""));
+                    // ✅ CORREGIDO: Usar NumberStyles.Currency
+                    decimal declarado = decimal.Parse(declaradoStr, NumberStyles.Currency, CultureInfo.CurrentCulture);
                     totalDeclarado += declarado;
 
                     string netoStr = row.Cells["Neto"].Value.ToString();
-                    decimal neto = decimal.Parse(netoStr.Replace("$", "").Replace(",", ""));
+                    // ✅ CORREGIDO: Usar NumberStyles.Currency
+                    decimal neto = decimal.Parse(netoStr, NumberStyles.Currency, CultureInfo.CurrentCulture);
                     decimal diferencia = declarado - neto;
                     
                     row.Cells["Diferencia"].Value = diferencia.ToString("C2");
@@ -905,19 +992,20 @@ namespace Comercio.NET.Formularios
 
                     string medioPago = row.Cells["MedioPago"].Value.ToString();
                     int cantidad = int.Parse(row.Cells["Cantidad"].Value.ToString());
-                    decimal esperado = decimal.Parse(row.Cells["Neto"].Value.ToString().Replace("$", "").Replace(",", ""));
-                    decimal declarado = decimal.Parse(row.Cells["Declarado"].Value.ToString().Replace("$", "").Replace(",", ""));
-                    decimal diferencia = decimal.Parse(row.Cells["Diferencia"].Value.ToString().Replace("$", "").Replace(",", ""));
+                    // ✅ CORREGIDO: Usar NumberStyles.Currency para todos los valores
+                    decimal esperado = decimal.Parse(row.Cells["Neto"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
+                    decimal declarado = decimal.Parse(row.Cells["Declarado"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
+                    decimal diferencia = decimal.Parse(row.Cells["Diferencia"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
 
                     var queryCierre = @"
                         INSERT INTO CierreTurnoCajero 
-                        (IdTurno, NumeroCajero, MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
+                        (IdTurno,  MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
                         VALUES 
-                        (@idTurno, @numeroCajero, @medioPago, @esperado, @declarado, @diferencia, @cantidad, @fechaCierre, @usuarioCierre)";
+                        (@idTurno, @medioPago, @esperado, @declarado, @diferencia, @cantidad, @fechaCierre, @usuarioCierre)";
 
                     using var cmdCierre = new SqlCommand(queryCierre, connection);
                     cmdCierre.Parameters.AddWithValue("@idTurno", idTurno);
-                    cmdCierre.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    //cmdCierre.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmdCierre.Parameters.AddWithValue("@medioPago", medioPago);
                     cmdCierre.Parameters.AddWithValue("@esperado", esperado);
                     cmdCierre.Parameters.AddWithValue("@declarado", declarado);

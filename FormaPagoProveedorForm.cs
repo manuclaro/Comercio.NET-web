@@ -68,7 +68,7 @@ namespace Comercio.NET.Formularios
 
             var lblMetodo = new Label { Text = "Medio", Left = 12, Top = dgvPagos.Bottom + 10, Width = 50 };
             cmbMetodo = new ComboBox { Left = lblMetodo.Right + 6, Top = lblMetodo.Top - 3, Width = 130, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbMetodo.Items.AddRange(new[] { "Efectivo", "DNI", "Transferencia", "MercadoPago" });
+            cmbMetodo.Items.AddRange(new[] { "Efectivo", "DNI", "MercadoPago" });
             cmbMetodo.SelectedIndex = 0;
 
             var lblMonto = new Label { Text = "Monto", Left = cmbMetodo.Right + 12, Top = lblMetodo.Top, Width = 50 };

@@ -1011,7 +1011,7 @@ namespace Comercio.NET.Formularios
                 Width = 200,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbMetodo.Items.AddRange(new object[] { "Efectivo", "Transferencia", "Cheque", "Débito", "Crédito" });
+            cmbMetodo.Items.AddRange(new object[] { "Efectivo",  "DNI", "MercadoPago" });
             cmbMetodo.SelectedIndex = 0;
 
             var lblReferencia = new Label
