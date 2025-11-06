@@ -28,21 +28,19 @@ namespace Comercio.NET.Formularios
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            this.ClientSize = new Size(600, 550);
+            this.ClientSize = new Size(550, 400);
+            this.MinimumSize = new Size(550, 400);
             this.Name = "AperturaTurnoCajeroForm";
             this.StartPosition = FormStartPosition.CenterParent;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
             this.Text = "Apertura de Turno de Cajero";
             this.ResumeLayout(false);
         }
 
         private void ConfigurarFormulario()
         {
-            this.Text = "🔓 Apertura de Turno de Cajero";
+            this.Text = "🔓 Apertura de Turno";
             this.BackColor = Color.FromArgb(245, 248, 250);
-            this.Font = new Font("Segoe UI", 10F);
+            this.Font = new Font("Segoe UI", 9F);
 
             CrearControles();
             ConfigurarEventos();
@@ -50,27 +48,27 @@ namespace Comercio.NET.Formularios
 
         private void CrearControles()
         {
-            int margin = 30;
-            int currentY = 20;
+            int margin = 15;
+            int currentY = 15;
 
-            // Título
+            // Título compacto
             var lblTitulo = new Label
             {
-                Text = "🔓 APERTURA DE TURNO DE CAJERO",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                Text = "🔓 APERTURA DE TURNO",
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(76, 175, 80),
                 Location = new Point(margin, currentY),
-                Size = new Size(540, 35),
+                Size = new Size(520, 25),
                 TextAlign = ContentAlignment.MiddleCenter
             };
             this.Controls.Add(lblTitulo);
-            currentY += 50;
+            currentY += 35;
 
-            // Panel de información
+            // Panel de información compacto
             panelInfo = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(540, 420),
+                Size = new Size(520, 335),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -80,9 +78,9 @@ namespace Comercio.NET.Formularios
             lblEstadoTurno = new Label
             {
                 Text = "Estado: Verificando...",
-                Location = new Point(20, 20),
-                Size = new Size(500, 30),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(15, 15),
+                Size = new Size(490, 28),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 152, 0),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.FromArgb(255, 243, 224),
@@ -94,16 +92,16 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Cajero:",
-                Location = new Point(20, 70),
-                Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(15, 58),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             cmbCajero = new ComboBox
             {
-                Location = new Point(130, 68),
-                Size = new Size(380, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(100, 56),
+                Size = new Size(405, 22),
+                Font = new Font("Segoe UI", 9F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             panelInfo.Controls.Add(cmbCajero);
@@ -112,17 +110,17 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Fecha/Hora:",
-                Location = new Point(20, 110),
-                Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(15, 88),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             var lblFechaHora = new Label
             {
                 Text = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"),
-                Location = new Point(130, 110),
-                Size = new Size(380, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(100, 88),
+                Size = new Size(405, 20),
+                Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(63, 81, 181)
             };
             panelInfo.Controls.Add(lblFechaHora);
@@ -136,18 +134,18 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Usuario:",
-                Location = new Point(20, 150),
-                Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(15, 118),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             string usuarioActual = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
             panelInfo.Controls.Add(new Label
             {
                 Text = usuarioActual,
-                Location = new Point(130, 150),
-                Size = new Size(380, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(100, 118),
+                Size = new Size(405, 20),
+                Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
@@ -155,27 +153,25 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Monto Inicial:",
-                Location = new Point(20, 190),
-                Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(15, 148),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             txtMontoInicial = new TextBox
             {
-                Location = new Point(130, 188),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(100, 146),
+                Size = new Size(120, 22),
+                Font = new Font("Segoe UI", 9F),
                 Text = "0.00",
                 TextAlign = HorizontalAlignment.Right
             };
             txtMontoInicial.KeyPress += (s, e) =>
             {
-                // Solo permitir números, punto decimal y backspace
                 if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && e.KeyChar != '.' && e.KeyChar != ',')
                 {
                     e.Handled = true;
                 }
-                // Solo un punto decimal
                 if ((e.KeyChar == '.' || e.KeyChar == ',') && (txtMontoInicial.Text.Contains(".") || txtMontoInicial.Text.Contains(",")))
                 {
                     e.Handled = true;
@@ -185,9 +181,9 @@ namespace Comercio.NET.Formularios
 
             panelInfo.Controls.Add(new Label
             {
-                Text = "💡 Ingrese el monto en efectivo con el que inicia el turno",
-                Location = new Point(290, 190),
-                Size = new Size(220, 40),
+                Text = "💡 Efectivo inicial del turno",
+                Location = new Point(230, 148),
+                Size = new Size(275, 20),
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.Gray
             });
@@ -196,17 +192,18 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Observaciones:",
-                Location = new Point(20, 240),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(15, 178),
+                Size = new Size(150, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             txtObservaciones = new TextBox
             {
-                Location = new Point(20, 270),
-                Size = new Size(490, 80),
-                Font = new Font("Segoe UI", 9F),
+                Location = new Point(15, 203),
+                Size = new Size(490, 85),
+                Font = new Font("Segoe UI", 8F),
                 Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
                 PlaceholderText = "Notas opcionales sobre la apertura del turno..."
             };
             panelInfo.Controls.Add(txtObservaciones);
@@ -215,12 +212,12 @@ namespace Comercio.NET.Formularios
             btnAbrirTurno = new Button
             {
                 Text = "🔓 Abrir Turno",
-                Location = new Point(20, 365),
-                Size = new Size(220, 40),
+                Location = new Point(15, 295),
+                Size = new Size(160, 32),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Enabled = false
             };
             btnAbrirTurno.FlatAppearance.BorderSize = 0;
@@ -229,12 +226,12 @@ namespace Comercio.NET.Formularios
             btnCancelar = new Button
             {
                 Text = "❌ Cancelar",
-                Location = new Point(260, 365),
-                Size = new Size(120, 40),
+                Location = new Point(185, 295),
+                Size = new Size(120, 32),
                 BackColor = Color.FromArgb(158, 158, 158),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             btnCancelar.FlatAppearance.BorderSize = 0;
             panelInfo.Controls.Add(btnCancelar);
@@ -272,7 +269,7 @@ namespace Comercio.NET.Formularios
                 connection.Open();
 
                 cmbCajero.Items.Clear();
-                cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "-- Seleccionar Cajero --" });
+                cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "-- Seleccionar --" });
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
@@ -323,7 +320,6 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // Verificar si hay un turno abierto
                 var query = @"
                     SELECT TOP 1 Id, FechaApertura, MontoInicial, Usuario
                     FROM TurnosCajero 
@@ -337,7 +333,6 @@ namespace Comercio.NET.Formularios
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (reader.Read())
                 {
-                    // Ya hay un turno abierto
                     DateTime fechaApertura = reader.GetDateTime(1);
                     decimal montoInicial = reader.GetDecimal(2);
                     string usuario = reader.GetString(3);
@@ -348,18 +343,17 @@ namespace Comercio.NET.Formularios
                     btnAbrirTurno.Enabled = false;
 
                     MessageBox.Show(
-                        $"⚠️ El cajero #{numeroCajero} ya tiene un turno abierto\n\n" +
+                        $"⚠️ Cajero #{numeroCajero} tiene turno abierto\n\n" +
                         $"Usuario: {usuario}\n" +
                         $"Apertura: {fechaApertura:dd/MM/yyyy HH:mm}\n" +
-                        $"Monto Inicial: {montoInicial:C2}\n\n" +
-                        $"Debe cerrar el turno actual antes de abrir uno nuevo.",
-                        "Turno Ya Abierto",
+                        $"Monto: {montoInicial:C2}\n\n" +
+                        $"Debe cerrar el turno actual primero.",
+                        "Turno Abierto",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                 }
                 else
                 {
-                    // No hay turno abierto, se puede abrir uno nuevo
                     lblEstadoTurno.Text = "✅ El cajero puede abrir un nuevo turno";
                     lblEstadoTurno.ForeColor = Color.FromArgb(76, 175, 80);
                     lblEstadoTurno.BackColor = Color.FromArgb(232, 245, 233);
@@ -384,10 +378,9 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
-                // Validar monto inicial
                 if (!decimal.TryParse(txtMontoInicial.Text.Replace(",", "."), out decimal montoInicial) || montoInicial < 0)
                 {
-                    MessageBox.Show("El monto inicial debe ser un número válido mayor o igual a 0", "Validación",
+                    MessageBox.Show("El monto inicial debe ser válido (≥0)", "Validación",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     txtMontoInicial.Focus();
                     return;
@@ -396,16 +389,16 @@ namespace Comercio.NET.Formularios
                 var resultado = MessageBox.Show(
                     $"¿Confirma la apertura del turno?\n\n" +
                     $"Cajero: {cmbCajero.Text}\n" +
-                    $"Monto Inicial: {montoInicial:C2}\n" +
-                    $"Fecha/Hora: {DateTime.Now:dd/MM/yyyy HH:mm:ss}",
-                    "Confirmar Apertura",
+                    $"Monto: {montoInicial:C2}\n" +
+                    $"Fecha: {DateTime.Now:dd/MM/yyyy HH:mm:ss}",
+                    "Confirmar",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
 
                 if (resultado != DialogResult.Yes) return;
 
                 btnAbrirTurno.Enabled = false;
-                btnAbrirTurno.Text = "⏳ Abriendo turno...";
+                btnAbrirTurno.Text = "⏳ Abriendo...";
 
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
                 int numeroCajero = cajeroSeleccionado.NumeroCajero;
@@ -421,7 +414,6 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // Insertar el nuevo turno
                 var query = @"
                     INSERT INTO TurnosCajero 
                     (NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, Observaciones)
@@ -443,9 +435,9 @@ namespace Comercio.NET.Formularios
 
                 MessageBox.Show(
                     $"✅ Turno abierto exitosamente\n\n" +
-                    $"ID Turno: {idTurno}\n" +
+                    $"ID: {idTurno}\n" +
                     $"Cajero: {cmbCajero.Text}\n" +
-                    $"Monto Inicial: {montoInicial:C2}",
+                    $"Monto: {montoInicial:C2}",
                     "Éxito",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -455,7 +447,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error abriendo turno: {ex.Message}\n\n{ex.StackTrace}", "Error",
+                MessageBox.Show($"Error: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 btnAbrirTurno.Text = "🔓 Abrir Turno";
                 btnAbrirTurno.Enabled = true;

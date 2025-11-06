@@ -1192,7 +1192,7 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Método para abrir el arqueo de caja
+        // ESTE MÉTODO YA ESTÁ CORRECTO EN TU MenuPrincipal.cs
         private void AbrirArqueoCaja()
         {
             try
@@ -1225,7 +1225,7 @@ namespace Comercio.NET
                         }
                     }
 
-                    // Abrir formulario
+                    // ✅ Abrir como hijo del MDI
                     var arqueoForm = new ArqueoCajaForm();
                     arqueoForm.MdiParent = this;
                     arqueoForm.Show();
@@ -1528,13 +1528,25 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Método para abrir el formulario de Apertura de Turno
+        // MODIFICAR: Método para abrir el formulario de Apertura de Turno COMO HIJO DEL MDI
         private void AbrirAperturaTurno()
         {
             try
             {
-                using var formApertura = new AperturaTurnoCajeroForm();
-                formApertura.ShowDialog();
+                // Verificar si ya está abierto
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is AperturaTurnoCajeroForm)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                // Abrir como hijo del MDI
+                var formApertura = new AperturaTurnoCajeroForm();
+                formApertura.MdiParent = this;
+                formApertura.Show();
             }
             catch (Exception ex)
             {
@@ -1543,13 +1555,25 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Método para abrir el historial de cierres
+        // MODIFICAR: Método para abrir el historial de cierres COMO HIJO DEL MDI
         private void AbrirHistorialCierres()
         {
             try
             {
-                using var formHistorial = new HistorialCierresForm();
-                formHistorial.ShowDialog();
+                // Verificar si ya está abierto
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is HistorialCierresForm)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                // Abrir como hijo del MDI
+                var formHistorial = new HistorialCierresForm();
+                formHistorial.MdiParent = this;
+                formHistorial.Show();
             }
             catch (Exception ex)
             {

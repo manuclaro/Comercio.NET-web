@@ -16,7 +16,7 @@ namespace Comercio.NET.Formularios
         private ComboBox cmbCajero;
         private DateTimePicker dtpFechaDesde, dtpFechaHasta;
         private DataGridView dgvResumenPorMedio, dgvDetalleTransacciones;
-        private Button btnCalcular, btnExportar, btnCerrar;
+        private Button btnCalcular, btnExportar;
         private Label lblTotalEsperado, lblEstadoCaja, lblTiempoTranscurrido;
         private TextBox txtNotas;
         private Panel panelInfo, panelResumen, panelDetalle;
@@ -33,8 +33,8 @@ namespace Comercio.NET.Formularios
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            this.ClientSize = new Size(1400, 850);
-            this.MinimumSize = new Size(1200, 700);
+            this.ClientSize = new Size(900, 510);
+            this.MinimumSize = new Size(900, 510);
             this.Name = "ArqueoCajaForm";
             this.StartPosition = FormStartPosition.CenterParent;
             this.Text = "Arqueo de Caja";
@@ -45,7 +45,7 @@ namespace Comercio.NET.Formularios
         {
             this.Text = "📋 Arqueo de Caja";
             this.BackColor = Color.FromArgb(245, 248, 250);
-            this.Font = new Font("Segoe UI", 10F);
+            this.Font = new Font("Segoe UI", 9F);
 
             CrearControles();
             ConfigurarEventos();
@@ -53,31 +53,27 @@ namespace Comercio.NET.Formularios
 
         private void CrearControles()
         {
-            int margin = 20;
-            int currentY = 20;
+            int margin = 15;
+            int currentY = 15;
 
-            // ========================================
-            // TÍTULO
-            // ========================================
+            // Título compacto
             var lblTitulo = new Label
             {
                 Text = "📋 ARQUEO DE CAJA",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181),
                 Location = new Point(margin, currentY),
-                Size = new Size(600, 35),
+                Size = new Size(870, 25),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             this.Controls.Add(lblTitulo);
-            currentY += 50;
+            currentY += 35;
 
-            // ========================================
-            // PANEL DE FILTROS Y ESTADO
-            // ========================================
+            // Panel de Filtros reducido
             panelInfo = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(1360, 120),
+                Size = new Size(870, 90),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -86,20 +82,20 @@ namespace Comercio.NET.Formularios
             // Título del panel
             panelInfo.Controls.Add(new Label
             {
-                Text = "🔍 SELECCIÓN Y ESTADO DEL TURNO",
-                Location = new Point(15, 10),
-                Size = new Size(300, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "🔍 SELECCIÓN Y ESTADO",
+                Location = new Point(10, 8),
+                Size = new Size(200, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
-            // Estado de caja (superior derecha)
+            // Estado de caja
             lblEstadoCaja = new Label
             {
                 Text = "⚫ Estado: Sin calcular",
-                Location = new Point(900, 10),
-                Size = new Size(440, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Location = new Point(530, 8),
+                Size = new Size(330, 20),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 ForeColor = Color.Gray,
                 TextAlign = ContentAlignment.MiddleRight
             };
@@ -109,16 +105,16 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Cajero:",
-                Location = new Point(15, 50),
-                Size = new Size(80, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(10, 35),
+                Size = new Size(60, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             cmbCajero = new ComboBox
             {
-                Location = new Point(100, 48),
-                Size = new Size(250, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(75, 33),
+                Size = new Size(160, 22),
+                Font = new Font("Segoe UI", 9F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             panelInfo.Controls.Add(cmbCajero);
@@ -127,18 +123,18 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Desde:",
-                Location = new Point(370, 50),
-                Size = new Size(60, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(250, 35),
+                Size = new Size(50, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             dtpFechaDesde = new DateTimePicker
             {
-                Location = new Point(435, 48),
-                Size = new Size(200, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(305, 33),
+                Size = new Size(130, 22),
+                Font = new Font("Segoe UI", 8F),
                 Format = DateTimePickerFormat.Custom,
-                CustomFormat = "dd/MM/yyyy HH:mm"
+                CustomFormat = "dd/MM/yy HH:mm"
             };
             panelInfo.Controls.Add(dtpFechaDesde);
 
@@ -146,31 +142,32 @@ namespace Comercio.NET.Formularios
             panelInfo.Controls.Add(new Label
             {
                 Text = "Hasta:",
-                Location = new Point(655, 50),
-                Size = new Size(60, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(450, 35),
+                Size = new Size(45, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
+            panelInfo.Controls.Add(dtpFechaHasta);
 
             dtpFechaHasta = new DateTimePicker
             {
-                Location = new Point(720, 48),
-                Size = new Size(200, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(500, 33),
+                Size = new Size(130, 22),
+                Font = new Font("Segoe UI", 8F),
                 Format = DateTimePickerFormat.Custom,
-                CustomFormat = "dd/MM/yyyy HH:mm"
+                CustomFormat = "dd/MM/yy HH:mm"
             };
             panelInfo.Controls.Add(dtpFechaHasta);
 
             // Botón Calcular
             btnCalcular = new Button
             {
-                Text = "📊 Calcular Arqueo",
-                Location = new Point(940, 45),
-                Size = new Size(180, 35),
+                Text = "📊 Calcular",
+                Location = new Point(650, 30),
+                Size = new Size(100, 28),
                 BackColor = Color.FromArgb(33, 150, 243),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             btnCalcular.FlatAppearance.BorderSize = 0;
             panelInfo.Controls.Add(btnCalcular);
@@ -178,53 +175,37 @@ namespace Comercio.NET.Formularios
             // Botón Exportar
             btnExportar = new Button
             {
-                Text = "📄 Exportar",
-                Location = new Point(1140, 45),
-                Size = new Size(130, 35),
+                Text = "📄",
+                Location = new Point(760, 30),
+                Size = new Size(100, 28),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                Enabled = false
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Enabled = false,
+                //ToolTipText = "Exportar arqueo"
             };
             btnExportar.FlatAppearance.BorderSize = 0;
             panelInfo.Controls.Add(btnExportar);
 
-            //// TEMPORAL: Botón Diagnóstico
-            //var btnDiagnostico = new Button
-            //{
-            //    Text = "🔍 Diagnóstico",
-            //    Location = new Point(1285, 45),
-            //    Size = new Size(70, 35),
-            //    BackColor = Color.FromArgb(255, 152, 0),
-            //    ForeColor = Color.White,
-            //    FlatStyle = FlatStyle.Flat,
-            //    Font = new Font("Segoe UI", 8F, FontStyle.Bold)
-            //};
-            //btnDiagnostico.FlatAppearance.BorderSize = 0;
-            //btnDiagnostico.Click += async (s, e) => await DiagnosticarProblemaVentas();
-            //panelInfo.Controls.Add(btnDiagnostico);
-
-            // Tiempo transcurrido (abajo del panel)
+            // Tiempo transcurrido
             lblTiempoTranscurrido = new Label
             {
                 Text = "⏱️ Turno: --:--",
-                Location = new Point(15, 85),
-                Size = new Size(400, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                Location = new Point(10, 65),
+                Size = new Size(850, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.Gray
             };
             panelInfo.Controls.Add(lblTiempoTranscurrido);
 
-            currentY += 140;
+            currentY += 105;
 
-            // ========================================
-            // PANEL DE RESUMEN FINANCIERO
-            // ========================================
+            // Panel de Resumen Financiero compacto
             var panelResumenFinanciero = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(1360, 80),
+                Size = new Size(870, 60),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -233,18 +214,18 @@ namespace Comercio.NET.Formularios
             // Monto Inicial
             panelResumenFinanciero.Controls.Add(new Label
             {
-                Text = "💰 Monto Inicial:",
-                Location = new Point(20, 15),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Text = "💰 Inicial:",
+                Location = new Point(15, 12),
+                Size = new Size(65, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             lblMontoInicial = new Label
             {
                 Text = "$0.00",
-                Location = new Point(20, 40),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Location = new Point(15, 32),
+                Size = new Size(100, 20),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             };
             panelResumenFinanciero.Controls.Add(lblMontoInicial);
@@ -252,18 +233,18 @@ namespace Comercio.NET.Formularios
             // Total Ingresos
             panelResumenFinanciero.Controls.Add(new Label
             {
-                Text = "📈 Total Ingresos:",
-                Location = new Point(200, 15),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Text = "📈 Ingresos:",
+                Location = new Point(135, 12),
+                Size = new Size(75, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             lblTotalIngresos = new Label
             {
                 Text = "$0.00",
-                Location = new Point(200, 40),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Location = new Point(135, 32),
+                Size = new Size(100, 20),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(76, 175, 80)
             };
             panelResumenFinanciero.Controls.Add(lblTotalIngresos);
@@ -271,18 +252,18 @@ namespace Comercio.NET.Formularios
             // Total Egresos
             panelResumenFinanciero.Controls.Add(new Label
             {
-                Text = "📉 Total Egresos:",
-                Location = new Point(380, 15),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Text = "📉 Egresos:",
+                Location = new Point(255, 12),
+                Size = new Size(70, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             lblTotalEgresos = new Label
             {
                 Text = "$0.00",
-                Location = new Point(380, 40),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Location = new Point(255, 32),
+                Size = new Size(100, 20),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(244, 67, 54)
             };
             panelResumenFinanciero.Controls.Add(lblTotalEgresos);
@@ -290,18 +271,18 @@ namespace Comercio.NET.Formularios
             // Saldo Actual
             panelResumenFinanciero.Controls.Add(new Label
             {
-                Text = "💵 Saldo Actual:",
-                Location = new Point(560, 15),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Text = "💵 Saldo:",
+                Location = new Point(375, 12),
+                Size = new Size(60, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             lblSaldoActual = new Label
             {
                 Text = "$0.00",
-                Location = new Point(560, 40),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Location = new Point(375, 32),
+                Size = new Size(110, 20),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 152, 0)
             };
             panelResumenFinanciero.Controls.Add(lblSaldoActual);
@@ -309,23 +290,21 @@ namespace Comercio.NET.Formularios
             // Nota informativa
             var lblInfo = new Label
             {
-                Text = "ℹ️ El arqueo NO cierra el turno. Es solo una verificación del estado actual de caja.",
-                Location = new Point(750, 25),
-                Size = new Size(590, 40),
+                Text = "ℹ️ El arqueo NO cierra el turno",
+                Location = new Point(520, 20),
+                Size = new Size(340, 30),
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.Gray
             };
             panelResumenFinanciero.Controls.Add(lblInfo);
 
-            currentY += 100;
+            currentY += 75;
 
-            // ========================================
-            // PANEL RESUMEN POR MEDIO DE PAGO
-            // ========================================
+            // Panel Resumen por Medio de Pago (izquierda) - MÁS REDUCIDO
             panelResumen = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(660, 450),
+                Size = new Size(420, 270), // Era 300, ahora 270
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -333,33 +312,38 @@ namespace Comercio.NET.Formularios
 
             panelResumen.Controls.Add(new Label
             {
-                Text = "💳 RESUMEN POR MEDIO DE PAGO",
-                Location = new Point(15, 15),
-                Size = new Size(630, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "💳 RESUMEN POR MEDIO",
+                Location = new Point(10, 10),
+                Size = new Size(400, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
             dgvResumenPorMedio = new DataGridView
             {
-                Location = new Point(15, 50),
-                Size = new Size(630, 350),
+                Location = new Point(10, 35),
+                Size = new Size(400, 195), // Era 225, ahora 195
                 BackgroundColor = Color.White,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                Font = new Font("Segoe UI", 9F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Font = new Font("Segoe UI", 8F),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false,
+                AllowUserToResizeRows = false
             };
 
-            dgvResumenPorMedio.Columns.Add("MedioPago", "Medio de Pago");
+            dgvResumenPorMedio.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            dgvResumenPorMedio.RowTemplate.Height = 22;
+
+            dgvResumenPorMedio.Columns.Add("MedioPago", "Medio");
             dgvResumenPorMedio.Columns.Add("Cantidad", "Cant.");
             dgvResumenPorMedio.Columns.Add("Ingresos", "Ingresos");
             dgvResumenPorMedio.Columns.Add("Egresos", "Egresos");
             dgvResumenPorMedio.Columns.Add("Neto", "Neto");
 
-            dgvResumenPorMedio.Columns["MedioPago"].FillWeight = 30;
+            dgvResumenPorMedio.Columns["MedioPago"].FillWeight = 25;
             dgvResumenPorMedio.Columns["Cantidad"].FillWeight = 15;
             dgvResumenPorMedio.Columns["Ingresos"].FillWeight = 20;
             dgvResumenPorMedio.Columns["Egresos"].FillWeight = 20;
@@ -371,30 +355,28 @@ namespace Comercio.NET.Formularios
             panelResumen.Controls.Add(new Label
             {
                 Text = "TOTAL NETO:",
-                Location = new Point(15, 410),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(10, 237), // Ajustado: era 267, ahora 237
+                Size = new Size(100, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 150, 243)
             });
 
             lblTotalEsperado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(480, 410),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Location = new Point(280, 235), // Ajustado: era 265, ahora 235
+                Size = new Size(130, 25),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 150, 243),
                 TextAlign = ContentAlignment.MiddleRight
             };
             panelResumen.Controls.Add(lblTotalEsperado);
 
-            // ========================================
-            // PANEL DETALLE DE TRANSACCIONES
-            // ========================================
+            // Panel Detalle (derecha) - MÁS REDUCIDO
             panelDetalle = new Panel
             {
-                Location = new Point(margin + 680, currentY),
-                Size = new Size(680, 450),
+                Location = new Point(margin + 435, currentY),
+                Size = new Size(440, 270), // Era 300, ahora 270
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -403,79 +385,71 @@ namespace Comercio.NET.Formularios
             panelDetalle.Controls.Add(new Label
             {
                 Text = "📝 DETALLE DE TRANSACCIONES",
-                Location = new Point(15, 15),
-                Size = new Size(650, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(10, 10),
+                Size = new Size(420, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
             dgvDetalleTransacciones = new DataGridView
             {
-                Location = new Point(15, 50),
-                Size = new Size(650, 300),
+                Location = new Point(10, 35),
+                Size = new Size(420, 170), // Era 195, ahora 170
                 BackgroundColor = Color.White,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                Font = new Font("Segoe UI", 9F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Font = new Font("Segoe UI", 8F),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false,
+                AllowUserToResizeRows = false
             };
 
+            dgvDetalleTransacciones.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            dgvDetalleTransacciones.RowTemplate.Height = 20;
+
             dgvDetalleTransacciones.Columns.Add("Fecha", "Fecha/Hora");
-            dgvDetalleTransacciones.Columns.Add("NumeroFactura", "Nº Factura");
-            dgvDetalleTransacciones.Columns.Add("MedioPago", "Medio Pago");
+            dgvDetalleTransacciones.Columns.Add("NumeroFactura", "Nº Fact.");
+            dgvDetalleTransacciones.Columns.Add("MedioPago", "Medio");
             dgvDetalleTransacciones.Columns.Add("Importe", "Importe");
             dgvDetalleTransacciones.Columns.Add("Tipo", "Tipo");
 
-            dgvDetalleTransacciones.Columns["Fecha"].FillWeight = 25;
-            dgvDetalleTransacciones.Columns["NumeroFactura"].FillWeight = 20;
-            dgvDetalleTransacciones.Columns["MedioPago"].FillWeight = 20;
-            dgvDetalleTransacciones.Columns["Importe"].FillWeight = 20;
-            dgvDetalleTransacciones.Columns["Tipo"].FillWeight = 15;
+            dgvDetalleTransacciones.Columns["Fecha"].FillWeight = 23;
+            dgvDetalleTransacciones.Columns["NumeroFactura"].FillWeight = 18;
+            dgvDetalleTransacciones.Columns["MedioPago"].FillWeight = 18;
+            dgvDetalleTransacciones.Columns["Importe"].FillWeight = 18;
+            dgvDetalleTransacciones.Columns["Tipo"].FillWeight = 23;
 
             panelDetalle.Controls.Add(dgvDetalleTransacciones);
 
             // Notas
             panelDetalle.Controls.Add(new Label
             {
-                Text = "📝 Notas del Arqueo:",
-                Location = new Point(15, 360),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Text = "📝 Notas:",
+                Location = new Point(10, 213), // Ajustado: era 238, ahora 213
+                Size = new Size(80, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             txtNotas = new TextBox
             {
-                Location = new Point(15, 390),
-                Size = new Size(650, 50),
+                Location = new Point(10, 233), // Ajustado: era 258, ahora 233
+                Size = new Size(420, 30), // Era 35, ahora 30
                 Multiline = true,
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "Anotaciones sobre el arqueo (opcional)..."
+                Font = new Font("Segoe UI", 8F),
+                ScrollBars = ScrollBars.Vertical,
+                PlaceholderText = "Anotaciones opcionales..."
             };
             panelDetalle.Controls.Add(txtNotas);
 
-            // Botón Cerrar (abajo a la derecha)
-            currentY += 470;
-            btnCerrar = new Button
-            {
-                Text = "❌ Cerrar",
-                Location = new Point(1240, currentY),
-                Size = new Size(140, 40),
-                BackColor = Color.FromArgb(158, 158, 158),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold)
-            };
-            btnCerrar.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnCerrar);
+            // Botón Cerrar (abajo a la derecha) - eliminado, se cierra desde el MDI
         }
 
         private void ConfigurarEventos()
         {
             btnCalcular.Click += async (s, e) => await CalcularArqueo();
             btnExportar.Click += (s, e) => ExportarArqueo();
-            btnCerrar.Click += (s, e) => this.Close();
             cmbCajero.SelectedIndexChanged += (s, e) => ActualizarFechasPorDefecto();
         }
 
@@ -727,8 +701,6 @@ namespace Comercio.NET.Formularios
             return result != null ? Convert.ToDecimal(result) : 0m;
         }
 
-        // ✅ REEMPLAZA el método CalcularResumenPorMedioPago COMPLETO (sin errores):
-
         private async Task<System.Collections.Generic.Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>>
     CalcularResumenPorMedioPago(SqlConnection connection, int numeroCajero)
         {
@@ -830,7 +802,6 @@ namespace Comercio.NET.Formularios
 
             return resumen;
         }
-        // ✅ AGREGA este método al final de la clase, antes del cierre de la clase:
 
         private async Task CargarDetalleTransacciones(string connectionString, int numeroCajero)
         {
@@ -922,8 +893,6 @@ namespace Comercio.NET.Formularios
                 }
             }
         }
-
-        // ✅ AGREGA también el método ExportarArqueo que está comentado:
 
         private void ExportarArqueo()
         {

@@ -25,6 +25,9 @@ namespace Comercio.NET.Formularios
         private bool turnoAbierto = false;
         private int turnoActualId = 0;
 
+        // ✅ Agregar un campo para almacenar el monto inicial
+        private decimal montoInicialTurno = 0m;
+
         public CierreTurnoCajeroForm()
         {
             InitializeComponent();
@@ -38,8 +41,8 @@ namespace Comercio.NET.Formularios
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new Size(1200, 750);
-            this.MinimumSize = new Size(1000, 600);
+            this.ClientSize = new Size(900, 510);
+            this.MinimumSize = new Size(900, 510);
             this.Name = "CierreTurnoCajeroForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Cierre de Turno de Cajero";
@@ -48,9 +51,9 @@ namespace Comercio.NET.Formularios
 
         private void ConfigurarFormulario()
         {
-            this.Text = "💰 Cierre de Turno de Cajero";
+            this.Text = "💰 Cierre de Turno";
             this.BackColor = Color.FromArgb(245, 248, 250);
-            this.Font = new Font("Segoe UI", 10F);
+            this.Font = new Font("Segoe UI", 9F);
 
             CrearControles();
             ConfigurarEventos();
@@ -58,27 +61,27 @@ namespace Comercio.NET.Formularios
 
         private void CrearControles()
         {
-            int margin = 20;
-            int currentY = 20;
+            int margin = 15;
+            int currentY = 15;
 
-            // Título
+            // Título compacto
             var lblTitulo = new Label
             {
-                Text = "💰 CIERRE DE TURNO DE CAJERO",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                Text = "💰 CIERRE DE TURNO",
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181),
                 Location = new Point(margin, currentY),
-                Size = new Size(500, 35),
+                Size = new Size(400, 25),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             this.Controls.Add(lblTitulo);
-            currentY += 50;
+            currentY += 35;
 
-            // Panel de Filtros
+            // Panel de Filtros - Más ancho para acomodar DateTimePicker con hora
             var panelFiltros = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(1160, 80),
+                Size = new Size(870, 65), // Mantener altura
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -88,16 +91,16 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Cajero:",
-                Location = new Point(15, 20),
-                Size = new Size(80, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(10, 15),
+                Size = new Size(55, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             cmbCajero = new ComboBox
             {
-                Location = new Point(100, 18),
-                Size = new Size(180, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(70, 12),
+                Size = new Size(160, 22),
+                Font = new Font("Segoe UI", 9F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             panelFiltros.Controls.Add(cmbCajero);
@@ -106,50 +109,54 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Desde:",
-                Location = new Point(300, 20),
-                Size = new Size(60, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(245, 15),
+                Size = new Size(50, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
+            // En CrearControles(), cambia:
             dtpFechaInicio = new DateTimePicker
             {
-                Location = new Point(365, 18),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F),
-                Format = DateTimePickerFormat.Short
+                Location = new Point(300, 12),
+                Size = new Size(140, 22),
+                Font = new Font("Segoe UI", 8.5F),
+                Format = DateTimePickerFormat.Custom,
+                CustomFormat = "dd/MM/yyyy HH:mm"
             };
-            dtpFechaInicio.Value = DateTime.Today;
+            // ✅ CAMBIO: Inicializar con hora actual en lugar de 00:00
+            dtpFechaInicio.Value = DateTime.Now.AddHours(-1); // Por defecto, última hora
             panelFiltros.Controls.Add(dtpFechaInicio);
 
-            // Fecha Fin
+            // Fecha Fin - Mover más a la derecha
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Hasta:",
-                Location = new Point(530, 20),
-                Size = new Size(60, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(450, 15), // Era 415, ahora 450
+                Size = new Size(45, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
             dtpFechaFin = new DateTimePicker
             {
-                Location = new Point(595, 18),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F),
-                Format = DateTimePickerFormat.Short
+                Location = new Point(500, 12), // Era 465, ahora 500
+                Size = new Size(140, 22),
+                Font = new Font("Segoe UI", 8.5F),
+                Format = DateTimePickerFormat.Custom,
+                CustomFormat = "dd/MM/yyyy HH:mm"
             };
-            dtpFechaFin.Value = DateTime.Today.AddHours(23).AddMinutes(59);
+            dtpFechaFin.Value = DateTime.Now;
             panelFiltros.Controls.Add(dtpFechaFin);
 
             // Botón Calcular
             btnCalcular = new Button
             {
-                Text = "📊 Calcular Turno",
-                Location = new Point(770, 15),
-                Size = new Size(150, 35),
+                Text = "📊 Calcular",
+                Location = new Point(650, 10), // X=650
+                Size = new Size(85, 28),
                 BackColor = Color.FromArgb(33, 150, 243),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             btnCalcular.FlatAppearance.BorderSize = 0;
             panelFiltros.Controls.Add(btnCalcular);
@@ -157,165 +164,99 @@ namespace Comercio.NET.Formularios
             // Botón Imprimir
             btnImprimir = new Button
             {
-                Text = "🖨️ Imprimir",
-                Location = new Point(940, 15),
-                Size = new Size(120, 35),
+                Text = "🖨️",
+                Location = new Point(750, 10), // X=685 ❌ ¡Muy cerca!
+                Size = new Size(75, 28),
                 BackColor = Color.FromArgb(158, 158, 158),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Enabled = false
             };
             btnImprimir.FlatAppearance.BorderSize = 0;
             panelFiltros.Controls.Add(btnImprimir);
 
-            currentY += 100;
-
-            // Panel Resumen (Izquierda)
-            panelResumen = new Panel
+            // Totales en el mismo panel
+            panelFiltros.Controls.Add(new Label
             {
-                Location = new Point(margin, currentY),
-                Size = new Size(560, 500),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            this.Controls.Add(panelResumen);
-
-            // Título Resumen
-            panelResumen.Controls.Add(new Label
-            {
-                Text = "📊 RESUMEN POR MEDIO DE PAGO",
-                Location = new Point(15, 15),
-                Size = new Size(530, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(63, 81, 181)
-            });
-
-            // DataGridView Resumen
-            dgvResumenPorMedio = new DataGridView
-            {
-                Location = new Point(15, 50),
-                Size = new Size(530, 300),
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.Fixed3D,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                ReadOnly = true,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                Font = new Font("Segoe UI", 9F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-            };
-
-            // Configurar columnas del resumen
-            dgvResumenPorMedio.Columns.Add("MedioPago", "Medio de Pago");
-            dgvResumenPorMedio.Columns.Add("Cantidad", "Cant.");
-            dgvResumenPorMedio.Columns.Add("Ingresos", "Ingresos");
-            dgvResumenPorMedio.Columns.Add("Egresos", "Egresos");
-            dgvResumenPorMedio.Columns.Add("Neto", "Total Neto");
-            dgvResumenPorMedio.Columns.Add("Declarado", "Declarado");
-            dgvResumenPorMedio.Columns.Add("Diferencia", "Diferencia");
-
-            // Configurar anchos
-            dgvResumenPorMedio.Columns["MedioPago"].FillWeight = 25;
-            dgvResumenPorMedio.Columns["Cantidad"].FillWeight = 10;
-            dgvResumenPorMedio.Columns["Ingresos"].FillWeight = 15;
-            dgvResumenPorMedio.Columns["Egresos"].FillWeight = 15;
-            dgvResumenPorMedio.Columns["Neto"].FillWeight = 15;
-            dgvResumenPorMedio.Columns["Declarado"].FillWeight = 15;
-            dgvResumenPorMedio.Columns["Diferencia"].FillWeight = 15;
-
-            panelResumen.Controls.Add(dgvResumenPorMedio);
-
-            // Totales
-            int totalY = 360;
-            panelResumen.Controls.Add(new Label
-            {
-                Text = "TOTAL ESPERADO:",
-                Location = new Point(15, totalY),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 150, 243)
+                Text = "Esperado:",
+                Location = new Point(10, 42),
+                Size = new Size(60, 18),
+                Font = new Font("Segoe UI", 8F)
             });
 
             lblTotalEsperado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(170, totalY),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 150, 243),
-                TextAlign = ContentAlignment.MiddleRight
+                Location = new Point(70, 40),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(33, 150, 243)
             };
-            panelResumen.Controls.Add(lblTotalEsperado);
+            panelFiltros.Controls.Add(lblTotalEsperado);
 
-            totalY += 35;
-            panelResumen.Controls.Add(new Label
+            panelFiltros.Controls.Add(new Label
             {
-                Text = "TOTAL DECLARADO:",
-                Location = new Point(15, totalY),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 152, 0)
+                Text = "Declarado:",
+                Location = new Point(170, 42),
+                Size = new Size(65, 18),
+                Font = new Font("Segoe UI", 8F)
             });
 
             lblTotalDeclarado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(170, totalY),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 152, 0),
-                TextAlign = ContentAlignment.MiddleRight
+                Location = new Point(235, 40),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 152, 0)
             };
-            panelResumen.Controls.Add(lblTotalDeclarado);
+            panelFiltros.Controls.Add(lblTotalDeclarado);
 
-            totalY += 35;
-            panelResumen.Controls.Add(new Label
+            panelFiltros.Controls.Add(new Label
             {
-                Text = "DIFERENCIA:",
-                Location = new Point(15, totalY),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(244, 67, 54)
+                Text = "Diferencia:",
+                Location = new Point(335, 42),
+                Size = new Size(65, 18),
+                Font = new Font("Segoe UI", 8F)
             });
 
             lblDiferencia = new Label
             {
                 Text = "$0.00",
-                Location = new Point(170, totalY),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(244, 67, 54),
-                TextAlign = ContentAlignment.MiddleRight
+                Location = new Point(405, 40),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(244, 67, 54)
             };
-            panelResumen.Controls.Add(lblDiferencia);
+            panelFiltros.Controls.Add(lblDiferencia);
 
-            // Panel Declaración y Detalle (Derecha)
-            panelDeclaracion = new Panel
+            currentY += 80;
+
+            // ✅ Panel Resumen MÁS COMPACTO (reducido de 320 a 200)
+            panelResumen = new Panel
             {
-                Location = new Point(margin + 580, currentY),
-                Size = new Size(580, 500),
+                Location = new Point(margin, currentY),
+                Size = new Size(870, 200),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
-            this.Controls.Add(panelDeclaracion);
+            this.Controls.Add(panelResumen);
 
-            // Título Detalle
-            panelDeclaracion.Controls.Add(new Label
+            panelResumen.Controls.Add(new Label
             {
-                Text = "📋 DETALLE DE TRANSACCIONES",
-                Location = new Point(15, 15),
-                Size = new Size(550, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "📊 RESUMEN POR MEDIO DE PAGO",
+                Location = new Point(10, 8),
+                Size = new Size(400, 20),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
-            // DataGridView Detalle
-            dgvDetalleTransacciones = new DataGridView
+            // ✅ DataGridView Resumen REDUCIDO (de 240 a 120 de altura)
+            dgvResumenPorMedio = new DataGridView
             {
-                Location = new Point(15, 50),
-                Size = new Size(550, 300),
+                Location = new Point(10, 35),
+                Size = new Size(850, 120),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.Fixed3D,
                 AllowUserToAddRows = false,
@@ -323,72 +264,137 @@ namespace Comercio.NET.Formularios
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                Font = new Font("Segoe UI", 9F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Font = new Font("Segoe UI", 8F),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false,
+                AllowUserToResizeRows = false,
+                ScrollBars = ScrollBars.Vertical
             };
 
-            // Configurar columnas del detalle
-            dgvDetalleTransacciones.Columns.Add("Fecha", "Fecha/Hora");
-            dgvDetalleTransacciones.Columns.Add("NumeroFactura", "Factura");
-            dgvDetalleTransacciones.Columns.Add("MedioPago", "Medio Pago");
-            dgvDetalleTransacciones.Columns.Add("Importe", "Importe");
-            dgvDetalleTransacciones.Columns.Add("Tipo", "Tipo");
+            dgvResumenPorMedio.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            dgvResumenPorMedio.RowTemplate.Height = 22;
 
-            dgvDetalleTransacciones.Columns["Fecha"].FillWeight = 25;
-            dgvDetalleTransacciones.Columns["NumeroFactura"].FillWeight = 20;
-            dgvDetalleTransacciones.Columns["MedioPago"].FillWeight = 20;
-            dgvDetalleTransacciones.Columns["Importe"].FillWeight = 20;
-            dgvDetalleTransacciones.Columns["Tipo"].FillWeight = 15;
+            dgvResumenPorMedio.Columns.Add("MedioPago", "Medio");
+            dgvResumenPorMedio.Columns.Add("Cantidad", "Cant.");
+            dgvResumenPorMedio.Columns.Add("Ingresos", "Ingresos");
+            dgvResumenPorMedio.Columns.Add("Egresos", "Egresos");
+            dgvResumenPorMedio.Columns.Add("Neto", "Neto");
+            dgvResumenPorMedio.Columns.Add("Declarado", "Declarado");
+            dgvResumenPorMedio.Columns.Add("Diferencia", "Dif.");
 
-            panelDeclaracion.Controls.Add(dgvDetalleTransacciones);
+            dgvResumenPorMedio.Columns["MedioPago"].FillWeight = 20;
+            dgvResumenPorMedio.Columns["Cantidad"].FillWeight = 10;
+            dgvResumenPorMedio.Columns["Ingresos"].FillWeight = 15;
+            dgvResumenPorMedio.Columns["Egresos"].FillWeight = 15;
+            dgvResumenPorMedio.Columns["Neto"].FillWeight = 15;
+            dgvResumenPorMedio.Columns["Declarado"].FillWeight = 15;
+            dgvResumenPorMedio.Columns["Diferencia"].FillWeight = 10;
 
-            // Observaciones
-            panelDeclaracion.Controls.Add(new Label
-            {
-                Text = "Observaciones:",
-                Location = new Point(15, 360),
-                Size = new Size(120, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-            });
+            panelResumen.Controls.Add(dgvResumenPorMedio);
 
-            txtObservaciones = new TextBox
-            {
-                Location = new Point(15, 390),
-                Size = new Size(550, 60),
-                Font = new Font("Segoe UI", 9F),
-                Multiline = true,
-                PlaceholderText = "Notas sobre el cierre de turno..."
-            };
-            panelDeclaracion.Controls.Add(txtObservaciones);
-
-            // Botones de Acción
+            // ✅ Botones reposicionados (de Y=282 a Y=162)
             btnDeclarar = new Button
             {
-                Text = "💵 Declarar Montos",
-                Location = new Point(15, 460),
-                Size = new Size(160, 35),
+                Text = "💵 Declarar",
+                Location = new Point(10, 162),
+                Size = new Size(110, 30),
                 BackColor = Color.FromArgb(255, 152, 0),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Enabled = false
             };
             btnDeclarar.FlatAppearance.BorderSize = 0;
-            panelDeclaracion.Controls.Add(btnDeclarar);
+            panelResumen.Controls.Add(btnDeclarar);
 
             btnCerrarTurno = new Button
             {
                 Text = "✅ Cerrar Turno",
-                Location = new Point(195, 460),
-                Size = new Size(160, 35),
+                Location = new Point(130, 162),
+                Size = new Size(120, 30),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Enabled = false
             };
             btnCerrarTurno.FlatAppearance.BorderSize = 0;
-            panelDeclaracion.Controls.Add(btnCerrarTurno);
+            panelResumen.Controls.Add(btnCerrarTurno);
+
+            /// Observaciones reposicionadas (de Y=285 a Y=165)
+            panelResumen.Controls.Add(new Label
+            {
+                Text = "Observaciones:",
+                Location = new Point(340, 165),
+                Size = new Size(90, 20),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
+            });
+
+            txtObservaciones = new TextBox
+            {
+                Location = new Point(435, 163),
+                Size = new Size(425, 28),
+                Font = new Font("Segoe UI", 8F),
+                PlaceholderText = "Notas del cierre..."
+            };
+            panelResumen.Controls.Add(txtObservaciones);
+
+            // ✅ Panel Detalle reposicionado (reducido de currentY+335 a currentY+215)
+            currentY += 215;
+
+            // ✅ Panel Detalle AMPLIADO (de 165 a 285 de altura)
+            panelDeclaracion = new Panel
+            {
+                Location = new Point(margin, currentY),
+                Size = new Size(870, 160),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            this.Controls.Add(panelDeclaracion);
+
+            panelDeclaracion.Controls.Add(new Label
+            {
+                Text = "📋 DETALLE DE TRANSACCIONES",
+                Location = new Point(10, 8),
+                Size = new Size(400, 20),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181)
+            });
+
+            // ✅ DataGridView Detalle AMPLIADO (de 120 a 240 de altura)
+            dgvDetalleTransacciones = new DataGridView
+            {
+                Location = new Point(10, 35),
+                Size = new Size(850, 120),
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.Fixed3D,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                ReadOnly = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                Font = new Font("Segoe UI", 8F),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false,
+                AllowUserToResizeRows = false
+            };
+
+            dgvDetalleTransacciones.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            dgvDetalleTransacciones.RowTemplate.Height = 20;
+
+            dgvDetalleTransacciones.Columns.Add("Fecha", "Fecha/Hora");
+            dgvDetalleTransacciones.Columns.Add("NumeroFactura", "Factura");
+            dgvDetalleTransacciones.Columns.Add("MedioPago", "Medio");
+            dgvDetalleTransacciones.Columns.Add("Importe", "Importe");
+            dgvDetalleTransacciones.Columns.Add("Tipo", "Tipo");
+
+            dgvDetalleTransacciones.Columns["Fecha"].FillWeight = 22;
+            dgvDetalleTransacciones.Columns["NumeroFactura"].FillWeight = 18;
+            dgvDetalleTransacciones.Columns["MedioPago"].FillWeight = 18;
+            dgvDetalleTransacciones.Columns["Importe"].FillWeight = 18;
+            dgvDetalleTransacciones.Columns["Tipo"].FillWeight = 24;
+
+            panelDeclaracion.Controls.Add(dgvDetalleTransacciones);
         }
 
         private void ConfigurarEventos()
@@ -397,8 +403,71 @@ namespace Comercio.NET.Formularios
             btnDeclarar.Click += (s, e) => DeclarMontos();
             btnCerrarTurno.Click += async (s, e) => await CerrarTurno();
             btnImprimir.Click += (s, e) => ImprimirCierre();
-            
-            cmbCajero.SelectedIndexChanged += (s, e) => LimpiarFormulario();
+
+            // ✅ CAMBIO: Cargar fechas del turno cuando se selecciona cajero
+            cmbCajero.SelectedIndexChanged += async (s, e) =>
+            {
+                LimpiarFormulario();
+                await CargarFechasTurnoAbierto();
+            };
+        }
+
+        private async Task CargarFechasTurnoAbierto()
+        {
+            try
+            {
+                if (cmbCajero.SelectedIndex <= 0)
+                {
+                    dtpFechaInicio.Value = DateTime.Today;
+                    dtpFechaFin.Value = DateTime.Now;
+                    return;
+                }
+
+                dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
+                int numeroCajero = cajeroSeleccionado.NumeroCajero;
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                var query = @"
+            SELECT TOP 1 FechaApertura
+            FROM TurnosCajero 
+            WHERE NumeroCajero = @numeroCajero 
+            AND Estado = 'Abierto'
+            ORDER BY FechaApertura DESC";
+
+                using var cmd = new SqlCommand(query, connection);
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+
+                var resultado = await cmd.ExecuteScalarAsync();
+
+                if (resultado != null)
+                {
+                    DateTime fechaApertura = (DateTime)resultado;
+
+                    dtpFechaInicio.Value = fechaApertura;
+
+                    // ✅ CAMBIO: Agregar 1 minuto extra para asegurar inclusión de transacciones recientes
+                    dtpFechaFin.Value = DateTime.Now.AddMinutes(1);
+                }
+                else
+                {
+                    dtpFechaInicio.Value = DateTime.Today;
+                    dtpFechaFin.Value = DateTime.Now.AddMinutes(1);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error cargando fechas del turno: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private async Task VerificarYCrearTablas()
@@ -494,7 +563,6 @@ namespace Comercio.NET.Formularios
 
                 using var connection = new SqlConnection(connectionString);
                 
-                // Usar NumeroCajero directamente según el esquema de tu BD
                 var query = @"
                     SELECT DISTINCT NumeroCajero, 
                            COALESCE(MIN(Nombre + ' ' + Apellido), 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
@@ -507,7 +575,7 @@ namespace Comercio.NET.Formularios
                 connection.Open();
 
                 cmbCajero.Items.Clear();
-                cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "-- Seleccionar Cajero --" });
+                cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "-- Seleccionar --" });
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
@@ -527,7 +595,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error cargando cajeros: {ex.Message}\n\nStack Trace: {ex.StackTrace}", "Error",
+                MessageBox.Show($"Error cargando cajeros: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -546,7 +614,6 @@ namespace Comercio.NET.Formularios
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
                 int numeroCajero = cajeroSeleccionado.NumeroCajero;
 
-                // Validar fechas
                 if (dtpFechaFin.Value < dtpFechaInicio.Value)
                 {
                     MessageBox.Show("La fecha final debe ser mayor a la fecha inicial", "Validación",
@@ -554,74 +621,44 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
-                // ✅ NUEVO: Verificar si hay un turno abierto
                 int? turnoAbiertoId = await ObtenerTurnoAbiertoId(numeroCajero);
                 
                 if (turnoAbiertoId == null)
                 {
                     var resultado = MessageBox.Show(
-                        "⚠️ No hay un turno abierto para este cajero.\n\n" +
-                        "Para realizar un cierre, primero debe abrir un turno.\n\n" +
-                        "¿Desea abrir un turno ahora?",
-                        "Sin Turno Abierto",
+                        "⚠️ No hay turno abierto.\n\n¿Desea abrir un turno ahora?",
+                        "Sin Turno",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Warning);
 
                     if (resultado == DialogResult.Yes)
                     {
                         using var formApertura = new AperturaTurnoCajeroForm();
-                        if (formApertura.ShowDialog() == DialogResult.OK)
-                        {
-                            MessageBox.Show(
-                                "✅ Turno abierto correctamente.\n\n" +
-                                "Ahora puede calcular y cerrar el turno.",
-                                "Información",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-                        }
+                        formApertura.ShowDialog();
                     }
                     return;
                 }
 
-                // Guardar el ID del turno abierto para usarlo al cerrar
                 turnoActualId = turnoAbiertoId.Value;
 
-                // ✅ Verificar si el turno ya fue cerrado
-                bool turnoCerrado = await VerificarTurnoCerrado(numeroCajero, dtpFechaInicio.Value.Date, dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
-                
-                if (turnoCerrado)
-                {
-                    var resultado = MessageBox.Show(
-                        "⚠️ Ya existe un cierre de turno para este cajero en el período seleccionado.\n\n" +
-                        "¿Desea ver el historial de cierres?",
-                        "Turno Ya Cerrado",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning);
-
-                    if (resultado == DialogResult.Yes)
-                    {
-                        // Abrir el historial de cierres (implementar más adelante)
-                        MostrarHistorialCierres(numeroCajero);
-                    }
-                    return;
-                }
-
-                btnCalcular.Enabled = false;
-                btnCalcular.Text = "⏳ Calculando...";
-
                 var config = new ConfigurationBuilder()
-                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json")
-                    .Build();
+                   .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                   .AddJsonFile("appsettings.json")
+                   .Build();
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // ========================================
-                // 1. CALCULAR INGRESOS POR VENTAS
-                // ========================================
+                //MessageBox.Show(
+                //    $"Rango de búsqueda:\n" +
+                //    $"Desde: {dtpFechaInicio.Value:dd/MM/yyyy HH:mm:ss}\n" +
+                //    $"Hasta: {dtpFechaFin.Value:dd/MM/yyyy HH:mm:ss}",
+                //    "Debug - Fechas",
+                //    MessageBoxButtons.OK,
+                //    MessageBoxIcon.Information);
+
                 var queryIngresos = @"
                     WITH TransaccionesSimples AS (
                         SELECT 
@@ -631,7 +668,8 @@ namespace Comercio.NET.Formularios
                         FROM Facturas f
                         INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                         WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Fecha BETWEEN @fechaInicio AND @fechaFin
+                        AND f.Hora >= @fechaInicio   -- ✅ CAMBIO: f.Hora en lugar de f.Fecha
+                        AND f.Hora <= @fechaFin      -- ✅ CAMBIO: f.Hora en lugar de f.Fecha
                         AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
                     ),
                     TransaccionesMultiples AS (
@@ -643,7 +681,8 @@ namespace Comercio.NET.Formularios
                         INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
                         INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                         WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Fecha BETWEEN @fechaInicio AND @fechaFin
+                        AND f.Hora >= @fechaInicio   -- ✅ CAMBIO: f.Hora
+                        AND f.Hora <= @fechaFin      -- ✅ CAMBIO: f.Hora
                         AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
                     )
                     SELECT 
@@ -657,9 +696,6 @@ namespace Comercio.NET.Formularios
                     ) TodasTransacciones
                     GROUP BY MedioPago";
 
-                // ========================================
-                // 2. CALCULAR EGRESOS POR PAGOS A PROVEEDORES
-                // ========================================
                 var queryEgresos = @"
                     SELECT 
                         COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
@@ -671,15 +707,35 @@ namespace Comercio.NET.Formularios
                     AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
                     GROUP BY COALESCE(cpp.Metodo, 'Efectivo')";
 
-                // Diccionario para consolidar ingresos y egresos por medio de pago
+
+                // ✅ NUEVO: Obtener el monto inicial del turno
+                montoInicialTurno = await ObtenerMontoInicialTurno(connectionString, numeroCajero);
+
+                bool turnoCerrado = await VerificarTurnoCerrado(
+                    numeroCajero, 
+                    dtpFechaInicio.Value,
+                    dtpFechaFin.Value
+                );
+                
+                if (turnoCerrado)
+                {
+                    return;
+                }
+
+                btnCalcular.Enabled = false;
+                btnCalcular.Text = "⏳...";
+
+               
+
+                
+
                 var resumenPorMedio = new Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>();
 
-                // Cargar ingresos
                 using (var cmdIngresos = new SqlCommand(queryIngresos, connection))
                 {
                     cmdIngresos.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                    cmdIngresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value.Date);
-                    cmdIngresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
+                    cmdIngresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value); // ✅ Con hora
+                    cmdIngresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);       // ✅ Con hora
 
                     using var reader = await cmdIngresos.ExecuteReaderAsync();
                     while (reader.Read())
@@ -696,12 +752,11 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // Cargar egresos
                 using (var cmdEgresos = new SqlCommand(queryEgresos, connection))
                 {
                     cmdEgresos.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                    cmdEgresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value.Date);
-                    cmdEgresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
+                    cmdEgresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+                    cmdEgresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
 
                     using var reader = await cmdEgresos.ExecuteReaderAsync();
                     while (reader.Read())
@@ -718,7 +773,6 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // Llenar la grilla con el resumen consolidado
                 dgvResumenPorMedio.Rows.Clear();
                 decimal totalEsperado = 0;
 
@@ -727,60 +781,99 @@ namespace Comercio.NET.Formularios
                     string medioPago = kvp.Key;
                     decimal ingresos = kvp.Value.Ingresos;
                     decimal egresos = kvp.Value.Egresos;
-                    int cantIngresos = kvp.Value.CantIngresos;
-                    int cantEgresos = kvp.Value.CantEgresos;
-                    int cantidadTotal = cantIngresos + cantEgresos;
+                    int cantTotal = kvp.Value.CantIngresos + kvp.Value.CantEgresos;
                     decimal neto = ingresos - egresos;
+
+                    // ✅ CAMBIO: Si es efectivo, sumar el monto inicial
+                    decimal netoConInicial = medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase) 
+                        ? neto + montoInicialTurno 
+                        : neto;
 
                     dgvResumenPorMedio.Rows.Add(
                         medioPago,
-                        cantidadTotal,
+                        cantTotal,
                         ingresos.ToString("C2"),
                         egresos.ToString("C2"),
-                        neto.ToString("C2"),
-                        "$0.00", // Declarado (a completar)
-                        "$0.00"  // Diferencia (a calcular)
+                        netoConInicial.ToString("C2"),  // ✅ Mostrar el neto CON monto inicial si es efectivo
+                        "$0.00",
+                        "$0.00"
                     );
 
-                    totalEsperado += neto;
+                    // ✅ Sumar al total esperado el neto CON monto inicial si es efectivo
+                    totalEsperado += netoConInicial;
 
-                    // Colorear egresos en rojo si hay
                     if (egresos > 0)
                     {
                         dgvResumenPorMedio.Rows[dgvResumenPorMedio.Rows.Count - 1].Cells["Egresos"].Style.ForeColor = Color.Red;
                     }
+            
+                    // ✅ OPCIONAL: Marcar la fila de efectivo con un color diferente para destacarla
+                    if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase) && montoInicialTurno > 0)
+                    {
+                        int rowIndex = dgvResumenPorMedio.Rows.Count - 1;
+                        dgvResumenPorMedio.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 205); // Amarillo claro
+                    }
+                }
+
+                // ✅ Mostrar el monto inicial si existe
+                if (montoInicialTurno > 0)
+                {
+                    MessageBox.Show(
+                        $"✅ Calculado: {totalEsperado:C2}\n\n" +
+                        $"💰 Monto inicial del turno: {montoInicialTurno:C2}\n" +
+                        $"💵 Total en efectivo a rendir: {(resumenPorMedio.ContainsKey("Efectivo") ? resumenPorMedio["Efectivo"].Ingresos - resumenPorMedio["Efectivo"].Egresos + montoInicialTurno : montoInicialTurno):C2}",
+                        "Éxito",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"✅ Calculado: {totalEsperado:C2}", "Éxito",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
                 lblTotalEsperado.Text = totalEsperado.ToString("C2");
 
-                // Cargar detalle de transacciones
                 await CargarDetalleTransacciones(connectionString, numeroCajero);
 
                 btnDeclarar.Enabled = true;
                 btnImprimir.Enabled = true;
-                btnCalcular.Text = "📊 Calcular Turno";
+                btnCalcular.Text = "📊 Calcular";
                 btnCalcular.Enabled = true;
-
-                // Mensaje informativo
-                int totalTransacciones = resumenPorMedio.Sum(x => x.Value.CantIngresos + x.Value.CantEgresos);
-                int totalIngresos = resumenPorMedio.Sum(x => x.Value.CantIngresos);
-                int totalEgresos = resumenPorMedio.Sum(x => x.Value.CantEgresos);
-
-                MessageBox.Show($"✅ Cálculo completado correctamente\n\n" +
-                               $"Total transacciones: {totalTransacciones}\n" +
-                               $"• Ingresos (Ventas): {totalIngresos}\n" +
-                               $"• Egresos (Pagos a Proveedores): {totalEgresos}\n\n" +
-                               $"Saldo neto esperado: {totalEsperado:C2}", 
-                               "Éxito",
-                               MessageBoxButtons.OK, 
-                               MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error calculando turno: {ex.Message}\n\nDetalle: {ex.StackTrace}", "Error",
+                MessageBox.Show($"Error: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                btnCalcular.Text = "📊 Calcular Turno";
+                btnCalcular.Text = "📊 Calcular";
                 btnCalcular.Enabled = true;
+            }
+        }
+
+        // ✅ NUEVO MÉTODO: Obtener el monto inicial del turno abierto
+        private async Task<decimal> ObtenerMontoInicialTurno(string connectionString, int numeroCajero)
+        {
+            try
+            {
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                var query = @"
+            SELECT TOP 1 MontoInicial
+            FROM TurnosCajero
+            WHERE NumeroCajero = @numeroCajero
+            AND Estado = 'Abierto'
+            ORDER BY FechaApertura DESC";
+
+                using var cmd = new SqlCommand(query, connection);
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+
+                var result = await cmd.ExecuteScalarAsync();
+                return result != null ? Convert.ToDecimal(result) : 0m;
+            }
+            catch
+            {
+                return 0m;
             }
         }
 
@@ -789,60 +882,60 @@ namespace Comercio.NET.Formularios
             using var connection = new SqlConnection(connectionString);
             connection.Open();
 
-            // Query combinada: Ventas + Pagos a Proveedores
             var queryDetalle = @"
-                -- Transacciones de Ventas (Ingresos)
-                WITH TransaccionesVentasSimples AS (
-                    SELECT 
-                        f.Fecha,
-                        COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                        COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                        f.ImporteTotal as Importe,
-                        'Ingreso (Venta)' as Tipo
-                    FROM Facturas f
-                    INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                    WHERE u.NumeroCajero = @numeroCajero
-                    AND f.Fecha BETWEEN @fechaInicio AND @fechaFin
-                    AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
-                ),
-                TransaccionesVentasMultiples AS (
-                    SELECT 
-                        f.Fecha,
-                        COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                        dp.MedioPago,
-                        dp.Importe,
-                        'Ingreso (Venta)' as Tipo
-                    FROM DetallesPagoFactura dp
-                    INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-                    INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                    WHERE u.NumeroCajero = @numeroCajero
-                    AND f.Fecha BETWEEN @fechaInicio AND @fechaFin
-                    AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-                ),
-                -- Pagos a Proveedores (Egresos)
-                TransaccionesPagosProveedores AS (
-                    SELECT 
-                        cpp.Fecha,
-                        'Pago #' + CAST(cpp.Id AS NVARCHAR) + ' - ' + cp.Proveedor as NumeroFactura,
-                        COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-                        cpp.Monto as Importe,
-                        'Egreso (Pago Prov.)' as Tipo
-                    FROM ComprasProveedoresPagos cpp
-                    INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-                    WHERE cp.Cajero = @numeroCajero
-                    AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
-                )
-                SELECT * FROM TransaccionesVentasSimples
-                UNION ALL
-                SELECT * FROM TransaccionesVentasMultiples
-                UNION ALL
-                SELECT * FROM TransaccionesPagosProveedores
-                ORDER BY Fecha DESC";
+        WITH TransaccionesVentasSimples AS (
+            SELECT 
+                f.Hora as Fecha,  -- ✅ CAMBIO: Usar f.Hora
+                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
+                COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
+                f.ImporteTotal as Importe,
+                'Ingreso' as Tipo
+            FROM Facturas f
+            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+            WHERE u.NumeroCajero = @numeroCajero
+            AND f.Hora >= @fechaInicio    -- ✅ CAMBIO: f.Hora
+            AND f.Hora <= @fechaFin        -- ✅ CAMBIO: f.Hora
+            AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+        ),
+        TransaccionesVentasMultiples AS (
+            SELECT 
+                f.Hora as Fecha,  -- ✅ CAMBIO: Usar f.Hora
+                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
+                dp.MedioPago,
+                dp.Importe,
+                'Ingreso' as Tipo
+            FROM DetallesPagoFactura dp
+            INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
+            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+            WHERE u.NumeroCajero = @numeroCajero
+            AND f.Hora >= @fechaInicio    -- ✅ CAMBIO: f.Hora
+            AND f.Hora <= @fechaFin        -- ✅ CAMBIO: f.Hora
+            AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+        ),
+        TransaccionesPagos AS (
+            SELECT 
+                cpp.Fecha,
+                'Pago #' + CAST(cpp.Id AS NVARCHAR) as NumeroFactura,
+                COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
+                cpp.Monto as Importe,
+                'Egreso' as Tipo
+            FROM ComprasProveedoresPagos cpp
+            INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
+            WHERE cp.Cajero = @numeroCajero
+            AND cpp.Fecha >= @fechaInicio   -- Mantener cpp.Fecha (esta tabla es correcta)
+            AND cpp.Fecha <= @fechaFin
+        )
+        SELECT * FROM TransaccionesVentasSimples
+        UNION ALL
+        SELECT * FROM TransaccionesVentasMultiples
+        UNION ALL
+        SELECT * FROM TransaccionesPagos
+        ORDER BY Fecha DESC";
 
             using var cmdDetalle = new SqlCommand(queryDetalle, connection);
             cmdDetalle.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-            cmdDetalle.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value.Date);
-            cmdDetalle.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
+            cmdDetalle.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+            cmdDetalle.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
 
             dgvDetalleTransacciones.Rows.Clear();
 
@@ -856,108 +949,30 @@ namespace Comercio.NET.Formularios
                 string tipo = reader.GetString(4);
 
                 dgvDetalleTransacciones.Rows.Add(
-                    fecha.ToString("dd/MM/yy HH:mm"),
+                    fecha.ToString("dd/MM HH:mm"),
                     numeroFactura,
                     medioPago,
                     importe.ToString("C2"),
                     tipo
                 );
 
-                // Colorear según tipo
                 int rowIndex = dgvDetalleTransacciones.Rows.Count - 1;
-                if (tipo.Contains("Egreso"))
+                if (tipo == "Egreso")
                 {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54); // Rojo para egresos
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDetalleTransacciones.Font, FontStyle.Bold);
+                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54);
                 }
                 else
                 {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80); // Verde para ingresos
+                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
                 }
             }
         }
-
-        //private async Task CargarDetalleTransacciones(string connectionString, int numeroCajero)
-        //{
-        //    using var connection = new SqlConnection(connectionString);
-        //    connection.Open();
-
-        //    var queryDetalle = @"
-        //        WITH TransaccionesSimples AS (
-        //            SELECT 
-        //                f.FechaHoraFacturacion as Fecha,
-        //                f.NumeroFactura,
-        //                f.FormaPago as MedioPago,
-        //                f.Importe,
-        //                CASE WHEN f.TipoFactura LIKE 'NC%' THEN 'Egreso' ELSE 'Ingreso' END as Tipo
-        //            FROM Facturas f
-        //            INNER JOIN Usuarios u ON f.UsuarioCreador = u.NombreUsuario
-        //            WHERE u.NumeroCajero = @numeroCajero
-        //            AND f.FechaHoraFacturacion BETWEEN @fechaInicio AND @fechaFin
-        //            AND f.FormaPago NOT IN ('Múltiples Medios', 'Multiple')
-        //        ),
-        //        TransaccionesMultiples AS (
-        //            SELECT 
-        //                f.FechaHoraFacturacion as Fecha,
-        //                f.NumeroFactura,
-        //                dp.MedioPago,
-        //                dp.Importe,
-        //                CASE WHEN f.TipoFactura LIKE 'NC%' THEN 'Egreso' ELSE 'Ingreso' END as Tipo
-        //            FROM DetallesPagoFactura dp
-        //            INNER JOIN Facturas f ON dp.IdFactura = f.Id
-        //            INNER JOIN Usuarios u ON f.UsuarioCreador = u.NombreUsuario
-        //            WHERE u.NumeroCajero = @numeroCajero
-        //            AND f.FechaHoraFacturacion BETWEEN @fechaInicio AND @fechaFin
-        //            AND f.FormaPago IN ('Múltiples Medios', 'Multiple')
-        //        )
-        //        SELECT * FROM TransaccionesSimples
-        //        UNION ALL
-        //        SELECT * FROM TransaccionesMultiples
-        //        ORDER BY Fecha DESC";
-
-        //    using var cmdDetalle = new SqlCommand(queryDetalle, connection);
-        //    cmdDetalle.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-        //    cmdDetalle.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value.Date);
-        //    cmdDetalle.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value.Date.AddDays(1).AddSeconds(-1));
-
-        //    dgvDetalleTransacciones.Rows.Clear();
-
-        //    using var reader = await cmdDetalle.ExecuteReaderAsync();
-        //    while (reader.Read())
-        //    {
-        //        DateTime fecha = reader.GetDateTime(0);
-        //        string numeroFactura = reader.GetString(1);
-        //        string medioPago = reader.GetString(2);
-        //        decimal importe = reader.GetDecimal(3);
-        //        string tipo = reader.GetString(4);
-
-        //        dgvDetalleTransacciones.Rows.Add(
-        //            fecha.ToString("dd/MM/yy HH:mm"),
-        //            numeroFactura,
-        //            medioPago,
-        //            importe.ToString("C2"),
-        //            tipo
-        //        );
-
-        //        // Colorear según tipo
-        //        int rowIndex = dgvDetalleTransacciones.Rows.Count - 1;
-        //        if (tipo == "Egreso")
-        //        {
-        //            dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54);
-        //        }
-        //        else
-        //        {
-        //            dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
-        //        }
-        //    }
-        //}
 
         private void DeclarMontos()
         {
             using var formDeclaracion = new DeclaracionMontosForm(dgvResumenPorMedio);
             if (formDeclaracion.ShowDialog() == DialogResult.OK)
             {
-                // Actualizar totales
                 decimal totalDeclarado = 0;
                 decimal totalEsperado = decimal.Parse(lblTotalEsperado.Text, NumberStyles.Currency, CultureInfo.CurrentCulture);
 
@@ -966,18 +981,15 @@ namespace Comercio.NET.Formularios
                     if (row.IsNewRow) continue;
 
                     string declaradoStr = row.Cells["Declarado"].Value?.ToString() ?? "$0.00";
-                    // ✅ CORREGIDO: Usar NumberStyles.Currency
                     decimal declarado = decimal.Parse(declaradoStr, NumberStyles.Currency, CultureInfo.CurrentCulture);
                     totalDeclarado += declarado;
 
                     string netoStr = row.Cells["Neto"].Value.ToString();
-                    // ✅ CORREGIDO: Usar NumberStyles.Currency
                     decimal neto = decimal.Parse(netoStr, NumberStyles.Currency, CultureInfo.CurrentCulture);
                     decimal diferencia = declarado - neto;
                     
                     row.Cells["Diferencia"].Value = diferencia.ToString("C2");
                     
-                    // Colorear diferencia
                     if (diferencia != 0)
                     {
                         row.Cells["Diferencia"].Style.ForeColor = diferencia > 0 ? Color.Green : Color.Red;
@@ -998,8 +1010,8 @@ namespace Comercio.NET.Formularios
             try
             {
                 var resultado = MessageBox.Show(
-                    "¿Está seguro de cerrar el turno?\n\nEsta acción quedará registrada permanentemente.",
-                    "Confirmar Cierre",
+                    "¿Está seguro de cerrar el turno?",
+                    "Confirmar",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
 
@@ -1023,19 +1035,18 @@ namespace Comercio.NET.Formularios
 
                 if (turnoActualId > 0)
                 {
-                    // ✅ MEJORADO: Actualizar el turno existente
                     var queryActualizar = @"
                         UPDATE TurnosCajero 
                         SET FechaCierre = @fechaCierre, 
                             Estado = 'Cerrado',
-                            Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + 'CIERRE: ' + @observacionesCierre
+                            Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + @obs
                         WHERE Id = @idTurno";
 
                     using (var cmdActualizar = new SqlCommand(queryActualizar, connection))
                     {
                         cmdActualizar.Parameters.AddWithValue("@idTurno", turnoActualId);
                         cmdActualizar.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
-                        cmdActualizar.Parameters.AddWithValue("@observacionesCierre", txtObservaciones.Text ?? "Sin observaciones");
+                        cmdActualizar.Parameters.AddWithValue("@obs", txtObservaciones.Text ?? "");
 
                         await cmdActualizar.ExecuteNonQueryAsync();
                     }
@@ -1044,7 +1055,6 @@ namespace Comercio.NET.Formularios
                 }
                 else
                 {
-                    // Crear nuevo turno (fallback por compatibilidad)
                     var queryTurno = @"
                         INSERT INTO TurnosCajero (NumeroCajero, Usuario, FechaApertura, FechaCierre, Estado, Observaciones)
                         OUTPUT INSERTED.Id
@@ -1062,7 +1072,6 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // Guardar detalle del cierre (código existente)
                 foreach (DataGridViewRow row in dgvResumenPorMedio.Rows)
                 {
                     if (row.IsNewRow) continue;
@@ -1092,32 +1101,23 @@ namespace Comercio.NET.Formularios
                     await cmdCierre.ExecuteNonQueryAsync();
                 }
 
-                MessageBox.Show("✅ Turno cerrado exitosamente", "Éxito",
+                MessageBox.Show("✅ Turno cerrado", "Éxito",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                turnoActualId = 0; // Resetear
+                turnoActualId = 0;
                 LimpiarFormulario();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error cerrando turno: {ex.Message}", "Error",
+                MessageBox.Show($"Error: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void ImprimirCierre()
         {
-            try
-            {
-                // TODO: Implementar generación de reporte en PDF o impresión directa
-                MessageBox.Show("Función de impresión en desarrollo", "Información",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error imprimiendo: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            MessageBox.Show("Función en desarrollo", "Info",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void LimpiarFormulario()
@@ -1147,24 +1147,84 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                var query = @"
-                    SELECT COUNT(*) 
-                    FROM TurnosCajero 
-                    WHERE NumeroCajero = @numeroCajero 
-                    AND Estado = 'Cerrado'
-                    AND (
-                        (FechaApertura <= @fechaFin AND FechaCierre >= @fechaInicio)
-                        OR (FechaApertura BETWEEN @fechaInicio AND @fechaFin)
-                        OR (FechaCierre BETWEEN @fechaInicio AND @fechaFin)
-                    )";
+                // 1. Obtener el último cierre del cajero
+                var queryUltimoCierre = @"
+            SELECT TOP 1 FechaCierre
+            FROM TurnosCajero 
+            WHERE NumeroCajero = @numeroCajero 
+            AND Estado = 'Cerrado'
+            AND FechaCierre IS NOT NULL
+            ORDER BY FechaCierre DESC";
 
-                using var cmd = new SqlCommand(query, connection);
-                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                cmd.Parameters.AddWithValue("@fechaInicio", fechaInicio);
-                cmd.Parameters.AddWithValue("@fechaFin", fechaFin);
+                using (var cmd = new SqlCommand(queryUltimoCierre, connection))
+                {
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    var resultado = await cmd.ExecuteScalarAsync();
 
-                int count = (int)await cmd.ExecuteScalarAsync();
-                return count > 0;
+                    // 2. Validar que la fecha de inicio sea posterior al último cierre
+                    if (resultado != null)
+                    {
+                        DateTime ultimoCierre = (DateTime)resultado;
+
+                        if (fechaInicio <= ultimoCierre)
+                        {
+                            MessageBox.Show(
+                                $"⚠️ El período seleccionado es anterior o igual al último cierre.\n\n" +
+                                $"Último cierre: {ultimoCierre:dd/MM/yyyy HH:mm}\n" +
+                                $"Fecha inicio seleccionada: {fechaInicio:dd/MM/yyyy HH:mm}\n\n" +
+                                $"Debe seleccionar un período posterior al último cierre.",
+                                "Período Inválido",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            return true;
+                        }
+                    }
+                }
+
+                // 3. Validar que no haya solapamiento con turnos cerrados
+                var querySolapamiento = @"
+            SELECT COUNT(*) 
+            FROM TurnosCajero 
+            WHERE NumeroCajero = @numeroCajero 
+            AND Estado = 'Cerrado'
+            AND (
+                -- El nuevo período está completamente dentro de un turno cerrado
+                (FechaApertura <= @fechaInicio AND FechaCierre >= @fechaFin)
+                OR
+                -- El nuevo período comienza dentro de un turno cerrado
+                (@fechaInicio >= FechaApertura AND @fechaInicio < FechaCierre)
+                OR
+                -- El nuevo período termina dentro de un turno cerrado
+                (@fechaFin > FechaApertura AND @fechaFin <= FechaCierre)
+                OR
+                -- El nuevo período envuelve completamente un turno cerrado
+                (@fechaInicio <= FechaApertura AND @fechaFin >= FechaCierre)
+            )";
+
+                using (var cmd = new SqlCommand(querySolapamiento, connection))
+                {
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", fechaInicio);
+                    cmd.Parameters.AddWithValue("@fechaFin", fechaFin);
+
+                    int count = (int)await cmd.ExecuteScalarAsync();
+
+                    if (count > 0)
+                    {
+                        MessageBox.Show(
+                            $"⚠️ El período seleccionado se solapa con un turno ya cerrado.\n\n" +
+                            $"Período seleccionado:\n" +
+                            $"Desde: {fechaInicio:dd/MM/yyyy HH:mm}\n" +
+                            $"Hasta: {fechaFin:dd/MM/yyyy HH:mm}\n\n" +
+                            $"No puede haber solapamiento entre turnos.",
+                            "Turno Solapado",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return true;
+                    }
+                }
+
+                return false;
             }
             catch (Exception ex)
             {
@@ -1183,7 +1243,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error mostrando historial: {ex.Message}", "Error",
+                MessageBox.Show($"Error: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1222,7 +1282,6 @@ namespace Comercio.NET.Formularios
         }
     }
 
-    // Formulario auxiliar para declaración de montos
     public class DeclaracionMontosForm : Form
     {
         private DataGridView dgvDeclaracion;
@@ -1238,8 +1297,8 @@ namespace Comercio.NET.Formularios
 
         private void InitializeComponent()
         {
-            this.ClientSize = new Size(600, 500);
-            this.Text = "💵 Declarar Montos Reales";
+            this.ClientSize = new Size(500, 400);
+            this.Text = "💵 Declarar Montos";
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -1250,50 +1309,46 @@ namespace Comercio.NET.Formularios
         {
             this.Controls.Add(new Label
             {
-                Text = "Ingrese el monto real declarado por cada medio de pago:",
-                Location = new Point(20, 20),
-                Size = new Size(560, 40),
-                Font = new Font("Segoe UI", 11F),
+                Text = "Ingrese el monto real por cada medio:",
+                Location = new Point(15, 15),
+                Size = new Size(470, 30),
+                Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
             dgvDeclaracion = new DataGridView
             {
-                Location = new Point(20, 70),
-                Size = new Size(560, 350),
+                Location = new Point(15, 50),
+                Size = new Size(470, 280),
                 BackgroundColor = Color.White,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 SelectionMode = DataGridViewSelectionMode.CellSelect,
-                Font = new Font("Segoe UI", 10F)
+                Font = new Font("Segoe UI", 9F),
+                RowHeadersVisible = false
             };
 
-            dgvDeclaracion.Columns.Add("MedioPago", "Medio de Pago");
+            dgvDeclaracion.Columns.Add("MedioPago", "Medio");
             dgvDeclaracion.Columns.Add("Esperado", "Esperado");
             
             var colDeclarado = new DataGridViewTextBoxColumn
             {
                 Name = "Declarado",
-                HeaderText = "Monto Declarado",
+                HeaderText = "Declarado",
                 ValueType = typeof(decimal)
             };
             dgvDeclaracion.Columns.Add(colDeclarado);
 
             dgvDeclaracion.Columns["MedioPago"].ReadOnly = true;
             dgvDeclaracion.Columns["Esperado"].ReadOnly = true;
-            dgvDeclaracion.Columns["MedioPago"].Width = 200;
-            dgvDeclaracion.Columns["Esperado"].Width = 150;
-            dgvDeclaracion.Columns["Declarado"].Width = 150;
+            dgvDeclaracion.Columns["MedioPago"].Width = 150;
+            dgvDeclaracion.Columns["Esperado"].Width = 120;
+            dgvDeclaracion.Columns["Declarado"].Width = 120;
 
-            // Cargar datos
             foreach (DataGridViewRow row in dgvReferencia.Rows)
             {
                 if (row.IsNewRow) continue;
-
-                string medioPago = row.Cells["MedioPago"].Value.ToString();
-                string esperado = row.Cells["Neto"].Value.ToString();
-
-                dgvDeclaracion.Rows.Add(medioPago, esperado, "0.00");
+                dgvDeclaracion.Rows.Add(row.Cells["MedioPago"].Value, row.Cells["Neto"].Value, "0.00");
             }
 
             this.Controls.Add(dgvDeclaracion);
@@ -1301,12 +1356,12 @@ namespace Comercio.NET.Formularios
             btnGuardar = new Button
             {
                 Text = "💾 Guardar",
-                Location = new Point(360, 430),
-                Size = new Size(100, 35),
+                Location = new Point(280, 345),
+                Size = new Size(100, 32),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             btnGuardar.FlatAppearance.BorderSize = 0;
             btnGuardar.Click += (s, e) =>
@@ -1320,12 +1375,12 @@ namespace Comercio.NET.Formularios
             btnCancelar = new Button
             {
                 Text = "❌ Cancelar",
-                Location = new Point(480, 430),
-                Size = new Size(100, 35),
+                Location = new Point(385, 345),
+                Size = new Size(100, 32),
                 BackColor = Color.FromArgb(158, 158, 158),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             btnCancelar.FlatAppearance.BorderSize = 0;
             btnCancelar.Click += (s, e) => this.Close();
@@ -1341,7 +1396,6 @@ namespace Comercio.NET.Formularios
                 
                 if (decimal.TryParse(dgvDeclaracion.Rows[i].Cells["Declarado"].Value?.ToString() ?? "0", out declarado))
                 {
-                    // Buscar la fila correspondiente en la grilla de referencia
                     foreach (DataGridViewRow row in dgvReferencia.Rows)
                     {
                         if (row.IsNewRow) continue;

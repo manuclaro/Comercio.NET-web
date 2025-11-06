@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
 using System.Data.SqlClient;
@@ -9,11 +9,11 @@ using System.Windows.Forms;
 namespace Comercio.NET.Formularios
 {
     public partial class HistorialCierresForm : Form
-    {
+    {   
         private ComboBox cmbCajero, cmbEstado;
         private DateTimePicker dtpDesde, dtpHasta;
         private DataGridView dgvHistorial, dgvDetalleCierre;
-        private Button btnBuscar, btnVerDetalle, btnExportar, btnCerrar;
+        private Button btnBuscar, btnVerDetalle, btnExportar;
         private Label lblTotalCierres, lblTotalDeclarado, lblTotalDiferencias;
         private Panel panelFiltros, panelResumen, panelDetalle;
         private int? cierreSeleccionadoId = null;
@@ -22,15 +22,20 @@ namespace Comercio.NET.Formularios
         {
             InitializeComponent();
             ConfigurarFormulario();
-            _ = CargarCajeros();
-            _ = CargarHistorial();
+            _ = InicializarDatosAsync();
+        }
+
+        private async Task InicializarDatosAsync()
+        {
+            await CargarCajeros();
+            await CargarHistorial();
         }
 
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            this.ClientSize = new Size(1400, 800);
-            this.MinimumSize = new Size(1200, 700);
+            this.ClientSize = new Size(900, 510);
+            this.MinimumSize = new Size(900, 510);
             this.Name = "HistorialCierresForm";
             this.StartPosition = FormStartPosition.CenterParent;
             this.Text = "Historial de Cierres de Turno";
@@ -39,9 +44,9 @@ namespace Comercio.NET.Formularios
 
         private void ConfigurarFormulario()
         {
-            this.Text = "?? Historial de Cierres de Turno";
+            this.Text = "📋 Historial de Cierres de Turno";
             this.BackColor = Color.FromArgb(245, 248, 250);
-            this.Font = new Font("Segoe UI", 10F);
+            this.Font = new Font("Segoe UI", 9F);
 
             CrearControles();
             ConfigurarEventos();
@@ -49,39 +54,39 @@ namespace Comercio.NET.Formularios
 
         private void CrearControles()
         {
-            int margin = 20;
-            int currentY = 20;
+            int margin = 15;
+            int currentY = 15;
 
-            // T�tulo
+            // Título
             var lblTitulo = new Label
             {
-                Text = "?? HISTORIAL DE CIERRES DE TURNO",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                Text = "📋 HISTORIAL DE CIERRES DE TURNO",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181),
                 Location = new Point(margin, currentY),
-                Size = new Size(600, 35),
+                Size = new Size(420, 22),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             this.Controls.Add(lblTitulo);
-            currentY += 50;
+            currentY += 30;
 
-            // Panel de Filtros
+            // Panel de Filtros - MÁS COMPACTO (reducido verticalmente)
             panelFiltros = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(1360, 100),
+                Size = new Size(870, 62), // Era 75, ahora 62
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
             this.Controls.Add(panelFiltros);
 
-            // T�tulo del panel
+            // Título del panel
             panelFiltros.Controls.Add(new Label
             {
-                Text = "?? FILTROS DE B�SQUEDA",
-                Location = new Point(15, 10),
-                Size = new Size(200, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "🔍 FILTROS",
+                Location = new Point(8, 5), // Era 6, ahora 5
+                Size = new Size(80, 16),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
@@ -89,16 +94,16 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Cajero:",
-                Location = new Point(15, 45),
-                Size = new Size(80, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(8, 28), // Era 32, ahora 28
+                Size = new Size(48, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             cmbCajero = new ComboBox
             {
-                Location = new Point(100, 43),
-                Size = new Size(200, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(60, 26), // Era 30, ahora 26
+                Size = new Size(140, 20),
+                Font = new Font("Segoe UI", 8F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             panelFiltros.Controls.Add(cmbCajero);
@@ -107,16 +112,16 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Desde:",
-                Location = new Point(320, 45),
-                Size = new Size(60, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(210, 28), // Era 32, ahora 28
+                Size = new Size(42, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             dtpDesde = new DateTimePicker
             {
-                Location = new Point(385, 43),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(255, 26), // Era 30, ahora 26
+                Size = new Size(95, 20),
+                Font = new Font("Segoe UI", 8F),
                 Format = DateTimePickerFormat.Short
             };
             dtpDesde.Value = DateTime.Today.AddMonths(-1);
@@ -126,16 +131,16 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Hasta:",
-                Location = new Point(555, 45),
-                Size = new Size(60, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(360, 28), // Era 32, ahora 28
+                Size = new Size(38, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             dtpHasta = new DateTimePicker
             {
-                Location = new Point(620, 43),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(402, 26), // Era 30, ahora 26
+                Size = new Size(95, 20),
+                Font = new Font("Segoe UI", 8F),
                 Format = DateTimePickerFormat.Short
             };
             dtpHasta.Value = DateTime.Today;
@@ -145,16 +150,16 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Estado:",
-                Location = new Point(790, 45),
-                Size = new Size(60, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(507, 28), // Era 32, ahora 28
+                Size = new Size(43, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             cmbEstado = new ComboBox
             {
-                Location = new Point(855, 43),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10F),
+                Location = new Point(553, 26), // Era 30, ahora 26
+                Size = new Size(85, 20),
+                Font = new Font("Segoe UI", 8F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cmbEstado.Items.AddRange(new object[] 
@@ -168,41 +173,41 @@ namespace Comercio.NET.Formularios
             cmbEstado.SelectedIndex = 0;
             panelFiltros.Controls.Add(cmbEstado);
 
-            // Bot�n Buscar
+            // Botón Buscar
             btnBuscar = new Button
             {
-                Text = "?? Buscar",
-                Location = new Point(1025, 40),
-                Size = new Size(150, 35),
+                Text = "🔍 Buscar",
+                Location = new Point(648, 24), // Era 28, ahora 24
+                Size = new Size(100, 24),
                 BackColor = Color.FromArgb(33, 150, 243),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             };
             btnBuscar.FlatAppearance.BorderSize = 0;
             panelFiltros.Controls.Add(btnBuscar);
 
-            // Bot�n Exportar
+            // Botón Exportar
             btnExportar = new Button
             {
-                Text = "?? Exportar",
-                Location = new Point(1195, 40),
-                Size = new Size(140, 35),
+                Text = "📊 Exportar",
+                Location = new Point(758, 24), // Era 28, ahora 24
+                Size = new Size(100, 24),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             };
             btnExportar.FlatAppearance.BorderSize = 0;
             panelFiltros.Controls.Add(btnExportar);
 
-            currentY += 120;
+            currentY += 75; // Era 88, ahora 75
 
-            // Panel Resumen de Totales
+            // Panel Resumen de Totales - MÁS COMPACTO
             panelResumen = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(1360, 60),
+                Size = new Size(870, 42),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -210,65 +215,65 @@ namespace Comercio.NET.Formularios
 
             panelResumen.Controls.Add(new Label
             {
-                Text = "Total Cierres:",
-                Location = new Point(15, 20),
-                Size = new Size(120, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Text = "Cierres:",
+                Location = new Point(12, 12),
+                Size = new Size(55, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             lblTotalCierres = new Label
             {
                 Text = "0",
-                Location = new Point(140, 20),
-                Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Location = new Point(70, 12),
+                Size = new Size(60, 18),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 150, 243)
             };
             panelResumen.Controls.Add(lblTotalCierres);
 
             panelResumen.Controls.Add(new Label
             {
-                Text = "Total Declarado:",
-                Location = new Point(450, 20),
-                Size = new Size(130, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Text = "Declarado:",
+                Location = new Point(280, 12),
+                Size = new Size(70, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             lblTotalDeclarado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(585, 20),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Location = new Point(355, 12),
+                Size = new Size(100, 18),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(76, 175, 80)
             };
             panelResumen.Controls.Add(lblTotalDeclarado);
 
             panelResumen.Controls.Add(new Label
             {
-                Text = "Total Diferencias:",
-                Location = new Point(900, 20),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Text = "Diferencias:",
+                Location = new Point(590, 12),
+                Size = new Size(75, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
             lblTotalDiferencias = new Label
             {
                 Text = "$0.00",
-                Location = new Point(1045, 20),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Location = new Point(670, 12),
+                Size = new Size(100, 18),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(244, 67, 54)
             };
             panelResumen.Controls.Add(lblTotalDiferencias);
 
-            currentY += 80;
+            currentY += 55;
 
             // DataGridView Principal - Historial
             dgvHistorial = new DataGridView
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(1360, 350),
+                Size = new Size(870, 190),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.Fixed3D,
                 AllowUserToAddRows = false,
@@ -276,41 +281,45 @@ namespace Comercio.NET.Formularios
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                Font = new Font("Segoe UI", 9F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Font = new Font("Segoe UI", 7.5F),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false
             };
+
+            dgvHistorial.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+            dgvHistorial.RowTemplate.Height = 20;
 
             // Configurar columnas
             dgvHistorial.Columns.Add("Id", "ID");
-            dgvHistorial.Columns.Add("NumeroCajero", "Cajero");
+            dgvHistorial.Columns.Add("NumeroCajero", "Caj.");
             dgvHistorial.Columns.Add("Usuario", "Usuario");
             dgvHistorial.Columns.Add("FechaApertura", "Apertura");
             dgvHistorial.Columns.Add("FechaCierre", "Cierre");
-            dgvHistorial.Columns.Add("MontoInicial", "Monto Inicial");
-            dgvHistorial.Columns.Add("TotalEsperado", "Total Esperado");
-            dgvHistorial.Columns.Add("TotalDeclarado", "Total Declarado");
-            dgvHistorial.Columns.Add("Diferencia", "Diferencia");
+            dgvHistorial.Columns.Add("MontoInicial", "Inic.");
+            dgvHistorial.Columns.Add("TotalEsperado", "Esperado");
+            dgvHistorial.Columns.Add("TotalDeclarado", "Declarado");
+            dgvHistorial.Columns.Add("Diferencia", "Dif.");
             dgvHistorial.Columns.Add("Estado", "Estado");
 
-            dgvHistorial.Columns["Id"].Width = 50;
-            dgvHistorial.Columns["NumeroCajero"].Width = 80;
-            dgvHistorial.Columns["Usuario"].Width = 120;
-            dgvHistorial.Columns["FechaApertura"].Width = 140;
-            dgvHistorial.Columns["FechaCierre"].Width = 140;
-            dgvHistorial.Columns["MontoInicial"].Width = 120;
-            dgvHistorial.Columns["TotalEsperado"].Width = 120;
-            dgvHistorial.Columns["TotalDeclarado"].Width = 120;
-            dgvHistorial.Columns["Diferencia"].Width = 120;
-            dgvHistorial.Columns["Estado"].Width = 100;
+            dgvHistorial.Columns["Id"].FillWeight = 6;
+            dgvHistorial.Columns["NumeroCajero"].FillWeight = 8;
+            dgvHistorial.Columns["Usuario"].FillWeight = 14;
+            dgvHistorial.Columns["FechaApertura"].FillWeight = 14;
+            dgvHistorial.Columns["FechaCierre"].FillWeight = 14;
+            dgvHistorial.Columns["MontoInicial"].FillWeight = 11;
+            dgvHistorial.Columns["TotalEsperado"].FillWeight = 11;
+            dgvHistorial.Columns["TotalDeclarado"].FillWeight = 11;
+            dgvHistorial.Columns["Diferencia"].FillWeight = 11;
+            dgvHistorial.Columns["Estado"].FillWeight = 9;
 
             this.Controls.Add(dgvHistorial);
-            currentY += 370;
+            currentY += 203;
 
-            // Panel Detalle del Cierre
+            // Panel Detalle del Cierre - MÁS COMPACTO (grilla más pequeña)
             panelDetalle = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(1360, 200),
+                Size = new Size(870, 115), // Era 140, ahora 110
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -318,18 +327,18 @@ namespace Comercio.NET.Formularios
 
             panelDetalle.Controls.Add(new Label
             {
-                Text = "?? DETALLE DEL CIERRE SELECCIONADO",
-                Location = new Point(15, 10),
-                Size = new Size(400, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "📊 DETALLE DEL CIERRE SELECCIONADO",
+                Location = new Point(8, 6),
+                Size = new Size(280, 18),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
-            // DataGridView Detalle
+            // DataGridView Detalle - MÁS PEQUEÑO (solo 3-4 filas)
             dgvDetalleCierre = new DataGridView
             {
-                Location = new Point(15, 45),
-                Size = new Size(1100, 140),
+                Location = new Point(8, 28),
+                Size = new Size(725, 80), // Era 105, ahora 75
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.Fixed3D,
                 AllowUserToAddRows = false,
@@ -337,45 +346,36 @@ namespace Comercio.NET.Formularios
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                Font = new Font("Segoe UI", 9F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Font = new Font("Segoe UI", 7.5F),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false
             };
 
+            dgvDetalleCierre.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+            dgvDetalleCierre.RowTemplate.Height = 18;
+
             dgvDetalleCierre.Columns.Add("MedioPago", "Medio de Pago");
-            dgvDetalleCierre.Columns.Add("CantidadTransacciones", "Cantidad");
+            dgvDetalleCierre.Columns.Add("CantidadTransacciones", "Cant.");
             dgvDetalleCierre.Columns.Add("TotalEsperado", "Esperado");
             dgvDetalleCierre.Columns.Add("TotalDeclarado", "Declarado");
             dgvDetalleCierre.Columns.Add("Diferencia", "Diferencia");
 
             panelDetalle.Controls.Add(dgvDetalleCierre);
 
-            // Botones en el panel de detalle
+            // Botón Ver Detalle
             btnVerDetalle = new Button
             {
-                Text = "??? Ver Completo",
-                Location = new Point(1130, 55),
-                Size = new Size(200, 40),
+                Text = "👁️ Ver Completo",
+                Location = new Point(743, 40), // Ajustado: era 55, ahora 40
+                Size = new Size(120, 30),
                 BackColor = Color.FromArgb(255, 152, 0),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 Enabled = false
             };
             btnVerDetalle.FlatAppearance.BorderSize = 0;
             panelDetalle.Controls.Add(btnVerDetalle);
-
-            btnCerrar = new Button
-            {
-                Text = "? Cerrar",
-                Location = new Point(1130, 110),
-                Size = new Size(200, 40),
-                BackColor = Color.FromArgb(158, 158, 158),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-            };
-            btnCerrar.FlatAppearance.BorderSize = 0;
-            panelDetalle.Controls.Add(btnCerrar);
         }
 
         private void ConfigurarEventos()
@@ -383,7 +383,6 @@ namespace Comercio.NET.Formularios
             btnBuscar.Click += async (s, e) => await CargarHistorial();
             btnExportar.Click += (s, e) => ExportarHistorial();
             btnVerDetalle.Click += (s, e) => VerDetalleCompleto();
-            btnCerrar.Click += (s, e) => this.Close();
             dgvHistorial.SelectionChanged += async (s, e) => await CargarDetalleCierre();
         }
 
@@ -412,7 +411,7 @@ namespace Comercio.NET.Formularios
                 connection.Open();
 
                 cmbCajero.Items.Clear();
-                cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "Todos los cajeros" });
+                cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "Todos" });
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
@@ -422,7 +421,7 @@ namespace Comercio.NET.Formularios
                     cmbCajero.Items.Add(new 
                     { 
                         NumeroCajero = numero, 
-                        Display = $"Cajero #{numero} - {nombre}" 
+                        Display = $"#{numero} - {nombre}" 
                     });
                 }
 
@@ -441,8 +440,14 @@ namespace Comercio.NET.Formularios
         {
             try
             {
+                // Validar que los controles estén inicializados
+                if (cmbCajero.SelectedItem == null || cmbEstado.SelectedItem == null)
+                {
+                    return;
+                }
+
                 btnBuscar.Enabled = false;
-                btnBuscar.Text = "? Cargando...";
+                btnBuscar.Text = "⏳ Cargando...";
 
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -507,10 +512,10 @@ namespace Comercio.NET.Formularios
 
                     dgvHistorial.Rows.Add(
                         id,
-                        $"Cajero #{cajero}",
+                        $"#{cajero}",
                         usuario,
-                        apertura.ToString("dd/MM/yyyy HH:mm"),
-                        cierre?.ToString("dd/MM/yyyy HH:mm") ?? "Sin cerrar",
+                        apertura.ToString("dd/MM HH:mm"),
+                        cierre?.ToString("dd/MM HH:mm") ?? "Sin cerrar",
                         montoInicial.ToString("C2"),
                         esperado.ToString("C2"),
                         declarado.ToString("C2"),
@@ -520,7 +525,7 @@ namespace Comercio.NET.Formularios
 
                     int rowIndex = dgvHistorial.Rows.Count - 1;
 
-                    // Colorear seg�n estado
+                    // Colorear según estado
                     if (estadoTurno == "Abierto")
                     {
                         dgvHistorial.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 224);
@@ -548,14 +553,14 @@ namespace Comercio.NET.Formularios
                 lblTotalDiferencias.Text = totalDiferencias.ToString("C2");
                 lblTotalDiferencias.ForeColor = totalDiferencias >= 0 ? Color.FromArgb(76, 175, 80) : Color.FromArgb(244, 67, 54);
 
-                btnBuscar.Text = "?? Buscar";
+                btnBuscar.Text = "🔍 Buscar";
                 btnBuscar.Enabled = true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error cargando historial: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                btnBuscar.Text = "?? Buscar";
+                btnBuscar.Text = "🔍 Buscar";
                 btnBuscar.Enabled = true;
             }
         }
@@ -656,7 +661,7 @@ namespace Comercio.NET.Formularios
             {
                 if (dgvHistorial.Rows.Count == 0)
                 {
-                    MessageBox.Show("No hay datos para exportar", "Informaci�n",
+                    MessageBox.Show("No hay datos para exportar", "Información",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
@@ -692,7 +697,7 @@ namespace Comercio.NET.Formularios
                         writer.WriteLine(string.Join(";", values));
                     }
 
-                    MessageBox.Show($"? Datos exportados correctamente a:\n{sfd.FileName}", "�xito",
+                    MessageBox.Show($"✅ Datos exportados correctamente a:\n{sfd.FileName}", "Éxito",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
@@ -708,7 +713,7 @@ namespace Comercio.NET.Formularios
     public class DetalleCierreCompletoForm : Form
     {
         private int turnoId;
-        private DataGridView dgvDetalle, dgvTransacciones;
+        private DataGridView dgvDetalle;
         private Label lblTurnoInfo, lblTotalEsperado, lblTotalDeclarado, lblDiferencia;
         private TextBox txtObservaciones;
 
@@ -721,64 +726,66 @@ namespace Comercio.NET.Formularios
 
         private void InitializeComponent()
         {
-            this.ClientSize = new Size(1000, 700);
-            this.Text = $"?? Detalle del Cierre - Turno #{turnoId}";
+            this.ClientSize = new Size(800, 520);
+            this.Text = $"📄 Detalle del Cierre - Turno #{turnoId}";
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = Color.FromArgb(245, 248, 250);
-            this.Font = new Font("Segoe UI", 10F);
+            this.Font = new Font("Segoe UI", 9F);
 
             CrearControles();
         }
 
         private void CrearControles()
         {
-            int margin = 20;
-            int currentY = 20;
+            int margin = 15;
+            int currentY = 15;
 
-            // Informaci�n del turno
+            // Información del turno
             lblTurnoInfo = new Label
             {
-                Text = "Cargando informaci�n...",
+                Text = "Cargando información...",
                 Location = new Point(margin, currentY),
-                Size = new Size(960, 60),
-                Font = new Font("Segoe UI", 11F),
+                Size = new Size(770, 45),
+                Font = new Font("Segoe UI", 8.5F),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(10)
+                Padding = new Padding(8)
             };
             this.Controls.Add(lblTurnoInfo);
-            currentY += 80;
+            currentY += 58;
 
             // Detalle por medio de pago
             this.Controls.Add(new Label
             {
-                Text = "?? DETALLE POR MEDIO DE PAGO",
+                Text = "💵 DETALLE POR MEDIO DE PAGO",
                 Location = new Point(margin, currentY),
-                Size = new Size(300, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Size = new Size(250, 18),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
-            currentY += 35;
+            currentY += 26;
 
             dgvDetalle = new DataGridView
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(960, 200),
+                Size = new Size(770, 160),
                 BackgroundColor = Color.White,
                 AllowUserToAddRows = false,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                Font = new Font("Segoe UI", 9F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Font = new Font("Segoe UI", 8.5F),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible = false
             };
+            dgvDetalle.RowTemplate.Height = 20;
             this.Controls.Add(dgvDetalle);
-            currentY += 220;
+            currentY += 173;
 
             // Totales
             var panelTotales = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(960, 80),
+                Size = new Size(770, 62),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -787,17 +794,17 @@ namespace Comercio.NET.Formularios
             panelTotales.Controls.Add(new Label
             {
                 Text = "TOTAL ESPERADO:",
-                Location = new Point(20, 15),
-                Size = new Size(150, 20),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(12, 10),
+                Size = new Size(125, 18),
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
             });
 
             lblTotalEsperado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(180, 15),
-                Size = new Size(120, 20),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(142, 10),
+                Size = new Size(100, 18),
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 150, 243)
             };
             panelTotales.Controls.Add(lblTotalEsperado);
@@ -805,17 +812,17 @@ namespace Comercio.NET.Formularios
             panelTotales.Controls.Add(new Label
             {
                 Text = "TOTAL DECLARADO:",
-                Location = new Point(350, 15),
-                Size = new Size(160, 20),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Location = new Point(285, 10),
+                Size = new Size(135, 18),
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
             });
 
             lblTotalDeclarado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(520, 15),
-                Size = new Size(120, 20),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(425, 10),
+                Size = new Size(100, 18),
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 152, 0)
             };
             panelTotales.Controls.Add(lblTotalDeclarado);
@@ -823,56 +830,58 @@ namespace Comercio.NET.Formularios
             panelTotales.Controls.Add(new Label
             {
                 Text = "DIFERENCIA:",
-                Location = new Point(20, 45),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold)
+                Location = new Point(12, 36),
+                Size = new Size(125, 20),
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
             });
 
             lblDiferencia = new Label
             {
                 Text = "$0.00",
-                Location = new Point(180, 45),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                Location = new Point(142, 36),
+                Size = new Size(120, 20),
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(244, 67, 54)
             };
             panelTotales.Controls.Add(lblDiferencia);
 
-            currentY += 100;
+            currentY += 75;
 
             // Observaciones
             this.Controls.Add(new Label
             {
-                Text = "?? OBSERVACIONES:",
+                Text = "📝 OBSERVACIONES:",
                 Location = new Point(margin, currentY),
-                Size = new Size(200, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Size = new Size(160, 18),
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
             });
-            currentY += 30;
+            currentY += 23;
 
             txtObservaciones = new TextBox
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(960, 80),
+                Size = new Size(770, 62),
                 Multiline = true,
                 ReadOnly = true,
-                Font = new Font("Segoe UI", 9F),
-                BackColor = Color.White
+                Font = new Font("Segoe UI", 8.5F),
+                BackColor = Color.White,
+                ScrollBars = ScrollBars.Vertical
             };
             this.Controls.Add(txtObservaciones);
-            currentY += 100;
+            currentY += 75;
 
-            // Bot�n Cerrar
+            // Botón Cerrar
             var btnCerrar = new Button
             {
                 Text = "Cerrar",
-                Location = new Point(880, currentY),
-                Size = new Size(100, 35),
+                Location = new Point(695, currentY),
+                Size = new Size(90, 28),
                 BackColor = Color.FromArgb(158, 158, 158),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
             };
+            btnCerrar.FlatAppearance.BorderSize = 0;
             btnCerrar.Click += (s, e) => this.Close();
             this.Controls.Add(btnCerrar);
         }
@@ -891,7 +900,7 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // Cargar informaci�n del turno
+                // Cargar información del turno
                 var queryTurno = @"
                     SELECT NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, Observaciones
                     FROM TurnosCajero
@@ -931,6 +940,8 @@ namespace Comercio.NET.Formularios
                 dgvDetalle.Columns.Add("Declarado", "Declarado");
                 dgvDetalle.Columns.Add("Diferencia", "Diferencia");
 
+                dgvDetalle.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+
                 decimal totalEsperado = 0;
                 decimal totalDeclarado = 0;
                 decimal totalDiferencia = 0;
@@ -952,6 +963,13 @@ namespace Comercio.NET.Formularios
                         totalEsperado += esperado;
                         totalDeclarado += declarado;
                         totalDiferencia += diferencia;
+
+                        int rowIndex = dgvDetalle.Rows.Count - 1;
+                        if (diferencia != 0)
+                        {
+                            dgvDetalle.Rows[rowIndex].Cells["Diferencia"].Style.ForeColor = diferencia > 0 ? Color.Green : Color.Red;
+                            dgvDetalle.Rows[rowIndex].Cells["Diferencia"].Style.Font = new Font(dgvDetalle.Font, FontStyle.Bold);
+                        }
                     }
                 }
 
