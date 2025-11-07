@@ -19,7 +19,7 @@ namespace Comercio.NET.Formularios
         private DataGridView dgvResumenPorMedio;
         private DataGridView dgvDetalleTransacciones;
         private Button btnCalcular, btnDeclarar, btnCerrarTurno, btnImprimir;
-        private Label lblTotalEsperado, lblTotalDeclarado, lblDiferencia;
+        private Label lblTotalEsperado, lblTotalDeclarado, lblDiferencia, lblMontoInicial;
         private TextBox txtObservaciones;
         private Panel panelResumen, panelDeclaracion;
         private bool turnoAbierto = false;
@@ -176,58 +176,91 @@ namespace Comercio.NET.Formularios
             btnImprimir.FlatAppearance.BorderSize = 0;
             panelFiltros.Controls.Add(btnImprimir);
 
-            // Totales en el mismo panel
+            // Totales en el mismo panel - ALINEADOS
+            int labelY = 42;  // ✅ Altura fija para todas las etiquetas
+            int valueY = 40;  // ✅ Altura fija para todos los valores
+
+            // ✅ NUEVO: Monto Inicial
+            panelFiltros.Controls.Add(new Label
+            {
+                Text = "Inicial:",
+                Location = new Point(10, labelY),
+                Size = new Size(45, 18),
+                Font = new Font("Segoe UI", 8F),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+
+            lblMontoInicial = new Label
+            {
+                Text = "$0.00",
+                Location = new Point(55, valueY),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(96, 125, 139),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            panelFiltros.Controls.Add(lblMontoInicial);
+
+            // Esperado
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Esperado:",
-                Location = new Point(10, 42),
+                Location = new Point(145, labelY),
                 Size = new Size(60, 18),
-                Font = new Font("Segoe UI", 8F)
+                Font = new Font("Segoe UI", 8F),
+                TextAlign = ContentAlignment.MiddleLeft
             });
 
             lblTotalEsperado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(70, 40),
+                Location = new Point(205, valueY),
                 Size = new Size(80, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 150, 243)
+                ForeColor = Color.FromArgb(33, 150, 243),
+                TextAlign = ContentAlignment.MiddleLeft
             };
             panelFiltros.Controls.Add(lblTotalEsperado);
 
+            // Declarado
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Declarado:",
-                Location = new Point(170, 42),
+                Location = new Point(295, labelY),
                 Size = new Size(65, 18),
-                Font = new Font("Segoe UI", 8F)
+                Font = new Font("Segoe UI", 8F),
+                TextAlign = ContentAlignment.MiddleLeft
             });
 
             lblTotalDeclarado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(235, 40),
+                Location = new Point(360, valueY),
                 Size = new Size(80, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 152, 0)
+                ForeColor = Color.FromArgb(255, 152, 0),
+                TextAlign = ContentAlignment.MiddleLeft
             };
             panelFiltros.Controls.Add(lblTotalDeclarado);
 
+            // Diferencia
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Diferencia:",
-                Location = new Point(335, 42),
+                Location = new Point(450, labelY),
                 Size = new Size(65, 18),
-                Font = new Font("Segoe UI", 8F)
+                Font = new Font("Segoe UI", 8F),
+                TextAlign = ContentAlignment.MiddleLeft
             });
 
             lblDiferencia = new Label
             {
                 Text = "$0.00",
-                Location = new Point(405, 40),
+                Location = new Point(515, valueY),
                 Size = new Size(80, 20),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(244, 67, 54)
+                ForeColor = Color.FromArgb(244, 67, 54),
+                TextAlign = ContentAlignment.MiddleLeft
             };
             panelFiltros.Controls.Add(lblDiferencia);
 
@@ -711,6 +744,9 @@ namespace Comercio.NET.Formularios
                 // ✅ NUEVO: Obtener el monto inicial del turno
                 montoInicialTurno = await ObtenerMontoInicialTurno(connectionString, numeroCajero);
 
+                // ✅ Mostrar en la label permanente
+                lblMontoInicial.Text = montoInicialTurno.ToString("C2");
+
                 bool turnoCerrado = await VerificarTurnoCerrado(
                     numeroCajero, 
                     dtpFechaInicio.Value,
@@ -726,9 +762,6 @@ namespace Comercio.NET.Formularios
                 btnCalcular.Text = "⏳...";
 
                
-
-                
-
                 var resumenPorMedio = new Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>();
 
                 using (var cmdIngresos = new SqlCommand(queryIngresos, connection))
@@ -776,7 +809,12 @@ namespace Comercio.NET.Formularios
                 dgvResumenPorMedio.Rows.Clear();
                 decimal totalEsperado = 0;
 
-                foreach (var kvp in resumenPorMedio.OrderBy(x => x.Key))
+                // ✅ CAMBIO: Ordenar para que "Efectivo" siempre sea primero
+                var mediosOrdenados = resumenPorMedio
+                    .OrderByDescending(kvp => kvp.Key.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(kvp => kvp.Key);
+
+                foreach (var kvp in mediosOrdenados)
                 {
                     string medioPago = kvp.Key;
                     decimal ingresos = kvp.Value.Ingresos;
@@ -794,7 +832,7 @@ namespace Comercio.NET.Formularios
                         cantTotal,
                         ingresos.ToString("C2"),
                         egresos.ToString("C2"),
-                        netoConInicial.ToString("C2"),  // ✅ Mostrar el neto CON monto inicial si es efectivo
+                        netoConInicial.ToString("C2"),
                         "$0.00",
                         "$0.00"
                     );
@@ -1124,6 +1162,7 @@ namespace Comercio.NET.Formularios
         {
             dgvResumenPorMedio.Rows.Clear();
             dgvDetalleTransacciones.Rows.Clear();
+            lblMontoInicial.Text = "$0.00";  // ✅ NUEVO
             lblTotalEsperado.Text = "$0.00";
             lblTotalDeclarado.Text = "$0.00";
             lblDiferencia.Text = "$0.00";
@@ -1297,7 +1336,7 @@ namespace Comercio.NET.Formularios
 
         private void InitializeComponent()
         {
-            this.ClientSize = new Size(500, 400);
+            this.ClientSize = new Size(600, 250);
             this.Text = "💵 Declarar Montos";
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -1311,44 +1350,75 @@ namespace Comercio.NET.Formularios
             {
                 Text = "Ingrese el monto real por cada medio:",
                 Location = new Point(15, 15),
-                Size = new Size(470, 30),
+                Size = new Size(570, 25),
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
 
             dgvDeclaracion = new DataGridView
             {
-                Location = new Point(15, 50),
-                Size = new Size(470, 280),
+                Location = new Point(15, 45),
+                Size = new Size(570, 150),
                 BackgroundColor = Color.White,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 SelectionMode = DataGridViewSelectionMode.CellSelect,
                 Font = new Font("Segoe UI", 9F),
-                RowHeadersVisible = false
+                RowHeadersVisible = false,
+                AllowUserToResizeRows = false,
+                ScrollBars = ScrollBars.Vertical
             };
 
             dgvDeclaracion.Columns.Add("MedioPago", "Medio");
             dgvDeclaracion.Columns.Add("Esperado", "Esperado");
-            
+
             var colDeclarado = new DataGridViewTextBoxColumn
             {
                 Name = "Declarado",
                 HeaderText = "Declarado",
-                ValueType = typeof(decimal)
+                ValueType = typeof(string)
             };
             dgvDeclaracion.Columns.Add(colDeclarado);
 
+            var colCheck = new DataGridViewCheckBoxColumn
+            {
+                Name = "AutoCopiar",
+                HeaderText = "✓ Auto",
+                Width = 70,
+                ReadOnly = false
+            };
+            dgvDeclaracion.Columns.Add(colCheck);
+
+            dgvDeclaracion.Columns["AutoCopiar"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvDeclaracion.Columns["AutoCopiar"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
             dgvDeclaracion.Columns["MedioPago"].ReadOnly = true;
             dgvDeclaracion.Columns["Esperado"].ReadOnly = true;
-            dgvDeclaracion.Columns["MedioPago"].Width = 150;
-            dgvDeclaracion.Columns["Esperado"].Width = 120;
-            dgvDeclaracion.Columns["Declarado"].Width = 120;
+            dgvDeclaracion.Columns["MedioPago"].Width = 140;
+            dgvDeclaracion.Columns["Esperado"].Width = 140;
+            dgvDeclaracion.Columns["Declarado"].Width = 150;
 
-            foreach (DataGridViewRow row in dgvReferencia.Rows)
+                dgvDeclaracion.RowTemplate.Height = 35;
+
+            // Eventos
+            dgvDeclaracion.CellContentClick += DgvDeclaracion_CellContentClick;
+            dgvDeclaracion.EditingControlShowing += DgvDeclaracion_EditingControlShowing;
+            dgvDeclaracion.CellEndEdit += DgvDeclaracion_CellEndEdit;
+            dgvDeclaracion.CellBeginEdit += DgvDeclaracion_CellBeginEdit;
+
+            var filasOrdenadas = dgvReferencia.Rows.Cast<DataGridViewRow>()
+                .Where(row => !row.IsNewRow)
+                .OrderByDescending(row => row.Cells["MedioPago"].Value?.ToString()?.Equals("Efectivo", StringComparison.OrdinalIgnoreCase) ?? false)
+                .ThenBy(row => row.Cells["MedioPago"].Value?.ToString());
+
+            foreach (DataGridViewRow row in filasOrdenadas)
             {
-                if (row.IsNewRow) continue;
-                dgvDeclaracion.Rows.Add(row.Cells["MedioPago"].Value, row.Cells["Neto"].Value, "0.00");
+                dgvDeclaracion.Rows.Add(
+                    row.Cells["MedioPago"].Value,
+                    row.Cells["Neto"].Value,
+                    "$0,00",
+                    false
+                );
             }
 
             this.Controls.Add(dgvDeclaracion);
@@ -1356,7 +1426,7 @@ namespace Comercio.NET.Formularios
             btnGuardar = new Button
             {
                 Text = "💾 Guardar",
-                Location = new Point(280, 345),
+                Location = new Point(370, 205),
                 Size = new Size(100, 32),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
@@ -1375,7 +1445,7 @@ namespace Comercio.NET.Formularios
             btnCancelar = new Button
             {
                 Text = "❌ Cancelar",
-                Location = new Point(385, 345),
+                Location = new Point(485, 205),
                 Size = new Size(100, 32),
                 BackColor = Color.FromArgb(158, 158, 158),
                 ForeColor = Color.White,
@@ -1387,14 +1457,125 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(btnCancelar);
         }
 
+        private void DgvDeclaracion_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex == dgvDeclaracion.Columns["AutoCopiar"].Index)
+            {
+                dgvDeclaracion.CommitEdit(DataGridViewDataErrorContexts.Commit);
+
+                bool isChecked = Convert.ToBoolean(dgvDeclaracion.Rows[e.RowIndex].Cells["AutoCopiar"].Value ?? false);
+
+                if (isChecked)
+                {
+                    string esperadoStr = dgvDeclaracion.Rows[e.RowIndex].Cells["Esperado"].Value?.ToString() ?? "$0.00";
+                    decimal esperado = decimal.Parse(esperadoStr, System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.CurrentCulture);
+                    dgvDeclaracion.Rows[e.RowIndex].Cells["Declarado"].Value = esperado.ToString("C2");
+                }
+                else
+                {
+                    dgvDeclaracion.Rows[e.RowIndex].Cells["Declarado"].Value = "$0.00";
+                }
+            }
+        }
+
+        private void DgvDeclaracion_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+            if (dgvDeclaracion.CurrentCell.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
+            {
+                TextBox txt = e.Control as TextBox;
+                if (txt != null)
+                {
+                    txt.KeyPress -= Txt_KeyPress;
+                    txt.TextChanged -= Txt_TextChanged;
+                    txt.KeyPress += Txt_KeyPress;
+                    txt.TextChanged += Txt_TextChanged;
+                }
+            }
+        }
+
+        private void Txt_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Permitir: números, backspace, delete, coma, punto
+            if (!char.IsDigit(e.KeyChar) && 
+                e.KeyChar != ',' && 
+                e.KeyChar != '.' && 
+                e.KeyChar != (char)Keys.Back)
+            {
+                e.Handled = true;
+            }
+
+            // Evitar múltiples separadores decimales
+            TextBox txt = sender as TextBox;
+            if (txt != null && (e.KeyChar == ',' || e.KeyChar == '.'))
+            {
+                if (txt.Text.Contains(",") || txt.Text.Contains("."))
+                {
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void Txt_TextChanged(object sender, EventArgs e)
+        {
+            // ✅ SIMPLIFICADO: No hacer nada mientras se escribe
+            // Solo permitir que el usuario escriba números normales
+            // El formato se aplicará al salir de la celda en CellEndEdit
+        }
+
+        private void DgvDeclaracion_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
+        {
+            if (e.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
+            {
+                var cell = dgvDeclaracion.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                string valor = cell.Value?.ToString() ?? "$0,00";
+
+                // Si es $0,00 o $0.00, limpiar para que el usuario pueda escribir desde cero
+                if (valor == "$0,00" || valor == "$0.00")
+                {
+                    cell.Value = "";
+                }
+            }
+        }
+
+    // ✅ MÉTODO: Al terminar de editar, aplicar formato completo
+    private void DgvDeclaracion_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+    {
+        if (e.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
+        {
+            var cell = dgvDeclaracion.Rows[e.RowIndex].Cells[e.ColumnIndex];
+            string valor = cell.Value?.ToString() ?? "";
+
+            string valorLimpio = valor.Replace("$", "").Replace(" ", "").Trim();
+
+            if (string.IsNullOrEmpty(valorLimpio))
+            {
+                cell.Value = "$0,00";
+                return;
+            }
+
+            valorLimpio = valorLimpio.Replace(".", "");
+            valorLimpio = valorLimpio.Replace(",", ".");
+
+            if (decimal.TryParse(valorLimpio, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal importe))
+            {
+                cell.Value = importe.ToString("C2", CultureInfo.CurrentCulture);
+            }
+            else
+            {
+                cell.Value = "$0,00";
+            }
+        }
+    }
+
         private void GuardarDeclaracion()
         {
             for (int i = 0; i < dgvDeclaracion.Rows.Count; i++)
             {
                 string medioPago = dgvDeclaracion.Rows[i].Cells["MedioPago"].Value.ToString();
-                decimal declarado;
+                string declaradoStr = dgvDeclaracion.Rows[i].Cells["Declarado"].Value?.ToString() ?? "$0,00";
                 
-                if (decimal.TryParse(dgvDeclaracion.Rows[i].Cells["Declarado"].Value?.ToString() ?? "0", out declarado))
+                if (decimal.TryParse(declaradoStr, System.Globalization.NumberStyles.Currency, 
+                    System.Globalization.CultureInfo.CurrentCulture, out decimal declarado))
                 {
                     foreach (DataGridViewRow row in dgvReferencia.Rows)
                     {
