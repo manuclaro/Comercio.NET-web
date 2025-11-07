@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Windows.Forms;
-//using WSconsultaCUIT;
 using Microsoft.Extensions.Configuration;
 using System.Data.SqlClient;
 using System.Data;
@@ -9,10 +8,10 @@ using System.Globalization;
 using System.ServiceModel;
 using System.Threading.Tasks;
 using Comercio.NET.Servicios;
-using Comercio.NET.Controles; // NUEVO: Para el control de múltiples pagos
+using Comercio.NET.Controles;
 using System.Linq;
 using System.Collections.Generic;
-using System.Threading; // NUEVO: Para CancellationTokenSource
+using System.Threading;
 
 namespace Comercio.NET
 {
@@ -111,8 +110,13 @@ namespace Comercio.NET
         public bool EsPagoMultiple => chkPagoMultiple?.Checked ?? false;
         public string ResumenPagos => EsPagoMultiple ? multiplePagosControl?.ObtenerResumenPagos() ?? "" : OpcionPagoSeleccionada.ToString();
 
+        // AGREGAR: En la sección de variables de la clase (alrededor de línea ~40)
+        private bool usarVistaPrevia = true; // NUEVO: Variable para controlar el modo de impresión
+
         public SeleccionImpresionForm(decimal importeTotal = 0, Ventas padre = null)
         {
+            System.Diagnostics.Debug.WriteLine($"[SELECCIÓN] Iniciando con importe: {importeTotal:C2}");
+
             this.importeTotalVenta = importeTotal;
             this.formularioPadre = padre;
 
@@ -143,6 +147,7 @@ namespace Comercio.NET
                         {
                             AplicarConfiguracionFacturacion();
                             ActualizarOpcionesImpresion();
+                            CargarConfiguracionVistaPrevia(); // ✅ NUEVO: Recargar configuración de vista previa
                         }
                         catch (Exception ex)
                         {
@@ -151,6 +156,99 @@ namespace Comercio.NET
                     }));
                 }
             };
+
+            // ✅ NUEVO: Cargar configuración de vista previa
+            CargarConfiguracionVistaPrevia();
+        }
+
+        // ✅ NUEVO: Método para cargar la configuración de vista previa
+        private void CargarConfiguracionVistaPrevia()
+        {
+            try
+            {
+                string basePath = AppDomain.CurrentDomain.BaseDirectory;
+                string jsonPath = System.IO.Path.Combine(basePath, "appsettings.json");
+
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] ====================================");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Base Path: {basePath}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] JSON Path: {jsonPath}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] ¿Archivo existe? {System.IO.File.Exists(jsonPath)}");
+
+                if (!System.IO.File.Exists(jsonPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] ⚠️ ADVERTENCIA: appsettings.json NO EXISTE en la ruta esperada");
+                    usarVistaPrevia = true; // Valor por defecto
+                    return;
+                }
+
+                // Leer el contenido del archivo para debug
+                string jsonContent = System.IO.File.ReadAllText(jsonPath);
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Contenido JSON completo:");
+                System.Diagnostics.Debug.WriteLine(jsonContent);
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(basePath)
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+
+                // Intentar leer la configuración de múltiples formas
+                var seccionRestricciones = config.GetSection("RestriccionesImpresion");
+
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] ¿Sección RestriccionesImpresion existe? {seccionRestricciones.Exists()}");
+
+                if (seccionRestricciones.Exists())
+                {
+                    // Leer cada valor individualmente para debug
+                    string valorUsarVistaPrevia = seccionRestricciones["UsarVistaPrevia"];
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] Valor RAW UsarVistaPrevia: '{valorUsarVistaPrevia}'");
+
+                    // Intentar parsear de dos formas diferentes
+                    bool valorParseado1 = config.GetValue<bool>("RestriccionesImpresion:UsarVistaPrevia", true);
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] Valor PARSEADO (GetValue<bool>): {valorParseado1}");
+
+                    // Segunda forma: parsear manualmente
+                    bool valorParseado2 = true;
+                    if (!string.IsNullOrEmpty(valorUsarVistaPrevia))
+                    {
+                        if (bool.TryParse(valorUsarVistaPrevia, out bool resultado))
+                        {
+                            valorParseado2 = resultado;
+                            System.Diagnostics.Debug.WriteLine($"[CONFIG] Valor PARSEADO (TryParse): {valorParseado2}");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[CONFIG] ⚠️ No se pudo parsear el valor: '{valorUsarVistaPrevia}'");
+                        }
+                    }
+
+                    // Usar el valor parseado
+                    usarVistaPrevia = valorParseado1;
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] ✅ Valor FINAL asignado a usarVistaPrevia: {usarVistaPrevia}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] ⚠️ Sección RestriccionesImpresion NO ENCONTRADA");
+                    usarVistaPrevia = true;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] ====================================");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] RESULTADO FINAL:");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG]   usarVistaPrevia = {usarVistaPrevia}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG]   Modo: {(usarVistaPrevia ? "VISTA PREVIA 👁️" : "IMPRESIÓN DIRECTA 🖨️")}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] ====================================");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] ❌ ERROR CRÍTICO: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Stack Trace: {ex.StackTrace}");
+
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] Inner Exception: {ex.InnerException.Message}");
+                }
+
+                usarVistaPrevia = true; // Por defecto en caso de error
+            }
         }
 
         private void CrearControles()
@@ -586,7 +684,6 @@ namespace Comercio.NET
             {
                 try
                 {
-                    // RESTAURADO: Procesar Factura B con AFIP real
                     await ProcesarFacturaElectronica(OpcionImpresion.FacturaB);
                 }
                 catch (Exception ex)
@@ -773,7 +870,6 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"🔄 === INICIANDO PROCESAMIENTO {tipoFactura} CON AFIP REAL ===");
 
-                // 1. VALIDAR PAGO COMPLETO
                 if (EsPagoMultiple && !multiplePagosControl.PagoCompleto)
                 {
                     MessageBox.Show(
@@ -788,13 +884,11 @@ namespace Comercio.NET
                     return;
                 }
 
-                // NUEVO: Deshabilitar TODOS los botones para evitar múltiples clicks
                 btnRemito.Enabled = false;
                 btnFacturaA.Enabled = false;
                 btnFacturaB.Enabled = false;
                 btnFinalizarSinImpresion.Enabled = false;
 
-                // 2. OBTENER CONFIGURACIÓN AFIP
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                     .AddJsonFile("appsettings.json")
@@ -808,11 +902,9 @@ namespace Comercio.NET
                     return;
                 }
 
-                // 3. MOSTRAR INDICADOR DE PROGRESO
                 var progressForm = new Form
                 {
                     Text = "Procesando factura electrónica con AFIP...",
-
                     Width = 400,
                     Height = 150,
                     StartPosition = FormStartPosition.CenterParent,
@@ -849,29 +941,26 @@ namespace Comercio.NET
 
                 try
                 {
-                    // 4. AUTENTICAR CON AFIP USANDO EL SERVICIO ROBUSTO
                     lblProgress.Text = "Autenticando con AFIP...";
                     Application.DoEvents();
 
                     await AutenticarConAfipReal(cuitEmisor);
 
-                    // 5. OBTENERÚLTIMO NÚMERO DE COMPROBANTE
                     lblProgress.Text = "Obteniendo número de comprobante...";
                     Application.DoEvents();
 
                     int tipoComprobante = tipoFactura == OpcionImpresion.FacturaA ? 1 : 6;
-                    int puntoVista = 1; // Configurar según necesidad
-                    int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVista);
+                    int puntoVenta = 1;
+                    int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVenta);
                     int numeroFactura = ultimoNumero + 1;
 
-                    System.Diagnostics.Debug.WriteLine($"📋 Tipo: {tipoComprobante}, PV: {puntoVista}, Último: {ultimoNumero}, Nuevo: {numeroFactura}");
+                    System.Diagnostics.Debug.WriteLine($"📋 Tipo: {tipoComprobante}, PV: {puntoVenta}, Último: {ultimoNumero}, Nuevo: {numeroFactura}");
 
-                    // 6. SOLICITAR CAE A AFIP REAL
                     lblProgress.Text = "Solicitando CAE a AFIP...";
                     Application.DoEvents();
 
                     string cuitCliente = tipoFactura == OpcionImpresion.FacturaA ? txtCuit.Text.Trim() : "";
-                    var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVista, numeroFactura, cuitCliente);
+                    var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVenta, numeroFactura, cuitCliente);
 
                     if (!resultadoCAE.exito)
                     {
@@ -881,23 +970,19 @@ namespace Comercio.NET
                         return;
                     }
 
-                    // 7. PROCESAR VENTA
                     lblProgress.Text = "Finalizando proceso...";
                     Application.DoEvents();
 
-                    // Almacenar datos CAE
                     CAENumero = resultadoCAE.cae;
                     CAEVencimiento = resultadoCAE.vencimiento;
                     NumeroFacturaAfip = numeroFactura;
                     OpcionSeleccionada = tipoFactura;
 
-                    // Formatear número de factura
-                    string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVista, numeroFactura);
+                    string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVenta, numeroFactura);
 
                     string formaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString();
                     string tipoFacturaString = tipoFactura == OpcionImpresion.FacturaA ? "FacturaA" : "FacturaB";
 
-                    // NUEVO: Log antes del callback
                     System.Diagnostics.Debug.WriteLine($"🔄 Ejecutando callback OnProcesarVenta para {tipoFacturaString}...");
 
                     if (OnProcesarVenta != null)
@@ -912,14 +997,22 @@ namespace Comercio.NET
                     System.Diagnostics.Debug.WriteLine($"✅ {tipoFactura} completada exitosamente con AFIP REAL");
                     System.Diagnostics.Debug.WriteLine($"CAE: {CAENumero}, Vencimiento: {CAEVencimiento:dd/MM/yyyy}");
 
-                    // ELIMINADO: MessageBox de confirmación de éxito
-                    // MODIFICADO: Cerrar directamente sin mostrar mensaje
+                    // ✅ CRÍTICO: Imprimir ANTES de cerrar el modal
+                    if (usarVistaPrevia)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[FACTURA] 🖨️ Imprimiendo {tipoFactura} con vista previa");
+                        await formularioPadre.ImprimirConServicioAsync(this);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[FACTURA] 🖨️ Imprimiendo {tipoFactura} directamente a la impresora");
+                        await ImprimirDirectoSinPreview(tipoFactura);
+                    }
 
-                    // NUEVO: Cerrar el modal inmediatamente después del procesamiento exitoso
+                    // ✅ IMPORTANTE: Cerrar DESPUÉS de imprimir (al final)
+                    System.Diagnostics.Debug.WriteLine("✅ Impresión completada - Cerrando modal");
                     this.DialogResult = DialogResult.OK;
                     this.Close();
-
-                    System.Diagnostics.Debug.WriteLine("✅ Modal cerrado directamente sin MessageBox - Procediendo con impresión");
                 }
                 catch (Exception ex)
                 {
@@ -932,26 +1025,90 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"❌ Error en ProcesarFacturaElectronica: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
 
-                // NUEVO: Restaurar botones en caso de error
                 btnRemito.Enabled = true;
                 btnFacturaA.Enabled = true;
                 btnFacturaB.Enabled = true;
                 btnFinalizarSinImpresion.Enabled = true;
-                ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
+                ActualizarOpcionesImpresion();
 
                 MessageBox.Show($"Error procesando factura electrónica:\n\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // MEJORADO: Autenticación completamente transparente para tokens existentes
+        // ✅ NUEVO: Método para impresión directa sin preview
+        private async Task ImprimirDirectoSinPreview(OpcionImpresion tipoComprobante)
+        {
+            try
+            {
+                if (formularioPadre == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[IMPRESIÓN] Error: formularioPadre es null");
+                    return;
+                }
+
+                var remitoActual = formularioPadre.GetRemitoActual();
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("[IMPRESIÓN] Error: No hay datos para imprimir");
+                    MessageBox.Show("No hay productos para imprimir.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var config = new Servicios.TicketConfig
+                {
+                    NombreComercio = formularioPadre.GetNombreComercio(),
+                    DomicilioComercio = "",
+                    FormaPago = OpcionPagoSeleccionada.ToString(),
+                    MensajePie = "Gracias por su compra!"
+                };
+
+                switch (tipoComprobante)
+                {
+                    case OpcionImpresion.RemitoTicket:
+                        config.TipoComprobante = "REMITO";
+                        config.NumeroComprobante = $"Remito N° {formularioPadre.GetNroRemitoActual()}";
+                        break;
+
+                    case OpcionImpresion.FacturaB:
+                        config.TipoComprobante = "FacturaB";
+                        config.NumeroComprobante = FormatearNumeroFactura(6, 1, NumeroFacturaAfip);
+                        config.CAE = CAENumero;
+                        config.CAEVencimiento = CAEVencimiento;
+                        break;
+
+                    case OpcionImpresion.FacturaA:
+                        config.TipoComprobante = "FacturaA";
+                        config.NumeroComprobante = FormatearNumeroFactura(1, 1, NumeroFacturaAfip);
+                        config.CAE = CAENumero;
+                        config.CAEVencimiento = CAEVencimiento;
+                        break;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] 🖨️ Imprimiendo directamente: {config.TipoComprobante}");
+
+                using (var ticketService = new Servicios.TicketPrintingService())
+                {
+                    await ticketService.ImprimirTicketDirecto(remitoActual, config);
+                }
+
+                System.Diagnostics.Debug.WriteLine("[IMPRESIÓN] ✅ Impresión directa completada");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ❌ Error en impresión directa: {ex.Message}");
+                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private async Task AutenticarConAfipReal(string cuitEmisor)
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine("🔑 === AUTENTICACIÓN AFIP TRANSPARENTE ===");
 
-                // PASO 1: Verificar tokens existentes ANTES de cualquier intento
                 var (tieneTokenValido, mensaje, minutosRestantes) = AfipAuthenticator.VerificarTokensExistentes("wsfe");
 
                 if (tieneTokenValido && minutosRestantes > 2)
@@ -962,13 +1119,12 @@ namespace Comercio.NET
                         TokenAfip = tokenExistente.Value.token;
                         SignAfip = tokenExistente.Value.sign;
                         System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Usando token válido existente: {mensaje}");
-                        return; // SALIR INMEDIATAMENTE sin más verificaciones
+                        return;
                     }
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[AFIP] 🔍 Estado tokens: {mensaje}");
 
-                // PASO 2: Obtener configuración
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                     .AddJsonFile("appsettings.json")
@@ -983,7 +1139,6 @@ namespace Comercio.NET
                     certificadoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificado.p12");
                 }
 
-                // PASO 3: Verificar certificado
                 var (esCertificadoValido, mensajeCert, fechaVencimiento) = AfipAuthenticator.VerificarCertificado(certificadoPath, certificadoPassword ?? "");
                 if (!esCertificadoValido)
                 {
@@ -992,7 +1147,6 @@ namespace Comercio.NET
 
                 System.Diagnostics.Debug.WriteLine($"✅ Certificado válido: {mensajeCert}");
 
-                // PASO 4: Usar el nuevo método transparente
                 try
                 {
                     var (token, sign, expiration) = await AfipAuthenticator.GetTAAsync("wsfe", certificadoPath, certificadoPassword ?? "", wsaaUrl);
@@ -1002,12 +1156,9 @@ namespace Comercio.NET
 
                     System.Diagnostics.Debug.WriteLine("✅ Autenticación AFIP transparente completada");
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Token válido hasta: {expiration:dd/MM/yyyy HH:mm:ss}");
-
-                    // NO mostrar ningún mensaje al usuario - proceso completamente transparente
                 }
                 catch (Exception ex) when (ex.Message.Contains("TOKEN") || ex.Message.Contains("token") || ex.Message.Contains("Ya existe"))
                 {
-                    // ÚLTIMO RECURSO: Forzar uso de token existente
                     System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Forzando uso de token existente debido a: {ex.Message}");
 
                     try
@@ -1033,7 +1184,6 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"💥 Error en autenticación transparente: {ex.Message}");
 
-                // ÚLTIMO RECURSO FINAL: Intentar cualquier token disponible
                 try
                 {
                     var tokenUltimoRecurso = AfipAuthenticator.GetExistingToken("wsfe");
@@ -1050,12 +1200,10 @@ namespace Comercio.NET
                     System.Diagnostics.Debug.WriteLine($"💥 Error en último recurso: {exCache.Message}");
                 }
 
-                // Solo mostrar error al usuario si realmente no se puede continuar
                 throw new Exception($"Error crítico de autenticación AFIP: {ex.Message}\n\nNo se pudo obtener tokens válidos para continuar.");
             }
         }
 
-        // NUEVO: Método para obtener último número de comprobante usando ServiceSoapClient
         private async Task<int> ObtenerUltimoNumeroComprobanteReal(int tipoComprobante, int puntoVenta)
         {
             try
@@ -1090,11 +1238,10 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ Error obteniendo último número: {ex.Message}");
-                return 0; // Si hay error, empezar desde 1
+                return 0;
             }
         }
 
-        // NUEVO: Método para solicitar CAE usando ServiceSoapClient
         private async Task<(bool exito, string cae, DateTime? vencimiento, string error)> SolicitarCAEReal(
             int tipoComprobante, int puntoVenta, int numero, string cuitCliente = "")
         {
@@ -1772,7 +1919,6 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine("🔄 === INICIANDO PROCESAMIENTO REMITO ===");
 
-                // MODIFICADO: Verificar las restricciones según el modo de pago
                 bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
 
                 if (EsPagoMultiple)
@@ -1793,7 +1939,6 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    // MANTENIDO: Para pago simple, aplicar las restricciones normales
                     if (debeRestringirPorPago &&
                         (OpcionPagoSeleccionada == OpcionPago.DNI || OpcionPagoSeleccionada == OpcionPago.MercadoPago))
                     {
@@ -1807,13 +1952,11 @@ namespace Comercio.NET
                     }
                 }
 
-                // NUEVO: Deshabilitar TODOS los botones para evitar múltiples clicks
                 btnRemito.Enabled = false;
                 btnFacturaA.Enabled = false;
                 btnFacturaB.Enabled = false;
                 btnFinalizarSinImpresion.Enabled = false;
 
-                // NUEVO: Cambiar cursor para indicar procesamiento
                 this.Cursor = Cursors.WaitCursor;
 
                 OpcionSeleccionada = OpcionImpresion.RemitoTicket;
@@ -1836,29 +1979,37 @@ namespace Comercio.NET
 
                     System.Diagnostics.Debug.WriteLine("✅ Procesamiento de remito completado exitosamente");
 
-                    // ELIMINADO: MessageBox de "Proceso Completado" 
-                    // MODIFICADO: Cerrar directamente sin mostrar mensaje
+                    // ✅ NUEVO: Aplicar configuración de vista previa (IGUAL QUE EN FACTURAS)
+                    if (usarVistaPrevia)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[REMITO] 🖨️ Imprimiendo con vista previa");
+                        await formularioPadre.ImprimirConServicioAsync(this);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[REMITO] 🖨️ Imprimiendo directamente a la impresora");
+                        await ImprimirDirectoSinPreview(OpcionImpresion.RemitoTicket);
+                    }
 
-                    // NUEVO: Cerrar el modal inmediatamente después del procesamiento exitoso
+                    // ✅ IMPORTANTE: Cerrar DESPUÉS de imprimir
                     this.DialogResult = DialogResult.OK;
                     this.Close();
 
-                    System.Diagnostics.Debug.WriteLine("✅ Modal cerrado directamente sin MessageBox - Procediendo con impresión");
+                    System.Diagnostics.Debug.WriteLine("✅ Modal cerrado - Remito completado");
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"❌ Error en callback OnProcesarVenta: {ex.Message}");
                     System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
 
-                    // NUEVO: Restaurar cursor y botones en caso de error
                     this.Cursor = Cursors.Default;
                     btnRemito.Enabled = true;
                     btnFacturaA.Enabled = true;
                     btnFacturaB.Enabled = true;
                     btnFinalizarSinImpresion.Enabled = true;
-                    ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
+                    ActualizarOpcionesImpresion();
 
-                    throw; // Re-lanzar la excepción para que sea manejada por el catch exterior
+                    throw;
                 }
             }
             catch (Exception ex)
@@ -1866,19 +2017,17 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"❌ Error general en ProcesarRemito: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
 
-                // NUEVO: Restaurar cursor y rehabilitar botones en caso de error
                 this.Cursor = Cursors.Default;
                 btnRemito.Enabled = true;
                 btnFacturaA.Enabled = true;
                 btnFacturaB.Enabled = true;
                 btnFinalizarSinImpresion.Enabled = true;
-                ActualizarOpcionesImpresion(); // Restaurar estados de botones correctamente
+                ActualizarOpcionesImpresion();
 
                 MessageBox.Show($"Error procesando remito: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                // NUEVO: Asegurar que el cursor siempre se restaure
                 this.Cursor = Cursors.Default;
                 System.Diagnostics.Debug.WriteLine("🔄 === FIN PROCESAMIENTO REMITO ===");
             }

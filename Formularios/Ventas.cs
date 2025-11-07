@@ -1970,6 +1970,7 @@ namespace Comercio.NET
             // Formatear columnas y encabezados (resto del código igual)
             FormatearDataGridView();
 
+
             // Dejar el foco en el campo buscar para el próximo producto
             txtBuscarProducto.Text = "";
             txtBuscarProducto.Focus();
@@ -1982,6 +1983,27 @@ namespace Comercio.NET
             }
         }
 
+        // NUEVO: Calcular el total del remito actual
+        private decimal CalcularTotal()
+        {
+            decimal total = 0m;
+
+            if (remitoActual != null && remitoActual.Rows.Count > 0)
+            {
+                foreach (DataRow row in remitoActual.Rows)
+                {
+                    if (row["total"] != null && row["total"] != DBNull.Value)
+                    {
+                        if (decimal.TryParse(row["total"].ToString(), out decimal valorTotal))
+                        {
+                            total += valorTotal;
+                        }
+                    }
+                }
+            }
+
+            return total;
+        }
         private void Ventas_Load(object sender, EventArgs e)
         {
             // Abrir un poco más ancho si la ventana de diseño es más pequeña
@@ -2308,7 +2330,7 @@ namespace Comercio.NET
         }
 
         // NUEVO: Método async separado para la impresión
-        private async Task ImprimirConServicioAsync(SeleccionImpresionForm seleccion)
+        public async Task ImprimirConServicioAsync(SeleccionImpresionForm seleccion)
         {
             try
             {
@@ -2396,94 +2418,98 @@ namespace Comercio.NET
         // Handler del botón Finalizar Venta (construido para usar el modal SeleccionImpresionForm)
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
-            remitoIncrementado = false;
-
-            if (remitoActual == null || remitoActual.Rows.Count == 0)
-                return;
-
-            // Calcular el importe total antes de abrir el modal
-            decimal importeTotal = 0;
-            decimal ivaTotal = 0;
-
-            foreach (DataRow row in remitoActual.Rows)
-            {
-                if (row["total"] != null && decimal.TryParse(row["total"].ToString(), out decimal valorTotal))
-                    importeTotal += valorTotal;
-
-                // Comprobar existencia de la columna y que no sea DBNull
-                if (row.Table != null && row.Table.Columns.Contains("IvaCalculado") && !row.IsNull("IvaCalculado"))
-                {
-                    if (decimal.TryParse(row["IvaCalculado"].ToString(), out decimal valorIva))
-                        ivaTotal += valorIva;
-                }
-            }
-
-            // Variables para almacenar los datos del procesamiento
-            List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null;
-            SeleccionImpresionForm.OpcionImpresion opcionSeleccionada = SeleccionImpresionForm.OpcionImpresion.Ninguna;
-            SeleccionImpresionForm.OpcionPago opcionPagoSeleccionada = SeleccionImpresionForm.OpcionPago.Efectivo;
-            string caeNumero = "";
-            DateTime? caeVencimiento = null;
-            int numeroFacturaAfip = 0;
-            bool procesadoExitosamente = false;
-
             try
             {
-                using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
                 {
-                    // Pasar tokens si los tenemos
-                    seleccion.TokenAfip = this.token;
-                    seleccion.SignAfip = this.sign;
+                    MessageBox.Show("No hay productos en la venta para finalizar.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
 
-                    seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumeroParam, caeVencimientoParam, numeroFacturaAfipParam, numeroFormateado) =>
+                decimal importeTotal = CalcularTotal();
+                System.Diagnostics.Debug.WriteLine($"[VENTAS] Iniciando finalización de venta con total: {importeTotal:C2}");
+
+                using (var seleccionModal = new SeleccionImpresionForm(importeTotal, this))
+                {
+                    // ✅ CRÍTICO: Configurar el callback ANTES de mostrar el modal
+                    seleccionModal.OnProcesarVenta = async (tipoComprobante, formaPago, cuitCliente,
+                        caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
                     {
-                        // Capturar pagos múltiples si aplica
-                        if (seleccion.EsPagoMultiple)
+                        try
                         {
-                            pagosMultiples = seleccion.PagosMultiples;
+                            System.Diagnostics.Debug.WriteLine($"[VENTAS] OnProcesarVenta - Tipo: {tipoComprobante}, FormaPago: {formaPago}");
+
+                            // Guardar en BD
+                            await GuardarFacturaEnBD(
+                                tipoComprobante,
+                                formaPago,
+                                cuitCliente,
+                                caeNumero,
+                                caeVencimiento,
+                                numeroFacturaAfip,
+                                numeroFormateado,
+                                seleccionModal.EsPagoMultiple ? seleccionModal.PagosMultiples : null
+                            );
+
+                            System.Diagnostics.Debug.WriteLine("[VENTAS] ✅ Factura guardada en BD exitosamente");
+
+                            // ✅✅✅ CRÍTICO: NO IMPRIMIR AQUÍ - YA LO HIZO SeleccionImpresionForm
+                            // La impresión ya se realizó en ProcesarRemito() o ProcesarFacturaElectronica()
+                            // según la configuración de usarVistaPrevia
+
+                            // ELIMINADO:
+                            // await ImprimirSinModal(...); 
+
+                            System.Diagnostics.Debug.WriteLine("[VENTAS] ✅ Proceso de venta completado (sin impresión adicional)");
                         }
-
-                        // Guardar en BD (implementación mínima / placeholder más abajo)
-                        await GuardarFacturaEnBD(tipoFactura, formaPago, cuitCliente, caeNumeroParam, caeVencimientoParam, numeroFacturaAfipParam, numeroFormateado, pagosMultiples);
-
-                        // Guardar para impresión posterior
-                        opcionSeleccionada = seleccion.OpcionSeleccionada;
-                        opcionPagoSeleccionada = seleccion.OpcionPagoSeleccionada;
-                        caeNumero = caeNumeroParam ?? "";
-                        caeVencimiento = caeVencimientoParam;
-                        numeroFacturaAfip = numeroFacturaAfipParam;
-                        procesadoExitosamente = true;
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[VENTAS] ❌ Error en OnProcesarVenta: {ex.Message}");
+                            throw;
+                        }
                     };
 
-                    var resultado = seleccion.ShowDialog(this);
+                    var resultado = seleccionModal.ShowDialog();
 
-                    // Si el usuario seleccionó Finalizar (sin impresión) desde el modal,
-                    // el callback ya guardó y devolvió DialogResult.OK; dejamos procesadoExitosamente en true.
-                    if (resultado == DialogResult.OK && procesadoExitosamente)
+                    if (resultado == DialogResult.OK)
                     {
-                        // Si el modal indicó explícitamente "FinalizadoSinImpresion", NO imprimir
-                        if (seleccion.FinalizadoSinImpresion)
+                        System.Diagnostics.Debug.WriteLine($"[VENTAS] ✅ Venta finalizada exitosamente - Opción: {seleccionModal.OpcionSeleccionada}");
+
+                        // ✅ NUEVO: Verificar si finalizó sin impresión
+                        if (seleccionModal.FinalizadoSinImpresion)
                         {
-                            LimpiarYReiniciarVenta();
-                            return;
+                            System.Diagnostics.Debug.WriteLine("[VENTAS] ℹ️ Venta finalizada sin impresión");
+                            MessageBox.Show(
+                                "Venta registrada exitosamente sin impresión de comprobante.",
+                                "Venta Finalizada",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[VENTAS] ℹ️ Comprobante: {seleccionModal.OpcionSeleccionada}");
                         }
 
-                        // Proceder con impresión según la opción seleccionada
-                        await ImprimirSinModal(opcionSeleccionada, opcionPagoSeleccionada, caeNumero, caeVencimiento, numeroFacturaAfip);
-
-                        // Limpiar y reiniciar
+                        // Limpiar y reiniciar para nueva venta
                         LimpiarYReiniciarVenta();
                     }
                     else
                     {
-                        // Modal cancelado o no procesado
+                        System.Diagnostics.Debug.WriteLine("[VENTAS] ⚠️ Venta cancelada por el usuario");
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error en btnFinalizarVenta_Click: {ex.Message}");
-                MessageBox.Show($"Error finalizando la venta: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"[VENTAS] ❌ Error crítico en btnFinalizarVenta_Click: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[VENTAS] Stack trace: {ex.StackTrace}");
+
+                MessageBox.Show(
+                    $"Error al finalizar la venta:\n\n{ex.Message}",
+                    "Error Crítico",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 

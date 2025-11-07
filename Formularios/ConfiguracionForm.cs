@@ -63,6 +63,9 @@ namespace Comercio.NET.Formularios
         // NUEVO: Variable para ToolTip
         private ToolTip toolTip;
 
+        // AGREGAR: En la sección de variables de la clase (línea ~54)
+        private CheckBox chkVistaPreviaImpresionDirecta; // NUEVO: Control para elegir entre vista previa o impresión directa
+
         public ConfiguracionForm()
         {
             System.Diagnostics.Debug.WriteLine("[CONFIG] Iniciando ConfiguracionForm");
@@ -965,12 +968,12 @@ namespace Comercio.NET.Formularios
             btnColapsarRestriccionesImpresion.FlatAppearance.BorderSize = 0;
             panelHeader.Controls.Add(btnColapsarRestriccionesImpresion);
 
-            // Contenido colapsable
+            // Contenido colapsable - AUMENTAR ALTURA para acomodar el nuevo checkbox
             var panelContenido = new Panel
             {
                 Name = "panelContenidoRestriccionesImpresion",
                 Location = new Point(0, 30),
-                Size = new Size(ancho, 120), // Altura para acomodar todos los controles
+                Size = new Size(ancho, 200), // AUMENTADO: de 120 a 200 para el nuevo control
                 BackColor = Color.FromArgb(248, 250, 252),
                 Visible = true // Iniciar expandido
             };
@@ -989,7 +992,7 @@ namespace Comercio.NET.Formularios
             };
             panelContenido.Controls.Add(lblDescripcion);
 
-            // CheckBox principal para la restricción
+            // CheckBox principal para la restricción de remito
             chkRestringirRemitoPorPago = new CheckBox
             {
                 Text = "Restringir generación de REMITO para pagos no efectivo",
@@ -1012,6 +1015,30 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.Gray
             };
             panelContenido.Controls.Add(lblExplicacion);
+
+            // NUEVO: CheckBox para elegir entre vista previa o impresión directa
+            chkVistaPreviaImpresionDirecta = new CheckBox
+            {
+                Text = "Usar vista previa antes de imprimir (recomendado)",
+                Location = new Point(15, 120),
+                Size = new Size(520, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = true // Por defecto habilitado (vista previa)
+            };
+            panelContenido.Controls.Add(chkVistaPreviaImpresionDirecta);
+
+            // Descripción de la nueva funcionalidad
+            var lblExplicacionVistaPrevia = new Label
+            {
+                Text = "• Habilitado: Se mostrará una vista previa antes de enviar el documento a la impresora.\n" +
+                       "• Deshabilitado: Los comprobantes se enviarán directamente a la impresora sin confirmación.",
+                Location = new Point(35, 145),
+                Size = new Size(520, 40),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.Gray
+            };
+            panelContenido.Controls.Add(lblExplicacionVistaPrevia);
 
             // Configurar eventos
             EventHandler clickHandler = (s, e) => ToggleColapsarRestriccionesImpresion();
@@ -1089,18 +1116,20 @@ namespace Comercio.NET.Formularios
 
             // NUEVO: TabIndex para restricciones de impresión
             chkRestringirRemitoPorPago.TabIndex = 18;
+            chkVistaPreviaImpresionDirecta.TabIndex = 19; // NUEVO
 
-            chkVerificarStock.TabIndex = 19;
-            lstNombresCtaCte.TabIndex = 20;
-            txtNuevoNombreCtaCte.TabIndex = 21;
-            btnAgregarNombre.TabIndex = 22;
-            btnEditarNombre.TabIndex = 23;
-            btnEliminarNombre.TabIndex = 24;
-            txtConnectionString.TabIndex = 25;
-            btnTestearConexion.TabIndex = 26;
-            btnEditarBaseDatos.TabIndex = 27;
-            btnGuardar.TabIndex = 28;
-            btnCancelar.TabIndex = 29;
+            // Ajustar todos los siguientes TabIndex +1:
+            chkVerificarStock.TabIndex = 20; // Era 19
+            lstNombresCtaCte.TabIndex = 21; // Era 20
+            txtNuevoNombreCtaCte.TabIndex = 22; // Era 21
+            btnAgregarNombre.TabIndex = 23; // Era 22
+            btnEditarNombre.TabIndex = 24; // Era 23
+            btnEliminarNombre.TabIndex = 25; // Era 24
+            txtConnectionString.TabIndex = 26; // Era 25
+            btnTestearConexion.TabIndex = 27; // Era 26
+            btnEditarBaseDatos.TabIndex = 28; // Era 27
+            btnGuardar.TabIndex = 29; // Era 28
+            btnCancelar.TabIndex = 30; // Era 29
         }
 
         private void ConfigurarEventos()
@@ -1372,6 +1401,12 @@ namespace Comercio.NET.Formularios
                 bool restringirRemitoPorPago = _configuracionOriginal["RestriccionesImpresion"]?["RestringirRemitoPorPago"]?.ToObject<bool>() ?? true;
                 chkRestringirRemitoPorPago.Checked = restringirRemitoPorPago;
 
+                // NUEVO: Cargar configuración de vista previa de impresión
+                bool usarVistaPrevia = _configuracionOriginal["RestriccionesImpresion"]?["UsarVistaPrevia"]?.ToObject<bool>() ?? true;
+                chkVistaPreviaImpresionDirecta.Checked = usarVistaPrevia;
+
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Usar Vista Previa: {chkVistaPreviaImpresionDirecta.Checked}");
+
                 // Cargar configuración de inventario
                 bool verificarStock = _configuracionOriginal["Inventario"]?["VerificarStock"]?.ToObject<bool>() ?? 
                                      _configuracionOriginal["Validaciones"]?["ValidarStockDisponible"]?.ToObject<bool>() ?? 
@@ -1521,7 +1556,8 @@ namespace Comercio.NET.Formularios
                     // Sección de restricciones de impresión por defecto
                     ["RestriccionesImpresion"] = new JObject
                     {
-                        ["RestringirRemitoPorPago"] = true
+                        ["RestringirRemitoPorPago"] = true,
+                        ["UsarVistaPrevia"] = true // NUEVO: Por defecto usar vista previa
                     }
                 };
 
@@ -1616,6 +1652,15 @@ namespace Comercio.NET.Formularios
                     nuevaConfiguracion["RestriccionesImpresion"] = new JObject();
 
                 nuevaConfiguracion["RestriccionesImpresion"]["RestringirRemitoPorPago"] = chkRestringirRemitoPorPago.Checked;
+
+
+                // NUEVO: Guardar configuración de vista previa
+                nuevaConfiguracion["RestriccionesImpresion"]["UsarVistaPrevia"] = chkVistaPreviaImpresionDirecta.Checked;
+
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Restricciones configuradas - Usar Vista Previa: {chkVistaPreviaImpresionDirecta.Checked}");
+
+
+
 
                 System.Diagnostics.Debug.WriteLine($"[SAVE] Restricciones configuradas - Restringir Remito: {chkRestringirRemitoPorPago.Checked}");
 
@@ -1985,11 +2030,12 @@ namespace Comercio.NET.Formularios
             ActualizarPosicionesTodasLasSecciones();
         }
 
+        // MODIFICAR: El método ToggleColapsarRestriccionesImpresion (línea ~2027)
         private void ToggleColapsarRestriccionesImpresion()
         {
             _restriccionesImpresionColapsado = !_restriccionesImpresionColapsado;
-            ActualizarEstadoSeccion(panelRestriccionesImpresion, "panelContenidoRestriccionesImpresion", 
-                _restriccionesImpresionColapsado, btnColapsarRestriccionesImpresion, 35, 155);
+            ActualizarEstadoSeccion(panelRestriccionesImpresion, "panelContenidoRestriccionesImpresion",
+                _restriccionesImpresionColapsado, btnColapsarRestriccionesImpresion, 35, 235); // ACTUALIZADO: altura de 155 a 235
             ActualizarPosicionesTodasLasSecciones();
         }
 
