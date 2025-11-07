@@ -10,19 +10,19 @@ namespace Comercio.NET.Formularios
 {
     public partial class AperturaTurnoCajeroForm : Form
     {
-        private ComboBox cmbCajero;
+        private Label lblCajeroAsignado; // ✅ CAMBIO: Label en lugar de ComboBox
         private TextBox txtMontoInicial;
         private TextBox txtObservaciones;
         private Button btnAbrirTurno, btnCancelar;
         private Label lblEstadoTurno;
         private Panel panelInfo;
+        private int numeroCajeroLogueado = -1; // ✅ NUEVO: Almacenar número de cajero
 
         public AperturaTurnoCajeroForm()
         {
             InitializeComponent();
             ConfigurarFormulario();
-            _ = CargarCajeros();
-            _ = VerificarEstadoTurno();
+            _ = CargarCajeroLogueado(); // ✅ CAMBIO: Cargar solo el cajero logueado
         }
 
         private void InitializeComponent()
@@ -88,7 +88,7 @@ namespace Comercio.NET.Formularios
             };
             panelInfo.Controls.Add(lblEstadoTurno);
 
-            // Selección de Cajero
+            // ✅ CAMBIO: Cajero como Label (solo lectura)
             panelInfo.Controls.Add(new Label
             {
                 Text = "Cajero:",
@@ -97,14 +97,18 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             });
 
-            cmbCajero = new ComboBox
+            lblCajeroAsignado = new Label
             {
                 Location = new Point(100, 56),
                 Size = new Size(405, 22),
-                Font = new Font("Segoe UI", 9F),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181),
+                Text = "Cargando...",
+                BorderStyle = BorderStyle.FixedSingle,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(5, 2, 0, 0)
             };
-            panelInfo.Controls.Add(cmbCajero);
+            panelInfo.Controls.Add(lblCajeroAsignado);
 
             // Fecha y Hora
             panelInfo.Controls.Add(new Label
@@ -241,13 +245,25 @@ namespace Comercio.NET.Formularios
         {
             btnAbrirTurno.Click += async (s, e) => await AbrirTurno();
             btnCancelar.Click += (s, e) => this.Close();
-            cmbCajero.SelectedIndexChanged += async (s, e) => await VerificarEstadoTurno();
         }
 
-        private async Task CargarCajeros()
+        // ✅ NUEVO MÉTODO: Cargar el cajero del usuario logueado
+        private async Task CargarCajeroLogueado()
         {
             try
             {
+                var usuarioActual = AuthenticationService.SesionActual?.Usuario;
+                
+                if (usuarioActual == null)
+                {
+                    MessageBox.Show("No hay sesión activa", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    this.Close();
+                    return;
+                }
+
+                numeroCajeroLogueado = usuarioActual.NumeroCajero;
+
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                     .AddJsonFile("appsettings.json")
@@ -256,59 +272,55 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 using var connection = new SqlConnection(connectionString);
+                connection.Open();
                 
                 var query = @"
-                    SELECT DISTINCT NumeroCajero, 
-                           COALESCE(MIN(Nombre + ' ' + Apellido), 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
+                    SELECT TOP 1 COALESCE(Nombre + ' ' + Apellido, 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
                     FROM Usuarios
-                    WHERE Activo = 1
-                    GROUP BY NumeroCajero
-                    ORDER BY NumeroCajero";
+                    WHERE NumeroCajero = @numeroCajero
+                    AND Activo = 1";
 
                 using var cmd = new SqlCommand(query, connection);
-                connection.Open();
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajeroLogueado);
 
-                cmbCajero.Items.Clear();
-                cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "-- Seleccionar --" });
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (reader.Read())
+                var nombreCajero = await cmd.ExecuteScalarAsync();
+                
+                if (nombreCajero != null)
                 {
-                    int numero = reader.GetInt32(0);
-                    string nombre = reader.GetString(1);
-                    cmbCajero.Items.Add(new 
-                    { 
-                        NumeroCajero = numero, 
-                        Display = $"Cajero #{numero} - {nombre}" 
-                    });
+                    lblCajeroAsignado.Text = $"Cajero #{numeroCajeroLogueado} - {nombreCajero}";
+                    await VerificarEstadoTurno();
                 }
-
-                cmbCajero.DisplayMember = "Display";
-                cmbCajero.ValueMember = "NumeroCajero";
-                cmbCajero.SelectedIndex = 0;
+                else
+                {
+                    MessageBox.Show(
+                        $"El usuario '{usuarioActual.NombreUsuario}' no tiene un cajero asignado",
+                        "Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    this.Close();
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error cargando cajeros: {ex.Message}", "Error",
+                MessageBox.Show($"Error cargando cajero: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this.Close();
             }
         }
 
+        // ✅ MODIFICADO: Usa numeroCajeroLogueado en lugar de ComboBox
         private async Task VerificarEstadoTurno()
         {
             try
             {
-                if (cmbCajero.SelectedIndex <= 0)
+                if (numeroCajeroLogueado <= 0)
                 {
-                    lblEstadoTurno.Text = "⚠️ Seleccione un cajero para verificar su estado";
-                    lblEstadoTurno.ForeColor = Color.FromArgb(255, 152, 0);
-                    lblEstadoTurno.BackColor = Color.FromArgb(255, 243, 224);
+                    lblEstadoTurno.Text = "⚠️ No se pudo identificar el cajero";
+                    lblEstadoTurno.ForeColor = Color.FromArgb(244, 67, 54);
+                    lblEstadoTurno.BackColor = Color.FromArgb(255, 235, 238);
                     btnAbrirTurno.Enabled = false;
                     return;
                 }
-
-                dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
-                int numeroCajero = cajeroSeleccionado.NumeroCajero;
 
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -328,7 +340,7 @@ namespace Comercio.NET.Formularios
                     ORDER BY FechaApertura DESC";
 
                 using var cmd = new SqlCommand(query, connection);
-                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajeroLogueado);
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (reader.Read())
@@ -343,7 +355,7 @@ namespace Comercio.NET.Formularios
                     btnAbrirTurno.Enabled = false;
 
                     MessageBox.Show(
-                        $"⚠️ Cajero #{numeroCajero} tiene turno abierto\n\n" +
+                        $"⚠️ Su cajero ya tiene un turno abierto\n\n" +
                         $"Usuario: {usuario}\n" +
                         $"Apertura: {fechaApertura:dd/MM/yyyy HH:mm}\n" +
                         $"Monto: {montoInicial:C2}\n\n" +
@@ -354,7 +366,7 @@ namespace Comercio.NET.Formularios
                 }
                 else
                 {
-                    lblEstadoTurno.Text = "✅ El cajero puede abrir un nuevo turno";
+                    lblEstadoTurno.Text = "✅ Puede abrir un nuevo turno";
                     lblEstadoTurno.ForeColor = Color.FromArgb(76, 175, 80);
                     lblEstadoTurno.BackColor = Color.FromArgb(232, 245, 233);
                     btnAbrirTurno.Enabled = true;
@@ -367,14 +379,15 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        // ✅ MODIFICADO: Usa numeroCajeroLogueado en lugar de ComboBox
         private async Task AbrirTurno()
         {
             try
             {
-                if (cmbCajero.SelectedIndex <= 0)
+                if (numeroCajeroLogueado <= 0)
                 {
-                    MessageBox.Show("Debe seleccionar un cajero", "Validación",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("No se pudo identificar el cajero", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
@@ -388,7 +401,7 @@ namespace Comercio.NET.Formularios
 
                 var resultado = MessageBox.Show(
                     $"¿Confirma la apertura del turno?\n\n" +
-                    $"Cajero: {cmbCajero.Text}\n" +
+                    $"Cajero: {lblCajeroAsignado.Text}\n" +
                     $"Monto: {montoInicial:C2}\n" +
                     $"Fecha: {DateTime.Now:dd/MM/yyyy HH:mm:ss}",
                     "Confirmar",
@@ -400,8 +413,6 @@ namespace Comercio.NET.Formularios
                 btnAbrirTurno.Enabled = false;
                 btnAbrirTurno.Text = "⏳ Abriendo...";
 
-                dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
-                int numeroCajero = cajeroSeleccionado.NumeroCajero;
                 string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
 
                 var config = new ConfigurationBuilder()
@@ -424,7 +435,7 @@ namespace Comercio.NET.Formularios
                 int idTurno;
                 using (var cmd = new SqlCommand(query, connection))
                 {
-                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajeroLogueado);
                     cmd.Parameters.AddWithValue("@usuario", usuario);
                     cmd.Parameters.AddWithValue("@fechaApertura", DateTime.Now);
                     cmd.Parameters.AddWithValue("@montoInicial", montoInicial);
@@ -436,7 +447,7 @@ namespace Comercio.NET.Formularios
                 MessageBox.Show(
                     $"✅ Turno abierto exitosamente\n\n" +
                     $"ID: {idTurno}\n" +
-                    $"Cajero: {cmbCajero.Text}\n" +
+                    $"Cajero: {lblCajeroAsignado.Text}\n" +
                     $"Monto: {montoInicial:C2}",
                     "Éxito",
                     MessageBoxButtons.OK,

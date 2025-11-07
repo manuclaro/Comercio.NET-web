@@ -71,6 +71,14 @@ namespace Comercio.NET
 
         public Ventas()
         {
+            // ✅ AGREGAR: Verificar turno abierto ANTES de inicializar el formulario
+            if (!VerificarYSolicitarTurnoAbierto())
+            {
+                // Si no se abre el turno, cerrar el formulario inmediatamente
+                this.Load += (s, e) => this.Close();
+                return;
+            }
+
             InitializeComponent();
             ConfigurarEstilosFormulario();
             ConfigurarEventHandlers();
@@ -95,6 +103,133 @@ namespace Comercio.NET
             // Agregar evento de redimensionamiento
             this.Resize += Ventas_Resize;
         }
+
+        // ✅ NUEVO MÉTODO: Verificar si hay turno abierto y ofrecer apertura
+        private bool VerificarYSolicitarTurnoAbierto()
+        {
+            try
+            {
+                // Obtener el usuario logueado
+                var usuarioActual = AuthenticationService.SesionActual?.Usuario;
+
+                if (usuarioActual == null)
+                {
+                    MessageBox.Show(
+                        "❌ No hay sesión activa.\n\nDebe iniciar sesión para acceder a Ventas.",
+                        "Sesión Requerida",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return false;
+                }
+
+                int numeroCajero = usuarioActual.NumeroCajero;
+
+                // Verificar si existe un turno abierto
+                bool tieneTurnoAbierto = VerificarTurnoAbierto(numeroCajero);
+
+                if (tieneTurnoAbierto)
+                {
+                    // Todo OK, tiene turno abierto
+                    return true;
+                }
+
+                // No tiene turno abierto - Mostrar diálogo de sugerencia
+                var resultado = MessageBox.Show(
+                    $"⚠️ NO TIENE TURNO ABIERTO\n\n" +
+                    $"Usuario: {usuarioActual.NombreUsuario}\n" +
+                    $"Cajero: #{numeroCajero}\n\n" +
+                    $"Para realizar ventas debe abrir un turno primero.\n\n" +
+                    $"¿Desea abrir un turno ahora?",
+                    "Turno de Cajero Requerido",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button1);
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Abrir formulario de apertura de turno
+                    using (var formApertura = new AperturaTurnoCajeroForm())
+                    {
+                        var resultadoApertura = formApertura.ShowDialog();
+
+                        if (resultadoApertura == DialogResult.OK)
+                        {
+                            // Verificar nuevamente que se haya abierto correctamente
+                            if (VerificarTurnoAbierto(numeroCajero))
+                            {
+                                MessageBox.Show(
+                                    "✅ Turno abierto correctamente.\n\nYa puede comenzar a realizar ventas.",
+                                    "Turno Abierto",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Information);
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Si llegamos aquí, no se abrió el turno
+                MessageBox.Show(
+                    "❌ No se puede acceder a Ventas sin un turno abierto.\n\n" +
+                    "Por favor, abra un turno desde el menú Caja > Apertura de Turno.",
+                    "Acceso Denegado",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"❌ Error al verificar turno de caja:\n\n{ex.Message}\n\n" +
+                    $"Por seguridad, se cancelará el acceso a Ventas.",
+                    "Error de Verificación",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        // ✅ NUEVO MÉTODO: Verificar si existe turno abierto en la base de datos
+        private bool VerificarTurnoAbierto(int numeroCajero)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    var query = @"
+                        SELECT COUNT(*) 
+                        FROM TurnosCajero 
+                        WHERE NumeroCajero = @numeroCajero 
+                        AND Estado = 'Abierto'";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+
+                        int count = (int)cmd.ExecuteScalar();
+                        return count > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error verificando turno: {ex.Message}");
+                // En caso de error, por seguridad retornar false
+                return false;
+            }
+        }
+
+
 
         // NUEVO: Configurar menú contextual
         private void ConfigurarMenuContextual()
