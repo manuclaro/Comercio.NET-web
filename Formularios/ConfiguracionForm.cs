@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Comercio.NET.Formularios
 {
@@ -65,6 +66,8 @@ namespace Comercio.NET.Formularios
 
         // AGREGAR: En la sección de variables de la clase (línea ~54)
         private CheckBox chkVistaPreviaImpresionDirecta; // NUEVO: Control para elegir entre vista previa o impresión directa
+        private CheckBox chkLimitarFacturacion; // NUEVO: Control para limitar facturación
+        private TextBox txtMontoLimiteFacturacion; // NUEVO: Control para el monto límite
 
         public ConfiguracionForm()
         {
@@ -1040,6 +1043,75 @@ namespace Comercio.NET.Formularios
             };
             panelContenido.Controls.Add(lblExplicacionVistaPrevia);
 
+            // NUEVO: CheckBox para limitar facturación diaria
+            chkLimitarFacturacion = new CheckBox
+            {
+                Text = "Limitar facturación diaria",
+                Location = new Point(15, 190),
+                Size = new Size(520, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = false // Por defecto deshabilitado
+            };
+            chkLimitarFacturacion.CheckedChanged += ChkLimitarFacturacion_CheckedChanged;
+            panelContenido.Controls.Add(chkLimitarFacturacion);
+
+            // NUEVO: Label para el monto
+            var lblMontoLimite = new Label
+            {
+                Text = "Monto límite diario:",
+                Location = new Point(35, 220),
+                Size = new Size(120, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Visible = false
+            };
+            panelContenido.Controls.Add(lblMontoLimite);
+
+            // NUEVO: TextBox para el monto límite
+            txtMontoLimiteFacturacion = new TextBox
+            {
+                Location = new Point(160, 218),
+                Size = new Size(150, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "Ej: 50000.00",
+                Visible = false
+            };
+            // Validar que solo se ingresen números y punto decimal
+            txtMontoLimiteFacturacion.KeyPress += (s, e) =>
+            {
+                if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && 
+                    e.KeyChar != '.' && e.KeyChar != ',')
+                {
+                    e.Handled = true;
+                }
+                
+                // Solo permitir un punto decimal
+                if ((e.KeyChar == '.' || e.KeyChar == ',') && 
+                    (txtMontoLimiteFacturacion.Text.Contains(".") || 
+                     txtMontoLimiteFacturacion.Text.Contains(",")))
+                {
+                    e.Handled = true;
+                }
+            };
+            panelContenido.Controls.Add(txtMontoLimiteFacturacion);
+
+            // Descripción de la funcionalidad
+            var lblExplicacionLimite = new Label
+            {
+                Text = "Cuando está habilitado, el sistema impedirá generar facturas si se supera el monto límite diario.\n" +
+                       "El límite se verifica sumando todas las facturas del día actual.",
+                Location = new Point(35, 245),
+                Size = new Size(520, 40),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.Gray,
+                Visible = false
+            };
+            panelContenido.Controls.Add(lblExplicacionLimite);
+
+            // Actualizar la altura del panel de contenido para acomodar los nuevos controles
+            panelContenido.Height = 290; // Aumentado desde 235 a 290
+
             // Configurar eventos
             EventHandler clickHandler = (s, e) => ToggleColapsarRestriccionesImpresion();
             panelHeader.Click += clickHandler;
@@ -1117,19 +1189,20 @@ namespace Comercio.NET.Formularios
             // NUEVO: TabIndex para restricciones de impresión
             chkRestringirRemitoPorPago.TabIndex = 18;
             chkVistaPreviaImpresionDirecta.TabIndex = 19; // NUEVO
+            chkLimitarFacturacion.TabIndex = 20; // NUEVO
 
             // Ajustar todos los siguientes TabIndex +1:
-            chkVerificarStock.TabIndex = 20; // Era 19
-            lstNombresCtaCte.TabIndex = 21; // Era 20
-            txtNuevoNombreCtaCte.TabIndex = 22; // Era 21
-            btnAgregarNombre.TabIndex = 23; // Era 22
-            btnEditarNombre.TabIndex = 24; // Era 23
-            btnEliminarNombre.TabIndex = 25; // Era 24
-            txtConnectionString.TabIndex = 26; // Era 25
-            btnTestearConexion.TabIndex = 27; // Era 26
-            btnEditarBaseDatos.TabIndex = 28; // Era 27
-            btnGuardar.TabIndex = 29; // Era 28
-            btnCancelar.TabIndex = 30; // Era 29
+            chkVerificarStock.TabIndex = 21; // Era 19
+            lstNombresCtaCte.TabIndex = 22; // Era 20
+            txtNuevoNombreCtaCte.TabIndex = 23; // Era 21
+            btnAgregarNombre.TabIndex = 24; // Era 22
+            btnEditarNombre.TabIndex = 25; // Era 23
+            btnEliminarNombre.TabIndex = 26; // Era 24
+            txtConnectionString.TabIndex = 27; // Era 25
+            btnTestearConexion.TabIndex = 28; // Era 26
+            btnEditarBaseDatos.TabIndex = 29; // Era 27
+            btnGuardar.TabIndex = 30; // Era 28
+            btnCancelar.TabIndex = 31; // Era 29
         }
 
         private void ConfigurarEventos()
@@ -1405,7 +1478,18 @@ namespace Comercio.NET.Formularios
                 bool usarVistaPrevia = _configuracionOriginal["RestriccionesImpresion"]?["UsarVistaPrevia"]?.ToObject<bool>() ?? true;
                 chkVistaPreviaImpresionDirecta.Checked = usarVistaPrevia;
 
+                // NUEVO: Cargar configuración de límite de facturación
+                bool limitarFacturacion = _configuracionOriginal["RestriccionesImpresion"]?["LimitarFacturacion"]?.ToObject<bool>() ?? false;
+                chkLimitarFacturacion.Checked = limitarFacturacion;
+
+                decimal montoLimite = _configuracionOriginal["RestriccionesImpresion"]?["MontoLimiteFacturacion"]?.ToObject<decimal>() ?? 0m;
+                if (montoLimite > 0)
+                {
+                    txtMontoLimiteFacturacion.Text = montoLimite.ToString("F2");
+                }
+
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Usar Vista Previa: {chkVistaPreviaImpresionDirecta.Checked}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Limitar Facturación: {chkLimitarFacturacion.Checked}, Monto: ${montoLimite:F2}");
 
                 // Cargar configuración de inventario
                 bool verificarStock = _configuracionOriginal["Inventario"]?["VerificarStock"]?.ToObject<bool>() ?? 
@@ -1557,7 +1641,9 @@ namespace Comercio.NET.Formularios
                     ["RestriccionesImpresion"] = new JObject
                     {
                         ["RestringirRemitoPorPago"] = true,
-                        ["UsarVistaPrevia"] = true // NUEVO: Por defecto usar vista previa
+                        ["UsarVistaPrevia"] = true,
+                        ["LimitarFacturacion"] = false, // NUEVO: Por defecto deshabilitado
+                        ["MontoLimiteFacturacion"] = 0m // NUEVO: Sin límite por defecto
                     }
                 };
 
@@ -1657,12 +1743,22 @@ namespace Comercio.NET.Formularios
                 // NUEVO: Guardar configuración de vista previa
                 nuevaConfiguracion["RestriccionesImpresion"]["UsarVistaPrevia"] = chkVistaPreviaImpresionDirecta.Checked;
 
-                System.Diagnostics.Debug.WriteLine($"[SAVE] Restricciones configuradas - Usar Vista Previa: {chkVistaPreviaImpresionDirecta.Checked}");
+                // NUEVO: Guardar configuración de límite de facturación
+                nuevaConfiguracion["RestriccionesImpresion"]["LimitarFacturacion"] = chkLimitarFacturacion.Checked;
 
+                // Parsear y guardar el monto límite
+                decimal montoLimite = 0m;
+                if (!string.IsNullOrWhiteSpace(txtMontoLimiteFacturacion.Text))
+                {
+                    string montoTexto = txtMontoLimiteFacturacion.Text.Trim().Replace(",", ".");
+                    if (decimal.TryParse(montoTexto, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal monto))
+                    {
+                        montoLimite = Math.Round(monto, 2);
+                    }
+                }
+                nuevaConfiguracion["RestriccionesImpresion"]["MontoLimiteFacturacion"] = montoLimite;
 
-
-
-                System.Diagnostics.Debug.WriteLine($"[SAVE] Restricciones configuradas - Restringir Remito: {chkRestringirRemitoPorPago.Checked}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Limitar Facturación configurado - Habilitado: {chkLimitarFacturacion.Checked}, Monto: ${montoLimite:F2}");
 
                 // Mantener compatibilidad con sección "Validaciones" existente
                 if (nuevaConfiguracion["Validaciones"] == null)
@@ -2035,7 +2131,7 @@ namespace Comercio.NET.Formularios
         {
             _restriccionesImpresionColapsado = !_restriccionesImpresionColapsado;
             ActualizarEstadoSeccion(panelRestriccionesImpresion, "panelContenidoRestriccionesImpresion",
-                _restriccionesImpresionColapsado, btnColapsarRestriccionesImpresion, 35, 235); // ACTUALIZADO: altura de 155 a 235
+                _restriccionesImpresionColapsado, btnColapsarRestriccionesImpresion, 35, 330); // ACTUALIZADO: altura de 235 a 330
             ActualizarPosicionesTodasLasSecciones();
         }
 
@@ -2201,6 +2297,7 @@ namespace Comercio.NET.Formularios
         /// Valida el dígito verificador del CUIT usando el algoritmo oficial argentino
         /// </summary>
         /// <param name="cuit">CUIT de 11 dígitos sin guiones</param>
+        /// <returns>Dígito verificador calculado</returns>
         private void ValidarDigitoVerificadorCUIT(string cuit)
         {
             if (cuit.Length != 11 || !cuit.All(char.IsDigit))
@@ -2716,6 +2813,36 @@ namespace Comercio.NET.Formularios
                 toolTip?.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        // NUEVO: Método para manejar el cambio del checkbox
+        private void ChkLimitarFacturacion_CheckedChanged(object sender, EventArgs e)
+        {
+            bool habilitado = chkLimitarFacturacion.Checked;
+            
+            // Buscar y mostrar/ocultar los controles relacionados
+            if (panelRestriccionesImpresion != null)
+            {
+                var panelContenido = panelRestriccionesImpresion.Controls["panelContenidoRestriccionesImpresion"] as Panel;
+                if (panelContenido != null)
+                {
+                    foreach (Control ctrl in panelContenido.Controls)
+                    {
+                        if (ctrl is Label lbl && (lbl.Text.Contains("Monto límite") || lbl.Text.Contains("El límite se verifica")))
+                        {
+                            lbl.Visible = habilitado;
+                        }
+                        else if (ctrl == txtMontoLimiteFacturacion)
+                        {
+                            ctrl.Visible = habilitado;
+                            if (habilitado)
+                            {
+                                ctrl.Focus();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
