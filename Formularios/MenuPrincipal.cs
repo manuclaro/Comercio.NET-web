@@ -1,7 +1,8 @@
-﻿using Comercio.NET.Formularios;
+﻿using Comercio.NET;
+using Comercio.NET.Formularios;
 using Comercio.NET.Services;
-using Comercio.NET;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -10,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static Grpc.Core.Metadata;
 
 namespace Comercio.NET
 {
@@ -33,6 +35,7 @@ namespace Comercio.NET
             AgregarMenuCaja();
             ConfigurarMenuCaja(); // ✅ AGREGAR ESTA LÍNEA
             AgregarBotonCierreTurnoToolbar(); // ✅ AGREGAR ESTA LÍNEA
+            AgregarActualizacionRapidaAlMenu();
         }
 
         // NUEVO: Método para configurar el ícono de configuración
@@ -1192,6 +1195,192 @@ namespace Comercio.NET
             }
         }
 
+private void AgregarActualizacionRapidaAlMenu()
+        {
+            try
+            {
+                if (this.menuStrip == null) return;
+
+                // Buscar el menú "Productos" existente
+                var productosMenuItem = this.menuStrip.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Text.Contains("Productos"));
+
+                if (productosMenuItem != null)
+                {
+                    // Verificar si ya existe el item
+                    var existeItem = productosMenuItem.DropDownItems
+                        .OfType<ToolStripMenuItem>()
+                        .Any(i => i.Name == "actualizacionRapidaToolStripMenuItem");
+
+                    if (!existeItem)
+                    {
+                        // Agregar separador si no existe
+                        if (productosMenuItem.DropDownItems.Count > 0 &&
+                            !(productosMenuItem.DropDownItems[productosMenuItem.DropDownItems.Count - 1] is ToolStripSeparator))
+                        {
+                            productosMenuItem.DropDownItems.Add(new ToolStripSeparator());
+                        }
+
+                        // Crear el item de Actualización Rápida
+                        var itemActualizacionRapida = new ToolStripMenuItem("⚡ Actualización Rápida Precio/Stock", null, ActualizacionRapida_Click)
+                        {
+                            Name = "actualizacionRapidaToolStripMenuItem",
+                            ShortcutKeys = Keys.Control | Keys.Shift | Keys.P,
+                            ToolTipText = "Actualización rápida de precios y stock (Ctrl+Shift+P)"
+                        };
+
+                        productosMenuItem.DropDownItems.Add(itemActualizacionRapida);
+                        System.Diagnostics.Debug.WriteLine("✅ Item 'Actualización Rápida' agregado al menú Productos");
+                    }
+                }
+
+                // También agregar botón a la toolbar
+                AgregarBotonActualizacionRapidaToolbar();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando actualización rápida al menú: {ex.Message}");
+            }
+        }
+
+        private void ActualizacionRapida_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar permisos
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+
+                    if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
+                    {
+                        using (var form = new Comercio.NET.Formularios.ActualizacionRapidaForm())
+                        {
+                            form.ShowDialog(this);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para actualizar precios.\n\n" +
+                            "Este módulo requiere el permiso 'Editar Precios'.\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir actualización rápida: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private Bitmap CrearIconoActualizacionRapida()
+        {
+            var bitmap = new Bitmap(32, 32);
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent);
+
+                // Dibujar rayo (símbolo de rapidez)
+                using (var brush = new SolidBrush(Color.FromArgb(255, 152, 0)))
+                {
+                    Point[] lightning = new Point[]
+                    {
+                new Point(18, 4),
+                new Point(12, 14),
+                new Point(16, 14),
+                new Point(10, 28),
+                new Point(16, 16),
+                new Point(12, 16)
+                    };
+                    g.FillPolygon(brush, lightning);
+                }
+
+                // Dibujar etiqueta de precio
+                using (var pen = new Pen(Color.FromArgb(255, 152, 0), 2))
+                using (var brush = new SolidBrush(Color.FromArgb(255, 224, 178)))
+                {
+                    var rect = new Rectangle(20, 18, 10, 12);
+                    g.FillRectangle(brush, rect);
+                    g.DrawRectangle(pen, rect);
+
+                    using (var font = new Font("Arial", 7F, FontStyle.Bold))
+                    using (var textBrush = new SolidBrush(Color.FromArgb(230, 81, 0)))
+                    {
+                        g.DrawString("$", font, textBrush, 22, 20);
+                    }
+                }
+            }
+            return bitmap;
+        }
+
+        private void AgregarBotonActualizacionRapidaToolbar()
+        {
+            try
+            {
+                if (this.toolStrip == null) return;
+
+                // Verificar si ya existe el botón
+                var botonExistente = this.toolStrip.Items
+                    .OfType<ToolStripButton>()
+                    .FirstOrDefault(b => b.Name == "toolStripActualizacionRapida");
+
+                if (botonExistente == null)
+                {
+                    var btnActualizacionRapida = new ToolStripButton
+                    {
+                        Name = "toolStripActualizacionRapida",
+                        Text = "⚡ Act. Rápida",
+                        ToolTipText = "Actualización Rápida de Precios y Stock (Ctrl+Shift+P)",
+                        DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                        ImageTransparentColor = System.Drawing.Color.Magenta,
+                        TextImageRelation = TextImageRelation.ImageBeforeText
+                    };
+
+                    btnActualizacionRapida.Image = CrearIconoActualizacionRapida();
+                    btnActualizacionRapida.Click += (s, e) => ActualizacionRapida_Click(s, e);
+
+                    // Buscar posición después del botón de Productos
+                    int insertIndex = -1;
+                    var btnProductos = this.toolStrip.Items
+                        .OfType<ToolStripButton>()
+                        .FirstOrDefault(b => b.Name == "toolStripProductos");
+
+                    if (btnProductos != null)
+                    {
+                        insertIndex = this.toolStrip.Items.IndexOf(btnProductos) + 1;
+                    }
+
+                    if (insertIndex >= 0 && insertIndex < this.toolStrip.Items.Count)
+                    {
+                        this.toolStrip.Items.Insert(insertIndex, btnActualizacionRapida);
+                    }
+                    else
+                    {
+                        this.toolStrip.Items.Add(btnActualizacionRapida);
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("✅ Botón 'Actualización Rápida' agregado a la toolbar");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando botón actualización rápida a toolbar: {ex.Message}");
+            }
+        }
+
         // ESTE MÉTODO YA ESTÁ CORRECTO EN TU MenuPrincipal.cs
         private void AbrirArqueoCaja()
         {
@@ -1482,6 +1671,13 @@ namespace Comercio.NET
             if (keyData == (Keys.Control | Keys.Shift | Keys.T))
             {
                 cierreTurnoToolStripMenuItem_Click(this, EventArgs.Empty);
+                return true;
+            }
+
+            // AGREGAR: Atajo para Actualización Rápida: Ctrl+Shift+P
+            if (keyData == (Keys.Control | Keys.Shift | Keys.P))
+            {
+                ActualizacionRapida_Click(this, EventArgs.Empty);
                 return true;
             }
 

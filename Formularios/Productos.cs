@@ -61,6 +61,48 @@ namespace Comercio.NET.Formularios
             isInitialized = true;
         }
 
+        private void CrearBotonActualizacionRapida()
+        {
+            // Crear botón para actualización rápida
+            var btnActualizacionRapida = new Button
+            {
+                Text = "⚡ Actualización Rápida",
+                // ✅ CAMBIO: Ubicarlo ARRIBA, restando altura del botón + espaciado
+                Location = new Point(btnAgregarProducto.Left, btnAgregarProducto.Top + 10 - btnAgregarProducto.Height - 10),
+                Size = new Size(btnAgregarProducto.Width + btnModificarProducto.Width + 10, btnAgregarProducto.Height-5),
+                BackColor = Color.FromArgb(255, 152, 0),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnActualizacionRapida.FlatAppearance.BorderSize = 0;
+            btnActualizacionRapida.Click += BtnActualizacionRapida_Click;
+
+            this.Controls.Add(btnActualizacionRapida);
+            // ✅ OPCIONAL: Traer al frente para asegurar visibilidad
+            btnActualizacionRapida.BringToFront();
+        }
+
+        private void BtnActualizacionRapida_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var form = new ActualizacionRapidaForm())
+                {
+                    form.ShowDialog(this);
+
+                    // Refrescar la grilla después de cerrar el formulario
+                    _ = CargarProductosAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir actualización rápida: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void ConfigurarTextos()
         {
             // Configurar textos sin emojis para evitar problemas de codificación
@@ -92,7 +134,9 @@ namespace Comercio.NET.Formularios
                 
                 // Configurar la grilla antes de cargar datos
                 ConfigurarGrilla();
-                
+
+                CrearBotonActualizacionRapida();
+
                 // Cargar productos
                 await CargarProductosAsync();
                 
