@@ -631,7 +631,7 @@ namespace Comercio.NET
             // Ajustar el DataGridView cuando se redimensiona el formulario
             if (dataGridView1 != null)
             {
-                dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 120); // CAMBIADO: -120 en lugar de -60
+                dataGridView1.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - 171 - 65); // ✅ CAMBIADO: -65 en lugar de -100
             }
         }
         private void ConfigurarEventHandlers()
@@ -2102,7 +2102,7 @@ namespace Comercio.NET
             // Crear el panel footer programáticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 100;
+            panelFooter.Height = 65; // ✅ REDUCIDO: de 100 a 65 píxeles
             panelFooter.BackColor = Color.FromArgb(0, 120, 215);
 
             // Configurar lbCantidadProductos (dock left)
@@ -2114,23 +2114,33 @@ namespace Comercio.NET
             lbCantidadProductos.ForeColor = Color.White;
             lbCantidadProductos.Text = "Productos: 0";
 
-            // RichTextBox para totales (dock right)
+            // ✅ NUEVO: Panel contenedor para centrar verticalmente el RichTextBox
+            Panel panelTotalContainer = new Panel
+            {
+                Dock = DockStyle.Right,
+                Width = 500,
+                BackColor = Color.FromArgb(0, 120, 215),
+                Padding = new Padding(0, 12, 20, 12) // ✅ Padding vertical para centrar
+            };
+
+            // RichTextBox para totales - ✅ MODIFICADO: Ahora dentro del contenedor
             rtbTotal = new RichTextBox
             {
                 AutoSize = false,
-                Dock = DockStyle.Right,
-                Width = 500,
+                Dock = DockStyle.Fill, // ✅ CAMBIADO: Fill en lugar de Right
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 ReadOnly = true,
                 ScrollBars = RichTextBoxScrollBars.None,
-                Padding = new Padding(0, 0, 20, 0),
                 Multiline = true
             };
 
+            // ✅ Agregar el RichTextBox al contenedor
+            panelTotalContainer.Controls.Add(rtbTotal);
+
             // Agregar controles al panel footer
-            panelFooter.Controls.Add(rtbTotal);
+            panelFooter.Controls.Add(panelTotalContainer); // ✅ CAMBIADO: Agregar el contenedor en lugar del RichTextBox directamente
             panelFooter.Controls.Add(lbCantidadProductos);
 
             // Agregar el panel al formulario
@@ -2265,33 +2275,12 @@ namespace Comercio.NET
             lbCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
 
             decimal sumaTotal = 0;
-            decimal sumaIva = 0;
-
-            var ivaPorAlicuota = new Dictionary<decimal, decimal>();
 
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
                 // total
                 if (row.Cells["total"]?.Value != null && decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
                     sumaTotal += valorTotal;
-
-                // iva de la fila (si existe la columna y el valor)
-                decimal valorIva = 0;
-                if (dataGridView1.Columns.Contains("IvaCalculado") && row.Cells["IvaCalculado"]?.Value != null &&
-                    decimal.TryParse(row.Cells["IvaCalculado"].Value.ToString(), out decimal tmpIva))
-                {
-                    valorIva = tmpIva;
-                    sumaIva += valorIva;
-                }
-
-                // agrupar por alícuota (si existe)
-                if (dataGridView1.Columns.Contains("PorcentajeIva") && row.Cells["PorcentajeIva"]?.Value != null &&
-                    decimal.TryParse(row.Cells["PorcentajeIva"].Value.ToString(), out decimal alicuota))
-                {
-                    if (!ivaPorAlicuota.ContainsKey(alicuota))
-                        ivaPorAlicuota[alicuota] = 0;
-                    ivaPorAlicuota[alicuota] += valorIva;
-                }
             }
 
             // Al final de CargarVentasActuales(), justo después de actualizar rtbTotal:
@@ -2310,23 +2299,23 @@ namespace Comercio.NET
             rtbTotal.SelectionFont = new Font("Segoe UI", 22F, FontStyle.Bold);
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
 
-            if (ivaPorAlicuota.Any())
-            {
-                rtbTotal.SelectionFont = new Font("Segoe UI", 9F, FontStyle.Regular);
-                foreach (var kvp in ivaPorAlicuota.OrderBy(x => x.Key))
-                {
-                    if (kvp.Value > 0)
-                        rtbTotal.AppendText($"IVA {kvp.Key:N2}%: {kvp.Value:C2}\n");
-                }
+            //if (ivaPorAlicuota.Any())
+            //{
+            //    rtbTotal.SelectionFont = new Font("Segoe UI", 9F, FontStyle.Regular);
+            //    foreach (var kvp in ivaPorAlicuota.OrderBy(x => x.Key))
+            //    {
+            //        if (kvp.Value > 0)
+            //            rtbTotal.AppendText($"IVA {kvp.Key:N2}%: {kvp.Value:C2}\n");
+            //    }
 
-                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Bold);
-                rtbTotal.AppendText($"IVA Total: {sumaIva:C2}");
-            }
-            else
-            {
-                rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Regular);
-                rtbTotal.AppendText($"IVA: {sumaIva:C2}");
-            }
+            //    rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+            //    rtbTotal.AppendText($"IVA Total: {sumaIva:C2}");
+            //}
+            //else
+            //{
+            //    rtbTotal.SelectionFont = new Font("Segoe UI", 10F, FontStyle.Regular);
+            //    rtbTotal.AppendText($"IVA: {sumaIva:C2}");
+            //}
         }
 
         // NUEVO: Método async separado para la impresión
