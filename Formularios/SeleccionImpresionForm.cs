@@ -69,6 +69,10 @@ namespace Comercio.NET
         // NUEVO: Referencia al botón Cancelar (antes era variable local)
         private Button btnCancelar;
 
+        private decimal montoLimiteFacturacion = 0m; // NUEVO: Límite configurado
+        private decimal montoAcumuladoHoy = 0m; // NUEVO: Total facturado en el día
+        private bool limitarFacturacion = false; // NUEVO: Si está habilitada la restricción
+
         // Delegate para el callback después de procesar la venta
         public Func<string, string, string, string, DateTime?, int, string, Task> OnProcesarVenta { get; set; }
 
@@ -126,19 +130,23 @@ namespace Comercio.NET
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Width = 700;
-            this.Height = 400; // CAMBIADO de 550 a 400 para que inicie en modo simple
+            this.Height = 400;
 
             CrearControles();
             ConfigurarEventos();
+
+            // ✅ NUEVO: Cargar límite de facturación ANTES de actualizar opciones
+            CargarLimiteFacturacion();
+
+            // ✅ CORRECTO: Ahora es síncrono, no causa deadlock
+            CargarMontoAcumuladoHoy();
+
             ActualizarOpcionesImpresion();
 
-            // Asegurar reposicionado si por alguna razón cambia el tamaño del cliente (defensivo)
             this.Resize += (s, e) => PosicionarBotones();
 
-            // en el constructor, después de Initialize / CrearControles / ConfigurarEventos / ActualizarOpcionesImpresion:
             SettingsManager.SettingsReloaded += () =>
             {
-                // Ejecutar en hilo UI
                 if (this.IsHandleCreated)
                 {
                     this.BeginInvoke(new Action(() =>
@@ -146,8 +154,9 @@ namespace Comercio.NET
                         try
                         {
                             AplicarConfiguracionFacturacion();
+                            CargarLimiteFacturacion(); // ✅ NUEVO: Recargar límite
                             ActualizarOpcionesImpresion();
-                            CargarConfiguracionVistaPrevia(); // ✅ NUEVO: Recargar configuración de vista previa
+                            CargarConfiguracionVistaPrevia();
                         }
                         catch (Exception ex)
                         {
@@ -157,8 +166,142 @@ namespace Comercio.NET
                 }
             };
 
-            // ✅ NUEVO: Cargar configuración de vista previa
             CargarConfiguracionVistaPrevia();
+        }
+
+        // ✅ NUEVO: Método para cargar la configuración del límite de facturación
+        private void CargarLimiteFacturacion()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                limitarFacturacion = config.GetValue<bool>("RestriccionesImpresion:LimitarFacturacion", false);
+                montoLimiteFacturacion = config.GetValue<decimal>("RestriccionesImpresion:MontoLimiteFacturacion", 0m);
+
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] Habilitado: {limitarFacturacion}");
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] Monto límite: {montoLimiteFacturacion:C2}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] Error cargando configuración: {ex.Message}");
+                limitarFacturacion = false;
+                montoLimiteFacturacion = 0m;
+            }
+        }
+
+        // ✅ NUEVO: Método async para calcular el monto acumulado de facturas electrónicas del día
+        private void CargarMontoAcumuladoHoy()
+        {
+            montoAcumuladoHoy = 0m;
+
+            if (!limitarFacturacion || montoLimiteFacturacion <= 0)
+            {
+                System.Diagnostics.Debug.WriteLine("[LÍMITE FACTURACIÓN] Restricción deshabilitada o sin límite configurado");
+                return;
+            }
+
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"
+                SELECT ISNULL(SUM(ImporteTotal), 0) AS TotalFacturado
+                FROM Facturas
+                WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)
+                  AND TipoFactura IN ('FacturaA', 'FacturaB')";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        connection.Open(); // ✅ Síncrono
+                        var result = cmd.ExecuteScalar(); // ✅ Síncrono
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            montoAcumuladoHoy = Convert.ToDecimal(result);
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] ===== ESTADO ACTUAL =====");
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] Monto acumulado hoy: {montoAcumuladoHoy:C2}");
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] Límite diario: {montoLimiteFacturacion:C2}");
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] Disponible: {(montoLimiteFacturacion - montoAcumuladoHoy):C2}");
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] Factura actual: {importeTotalVenta:C2}");
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] =============================");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] ❌ Error calculando monto acumulado: {ex.Message}");
+                montoAcumuladoHoy = 0m;
+            }
+        }
+
+        // ✅ NUEVO: Método para validar si se puede generar factura electrónica
+        private bool ValidarLimiteFacturacion(out string mensajeError)
+        {
+            mensajeError = "";
+
+            // Si la restricción está deshabilitada, permitir siempre
+            if (!limitarFacturacion || montoLimiteFacturacion <= 0)
+            {
+                System.Diagnostics.Debug.WriteLine("[LÍMITE FACTURACIÓN] ✅ Restricción deshabilitada - Permitir");
+                return true;
+            }
+
+            decimal totalConFacturaActual = montoAcumuladoHoy + importeTotalVenta;
+
+            System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] 🔍 VALIDACIÓN:");
+            System.Diagnostics.Debug.WriteLine($"  • Acumulado hoy: {montoAcumuladoHoy:C2}");
+            System.Diagnostics.Debug.WriteLine($"  • Factura actual: {importeTotalVenta:C2}");
+            System.Diagnostics.Debug.WriteLine($"  • Total proyectado: {totalConFacturaActual:C2}");
+            System.Diagnostics.Debug.WriteLine($"  • Límite diario: {montoLimiteFacturacion:C2}");
+
+            // ✅ VALIDACIÓN 1: Ya se alcanzó/superó el límite (sin contar la factura actual)
+            if (montoAcumuladoHoy >= montoLimiteFacturacion)
+            {
+                decimal excedente = montoAcumuladoHoy - montoLimiteFacturacion;
+                mensajeError = $"⛔ LÍMITE DIARIO DE FACTURACIÓN ALCANZADO\n\n" +
+                              $"• Límite diario: {montoLimiteFacturacion:C2}\n" +
+                              $"• Facturado hoy: {montoAcumuladoHoy:C2}\n" +
+                              $"• Excedente: {excedente:C2}\n\n" +
+                              $"⚠️ NO SE PUEDEN GENERAR MÁS FACTURAS ELECTRÓNICAS HOY\n\n" +
+                              $"Solo puede generar REMITO o cerrar sin impresión.";
+
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] ❌ BLOQUEADO - Límite ya alcanzado");
+                return false;
+            }
+
+            // ✅ VALIDACIÓN 2: Con esta factura se superaría el límite
+            if (totalConFacturaActual > montoLimiteFacturacion)
+            {
+                decimal excedente = totalConFacturaActual - montoLimiteFacturacion;
+                mensajeError = $"⚠️ ADVERTENCIA: SUPERARÍA EL LÍMITE DIARIO\n\n" +
+                              $"• Límite diario: {montoLimiteFacturacion:C2}\n" +
+                              $"• Facturado hoy: {montoAcumuladoHoy:C2}\n" +
+                              $"• Factura actual: {importeTotalVenta:C2}\n" +
+                              $"• Total proyectado: {totalConFacturaActual:C2}\n\n" +
+                              $"🔴 Excedente proyectado: {excedente:C2}\n\n" +
+                              $"¿Desea generar la factura de todos modos?";
+
+                System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] ⚠️ ADVERTENCIA - Se superaría el límite por {excedente:C2}");
+                // Retornar false para mostrar advertencia (se maneja en ProcesarFacturaElectronica)
+                return false;
+            }
+
+            // ✅ TODO OK: Dentro del límite
+            decimal disponibleDespues = montoLimiteFacturacion - totalConFacturaActual;
+            System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] ✅ PERMITIDO - Disponible después: {disponibleDespues:C2}");
+            return true;
         }
 
         // ✅ NUEVO: Método para cargar la configuración de vista previa
@@ -870,6 +1013,37 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"🔄 === INICIANDO PROCESAMIENTO {tipoFactura} CON AFIP REAL ===");
 
+                // ✅ NUEVO: VALIDAR LÍMITE DE FACTURACIÓN ANTES DE CONTINUAR
+                if (!ValidarLimiteFacturacion(out string mensajeError))
+                {
+                    // Verificar si es bloqueo total o advertencia
+                    if (mensajeError.Contains("⛔"))
+                    {
+                        // ❌ BLOQUEO TOTAL: Ya se alcanzó el límite
+                        MessageBox.Show(mensajeError,
+                            "Límite de Facturación Alcanzado",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Stop);
+                        return;
+                    }
+                    else
+                    {
+                        // ⚠️ ADVERTENCIA: Se superaría el límite - Preguntar al usuario
+                        var resultado = MessageBox.Show(mensajeError,
+                            "Advertencia - Límite de Facturación",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Warning);
+
+                        if (resultado != DialogResult.Yes)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[LÍMITE FACTURACIÓN] ❌ Usuario canceló por exceso de límite");
+                            return;
+                        }
+
+                        System.Diagnostics.Debug.WriteLine("[LÍMITE FACTURACIÓN] ⚠️ Usuario autorizó exceder el límite");
+                    }
+                }
+
                 if (EsPagoMultiple && !multiplePagosControl.PagoCompleto)
                 {
                     MessageBox.Show(
@@ -884,6 +1058,7 @@ namespace Comercio.NET
                     return;
                 }
 
+                // ... (resto del método sin cambios)
                 btnRemito.Enabled = false;
                 btnFacturaA.Enabled = false;
                 btnFacturaB.Enabled = false;
@@ -997,7 +1172,6 @@ namespace Comercio.NET
                     System.Diagnostics.Debug.WriteLine($"✅ {tipoFactura} completada exitosamente con AFIP REAL");
                     System.Diagnostics.Debug.WriteLine($"CAE: {CAENumero}, Vencimiento: {CAEVencimiento:dd/MM/yyyy}");
 
-                    // ✅ CRÍTICO: Imprimir ANTES de cerrar el modal
                     if (usarVistaPrevia)
                     {
                         System.Diagnostics.Debug.WriteLine($"[FACTURA] 🖨️ Imprimiendo {tipoFactura} con vista previa");
@@ -1009,7 +1183,6 @@ namespace Comercio.NET
                         await ImprimirDirectoSinPreview(tipoFactura);
                     }
 
-                    // ✅ IMPORTANTE: Cerrar DESPUÉS de imprimir (al final)
                     System.Diagnostics.Debug.WriteLine("✅ Impresión completada - Cerrando modal");
                     this.DialogResult = DialogResult.OK;
                     this.Close();
@@ -1800,15 +1973,9 @@ namespace Comercio.NET
         // csharp
         private void ActualizarOpcionesImpresion()
         {
-            // No recrear controles ni reconfigurar eventos aquí.
-            // Solo actualizar estados y UI según el estado actual.
             try
             {
-                // Aplicar visibilidad de Factura A/B según appsettings.json
                 AplicarConfiguracionFacturacion();
-
-                // Asegurar reposicionado (solo agregar una vez al constructor preferentemente)
-                // this.Resize += (s, e) => PosicionarBotones(); // NO re-agregar en cada llamada
 
                 bool hayPagosDigitales = false;
                 bool pagoCompleto = true;
@@ -1826,7 +1993,18 @@ namespace Comercio.NET
 
                 bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
                 bool puedeRemito = EsPagoMultiple ? pagoCompleto : (pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales));
+
+                // ✅ NUEVO: Validar límite de facturación para facturas electrónicas
                 bool puedeFacturas = pagoCompleto;
+                string mensajeLimite = "";
+
+                if (limitarFacturacion && montoLimiteFacturacion > 0 && montoAcumuladoHoy >= montoLimiteFacturacion)
+                {
+                    // ❌ BLOQUEAR: Ya se alcanzó el límite
+                    puedeFacturas = false;
+                    mensajeLimite = $"⛔ Límite diario alcanzado ({montoLimiteFacturacion:C2})";
+                    System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] ❌ Facturas bloqueadas - Límite alcanzado");
+                }
 
                 btnRemito.Enabled = puedeRemito;
                 btnFacturaA.Enabled = puedeFacturas;
@@ -1839,13 +2017,80 @@ namespace Comercio.NET
                 btnFacturaB.BackColor = puedeFacturas ? Color.FromArgb(0, 123, 255) : Color.LightGray;
                 btnFinalizarSinImpresion.BackColor = btnFinalizarSinImpresion.Enabled ? Color.FromArgb(255, 193, 7) : Color.LightGray;
 
-                MostrarInformacionEstado(hayPagosDigitales, pagoCompleto);
+                // ✅ NUEVO: Mostrar mensaje de límite alcanzado
+                if (!string.IsNullOrEmpty(mensajeLimite))
+                {
+                    MostrarMensajeLimiteAlcanzado(mensajeLimite);
+                }
+                else
+                {
+                    MostrarInformacionEstado(hayPagosDigitales, pagoCompleto);
+                }
+
                 PosicionarBotones();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error en ActualizarOpcionesImpresion: {ex.Message}");
             }
+        }
+
+        // ✅ NUEVO: Mostrar mensaje de límite alcanzado
+        private void MostrarMensajeLimiteAlcanzado(string mensaje)
+        {
+            // Remover mensaje anterior si existe
+            Label lblMensajeEstado = null;
+            foreach (Control control in this.Controls)
+            {
+                if (control is Label lbl && lbl.Name == "lblMensajeEstado")
+                {
+                    lblMensajeEstado = lbl;
+                    break;
+                }
+            }
+
+            if (lblMensajeEstado != null)
+            {
+                this.Controls.Remove(lblMensajeEstado);
+                lblMensajeEstado.Dispose();
+                lblMensajeEstado = null;
+            }
+
+            // Crear nuevo mensaje de límite alcanzado
+            int buttonsBottom = 0;
+            var botones = new Button[] { btnRemito, btnFacturaB, btnFacturaA, btnFinalizarSinImpresion, btnCancelar };
+            foreach (var b in botones)
+            {
+                if (b != null && b.Visible)
+                {
+                    buttonsBottom = Math.Max(buttonsBottom, b.Top + b.Height);
+                }
+            }
+
+            if (buttonsBottom == 0)
+            {
+                buttonsBottom = EsPagoMultiple ? (390 + 45) : (270 + 45);
+            }
+
+            int topPos = buttonsBottom + 8;
+
+            lblMensajeEstado = new Label
+            {
+                Name = "lblMensajeEstado",
+                Text = mensaje,
+                Left = 40,
+                Top = topPos,
+                Width = 600,
+                Height = 16,
+                Font = new Font("Segoe UI", 6.5F, FontStyle.Regular),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(180, 53, 69), // Rojo para límite alcanzado
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            this.Controls.Add(lblMensajeEstado);
+            lblMensajeEstado.BringToFront();
         }
 
 
