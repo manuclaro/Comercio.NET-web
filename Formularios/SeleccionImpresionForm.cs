@@ -1994,6 +1994,9 @@ namespace Comercio.NET
                 bool debeRestringirPorPago = DebeRestringirRemitoPorTipoPago();
                 bool puedeRemito = EsPagoMultiple ? pagoCompleto : (pagoCompleto && (!debeRestringirPorPago || !hayPagosDigitales));
 
+                // ✅ MODIFICADO: "Finalizar sin impresión" sigue la misma lógica que Remito
+                bool puedeFinalizarSinImpresion = puedeRemito;
+
                 // ✅ NUEVO: Validar límite de facturación para facturas electrónicas
                 bool puedeFacturas = pagoCompleto;
                 string mensajeLimite = "";
@@ -2009,13 +2012,13 @@ namespace Comercio.NET
                 btnRemito.Enabled = puedeRemito;
                 btnFacturaA.Enabled = puedeFacturas;
                 btnFacturaB.Enabled = puedeFacturas;
-                btnFinalizarSinImpresion.Enabled = pagoCompleto;
+                btnFinalizarSinImpresion.Enabled = puedeFinalizarSinImpresion; // ✅ CORREGIDO
 
                 // Actualizar apariencia
                 btnRemito.BackColor = puedeRemito ? Color.FromArgb(102, 51, 153) : Color.LightGray;
                 btnFacturaA.BackColor = puedeFacturas ? Color.FromArgb(40, 167, 69) : Color.LightGray;
                 btnFacturaB.BackColor = puedeFacturas ? Color.FromArgb(0, 123, 255) : Color.LightGray;
-                btnFinalizarSinImpresion.BackColor = btnFinalizarSinImpresion.Enabled ? Color.FromArgb(255, 193, 7) : Color.LightGray;
+                btnFinalizarSinImpresion.BackColor = puedeFinalizarSinImpresion ? Color.FromArgb(255, 193, 7) : Color.LightGray; // ✅ CORREGIDO
 
                 // ✅ NUEVO: Mostrar mensaje de límite alcanzado
                 if (!string.IsNullOrEmpty(mensajeLimite))
