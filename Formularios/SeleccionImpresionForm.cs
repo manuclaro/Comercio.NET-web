@@ -29,7 +29,8 @@ namespace Comercio.NET
         {
             Efectivo,
             DNI,
-            MercadoPago
+            MercadoPago,
+            Otro  // NUEVO
         }
 
         public OpcionImpresion OpcionSeleccionada { get; private set; } = OpcionImpresion.Ninguna;
@@ -58,6 +59,7 @@ namespace Comercio.NET
         private RadioButton rbEfectivo;
         private RadioButton rbDNI;
         private RadioButton rbMercadoPago;
+        private RadioButton rbOtro; // NUEVO: Declaración del campo
 
         // CORREGIDO: Eliminar referencias a controles que no existen
         private Label lblMensajeInformativo;
@@ -466,7 +468,19 @@ namespace Comercio.NET
                 Font = fontRadio
             };
 
-            panelPagoSimple.Controls.AddRange(new Control[] { lblPago, rbEfectivo, rbDNI, rbMercadoPago });
+            // NUEVO: RadioButton para "Otro"
+            rbOtro = new RadioButton
+            {
+                Text = "Otro",
+                Left = 380,
+                Top = 30,
+                Width = 100,
+                Height = 25,
+                Font = fontRadio
+            };
+
+            // Agregar el nuevo RadioButton al panelPagoSimple
+            panelPagoSimple.Controls.AddRange(new Control[] { lblPago, rbEfectivo, rbDNI, rbMercadoPago, rbOtro });
 
             // AJUSTADO: Label para mostrar el importe total a pagar con fuente grande
             lblImporteTotal = new Label
@@ -785,6 +799,15 @@ namespace Comercio.NET
                 if (rbMercadoPago.Checked)
                 {
                     OpcionPagoSeleccionada = OpcionPago.MercadoPago;
+                    ActualizarOpcionesImpresion();
+                }
+            };
+
+            rbOtro.CheckedChanged += (s, e) =>
+            {
+                if (rbOtro.Checked)
+                {
+                    OpcionPagoSeleccionada = OpcionPago.Otro;
                     ActualizarOpcionesImpresion();
                 }
             };
