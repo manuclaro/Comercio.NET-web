@@ -701,10 +701,9 @@ namespace Comercio.NET.Formularios
                         FROM Facturas f
                         INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                         WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple' (con acento, sin 's')
-                        AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
+                        AND f.Hora >= @fechaInicio   -- ✅ CAMBIO: f.Hora en lugar de f.Fecha
+                        AND f.Hora <= @fechaFin      -- ✅ CAMBIO: f.Hora en lugar de f.Fecha
+                        AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
                     ),
                     TransaccionesMultiples AS (
                         SELECT 
@@ -715,10 +714,9 @@ namespace Comercio.NET.Formularios
                         INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
                         INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
                         WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple' (con acento, sin 's')
-                        AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
+                        AND f.Hora >= @fechaInicio   -- ✅ CAMBIO: f.Hora
+                        AND f.Hora <= @fechaFin      -- ✅ CAMBIO: f.Hora
+                        AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
                     )
                     SELECT 
                         MedioPago,
@@ -923,56 +921,54 @@ namespace Comercio.NET.Formularios
             connection.Open();
 
             var queryDetalle = @"
-                    WITH TransaccionesVentasSimples AS (
-                        SELECT 
-                            f.Hora as Fecha,
-                            COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                            COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                            f.ImporteTotal as Importe,
-                            'Ingreso' as Tipo
-                        FROM Facturas f
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple'
-                        AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
-                    ),
-                    TransaccionesVentasMultiples AS (
-                        SELECT 
-                            f.Hora as Fecha,
-                            COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                            dp.MedioPago,
-                            dp.Importe,
-                            'Ingreso' as Tipo
-                        FROM DetallesPagoFactura dp
-                        INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple'
-                        AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
-                    ),
-                    TransaccionesPagos AS (
-                        SELECT 
-                            cpp.Fecha,
-                            'Pago #' + CAST(cpp.Id AS NVARCHAR) as NumeroFactura,
-                            COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-                            cpp.Monto as Importe,
-                            'Egreso' as Tipo
-                        FROM ComprasProveedoresPagos cpp
-                        INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-                        WHERE cp.Cajero = @numeroCajero
-                        AND cpp.Fecha >= @fechaInicio
-                        AND cpp.Fecha <= @fechaFin
-                    )
-                    SELECT * FROM TransaccionesVentasSimples
-                    UNION ALL
-                    SELECT * FROM TransaccionesVentasMultiples
-                    UNION ALL
-                    SELECT * FROM TransaccionesPagos
-                    ORDER BY Fecha DESC";
+        WITH TransaccionesVentasSimples AS (
+            SELECT 
+                f.Hora as Fecha,  -- ✅ CAMBIO: Usar f.Hora
+                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
+                COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
+                f.ImporteTotal as Importe,
+                'Ingreso' as Tipo
+            FROM Facturas f
+            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+            WHERE u.NumeroCajero = @numeroCajero
+            AND f.Hora >= @fechaInicio    -- ✅ CAMBIO: f.Hora
+            AND f.Hora <= @fechaFin        -- ✅ CAMBIO: f.Hora
+            AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+        ),
+        TransaccionesVentasMultiples AS (
+            SELECT 
+                f.Hora as Fecha,  -- ✅ CAMBIO: Usar f.Hora
+                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
+                dp.MedioPago,
+                dp.Importe,
+                'Ingreso' as Tipo
+            FROM DetallesPagoFactura dp
+            INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
+            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+            WHERE u.NumeroCajero = @numeroCajero
+            AND f.Hora >= @fechaInicio    -- ✅ CAMBIO: f.Hora
+            AND f.Hora <= @fechaFin        -- ✅ CAMBIO: f.Hora
+            AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+        ),
+        TransaccionesPagos AS (
+            SELECT 
+                cpp.Fecha,
+                'Pago #' + CAST(cpp.Id AS NVARCHAR) as NumeroFactura,
+                COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
+                cpp.Monto as Importe,
+                'Egreso' as Tipo
+            FROM ComprasProveedoresPagos cpp
+            INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
+            WHERE cp.Cajero = @numeroCajero
+            AND cpp.Fecha >= @fechaInicio   -- Mantener cpp.Fecha (esta tabla es correcta)
+            AND cpp.Fecha <= @fechaFin
+        )
+        SELECT * FROM TransaccionesVentasSimples
+        UNION ALL
+        SELECT * FROM TransaccionesVentasMultiples
+        UNION ALL
+        SELECT * FROM TransaccionesPagos
+        ORDER BY Fecha DESC";
 
             using var cmdDetalle = new SqlCommand(queryDetalle, connection);
             cmdDetalle.Parameters.AddWithValue("@numeroCajero", numeroCajero);
@@ -1069,120 +1065,20 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // ✅ DECLARAR VARIABLES PRIMERO
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
                 int numeroCajero = cajeroSeleccionado.NumeroCajero;
-
-            //    // ===== 🔍 CÓDIGO DE DIAGNÓSTICO TEMPORAL =====
-
-            //    // DIAGNÓSTICO 1: Ver facturas con el campo FormadePago
-            //    var queryDiag1 = @"
-            //SELECT TOP 10
-            //    f.idFactura,
-            //    f.NumeroRemito,
-            //    f.FormadePago,
-            //    f.ImporteTotal,
-            //    f.Hora
-            //FROM Facturas f
-            //INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            //WHERE u.NumeroCajero = @numeroCajero
-            //AND f.Hora >= @fechaInicio
-            //AND f.Hora <= @fechaFin
-            //ORDER BY f.Hora DESC";
-
-            //    string diagnostico1 = "📋 FACTURAS ENCONTRADAS:\n\n";
-            //    using (var cmdDiag1 = new SqlCommand(queryDiag1, connection))
-            //    {
-            //        cmdDiag1.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-            //        cmdDiag1.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-            //        cmdDiag1.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
-
-            //        using var reader = await cmdDiag1.ExecuteReaderAsync();
-            //        while (reader.Read())
-            //        {
-            //            diagnostico1 += $"• Fact #{reader["NumeroRemito"]} | " +
-            //                           $"FormaPago: '{reader["FormadePago"]}' | " +
-            //                           $"Total: {reader["ImporteTotal"]:C2}\n";
-            //        }
-            //    }
-
-            //    // DIAGNÓSTICO 2: Ver detalles de pagos múltiples
-            //    var queryDiag2 = @"
-            //SELECT 
-            //    f.idFactura,
-            //    f.NumeroRemito,
-            //    f.FormadePago,
-            //    dp.MedioPago,
-            //    dp.Importe
-            //FROM Facturas f
-            //INNER JOIN DetallesPagoFactura dp ON f.idFactura = dp.IdFactura
-            //INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            //WHERE u.NumeroCajero = @numeroCajero
-            //AND f.Hora >= @fechaInicio
-            //AND f.Hora <= @fechaFin";
-
-            //    string diagnostico2 = "\n\n📊 DETALLES PAGO MÚLTIPLE:\n\n";
-            //    bool tieneDetalles = false;
-
-            //    using (var cmdDiag2 = new SqlCommand(queryDiag2, connection))
-            //    {
-            //        cmdDiag2.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-            //        cmdDiag2.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-            //        cmdDiag2.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
-
-            //        using var reader = await cmdDiag2.ExecuteReaderAsync();
-            //        while (reader.Read())
-            //        {
-            //            tieneDetalles = true;
-            //            diagnostico2 += $"• Fact #{reader["NumeroRemito"]} ({reader["FormadePago"]})\n" +
-            //                           $"  → {reader["MedioPago"]}: {reader["Importe"]:C2}\n";
-            //        }
-            //    }
-
-            //    if (!tieneDetalles)
-            //    {
-            //        diagnostico2 += "❌ NO HAY REGISTROS en DetallesPagoFactura\n";
-            //    }
-
-            //        // DIAGNÓSTICO 3: Ver valores únicos de FormadePago
-            //    var queryDiag3 = @"
-            //SELECT DISTINCT FormadePago, COUNT(*) as Cantidad
-            //FROM Facturas
-            //WHERE FormadePago IS NOT NULL
-            //GROUP BY FormadePago
-            //ORDER BY Cantidad DESC";
-
-            //    string diagnostico3 = "\n\n🔍 VALORES ÚNICOS de FormadePago:\n\n";
-            //    using (var cmdDiag3 = new SqlCommand(queryDiag3, connection))
-            //    {
-            //        using var reader = await cmdDiag3.ExecuteReaderAsync();
-            //        while (reader.Read())
-            //        {
-            //            diagnostico3 += $"• '{reader["FormadePago"]}' → {reader["Cantidad"]} facturas\n";
-            //        }
-            //    }
-
-            //    // Mostrar diagnóstico completo
-            //    MessageBox.Show(
-            //        diagnostico1 + diagnostico2 + diagnostico3,
-            //        "🔍 DIAGNÓSTICO COMPLETO",
-            //        MessageBoxButtons.OK,
-            //        MessageBoxIcon.Information);
-
-            //    // ===== FIN DEL CÓDIGO DE DIAGNÓSTICO =====
-
-                // ✅ CONTINUAR CON EL CÓDIGO ORIGINAL DE CIERRE
                 string usuarioCierre = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
+
                 int idTurno;
 
                 if (turnoActualId > 0)
                 {
                     var queryActualizar = @"
-                UPDATE TurnosCajero 
-                SET FechaCierre = @fechaCierre, 
-                    Estado = 'Cerrado',
-                    Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + @obs
-                WHERE Id = @idTurno";
+                        UPDATE TurnosCajero 
+                        SET FechaCierre = @fechaCierre, 
+                            Estado = 'Cerrado',
+                            Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + @obs
+                        WHERE Id = @idTurno";
 
                     using (var cmdActualizar = new SqlCommand(queryActualizar, connection))
                     {
@@ -1198,9 +1094,9 @@ namespace Comercio.NET.Formularios
                 else
                 {
                     var queryTurno = @"
-                INSERT INTO TurnosCajero (NumeroCajero, Usuario, FechaApertura, FechaCierre, Estado, Observaciones)
-                OUTPUT INSERTED.Id
-                VALUES (@numeroCajero, @usuario, @fechaInicio, @fechaFin, 'Cerrado', @observaciones)";
+                        INSERT INTO TurnosCajero (NumeroCajero, Usuario, FechaApertura, FechaCierre, Estado, Observaciones)
+                        OUTPUT INSERTED.Id
+                        VALUES (@numeroCajero, @usuario, @fechaInicio, @fechaFin, 'Cerrado', @observaciones)";
 
                     using (var cmdTurno = new SqlCommand(queryTurno, connection))
                     {
@@ -1225,10 +1121,10 @@ namespace Comercio.NET.Formularios
                     decimal diferencia = decimal.Parse(row.Cells["Diferencia"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
 
                     var queryCierre = @"
-                INSERT INTO CierreTurnoCajero 
-                (IdTurno, MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
-                VALUES 
-                (@idTurno, @medioPago, @esperado, @declarado, @diferencia, @cantidad, @fechaCierre, @usuarioCierre)";
+                        INSERT INTO CierreTurnoCajero 
+                        (IdTurno, MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
+                        VALUES 
+                        (@idTurno, @medioPago, @esperado, @declarado, @diferencia, @cantidad, @fechaCierre, @usuarioCierre)";
 
                     using var cmdCierre = new SqlCommand(queryCierre, connection);
                     cmdCierre.Parameters.AddWithValue("@idTurno", idTurno);
