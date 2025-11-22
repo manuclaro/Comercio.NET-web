@@ -71,6 +71,9 @@ namespace Comercio.NET
         // NUEVO: Referencia al botón Cancelar (antes era variable local)
         private Button btnCancelar;
 
+        // NUEVO: Botón para limpiar cache AFIP
+        private Button btnLimpiarCacheAfip;
+
         private decimal montoLimiteFacturacion = 0m; // NUEVO: Límite configurado
         private decimal montoAcumuladoHoy = 0m; // NUEVO: Total facturado en el día
         private bool limitarFacturacion = false; // NUEVO: Si está habilitada la restricción
@@ -631,6 +634,31 @@ namespace Comercio.NET
                 DialogResult = DialogResult.Cancel
             };
 
+            // ✅ NUEVO: Botón para limpiar cache AFIP (ubicado en esquina superior derecha)
+            btnLimpiarCacheAfip = new Button
+            {
+                Text = "🗑️ Limpiar Cache AFIP",
+                Width = 150,
+                Height = 28,
+                Left = this.ClientSize.Width - 165, // 15px de margen desde la derecha
+                Top = 10,
+                Font = new Font("Segoe UI", 8F, FontStyle.Regular),
+                BackColor = System.Drawing.Color.FromArgb(220, 53, 69), // Rojo (acción destructiva)
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnLimpiarCacheAfip.FlatAppearance.BorderSize = 0;
+
+            // ✅ Agregar tooltip explicativo
+            var toolTip = new ToolTip();
+            toolTip.SetToolTip(btnLimpiarCacheAfip, 
+                "Elimina tokens AFIP en cache.\n" +
+                "Usar solo si hay problemas de autenticación.\n\n" +
+                "Requiere reiniciar el sistema después de limpiar.");
+
+            this.Controls.Add(btnLimpiarCacheAfip);
+
             // Agregar todos los controles al formulario
             this.Controls.AddRange(new Control[] {
                 chkPagoMultiple,
@@ -645,7 +673,8 @@ namespace Comercio.NET
                 btnFacturaB,
                 btnFacturaA,
                 btnFinalizarSinImpresion,
-                btnCancelar
+                btnCancelar,
+                btnLimpiarCacheAfip // NUEVO: Agregar el botón de limpiar cache AFIP
             });
 
             // Posicionar botones de forma consistente y más a la izquierda
@@ -914,6 +943,122 @@ namespace Comercio.NET
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Error al finalizar sin impresión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            // ✅ NUEVO: Evento para limpiar cache AFIP
+            btnLimpiarCacheAfip.Click += async (s, e) =>
+            {
+                try
+                {
+                    var resultado = MessageBox.Show(
+                        "⚠️ ADVERTENCIA: LIMPIEZA DE CACHE AFIP\n\n" +
+                        "Esta acción eliminará:\n" +
+                        "• Todos los tokens AFIP en memoria\n" +
+                        "• El archivo de tokens guardados\n" +
+                        "• Cache de autenticación\n\n" +
+                        "Después de limpiar, la próxima factura electrónica\n" +
+                        "solicitará nuevos tokens a AFIP.\n\n" +
+                        "⚠️ Use esto solo si tiene problemas de autenticación.\n\n" +
+                        "¿Desea continuar?",
+                        "Confirmar Limpieza de Cache",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button2 // No por defecto
+                    );
+
+                    if (resultado == DialogResult.Yes)
+                    {
+                        // Deshabilitar botón mientras se procesa
+                        btnLimpiarCacheAfip.Enabled = false;
+                        btnLimpiarCacheAfip.Text = "🔄 Limpiando...";
+                        this.Cursor = Cursors.WaitCursor;
+
+                        try
+                        {
+                            System.Diagnostics.Debug.WriteLine("[CACHE AFIP] === INICIANDO LIMPIEZA MANUAL ===");
+
+                            // Limpiar cache en memoria y archivo
+                            AfipAuthenticator.ClearTokenCache();
+
+                            // Verificar que el archivo fue eliminado
+                            string tokenFilePath = System.IO.Path.Combine(
+                                AppDomain.CurrentDomain.BaseDirectory,
+                                "afip_tokens.json");
+
+                            bool archivoEliminado = !System.IO.File.Exists(tokenFilePath);
+
+                            System.Diagnostics.Debug.WriteLine($"[CACHE AFIP] Archivo tokens eliminado: {archivoEliminado}");
+                            System.Diagnostics.Debug.WriteLine("[CACHE AFIP] === LIMPIEZA COMPLETADA ===");
+
+                            MessageBox.Show(
+                                "✅ CACHE AFIP LIMPIADO EXITOSAMENTE\n\n" +
+                                "Se han eliminado:\n" +
+                                $"• Tokens en memoria: ✓\n" +
+                                $"• Archivo de tokens: {(archivoEliminado ? "✓" : "⚠️ No encontrado")}\n\n" +
+                                "💡 IMPORTANTE:\n" +
+                                "La próxima factura electrónica solicitará\n" +
+                                "nuevos tokens a AFIP automáticamente.\n\n" +
+                                "Si los problemas persisten, verifique:\n" +
+                                "1. Certificado AFIP válido y no expirado\n" +
+                                "2. Conexión a internet estable\n" +
+                                "3. Configuración en appsettings.json",
+                                "Cache Limpiado",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information
+                            );
+
+                            // Restaurar botón
+                            btnLimpiarCacheAfip.Text = "🗑️ Limpiar Cache AFIP";
+                            btnLimpiarCacheAfip.Enabled = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[CACHE AFIP] ❌ Error durante limpieza: {ex.Message}");
+
+                            MessageBox.Show(
+                                $"⚠️ Error durante la limpieza:\n\n{ex.Message}\n\n" +
+                                $"El cache en memoria se limpió, pero el archivo\n" +
+                                $"puede requerir eliminación manual.\n\n" +
+                                $"Ruta del archivo:\n" +
+                                $"{System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "afip_tokens.json")}",
+                                "Error en Limpieza",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning
+                            );
+
+                            // Restaurar botón aunque haya error
+                            btnLimpiarCacheAfip.Text = "🗑️ Limpiar Cache AFIP";
+                            btnLimpiarCacheAfip.Enabled = true;
+                        }
+                        finally
+                        {
+                            this.Cursor = Cursors.Default;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CACHE AFIP] 💥 Error crítico: {ex.Message}");
+                    MessageBox.Show(
+                        $"Error inesperado:\n\n{ex.Message}",
+                        "Error Crítico",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
+
+                    btnLimpiarCacheAfip.Text = "🗑️ Limpiar Cache AFIP";
+                    btnLimpiarCacheAfip.Enabled = true;
+                    this.Cursor = Cursors.Default;
+                }
+            };
+
+            // ✅ NUEVO: Ajustar posición del botón cuando se redimensiona el formulario
+            this.Resize += (s, e) =>
+            {
+                if (btnLimpiarCacheAfip != null)
+                {
+                    btnLimpiarCacheAfip.Left = this.ClientSize.Width - 165;
                 }
             };
 

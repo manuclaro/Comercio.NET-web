@@ -808,14 +808,14 @@ namespace Comercio.NET.Servicios
 
             // CORREGIDO: Agregado el cierre > que faltaba en la primera línea
             string tra = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<loginTicketRequest version=""1.0"">
-<header>
-<uniqueId>{uniqueId}</uniqueId>
-<generationTime>{generationTime}</generationTime>
-<expirationTime>{expirationTime}</expirationTime>
-</header>
-<service>{service}</service>
-</loginTicketRequest>";
+                <loginTicketRequest version=""1.0"">
+                <header>
+                <uniqueId>{uniqueId}</uniqueId>
+                <generationTime>{generationTime}</generationTime>
+                <expirationTime>{expirationTime}</expirationTime>
+                </header>
+                <service>{service}</service>
+                </loginTicketRequest>";
 
             System.Diagnostics.Debug.WriteLine($"[AFIP] TRA XML generado:");
             System.Diagnostics.Debug.WriteLine(tra);
