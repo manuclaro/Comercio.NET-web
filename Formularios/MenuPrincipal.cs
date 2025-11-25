@@ -490,6 +490,12 @@ namespace Comercio.NET
         private void printPreviewToolStripButton_Click(object sender, EventArgs e)
         {
             var ventasForm = new Ventas();
+            if (!ventasForm.InicializacionExitosa)
+            {
+                ventasForm.Dispose();
+                return;
+            }
+
             ventasForm.MdiParent = this;
             ventasForm.Show();
         }

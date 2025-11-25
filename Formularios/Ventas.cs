@@ -69,15 +69,18 @@ namespace Comercio.NET
         private ToolStripMenuItem menuEliminarProducto;
         private ToolStripMenuItem menuInfoProducto;
 
+        public bool InicializacionExitosa { get; private set; }
+
         public Ventas()
         {
-            // ✅ AGREGAR: Verificar turno abierto ANTES de inicializar el formulario
             if (!VerificarYSolicitarTurnoAbierto())
             {
-                // Si no se abre el turno, cerrar el formulario inmediatamente
-                this.Load += (s, e) => this.Close();
+                InicializacionExitosa = false;
+                InitializeComponent(); // Necesario para evitar errores
                 return;
             }
+
+            InicializacionExitosa = true;
 
             InitializeComponent();
             ConfigurarEstilosFormulario();
@@ -129,11 +132,11 @@ namespace Comercio.NET
 
                 if (tieneTurnoAbierto)
                 {
-                    // Todo OK, tiene turno abierto
+                    // Todo OK, tiene turno abierto - sin mensajes
                     return true;
                 }
 
-                // No tiene turno abierto - Mostrar diálogo de sugerencia
+                // ✅ SIMPLIFICADO: Un solo mensaje preguntando si desea abrir turno
                 var resultado = MessageBox.Show(
                     $"⚠️ NO TIENE TURNO ABIERTO\n\n" +
                     $"Usuario: {usuarioActual.NombreUsuario}\n" +
@@ -154,28 +157,37 @@ namespace Comercio.NET
 
                         if (resultadoApertura == DialogResult.OK)
                         {
-                            // Verificar nuevamente que se haya abierto correctamente
+                            // ✅ SIMPLIFICADO: Solo verificar sin mostrar mensaje de éxito
                             if (VerificarTurnoAbierto(numeroCajero))
                             {
-                                MessageBox.Show(
-                                    "✅ Turno abierto correctamente.\n\nYa puede comenzar a realizar ventas.",
-                                    "Turno Abierto",
-                                    MessageBoxButtons.OK,
-                                    MessageBoxIcon.Information);
+                                // ✅ CAMBIO: Sin mensaje de confirmación adicional
+                                // El usuario ya sabe que abrió el turno porque lo acaba de hacer
                                 return true;
                             }
+                            else
+                            {
+                                // ✅ NUEVO: Solo mostrar error si falló la verificación
+                                MessageBox.Show(
+                                    "⚠️ El turno no pudo ser verificado.\n\n" +
+                                    "Por favor, intente nuevamente desde el menú Caja > Apertura de Turno.",
+                                    "Error de Verificación",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            // ✅ SIMPLIFICADO: Usuario canceló la apertura - sin mensaje adicional
+                            // El cierre del formulario ya es suficiente indicación
+                            return false;
                         }
                     }
                 }
 
-                // Si llegamos aquí, no se abrió el turno
-                MessageBox.Show(
-                    "❌ No se puede acceder a Ventas sin un turno abierto.\n\n" +
-                    "Por favor, abra un turno desde el menú Caja > Apertura de Turno.",
-                    "Acceso Denegado",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
+                // ✅ ELIMINADO: Mensaje final redundante
+                // Si llegamos aquí, el usuario dijo "No" a abrir turno
+                // No hace falta otro mensaje porque ya rechazó la acción
                 return false;
             }
             catch (Exception ex)
@@ -851,10 +863,34 @@ namespace Comercio.NET
 
                 txtPrecio.KeyPress += (s, e) =>
                 {
-                    // Permitir solo números, punto decimal, coma y teclas de control
-                    if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && e.KeyChar != '.' && e.KeyChar != ',')
+                    TextBox textBox = s as TextBox;
+
+                    // Permitir teclas de control (Backspace, Delete, etc.)
+                    if (char.IsControl(e.KeyChar))
+                    {
+                        return;
+                    }
+
+                    // ✅ NUEVO: Permitir el signo menos (-) SOLO al inicio del texto
+                    if (e.KeyChar == '-')
+                    {
+                        // Solo permitir si está al inicio y no hay otro signo menos
+                        if (textBox.SelectionStart == 0 && !textBox.Text.Contains("-"))
+                        {
+                            return; // Permitir el signo menos
+                        }
+                        else
+                        {
+                            e.Handled = true; // Bloquear si no está al inicio o ya existe
+                            return;
+                        }
+                    }
+
+                    // Permitir solo números, punto decimal y coma
+                    if (!char.IsDigit(e.KeyChar) && e.KeyChar != '.' && e.KeyChar != ',')
                     {
                         e.Handled = true;
+                        return;
                     }
 
                     // Reemplazar coma por punto para consistencia
@@ -864,7 +900,7 @@ namespace Comercio.NET
                     }
 
                     // Permitir solo un punto decimal
-                    if (e.KeyChar == '.' && (s as TextBox).Text.Contains('.'))
+                    if (e.KeyChar == '.' && textBox.Text.Contains('.'))
                     {
                         e.Handled = true;
                     }
