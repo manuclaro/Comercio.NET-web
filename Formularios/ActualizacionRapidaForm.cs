@@ -1,10 +1,11 @@
-﻿using Microsoft.Extensions.Configuration;
-using System;
+﻿using System;
+using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Extensions.Configuration;
 
 namespace Comercio.NET.Formularios
 {
@@ -22,10 +23,21 @@ namespace Comercio.NET.Formularios
         private Panel panelInfo;
         private Panel panelEdicion;
         
-        // Para búsqueda automática
+        // ✅ NUEVOS CONTROLES
+        private RadioButton rbActualizarCosto;
+        private RadioButton rbActualizarPrecio;
+        private GroupBox grpTipoActualizacion;
+        private Label lblCostoActual;
+        private Label lblPorcentajeGanancia;
+        private TextBox txtNuevoCosto;
+        
+        // Variables de estado
         private System.Windows.Forms.Timer searchTimer;
         private string lastSearchText = "";
         private string codigoActual = "";
+        private decimal costoActual = 0;
+        private decimal porcentajeActual = 0;
+        private decimal precioActual = 0;
 
         public ActualizacionRapidaForm()
         {
@@ -36,8 +48,7 @@ namespace Comercio.NET.Formularios
         private void ConfigurarFormulario()
         {
             this.Text = "⚡ Actualización Rápida de Precios y Stock";
-            // ✅ CAMBIO: Reducir altura del formulario para que el botón Cerrar sea visible
-            this.Size = new Size(600, 520); // Era 480, ahora 450
+            this.Size = new Size(620, 620); // ✅ Aumentado altura para nuevos controles
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -79,7 +90,7 @@ namespace Comercio.NET.Formularios
 
             var lblSubtitulo = new Label
             {
-                Text = "Actualice precios y stock de forma rápida y eficiente",
+                Text = "Actualice precios, costos y stock de forma rápida y eficiente",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(200, 210, 255),
                 Location = new Point(margin, 40),
@@ -130,7 +141,7 @@ namespace Comercio.NET.Formularios
             panelInfo = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(this.ClientSize.Width - (margin * 2), 100),
+                Size = new Size(this.ClientSize.Width - (margin * 2), 130), // ✅ Aumentado altura
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = false
@@ -147,10 +158,32 @@ namespace Comercio.NET.Formularios
             };
             panelInfo.Controls.Add(lblDescripcion);
 
+            // ✅ NUEVO: Costo actual
+            lblCostoActual = new Label
+            {
+                Text = "💵 Costo actual: $0.00",
+                Location = new Point(15, 45),
+                Size = new Size(250, 22),
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(244, 67, 54)
+            };
+            panelInfo.Controls.Add(lblCostoActual);
+
+            // ✅ NUEVO: Porcentaje de ganancia
+            lblPorcentajeGanancia = new Label
+            {
+                Text = "📊 Ganancia: 0%",
+                Location = new Point(280, 45),
+                Size = new Size(200, 22),
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(156, 39, 176)
+            };
+            panelInfo.Controls.Add(lblPorcentajeGanancia);
+
             lblPrecioActual = new Label
             {
                 Text = "💰 Precio actual: $0.00",
-                Location = new Point(15, 45),
+                Location = new Point(15, 75),
                 Size = new Size(250, 22),
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(0, 150, 136)
@@ -160,14 +193,52 @@ namespace Comercio.NET.Formularios
             lblStockActual = new Label
             {
                 Text = "📦 Stock actual: 0",
-                Location = new Point(15, 70),
+                Location = new Point(15, 100),
                 Size = new Size(250, 22),
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(255, 152, 0)
             };
             panelInfo.Controls.Add(lblStockActual);
 
-            currentY += 120;
+            currentY += 150;
+
+            // ======================================
+            // ✅ NUEVO: SELECTOR DE TIPO DE ACTUALIZACIÓN
+            // ======================================
+            grpTipoActualizacion = new GroupBox
+            {
+                Text = "⚙️ Tipo de Actualización",
+                Location = new Point(margin, currentY),
+                Size = new Size(this.ClientSize.Width - (margin * 2), 60),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181),
+                Visible = false
+            };
+            this.Controls.Add(grpTipoActualizacion);
+
+            rbActualizarCosto = new RadioButton
+            {
+                Text = "💵 Actualizar COSTO (calcula precio automáticamente)",
+                Location = new Point(15, 25),
+                Size = new Size(280, 25),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = false
+            };
+            grpTipoActualizacion.Controls.Add(rbActualizarCosto);
+
+            rbActualizarPrecio = new RadioButton
+            {
+                Text = "💰 Actualizar PRECIO DE VENTA",
+                Location = new Point(310, 25),
+                Size = new Size(220, 25),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = true // ✅ Por defecto precio
+            };
+            grpTipoActualizacion.Controls.Add(rbActualizarPrecio);
+
+            currentY += 80;
 
             // ======================================
             // PANEL DE EDICIÓN
@@ -175,7 +246,7 @@ namespace Comercio.NET.Formularios
             panelEdicion = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(this.ClientSize.Width - (margin * 2), 140),
+                Size = new Size(this.ClientSize.Width - (margin * 2), 160), // ✅ Aumentado altura
                 BackColor = Color.FromArgb(232, 245, 233),
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = false
@@ -192,12 +263,34 @@ namespace Comercio.NET.Formularios
             };
             panelEdicion.Controls.Add(lblTituloEdicion);
 
-            // Campo Precio
+            // ✅ NUEVO: Campo Costo
+            var lblNuevoCosto = new Label
+            {
+                Text = "💵 Nuevo Costo:",
+                Location = new Point(15, 45),
+                Size = new Size(110, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            panelEdicion.Controls.Add(lblNuevoCosto);
+
+            txtNuevoCosto = new TextBox
+            {
+                Location = new Point(130, 43),
+                Size = new Size(150, 28),
+                Font = new Font("Segoe UI", 11F),
+                BorderStyle = BorderStyle.FixedSingle,
+                PlaceholderText = "0.00",
+                Visible = false
+            };
+            panelEdicion.Controls.Add(txtNuevoCosto);
+
+            // Campo Precio (ahora en la misma línea que costo)
             var lblNuevoPrecio = new Label
             {
-                Text = "💵 Nuevo Precio:",
+                Text = "💰 Nuevo Precio:",
                 Location = new Point(15, 45),
-                Size = new Size(120, 25),
+                Size = new Size(110, 25),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft
             };
@@ -205,7 +298,7 @@ namespace Comercio.NET.Formularios
 
             txtNuevoPrecio = new TextBox
             {
-                Location = new Point(140, 43),
+                Location = new Point(130, 43),
                 Size = new Size(150, 28),
                 Font = new Font("Segoe UI", 11F),
                 BorderStyle = BorderStyle.FixedSingle,
@@ -235,11 +328,24 @@ namespace Comercio.NET.Formularios
             };
             panelEdicion.Controls.Add(txtNuevoStock);
 
+            // ✅ NUEVO: Label informativo para precio calculado
+            var lblInfoCalculo = new Label
+            {
+                Name = "lblInfoCalculo",
+                Text = "ℹ️ El precio se calculará automáticamente al guardar",
+                Location = new Point(15, 75),
+                Size = new Size(panelEdicion.Width - 30, 20),
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(33, 150, 243),
+                Visible = false
+            };
+            panelEdicion.Controls.Add(lblInfoCalculo);
+
             // Botones de acción dentro del panel
             btnGuardar = new Button
             {
                 Text = "💾 Guardar",
-                Location = new Point(15, 90),
+                Location = new Point(15, 110),
                 Size = new Size(120, 38),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
@@ -253,7 +359,7 @@ namespace Comercio.NET.Formularios
             btnLimpiar = new Button
             {
                 Text = "🔄 Limpiar",
-                Location = new Point(145, 90),
+                Location = new Point(145, 110),
                 Size = new Size(100, 38),
                 BackColor = Color.FromArgb(255, 152, 0),
                 ForeColor = Color.White,
@@ -264,7 +370,7 @@ namespace Comercio.NET.Formularios
             btnLimpiar.FlatAppearance.BorderSize = 0;
             panelEdicion.Controls.Add(btnLimpiar);
 
-            currentY += 160;
+            currentY += 180;
 
             // ======================================
             // BOTÓN CERRAR (inferior)
@@ -279,8 +385,7 @@ namespace Comercio.NET.Formularios
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
-                // ✅ NUEVO: Anclar al lado derecho inferior
-        Anchor = AnchorStyles.Right | AnchorStyles.Bottom
+                Anchor = AnchorStyles.Right | AnchorStyles.Bottom
             };
             btnCerrar.FlatAppearance.BorderSize = 0;
             this.Controls.Add(btnCerrar);
@@ -291,9 +396,15 @@ namespace Comercio.NET.Formularios
             // Eventos de texto
             txtNuevoPrecio.KeyPress += TxtPrecio_KeyPress;
             txtNuevoPrecio.KeyDown += Control_KeyDown;
+            txtNuevoCosto.KeyPress += TxtPrecio_KeyPress; // ✅ NUEVO
+            txtNuevoCosto.KeyDown += Control_KeyDown; // ✅ NUEVO
             txtCodigo.KeyDown += Control_KeyDown;
             txtNuevoStock.KeyPress += TxtStock_KeyPress;
             txtNuevoStock.KeyDown += Control_KeyDown;
+
+            // ✅ NUEVO: Eventos de RadioButtons
+            rbActualizarCosto.CheckedChanged += RadioButton_CheckedChanged;
+            rbActualizarPrecio.CheckedChanged += RadioButton_CheckedChanged;
 
             // Eventos de botones
             btnGuardar.Click += async (s, e) => await GuardarCambios();
@@ -305,6 +416,43 @@ namespace Comercio.NET.Formularios
 
             // Teclas globales
             this.KeyDown += Form_KeyDown;
+        }
+
+        // ✅ NUEVO: Manejador para cambio de RadioButton
+        private void RadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (rbActualizarCosto.Checked)
+            {
+                // Mostrar campo de costo y ocultar campo de precio
+                txtNuevoCosto.Visible = true;
+                txtNuevoPrecio.Visible = false;
+                
+                // Buscar y mostrar label informativo
+                var lblInfo = panelEdicion.Controls.Find("lblInfoCalculo", false).FirstOrDefault();
+                if (lblInfo != null)
+                    lblInfo.Visible = true;
+                
+                // Precargar el costo actual
+                txtNuevoCosto.Text = costoActual.ToString("F2");
+                txtNuevoCosto.Focus();
+                txtNuevoCosto.SelectAll();
+            }
+            else if (rbActualizarPrecio.Checked)
+            {
+                // Mostrar campo de precio y ocultar campo de costo
+                txtNuevoCosto.Visible = false;
+                txtNuevoPrecio.Visible = true;
+                
+                // Ocultar label informativo
+                var lblInfo = panelEdicion.Controls.Find("lblInfoCalculo", false).FirstOrDefault();
+                if (lblInfo != null)
+                    lblInfo.Visible = false;
+                
+                // Precargar el precio actual
+                txtNuevoPrecio.Text = precioActual.ToString("F2");
+                txtNuevoPrecio.Focus();
+                txtNuevoPrecio.SelectAll();
+            }
         }
 
         private void ConfigurarBusquedaTiempoReal()
@@ -350,7 +498,6 @@ namespace Comercio.NET.Formularios
             {
                 this.Cursor = Cursors.WaitCursor;
 
-                // Procesar código (similar a otros formularios)
                 string codigoBuscado = ProcesarCodigo(codigo);
 
                 var config = new ConfigurationBuilder()
@@ -363,7 +510,8 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
 
-                var query = @"SELECT codigo, descripcion, precio, cantidad, marca, rubro 
+                // ✅ MODIFICADO: Incluir costo y porcentaje en la consulta
+                var query = @"SELECT codigo, descripcion, precio, cantidad, marca, rubro, costo, porcentaje 
                              FROM Productos WHERE codigo = @codigo";
 
                 using var cmd = new SqlCommand(query, connection);
@@ -416,27 +564,42 @@ namespace Comercio.NET.Formularios
         {
             codigoActual = reader["codigo"].ToString();
             string descripcion = reader["descripcion"].ToString();
-            decimal precio = Convert.ToDecimal(reader["precio"]);
+            precioActual = Convert.ToDecimal(reader["precio"]);
             int stock = Convert.ToInt32(reader["cantidad"]);
             string marca = reader["marca"]?.ToString() ?? "";
             string rubro = reader["rubro"]?.ToString() ?? "";
+            
+            // ✅ NUEVO: Leer costo y porcentaje
+            costoActual = reader["costo"] != DBNull.Value ? Convert.ToDecimal(reader["costo"]) : 0;
+            porcentajeActual = reader["porcentaje"] != DBNull.Value ? Convert.ToDecimal(reader["porcentaje"]) : 0;
 
             // Mostrar información
             lblDescripcion.Text = $"{descripcion}";
-            lblPrecioActual.Text = $"💰 Precio actual: {precio:C2}";
+            lblCostoActual.Text = $"💵 Costo actual: {costoActual:C2}";
+            lblPorcentajeGanancia.Text = $"📊 Ganancia: {porcentajeActual:F2}%";
+            lblPrecioActual.Text = $"💰 Precio actual: {precioActual:C2}";
             lblStockActual.Text = $"📦 Stock actual: {stock} unidades";
 
-            // Precargar valores
-            txtNuevoPrecio.Text = precio.ToString("F2");
+            // Precargar valores según el tipo de actualización seleccionado
+            if (rbActualizarCosto.Checked)
+            {
+                txtNuevoCosto.Text = costoActual.ToString("F2");
+                txtNuevoCosto.Focus();
+                txtNuevoCosto.SelectAll();
+            }
+            else
+            {
+                txtNuevoPrecio.Text = precioActual.ToString("F2");
+                txtNuevoPrecio.Focus();
+                txtNuevoPrecio.SelectAll();
+            }
+            
             txtNuevoStock.Text = stock.ToString();
 
             // Mostrar paneles
             panelInfo.Visible = true;
+            grpTipoActualizacion.Visible = true;
             panelEdicion.Visible = true;
-
-            // Enfocar el precio para edición
-            txtNuevoPrecio.Focus();
-            txtNuevoPrecio.SelectAll();
         }
 
         private void MostrarProductoNoEncontrado(string codigo)
@@ -451,8 +614,12 @@ namespace Comercio.NET.Formularios
         private void OcultarInformacionProducto()
         {
             panelInfo.Visible = false;
+            grpTipoActualizacion.Visible = false;
             panelEdicion.Visible = false;
             codigoActual = "";
+            costoActual = 0;
+            porcentajeActual = 0;
+            precioActual = 0;
         }
 
         private async Task GuardarCambios()
@@ -464,20 +631,76 @@ namespace Comercio.NET.Formularios
                 return;
             }
 
-            if (!decimal.TryParse(txtNuevoPrecio.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out decimal nuevoPrecio))
-            {
-                MessageBox.Show("Ingrese un precio válido.", "Validación",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtNuevoPrecio.Focus();
-                return;
-            }
+            decimal nuevoPrecio = 0;
+            decimal nuevoCosto = 0;
 
-            if (nuevoPrecio <= 0)
+            // ✅ MODIFICADO: Validar según el tipo de actualización
+            if (rbActualizarCosto.Checked)
             {
-                MessageBox.Show("El precio debe ser mayor a cero.", "Validación",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtNuevoPrecio.Focus();
-                return;
+                // Actualizar por COSTO
+                if (!decimal.TryParse(txtNuevoCosto.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out nuevoCosto))
+                {
+                    MessageBox.Show("Ingrese un costo válido.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtNuevoCosto.Focus();
+                    return;
+                }
+
+                if (nuevoCosto < 0)
+                {
+                    MessageBox.Show("El costo no puede ser negativo.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtNuevoCosto.Focus();
+                    return;
+                }
+
+                // ✅ CALCULAR PRECIO AUTOMÁTICAMENTE
+                if (porcentajeActual > 0)
+                {
+                    nuevoPrecio = nuevoCosto + ((nuevoCosto * porcentajeActual) / 100);
+                    nuevoPrecio = Math.Round(nuevoPrecio, 2);
+                }
+                else
+                {
+                    // Si no hay porcentaje, preguntar al usuario
+                    var resultado = MessageBox.Show(
+                        "⚠️ El producto no tiene un porcentaje de ganancia configurado.\n\n" +
+                        $"Costo nuevo: {nuevoCosto:C2}\n\n" +
+                        "¿Desea usar el precio actual como precio de venta?\n" +
+                        "(O cancele para configurar el porcentaje primero)",
+                        "Porcentaje de Ganancia No Configurado",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Warning);
+
+                    if (resultado != DialogResult.OK)
+                    {
+                        return;
+                    }
+                    
+                    nuevoPrecio = precioActual;
+                }
+            }
+            else
+            {
+                // Actualizar por PRECIO
+                if (!decimal.TryParse(txtNuevoPrecio.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out nuevoPrecio))
+                {
+                    MessageBox.Show("Ingrese un precio válido.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtNuevoPrecio.Focus();
+                    return;
+                }
+
+                if (nuevoPrecio <= 0)
+                {
+                    MessageBox.Show("El precio debe ser mayor a cero.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtNuevoPrecio.Focus();
+                    return;
+                }
+                
+                // Mantener el costo actual
+                nuevoCosto = costoActual;
             }
 
             if (!int.TryParse(txtNuevoStock.Text, out int nuevoStock))
@@ -489,7 +712,6 @@ namespace Comercio.NET.Formularios
                 return;
             }
 
-            // ✅ NUEVO: Permitir stock negativo pero mostrar advertencia
             if (nuevoStock < 0)
             {
                 var resultado = MessageBox.Show(
@@ -525,26 +747,36 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
 
+                // ✅ MODIFICADO: Actualizar también el costo
                 var query = @"UPDATE Productos 
-                             SET precio = @precio, cantidad = @cantidad 
+                             SET precio = @precio, costo = @costo, cantidad = @cantidad 
                              WHERE codigo = @codigo";
 
                 using var cmd = new SqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
+                cmd.Parameters.AddWithValue("@costo", nuevoCosto);
                 cmd.Parameters.AddWithValue("@cantidad", nuevoStock);
                 cmd.Parameters.AddWithValue("@codigo", codigoActual);
 
                 await cmd.ExecuteNonQueryAsync();
 
-                // Limpiar cache si existe
                 ProductosOptimizado.LimpiarCache();
 
-                MessageBox.Show("✅ Producto actualizado correctamente.",
+                // ✅ MODIFICADO: Mensaje con más información
+                string mensajeExito = rbActualizarCosto.Checked
+                    ? $"✅ Producto actualizado correctamente.\n\n" +
+                      $"Costo: {nuevoCosto:C2}\n" +
+                      $"Precio calculado: {nuevoPrecio:C2} (con {porcentajeActual:F2}% de ganancia)\n" +
+                      $"Stock: {nuevoStock}"
+                    : $"✅ Producto actualizado correctamente.\n\n" +
+                      $"Precio: {nuevoPrecio:C2}\n" +
+                      $"Stock: {nuevoStock}";
+
+                MessageBox.Show(mensajeExito,
                     "Éxito",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
-                // Limpiar para siguiente producto
                 LimpiarFormulario();
             }
             catch (Exception ex)
@@ -564,6 +796,7 @@ namespace Comercio.NET.Formularios
         {
             txtCodigo.Clear();
             txtNuevoPrecio.Clear();
+            txtNuevoCosto.Clear();
             txtNuevoStock.Clear();
             OcultarInformacionProducto();
             txtCodigo.Focus();
@@ -591,11 +824,9 @@ namespace Comercio.NET.Formularios
 
         private void TxtStock_KeyPress(object sender, KeyPressEventArgs e)
         {
-            // Permitir solo dígitos y teclas de control
             if (char.IsControl(e.KeyChar))
                 return;
 
-            // Permitir solo números
             if (!char.IsDigit(e.KeyChar))
             {
                 e.Handled = true;
@@ -603,12 +834,12 @@ namespace Comercio.NET.Formularios
             }
 
             TextBox tb = sender as TextBox;
-            // Limitar a 4 dígitos máximo
             if (tb.Text.Length >= 4 && tb.SelectionLength == 0)
             {
                 e.Handled = true;
             }
         }
+
         private async void Control_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
@@ -617,12 +848,10 @@ namespace Comercio.NET.Formularios
 
                 if (sender == txtCodigo)
                 {
-                    // Si presiona Enter en código, buscar inmediatamente
                     await BuscarProductoAsync(txtCodigo.Text.Trim());
                 }
-                else if (sender == txtNuevoPrecio || sender == txtNuevoStock)
+                else if (sender == txtNuevoPrecio || sender == txtNuevoCosto || sender == txtNuevoStock)
                 {
-                    // Si presiona Enter en los campos de edición, guardar
                     await GuardarCambios();
                 }
             }
@@ -669,7 +898,7 @@ namespace Comercio.NET.Formularios
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new Size(600, 480);
+            this.ClientSize = new Size(620, 620);
             this.Name = "ActualizacionRapidaForm";
             this.ResumeLayout(false);
         }
