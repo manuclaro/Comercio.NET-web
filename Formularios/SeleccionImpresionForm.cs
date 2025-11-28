@@ -1237,7 +1237,7 @@ namespace Comercio.NET
                     .AddJsonFile("appsettings.json")
                     .Build();
 
-                string cuitEmisor = config["AFIP:CUIT"];
+                string cuitEmisor = AfipAuthenticator.ObtenerCUITActivo();
                 if (string.IsNullOrEmpty(cuitEmisor))
                 {
                     MessageBox.Show("Error: CUIT del emisor no configurado en appsettings.json", "Error de Configuración",
@@ -1448,8 +1448,9 @@ namespace Comercio.NET
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🔑 === AUTENTICACIÓN AFIP TRANSPARENTE ===");
+                System.Diagnostics.Debug.WriteLine("🔑 === AUTENTICACIÓN AFIP (SIMPLIFICADA) ===");
 
+                // NUEVO: Verificar si ya hay token válido
                 var (tieneTokenValido, mensaje, minutosRestantes) = AfipAuthenticator.VerificarTokensExistentes("wsfe");
 
                 if (tieneTokenValido && minutosRestantes > 2)
@@ -1466,65 +1467,42 @@ namespace Comercio.NET
 
                 System.Diagnostics.Debug.WriteLine($"[AFIP] 🔍 Estado tokens: {mensaje}");
 
-                var config = new ConfigurationBuilder()
-                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json")
-                    .Build();
-
-                string certificadoPath = config["AFIP:CertificadoPath"];
-                string certificadoPassword = config["AFIP:CertificadoPassword"];
-                string wsaaUrl = config["AFIP:WSAAUrl"] ?? "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-
-                if (string.IsNullOrEmpty(certificadoPath))
-                {
-                    certificadoPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificado.p12");
-                }
-
-                var (esCertificadoValido, mensajeCert, fechaVencimiento) = AfipAuthenticator.VerificarCertificado(certificadoPath, certificadoPassword ?? "");
-                if (!esCertificadoValido)
-                {
-                    throw new Exception($"Certificado AFIP no válido: {mensajeCert}");
-                }
-
-                System.Diagnostics.Debug.WriteLine($"✅ Certificado válido: {mensajeCert}");
-
+                // SIMPLIFICADO: Ya no necesitamos leer el appsettings.json aquí
+                // El AfipAuthenticator.GetTAAsync() lo hace automáticamente
                 try
                 {
-                    var (token, sign, expiration) = await AfipAuthenticator.GetTAAsync("wsfe", certificadoPath, certificadoPassword ?? "", wsaaUrl);
+                    // NUEVO: Llamada simplificada sin parámetros
+                    var (token, sign, expiration) = await AfipAuthenticator.GetTAAsync("wsfe");
 
                     TokenAfip = token;
                     SignAfip = sign;
 
-                    System.Diagnostics.Debug.WriteLine("✅ Autenticación AFIP transparente completada");
+                    System.Diagnostics.Debug.WriteLine("✅ Autenticación AFIP completada");
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Token válido hasta: {expiration:dd/MM/yyyy HH:mm:ss}");
                 }
                 catch (Exception ex) when (ex.Message.Contains("TOKEN") || ex.Message.Contains("token") || ex.Message.Contains("Ya existe"))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Forzando uso de token existente debido a: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Usando token existente debido a: {ex.Message}");
 
-                    try
+                    var tokenUltimoRecurso = AfipAuthenticator.GetExistingToken("wsfe");
+                    if (tokenUltimoRecurso.HasValue)
                     {
-                        var (token, sign, expiration) = await AfipAuthenticator.ForzarUsoTokenExistente("wsfe", certificadoPath, certificadoPassword ?? "");
-
-                        TokenAfip = token;
-                        SignAfip = sign;
-
-                        System.Diagnostics.Debug.WriteLine("✅ Token forzado exitosamente - proceso transparente");
+                        TokenAfip = tokenUltimoRecurso.Value.token;
+                        SignAfip = tokenUltimoRecurso.Value.sign;
+                        System.Diagnostics.Debug.WriteLine("✅ Token existente recuperado exitosamente");
                         return;
                     }
-                    catch (Exception exForzar)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error forzando token: {exForzar.Message}");
-                        throw new Exception($"No se pudo obtener token AFIP de manera transparente: {ex.Message}");
-                    }
+
+                    throw new Exception($"No se pudo obtener token AFIP: {ex.Message}");
                 }
 
-                System.Diagnostics.Debug.WriteLine("✅ === AUTENTICACIÓN TRANSPARENTE COMPLETADA ===");
+                System.Diagnostics.Debug.WriteLine("✅ === AUTENTICACIÓN COMPLETADA ===");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"💥 Error en autenticación transparente: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"💥 Error en autenticación: {ex.Message}");
 
+                // Último recurso: intentar usar token del cache
                 try
                 {
                     var tokenUltimoRecurso = AfipAuthenticator.GetExistingToken("wsfe");
@@ -1532,7 +1510,7 @@ namespace Comercio.NET
                     {
                         TokenAfip = tokenUltimoRecurso.Value.token;
                         SignAfip = tokenUltimoRecurso.Value.sign;
-                        System.Diagnostics.Debug.WriteLine("🆘 Usando token de último recurso de manera transparente");
+                        System.Diagnostics.Debug.WriteLine("🆘 Usando token de último recurso");
                         return;
                     }
                 }
@@ -2553,12 +2531,30 @@ namespace Comercio.NET
 
         private string ObtenerCuitEmisor()
         {
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
+            try
+            {
+                // NUEVO: Usar el método simplificado del AfipAuthenticator
+                return AfipAuthenticator.ObtenerCUITActivo();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CUIT] Error obteniendo CUIT: {ex.Message}");
 
-            return config["AFIP:CUIT"] ?? "";
+                // Fallback al método anterior si falla
+                try
+                {
+                    var config = new ConfigurationBuilder()
+                        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                        .AddJsonFile("appsettings.json")
+                        .Build();
+
+                    return config["AFIP:CUIT"] ?? "";
+                }
+                catch
+                {
+                    return "";
+                }
+            }
         }
 
         private Dictionary<decimal, (decimal baseImponible, decimal importeIva)> CalcularDetalleIVA()

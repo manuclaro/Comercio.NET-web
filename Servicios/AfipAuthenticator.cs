@@ -40,6 +40,198 @@ namespace Comercio.NET.Servicios
             public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
         }
 
+        /// <summary>
+        /// Carga la configuración AFIP del ambiente activo desde appsettings.json
+        /// </summary>
+        //private static (string cuit, string certPath, string certPassword, string wsaaUrl, string wsfeUrl, string ambiente) CargarConfiguracionAfipActiva();
+        private static (string cuit, string certPath, string certPassword, string wsaaUrl, string wsfeUrl, string ambiente) CargarConfiguracionAfipActiva()
+        {
+            try
+            {
+                string rutaAppsettings = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+
+                if (!File.Exists(rutaAppsettings))
+                {
+                    System.Diagnostics.Debug.WriteLine("[AFIP] ⚠️ Archivo appsettings.json no encontrado");
+                    throw new FileNotFoundException("No se encontró el archivo de configuración appsettings.json");
+                }
+
+                string jsonContent = File.ReadAllText(rutaAppsettings);
+                var config = JObject.Parse(jsonContent);
+
+                // Leer ambiente activo
+                string ambienteActivo = config["AFIP"]?["AmbienteActivo"]?.ToString();
+
+                if (string.IsNullOrWhiteSpace(ambienteActivo))
+                {
+                    ambienteActivo = "Testing"; // Valor por defecto
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ No se encontró AmbienteActivo, usando: {ambienteActivo}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🌐 Ambiente activo: {ambienteActivo}");
+                }
+
+                // Seleccionar la configuración del ambiente correspondiente
+                var ambienteConfig = config["AFIP"]?[ambienteActivo];
+
+                if (ambienteConfig == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ No se encontró configuración para ambiente: {ambienteActivo}");
+                    throw new Exception($"No se encontró configuración AFIP para el ambiente: {ambienteActivo}");
+                }
+
+                string cuit = ambienteConfig["CUIT"]?.ToString() ?? "";
+                string certPath = ambienteConfig["CertificadoPath"]?.ToString() ?? "";
+                string certPassword = ambienteConfig["CertificadoPassword"]?.ToString() ?? "";
+                string wsaaUrl = ambienteConfig["WSAAUrl"]?.ToString() ?? "";
+                string wsfeUrl = ambienteConfig["WSFEUrl"]?.ToString() ?? "";
+
+                // MEJORADO: Validación más detallada con mensajes específicos
+                var errores = new List<string>();
+
+                if (string.IsNullOrWhiteSpace(cuit))
+                    errores.Add("- CUIT no configurado");
+
+                if (string.IsNullOrWhiteSpace(certPath))
+                    errores.Add("- Ruta del certificado no configurada");
+
+                if (string.IsNullOrWhiteSpace(wsaaUrl))
+                    errores.Add("- URL WSAA no configurada");
+
+                if (string.IsNullOrWhiteSpace(wsfeUrl))
+                    errores.Add("- URL WSFE no configurada");
+
+                if (errores.Any())
+                {
+                    string mensajeError = $"Configuración AFIP incompleta para el ambiente '{ambienteActivo}':\n\n" +
+                                         string.Join("\n", errores);
+
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ {mensajeError}");
+                    throw new Exception(mensajeError);
+                }
+
+                // Validar que el certificado existe si la ruta está configurada
+                if (!File.Exists(certPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Archivo de certificado no encontrado: {certPath}");
+                    throw new FileNotFoundException($"No se encontró el certificado AFIP en: {certPath}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Configuración cargada:");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - CUIT: {cuit}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - Certificado: {certPath}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - WSAA URL: {wsaaUrl}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - WSFE URL: {wsfeUrl}");
+
+                return (cuit, certPath, certPassword, wsaaUrl, wsfeUrl, ambienteActivo);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error cargando configuración: {ex.Message}");
+                throw new Exception($"Error al cargar configuración AFIP: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Obtiene el token de autenticación AFIP usando la configuración del ambiente activo
+        /// </summary>
+        /// <param name="service">Nombre del servicio AFIP (ej: "wsfe")</param>
+        /// <returns>Token, firma y fecha de expiración</returns>
+        public static async Task<(string token, string sign, DateTime expiration)> GetTAAsync(string service)
+        {
+            var (cuit, certPath, certPassword, wsaaUrl, wsfeUrl, ambiente) = CargarConfiguracionAfipActiva();
+            // NUEVO: Determinar el ambiente basándose en la URL
+            string ambienteDetectado = wsaaUrl.Contains("homo") ? "Testing (Homologación)" : "Producción";
+            System.Diagnostics.Debug.WriteLine($"[AFIP] === OBTENCIÓN TOKEN - AMBIENTE: {ambienteDetectado} ===");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] Servicio: {service}");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] URL: {wsaaUrl}");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] Certificado: {Path.GetFileName(certPath)}");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] Ruta archivo tokens: {TokenConfigPath}");
+            return await GetTAAsync(service, certPath, certPassword, wsaaUrl);
+        }
+
+        /// <summary>
+        /// Obtiene la URL del servicio WSFE del ambiente activo
+        /// </summary>
+        public static string ObtenerWSFEUrl()
+        {
+            try
+            {
+                var (_, _, _, _, wsfeUrl, ambiente) = CargarConfiguracionAfipActiva();
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 📡 URL WSFE ({ambiente}): {wsfeUrl}");
+                return wsfeUrl;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo URL WSFE: {ex.Message}");
+                throw;
+            }
+        }
+
+        // 4. AGREGAR método para obtener el CUIT del ambiente activo
+
+        /// <summary>
+        /// Obtiene el CUIT configurado para el ambiente activo
+        /// </summary>
+        public static string ObtenerCUITActivo()
+        {
+            try
+            {
+                var (cuit, _, _, _, _, ambiente) = CargarConfiguracionAfipActiva();
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🆔 CUIT ({ambiente}): {cuit}");
+                return cuit;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo CUIT: {ex.Message}");
+                throw;
+            }
+        }
+
+        // 5. AGREGAR método para verificar el certificado del ambiente activo
+
+        /// <summary>
+        /// Verifica el certificado del ambiente activo
+        /// </summary>
+        public static (bool valido, string mensaje, DateTime? vence) VerificarCertificadoAmbienteActivo()
+        {
+            try
+            {
+                var (_, certPath, certPassword, _, _, ambiente) = CargarConfiguracionAfipActiva();
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔍 Verificando certificado del ambiente: {ambiente}");
+
+                return VerificarCertificado(certPath, certPassword);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error verificando certificado: {ex.Message}");
+                return (false, $"Error: {ex.Message}", null);
+            }
+        }
+
+        // 6. AGREGAR método para obtener información del ambiente actual
+
+        /// <summary>
+        /// Obtiene información completa del ambiente AFIP activo
+        /// </summary>
+        public static (string ambiente, string cuit, string wsaaUrl, string wsfeUrl, bool certificadoValido) ObtenerInformacionAmbiente()
+        {
+            try
+            {
+                var (cuit, certPath, certPassword, wsaaUrl, wsfeUrl, ambiente) = CargarConfiguracionAfipActiva();
+                var (valido, mensaje, fechaVence) = VerificarCertificado(certPath, certPassword);
+
+                return (ambiente, cuit, wsaaUrl, wsfeUrl, valido);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo información: {ex.Message}");
+                // MEJORADO: Retornar valores por defecto en lugar de lanzar excepción
+                return ("Error", "", "", "", false);
+            }
+        }
+
         // MEJORADO: Método principal con mejor manejo de primera ejecución
         public static async Task<(string token, string sign, DateTime expiration)> GetTAAsync(
                                 string service, string pfxPath, string pfxPassword, string wsaaUrl)
@@ -718,16 +910,45 @@ namespace Comercio.NET.Servicios
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("🔍 === INICIANDO VERIFICACIÓN ESTADO AFIP ===");
+                System.Diagnostics.Debug.WriteLine("📡 Paso 1: Verificando conectividad del servicio...");
+
                 using var client = new HttpClient();
                 client.Timeout = TimeSpan.FromSeconds(10);
 
-                string urlHomologacion = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl";
+                // MEJORADO: Usar la URL del ambiente activo
+                var (_, _, _, wsaaUrl, _, ambiente) = CargarConfiguracionAfipActiva();
 
-                var response = await client.GetAsync(urlHomologacion);
+                System.Diagnostics.Debug.WriteLine($"📡 Ambiente detectado: {ambiente}");
+                System.Diagnostics.Debug.WriteLine($"📡 URL WSAA: {wsaaUrl}");
+
+                var response = await client.GetAsync($"{wsaaUrl}?wsdl");
 
                 if (response.IsSuccessStatusCode)
                 {
                     System.Diagnostics.Debug.WriteLine("✅ Servicio AFIP disponible");
+                    System.Diagnostics.Debug.WriteLine($"📡 Servicio disponible: True");
+
+                    // NUEVO: Verificar también la configuración local
+                    System.Diagnostics.Debug.WriteLine("⚙️ Paso 2: Verificando configuración local...");
+
+                    var (cuit, certPath, certPassword, _, wsfeUrl, _) = CargarConfiguracionAfipActiva();
+
+                    bool configValida = !string.IsNullOrWhiteSpace(cuit) &&
+                                       !string.IsNullOrWhiteSpace(certPath) &&
+                                       File.Exists(certPath);
+
+                    if (configValida)
+                    {
+                        System.Diagnostics.Debug.WriteLine("✅ Configuración AFIP completa y válida");
+                        System.Diagnostics.Debug.WriteLine($"📡 CUIT: {cuit}");
+                        System.Diagnostics.Debug.WriteLine($"📁 Certificado: {Path.GetFileName(certPath)}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("⚠️ Configuración AFIP incompleta");
+                    }
+
                     return true;
                 }
                 else

@@ -1,6 +1,7 @@
 ﻿using Comercio.NET;
 using Comercio.NET.Formularios;
 using Comercio.NET.Services;
+using Comercio.NET.Servicios;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -311,7 +312,121 @@ namespace Comercio.NET
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            ActualizarInformacionUsuario();
+
+            // MEJORADO: Validación de configuración AFIP con mejor UX
+            try
+            {
+                var (ambiente, cuit, wsaaUrl, wsfeUrl, certValido) = AfipAuthenticator.ObtenerInformacionAmbiente();
+
+                // Verificar si hubo error al cargar la configuración
+                if (ambiente == "Error" || string.IsNullOrWhiteSpace(cuit))
+                {
+                    System.Diagnostics.Debug.WriteLine("[AFIP] ⚠️ Configuración AFIP no disponible o incompleta");
+
+                    var resultado = MessageBox.Show(
+                        "⚠️ CONFIGURACIÓN AFIP NO DISPONIBLE\n\n" +
+                        "No se pudo cargar la configuración de AFIP.\n" +
+                        "Esto puede deberse a:\n\n" +
+                        "• Archivo appsettings.json no encontrado\n" +
+                        "• Sección AFIP mal configurada\n" +
+                        "• CUIT no especificado\n" +
+                        "• Certificado no encontrado\n\n" +
+                        "¿Desea continuar sin facturación electrónica?\n\n" +
+                        "NOTA: Las facturas electrónicas NO funcionarán hasta que configure AFIP correctamente.",
+                        "Configuración AFIP",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (resultado == DialogResult.No)
+                    {
+                        // Ofrecer abrir la configuración
+                        var abrirConfig = MessageBox.Show(
+                            "¿Desea abrir la configuración del sistema para revisar los datos de AFIP?",
+                            "Abrir Configuración",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+
+                        if (abrirConfig == DialogResult.Yes)
+                        {
+                            // Abrir configuración automáticamente si el usuario es administrador
+                            if (AuthenticationService.SesionActual?.Usuario?.Nivel == Models.NivelUsuario.Administrador)
+                            {
+                                var configuracionForm = new ConfiguracionForm();
+                                configuracionForm.MdiParent = this;
+                                configuracionForm.Show();
+                            }
+                            else
+                            {
+                                MessageBox.Show(
+                                    "Solo los administradores pueden acceder a la configuración del sistema.\n\n" +
+                                    "Por favor, contacte a un administrador para revisar la configuración de AFIP.",
+                                    "Acceso Restringido",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Information);
+                            }
+                        }
+                    }
+
+                    return; // No continuar con las validaciones de certificado si no hay configuración
+                }
+
+                // Si llegamos aquí, la configuración básica está OK
+                string icono = ambiente == "Testing" ? "🧪" : "🏭";
+                string estado = certValido ? "✅" : "⚠️";
+
+                System.Diagnostics.Debug.WriteLine($"{icono} AFIP configurado en modo: {ambiente}");
+                System.Diagnostics.Debug.WriteLine($"{estado} Certificado: {(certValido ? "Válido" : "Requiere atención")}");
+                System.Diagnostics.Debug.WriteLine($"📡 CUIT: {cuit}");
+
+                // Solo mostrar advertencia de certificado si la configuración está completa
+                if (!certValido)
+                {
+                    var resultado = MessageBox.Show(
+                        $"⚠️ ADVERTENCIA: CERTIFICADO AFIP\n\n" +
+                        $"Ambiente: {ambiente}\n" +
+                        $"CUIT: {cuit}\n" +
+                        $"Estado del certificado: No válido o próximo a vencer\n\n" +
+                        $"¿Desea continuar de todos modos?\n\n" +
+                        $"Nota: La facturación electrónica podría no funcionar correctamente.",
+                        "Advertencia Certificado AFIP",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (resultado == DialogResult.No)
+                    {
+                        MessageBox.Show(
+                            "Por favor, verifique la configuración AFIP en el menú Configuración " +
+                            "y asegúrese de que el certificado sea válido y no esté expirado.\n\n" +
+                            "Ruta esperada del certificado:\n" +
+                            (wsaaUrl.Contains("homo") ?
+                                "C:\\Certificados\\testing.p12" :
+                                "C:\\Certificados\\produccion.p12"),
+                            "Certificado Requerido",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    }
+                }
+                else
+                {
+                    // NUEVO: Mostrar mensaje de éxito en Debug si todo está OK
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Configuración validada correctamente");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Sistema listo para facturación electrónica en ambiente {ambiente}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 💥 Error crítico en validación: {ex.Message}");
+
+                MessageBox.Show(
+                    $"❌ ERROR AL VALIDAR CONFIGURACIÓN AFIP\n\n" +
+                    $"Detalles del error:\n{ex.Message}\n\n" +
+                    $"La aplicación se iniciará, pero la facturación electrónica\n" +
+                    $"NO estará disponible hasta que se corrija este problema.\n\n" +
+                    $"Revise el archivo appsettings.json en la carpeta de la aplicación.",
+                    "Error de Configuración",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         //private void ConfigurarMenuSegunPermisos()

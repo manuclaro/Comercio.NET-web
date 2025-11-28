@@ -26,11 +26,21 @@ namespace Comercio.NET.Formularios
         private ListBox lstNombresCtaCte;
         private TextBox txtNuevoNombreCtaCte;
         private Button btnAgregarNombre, btnEliminarNombre, btnEditarNombre;
-        
+
         // NUEVO: Controles para configuración AFIP
-        private TextBox txtAfipCuit, txtAfipCertificadoPath, txtAfipCertificadoPassword;
-        private TextBox txtAfipWSAAUrl, txtAfipWSFEUrl;
-        private Button btnColapsarAfip, btnSeleccionarCertificado, btnVerificarCertificado;
+        //private TextBox txtAfipCuit, txtAfipCertificadoPath, txtAfipCertificadoPassword;
+        //private TextBox txtAfipWSAAUrl, txtAfipWSFEUrl;
+        //private Button btnColapsarAfip, btnSeleccionarCertificado, btnVerificarCertificado;
+        private Button btnColapsarAfip;
+        // Controles duplicados para ambiente de Testing
+        private TextBox txtAfipTestingCuit, txtAfipTestingCertificadoPath, txtAfipTestingCertificadoPassword;
+        private TextBox txtAfipTestingWSAAUrl, txtAfipTestingWSFEUrl;
+        private Button btnSeleccionarCertificadoTesting, btnVerificarCertificadoTesting;
+
+        // Controles duplicados para ambiente de Producción  
+        private TextBox txtAfipProduccionCuit, txtAfipProduccionCertificadoPath, txtAfipProduccionCertificadoPassword;
+        private TextBox txtAfipProduccionWSAAUrl, txtAfipProduccionWSFEUrl;
+        private Button btnSeleccionarCertificadoProduccion, btnVerificarCertificadoProduccion;
         private Panel panelAfip;
         
         // NUEVO: Controles para restricciones de impresión
@@ -68,6 +78,12 @@ namespace Comercio.NET.Formularios
         private CheckBox chkVistaPreviaImpresionDirecta; // NUEVO: Control para elegir entre vista previa o impresión directa
         private CheckBox chkLimitarFacturacion; // NUEVO: Control para limitar facturación
         private TextBox txtMontoLimiteFacturacion; // NUEVO: Control para el monto límite
+
+        // Controles para selección de ambiente AFIP
+        private RadioButton rbAfipTesting, rbAfipProduccion;
+        private Panel panelAfipTesting, panelAfipProduccion;
+
+       
 
         public ConfiguracionForm()
         {
@@ -596,115 +612,72 @@ namespace Comercio.NET.Formularios
             btnColapsarAfip.FlatAppearance.BorderSize = 0;
             panelHeader.Controls.Add(btnColapsarAfip);
 
-            // Contenido colapsable
+            // Contenido colapsable - ALTURA AUMENTADA
             var panelContenido = new Panel
             {
                 Name = "panelContenidoAfip",
                 Location = new Point(0, 30),
-                Size = new Size(ancho, 200), // Altura para acomodar todos los campos
+                Size = new Size(ancho, 430), // Altura aumentada para acomodar dos ambientes
                 BackColor = Color.FromArgb(248, 250, 252),
-                Visible = true // Iniciar expandido
+                Visible = true
             };
             panel.Controls.Add(panelContenido);
 
-            // === CAMPOS DE AFIP ===
-
-            // Primera fila: CUIT AFIP
-            panelContenido.Controls.Add(CrearLabel("CUIT AFIP:", 15, 10));
-            txtAfipCuit = new TextBox
+            // === SELECTOR DE AMBIENTE ===
+            var lblAmbiente = new Label
             {
-                Location = new Point(120, 8),
-                Size = new Size(150, 22),
+                Text = "🌐 Ambiente AFIP a utilizar:",
+                Location = new Point(15, 10),
+                Size = new Size(180, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181)
+            };
+            panelContenido.Controls.Add(lblAmbiente);
+
+            rbAfipTesting = new RadioButton
+            {
+                Text = "🧪 Testing (Homologación)",
+                Location = new Point(200, 12),
+                Size = new Size(180, 22),
                 Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "XX-XXXXXXXX-X"
+                Checked = true // Por defecto Testing
             };
-            panelContenido.Controls.Add(txtAfipCuit);
+            rbAfipTesting.CheckedChanged += RbAfipAmbiente_CheckedChanged;
+            panelContenido.Controls.Add(rbAfipTesting);
 
-            // Segunda fila: Certificado
-            panelContenido.Controls.Add(CrearLabel("Certificado (.p12):", 15, 40));
-            txtAfipCertificadoPath = new TextBox
+            rbAfipProduccion = new RadioButton
             {
-                Location = new Point(120, 38),
-                Size = new Size(350, 22),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "C:\\ruta\\al\\certificado.p12",
-                ReadOnly = true,
-                BackColor = Color.FromArgb(250, 250, 250)
+                Text = "🏭 Producción",
+                Location = new Point(390, 12),
+                Size = new Size(130, 22),
+                Font = new Font("Segoe UI", 9F)
             };
-            panelContenido.Controls.Add(txtAfipCertificadoPath);
+            rbAfipProduccion.CheckedChanged += RbAfipAmbiente_CheckedChanged;
+            panelContenido.Controls.Add(rbAfipProduccion);
 
-            btnSeleccionarCertificado = new Button
+            // Línea separadora
+            var separador = new Label
             {
-                Text = "📁",
-                Location = new Point(480, 38),
-                Size = new Size(30, 22),
-                BackColor = Color.FromArgb(33, 150, 243),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F),
-                UseVisualStyleBackColor = false
+                BorderStyle = BorderStyle.Fixed3D,
+                Location = new Point(15, 40),
+                Size = new Size(ancho - 30, 2)
             };
-            btnSeleccionarCertificado.FlatAppearance.BorderSize = 0;
-            // CORREGIDO: Usar ToolTip en lugar de ToolTipText
-            toolTip.SetToolTip(btnSeleccionarCertificado, "Seleccionar certificado");
-            panelContenido.Controls.Add(btnSeleccionarCertificado);
+            panelContenido.Controls.Add(separador);
 
-            btnVerificarCertificado = new Button
-            {
-                Text = "✅",
-                Location = new Point(520, 38),
-                Size = new Size(30, 22),
-                BackColor = Color.FromArgb(76, 175, 80),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F),
-                UseVisualStyleBackColor = false
-            };
-            btnVerificarCertificado.FlatAppearance.BorderSize = 0;
-            // CORREGIDO: Usar ToolTip en lugar de ToolTipText
-            toolTip.SetToolTip(btnVerificarCertificado, "Verificar certificado");
-            panelContenido.Controls.Add(btnVerificarCertificado);
+            // === PANEL TESTING ===
+            panelAfipTesting = CrearPanelAmbienteAfip("TESTING", 50, ancho - 30, true);
+            panelContenido.Controls.Add(panelAfipTesting);
 
-            // Tercera fila: Contraseña del certificado
-            panelContenido.Controls.Add(CrearLabel("Contraseña:", 15, 70));
-            txtAfipCertificadoPassword = new TextBox
-            {
-                Location = new Point(120, 68),
-                Size = new Size(200, 22),
-                Font = new Font("Segoe UI", 9F),
-                UseSystemPasswordChar = true,
-                PlaceholderText = "Contraseña del certificado"
-            };
-            panelContenido.Controls.Add(txtAfipCertificadoPassword);
-
-            // Cuarta fila: URLs de servicios
-            panelContenido.Controls.Add(CrearLabel("WSAA URL:", 15, 100));
-            txtAfipWSAAUrl = new TextBox
-            {
-                Location = new Point(120, 98),
-                Size = new Size(430, 22),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
-            };
-            panelContenido.Controls.Add(txtAfipWSAAUrl);
-
-            // Quinta fila: WSFE URL
-            panelContenido.Controls.Add(CrearLabel("WSFE URL:", 15, 130));
-            txtAfipWSFEUrl = new TextBox
-            {
-                Location = new Point(120, 128),
-                Size = new Size(430, 22),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
-            };
-            panelContenido.Controls.Add(txtAfipWSFEUrl);
+            // === PANEL PRODUCCIÓN ===
+            panelAfipProduccion = CrearPanelAmbienteAfip("PRODUCCION", 50, ancho - 30, false);
+            panelContenido.Controls.Add(panelAfipProduccion);
 
             // Información adicional
             var lblInfo = new Label
             {
-                Text = "💡 Configuración para Facturación Electrónica AFIP. Use URLs de homologación para pruebas.",
-                Location = new Point(15, 160),
-                Size = new Size(535, 30),
+                Text = "💡 Configure ambos ambientes y seleccione cuál desea utilizar. Los cambios se aplicarán al guardar.",
+                Location = new Point(15, 395),
+                Size = new Size(ancho - 30, 30),
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.FromArgb(100, 100, 100),
                 TextAlign = ContentAlignment.TopLeft
@@ -719,446 +692,411 @@ namespace Comercio.NET.Formularios
             return panel;
         }
 
-        private Panel CrearSeccionColapsable(string titulo, int y, int ancho, string tipoSeccion)
+        private Panel CrearPanelAmbienteAfip(string ambiente, int y, int ancho, bool esTesting)
         {
             var panel = new Panel
             {
-                Location = new Point(10, y),
-                Size = new Size(ancho, 35), // Altura mínima cuando está colapsado
-                BackColor = Color.FromArgb(248, 250, 252),
-                BorderStyle = BorderStyle.FixedSingle
+                Location = new Point(15, y),
+                Size = new Size(ancho, 330),
+                BackColor = Color.FromArgb(245, 248, 252),
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = esTesting // Solo Testing visible por defecto
             };
 
-            // Header con título y botón colapsar
-            var panelHeader = new Panel
+            // Título del ambiente
+            var lblTituloAmbiente = new Label
             {
-                Location = new Point(0, 0),
-                Size = new Size(ancho, 30),
-                BackColor = Color.FromArgb(230, 235, 240),
-                Cursor = Cursors.Hand
-            };
-            panel.Controls.Add(panelHeader);
-
-            var lblTitulo = new Label
-            {
-                Text = titulo,
-                Location = new Point(10, 6),
-                Size = new Size(ancho - 50, 20),
+                Text = esTesting ? "🧪 AMBIENTE DE TESTING (Homologación)" : "🏭 AMBIENTE DE PRODUCCIÓN",
+                Location = new Point(10, 10),
+                Size = new Size(ancho - 20, 25),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(63, 81, 181),
-                Cursor = Cursors.Hand
+                ForeColor = esTesting ? Color.FromArgb(255, 152, 0) : Color.FromArgb(76, 175, 80),
+                BackColor = esTesting ? Color.FromArgb(255, 243, 224) : Color.FromArgb(232, 245, 233),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            panelHeader.Controls.Add(lblTitulo);
+            panel.Controls.Add(lblTituloAmbiente);
 
-            // Botón colapsar/expandir
-            Button btnColapsar = new Button
+            // CUIT
+            panel.Controls.Add(CrearLabel("CUIT:", 15, 45));
+            var txtCuit = new TextBox
             {
-                Text = "▼", // Iniciar expandido para comercio e inventario
-                Location = new Point(ancho - 35, 3),
-                Size = new Size(25, 24),
-                BackColor = Color.FromArgb(200, 200, 200),
-                ForeColor = Color.Black,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false
+                Location = new Point(120, 43),
+                Size = new Size(150, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "XX-XXXXXXXX-X"
             };
-            btnColapsar.FlatAppearance.BorderSize = 0;
-            panelHeader.Controls.Add(btnColapsar);
 
-            // Asignar el botón según el tipo de sección
-            switch (tipoSeccion)
+            if (esTesting)
             {
-                case "Comercio":
-                    btnColapsarComercio = btnColapsar;
-                    break;
-                case "Inventario":
-                    btnColapsarInventario = btnColapsar;
-                    break;
+                txtAfipTestingCuit = txtCuit;
+                txtCuit.TextChanged += (s, e) => FormatearCUITAfipTesting();
             }
-
-            // Contenido colapsable
-            var panelContenido = new Panel
+            else
             {
-                Name = $"panelContenido{tipoSeccion}",
-                Location = new Point(0, 30),
-                Size = new Size(ancho, tipoSeccion == "Comercio" ? 70 : 65),
-                BackColor = Color.FromArgb(248, 250, 252),
-                Visible = true // Iniciar expandido
-            };
-            panel.Controls.Add(panelContenido);
+                txtAfipProduccionCuit = txtCuit;
+                txtCuit.TextChanged += (s, e) => FormatearCUITAfipProduccion();
+            }
+            panel.Controls.Add(txtCuit);
 
-            // Configurar eventos
-            EventHandler clickHandler = (s, e) => 
+            // Certificado
+            panel.Controls.Add(CrearLabel("Certificado (.p12):", 15, 75));
+            var txtCertPath = new TextBox
             {
-                switch (tipoSeccion)
-                {
-                    case "Comercio":
-                        ToggleColapsarComercio();
-                        break;
-                    case "Inventario":
-                        ToggleColapsarInventario();
-                        break;
-                }
+                Location = new Point(120, 73),
+                Size = new Size(350, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "C:\\ruta\\al\\certificado.p12",
+                ReadOnly = true,
+                BackColor = Color.FromArgb(250, 250, 250)
             };
 
-            panelHeader.Click += clickHandler;
-            lblTitulo.Click += clickHandler;
+            if (esTesting)
+                txtAfipTestingCertificadoPath = txtCertPath;
+            else
+                txtAfipProduccionCertificadoPath = txtCertPath;
 
-            return panel;
-        }
+            panel.Controls.Add(txtCertPath);
 
-
-        private Panel CrearSeccionBaseDatos(string titulo, int y, int ancho)
-        {
-            var panel = new Panel
+            var btnSelCert = new Button
             {
-                Location = new Point(10, y),
-                Size = new Size(ancho, 35),
-                BackColor = Color.FromArgb(240, 240, 240),
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            // Header con título y botón colapsar
-            var panelHeader = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(ancho, 30),
-                BackColor = Color.FromArgb(230, 230, 230),
-                Cursor = Cursors.Hand
-            };
-            panel.Controls.Add(panelHeader);
-
-            var lblTitulo = new Label
-            {
-                Text = titulo,
-                Location = new Point(10, 6),
-                Size = new Size(200, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(80, 80, 80),
-                Cursor = Cursors.Hand
-            };
-            panelHeader.Controls.Add(lblTitulo);
-
-            // Botón colapsar/expandir
-            btnColapsarBaseDatos = new Button
-            {
-                Text = "▶", // Iniciar colapsado
-                Location = new Point(ancho - 90, 3),
-                Size = new Size(25, 24),
-                BackColor = Color.FromArgb(200, 200, 200),
-                ForeColor = Color.Black,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false
-            };
-            btnColapsarBaseDatos.FlatAppearance.BorderSize = 0;
-            panelHeader.Controls.Add(btnColapsarBaseDatos);
-
-            // Botón habilitar edición
-            btnEditarBaseDatos = new Button
-            {
-                Text = "🔒",
-                Location = new Point(ancho - 60, 3),
-                Size = new Size(25, 24),
-                BackColor = Color.FromArgb(255, 152, 0),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false
-            };
-            btnEditarBaseDatos.FlatAppearance.BorderSize = 0;
-            panelHeader.Controls.Add(btnEditarBaseDatos);
-
-            // Contenido colapsable
-            var panelContenido = new Panel
-            {
-                Name = "panelContenidoBaseDatos",
-                Location = new Point(0, 30),
-                Size = new Size(ancho, 80),
-                BackColor = Color.FromArgb(248, 248, 248),
-                Visible = false
-            };
-            panel.Controls.Add(panelContenido);
-
-            // Connection String
-            panelContenido.Controls.Add(CrearLabelLarga("Cadena de Conexión:", 15, 10));
-            txtConnectionString = new TextBox
-            {
-                Location = new Point(15, 30),
-                Size = new Size(490, 40),
-                Font = new Font("Consolas", 8F),
-                Multiline = true,
-                ScrollBars = ScrollBars.Vertical,
-                Enabled = false,
-                BackColor = Color.FromArgb(245, 245, 245),
-                ForeColor = Color.Gray
-            };
-            panelContenido.Controls.Add(txtConnectionString);
-
-            // Botón testear conexión
-            btnTestearConexion = new Button
-            {
-                Text = "🔧\nTest",
-                Location = new Point(510, 30),
-                Size = new Size(60, 40),
+                Text = "📁",
+                Location = new Point(480, 73),
+                Size = new Size(30, 22),
                 BackColor = Color.FromArgb(33, 150, 243),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false,
-                Enabled = false
-            };
-            btnTestearConexion.FlatAppearance.BorderSize = 0;
-            panelContenido.Controls.Add(btnTestearConexion);
-
-            // Configurar eventos
-            EventHandler clickHandler = (s, e) => ToggleColapsarBaseDatos();
-            panelHeader.Click += clickHandler;
-            lblTitulo.Click += clickHandler;
-
-            return panel;
-        }
-
-        // NUEVO: Crear sección de Restricciones de Impresión
-        private Panel CrearSeccionRestriccionesImpresionColapsable(string titulo, int y, int ancho)
-        {
-            var panel = new Panel
-            {
-                Location = new Point(10, y),
-                Size = new Size(ancho, 35),
-                BackColor = Color.FromArgb(248, 250, 252),
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            // Header con título y botón colapsar
-            var panelHeader = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(ancho, 30),
-                BackColor = Color.FromArgb(230, 235, 240),
-                Cursor = Cursors.Hand
-            };
-            panel.Controls.Add(panelHeader);
-
-            var lblTitulo = new Label
-            {
-                Text = titulo,
-                Location = new Point(10, 6),
-                Size = new Size(ancho - 50, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(63, 81, 181),
-                Cursor = Cursors.Hand
-            };
-            panelHeader.Controls.Add(lblTitulo);
-
-            // Botón colapsar/expandir
-            btnColapsarRestriccionesImpresion = new Button
-            {
-                Text = "▼", // Iniciar expandido
-                Location = new Point(ancho - 35, 3),
-                Size = new Size(25, 24),
-                BackColor = Color.FromArgb(200, 200, 200),
-                ForeColor = Color.Black,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 8F),
                 UseVisualStyleBackColor = false
             };
-            btnColapsarRestriccionesImpresion.FlatAppearance.BorderSize = 0;
-            panelHeader.Controls.Add(btnColapsarRestriccionesImpresion);
+            btnSelCert.FlatAppearance.BorderSize = 0;
+            toolTip.SetToolTip(btnSelCert, "Seleccionar certificado");
+            btnSelCert.Click += esTesting ?
+                (s, e) => SeleccionarCertificadoTesting() :
+                (s, e) => SeleccionarCertificadoProduccion();
 
-            // Contenido colapsable - AUMENTAR ALTURA para acomodar el nuevo checkbox
-            var panelContenido = new Panel
+            if (esTesting)
+                btnSeleccionarCertificadoTesting = btnSelCert;
+            else
+                btnSeleccionarCertificadoProduccion = btnSelCert;
+
+            panel.Controls.Add(btnSelCert);
+
+            var btnVerCert = new Button
             {
-                Name = "panelContenidoRestriccionesImpresion",
-                Location = new Point(0, 30),
-                Size = new Size(ancho, 200), // AUMENTADO: de 120 a 200 para el nuevo control
-                BackColor = Color.FromArgb(248, 250, 252),
-                Visible = true // Iniciar expandido
-            };
-            panel.Controls.Add(panelContenido);
-
-            // === CONTENIDO DE LA SECCIÓN ===
-
-            // Descripción principal
-            var lblDescripcion = new Label
-            {
-                Text = "Configure las restricciones de impresión según los tipos de pago seleccionados:",
-                Location = new Point(15, 10),
-                Size = new Size(540, 20),
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(62, 80, 100)
-            };
-            panelContenido.Controls.Add(lblDescripcion);
-
-            // CheckBox principal para la restricción de remito
-            chkRestringirRemitoPorPago = new CheckBox
-            {
-                Text = "Restringir generación de REMITO para pagos no efectivo",
-                Location = new Point(15, 40),
-                Size = new Size(520, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(62, 80, 100),
-                Checked = true // Por defecto habilitado para cumplir normativas
-            };
-            panelContenido.Controls.Add(chkRestringirRemitoPorPago);
-
-            // Descripción de la funcionalidad
-            var lblExplicacion = new Label
-            {
-                Text = "Cuando está habilitado, el sistema solo permitirá generar REMITO si el tipo de pago es 'Efectivo'.\n" +
-                       "Para otros tipos de pago (DNI, MercadoPago, Débito, Crédito, etc.) solo se permitirán Facturas A o B.",
-                Location = new Point(35, 65),
-                Size = new Size(520, 40),
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.Gray
-            };
-            panelContenido.Controls.Add(lblExplicacion);
-
-            // NUEVO: CheckBox para elegir entre vista previa o impresión directa
-            chkVistaPreviaImpresionDirecta = new CheckBox
-            {
-                Text = "Usar vista previa antes de imprimir (recomendado)",
-                Location = new Point(15, 120),
-                Size = new Size(520, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(62, 80, 100),
-                Checked = true // Por defecto habilitado (vista previa)
-            };
-            panelContenido.Controls.Add(chkVistaPreviaImpresionDirecta);
-
-            // Descripción de la nueva funcionalidad
-            var lblExplicacionVistaPrevia = new Label
-            {
-                Text = "• Habilitado: Se mostrará una vista previa antes de enviar el documento a la impresora.\n" +
-                       "• Deshabilitado: Los comprobantes se enviarán directamente a la impresora sin confirmación.",
-                Location = new Point(35, 145),
-                Size = new Size(520, 40),
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.Gray
-            };
-            panelContenido.Controls.Add(lblExplicacionVistaPrevia);
-
-            // NUEVO: CheckBox para limitar facturación diaria
-            chkLimitarFacturacion = new CheckBox
-            {
-                Text = "Limitar facturación diaria",
-                Location = new Point(15, 190),
-                Size = new Size(520, 25),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(62, 80, 100),
-                Checked = false // Por defecto deshabilitado
-            };
-            chkLimitarFacturacion.CheckedChanged += ChkLimitarFacturacion_CheckedChanged;
-            panelContenido.Controls.Add(chkLimitarFacturacion);
-
-            // NUEVO: Label para el monto
-            var lblMontoLimite = new Label
-            {
-                Text = "Monto límite diario:",
-                Location = new Point(35, 220),
-                Size = new Size(120, 20),
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(62, 80, 100),
-                Visible = false
-            };
-            panelContenido.Controls.Add(lblMontoLimite);
-
-            // NUEVO: TextBox para el monto límite
-            txtMontoLimiteFacturacion = new TextBox
-            {
-                Location = new Point(160, 218),
-                Size = new Size(150, 22),
-                Font = new Font("Segoe UI", 9F),
-                PlaceholderText = "Ej: 50000.00",
-                Visible = false
-            };
-            // Validar que solo se ingresen números y punto decimal
-            txtMontoLimiteFacturacion.KeyPress += (s, e) =>
-            {
-                if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && 
-                    e.KeyChar != '.' && e.KeyChar != ',')
-                {
-                    e.Handled = true;
-                }
-                
-                // Solo permitir un punto decimal
-                if ((e.KeyChar == '.' || e.KeyChar == ',') && 
-                    (txtMontoLimiteFacturacion.Text.Contains(".") || 
-                     txtMontoLimiteFacturacion.Text.Contains(",")))
-                {
-                    e.Handled = true;
-                }
-            };
-            panelContenido.Controls.Add(txtMontoLimiteFacturacion);
-
-            // Descripción de la funcionalidad
-            var lblExplicacionLimite = new Label
-            {
-                Text = "Cuando está habilitado, el sistema impedirá generar facturas si se supera el monto límite diario.\n" +
-                       "El límite se verifica sumando todas las facturas del día actual.",
-                Location = new Point(35, 245),
-                Size = new Size(520, 40),
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.Gray,
-                Visible = false
-            };
-            panelContenido.Controls.Add(lblExplicacionLimite);
-
-            // Actualizar la altura del panel de contenido para acomodar los nuevos controles
-            panelContenido.Height = 290; // Aumentado desde 235 a 290
-
-            // Configurar eventos
-            EventHandler clickHandler = (s, e) => ToggleColapsarRestriccionesImpresion();
-            panelHeader.Click += clickHandler;
-            lblTitulo.Click += clickHandler;
-
-            return panel;
-        }
-
-        private void CrearBotones(int yPosition, int panelWidth)
-        {
-            int margin = 20;
-            int anchoBotonGuardar = 160;
-            int anchoBotonCancelar = 100;
-            int espacioEntreBotones = 20;
-            
-            int totalAnchoBotones = anchoBotonGuardar + espacioEntreBotones + anchoBotonCancelar;
-            int inicioX = margin + (panelWidth - totalAnchoBotones) / 2;
-
-            btnGuardar = new Button
-            {
-                Text = "💾 Guardar Configuración",
-                Location = new Point(inicioX, yPosition),
-                Size = new Size(anchoBotonGuardar, 32),
+                Text = "✅",
+                Location = new Point(520, 73),
+                Size = new Size(30, 22),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 8F),
                 UseVisualStyleBackColor = false
             };
-            btnGuardar.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnGuardar);
+            btnVerCert.FlatAppearance.BorderSize = 0;
+            toolTip.SetToolTip(btnVerCert, "Verificar certificado");
+            btnVerCert.Click += esTesting ?
+                (s, e) => VerificarCertificadoAfipTesting() :
+                (s, e) => VerificarCertificadoAfipProduccion();
 
-            btnCancelar = new Button
+            if (esTesting)
+                btnVerificarCertificadoTesting = btnVerCert;
+            else
+                btnVerificarCertificadoProduccion = btnVerCert;
+
+            panel.Controls.Add(btnVerCert);
+
+            // Contraseña
+            panel.Controls.Add(CrearLabel("Contraseña:", 15, 105));
+            var txtPass = new TextBox
             {
-                Text = "❌ Cancelar",
-                Location = new Point(inicioX + anchoBotonGuardar + espacioEntreBotones, yPosition),
-                Size = new Size(anchoBotonCancelar, 32),
-                BackColor = Color.FromArgb(158, 158, 158),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                UseVisualStyleBackColor = false
+                Location = new Point(120, 103),
+                Size = new Size(200, 22),
+                Font = new Font("Segoe UI", 9F),
+                UseSystemPasswordChar = true,
+                PlaceholderText = "Contraseña del certificado"
             };
-            btnCancelar.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnCancelar);
+
+            if (esTesting)
+                txtAfipTestingCertificadoPassword = txtPass;
+            else
+                txtAfipProduccionCertificadoPassword = txtPass;
+
+            panel.Controls.Add(txtPass);
+
+            // WSAA URL
+            panel.Controls.Add(CrearLabel("WSAA URL:", 15, 135));
+            var txtWSAA = new TextBox
+            {
+                Location = new Point(120, 133),
+                Size = new Size(430, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = esTesting ?
+                    "https://wsaahomo.afip.gov.ar/ws/services/LoginCms" :
+                    "https://wsaa.afip.gov.ar/ws/services/LoginCms",
+                Text = esTesting ?
+                    "https://wsaahomo.afip.gov.ar/ws/services/LoginCms" :
+                    "https://wsaa.afip.gov.ar/ws/services/LoginCms"
+            };
+
+            if (esTesting)
+                txtAfipTestingWSAAUrl = txtWSAA;
+            else
+                txtAfipProduccionWSAAUrl = txtWSAA;
+
+            panel.Controls.Add(txtWSAA);
+
+            // WSFE URL
+            panel.Controls.Add(CrearLabel("WSFE URL:", 15, 165));
+            var txtWSFE = new TextBox
+            {
+                Location = new Point(120, 163),
+                Size = new Size(430, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = esTesting ?
+                    "https://wswhomo.afip.gov.ar/wsfev1/service.asmx" :
+                    "https://servicios1.afip.gov.ar/wsfev1/service.asmx",
+                Text = esTesting ?
+                    "https://wswhomo.afip.gov.ar/wsfev1/service.asmx" :
+                    "https://servicios1.afip.gov.ar/wsfev1/service.asmx"
+            };
+
+            if (esTesting)
+                txtAfipTestingWSFEUrl = txtWSFE;
+            else
+                txtAfipProduccionWSFEUrl = txtWSFE;
+
+            panel.Controls.Add(txtWSFE);
+
+            // Nota importante
+            var lblNota = new Label
+            {
+                Text = esTesting ?
+                    "⚠️ Ambiente de PRUEBAS - Las facturas generadas NO tienen validez fiscal" :
+                    "🔴 AMBIENTE REAL - Las facturas generadas TIENEN validez fiscal oficial",
+                Location = new Point(15, 195),
+                Size = new Size(ancho - 30, 40),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = esTesting ? Color.DarkOrange : Color.DarkRed,
+                BackColor = esTesting ? Color.FromArgb(255, 249, 235) : Color.FromArgb(255, 235, 238),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            panel.Controls.Add(lblNota);
+
+            return panel;
+        }
+
+        private void RbAfipAmbiente_CheckedChanged(object sender, EventArgs e)
+        {
+            if (rbAfipTesting.Checked)
+            {
+                panelAfipTesting.Visible = true;
+                panelAfipProduccion.Visible = false;
+                System.Diagnostics.Debug.WriteLine("[CONFIG] Seleccionado ambiente TESTING");
+            }
+            else if (rbAfipProduccion.Checked)
+            {
+                panelAfipTesting.Visible = false;
+                panelAfipProduccion.Visible = true;
+                System.Diagnostics.Debug.WriteLine("[CONFIG] Seleccionado ambiente PRODUCCIÓN");
+            }
+        }
+
+        // 5. AGREGAR métodos de selección de certificados:
+
+        private void SeleccionarCertificadoTesting()
+        {
+            SeleccionarCertificadoParaAmbiente(txtAfipTestingCertificadoPath, "Testing");
+        }
+
+        private void SeleccionarCertificadoProduccion()
+        {
+            SeleccionarCertificadoParaAmbiente(txtAfipProduccionCertificadoPath, "Producción");
+        }
+
+        private void SeleccionarCertificadoParaAmbiente(TextBox textBox, string ambiente)
+        {
+            try
+            {
+                using var openFileDialog = new OpenFileDialog
+                {
+                    Title = $"Seleccionar Certificado AFIP ({ambiente})",
+                    Filter = "Archivos de Certificado (*.p12;*.pfx)|*.p12;*.pfx|Todos los archivos (*.*)|*.*",
+                    InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                };
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    textBox.Text = openFileDialog.FileName;
+                    MostrarMensaje($"✅ Certificado {ambiente} seleccionado: {Path.GetFileName(openFileDialog.FileName)}", Color.Green);
+
+                    var timer = new System.Windows.Forms.Timer { Interval = 3000 };
+                    timer.Tick += (s, e) =>
+                    {
+                        if (lblMensaje.Text.Contains("Certificado"))
+                            lblMensaje.Text = "";
+                        timer.Stop();
+                        timer.Dispose();
+                    };
+                    timer.Start();
+                }
+            }
+            catch (Exception ex)
+            {
+                MostrarMensaje($"❌ Error seleccionando certificado {ambiente}: {ex.Message}", Color.Red);
+            }
+        }
+
+        // 6. AGREGAR métodos de verificación de certificados:
+
+        private void VerificarCertificadoAfipTesting()
+        {
+            VerificarCertificadoParaAmbiente(
+                txtAfipTestingCertificadoPath.Text,
+                txtAfipTestingCertificadoPassword.Text,
+                "Testing"
+            );
+        }
+
+        private void VerificarCertificadoAfipProduccion()
+        {
+            VerificarCertificadoParaAmbiente(
+                txtAfipProduccionCertificadoPath.Text,
+                txtAfipProduccionCertificadoPassword.Text,
+                "Producción"
+            );
+        }
+
+        private void VerificarCertificadoParaAmbiente(string rutaCertificado, string password, string ambiente)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(rutaCertificado))
+                {
+                    MostrarMensaje($"❌ Seleccione un certificado {ambiente} primero", Color.Red);
+                    return;
+                }
+
+                if (!File.Exists(rutaCertificado))
+                {
+                    MostrarMensaje($"❌ El archivo del certificado {ambiente} no existe", Color.Red);
+                    return;
+                }
+
+                var (valido, mensaje, vencimiento) = Comercio.NET.Servicios.AfipAuthenticator.VerificarCertificado(rutaCertificado, password);
+
+                if (valido)
+                {
+                    MostrarMensaje($"✅ Certificado {ambiente} válido - {mensaje}", Color.Green);
+                    
+                    string detalles = $"CERTIFICADO AFIP {ambiente.ToUpper()} VERIFICADO\n" +
+                                     $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                                     $"📄 Archivo: {Path.GetFileName(rutaCertificado)}\n" +
+                                     $"📅 {mensaje}\n\n" +
+                                     $"✅ El certificado es válido y puede utilizarse\n" +
+                                     $"   para la facturación electrónica AFIP en ambiente {ambiente}.";
+
+                    MessageBox.Show(detalles, $"Verificación de Certificado AFIP ({ambiente})",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MostrarMensaje($"❌ Error en certificado {ambiente}: {mensaje}", Color.Red);
+
+                    string detallesError = $"PROBLEMA CON CERTIFICADO AFIP {ambiente.ToUpper()}\n" +
+                                          $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                                          $"📄 Archivo: {Path.GetFileName(rutaCertificado)}\n" +
+                                          $"❌ Error: {mensaje}\n\n" +
+                                          $"SOLUCIONES:\n" +
+                                          $"• Verifique que sea un certificado válido de AFIP\n" +
+                                          $"• Asegúrese de que la contraseña sea correcta\n" +
+                                          $"• El archivo debe ser .p12 con clave privada incluida\n" +
+                                          $"• Para {ambiente}, use el certificado correspondiente al ambiente";
+
+                    MessageBox.Show(detallesError, $"Error en Certificado AFIP ({ambiente})",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MostrarMensaje($"❌ Error verificando certificado {ambiente}: {ex.Message}", Color.Red);
+            }
+        }
+
+        // 7. AGREGAR métodos de formateo de CUIT:
+
+        private void FormatearCUITAfipTesting()
+        {
+            FormatearCUITParaAmbiente(txtAfipTestingCuit);
+        }
+
+        private void FormatearCUITAfipProduccion()
+        {
+            FormatearCUITParaAmbiente(txtAfipProduccionCuit);
+        }
+
+        private void FormatearCUITParaAmbiente(TextBox textBox)
+        {
+            if (textBox.Text.Length == 0) return;
+
+            int cursorPosition = textBox.SelectionStart;
+            string soloNumeros = new string(textBox.Text.Where(char.IsDigit).ToArray());
+
+            if (soloNumeros.Length > 11)
+            {
+                soloNumeros = soloNumeros.Substring(0, 11);
+            }
+
+            string cuitFormateado = soloNumeros;
+
+            if (soloNumeros.Length > 2)
+            {
+                cuitFormateado = soloNumeros.Substring(0, 2) + "-" + soloNumeros.Substring(2);
+            }
+
+            if (soloNumeros.Length > 10)
+            {
+                cuitFormateado = soloNumeros.Substring(0, 2) + "-" +
+                                soloNumeros.Substring(2, 8) + "-" +
+                                soloNumeros.Substring(10);
+            }
+
+            if (textBox.Text != cuitFormateado)
+            {
+                textBox.TextChanged -= soloNumeros.Length > 0 ?
+                    (EventHandler)((s, e) => FormatearCUITAfipTesting()) :
+                    (EventHandler)((s, e) => FormatearCUITAfipProduccion());
+
+                textBox.Text = cuitFormateado;
+
+                int nuevaPosicion = Math.Min(cursorPosition, cuitFormateado.Length);
+                if (cursorPosition >= 2 && soloNumeros.Length > 2)
+                    nuevaPosicion = Math.Min(cursorPosition + 1, cuitFormateado.Length);
+                if (cursorPosition >= 10 && soloNumeros.Length > 10)
+                    nuevaPosicion = Math.Min(nuevaPosicion + 1, cuitFormateado.Length);
+
+                textBox.SelectionStart = nuevaPosicion;
+
+                textBox.TextChanged += soloNumeros.Length > 0 ?
+                    (EventHandler)((s, e) => FormatearCUITAfipTesting()) :
+                    (EventHandler)((s, e) => FormatearCUITAfipProduccion());
+            }
+
+            if (soloNumeros.Length == 11)
+            {
+                if (ValidarCUITCompleto(textBox.Text))
+                {
+                    textBox.BackColor = Color.FromArgb(232, 245, 233);
+                }
+                else
+                {
+                    textBox.BackColor = Color.FromArgb(255, 235, 238);
+                }
+            }
+            else
+            {
+                textBox.BackColor = Color.White;
+            }
         }
 
         private void ConfigurarTabIndex()
@@ -1178,13 +1116,13 @@ namespace Comercio.NET.Formularios
             chkPermitirFacturaB.TabIndex = 10;
 
             // TabIndex para controles AFIP (desplazados)
-            txtAfipCuit.TabIndex = 11;
-            txtAfipCertificadoPath.TabIndex = 12;
-            txtAfipCertificadoPassword.TabIndex = 13;
-            txtAfipWSAAUrl.TabIndex = 14;
-            txtAfipWSFEUrl.TabIndex = 15;
-            btnSeleccionarCertificado.TabIndex = 16;
-            btnVerificarCertificado.TabIndex = 17;
+            //txtAfipCuit.TabIndex = 11;
+            //txtAfipCertificadoPath.TabIndex = 12;
+            //txtAfipCertificadoPassword.TabIndex = 13;
+            //txtAfipWSAAUrl.TabIndex = 14;
+            //txtAfipWSFEUrl.TabIndex = 15;
+            //btnSeleccionarCertificado.TabIndex = 16;
+            //btnVerificarCertificado.TabIndex = 17;
 
             // NUEVO: TabIndex para restricciones de impresión
             chkRestringirRemitoPorPago.TabIndex = 18;
@@ -1229,10 +1167,10 @@ namespace Comercio.NET.Formularios
             btnColapsarInventario.Click += (s, e) => ToggleColapsarInventario();
             btnColapsarCuentasCorrientes.Click += (s, e) => ToggleColapsarCuentasCorrientes();
             
-            // Eventos para AFIP
-            btnColapsarAfip.Click += (s, e) => ToggleColapsarAfip();
-            btnSeleccionarCertificado.Click += (s, e) => SeleccionarCertificado();
-            btnVerificarCertificado.Click += (s, e) => VerificarCertificadoAfip();
+            //// Eventos para AFIP
+            //btnColapsarAfip.Click += (s, e) => ToggleColapsarAfip();
+            //btnSeleccionarCertificado.Click += (s, e) => SeleccionarCertificado();
+            //btnVerificarCertificado.Click += (s, e) => VerificarCertificadoAfip();
 
             // NUEVO: Evento para Restricciones de Impresión
             btnColapsarRestriccionesImpresion.Click += (s, e) => ToggleColapsarRestriccionesImpresion();
@@ -1254,7 +1192,7 @@ namespace Comercio.NET.Formularios
 
             // Formatear CUITs mientras el usuario escribe
             txtCUIT.TextChanged += (s, e) => FormatearCUIT();
-            txtAfipCuit.TextChanged += (s, e) => FormatearCUITAfip();
+            //txtAfipCuit.TextChanged += (s, e) => FormatearCUITAfip();
 
             this.Load += (s, e) => {
                 System.Diagnostics.Debug.WriteLine("[CONFIG] Formulario cargado");
@@ -1464,11 +1402,11 @@ namespace Comercio.NET.Formularios
                 }
 
                 // Cargar configuración de AFIP
-                txtAfipCuit.Text = _configuracionOriginal["AFIP"]?["CUIT"]?.ToString() ?? "";
-                txtAfipCertificadoPath.Text = _configuracionOriginal["AFIP"]?["CertificadoPath"]?.ToString() ?? "";
-                txtAfipCertificadoPassword.Text = _configuracionOriginal["AFIP"]?["CertificadoPassword"]?.ToString() ?? "";
-                txtAfipWSAAUrl.Text = _configuracionOriginal["AFIP"]?["WSAAUrl"]?.ToString() ?? "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-                txtAfipWSFEUrl.Text = _configuracionOriginal["AFIP"]?["WSFEUrl"]?.ToString() ?? "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
+                //txtAfipCuit.Text = _configuracionOriginal["AFIP"]?["CUIT"]?.ToString() ?? "";
+                //txtAfipCertificadoPath.Text = _configuracionOriginal["AFIP"]?["CertificadoPath"]?.ToString() ?? "";
+                //txtAfipCertificadoPassword.Text = _configuracionOriginal["AFIP"]?["CertificadoPassword"]?.ToString() ?? "";
+                //txtAfipWSAAUrl.Text = _configuracionOriginal["AFIP"]?["WSAAUrl"]?.ToString() ?? "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+                //txtAfipWSFEUrl.Text = _configuracionOriginal["AFIP"]?["WSFEUrl"]?.ToString() ?? "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
 
                 // NUEVO: Cargar configuración de restricciones de impresión
                 bool restringirRemitoPorPago = _configuracionOriginal["RestriccionesImpresion"]?["RestringirRemitoPorPago"]?.ToObject<bool>() ?? true;
@@ -1501,12 +1439,45 @@ namespace Comercio.NET.Formularios
                 CargarNombresCuentasCorrientes();
 
                 // Cargar cadena de conexión
-                txtConnectionString.Text = _configuracionOriginal["ConnectionStrings"]?["DefaultConnection"]?.ToString() ?? "";
+                //txtConnectionString.Text = _configuracionOriginal["ConnectionStrings"]?["DefaultConnection"]?.ToString() ?? "";
+
+                // Cargar ambiente seleccionado
+                string ambienteSeleccionado = _configuracionOriginal["AFIP"]?["AmbienteActivo"]?.ToString() ?? "Testing";
+                if (ambienteSeleccionado == "Produccion")
+                {
+                    rbAfipProduccion.Checked = true;
+                }
+                else
+                {
+                    rbAfipTesting.Checked = true;
+                }
+
+                // Cargar configuración de Testing
+                var afipTesting = _configuracionOriginal["AFIP"]?["Testing"];
+                if (afipTesting != null)
+                {
+                    txtAfipTestingCuit.Text = afipTesting["CUIT"]?.ToString() ?? "";
+                    txtAfipTestingCertificadoPath.Text = afipTesting["CertificadoPath"]?.ToString() ?? "";
+                    txtAfipTestingCertificadoPassword.Text = afipTesting["CertificadoPassword"]?.ToString() ?? "";
+                    txtAfipTestingWSAAUrl.Text = afipTesting["WSAAUrl"]?.ToString() ?? "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+                    txtAfipTestingWSFEUrl.Text = afipTesting["WSFEUrl"]?.ToString() ?? "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
+                }
+
+                // Cargar configuración de Producción
+                var afipProduccion = _configuracionOriginal["AFIP"]?["Produccion"];
+                if (afipProduccion != null)
+                {
+                    txtAfipProduccionCuit.Text = afipProduccion["CUIT"]?.ToString() ?? "";
+                    txtAfipProduccionCertificadoPath.Text = afipProduccion["CertificadoPath"]?.ToString() ?? "";
+                    txtAfipProduccionCertificadoPassword.Text = afipProduccion["CertificadoPassword"]?.ToString() ?? "";
+                    txtAfipProduccionWSAAUrl.Text = afipProduccion["WSAAUrl"]?.ToString() ?? "https://wsaa.afip.gov.ar/ws/services/LoginCms";
+                    txtAfipProduccionWSFEUrl.Text = afipProduccion["WSFEUrl"]?.ToString() ?? "https://servicios1.afip.gov.ar/wsfev1/service.asmx";
+                }
 
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Nombre: '{txtNombreComercio.Text}'");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - CUIT: '{txtCUIT.Text}'");
-                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - AFIP CUIT: '{txtAfipCuit.Text}'");
-                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Certificado: '{txtAfipCertificadoPath.Text}'");
+                //System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - AFIP CUIT: '{txtAfipCuit.Text}'");
+                //System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Certificado: '{txtAfipCertificadoPath.Text}'");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Stock: {chkVerificarStock.Checked}");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Nombres CtaCte: {lstNombresCtaCte.Items.Count}");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Restringir Remito: {chkRestringirRemitoPorPago.Checked}");
@@ -1631,19 +1602,23 @@ namespace Comercio.NET.Formularios
                     // Sección de configuración AFIP por defecto
                     ["AFIP"] = new JObject
                     {
-                        ["CUIT"] = "20-12345678-9",
-                        ["CertificadoPath"] = "C:\\ruta\\al\\certificado.p12",
-                        ["CertificadoPassword"] = "clave123",
-                        ["WSAAUrl"] = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
-                        ["WSFEUrl"] = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
-                    },
-                    // Sección de restricciones de impresión por defecto
-                    ["RestriccionesImpresion"] = new JObject
-                    {
-                        ["RestringirRemitoPorPago"] = true,
-                        ["UsarVistaPrevia"] = true,
-                        ["LimitarFacturacion"] = false, // NUEVO: Por defecto deshabilitado
-                        ["MontoLimiteFacturacion"] = 0m // NUEVO: Sin límite por defecto
+                        ["AmbienteActivo"] = "Testing", // Por defecto usar Testing
+                        ["Testing"] = new JObject
+                        {
+                            ["CUIT"] = "",
+                            ["CertificadoPath"] = "",
+                            ["CertificadoPassword"] = "",
+                            ["WSAAUrl"] = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
+                            ["WSFEUrl"] = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
+                        },
+                        ["Produccion"] = new JObject
+                        {
+                            ["CUIT"] = "",
+                            ["CertificadoPath"] = "",
+                            ["CertificadoPassword"] = "",
+                            ["WSAAUrl"] = "https://wsaa.afip.gov.ar/ws/services/LoginCms",
+                            ["WSFEUrl"] = "https://servicios1.afip.gov.ar/wsfev1/service.asmx"
+                        }
                     }
                 };
 
@@ -1668,8 +1643,8 @@ namespace Comercio.NET.Formularios
         {
             System.Diagnostics.Debug.WriteLine("[SAVE] === INICIANDO GUARDADO ===");
             System.Diagnostics.Debug.WriteLine($"[SAVE] Nombres CtaCte: {lstNombresCtaCte.Items.Count}");
-            System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP CUIT: {txtAfipCuit.Text}");
-            System.Diagnostics.Debug.WriteLine($"[SAVE] Certificado: {txtAfipCertificadoPath.Text}");
+            //System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP CUIT: {txtAfipCuit.Text}");
+            //System.Diagnostics.Debug.WriteLine($"[SAVE] Certificado: {txtAfipCertificadoPath.Text}");
             System.Diagnostics.Debug.WriteLine($"[SAVE] Restringir Remito: {chkRestringirRemitoPorPago.Checked}");
 
             if (!ValidarDatos())
@@ -1721,17 +1696,34 @@ namespace Comercio.NET.Formularios
                 if (nuevaConfiguracion["AFIP"] == null)
                     nuevaConfiguracion["AFIP"] = new JObject();
 
-                nuevaConfiguracion["AFIP"]["CUIT"] = txtAfipCuit.Text.Trim();
-                nuevaConfiguracion["AFIP"]["CertificadoPath"] = txtAfipCertificadoPath.Text.Trim();
-                nuevaConfiguracion["AFIP"]["CertificadoPassword"] = txtAfipCertificadoPassword.Text;
-                nuevaConfiguracion["AFIP"]["WSAAUrl"] = txtAfipWSAAUrl.Text.Trim();
-                nuevaConfiguracion["AFIP"]["WSFEUrl"] = txtAfipWSFEUrl.Text.Trim();
+                // Guardar ambiente activo
+                nuevaConfiguracion["AFIP"]["AmbienteActivo"] = rbAfipProduccion.Checked ? "Produccion" : "Testing";
+
+                // Guardar configuración de Testing
+                if (nuevaConfiguracion["AFIP"]["Testing"] == null)
+                    nuevaConfiguracion["AFIP"]["Testing"] = new JObject();
+
+                nuevaConfiguracion["AFIP"]["Testing"]["CUIT"] = txtAfipTestingCuit.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Testing"]["CertificadoPath"] = txtAfipTestingCertificadoPath.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Testing"]["CertificadoPassword"] = txtAfipTestingCertificadoPassword.Text;
+                nuevaConfiguracion["AFIP"]["Testing"]["WSAAUrl"] = txtAfipTestingWSAAUrl.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Testing"]["WSFEUrl"] = txtAfipTestingWSFEUrl.Text.Trim();
+
+                // Guardar configuración de Producción
+                if (nuevaConfiguracion["AFIP"]["Produccion"] == null)
+                    nuevaConfiguracion["AFIP"]["Produccion"] = new JObject();
+
+                nuevaConfiguracion["AFIP"]["Produccion"]["CUIT"] = txtAfipProduccionCuit.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Produccion"]["CertificadoPath"] = txtAfipProduccionCertificadoPath.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Produccion"]["CertificadoPassword"] = txtAfipProduccionCertificadoPassword.Text;
+                nuevaConfiguracion["AFIP"]["Produccion"]["WSAAUrl"] = txtAfipProduccionWSAAUrl.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Produccion"]["WSFEUrl"] = txtAfipProduccionWSFEUrl.Text.Trim();
 
                 // Opciones adicionales de facturación
                 nuevaConfiguracion["Facturacion"]["PermitirFacturaA"] = chkPermitirFacturaA?.Checked ?? true;
                 nuevaConfiguracion["Facturacion"]["PermitirFacturaB"] = chkPermitirFacturaB?.Checked ?? true;
 
-                System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP configurado - CUIT: '{txtAfipCuit.Text.Trim()}'");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP - Ambiente Activo: {(rbAfipProduccion.Checked ? "Producción" : "Testing")}");
 
                 // NUEVO: Actualizar configuración de restricciones de impresión
                 if (nuevaConfiguracion["RestriccionesImpresion"] == null)
@@ -2008,35 +2000,40 @@ namespace Comercio.NET.Formularios
                 return false;
             }
 
-            // NUEVO: Validaciones para datos de AFIP
-            if (string.IsNullOrWhiteSpace(txtAfipCuit.Text))
+            // Validaciones para AFIP - Solo validar el ambiente activo
+            bool esProduccion = rbAfipProduccion.Checked;
+            string ambienteNombre = esProduccion ? "Producción" : "Testing";
+            var txtCuitActivo = esProduccion ? txtAfipProduccionCuit : txtAfipTestingCuit;
+            var txtCertPathActivo = esProduccion ? txtAfipProduccionCertificadoPath : txtAfipTestingCertificadoPath;
+
+            if (string.IsNullOrWhiteSpace(txtCuitActivo.Text))
             {
-                MostrarMensaje("❌ El CUIT AFIP es requerido", Color.Red);
+                MostrarMensaje($"❌ El CUIT AFIP para {ambienteNombre} es requerido", Color.Red);
                 _afipColapsado = false;
-                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 235);
+                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 465);
                 ActualizarPosicionesTodasLasSecciones();
-                txtAfipCuit.Focus();
+                txtCuitActivo.Focus();
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(txtAfipCertificadoPath.Text))
+            if (string.IsNullOrWhiteSpace(txtCertPathActivo.Text))
             {
-                MostrarMensaje("❌ La ruta del certificado es requerida", Color.Red);
+                MostrarMensaje($"❌ La ruta del certificado para {ambienteNombre} es requerida", Color.Red);
                 _afipColapsado = false;
-                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 235);
+                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 465);
                 ActualizarPosicionesTodasLasSecciones();
-                txtAfipCertificadoPath.Focus();
+                txtCertPathActivo.Focus();
                 return false;
             }
 
-            if (!File.Exists(txtAfipCertificadoPath.Text))
+            if (!File.Exists(txtCertPathActivo.Text))
             {
-                MostrarMensaje("❌ El archivo del certificado no existe", Color.Red);
+                MostrarMensaje($"❌ El archivo del certificado para {ambienteNombre} no existe", Color.Red);
                 _afipColapsado = false;
-                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 235);
+                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 465);
                 ActualizarPosicionesTodasLasSecciones();
-                txtAfipCertificadoPath.Focus();
-                txtAfipCertificadoPath.SelectAll();
+                txtCertPathActivo.Focus();
+                txtCertPathActivo.SelectAll();
                 return false;
             }
 
@@ -2122,7 +2119,7 @@ namespace Comercio.NET.Formularios
         private void ToggleColapsarAfip()
         {
             _afipColapsado = !_afipColapsado;
-            ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 235);
+            ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 465); // ACTUALIZADO: altura
             ActualizarPosicionesTodasLasSecciones();
         }
 
@@ -2253,8 +2250,8 @@ namespace Comercio.NET.Formularios
     
             if (soloNumeros.Length > 10)
             {
-                cuitFormateado = soloNumeros.Substring(0, 2) + "-" + 
-                                soloNumeros.Substring(2, 8) + "-" + 
+                cuitFormateado = soloNumeros.Substring(0, 2) + "-" +
+                                soloNumeros.Substring(2, 8) + "-" +
                                 soloNumeros.Substring(10);
             }
     
@@ -2410,186 +2407,186 @@ namespace Comercio.NET.Formularios
         }
 
         // NUEVO: Formatear CUIT AFIP
-        private void FormatearCUITAfip()
-        {
-            // Evitar recursión infinita
-            if (txtAfipCuit.Text.Length == 0) return;
+        //private void FormatearCUITAfip()
+        //{
+        //    // Evitar recursión infinita
+        //    if (txtAfipCuit.Text.Length == 0) return;
 
-            // Guardar posición del cursor
-            int cursorPosition = txtAfipCuit.SelectionStart;
+        //    // Guardar posición del cursor
+        //    int cursorPosition = txtAfipCuit.SelectionStart;
 
-            // Remover todos los guiones existentes y mantener solo números
-            string soloNumeros = new string(txtAfipCuit.Text.Where(char.IsDigit).ToArray());
+        //    // Remover todos los guiones existentes y mantener solo números
+        //    string soloNumeros = new string(txtAfipCuit.Text.Where(char.IsDigit).ToArray());
 
-            // Limitar a máximo 11 dígitos
-            if (soloNumeros.Length > 11)
-            {
-                soloNumeros = soloNumeros.Substring(0, 11);
-            }
+        //    // Limitar a máximo 11 dígitos
+        //    if (soloNumeros.Length > 11)
+        //    {
+        //        soloNumeros = soloNumeros.Substring(0, 11);
+        //    }
 
-            string cuitFormateado = soloNumeros;
+        //    string cuitFormateado = soloNumeros;
 
-            // Aplicar formato XX-XXXXXXXX-X
-            if (soloNumeros.Length > 2)
-            {
-                cuitFormateado = soloNumeros.Substring(0, 2) + "-" + soloNumeros.Substring(2);
-            }
+        //    // Aplicar formato XX-XXXXXXXX-X
+        //    if (soloNumeros.Length > 2)
+        //    {
+        //        cuitFormateado = soloNumeros.Substring(0, 2) + "-" + soloNumeros.Substring(2);
+        //    }
 
-            if (soloNumeros.Length > 10)
-            {
-                cuitFormateado = soloNumeros.Substring(0, 2) + "-" + 
-                                soloNumeros.Substring(2, 8) + "-" + 
-                                soloNumeros.Substring(10);
-            }
+        //    if (soloNumeros.Length > 10)
+        //    {
+        //        cuitFormateado = soloNumeros.Substring(0, 2) + "-" + 
+        //                        soloNumeros.Substring(2, 8) + "-" + 
+        //                        soloNumeros.Substring(10);
+        //    }
 
-            // Solo actualizar si el texto cambió para evitar bucle infinito
-            if (txtAfipCuit.Text != cuitFormateado)
-            {
-                // Temporalmente desconectar el evento para evitar recursión
-                txtAfipCuit.TextChanged -= (s, e) => FormatearCUITAfip();
+        //    // Solo actualizar si el texto cambió para evitar bucle infinito
+        //    if (txtAfipCuit.Text != cuitFormateado)
+        //    {
+        //        // Temporalmente desconectar el evento para evitar recursión
+        //        txtAfipCuit.TextChanged -= (s, e) => FormatearCUITAfip();
                 
-                txtAfipCuit.Text = cuitFormateado;
+        //        txtAfipCuit.Text = cuitFormateado;
                 
-                // Ajustar posición del cursor
-                int nuevaPosicion = Math.Min(cursorPosition, cuitFormateado.Length);
+        //        // Ajustar posición del cursor
+        //        int nuevaPosicion = Math.Min(cursorPosition, cuitFormateado.Length);
                 
-                // Si el cursor estaba después de una posición donde se insertó un guión, ajustar
-                if (cursorPosition >= 2 && soloNumeros.Length > 2)
-                    nuevaPosicion = Math.Min(cursorPosition + 1, cuitFormateado.Length);
-                if (cursorPosition >= 10 && soloNumeros.Length > 10)
-                    nuevaPosicion = Math.Min(nuevaPosicion + 1, cuitFormateado.Length);
+        //        // Si el cursor estaba después de una posición donde se insertó un guión, ajustar
+        //        if (cursorPosition >= 2 && soloNumeros.Length > 2)
+        //            nuevaPosicion = Math.Min(cursorPosition + 1, cuitFormateado.Length);
+        //        if (cursorPosition >= 10 && soloNumeros.Length > 10)
+        //            nuevaPosicion = Math.Min(nuevaPosicion + 1, cuitFormateado.Length);
                     
-                txtAfipCuit.SelectionStart = nuevaPosicion;
+        //        txtAfipCuit.SelectionStart = nuevaPosicion;
                 
-                // Reconectar el evento
-                txtAfipCuit.TextChanged += (s, e) => FormatearCUITAfip();
-            }
+        //        // Reconectar el evento
+        //        txtAfipCuit.TextChanged += (s, e) => FormatearCUITAfip();
+        //    }
 
-            // Validar dígito verificador cuando está completo
-            if (soloNumeros.Length == 11)
-            {
-                ValidarDigitoVerificadorCUITAfip(soloNumeros);
-            }
-            else
-            {
-                // Limpiar indicadores de validación si no está completo
-                txtAfipCuit.BackColor = Color.White;
-            }
-        }
+        //    // Validar dígito verificador cuando está completo
+        //    if (soloNumeros.Length == 11)
+        //    {
+        //        ValidarDigitoVerificadorCUITAfip(soloNumeros);
+        //    }
+        //    else
+        //    {
+        //        // Limpiar indicadores de validación si no está completo
+        //        txtAfipCuit.BackColor = Color.White;
+        //    }
+        //}
 
         // NUEVO: Validar dígito verificador para CUIT AFIP
-        private void ValidarDigitoVerificadorCUITAfip(string cuit)
-        {
-            if (cuit.Length != 11 || !cuit.All(char.IsDigit))
-            {
-                txtAfipCuit.BackColor = Color.FromArgb(255, 235, 238); // Fondo rojo claro
-                return;
-            }
+        //private void ValidarDigitoVerificadorCUITAfip(string cuit)
+        //{
+        //    if (cuit.Length != 11 || !cuit.All(char.IsDigit))
+        //    {
+        //        txtAfipCuit.BackColor = Color.FromArgb(255, 235, 238); // Fondo rojo claro
+        //        return;
+        //    }
             
-            // Usar el método estático existente para validar
-            if (ValidarCUITCompleto(txtAfipCuit.Text))
-            {
-                txtAfipCuit.BackColor = Color.FromArgb(232, 245, 233); // Verde claro
-            }
-            else
-            {
-                txtAfipCuit.BackColor = Color.FromArgb(255, 235, 238); // Rojo claro
-            }
-        }
+        //    // Usar el método estático existente para validar
+        //    if (ValidarCUITCompleto(txtAfipCuit.Text))
+        //    {
+        //        txtAfipCuit.BackColor = Color.FromArgb(232, 245, 233); // Verde claro
+        //    }
+        //    else
+        //    {
+        //        txtAfipCuit.BackColor = Color.FromArgb(255, 235, 238); // Rojo claro
+        //    }
+        //}
 
-        private void SeleccionarCertificado()
-        {
-            try
-            {
-                using var openFileDialog = new OpenFileDialog
-                {
-                    Title = "Seleccionar Certificado AFIP",
-                    Filter = "Archivos de Certificado (*.p12;*.pfx)|*.p12;*.pfx|Todos los archivos (*.*)|*.*",
-                    InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                };
+        //private void SeleccionarCertificado()
+        //{
+        //    try
+        //    {
+        //        using var openFileDialog = new OpenFileDialog
+        //        {
+        //            Title = "Seleccionar Certificado AFIP",
+        //            Filter = "Archivos de Certificado (*.p12;*.pfx)|*.p12;*.pfx|Todos los archivos (*.*)|*.*",
+        //            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        //        };
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    txtAfipCertificadoPath.Text = openFileDialog.FileName;
-                    MostrarMensaje($"✅ Certificado seleccionado: {Path.GetFileName(openFileDialog.FileName)}", Color.Green);
+        //        if (openFileDialog.ShowDialog() == DialogResult.OK)
+        //        {
+        //            txtAfipCertificadoPath.Text = openFileDialog.FileName;
+        //            MostrarMensaje($"✅ Certificado seleccionado: {Path.GetFileName(openFileDialog.FileName)}", Color.Green);
                     
-                    // Auto-limpiar el mensaje después de 3 segundos
-                    var timer = new System.Windows.Forms.Timer { Interval = 3000 };
-                    timer.Tick += (s, e) =>
-                    {
-                        if (lblMensaje.Text.Contains("Certificado seleccionado"))
-                            lblMensaje.Text = "";
-                        timer.Stop();
-                        timer.Dispose();
-                    };
-                    timer.Start();
-                }
-            }
-            catch (Exception ex)
-            {
-                MostrarMensaje($"❌ Error seleccionando certificado: {ex.Message}", Color.Red);
-            }
-        }
+        //            // Auto-limpiar el mensaje después de 3 segundos
+        //            var timer = new System.Windows.Forms.Timer { Interval = 3000 };
+        //            timer.Tick += (s, e) =>
+        //            {
+        //                if (lblMensaje.Text.Contains("Certificado seleccionado"))
+        //                    lblMensaje.Text = "";
+        //                timer.Stop();
+        //                timer.Dispose();
+        //            };
+        //            timer.Start();
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MostrarMensaje($"❌ Error seleccionando certificado: {ex.Message}", Color.Red);
+        //    }
+        //}
 
-        private void VerificarCertificadoAfip()
-        {
-            try
-            {
-                string rutaCertificado = txtAfipCertificadoPath.Text.Trim();
-                string password = txtAfipCertificadoPassword.Text;
+        //private void VerificarCertificadoAfip()
+        //{
+        //    try
+        //    {
+        //        string rutaCertificado = txtAfipCertificadoPath.Text.Trim();
+        //        string password = txtAfipCertificadoPassword.Text;
 
-                if (string.IsNullOrWhiteSpace(rutaCertificado))
-                {
-                    MostrarMensaje("❌ Seleccione un certificado primero", Color.Red);
-                    return;
-                }
+        //        if (string.IsNullOrWhiteSpace(rutaCertificado))
+        //        {
+        //            MostrarMensaje("❌ Seleccione un certificado primero", Color.Red);
+        //            return;
+        //        }
 
-                if (!File.Exists(rutaCertificado))
-                {
-                    MostrarMensaje("❌ El archivo del certificado no existe", Color.Red);
-                    return;
-                }
+        //        if (!File.Exists(rutaCertificado))
+        //        {
+        //            MostrarMensaje("❌ El archivo del certificado no existe", Color.Red);
+        //            return;
+        //        }
 
-                // Verificar usando el servicio existente de AFIP
-                var (valido, mensaje, vencimiento) = Comercio.NET.Servicios.AfipAuthenticator.VerificarCertificado(rutaCertificado, password);
+        //        // Verificar usando el servicio existente de AFIP
+        //        var (valido, mensaje, vencimiento) = Comercio.NET.Servicios.AfipAuthenticator.VerificarCertificado(rutaCertificado, password);
 
-                if (valido)
-                {
-                    MostrarMensaje($"✅ Certificado válido - {mensaje}", Color.Green);
+        //        if (valido)
+        //        {
+        //            MostrarMensaje($"✅ Certificado válido - {mensaje}", Color.Green);
                     
-                    // Mostrar detalles del certificado
-                    string detalles = $"CERTIFICADO AFIP VERIFICADO\n" +
-                                     $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                                     $"📄 Archivo: {Path.GetFileName(rutaCertificado)}\n" +
-                                     $"📅 {mensaje}\n\n" +
-                                     $"✅ El certificado es válido y puede utilizarse\n" +
-                                     $"   para la facturación electrónica AFIP.";
+        //            // Mostrar detalles del certificado
+        //            string detalles = $"CERTIFICADO AFIP VERIFICADO\n" +
+        //                             $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+        //                             $"📄 Archivo: {Path.GetFileName(rutaCertificado)}\n" +
+        //                             $"📅 {mensaje}\n\n" +
+        //                             $"✅ El certificado es válido y puede utilizarse\n" +
+        //                             $"   para la facturación electrónica AFIP.";
 
-                    MessageBox.Show(detalles, "Verificación de Certificado AFIP", 
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MostrarMensaje($"❌ Error en certificado: {mensaje}", Color.Red);
+        //            MessageBox.Show(detalles, "Verificación de Certificado AFIP", 
+        //                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        //        }
+        //        else
+        //        {
+        //            MostrarMensaje($"❌ Error en certificado: {mensaje}", Color.Red);
                     
-                    string detallesError = $"PROBLEMA CON CERTIFICADO AFIP\n" +
-                                          $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                                          $"📄 Archivo: {Path.GetFileName(rutaCertificado)}\n" +
-                                          $"❌ Error: {mensaje}\n\n" +
-                                          $"SOLUCIONES:\n" +
-                                          $"• Verifique que sea un certificado válido de AFIP\n" +
-                                          $"• Asegúrese de que la contraseña sea correcta\n" +
-                                          $"• El archivo debe ser .p12 con clave privada incluida";
+        //            string detallesError = $"PROBLEMA CON CERTIFICADO AFIP\n" +
+        //                                  $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+        //                                  $"📄 Archivo: {Path.GetFileName(rutaCertificado)}\n" +
+        //                                  $"❌ Error: {mensaje}\n\n" +
+        //                                  $"SOLUCIONES:\n" +
+        //                                  $"• Verifique que sea un certificado válido de AFIP\n" +
+        //                                  $"• Asegúrese de que la contraseña sea correcta\n" +
+        //                                  $"• El archivo debe ser .p12 con clave privada incluida";
 
-                    MessageBox.Show(detallesError, "Error en Certificado AFIP", 
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                MostrarMensaje($"❌ Error verificando certificado: {ex.Message}", Color.Red);
-            }
-        }
+        //            MessageBox.Show(detallesError, "Error en Certificado AFIP", 
+        //                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MostrarMensaje($"❌ Error verificando certificado: {ex.Message}", Color.Red);
+        //    }
+        //}
 
         private void CargarDatosPrueba()
         {
@@ -2611,12 +2608,12 @@ namespace Comercio.NET.Formularios
 
             chkVerificarStock.Checked = true;
             
-            // Datos de AFIP
-            txtAfipCuit.Text = "20-12345678-9";
-            txtAfipCertificadoPath.Text = @"C:\Certificados\mi_certificado.p12";
-            txtAfipCertificadoPassword.Text = "clave123";
-            txtAfipWSAAUrl.Text = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
-            txtAfipWSFEUrl.Text = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
+            //// Datos de AFIP
+            //txtAfipCuit.Text = "20-12345678-9";
+            //txtAfipCertificadoPath.Text = @"C:\Certificados\mi_certificado.p12";
+            //txtAfipCertificadoPassword.Text = "clave123";
+            //txtAfipWSAAUrl.Text = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+            //txtAfipWSFEUrl.Text = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
             
             // Nombres de cuentas corrientes de prueba
             lstNombresCtaCte.Items.Clear();
@@ -2844,5 +2841,442 @@ namespace Comercio.NET.Formularios
                 }
             }
         }
+
+        private Panel CrearSeccionColapsable(string titulo, int y, int ancho, string tipoSeccion)
+{
+    var panel = new Panel
+    {
+        Location = new Point(10, y),
+        Size = new Size(ancho, 35), // Altura mínima cuando está colapsado
+        BackColor = Color.FromArgb(248, 250, 252),
+        BorderStyle = BorderStyle.FixedSingle
+    };
+
+    // Header con título y botón colapsar
+    var panelHeader = new Panel
+    {
+        Location = new Point(0, 0),
+        Size = new Size(ancho, 30),
+        BackColor = Color.FromArgb(230, 235, 240),
+        Cursor = Cursors.Hand
+    };
+    panel.Controls.Add(panelHeader);
+
+    var lblTitulo = new Label
+    {
+        Text = titulo,
+        Location = new Point(10, 6),
+        Size = new Size(ancho - 50, 20),
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        ForeColor = Color.FromArgb(63, 81, 181),
+        Cursor = Cursors.Hand
+    };
+    panelHeader.Controls.Add(lblTitulo);
+
+    // Botón colapsar/expandir
+    Button btnColapsar = new Button
+    {
+        Text = "▼", // Iniciar expandido para comercio e inventario
+        Location = new Point(ancho - 35, 3),
+        Size = new Size(25, 24),
+        BackColor = Color.FromArgb(200, 200, 200),
+        ForeColor = Color.Black,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+        TextAlign = ContentAlignment.MiddleCenter,
+        UseVisualStyleBackColor = false
+    };
+    btnColapsar.FlatAppearance.BorderSize = 0;
+    panelHeader.Controls.Add(btnColapsar);
+
+    // Asignar el botón según el tipo de sección
+    switch (tipoSeccion)
+    {
+        case "Comercio":
+            btnColapsarComercio = btnColapsar;
+            break;
+        case "Inventario":
+            btnColapsarInventario = btnColapsar;
+            break;
+    }
+
+    // Contenido colapsable
+    var panelContenido = new Panel
+    {
+        Name = $"panelContenido{tipoSeccion}",
+        Location = new Point(0, 30),
+        Size = new Size(ancho, tipoSeccion == "Comercio" ? 70 : 65),
+        BackColor = Color.FromArgb(248, 250, 252),
+        Visible = true // Iniciar expandidos
+    };
+    panel.Controls.Add(panelContenido);
+
+    // Configurar eventos
+    EventHandler clickHandler = (s, e) => 
+    {
+        switch (tipoSeccion)
+        {
+            case "Comercio":
+                ToggleColapsarComercio();
+                break;
+            case "Inventario":
+                ToggleColapsarInventario();
+                break;
+        }
+    };
+
+    panelHeader.Click += clickHandler;
+    lblTitulo.Click += clickHandler;
+
+    return panel;
+}
+
+private Panel CrearSeccionBaseDatos(string titulo, int y, int ancho)
+{
+    var panel = new Panel
+    {
+        Location = new Point(10, y),
+        Size = new Size(ancho, 35),
+        BackColor = Color.FromArgb(240, 240, 240),
+        BorderStyle = BorderStyle.FixedSingle
+    };
+
+    // Header con título y botón colapsar
+    var panelHeader = new Panel
+    {
+        Location = new Point(0, 0),
+        Size = new Size(ancho, 30),
+        BackColor = Color.FromArgb(230, 230, 230),
+        Cursor = Cursors.Hand
+    };
+    panel.Controls.Add(panelHeader);
+
+    var lblTitulo = new Label
+    {
+        Text = titulo,
+        Location = new Point(10, 6),
+        Size = new Size(200, 20),
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        ForeColor = Color.FromArgb(80, 80, 80),
+        Cursor = Cursors.Hand
+    };
+    panelHeader.Controls.Add(lblTitulo);
+
+    // Botón colapsar/expandir
+    btnColapsarBaseDatos = new Button
+    {
+        Text = "▶", // Iniciar colapsado
+        Location = new Point(ancho - 90, 3),
+        Size = new Size(25, 24),
+        BackColor = Color.FromArgb(200, 200, 200),
+        ForeColor = Color.Black,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+        TextAlign = ContentAlignment.MiddleCenter,
+        UseVisualStyleBackColor = false
+    };
+    btnColapsarBaseDatos.FlatAppearance.BorderSize = 0;
+    panelHeader.Controls.Add(btnColapsarBaseDatos);
+
+    // Botón habilitar edición
+    btnEditarBaseDatos = new Button
+    {
+        Text = "🔒",
+        Location = new Point(ancho - 60, 3),
+        Size = new Size(25, 24),
+        BackColor = Color.FromArgb(255, 152, 0),
+        ForeColor = Color.White,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI", 8F),
+        TextAlign = ContentAlignment.MiddleCenter,
+        UseVisualStyleBackColor = false
+    };
+    btnEditarBaseDatos.FlatAppearance.BorderSize = 0;
+    panelHeader.Controls.Add(btnEditarBaseDatos);
+
+    // Contenido colapsable
+    var panelContenido = new Panel
+    {
+        Name = "panelContenidoBaseDatos",
+        Location = new Point(0, 30),
+        Size = new Size(ancho, 80),
+        BackColor = Color.FromArgb(248, 248, 248),
+        Visible = false
+    };
+    panel.Controls.Add(panelContenido);
+
+    // Connection String
+    panelContenido.Controls.Add(CrearLabelLarga("Cadena de Conexión:", 15, 10));
+    txtConnectionString = new TextBox
+    {
+        Location = new Point(15, 30),
+        Size = new Size(490, 40),
+        Font = new Font("Consolas", 8F),
+        Multiline = true,
+        ScrollBars = ScrollBars.Vertical,
+        Enabled = false,
+        BackColor = Color.FromArgb(245, 245, 245),
+        ForeColor = Color.Gray
+    };
+    panelContenido.Controls.Add(txtConnectionString);
+
+    // Botón testear conexión
+    btnTestearConexion = new Button
+    {
+        Text = "🔧\nTest",
+        Location = new Point(510, 30),
+        Size = new Size(60, 40),
+        BackColor = Color.FromArgb(33, 150, 243),
+        ForeColor = Color.White,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+        TextAlign = ContentAlignment.MiddleCenter,
+        UseVisualStyleBackColor = false,
+        Enabled = false
+    };
+    btnTestearConexion.FlatAppearance.BorderSize = 0;
+    panelContenido.Controls.Add(btnTestearConexion);
+
+    // Configurar eventos
+    EventHandler clickHandler = (s, e) => ToggleColapsarBaseDatos();
+    panelHeader.Click += clickHandler;
+    lblTitulo.Click += clickHandler;
+
+    return panel;
+}
+
+private Panel CrearSeccionRestriccionesImpresionColapsable(string titulo, int y, int ancho)
+{
+    var panel = new Panel
+    {
+        Location = new Point(10, y),
+        Size = new Size(ancho, 35),
+        BackColor = Color.FromArgb(248, 250, 252),
+        BorderStyle = BorderStyle.FixedSingle
+    };
+
+    // Header con título y botón colapsar
+    var panelHeader = new Panel
+    {
+        Location = new Point(0, 0),
+        Size = new Size(ancho, 30),
+        BackColor = Color.FromArgb(230, 235, 240),
+        Cursor = Cursors.Hand
+    };
+    panel.Controls.Add(panelHeader);
+
+    var lblTitulo = new Label
+    {
+        Text = titulo,
+        Location = new Point(10, 6),
+        Size = new Size(ancho - 50, 20),
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        ForeColor = Color.FromArgb(63, 81, 181),
+        Cursor = Cursors.Hand
+    };
+    panelHeader.Controls.Add(lblTitulo);
+
+    // Botón colapsar/expandir
+    btnColapsarRestriccionesImpresion = new Button
+    {
+        Text = "▼", // Iniciar expandido
+        Location = new Point(ancho - 35, 3),
+        Size = new Size(25, 24),
+        BackColor = Color.FromArgb(200, 200, 200),
+        ForeColor = Color.Black,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+        TextAlign = ContentAlignment.MiddleCenter,
+        UseVisualStyleBackColor = false
+    };
+    btnColapsarRestriccionesImpresion.FlatAppearance.BorderSize = 0;
+    panelHeader.Controls.Add(btnColapsarRestriccionesImpresion);
+
+    // Contenido colapsable - ALTURA AUMENTADA
+    var panelContenido = new Panel
+    {
+        Name = "panelContenidoRestriccionesImpresion",
+        Location = new Point(0, 30),
+        Size = new Size(ancho, 330), // Altura aumentada
+        BackColor = Color.FromArgb(248, 250, 252),
+        Visible = true // Iniciar expandido
+    };
+    panel.Controls.Add(panelContenido);
+
+    // === CONTENIDO DE LA SECCIÓN ===
+
+    // Descripción principal
+    var lblDescripcion = new Label
+    {
+        Text = "Configure las restricciones de impresión según los tipos de pago seleccionados:",
+        Location = new Point(15, 10),
+        Size = new Size(540, 20),
+        Font = new Font("Segoe UI", 9F),
+        ForeColor = Color.FromArgb(62, 80, 100)
+    };
+    panelContenido.Controls.Add(lblDescripcion);
+
+    // CheckBox principal para la restricción de remito
+    chkRestringirRemitoPorPago = new CheckBox
+    {
+        Text = "Restringir generación de REMITO para pagos no efectivo",
+        Location = new Point(15, 40),
+        Size = new Size(520, 25),
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        ForeColor = Color.FromArgb(62, 80, 100),
+        Checked = true // Por defecto habilitado para cumplir normativas
+    };
+    panelContenido.Controls.Add(chkRestringirRemitoPorPago);
+
+    // Descripción de la funcionalidad
+    var lblExplicacion = new Label
+    {
+        Text = "Cuando está habilitado, el sistema solo permitirá generar REMITO si el tipo de pago es 'Efectivo'.\n" +
+               "Para otros tipos de pago (DNI, MercadoPago, Débito, Crédito, etc.) solo se permitirán Facturas A o B.",
+        Location = new Point(35, 65),
+        Size = new Size(520, 40),
+        Font = new Font("Segoe UI", 8F),
+        ForeColor = Color.Gray
+    };
+    panelContenido.Controls.Add(lblExplicacion);
+
+    // CheckBox para elegir entre vista previa o impresión directa
+    chkVistaPreviaImpresionDirecta = new CheckBox
+    {
+        Text = "Usar vista previa antes de imprimir (recomendado)",
+        Location = new Point(15, 120),
+        Size = new Size(520, 25),
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        ForeColor = Color.FromArgb(62, 80, 100),
+        Checked = true // Por defecto habilitado (vista previa)
+    };
+    panelContenido.Controls.Add(chkVistaPreviaImpresionDirecta);
+
+    // Descripción de la nueva funcionalidad
+    var lblExplicacionVistaPrevia = new Label
+    {
+        Text = "• Habilitado: Se mostrará una vista previa antes de enviar el documento a la impresora.\n" +
+               "• Deshabilitado: Los comprobantes se enviarán directamente a la impresora sin confirmación.",
+        Location = new Point(35, 145),
+        Size = new Size(520, 40),
+        Font = new Font("Segoe UI", 8F),
+        ForeColor = Color.Gray
+    };
+    panelContenido.Controls.Add(lblExplicacionVistaPrevia);
+
+    // CheckBox para limitar facturación diaria
+    chkLimitarFacturacion = new CheckBox
+    {
+        Text = "Limitar facturación diaria",
+        Location = new Point(15, 200),
+        Size = new Size(520, 25),
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        ForeColor = Color.FromArgb(62, 80, 100),
+        Checked = false // Por defecto deshabilitado
+    };
+    chkLimitarFacturacion.CheckedChanged += ChkLimitarFacturacion_CheckedChanged;
+    panelContenido.Controls.Add(chkLimitarFacturacion);
+
+    // Label para el monto
+    var lblMontoLimite = new Label
+    {
+        Text = "Monto límite diario:",
+        Location = new Point(35, 230),
+        Size = new Size(120, 20),
+        Font = new Font("Segoe UI", 9F),
+        ForeColor = Color.FromArgb(62, 80, 100),
+        Visible = false
+    };
+    panelContenido.Controls.Add(lblMontoLimite);
+
+    // TextBox para el monto límite
+    txtMontoLimiteFacturacion = new TextBox
+    {
+        Location = new Point(160, 228),
+        Size = new Size(150, 22),
+        Font = new Font("Segoe UI", 9F),
+        PlaceholderText = "Ej: 50000.00",
+        Visible = false
+    };
+    // Validar que solo se ingresen números y punto decimal
+    txtMontoLimiteFacturacion.KeyPress += (s, e) =>
+    {
+        if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && 
+            e.KeyChar != '.' && e.KeyChar != ',')
+        {
+            e.Handled = true;
+        }
+        
+        // Solo permitir un punto decimal
+        if ((e.KeyChar == '.' || e.KeyChar == ',') && 
+            (txtMontoLimiteFacturacion.Text.Contains(".") || 
+             txtMontoLimiteFacturacion.Text.Contains(",")))
+        {
+            e.Handled = true;
+        }
+    };
+    panelContenido.Controls.Add(txtMontoLimiteFacturacion);
+
+    // Descripción de la funcionalidad
+    var lblExplicacionLimite = new Label
+    {
+        Text = "Cuando está habilitado, el sistema impedirá generar facturas si se supera el monto límite diario.\n" +
+               "El límite se verifica sumando todas las facturas del día actual.",
+        Location = new Point(35, 255),
+        Size = new Size(520, 40),
+        Font = new Font("Segoe UI", 8F),
+        ForeColor = Color.Gray,
+        Visible = false
+    };
+    panelContenido.Controls.Add(lblExplicacionLimite);
+
+    // Configurar eventos
+    EventHandler clickHandler = (s, e) => ToggleColapsarRestriccionesImpresion();
+    panelHeader.Click += clickHandler;
+    lblTitulo.Click += clickHandler;
+
+    return panel;
+}
+
+private void CrearBotones(int yPosition, int panelWidth)
+{
+    int margin = 20;
+    int anchoBotonGuardar = 160;
+    int anchoBotonCancelar = 100;
+    int espacioEntreBotones = 20;
+    
+    int totalAnchoBotones = anchoBotonGuardar + espacioEntreBotones + anchoBotonCancelar;
+    int inicioX = margin + (panelWidth - totalAnchoBotones) / 2;
+
+    btnGuardar = new Button
+    {
+        Text = "💾 Guardar Configuración",
+        Location = new Point(inicioX, yPosition),
+        Size = new Size(anchoBotonGuardar, 32),
+        BackColor = Color.FromArgb(76, 175, 80),
+        ForeColor = Color.White,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        TextAlign = ContentAlignment.MiddleCenter,
+        UseVisualStyleBackColor = false
+    };
+    btnGuardar.FlatAppearance.BorderSize = 0;
+    this.Controls.Add(btnGuardar);
+
+    btnCancelar = new Button
+    {
+        Text = "❌ Cancelar",
+        Location = new Point(inicioX + anchoBotonGuardar + espacioEntreBotones, yPosition),
+        Size = new Size(anchoBotonCancelar, 32),
+        BackColor = Color.FromArgb(158, 158, 158),
+        ForeColor = Color.White,
+        FlatStyle = FlatStyle.Flat,
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        TextAlign = ContentAlignment.MiddleCenter,
+        UseVisualStyleBackColor = false
+    };
+    btnCancelar.FlatAppearance.BorderSize = 0;
+    this.Controls.Add(btnCancelar);
+}
     }
 }
