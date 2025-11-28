@@ -71,6 +71,14 @@ namespace Comercio.NET
 
         public bool InicializacionExitosa { get; private set; }
 
+        // ✅ NUEVO: Variables para detectar entrada de lector de código de barras
+        private DateTime ultimaTeclaPresionada = DateTime.MinValue;
+        private const int UMBRAL_MILISEGUNDOS_SCANNER = 50; // Tiempo entre teclas para considerar scanner
+        private bool esEntradaDeScanner = false;
+
+        // ✅ AGREGAR: Variable para controlar si ya se mostró el mensaje del scanner
+        private bool mensajeScannerMostrado = false;
+
         public Ventas()
         {
             if (!VerificarYSolicitarTurnoAbierto())
@@ -842,28 +850,20 @@ namespace Comercio.NET
         {
             if (txtPrecio != null)
             {
-                // CORREGIDO: Configurar evento Enter para txtPrecio
-                txtPrecio.KeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Enter)
-                    {
-                        e.SuppressKeyPress = true;
-                        // Si el precio está habilitado y tiene valor válido, ir al botón agregar
-                        if (txtPrecio.Enabled && !string.IsNullOrWhiteSpace(txtPrecio.Text))
-                        {
-                            btnAgregar.Focus();
-                        }
-                        else
-                        {
-                            // Si no, seguir la navegación normal
-                            this.SelectNextControl(txtPrecio, true, true, true, true);
-                        }
-                    }
-                };
+                // ✅ CRÍTICO: KeyDown ANTES que KeyPress para detectar primero
+                txtPrecio.KeyDown += TxtPrecio_KeyDown;
 
                 txtPrecio.KeyPress += (s, e) =>
                 {
                     TextBox textBox = s as TextBox;
+
+                    // ✅ CRÍTICO: Bloquear TODA entrada si es del scanner
+                    if (esEntradaDeScanner)
+                    {
+                        e.Handled = true; // Bloquear el carácter
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [PRECIO] Carácter '{e.KeyChar}' bloqueado (scanner detectado)");
+                        return; // ✅ NO HACER NADA MÁS - mantener foco aquí
+                    }
 
                     // Permitir teclas de control (Backspace, Delete, etc.)
                     if (char.IsControl(e.KeyChar))
@@ -871,17 +871,16 @@ namespace Comercio.NET
                         return;
                     }
 
-                    // ✅ NUEVO: Permitir el signo menos (-) SOLO al inicio del texto
+                    // Permitir el signo menos (-) SOLO al inicio del texto
                     if (e.KeyChar == '-')
                     {
-                        // Solo permitir si está al inicio y no hay otro signo menos
                         if (textBox.SelectionStart == 0 && !textBox.Text.Contains("-"))
                         {
-                            return; // Permitir el signo menos
+                            return;
                         }
                         else
                         {
-                            e.Handled = true; // Bloquear si no está al inicio o ya existe
+                            e.Handled = true;
                             return;
                         }
                     }
@@ -904,9 +903,158 @@ namespace Comercio.NET
                     {
                         e.Handled = true;
                     }
+
+                    //Limitar a 6 dígitos(excluyendo el punto decimal y el signo menos)
+                    int digitosActuales = textBox.Text.Count(c => char.IsDigit(c));
+
+                    if (digitosActuales >= 6 && char.IsDigit(e.KeyChar))
+                    {
+                        e.Handled = true;
+                        System.Diagnostics.Debug.WriteLine("⚠️ Límite de 6 dígitos alcanzado en precio");
+                        return;
+                    }
                 };
 
-                txtPrecio.Enter += (s, e) => txtPrecio.SelectAll();
+                // ✅ MODIFICADO: TextChanged - SOLO limpiar si detecta scanner Y hay contenido
+                txtPrecio.TextChanged += (s, e) =>
+                {
+                    TextBox textBox = s as TextBox;
+
+                    // ✅ Si detectamos scanner Y hay texto, limpiarlo SOLO UNA VEZ
+                    if (esEntradaDeScanner && textBox.Text.Length > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [PRECIO] Limpiando entrada de scanner: '{textBox.Text}'");
+                        textBox.Clear();
+                        // ✅ NO cambiar foco - mantenerlo aquí en txtPrecio
+                        return;
+                    }
+
+                    // ✅ Solo procesar si NO es entrada de scanner
+                    if (esEntradaDeScanner)
+                    {
+                        return; // No procesar más si es scanner
+                    }
+
+                    // Guardar la posición del cursor
+                    //int selectionStart = textBox.SelectionStart;
+
+                    // Obtener solo los dígitos, punto y signo menos
+                    //string textoLimpio = new string(textBox.Text.Where(c => char.IsDigit(c) || c == '-' || c == '.').ToArray());
+
+                    // Si el texto cambió, actualizar
+                    //if (textBox.Text != textoLimpio)
+                    //{
+                    //    textBox.Text = textoLimpio;
+                    //    textBox.SelectionStart = Math.Min(selectionStart, textBox.Text.Length);
+                    //}
+
+                    //// Validar que no supere 6 dígitos
+                    //int digitosActuales = textoLimpio.Count(c => char.IsDigit(c));
+                    //if (digitosActuales > 6)
+                    //{
+                    //    string signo = textoLimpio.StartsWith("-") ? "-" : "";
+                    //    string soloDigitos = new string(textoLimpio.Where(char.IsDigit).ToArray());
+                    //    textBox.Text = signo + soloDigitos.Substring(0, 6);
+                    //    textBox.SelectionStart = textBox.Text.Length;
+                    //}
+                };
+
+                // ✅ CRÍTICO: Resetear flag SOLO cuando pierde foco
+                txtPrecio.Leave += (s, e) =>
+                {
+                    esEntradaDeScanner = false;
+                    ultimaTeclaPresionada = DateTime.MinValue;
+                    System.Diagnostics.Debug.WriteLine("[PRECIO] Flag scanner reseteado al PERDER foco");
+                };
+
+                txtPrecio.Enter += (s, e) =>
+                {
+                    txtPrecio.SelectAll();
+                    System.Diagnostics.Debug.WriteLine("[PRECIO] Campo enfocado - flag scanner actual: " + esEntradaDeScanner);
+                };
+            }
+        }
+
+        // ✅ CORREGIDO: Método KeyDown - NO cambiar foco, SOLO bloquear y limpiar
+        private void TxtPrecio_KeyDown(object sender, KeyEventArgs e)
+        {
+            DateTime ahora = DateTime.Now;
+            double intervalo = (ahora - ultimaTeclaPresionada).TotalMilliseconds;
+
+            // ✅ Inicializar timestamp en la primera tecla
+            if (ultimaTeclaPresionada == DateTime.MinValue)
+            {
+                ultimaTeclaPresionada = ahora;
+                return;
+            }
+
+            ultimaTeclaPresionada = ahora;
+
+            // ✅ Detectar entrada rápida (scanner)
+            if (intervalo > 0 && intervalo < UMBRAL_MILISEGUNDOS_SCANNER)
+            {
+                esEntradaDeScanner = true;
+                System.Diagnostics.Debug.WriteLine($"🚨 [PRECIO] SCANNER DETECTADO - Intervalo: {intervalo:F2}ms");
+
+                // ✅ Bloquear inmediatamente la tecla
+                e.SuppressKeyPress = true;
+                e.Handled = true;
+
+                // ✅✅✅ CRÍTICO: Limpiar el campo inmediatamente
+                ((TextBox)sender).Clear();
+                System.Diagnostics.Debug.WriteLine("🧹 [PRECIO] Campo limpiado automáticamente");
+
+                // ✅ Mostrar advertencia SOLO la primera vez usando el campo de clase
+                if (!mensajeScannerMostrado)
+                {
+                    mensajeScannerMostrado = true;
+
+                    // ✅ Mostrar advertencia sin bloquear el hilo
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(100); // Esperar a que termine el escaneo
+
+                        // Volver al hilo de UI para mostrar el mensaje
+                        if (this.IsHandleCreated && !this.IsDisposed)
+                        {
+                            this.Invoke(new Action(() =>
+                            {
+                                MessageBox.Show(
+                                    "⚠️ ENTRADA BLOQUEADA\n\n" +
+                                    "No se permite escanear códigos de barras en el campo de precio.\n\n" +
+                                    "Por favor, ingrese el precio manualmente con el teclado.",
+                                    "Scanner Detectado",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+
+                                // Resetear para permitir mostrar de nuevo en futuras ocasiones
+                                mensajeScannerMostrado = false;
+                            }));
+                        }
+                    });
+                }
+
+                // ✅ NO cambiar foco - mantenerlo en txtPrecio
+                return;
+            }
+            else if (intervalo >= UMBRAL_MILISEGUNDOS_SCANNER)
+            {
+                esEntradaDeScanner = false;
+                System.Diagnostics.Debug.WriteLine($"✅ [PRECIO] Teclado manual - Intervalo: {intervalo:F2}ms");
+            }
+
+            // Manejar Enter normalmente solo si NO es scanner
+            if (e.KeyCode == Keys.Enter && !esEntradaDeScanner)
+            {
+                e.SuppressKeyPress = true;
+                if (txtPrecio.Enabled && !string.IsNullOrWhiteSpace(txtPrecio.Text))
+                {
+                    btnAgregar.Focus();
+                }
+                else
+                {
+                    this.SelectNextControl(txtPrecio, true, true, true, true);
+                }
             }
         }
 
