@@ -37,6 +37,7 @@ namespace Comercio.NET
             ConfigurarMenuCaja(); // ✅ AGREGAR ESTA LÍNEA
             AgregarBotonCierreTurnoToolbar(); // ✅ AGREGAR ESTA LÍNEA
             AgregarActualizacionRapidaAlMenu();
+            AgregarOpcionGestionOfertas(); // AGREGADO
         }
 
         // NUEVO: Método para configurar el ícono de configuración
@@ -1895,6 +1896,268 @@ private void AgregarActualizacionRapidaAlMenu()
             catch (Exception ex)
             {
                 MessageBox.Show($"Error abriendo historial: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // AGREGAR en el método ConfigurarMenu() o donde tengas los botones/menús:
+        private void AgregarOpcionGestionOfertas()
+        {
+            try
+            {
+                if (this.menuStrip == null) return;
+
+                // Buscar el menú "Productos" para agregar la opción ahí
+                var productosMenuItem = this.menuStrip.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Text.Contains("Productos"));
+
+                if (productosMenuItem != null)
+                {
+                    // Verificar si ya existe el item
+                    var existeItem = productosMenuItem.DropDownItems
+                        .OfType<ToolStripMenuItem>()
+                        .Any(i => i.Name == "ofertasYCombosToolStripMenuItem");
+
+                    if (!existeItem)
+                    {
+                        // Agregar separador si no existe
+                        if (productosMenuItem.DropDownItems.Count > 0 &&
+                            !(productosMenuItem.DropDownItems[productosMenuItem.DropDownItems.Count - 1] is ToolStripSeparator))
+                        {
+                            productosMenuItem.DropDownItems.Add(new ToolStripSeparator());
+                        }
+
+                        // Crear el item de Ofertas y Combos
+                        var menuOfertas = new ToolStripMenuItem
+                        {
+                            Name = "ofertasYCombosToolStripMenuItem",
+                            Text = "🎁 Ofertas y Combos",
+                            ToolTipText = "Gestionar ofertas y descuentos por cantidad"
+                        };
+                        menuOfertas.Click += (s, e) => AbrirGestionOfertas();
+
+                        productosMenuItem.DropDownItems.Add(menuOfertas);
+                        System.Diagnostics.Debug.WriteLine("✅ Item 'Ofertas y Combos' agregado al menú Productos");
+                    }
+                }
+                else
+                {
+                    // Si no existe el menú Productos, crearlo
+                    CrearMenuProductosConOfertas();
+                }
+
+                // También agregar botón a la toolbar
+                AgregarBotonOfertasToolbar();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando ofertas al menú: {ex.Message}");
+            }
+        }
+
+        // ✅ NUEVO: Crear menú Productos si no existe
+        private void CrearMenuProductosConOfertas()
+        {
+            try
+            {
+                var menuProductos = new ToolStripMenuItem("Productos")
+                {
+                    Name = "productosToolStripMenuItem"
+                };
+
+                // ABM Productos
+                var itemAbmProductos = new ToolStripMenuItem("ABM Productos", null, productosToolStripMenuItem_Click)
+                {
+                    Name = "abmProductosToolStripMenuItem"
+                };
+
+                // Ofertas
+                var itemOfertas = new ToolStripMenuItem("🎁 Ofertas y Combos", null, (s, e) => AbrirGestionOfertas())
+                {
+                    Name = "ofertasYCombosToolStripMenuItem"
+                };
+
+                menuProductos.DropDownItems.Add(itemAbmProductos);
+                menuProductos.DropDownItems.Add(new ToolStripSeparator());
+                menuProductos.DropDownItems.Add(itemOfertas);
+
+                // Insertar después del menú "Ventas" si existe
+                int insertIndex = -1;
+                var ventasMenu = this.menuStrip.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Text.Contains("Ventas"));
+
+                if (ventasMenu != null)
+                {
+                    insertIndex = this.menuStrip.Items.IndexOf(ventasMenu) + 1;
+                }
+
+                if (insertIndex >= 0 && insertIndex <= this.menuStrip.Items.Count)
+                {
+                    this.menuStrip.Items.Insert(insertIndex, menuProductos);
+                }
+                else
+                {
+                    this.menuStrip.Items.Add(menuProductos);
+                }
+
+                System.Diagnostics.Debug.WriteLine("✅ Menú 'Productos' creado con Ofertas");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error creando menú Productos: {ex.Message}");
+            }
+        }
+
+        // ✅ NUEVO: Agregar botón a la toolbar
+        private void AgregarBotonOfertasToolbar()
+        {
+            try
+            {
+                if (this.toolStrip == null) return;
+
+                // Verificar si ya existe el botón
+                var botonExistente = this.toolStrip.Items
+                    .OfType<ToolStripButton>()
+                    .FirstOrDefault(b => b.Name == "toolStripOfertas");
+
+                if (botonExistente == null)
+                {
+                    var btnOfertas = new ToolStripButton
+                    {
+                        Name = "toolStripOfertas",
+                        Text = "🎁 Ofertas",
+                        ToolTipText = "Gestión de Ofertas y Combos",
+                        DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                        ImageTransparentColor = System.Drawing.Color.Magenta,
+                        TextImageRelation = TextImageRelation.ImageBeforeText
+                    };
+
+                    btnOfertas.Image = CrearIconoOfertas();
+                    btnOfertas.Click += (s, e) => AbrirGestionOfertas();
+
+                    // Buscar posición después del botón de Productos
+                    int insertIndex = -1;
+                    var btnProductos = this.toolStrip.Items
+                        .OfType<ToolStripButton>()
+                        .FirstOrDefault(b => b.Name == "toolStripProductos");
+
+                    if (btnProductos != null)
+                    {
+                        insertIndex = this.toolStrip.Items.IndexOf(btnProductos) + 1;
+                    }
+
+                    if (insertIndex >= 0 && insertIndex < this.toolStrip.Items.Count)
+                    {
+                        this.toolStrip.Items.Insert(insertIndex, btnOfertas);
+                    }
+                    else
+                    {
+                        this.toolStrip.Items.Add(btnOfertas);
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("✅ Botón 'Ofertas' agregado a la toolbar");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando botón ofertas a toolbar: {ex.Message}");
+            }
+        }
+
+        // ✅ NUEVO: Crear ícono para ofertas
+        private Bitmap CrearIconoOfertas()
+        {
+            var bitmap = new Bitmap(32, 32);
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent);
+
+                // Dibujar etiqueta de oferta (forma de etiqueta de precio)
+                using (var brush = new SolidBrush(Color.FromArgb(255, 152, 0)))
+                using (var pen = new Pen(Color.FromArgb(230, 81, 0), 2))
+                {
+                    // Cuerpo de la etiqueta
+                    Point[] tag = new Point[]
+                    {
+                new Point(8, 8),
+                new Point(24, 8),
+                new Point(28, 16),
+                new Point(24, 24),
+                new Point(8, 24),
+                new Point(4, 16)
+                    };
+                    g.FillPolygon(brush, tag);
+                    g.DrawPolygon(pen, tag);
+
+                    // Agujero de la etiqueta
+                    using (var brushHole = new SolidBrush(Color.White))
+                    {
+                        g.FillEllipse(brushHole, 20, 14, 4, 4);
+                    }
+
+                    // Símbolo de porcentaje (%)
+                    using (var font = new Font("Arial", 10F, FontStyle.Bold))
+                    using (var brushText = new SolidBrush(Color.White))
+                    {
+                        g.DrawString("%", font, brushText, 8, 12);
+                    }
+                }
+            }
+            return bitmap;
+        }
+
+        // ✅ MÉTODO PRINCIPAL: Abrir formulario de gestión de ofertas
+        private void AbrirGestionOfertas()
+        {
+            try
+            {
+                // Verificar permisos
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+
+                    // Solo administradores o usuarios con permiso de editar precios
+                    if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
+                    {
+                        // Verificar si ya está abierto
+                        foreach (Form form in this.MdiChildren)
+                        {
+                            if (form is GestionOfertasForm)
+                            {
+                                form.Activate();
+                                return;
+                            }
+                        }
+
+                        // Abrir como hijo del MDI
+                        var formOfertas = new GestionOfertasForm();
+                        formOfertas.MdiParent = this;
+                        formOfertas.Show();
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para gestionar ofertas.\n\n" +
+                            "Este módulo requiere el permiso 'Editar Precios'.\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir gestión de ofertas: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
