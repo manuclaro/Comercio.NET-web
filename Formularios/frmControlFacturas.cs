@@ -52,6 +52,8 @@ namespace Comercio.NET.Formularios
         private Button btnCheckedComboTipo;
         private ToolStripDropDown dropDownTipo;
 
+        private Button btnEstadisticasOfertas; // NUEVO: Botón para estadísticas de ofertas
+
         // AGREGAR: Clase auxiliar para los datos de la factura
         private class DatosFactura
         {
@@ -297,13 +299,40 @@ namespace Comercio.NET.Formularios
             btnIvaTop.FlatAppearance.BorderSize = 0;
             btnIvaTop.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnIvaTop.ForeColor = Color.White;
-            btnIvaTop.Size = new Size(70, 28);
+            btnIvaTop.Size = new Size(50, 28);
             btnIvaTop.Text = "IVA";
             btnIvaTop.UseVisualStyleBackColor = false;
             btnIvaTop.Click += BtnResumenIva_Click;
-            btnIvaTop.Location = new Point(panelFiltros.Width - 80, y1);
+            btnIvaTop.Location = new Point(panelFiltros.Width - 60, y1);
             btnIvaTop.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             panelFiltros.Controls.Add(btnIvaTop);
+
+            // ✅ NUEVO: Botón de Estadísticas de Ofertas (entre Auditoría e IVA)
+            btnEstadisticasOfertas = new Button();
+            btnEstadisticasOfertas.BackColor = Color.FromArgb(0, 150, 136);
+            btnEstadisticasOfertas.FlatStyle = FlatStyle.Flat;
+            btnEstadisticasOfertas.FlatAppearance.BorderSize = 0;
+            btnEstadisticasOfertas.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnEstadisticasOfertas.ForeColor = Color.White;
+            btnEstadisticasOfertas.Size = new Size(90, 28);
+            btnEstadisticasOfertas.Text = "🎁 Ofertas";
+            btnEstadisticasOfertas.UseVisualStyleBackColor = false;
+            btnEstadisticasOfertas.Location = new Point(panelFiltros.Width - 158, y1); // Entre Auditoría e IVA
+            btnEstadisticasOfertas.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnEstadisticasOfertas.Click += (s, e) =>
+            {
+                try
+                {
+                    var formEstadisticas = new EstadisticasOfertasForm();
+                    formEstadisticas.ShowDialog(this);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al abrir estadísticas de ofertas: {ex.Message}",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            panelFiltros.Controls.Add(btnEstadisticasOfertas);
 
             btnAuditoriaEliminados.BackColor = Color.FromArgb(255, 152, 0);
             btnAuditoriaEliminados.FlatStyle = FlatStyle.Flat;
@@ -314,7 +343,7 @@ namespace Comercio.NET.Formularios
             btnAuditoriaEliminados.Text = "🗑️ Auditoría";
             btnAuditoriaEliminados.UseVisualStyleBackColor = false;
             btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click;
-            btnAuditoriaEliminados.Location = new Point(panelFiltros.Width - 198, y1);
+            btnAuditoriaEliminados.Location = new Point(panelFiltros.Width - 278, y1);
             btnAuditoriaEliminados.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             panelFiltros.Controls.Add(btnAuditoriaEliminados);
 
@@ -781,9 +810,13 @@ namespace Comercio.NET.Formularios
             dataGridViewCellStyle1.ForeColor = Color.Black;
             dataGridViewCellStyle1.SelectionBackColor = Color.FromArgb(248, 249, 250);
             dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True; // ✅ Mantener wrap habilitado
+            dataGridViewCellStyle1.Padding = new Padding(3, 2, 3, 2); // ✅ NUEVO: Agregar padding
+    
             dgvDetalle.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
-            dgvDetalle.ColumnHeadersHeight = 35;
+            dgvDetalle.ColumnHeadersHeight = 55; // ✅ AUMENTADO de 50 a 55 píxeles
+            dgvDetalle.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing; // ✅ CAMBIO: Habilitar resizing
+
             frmDetalle.Controls.Add(dgvDetalle);
 
             // Panel para mostrar totales y formas de pago (altura aumentada)
@@ -1756,7 +1789,7 @@ namespace Comercio.NET.Formularios
 
                                 frmDetalle.Text = titulo;
                             }
-                            else
+ else
                             {
                                 frmDetalle.Text = $"Detalle de Comprobante N° {nroFactura}";
                             }
@@ -2179,6 +2212,7 @@ namespace Comercio.NET.Formularios
                        "Error Cálculo Totales", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
 
         // AGREGAR: Event handler para el botón de auditoría de eliminados
         private void BtnAuditoriaEliminados_Click(object sender, EventArgs e)
