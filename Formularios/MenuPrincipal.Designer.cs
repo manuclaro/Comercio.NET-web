@@ -191,7 +191,8 @@
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem, compraProveedoresToolStripMenuItem });
+            //modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, productosToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem, compraProveedoresToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem, compraProveedoresToolStripMenuItem }); modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";

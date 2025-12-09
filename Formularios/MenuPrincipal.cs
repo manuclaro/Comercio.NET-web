@@ -32,12 +32,13 @@ namespace Comercio.NET
             ConfigurarMenuSegunPermisos();
             ConfigurarIconoConfiguracion();
             AgregarMenuProveedores();
+            CrearMenuProductos(); // ✅ AGREGAR ESTA LÍNEA - crea el menú en la posición correcta
             MoverCompraProveedoresAMenuProveedores();
             AgregarMenuCaja();
-            ConfigurarMenuCaja(); // ✅ AGREGAR ESTA LÍNEA
-            AgregarBotonCierreTurnoToolbar(); // ✅ AGREGAR ESTA LÍNEA
+            ConfigurarMenuCaja();
+            AgregarBotonCierreTurnoToolbar();
             AgregarActualizacionRapidaAlMenu();
-            AgregarOpcionGestionOfertas(); // AGREGADO
+            AgregarOpcionGestionOfertas();
         }
 
         // NUEVO: Método para configurar el ícono de configuración
@@ -865,112 +866,7 @@ namespace Comercio.NET
             }
         }
 
-        // MODIFICADO el método AgregarMenuProveedores existente:
-        private void AgregarMenuProveedores()
-        {
-            try
-            {
-                if (this.menuStrip != null)
-                {
-                    // Evitar duplicados
-                    if (!this.menuStrip.Items.Cast<ToolStripItem>().Any(i => string.Equals(i.Name, "proveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase)))
-                    {
-                        var menu = new ToolStripMenuItem("Proveedores") { Name = "proveedoresToolStripMenuItem" };
-
-                        var submenuAbm = new ToolStripMenuItem("ABM Proveedores", null, (s, e) =>
-                        {
-                            // abrir como MDI child
-                            foreach (Form f in this.MdiChildren)
-                                if (f is Comercio.NET.Formularios.ProveedoresForm) { f.Activate(); return; }
-
-                            var frm = new Comercio.NET.Formularios.ProveedoresForm { MdiParent = this };
-                            frm.Show();
-                        })
-                        { Name = "abmProveedoresToolStripMenuItem" };
-
-                        // Intentar detectar si ya existe el item top-level "compraProveedoresToolStripMenuItem"
-                        ToolStripItem existingCompraItem = this.menuStrip.Items
-                            .Cast<ToolStripItem>()
-                            .FirstOrDefault(i =>
-                                string.Equals(i.Name, "compraProveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(i.Text, "Compras Proveedores", StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(i.Text, "Compra Proveedores", StringComparison.OrdinalIgnoreCase));
-
-                        // Construir menú en el orden deseado:
-                        // 1) ABM Proveedores
-                        // 2) separador
-                        // 3) Cargar Compra (existingCompraItem si existe)
-                        // 4) separador
-                        // 5) Control Compras
-                        // 6) separador
-                        // 7) Cuenta Corriente <- NUEVO
-                        menu.DropDownItems.Add(submenuAbm);
-                        menu.DropDownItems.Add(new ToolStripSeparator());
-
-                        // Preparar el item "Control Compras" (siempre disponible)
-                        var submenuControlCompras = new ToolStripMenuItem("Control Compras", null, ControlComprasToolStripMenuItem_Click)
-                        {
-                            Name = "controlComprasToolStripMenuItem"
-                        };
-
-                        // ✅ NUEVO: item para CtaCte Proveedores (SIN ÍCONO)
-                        var submenuCtaCte = new ToolStripMenuItem("Cuenta Corriente Proveedores", null, CtaCteProveedoresToolStripMenuItem_Click)
-                        {
-                            Name = "ctaCteProveedoresToolStripMenuItem"
-                            // Sin propiedad Image - no hay ícono
-                        };
-
-                        if (existingCompraItem != null)
-                        {
-                            // Si ya existe, removerlo de su ubicación actual y reubicarlo aquí (evita duplicados)
-                            if (existingCompraItem.OwnerItem is ToolStripMenuItem ownerMenu)
-                            {
-                                ownerMenu.DropDownItems.Remove(existingCompraItem);
-                            }
-                            else
-                            {
-                                // era top-level
-                                menuStrip.Items.Remove(existingCompraItem);
-                            }
-
-                            // Añadir "Cargar Compra" justo debajo del separador
-                            menu.DropDownItems.Add(existingCompraItem);
-
-                            // separador entre Cargar Compra y Control Compras
-                            menu.DropDownItems.Add(new ToolStripSeparator());
-
-                            // añadir Control Compras debajo de Cargar Compra
-                            menu.DropDownItems.Add(submenuControlCompras);
-                        }
-                        else
-                        {
-                            // Si no existe el item "Cargar Compra" se añade sólo Control Compras
-                            menu.DropDownItems.Add(submenuControlCompras);
-                        }
-
-                        // ✅ Añadir separador y luego el item CtaCte (colocado después de Control Compras)
-                        menu.DropDownItems.Add(new ToolStripSeparator());
-                        menu.DropDownItems.Add(submenuCtaCte);
-
-                        // Insertar el menú "Proveedores" antes de "Ver" (viewMenu) si existe, para moverlo más a la izquierda
-                        int insertIndex = -1;
-                        if (menuStrip.Items.Contains(viewMenu))
-                        {
-                            insertIndex = menuStrip.Items.IndexOf(viewMenu);
-                        }
-
-                        if (insertIndex >= 0)
-                            menuStrip.Items.Insert(insertIndex, menu);
-                        else
-                            this.menuStrip.Items.Add(menu);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error agregando menu Proveedores: {ex.Message}");
-            }
-        }
+        
 
         // ✅ MODIFICAR el handler para abrir CtaCte con el Form contenedor correcto:
         private void CtaCteProveedoresToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1137,6 +1033,201 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ Error reubicando Compra Proveedores: {ex.Message}");
+            }
+        }
+
+        // MODIFICADO el método AgregarMenuProveedores existente:
+        private void AgregarMenuProveedores()
+        {
+            try
+            {
+                if (this.menuStrip != null)
+                {
+                    // Evitar duplicados
+                    if (!this.menuStrip.Items.Cast<ToolStripItem>().Any(i => string.Equals(i.Name, "proveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var menu = new ToolStripMenuItem("Proveedores") { Name = "proveedoresToolStripMenuItem" };
+
+                        var submenuAbm = new ToolStripMenuItem("ABM Proveedores", null, (s, e) =>
+                        {
+                            // abrir como MDI child
+                            foreach (Form f in this.MdiChildren)
+                                if (f is Comercio.NET.Formularios.ProveedoresForm) { f.Activate(); return; }
+
+                            var frm = new Comercio.NET.Formularios.ProveedoresForm { MdiParent = this };
+                            frm.Show();
+                        })
+                        { Name = "abmProveedoresToolStripMenuItem" };
+
+                        // Intentar detectar si ya existe el item top-level "compraProveedoresToolStripMenuItem"
+                        ToolStripItem existingCompraItem = this.menuStrip.Items
+                            .Cast<ToolStripItem>()
+                            .FirstOrDefault(i =>
+                                string.Equals(i.Name, "compraProveedoresToolStripMenuItem", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(i.Text, "Compras Proveedores", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(i.Text, "Compra Proveedores", StringComparison.OrdinalIgnoreCase));
+
+                        // Construir menú en el orden deseado
+                        menu.DropDownItems.Add(submenuAbm);
+                        menu.DropDownItems.Add(new ToolStripSeparator());
+
+                        // Preparar el item "Control Compras"
+                        var submenuControlCompras = new ToolStripMenuItem("Control Compras", null, ControlComprasToolStripMenuItem_Click)
+                        {
+                            Name = "controlComprasToolStripMenuItem"
+                        };
+
+                        // Item para CtaCte Proveedores
+                        var submenuCtaCte = new ToolStripMenuItem("Cuenta Corriente Proveedores", null, CtaCteProveedoresToolStripMenuItem_Click)
+                        {
+                            Name = "ctaCteProveedoresToolStripMenuItem"
+                        };
+
+                        if (existingCompraItem != null)
+                        {
+                            if (existingCompraItem.OwnerItem is ToolStripMenuItem ownerMenu)
+                            {
+                                ownerMenu.DropDownItems.Remove(existingCompraItem);
+                            }
+                            else
+                            {
+                                menuStrip.Items.Remove(existingCompraItem);
+                            }
+
+                            menu.DropDownItems.Add(existingCompraItem);
+                            menu.DropDownItems.Add(new ToolStripSeparator());
+                            menu.DropDownItems.Add(submenuControlCompras);
+                        }
+                        else
+                        {
+                            menu.DropDownItems.Add(submenuControlCompras);
+                        }
+
+                        menu.DropDownItems.Add(new ToolStripSeparator());
+                        menu.DropDownItems.Add(submenuCtaCte);
+
+                        // ✅ MODIFICADO: Insertar "Proveedores" antes de "Ver" (viewMenu)
+                        int insertIndex = -1;
+                        if (menuStrip.Items.Contains(viewMenu))
+                        {
+                            insertIndex = menuStrip.Items.IndexOf(viewMenu);
+                        }
+
+                        if (insertIndex >= 0)
+                            menuStrip.Items.Insert(insertIndex, menu);
+                        else
+                            this.menuStrip.Items.Add(menu);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error agregando menu Proveedores: {ex.Message}");
+            }
+        }
+
+        // ✅ NUEVO: Método para crear el menú "Productos" en la posición correcta
+        private void CrearMenuProductos()
+        {
+            try
+            {
+                if (this.menuStrip == null) return;
+
+                // Verificar si ya existe el menú "Productos"
+                var productosMenuExistente = this.menuStrip.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "productosToolStripMenuItem");
+
+                if (productosMenuExistente != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ El menú 'Productos' ya existe, no se creará de nuevo.");
+                    return;
+                }
+
+                // ✅ CREAR el menú "Productos" como menú principal (SIN evento Click directo)
+                var menuProductos = new ToolStripMenuItem("Productos")
+                {
+                    Name = "productosToolStripMenuItem"
+                    // ❌ NO asignar Click aquí - será un menú con submenús
+                };
+
+                // ========================================
+                // CREAR SUBMENÚS DE PRODUCTOS
+                // ========================================
+
+                // 1. ABM Productos
+                var itemAbmProductos = new ToolStripMenuItem("📦 ABM Productos", null, productosToolStripMenuItem_Click)
+                {
+                    Name = "abmProductosToolStripMenuItem",
+                    ToolTipText = "Administración de productos (Alta, Baja, Modificación)"
+                };
+
+                // 2. Actualización Rápida (ya existe, lo agregamos aquí también)
+                var itemActualizacionRapida = new ToolStripMenuItem("⚡ Actualización Rápida Precio/Stock", null, ActualizacionRapida_Click)
+                {
+                    Name = "actualizacionRapidaToolStripMenuItem",
+                    ShortcutKeys = Keys.Control | Keys.Shift | Keys.P,
+                    ToolTipText = "Actualización rápida de precios y stock (Ctrl+Shift+P)"
+                };
+
+                // 3. Ofertas y Combos (ya existe, lo agregamos aquí también)
+                var itemOfertas = new ToolStripMenuItem("🎁 Ofertas y Combos", null, (s, e) => AbrirGestionOfertas())
+                {
+                    Name = "ofertasYCombosToolStripMenuItem",
+                    ToolTipText = "Gestionar ofertas y descuentos por cantidad"
+                };
+
+                // ========================================
+                // AGREGAR LOS SUBMENÚS AL MENÚ PRODUCTOS
+                // ========================================
+                menuProductos.DropDownItems.Add(itemAbmProductos);
+                menuProductos.DropDownItems.Add(new ToolStripSeparator());
+                menuProductos.DropDownItems.Add(itemActualizacionRapida);
+                menuProductos.DropDownItems.Add(new ToolStripSeparator());
+                menuProductos.DropDownItems.Add(itemOfertas);
+
+                // ✅ CALCULAR la posición correcta: después de "Proveedores"
+                int insertIndex = -1;
+
+                // Buscar el menú "Proveedores"
+                var proveedoresMenu = this.menuStrip.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "proveedoresToolStripMenuItem");
+
+                if (proveedoresMenu != null)
+                {
+                    // Insertar justo después de "Proveedores"
+                    insertIndex = this.menuStrip.Items.IndexOf(proveedoresMenu) + 1;
+                }
+                else
+                {
+                    // Si no existe "Proveedores", buscar "Ver" para insertar antes
+                    var verMenu = this.menuStrip.Items
+                        .OfType<ToolStripMenuItem>()
+                        .FirstOrDefault(i => i.Name == "viewMenu");
+
+                    if (verMenu != null)
+                    {
+                        insertIndex = this.menuStrip.Items.IndexOf(verMenu);
+                    }
+                }
+
+                // ✅ INSERTAR en la posición correcta
+                if (insertIndex >= 0 && insertIndex <= this.menuStrip.Items.Count)
+                {
+                    this.menuStrip.Items.Insert(insertIndex, menuProductos);
+                    System.Diagnostics.Debug.WriteLine($"✅ Menú 'Productos' creado en posición {insertIndex} con submenús");
+                }
+                else
+                {
+                    // Fallback: agregar al final
+                    this.menuStrip.Items.Add(menuProductos);
+                    System.Diagnostics.Debug.WriteLine("⚠️ Menú 'Productos' agregado al final (fallback)");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error creando menú Productos: {ex.Message}");
             }
         }
 
@@ -1317,7 +1408,7 @@ namespace Comercio.NET
             }
         }
 
-private void AgregarActualizacionRapidaAlMenu()
+        private void AgregarActualizacionRapidaAlMenu()
         {
             try
             {
@@ -1335,26 +1426,29 @@ private void AgregarActualizacionRapidaAlMenu()
                         .OfType<ToolStripMenuItem>()
                         .Any(i => i.Name == "actualizacionRapidaToolStripMenuItem");
 
-                    if (!existeItem)
+                    if (existeItem)
                     {
-                        // Agregar separador si no existe
-                        if (productosMenuItem.DropDownItems.Count > 0 &&
-                            !(productosMenuItem.DropDownItems[productosMenuItem.DropDownItems.Count - 1] is ToolStripSeparator))
-                        {
-                            productosMenuItem.DropDownItems.Add(new ToolStripSeparator());
-                        }
-
-                        // Crear el item de Actualización Rápida
-                        var itemActualizacionRapida = new ToolStripMenuItem("⚡ Actualización Rápida Precio/Stock", null, ActualizacionRapida_Click)
-                        {
-                            Name = "actualizacionRapidaToolStripMenuItem",
-                            ShortcutKeys = Keys.Control | Keys.Shift | Keys.P,
-                            ToolTipText = "Actualización rápida de precios y stock (Ctrl+Shift+P)"
-                        };
-
-                        productosMenuItem.DropDownItems.Add(itemActualizacionRapida);
-                        System.Diagnostics.Debug.WriteLine("✅ Item 'Actualización Rápida' agregado al menú Productos");
+                        System.Diagnostics.Debug.WriteLine("ℹ️ Item 'Actualización Rápida' ya existe en el menú Productos");
+                        return; // ✅ Ya existe, no agregarlo de nuevo
                     }
+
+                    // Agregar separador si no existe
+                    if (productosMenuItem.DropDownItems.Count > 0 &&
+                        !(productosMenuItem.DropDownItems[productosMenuItem.DropDownItems.Count - 1] is ToolStripSeparator))
+                    {
+                        productosMenuItem.DropDownItems.Add(new ToolStripSeparator());
+                    }
+
+                    // Crear el item de Actualización Rápida
+                    var itemActualizacionRapida = new ToolStripMenuItem("⚡ Actualización Rápida Precio/Stock", null, ActualizacionRapida_Click)
+                    {
+                        Name = "actualizacionRapidaToolStripMenuItem",
+                        ShortcutKeys = Keys.Control | Keys.Shift | Keys.P,
+                        ToolTipText = "Actualización rápida de precios y stock (Ctrl+Shift+P)"
+                    };
+
+                    productosMenuItem.DropDownItems.Add(itemActualizacionRapida);
+                    System.Diagnostics.Debug.WriteLine("✅ Item 'Actualización Rápida' agregado al menú Productos");
                 }
 
                 // También agregar botón a la toolbar
@@ -1919,32 +2013,35 @@ private void AgregarActualizacionRapidaAlMenu()
                         .OfType<ToolStripMenuItem>()
                         .Any(i => i.Name == "ofertasYCombosToolStripMenuItem");
 
-                    if (!existeItem)
+                    if (existeItem)
                     {
-                        // Agregar separador si no existe
-                        if (productosMenuItem.DropDownItems.Count > 0 &&
-                            !(productosMenuItem.DropDownItems[productosMenuItem.DropDownItems.Count - 1] is ToolStripSeparator))
-                        {
-                            productosMenuItem.DropDownItems.Add(new ToolStripSeparator());
-                        }
-
-                        // Crear el item de Ofertas y Combos
-                        var menuOfertas = new ToolStripMenuItem
-                        {
-                            Name = "ofertasYCombosToolStripMenuItem",
-                            Text = "🎁 Ofertas y Combos",
-                            ToolTipText = "Gestionar ofertas y descuentos por cantidad"
-                        };
-                        menuOfertas.Click += (s, e) => AbrirGestionOfertas();
-
-                        productosMenuItem.DropDownItems.Add(menuOfertas);
-                        System.Diagnostics.Debug.WriteLine("✅ Item 'Ofertas y Combos' agregado al menú Productos");
+                        System.Diagnostics.Debug.WriteLine("ℹ️ Item 'Ofertas y Combos' ya existe en el menú Productos");
+                        return; // ✅ Ya existe, no agregarlo de nuevo
                     }
+
+                    // Agregar separador si no existe
+                    if (productosMenuItem.DropDownItems.Count > 0 &&
+                        !(productosMenuItem.DropDownItems[productosMenuItem.DropDownItems.Count - 1] is ToolStripSeparator))
+                    {
+                        productosMenuItem.DropDownItems.Add(new ToolStripSeparator());
+                    }
+
+                    // Crear el item de Ofertas y Combos
+                    var menuOfertas = new ToolStripMenuItem
+                    {
+                        Name = "ofertasYCombosToolStripMenuItem",
+                        Text = "🎁 Ofertas y Combos",
+                        ToolTipText = "Gestionar ofertas y descuentos por cantidad"
+                    };
+                    menuOfertas.Click += (s, e) => AbrirGestionOfertas();
+
+                    productosMenuItem.DropDownItems.Add(menuOfertas);
+                    System.Diagnostics.Debug.WriteLine("✅ Item 'Ofertas y Combos' agregado al menú Productos");
                 }
                 else
                 {
-                    // Si no existe el menú Productos, crearlo
-                    CrearMenuProductosConOfertas();
+                    // Si no existe el menú Productos, crearlo (esto no debería suceder con CrearMenuProductos)
+                    System.Diagnostics.Debug.WriteLine("⚠️ Menú 'Productos' no encontrado");
                 }
 
                 // También agregar botón a la toolbar
@@ -1956,59 +2053,59 @@ private void AgregarActualizacionRapidaAlMenu()
             }
         }
 
-        // ✅ NUEVO: Crear menú Productos si no existe
-        private void CrearMenuProductosConOfertas()
-        {
-            try
-            {
-                var menuProductos = new ToolStripMenuItem("Productos")
-                {
-                    Name = "productosToolStripMenuItem"
-                };
+        //// ✅ NUEVO: Crear menú Productos si no existe
+        //private void CrearMenuProductosConOfertas()
+        //{
+        //    try
+        //    {
+        //        var menuProductos = new ToolStripMenuItem("Productos")
+        //        {
+        //            Name = "productosToolStripMenuItem"
+        //        };
 
-                // ABM Productos
-                var itemAbmProductos = new ToolStripMenuItem("ABM Productos", null, productosToolStripMenuItem_Click)
-                {
-                    Name = "abmProductosToolStripMenuItem"
-                };
+        //        // ABM Productos
+        //        var itemAbmProductos = new ToolStripMenuItem("ABM Productos", null, productosToolStripMenuItem_Click)
+        //        {
+        //            Name = "abmProductosToolStripMenuItem"
+        //        };
 
-                // Ofertas
-                var itemOfertas = new ToolStripMenuItem("🎁 Ofertas y Combos", null, (s, e) => AbrirGestionOfertas())
-                {
-                    Name = "ofertasYCombosToolStripMenuItem"
-                };
+        //        // Ofertas
+        //        var itemOfertas = new ToolStripMenuItem("🎁 Ofertas y Combos", null, (s, e) => AbrirGestionOfertas())
+        //        {
+        //            Name = "ofertasYCombosToolStripMenuItem"
+        //        };
 
-                menuProductos.DropDownItems.Add(itemAbmProductos);
-                menuProductos.DropDownItems.Add(new ToolStripSeparator());
-                menuProductos.DropDownItems.Add(itemOfertas);
+        //        menuProductos.DropDownItems.Add(itemAbmProductos);
+        //        menuProductos.DropDownItems.Add(new ToolStripSeparator());
+        //        menuProductos.DropDownItems.Add(itemOfertas);
 
-                // Insertar después del menú "Ventas" si existe
-                int insertIndex = -1;
-                var ventasMenu = this.menuStrip.Items
-                    .OfType<ToolStripMenuItem>()
-                    .FirstOrDefault(i => i.Text.Contains("Ventas"));
+        //        // Insertar después del menú "Ventas" si existe
+        //        int insertIndex = -1;
+        //        var ventasMenu = this.menuStrip.Items
+        //            .OfType<ToolStripMenuItem>()
+        //            .FirstOrDefault(i => i.Text.Contains("Ventas"));
 
-                if (ventasMenu != null)
-                {
-                    insertIndex = this.menuStrip.Items.IndexOf(ventasMenu) + 1;
-                }
+        //        if (ventasMenu != null)
+        //        {
+        //            insertIndex = this.menuStrip.Items.IndexOf(ventasMenu) + 1;
+        //        }
 
-                if (insertIndex >= 0 && insertIndex <= this.menuStrip.Items.Count)
-                {
-                    this.menuStrip.Items.Insert(insertIndex, menuProductos);
-                }
-                else
-                {
-                    this.menuStrip.Items.Add(menuProductos);
-                }
+        //        if (insertIndex >= 0 && insertIndex <= this.menuStrip.Items.Count)
+        //        {
+        //            this.menuStrip.Items.Insert(insertIndex, menuProductos);
+        //        }
+        //        else
+        //        {
+        //            this.menuStrip.Items.Add(menuProductos);
+        //        }
 
-                System.Diagnostics.Debug.WriteLine("✅ Menú 'Productos' creado con Ofertas");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"⚠️ Error creando menú Productos: {ex.Message}");
-            }
-        }
+        //        System.Diagnostics.Debug.WriteLine("✅ Menú 'Productos' creado con Ofertas");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"⚠️ Error creando menú Productos: {ex.Message}");
+        //    }
+        //}
 
         // ✅ NUEVO: Agregar botón a la toolbar
         private void AgregarBotonOfertasToolbar()
