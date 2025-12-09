@@ -1141,7 +1141,16 @@ namespace Comercio.NET
                     {
                         e.Handled = true; // Bloquear el carácter
                         System.Diagnostics.Debug.WriteLine($"⚠️ [PRECIO] Carácter '{e.KeyChar}' bloqueado (scanner detectado)");
-                        return; // ✅ NO HACER NADA MÁS - mantener foco aquí
+                        return;
+                    }
+
+                    // ✅ NUEVO: Si hay texto seleccionado, permitir que se sobrescriba
+                    if (textBox.SelectionLength > 0 && !char.IsControl(e.KeyChar))
+                    {
+                        // Eliminar el texto seleccionado primero
+                        textBox.Text = textBox.Text.Remove(textBox.SelectionStart, textBox.SelectionLength);
+                        textBox.SelectionStart = textBox.Text.Length;
+                        textBox.SelectionLength = 0;
                     }
 
                     // Permitir teclas de control (Backspace, Delete, etc.)
@@ -1183,7 +1192,7 @@ namespace Comercio.NET
                         e.Handled = true;
                     }
 
-                    //Limitar a 6 dígitos(excluyendo el punto decimal y el signo menos)
+                    // Limitar a 6 dígitos (excluyendo el punto decimal y el signo menos)
                     int digitosActuales = textBox.Text.Count(c => char.IsDigit(c));
 
                     if (digitosActuales >= 6 && char.IsDigit(e.KeyChar))
@@ -1204,38 +1213,14 @@ namespace Comercio.NET
                     {
                         System.Diagnostics.Debug.WriteLine($"⚠️ [PRECIO] Limpiando entrada de scanner: '{textBox.Text}'");
                         textBox.Clear();
-                        // ✅ NO cambiar foco - mantenerlo aquí en txtPrecio
                         return;
                     }
 
                     // ✅ Solo procesar si NO es entrada de scanner
                     if (esEntradaDeScanner)
                     {
-                        return; // No procesar más si es scanner
+                        return;
                     }
-
-                    // Guardar la posición del cursor
-                    //int selectionStart = textBox.SelectionStart;
-
-                    // Obtener solo los dígitos, punto y signo menos
-                    //string textoLimpio = new string(textBox.Text.Where(c => char.IsDigit(c) || c == '-' || c == '.').ToArray());
-
-                    // Si el texto cambió, actualizar
-                    //if (textBox.Text != textoLimpio)
-                    //{
-                    //    textBox.Text = textoLimpio;
-                    //    textBox.SelectionStart = Math.Min(selectionStart, textBox.Text.Length);
-                    //}
-
-                    //// Validar que no supere 6 dígitos
-                    //int digitosActuales = textoLimpio.Count(c => char.IsDigit(c));
-                    //if (digitosActuales > 6)
-                    //{
-                    //    string signo = textoLimpio.StartsWith("-") ? "-" : "";
-                    //    string soloDigitos = new string(textoLimpio.Where(char.IsDigit).ToArray());
-                    //    textBox.Text = signo + soloDigitos.Substring(0, 6);
-                    //    textBox.SelectionStart = textBox.Text.Length;
-                    //}
                 };
 
                 // ✅ CRÍTICO: Resetear flag SOLO cuando pierde foco
@@ -1246,10 +1231,28 @@ namespace Comercio.NET
                     System.Diagnostics.Debug.WriteLine("[PRECIO] Flag scanner reseteado al PERDER foco");
                 };
 
+                // ✅ CORREGIDO: Seleccionar todo el texto cuando obtiene foco
                 txtPrecio.Enter += (s, e) =>
                 {
-                    txtPrecio.SelectAll();
+                    TextBox textBox = s as TextBox;
+
+                    // ✅ CRÍTICO: Usar BeginInvoke para que SelectAll se ejecute DESPUÉS de que el foco esté completamente establecido
+                    textBox.BeginInvoke(new Action(() =>
+                    {
+                        textBox.SelectAll();
+                    }));
+
                     System.Diagnostics.Debug.WriteLine("[PRECIO] Campo enfocado - flag scanner actual: " + esEntradaDeScanner);
+                };
+
+                // ✅ NUEVO: Agregar MouseClick para seleccionar todo al hacer clic
+                txtPrecio.MouseClick += (s, e) =>
+                {
+                    TextBox textBox = s as TextBox;
+                    if (textBox.SelectionLength == 0)
+                    {
+                        textBox.SelectAll();
+                    }
                 };
             }
         }
@@ -1279,21 +1282,19 @@ namespace Comercio.NET
                 e.SuppressKeyPress = true;
                 e.Handled = true;
 
-                // ✅✅✅ CRÍTICO: Limpiar el campo inmediatamente
+                // ✅ Limpiar el campo inmediatamente
                 ((TextBox)sender).Clear();
                 System.Diagnostics.Debug.WriteLine("🧹 [PRECIO] Campo limpiado automáticamente");
 
-                // ✅ Mostrar advertencia SOLO la primera vez usando el campo de clase
+                // ✅ Mostrar advertencia SOLO la primera vez
                 if (!mensajeScannerMostrado)
                 {
                     mensajeScannerMostrado = true;
 
-                    // ✅ Mostrar advertencia sin bloquear el hilo
                     Task.Run(async () =>
                     {
-                        await Task.Delay(100); // Esperar a que termine el escaneo
+                        await Task.Delay(100);
 
-                        // Volver al hilo de UI para mostrar el mensaje
                         if (this.IsHandleCreated && !this.IsDisposed)
                         {
                             this.Invoke(new Action(() =>
@@ -1306,14 +1307,12 @@ namespace Comercio.NET
                                     MessageBoxButtons.OK,
                                     MessageBoxIcon.Warning);
 
-                                // Resetear para permitir mostrar de nuevo en futuras ocasiones
                                 mensajeScannerMostrado = false;
                             }));
                         }
                     });
                 }
 
-                // ✅ NO cambiar foco - mantenerlo en txtPrecio
                 return;
             }
             else if (intervalo >= UMBRAL_MILISEGUNDOS_SCANNER)
@@ -1322,16 +1321,28 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"✅ [PRECIO] Teclado manual - Intervalo: {intervalo:F2}ms");
             }
 
-            // Manejar Enter normalmente solo si NO es scanner
+            // ✅ CAMBIO CRÍTICO: Manejar Enter con ejecución directa y devolución de foco
             if (e.KeyCode == Keys.Enter && !esEntradaDeScanner)
             {
                 e.SuppressKeyPress = true;
+                e.Handled = true;
+
                 if (txtPrecio.Enabled && !string.IsNullOrWhiteSpace(txtPrecio.Text))
                 {
-                    btnAgregar.Focus();
+                    // ✅ EJECUTAR el botón Agregar
+                    btnAgregar.PerformClick();
+
+                    // ✅ DEVOLVER inmediatamente el foco a txtBuscarProducto
+                    // Usar BeginInvoke para que se ejecute después del PerformClick
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        txtBuscarProducto.Focus();
+                        txtBuscarProducto.SelectAll();
+                    }));
                 }
                 else
                 {
+                    // Si el campo está vacío o deshabilitado, ir al siguiente control
                     this.SelectNextControl(txtPrecio, true, true, true, true);
                 }
             }
@@ -1652,8 +1663,17 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine("✅ Columna IvaCalculado OCULTADA");
             }
 
-            // ✅✅✅ MEJORADO: Configurar columna descripción con fuente MÁS GRANDE, NEGRITA y MÁS ESPACIO
-            if (dataGridView1.Columns["descripcion"] != null)
+            if (dataGridView1.Columns["codigo"] != null)
+            {
+                var colCodigo = dataGridView1.Columns["codigo"];
+                colCodigo.DefaultCellStyle.Font = new Font("Segoe UI", 11F, FontStyle.Regular);
+                //colCodigo.Width = 80;
+                colCodigo.DefaultCellStyle.ForeColor = Color.FromArgb(33, 33, 33);
+                colCodigo.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+
+            }
+                // ✅✅✅ MEJORADO: Configurar columna descripción con fuente MÁS GRANDE, NEGRITA y MÁS ESPACIO
+                if (dataGridView1.Columns["descripcion"] != null)
             {
                 var colDescripcion = dataGridView1.Columns["descripcion"];
                 colDescripcion.DefaultCellStyle.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
@@ -1865,7 +1885,74 @@ namespace Comercio.NET
                 MessageBox.Show($"No se pudo abrir el formulario de Compras: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-       
+
+        // ✅ NUEVO: Método helper para finalizar venta con foco específico
+        private async void FinalizarVentaConFocoEn(SeleccionImpresionForm.BotonInicial botonInicial)
+        {
+            try
+            {
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                {
+                    MessageBox.Show("No hay productos en la venta para finalizar.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                decimal importeTotal = CalcularTotal();
+                System.Diagnostics.Debug.WriteLine($"[VENTAS] Iniciando finalización de venta con total: {importeTotal:C2}, Foco: {botonInicial}");
+
+                using (var seleccionModal = new SeleccionImpresionForm(importeTotal, this, botonInicial))
+                {
+                    // ✅ CRÍTICO: Configurar el callback ANTES de mostrar el modal
+                    seleccionModal.OnProcesarVenta = async (tipoComprobante, formaPago, cuitCliente,
+                        caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
+                    {
+                        try
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[VENTAS] OnProcesarVenta - Tipo: {tipoComprobante}, FormaPago: {formaPago}");
+
+                            // Guardar en BD
+                            await GuardarFacturaEnBD(
+                                tipoComprobante,
+                                formaPago,
+                                cuitCliente,
+                                caeNumero,
+                                caeVencimiento,
+                                numeroFacturaAfip,
+                                numeroFormateado,
+                                seleccionModal.EsPagoMultiple ? seleccionModal.PagosMultiples : null
+                            );
+
+                            System.Diagnostics.Debug.WriteLine("[VENTAS] ✅ Factura guardada en BD exitosamente");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[VENTAS] ❌ Error en OnProcesarVenta: {ex.Message}");
+                            throw;
+                        }
+                    };
+
+                    var resultado = seleccionModal.ShowDialog();
+
+                    if (resultado == DialogResult.OK)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[VENTAS] ✅ Venta finalizada exitosamente - Opción: {seleccionModal.OpcionSeleccionada}");
+                        LimpiarYReiniciarVenta();
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[VENTAS] ⚠️ Venta cancelada por el usuario");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[VENTAS] ❌ Error crítico en FinalizarVentaConFocoEn: {ex.Message}");
+                MessageBox.Show($"Error al finalizar la venta:\n\n{ex.Message}", "Error Crítico",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void ConfigurarAtajosTeclado()
         {
             this.KeyPreview = true; // Importante: permite que el formulario capture las teclas
@@ -1883,10 +1970,20 @@ namespace Comercio.NET
                     // Abrir consulta rápida de precios
                     AbrirConsultaRapidaPrecios();
                 }
-                else if (e.KeyCode == Keys.F8) // <-- AÑADIDO: abrir Compras con F8
+                else if (e.KeyCode == Keys.F8)
                 {
                     e.SuppressKeyPress = true;
                     _ = AbrirFormularioComprasAsync();
+                }
+                else if (e.KeyCode == Keys.F11)
+                {
+                    e.SuppressKeyPress = true;
+
+                    // NUEVO: Limpiar el txtBuscarProducto antes de finalizar venta
+                    txtBuscarProducto.Text = "";
+
+                    // ✅ NUEVO: Finalizar con foco en "Finalizar sin impresión"
+                    FinalizarVentaConFocoEn(SeleccionImpresionForm.BotonInicial.FinalizarSinImpresion);
                 }
                 else if (e.KeyCode == Keys.F || e.KeyCode == Keys.F12)
                 {
@@ -1895,13 +1992,11 @@ namespace Comercio.NET
                     // NUEVO: Limpiar el txtBuscarProducto antes de finalizar venta
                     txtBuscarProducto.Text = "";
 
-                    // ÚNICO LUGAR donde se maneja F para finalizar venta
-                    btnFinalizarVenta.PerformClick();
+                    // ✅ MODIFICADO: Finalizar con foco en "Remito" (comportamiento actual)
+                    FinalizarVentaConFocoEn(SeleccionImpresionForm.BotonInicial.Remito);
                 }
             };
         }
-
-
 
         private void ConfigurarCheckboxCantidad()
         {
@@ -2941,7 +3036,7 @@ namespace Comercio.NET
             {
                 dataGridView1.Columns["codigo"].HeaderText = "Codigo";
                 dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["codigo"].Width = 100;
+                dataGridView1.Columns["codigo"].Width = 120;
             }
 
             if (dataGridView1.Columns["descripcion"] != null)
@@ -3029,7 +3124,7 @@ namespace Comercio.NET
             // Mostrar en RichTextBox
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
-            rtbTotal.SelectionFont = new Font("Segoe UI", 22F, FontStyle.Bold);
+            rtbTotal.SelectionFont = new Font("Segoe UI", 28F, FontStyle.Bold);
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
         }
 
@@ -3177,19 +3272,19 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"[VENTAS] ✅ Venta finalizada exitosamente - Opción: {seleccionModal.OpcionSeleccionada}");
 
                         // ✅ NUEVO: Verificar si finalizó sin impresión
-                        if (seleccionModal.FinalizadoSinImpresion)
-                        {
-                            System.Diagnostics.Debug.WriteLine("[VENTAS] ℹ️ Venta finalizada sin impresión");
-                            MessageBox.Show(
-                                "Venta registrada exitosamente sin impresión de comprobante.",
-                                "Venta Finalizada",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[VENTAS] ℹ️ Comprobante: {seleccionModal.OpcionSeleccionada}");
-                        }
+                        //if (seleccionModal.FinalizadoSinImpresion)
+                        //{
+                        //    System.Diagnostics.Debug.WriteLine("[VENTAS] ℹ️ Venta finalizada sin impresión");
+                        //    MessageBox.Show(
+                        //        "Venta registrada exitosamente sin impresión de comprobante.",
+                        //        "Venta Finalizada",
+                        //        MessageBoxButtons.OK,
+                        //        MessageBoxIcon.Information);
+                        //}
+                        //else
+                        //{
+                        //    System.Diagnostics.Debug.WriteLine($"[VENTAS] ℹ️ Comprobante: {seleccionModal.OpcionSeleccionada}");
+                        //}
 
                         // Limpiar y reiniciar para nueva venta
                         LimpiarYReiniciarVenta();

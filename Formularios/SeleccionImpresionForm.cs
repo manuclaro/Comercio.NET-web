@@ -1,17 +1,18 @@
-﻿using System;
-using System.Windows.Forms;
+﻿using Comercio.NET.Controles;
+using Comercio.NET.Servicios;
 using Microsoft.Extensions.Configuration;
-using System.Data.SqlClient;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing.Printing;
 using System.Globalization;
-using System.ServiceModel;
-using System.Threading.Tasks;
-using Comercio.NET.Servicios;
-using Comercio.NET.Controles;
 using System.Linq;
-using System.Collections.Generic;
+using System.ServiceModel;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static Comercio.NET.SeleccionImpresionForm;
 
 namespace Comercio.NET
 {
@@ -33,8 +34,16 @@ namespace Comercio.NET
             Otro  // NUEVO
         }
 
+        // ✅ NUEVO: Enum para especificar el botón inicial con foco
+        public enum BotonInicial
+        {
+            Remito,
+            FinalizarSinImpresion
+        }
+
         public OpcionImpresion OpcionSeleccionada { get; private set; } = OpcionImpresion.Ninguna;
         public OpcionPago OpcionPagoSeleccionada { get; private set; } = OpcionPago.Efectivo;
+
 
         private TextBox txtCuit;
         private Label lblRazonSocial;
@@ -83,6 +92,8 @@ namespace Comercio.NET
 
         private decimal importeTotalVenta;
         private Ventas formularioPadre;
+        private BotonInicial botonInicialFoco;
+
 
         // ELIMINADO: Cache de tokens local - usar el del AfipAuthenticator
         // NUEVO: Método para limpiar cache de tokens AFIP
@@ -122,12 +133,17 @@ namespace Comercio.NET
         // AGREGAR: En la sección de variables de la clase (alrededor de línea ~40)
         private bool usarVistaPrevia = true; // NUEVO: Variable para controlar el modo de impresión
 
-        public SeleccionImpresionForm(decimal importeTotal = 0, Ventas padre = null)
+        public SeleccionImpresionForm(
+                            decimal importeTotal = 0,           // 1er parámetro (opcional)
+                            Ventas padre = null,                // 2do parámetro (opcional)
+                            BotonInicial botonInicial = BotonInicial.Remito  // ✅ 3er parámetro (opcional, por defecto Remito)
+                            )
         {
             System.Diagnostics.Debug.WriteLine($"[SELECCIÓN] Iniciando con importe: {importeTotal:C2}");
 
             this.importeTotalVenta = importeTotal;
             this.formularioPadre = padre;
+            this.botonInicialFoco = botonInicial; // ✅ GUARDAR preferencia de foco
 
             this.Text = "Seleccione tipo de impresión y método de pago";
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -172,6 +188,42 @@ namespace Comercio.NET
             };
 
             CargarConfiguracionVistaPrevia();
+
+            // ✅ NUEVO: Establecer foco según el parámetro recibido
+            this.Shown += (s, e) => EstablecerFocoInicial();
+        }
+
+        // ✅ NUEVO: Método para establecer el foco inicial
+        private void EstablecerFocoInicial()
+        {
+            try
+            {
+                switch (botonInicialFoco)
+                {
+                    case BotonInicial.FinalizarSinImpresion:
+                        if (btnFinalizarSinImpresion != null && btnFinalizarSinImpresion.Visible && btnFinalizarSinImpresion.Enabled)
+                        {
+                            btnFinalizarSinImpresion.Focus();
+                            System.Diagnostics.Debug.WriteLine("✅ Foco establecido en 'Finalizar sin impresión'");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("⚠️ Botón 'Finalizar sin impresión' no disponible, usando Remito");
+                            btnRemito?.Focus();
+                        }
+                        break;
+
+                    case BotonInicial.Remito:
+                    default:
+                        btnRemito?.Focus();
+                        System.Diagnostics.Debug.WriteLine("✅ Foco establecido en 'Remito'");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error estableciendo foco inicial: {ex.Message}");
+            }
         }
 
         // ✅ NUEVO: Método para cargar la configuración del límite de facturación
