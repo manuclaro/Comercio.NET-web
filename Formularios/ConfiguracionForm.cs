@@ -1783,6 +1783,7 @@ namespace Comercio.NET.Formularios
                 nuevaConfiguracion["AFIP"]["Testing"]["CertificadoPassword"] = txtAfipTestingCertificadoPassword.Text;
                 nuevaConfiguracion["AFIP"]["Testing"]["WSAAUrl"] = txtAfipTestingWSAAUrl.Text.Trim();
                 nuevaConfiguracion["AFIP"]["Testing"]["WSFEUrl"] = txtAfipTestingWSFEUrl.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Testing"]["CondicionIVA"] = cmbCondicion.SelectedItem?.ToString() ?? "Responsable Inscripto";
 
                 // Producción
                 if (nuevaConfiguracion["AFIP"]["Produccion"] == null)
@@ -1794,6 +1795,7 @@ namespace Comercio.NET.Formularios
                 nuevaConfiguracion["AFIP"]["Produccion"]["CertificadoPassword"] = txtAfipProduccionCertificadoPassword.Text;
                 nuevaConfiguracion["AFIP"]["Produccion"]["WSAAUrl"] = txtAfipProduccionWSAAUrl.Text.Trim();
                 nuevaConfiguracion["AFIP"]["Produccion"]["WSFEUrl"] = txtAfipProduccionWSFEUrl.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Produccion"]["CondicionIVA"] = cmbCondicion.SelectedItem?.ToString() ?? "Responsable Inscripto";
 
                 System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP - Ambiente: {(rbAfipProduccion.Checked ? "Producción" : "Testing")}");
 

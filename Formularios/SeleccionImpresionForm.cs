@@ -1700,50 +1700,69 @@ namespace Comercio.NET
         {
             try
             {
-                // ✅ NUEVO: Leer condición desde configuración primero
+                // ✅ PASO 1: Leer condición desde configuración PRIMERO
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                     .AddJsonFile("appsettings.json")
                     .Build();
 
                 string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Produccion";
+
+                // ✅ CRÍTICO: Buscar en la sección correcta según el ambiente
                 string condicionConfig = config[$"AFIP:{ambienteActivo}:CondicionIVA"];
+
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ========================================");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Ambiente activo: {ambienteActivo}");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Ruta búsqueda: AFIP:{ambienteActivo}:CondicionIVA");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Valor encontrado: '{condicionConfig}'");
 
                 if (!string.IsNullOrEmpty(condicionConfig))
                 {
                     bool esMonotributo = condicionConfig.Equals("Monotributo", StringComparison.OrdinalIgnoreCase);
-                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ✅ Configuración explícita: {condicionConfig} -> Monotributo: {esMonotributo}");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ✅ Configuración explícita encontrada");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA]    Condición: {condicionConfig}");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA]    Es Monotributo: {esMonotributo}");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ========================================");
                     return (esMonotributo, condicionConfig);
                 }
 
-                // ⚠️ FALLBACK: Si no está configurado, determinar por prefijo CUIT
-                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ No hay configuración explícita, determinando por CUIT...");
+                // ⚠️ FALLBACK SOLO SI NO HAY CONFIGURACIÓN
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ NO hay configuración explícita de CondicionIVA");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ Determinando por prefijo CUIT (FALLBACK)...");
 
                 string cuitEmisor = ObtenerCuitEmisor().Replace("-", "");
 
                 if (string.IsNullOrEmpty(cuitEmisor) || cuitEmisor.Length != 11)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ CUIT inválido, asumiendo Monotributo por seguridad");
-                    return (true, "Monotributo (por defecto)");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ CUIT inválido o vacío: '{cuitEmisor}'");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ ASUMIENDO Responsable Inscripto por defecto");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ========================================");
+                    return (false, "Responsable Inscripto (por defecto)");
                 }
 
                 string prefijo = cuitEmisor.Substring(0, 2);
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] CUIT: {cuitEmisor}");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Prefijo: {prefijo}");
 
                 // Prefijos de empresas (30, 33, 34) = Responsable Inscripto
                 if (prefijo == "30" || prefijo == "33" || prefijo == "34")
                 {
-                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Prefijo {prefijo} -> Responsable Inscripto");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ✅ Prefijo {prefijo} -> Responsable Inscripto (empresa)");
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ========================================");
                     return (false, "Responsable Inscripto");
                 }
 
                 // Personas físicas (20, 23, 24, 27) - Asumir Monotributo
-                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Prefijo {prefijo} -> Monotributo (persona física)");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ Prefijo {prefijo} -> Monotributo (persona física - fallback)");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ========================================");
                 return (true, "Monotributo");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ❌ Error: {ex.Message}, asumiendo Monotributo");
-                return (true, "Monotributo (por error)");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ❌ Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ Asumiendo Responsable Inscripto por error");
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ========================================");
+                return (false, "Responsable Inscripto (por error)");
             }
         }
 
@@ -2335,38 +2354,65 @@ namespace Comercio.NET
             {
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                    .AddJsonFile("appsettings.json")
                     .Build();
 
+                // Leer configuración de checkboxes
                 bool permitirA = config.GetValue<bool>("Facturacion:PermitirFacturaA", true);
                 bool permitirB = config.GetValue<bool>("Facturacion:PermitirFacturaB", true);
                 bool permitirC = config.GetValue<bool>("Facturacion:PermitirFacturaC", true);
 
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Permitir A: {permitirA}, B: {permitirB}, C: {permitirC}");
+
                 // ✅ NUEVO: Obtener condición IVA del emisor
                 var (esMonotributo, condicionEmisor) = DeterminarCondicionIVAEmisor();
+
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Condición emisor: {condicionEmisor}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Es Monotributo: {esMonotributo}");
+
+                // ✅ NUEVO: Si es Responsable Inscripto, OCULTAR Factura C
+                if (!esMonotributo && condicionEmisor.Contains("Responsable Inscripto"))
+                {
+                    permitirC = false; // Forzar ocultar Factura C para Responsables Inscriptos
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] ⚠️ RESPONSABLE INSCRIPTO detectado - Forzando: C=false");
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG]    Razón: Los Responsables Inscriptos deben emitir Factura A o B según el cliente");
+                }
 
                 // ✅ NUEVO: Si es Monotributo, forzar configuración específica
                 if (esMonotributo)
                 {
                     permitirA = false; // Monotributo NO puede emitir A
-                    permitirB = false; // Monotributo NO puede emitir B (solo C)
+                    permitirB = false; // Monotributo NO puede emitir B
                     permitirC = true;  // Monotributo DEBE emitir C
 
                     System.Diagnostics.Debug.WriteLine($"[CONFIG] ⚠️ MONOTRIBUTO detectado - Forzando: A=false, B=false, C=true");
                 }
 
-                if (btnFacturaA != null) btnFacturaA.Visible = permitirA;
-                if (btnFacturaB != null) btnFacturaB.Visible = permitirB;
-                if (btnFacturaC != null) btnFacturaC.Visible = permitirC;
+                // Aplicar visibilidad de botones
+                btnFacturaA.Visible = permitirA;
+                btnFacturaB.Visible = permitirB;
+                btnFacturaC.Visible = permitirC;
 
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Botones visibles - A: {btnFacturaA.Visible}, B: {btnFacturaB.Visible}, C: {btnFacturaC.Visible}");
+
+                // Si ningún botón de factura está visible, mostrar advertencia
+                if (!permitirA && !permitirB && !permitirC)
+                {
+                    System.Diagnostics.Debug.WriteLine("[CONFIG] ⚠️ ADVERTENCIA: Ninguna opción de factura habilitada");
+                }
+
+                // Reposicionar botones visibles para que queden centrados
                 PosicionarBotones();
-
-                System.Diagnostics.Debug.WriteLine($"[CONFIG] Condición: {condicionEmisor}");
-                System.Diagnostics.Debug.WriteLine($"[CONFIG] FacturaA={permitirA}, FacturaB={permitirB}, FacturaC={permitirC}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[CONFIG ERROR] {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG ERROR] Error aplicando configuración: {ex.Message}");
+
+                // Valores por defecto en caso de error
+                btnFacturaA.Visible = true;
+                btnFacturaB.Visible = true;
+                btnFacturaC.Visible = true;
+                PosicionarBotones();
             }
         }
 
