@@ -3133,62 +3133,92 @@ namespace Comercio.NET
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] === INICIANDO IMPRESIÓN CON SERVICIO ===");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] OpcionSeleccionada: {seleccion.OpcionSeleccionada}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] CAE: {seleccion.CAENumero}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] NumeroFacturaAfip: {seleccion.NumeroFacturaAfip}");
+
                 if (remitoActual == null || remitoActual.Rows.Count == 0)
                 {
-                    MessageBox.Show("No hay productos para imprimir.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("No hay productos para imprimir.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
-                // Configurar el ticket según el tipo de comprobante
-                var config = new TicketConfig
+                var config = new Servicios.TicketConfig
                 {
-                    NombreComercio = nombreComercio,
-                    DomicilioComercio = domicilioComercio,
-                    FormaPago = seleccion.OpcionPagoSeleccionada.ToString(),
+                    NombreComercio = GetNombreComercio(),
+                    DomicilioComercio = "",
+                    FormaPago = seleccion.EsPagoMultiple ? "Múltiple" : seleccion.OpcionPagoSeleccionada.ToString(),
                     MensajePie = "Gracias por su compra!"
                 };
 
-                // NUEVO: Configurar número y tipo según el comprobante seleccionado
+                // ✅ CRÍTICO: Determinar el TipoComprobante correcto según OpcionSeleccionada
                 switch (seleccion.OpcionSeleccionada)
                 {
-                    case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
-                        config.TipoComprobante = "REMITO";
-                        config.NumeroComprobante = $"Remito N° {nroRemitoActual}";
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
+                        config.TipoComprobante = "FacturaA";
+                        config.NumeroComprobante = seleccion.NumeroFacturaAfip > 0
+                            ? $"A {seleccion.NumeroFacturaAfip:D4}-{seleccion.NumeroFacturaAfip:D8}"
+                            : $"Factura A N° {nroRemitoActual}";
+                        config.CAE = seleccion.CAENumero;
+                        config.CAEVencimiento = seleccion.CAEVencimiento;
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA A");
                         break;
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaB:
-                        config.TipoComprobante = "FacturaB"; // CORREGIDO: Usar "FacturaB" específicamente
-                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(6, 1, seleccion.NumeroFacturaAfip);
+                        config.TipoComprobante = "FacturaB";
+                        config.NumeroComprobante = seleccion.NumeroFacturaAfip > 0
+                            ? $"B {seleccion.NumeroFacturaAfip:D4}-{seleccion.NumeroFacturaAfip:D8}"
+                            : $"Factura B N° {nroRemitoActual}";
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA B");
                         break;
 
-                    case SeleccionImpresionForm.OpcionImpresion.FacturaA:
-                        config.TipoComprobante = "FacturaA"; // CORREGIDO: Usar "FacturaA" específicamente
-                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(1, 1, seleccion.NumeroFacturaAfip);
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaC:  // ✅ CASO CRÍTICO PARA FACTURA C
+                        config.TipoComprobante = "FacturaC";
+                        config.NumeroComprobante = seleccion.NumeroFacturaAfip > 0
+                            ? $"C {seleccion.NumeroFacturaAfip:D4}-{seleccion.NumeroFacturaAfip:D8}"
+                            : $"Factura C N° {nroRemitoActual}";
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA C");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   TipoComprobante: {config.TipoComprobante}");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   NumeroComprobante: {config.NumeroComprobante}");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: {config.CAE}");
+                        break;
+
+                    case SeleccionImpresionForm.OpcionImpresion.RemitoTicket:
+                    default:
+                        config.TipoComprobante = "REMITO";
+                        config.NumeroComprobante = $"Remito N° {nroRemitoActual}";
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como REMITO");
                         break;
                 }
 
-                System.Diagnostics.Debug.WriteLine("🖨️ Iniciando impresión (sin modal)...");
-                System.Diagnostics.Debug.WriteLine($"   Tipo: {config.TipoComprobante}, Num: {config.NumeroComprobante}, CAE: {config.CAE}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] Configuración Final:");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   TipoComprobante: '{config.TipoComprobante}'");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   NumeroComprobante: '{config.NumeroComprobante}'");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: '{config.CAE}'");
 
-                using (var ticketService = new TicketPrintingService())
+                using (var ticketService = new Servicios.TicketPrintingService())
                 {
                     await ticketService.ImprimirTicket(remitoActual, config);
                 }
 
-                System.Diagnostics.Debug.WriteLine("✅ Impresión completada");
+                System.Diagnostics.Debug.WriteLine("[IMPRESIÓN] ✅ Impresión con vista previa completada");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error en ImprimirSinModal: {ex.Message}");
-                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ❌ Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] StackTrace: {ex.StackTrace}");
+                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-       
+
 
         // Agregado: métodos públicos y handlers que faltaban para compilar y enlazar con SeleccionImpresionForm
 

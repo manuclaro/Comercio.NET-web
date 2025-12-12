@@ -12,11 +12,10 @@
     "IngBrutos": "20128265377",
     "DomicilioFiscal": "122 N°2838 BERISSO",
     "CodigoPostal": "1923",
-    "InicioActividades": "2017-07-01",
-    "Condicion": "Monotributo",
+    "InicioActividades": "2013-06-01",
+    "Condicion": "Responsable Inscripto",
     "PermitirFacturaA": false,
-    "PermitirFacturaB": true,
-    "PermitirFacturaC": true
+    "PermitirFacturaB": true
   },
   "Validaciones": {
     "ValidarStockDisponible": false
@@ -30,10 +29,9 @@
     ]
   },
   "AFIP": {
-    "AmbienteActivo": "Produccion",
+    "AmbienteActivo": "Testing",
     "Testing": {
       "CUIT": "20-28069473-9",
-      "CondicionIVA": "Monotributo",
       "PuntoVenta": 1,
       "CertificadoPath": "C:\\Users\\Manuel\\source\\repos\\Comercio .NET\\Certificados FE\\FETesting.p12",
       "CertificadoPassword": "Micertificado",
@@ -47,7 +45,6 @@
     },
     "Produccion": {
       "CUIT": "20-12826537-7",
-      "CondicionIVA": "Monotributo",
       "PuntoVenta": 5,
       "CertificadoPath": "C:\\Certificados FE\\CertificadoFEPele.p12",
       "CertificadoPassword": "Micertificado",

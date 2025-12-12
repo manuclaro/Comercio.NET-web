@@ -23,7 +23,8 @@ namespace Comercio.NET
             Ninguna,
             RemitoTicket,
             FacturaB,
-            FacturaA
+            FacturaA,
+            FacturaC  // ✅ NUEVO: Factura C para Monotributo
         }
 
         public enum OpcionPago
@@ -50,6 +51,7 @@ namespace Comercio.NET
 
         // MODIFICADO: Referencias a los botones para poder controlar su estado
         private Button btnRemito;
+        private Button btnFacturaC;
         private Button btnFacturaB;
         private Button btnFacturaA;
 
@@ -64,7 +66,7 @@ namespace Comercio.NET
         private Panel panelPagoSimple;
         private Panel panelPagoMultiple;
 
-        // ORIGINAL: Referencias a los RadioButtons para retrocompatibilidad
+        // ORIGINAL: Referencias a los RadioButtones para retrocompatibilidad
         private RadioButton rbEfectivo;
         private RadioButton rbDNI;
         private RadioButton rbMercadoPago;
@@ -632,6 +634,18 @@ namespace Comercio.NET
                 FlatStyle = FlatStyle.Flat
             };
 
+            btnFacturaC = new Button
+            {
+                Text = "Factura C",
+                Width = 130,
+                Top = topBotones,
+                Height = 45,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = System.Drawing.Color.FromArgb(255, 87, 34), // Naranja para Factura C
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
             btnFacturaB = new Button
             {
                 Text = "Factura B",
@@ -722,6 +736,7 @@ namespace Comercio.NET
                 lblRazonSocial,
                 lblMensajeInformativo,
                 btnRemito,
+                btnFacturaC,  // ✅ NUEVO
                 btnFacturaB,
                 btnFacturaA,
                 btnFinalizarSinImpresion,
@@ -738,23 +753,27 @@ namespace Comercio.NET
         {
             try
             {
-                // Lista de botones en el orden visual. Solo considerar los visibles (por si los ocultas algún día).
-                var botones = new List<Button> { btnRemito, btnFacturaB, btnFacturaA, btnFinalizarSinImpresion, btnCancelar }
-                    .Where(b => b != null && b.Visible)
-                    .ToList();
+                // ✅ ACTUALIZADO: Incluir btnFacturaC
+                var botones = new List<Button> {
+            btnRemito,
+            btnFacturaB,
+            btnFacturaC,  // ✅ NUEVO
+            btnFacturaA,
+            btnFinalizarSinImpresion,
+            btnCancelar
+        }
+                .Where(b => b != null && b.Visible)
+                .ToList();
 
                 if (!botones.Any())
                     return;
 
-                int spacing = 15; // espacio entre botones
+                int spacing = 15;
                 int totalButtonsWidth = botones.Sum(b => b.Width);
                 int totalSpacing = spacing * Math.Max(0, botones.Count - 1);
                 int totalWidth = totalButtonsWidth + totalSpacing;
 
-                // Calcular inicio centrado
                 int startLeft = (this.ClientSize.Width - totalWidth) / 2;
-
-                // Mantener un margen mínimo (evitar que queden pegados al borde)
                 int minMargin = 10;
                 if (startLeft < minMargin)
                     startLeft = minMargin;
@@ -771,6 +790,7 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"Error en PosicionarBotones: {ex.Message}");
             }
         }
+
 
         private void ConfigurarEventos()
         {
@@ -927,15 +947,46 @@ namespace Comercio.NET
                 }
             };
 
+            btnFacturaC.Click += async (s, e) =>
+            {
+                try
+                {
+                    await ProcesarFacturaElectronica(OpcionImpresion.FacturaC);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error en Factura C: {ex.Message}", "Error Crítico",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
             btnFacturaB.Click += async (s, e) =>
             {
                 try
                 {
+                    // ✅ VALIDAR: Si es Monotributo, no permitir (ya se ocultó el botón, pero por seguridad)
+                    var (esMonotributo, condicionEmisor) = DeterminarCondicionIVAEmisor();
+
+                    if (esMonotributo)
+                    {
+                        MessageBox.Show(
+                            "⚠️ RESTRICCIÓN DE AFIP\n\n" +
+                            "Su condición tributaria es MONOTRIBUTO.\n\n" +
+                            "Los Monotributistas NO pueden emitir Factura B (código 6).\n" +
+                            "Debe utilizar Factura C (código 11).\n\n" +
+                            "Por favor, use el botón 'Factura C' para continuar.",
+                            "Factura B No Permitida",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+
                     await ProcesarFacturaElectronica(OpcionImpresion.FacturaB);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error en Factura B: {ex.Message}", "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Error en Factura B: {ex.Message}", "Error Crítico",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
 
@@ -1233,6 +1284,70 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"🔄 === INICIANDO PROCESAMIENTO {tipoFactura} CON AFIP REAL ===");
 
+                // ✅ NUEVO: Validar condición IVA del emisor
+                var (esMonotributo, condicionEmisor) = DeterminarCondicionIVAEmisor();
+                
+                System.Diagnostics.Debug.WriteLine($"[EMISOR] Condición IVA: {condicionEmisor}");
+                System.Diagnostics.Debug.WriteLine($"[EMISOR] Es Monotributo: {esMonotributo}");
+
+                // ✅ VALIDACIÓN 1: Si es Monotributo, NO puede emitir Factura A
+                if (esMonotributo && tipoFactura == OpcionImpresion.FacturaA)
+                {
+                    MessageBox.Show(
+                        "⚠️ RESTRICCIÓN DE AFIP\n\n" +
+                        "Los Monotributistas NO pueden emitir Factura A.\n\n" +
+                        "Solo puede emitir:\n" +
+                        "• Factura B (para consumidores finales)\n" +
+                        "• Factura C (entre monotributistas)\n\n" +
+                        "Para emitir Factura A debe estar inscripto como\n" +
+                        "Responsable Inscripto en el Impuesto al IVA.",
+                        "Tipo de Factura No Permitido",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // ✅ NUEVA VALIDACIÓN 2: Si es Monotributo y solicita Factura B, informar que se generará Factura C
+                if (esMonotributo && tipoFactura == OpcionImpresion.FacturaB)
+                {
+                    var resultado = MessageBox.Show(
+                        "⚠️ INFORMACIÓN IMPORTANTE\n\n" +
+                        "Su condición tributaria es MONOTRIBUTO.\n\n" +
+                        "Según normativa AFIP, los Monotributistas deben emitir:\n" +
+                        "• Factura C (código 11) - Para todas las operaciones\n\n" +
+                        "No puede emitir Factura B (código 6).\n\n" +
+                        "¿Desea continuar generando la Factura C correspondiente?",
+                        "Monotributo - Factura C",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information,
+                        MessageBoxDefaultButton.Button1);
+
+                    if (resultado != DialogResult.Yes)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[FACTURA] ❌ Usuario canceló generación de Factura C");
+                        return;
+                    }
+
+                    // ✅ CAMBIAR automáticamente a Factura C
+                    System.Diagnostics.Debug.WriteLine("[FACTURA] ✅ Cambiando de Factura B a Factura C (Monotributo)");
+                    tipoFactura = OpcionImpresion.FacturaC;
+                }
+
+                // ✅ VALIDACIÓN 3: Verificar estado del cache de AFIP
+                if (!TieneCacheTokensValido())
+                {
+                    MessageBox.Show(
+                        "⚠️ ADVERTENCIA: CACHE DE AFIP NO VÁLIDO\n\n" +
+                        "El cache de tokens de AFIP no es válido.\n" +
+                        "Esto puede causar errores en la comunicación con AFIP.\n\n" +
+                        "¿Desea limpiar el cache de AFIP y continuar?",
+                        "Cache AFIP Inválido",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button2 // No por defecto
+                    );
+                }
+
                 // ✅ NUEVO: VALIDAR LÍMITE DE FACTURACIÓN ANTES DE CONTINUAR
                 if (!ValidarLimiteFacturacion(out string mensajeError))
                 {
@@ -1278,7 +1393,6 @@ namespace Comercio.NET
                     return;
                 }
 
-                // ... (resto del método sin cambios)
                 btnRemito.Enabled = false;
                 btnFacturaA.Enabled = false;
                 btnFacturaB.Enabled = false;
@@ -1344,18 +1458,75 @@ namespace Comercio.NET
                     lblProgress.Text = "Obteniendo número de comprobante...";
                     Application.DoEvents();
 
-                    int tipoComprobante = tipoFactura == OpcionImpresion.FacturaA ? 1 : 6;
-                    int puntoVenta = 1;
-                    int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVenta);
-                    int numeroFactura = ultimoNumero + 1;
+                    // ✅ CALCULAR VARIABLES PRIMERO
+                    int tipoComprobante;
+                    if (tipoFactura == OpcionImpresion.FacturaA)
+                    {
+                        tipoComprobante = 1; // Factura A
+                    }
+                    else if (tipoFactura == OpcionImpresion.FacturaC)
+                    {
+                        tipoComprobante = 11; // Factura C (Monotributo)
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] Factura C seleccionada manualmente");
+                    }
+                    else // Factura B
+                    {
+                        // Detección automática B vs C
+                        tipoComprobante = esMonotributo ? 11 : 6;
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] Tipo comprobante seleccionado: {tipoComprobante} ({(esMonotributo ? "Factura C (Monotributo)" : "Factura B")})");
+                    }
 
-                    System.Diagnostics.Debug.WriteLine($"📋 Tipo: {tipoComprobante}, PV: {puntoVenta}, Último: {ultimoNumero}, Nuevo: {numeroFactura}");
+                    int puntoVenta = ObtenerPuntoVentaActivo();
+                    int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVenta);
+                    int numero = ultimoNumero + 1;
+
+                    string cuitCliente = tipoFactura == OpcionImpresion.FacturaA ? txtCuit.Text.Trim() : "";
+
+                    // Determinar docTipo y docNro
+                    int docTipo;
+                    long docNro;
+                    int ivaPerNro;
+
+                    if (tipoComprobante == 1) // Factura A
+                    {
+                        docTipo = 80; // CUIT
+                        docNro = !string.IsNullOrEmpty(cuitCliente) ? long.Parse(cuitCliente.Replace("-", "")) : 0;
+                        ivaPerNro = DeterminarCondicionIvaReceptor(tipoComprobante, cuitCliente);
+                    }
+                    else if (tipoComprobante == 11) // Factura C
+                    {
+                        docTipo = 99; // Sin identificación
+                        docNro = 0;
+                        ivaPerNro = 5; // Consumidor Final
+                    }
+                    else // Factura B
+                    {
+                        docTipo = 99;
+                        docNro = 0;
+                        ivaPerNro = 5; // Consumidor Final
+                    }
+
+                    decimal importeTotalCalculado = Math.Round(importeTotalVenta, 2);
+
+                    // ✅ AHORA SÍ, LOGS DESPUÉS DE CALCULAR LAS VARIABLES
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] === DATOS DEL COMPROBANTE ===");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Tipo: {tipoComprobante} ({(tipoComprobante == 1 ? "Factura A" : tipoComprobante == 11 ? "Factura C" : "Factura B")})");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Punto de Venta: {puntoVenta}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Número: {numero}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] CUIT Emisor: {ObtenerCuitEmisor()}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] CUIT Cliente: {cuitCliente}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] DocTipo: {docTipo}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] DocNro: {docNro}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] IVAPerNro (Condición IVA Receptor): {ivaPerNro}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Importe Total: {importeTotalCalculado:F2}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ================================");
+
+                    System.Diagnostics.Debug.WriteLine($"📋 Tipo: {tipoComprobante}, PV: {puntoVenta}, Último: {ultimoNumero}, Nuevo: {numero}");
 
                     lblProgress.Text = "Solicitando CAE a AFIP...";
                     Application.DoEvents();
 
-                    string cuitCliente = tipoFactura == OpcionImpresion.FacturaA ? txtCuit.Text.Trim() : "";
-                    var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVenta, numeroFactura, cuitCliente);
+                    var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVenta, numero, cuitCliente);
 
                     if (!resultadoCAE.exito)
                     {
@@ -1370,13 +1541,18 @@ namespace Comercio.NET
 
                     CAENumero = resultadoCAE.cae;
                     CAEVencimiento = resultadoCAE.vencimiento;
-                    NumeroFacturaAfip = numeroFactura;
+                    NumeroFacturaAfip = numero;
                     OpcionSeleccionada = tipoFactura;
 
-                    string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVenta, numeroFactura);
+                    string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVenta, numero);
 
                     string formaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString();
-                    string tipoFacturaString = tipoFactura == OpcionImpresion.FacturaA ? "FacturaA" : "FacturaB";
+                    string tipoFacturaString = tipoFactura switch
+                    {
+                        OpcionImpresion.FacturaA => "FacturaA",
+                        OpcionImpresion.FacturaC => "FacturaC",
+                        _ => "FacturaB"
+                    };
 
                     System.Diagnostics.Debug.WriteLine($"🔄 Ejecutando callback OnProcesarVenta para {tipoFacturaString}...");
 
@@ -1457,25 +1633,45 @@ namespace Comercio.NET
                     MensajePie = "Gracias por su compra!"
                 };
 
+                // ✅ CORREGIDO: Determinar tipo de comprobante basado en OpcionImpresion real
                 switch (tipoComprobante)
                 {
                     case OpcionImpresion.RemitoTicket:
                         config.TipoComprobante = "REMITO";
                         config.NumeroComprobante = $"Remito N° {formularioPadre.GetNroRemitoActual()}";
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurando REMITO");
+                        break;
+
+                    case OpcionImpresion.FacturaC:  // ✅ CORREGIDO: Caso específico para Factura C
+                        config.TipoComprobante = "FacturaC";
+                        config.NumeroComprobante = FormatearNumeroFactura(11, ObtenerPuntoVentaActivo(), NumeroFacturaAfip);
+                        config.CAE = CAENumero;
+                        config.CAEVencimiento = CAEVencimiento;
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurando FACTURA C");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   Número: {config.NumeroComprobante}");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: {config.CAE}");
                         break;
 
                     case OpcionImpresion.FacturaB:
+                        // ✅ IMPORTANTE: Aquí NO determinar automáticamente, usar el tipo real que se procesó
+                        // El tipo ya fue determinado en ProcesarFacturaElectronica
                         config.TipoComprobante = "FacturaB";
-                        config.NumeroComprobante = FormatearNumeroFactura(6, 1, NumeroFacturaAfip);
+                        config.NumeroComprobante = FormatearNumeroFactura(6, ObtenerPuntoVentaActivo(), NumeroFacturaAfip);
                         config.CAE = CAENumero;
                         config.CAEVencimiento = CAEVencimiento;
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurando FACTURA B");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   Número: {config.NumeroComprobante}");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: {config.CAE}");
                         break;
 
                     case OpcionImpresion.FacturaA:
                         config.TipoComprobante = "FacturaA";
-                        config.NumeroComprobante = FormatearNumeroFactura(1, 1, NumeroFacturaAfip);
+                        config.NumeroComprobante = FormatearNumeroFactura(1, ObtenerPuntoVentaActivo(), NumeroFacturaAfip);
                         config.CAE = CAENumero;
                         config.CAEVencimiento = CAEVencimiento;
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurando FACTURA A");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   Número: {config.NumeroComprobante}");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: {config.CAE}");
                         break;
                 }
 
@@ -1493,6 +1689,61 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ❌ Error en impresión directa: {ex.Message}");
                 MessageBox.Show($"Error al imprimir: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ AGREGAR este método nuevo (línea ~1450):
+        /// <summary>
+        /// Determina si el CUIT emisor es Monotributista o Responsable Inscripto
+        /// </summary>
+        private (bool esMonotributo, string condicion) DeterminarCondicionIVAEmisor()
+        {
+            try
+            {
+                // ✅ NUEVO: Leer condición desde configuración primero
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Produccion";
+                string condicionConfig = config[$"AFIP:{ambienteActivo}:CondicionIVA"];
+
+                if (!string.IsNullOrEmpty(condicionConfig))
+                {
+                    bool esMonotributo = condicionConfig.Equals("Monotributo", StringComparison.OrdinalIgnoreCase);
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ✅ Configuración explícita: {condicionConfig} -> Monotributo: {esMonotributo}");
+                    return (esMonotributo, condicionConfig);
+                }
+
+                // ⚠️ FALLBACK: Si no está configurado, determinar por prefijo CUIT
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ No hay configuración explícita, determinando por CUIT...");
+
+                string cuitEmisor = ObtenerCuitEmisor().Replace("-", "");
+
+                if (string.IsNullOrEmpty(cuitEmisor) || cuitEmisor.Length != 11)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ⚠️ CUIT inválido, asumiendo Monotributo por seguridad");
+                    return (true, "Monotributo (por defecto)");
+                }
+
+                string prefijo = cuitEmisor.Substring(0, 2);
+
+                // Prefijos de empresas (30, 33, 34) = Responsable Inscripto
+                if (prefijo == "30" || prefijo == "33" || prefijo == "34")
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Prefijo {prefijo} -> Responsable Inscripto");
+                    return (false, "Responsable Inscripto");
+                }
+
+                // Personas físicas (20, 23, 24, 27) - Asumir Monotributo
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Prefijo {prefijo} -> Monotributo (persona física)");
+                return (true, "Monotributo");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] ❌ Error: {ex.Message}, asumiendo Monotributo");
+                return (true, "Monotributo (por error)");
             }
         }
 
@@ -1579,36 +1830,41 @@ namespace Comercio.NET
         {
             try
             {
-                using (var wsfeClient = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap))
+                // ✅ USAR CLIENTE DINÁMICO
+                using (var wsfeClient = AfipAuthenticator.CrearClienteWSFE())
                 {
                     var authRequest = new ArcaWS.FEAuthRequest
                     {
                         Token = TokenAfip,
                         Sign = SignAfip,
-                        Cuit = long.Parse(ObtenerCuitEmisor().Replace("-", ""))
+                        Cuit = long.Parse(ObtenerCuitEmisor().Replace("-", ""))  // ✅ CAMBIADO de ObtenerCUITActivo()
                     };
 
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Consultando último número - Tipo: {tipoComprobante}, PV: {puntoVenta}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Usando CUIT: {ObtenerCuitEmisor()}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Token length: {TokenAfip?.Length ?? 0}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Sign length: {SignAfip?.Length ?? 0}");
 
                     var response = await wsfeClient.FECompUltimoAutorizadoAsync(authRequest, puntoVenta, tipoComprobante);
                     var resultado = response.Body.FECompUltimoAutorizadoResult;
 
                     if (resultado?.Errors != null && resultado.Errors.Length > 0)
                     {
-                        string errores = string.Join(", ", resultado.Errors.Select(e => e.Msg));
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Errores: {errores}");
+                        string errores = string.Join(", ", resultado.Errors.Select(e => $"{e.Code}: {e.Msg}"));
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Errores: {errores}");
                         throw new Exception($"Error AFIP: {errores}");
                     }
 
                     int ultimoNumero = resultado?.CbteNro ?? 0;
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] Último número autorizado: {ultimoNumero}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Último número autorizado: {ultimoNumero}");
 
                     return ultimoNumero;
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"⚠️ Error obteniendo último número: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Error obteniendo último número: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Stack: {ex.StackTrace}");
                 return 0;
             }
         }
@@ -1618,20 +1874,23 @@ namespace Comercio.NET
         {
             try
             {
-                using (var wsfeClient = new ArcaWS.ServiceSoapClient(ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap))
+                using (var wsfeClient = AfipAuthenticator.CrearClienteWSFE())
                 {
                     var authRequest = new ArcaWS.FEAuthRequest
                     {
                         Token = TokenAfip,
                         Sign = SignAfip,
-                        Cuit = long.Parse(ObtenerCuitEmisor().Replace("-", ""))
+                        Cuit = long.Parse(ObtenerCuitEmisor().Replace("-", ""))  // ✅ CAMBIADO de ObtenerCUITActivo()
                     };
 
-                    // CORREGIDO: Determinar correctamente DocTipo e IVAPerNro según el tipo de factura
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] === SOLICITUD CAE ===");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Tipo: {tipoComprobante}, PV: {puntoVenta}, Num: {numero}");
+
+                    bool esFacturaC = (tipoComprobante == 11);
+
                     int docTipo;
                     long docNro;
-                    int ivaPerNro; // NUEVO: Condición IVA del receptor
-
+                    int ivaPerNro;
 
                     if (tipoComprobante == 1) // Factura A
                     {
@@ -1639,34 +1898,49 @@ namespace Comercio.NET
                         docNro = !string.IsNullOrEmpty(cuitCliente) ? long.Parse(cuitCliente.Replace("-", "")) : 0;
                         ivaPerNro = DeterminarCondicionIvaReceptor(tipoComprobante, cuitCliente);
                     }
+                    else if (esFacturaC) // Factura C
+                    {
+                        docTipo = 99; // Sin identificación
+                        docNro = 0;
+                        ivaPerNro = 5; // Consumidor Final
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Factura C - DocTipo: {docTipo}, IVAPerNro: {ivaPerNro}");
+                    }
                     else // Factura B
                     {
-                        docTipo = 99; // Sin identificación / Consumidor Final
+                        docTipo = 99;
                         docNro = 0;
-                        ivaPerNro = DeterminarCondicionIvaReceptor(tipoComprobante, cuitCliente);
+                        ivaPerNro = 5; // ✅ CORREGIDO: Siempre Consumidor Final para Monotributo
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Factura B - DocTipo: {docTipo}, IVAPerNro: {ivaPerNro}");
                     }
 
-                    // MEJORADO: Calcular valores con mayor precisión y control de límites
-                    decimal importeNetoCalculado = Math.Round(CalcularImporteNeto(), 2);
-                    decimal importeIvaCalculado = Math.Round(CalcularImporteIVA(), 2);
                     decimal importeTotalCalculado = Math.Round(importeTotalVenta, 2);
+                    decimal importeNetoCalculado;
+                    decimal importeIvaCalculado;
 
-                    // NUEVO: Asegurar consistencia en los totales
-                    if (Math.Abs((importeNetoCalculado + importeIvaCalculado) - importeTotalCalculado) > 0.02m)
+                    if (esFacturaC)
                     {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Ajustando diferencias de redondeo en totales");
-                        // Ajustar el IVA para que cuadren los totales
-                        importeIvaCalculado = importeTotalCalculado - importeNetoCalculado;
-                        importeIvaCalculado = Math.Round(importeIvaCalculado, 2);
+                        importeNetoCalculado = importeTotalCalculado;
+                        importeIvaCalculado = 0;
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] Factura C - Total: {importeTotalCalculado:F2} (sin IVA discriminado)");
+                    }
+                    else
+                    {
+                        importeNetoCalculado = Math.Round(CalcularImporteNeto(), 2);
+                        importeIvaCalculado = Math.Round(CalcularImporteIVA(), 2);
+
+                        if (Math.Abs((importeNetoCalculado + importeIvaCalculado) - importeTotalCalculado) > 0.02m)
+                        {
+                            importeIvaCalculado = importeTotalCalculado - importeNetoCalculado;
+                            importeIvaCalculado = Math.Round(importeIvaCalculado, 2);
+                        }
                     }
 
-                    // Preparar datos del comprobante
+                    // ✅ CRÍTICO: Crear comprobante con TODOS los campos obligatorios
                     var comprobante = new ArcaWS.FECAEDetRequest
                     {
-                        Concepto = 1, // Productos
+                        Concepto = 1,
                         DocTipo = docTipo,
                         DocNro = docNro,
-                        CondicionIVAReceptorId = ivaPerNro, // CORREGIDO: Usar el nombre correcto de la propiedad
                         CbteDesde = numero,
                         CbteHasta = numero,
                         CbteFch = DateTime.Now.ToString("yyyyMMdd"),
@@ -1680,73 +1954,111 @@ namespace Comercio.NET
                         MonCotiz = 1
                     };
 
-                    // MEJORADO: Preparar array de IVA con validaciones estrictas
-                    var ivaArray = new List<ArcaWS.AlicIva>();
-                    var datosIva = CalcularDetalleIVA();
-
-                    // NUEVO: Validar datos antes de enviar a AFIP
-                    var (esValido, errorValidacion) = ValidarDatosParaAfip(datosIva, importeTotalCalculado);
-                    if (!esValido)
+                    // ✅ CRÍTICO: Intentar asignar IVAPerNro con múltiples nombres posibles
+                    try
                     {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Validación falló: {errorValidacion}");
-                        return (false, "", null, $"Error de validación: {errorValidacion}");
-                    }
-
-                    foreach (var iva in datosIva)
-                    {
-                        if (iva.Value.baseImponible > 0)
+                        // Opción 1: IVAPerNro
+                        var propertyIVAPerNro = comprobante.GetType().GetProperty("IVAPerNro");
+                        if (propertyIVAPerNro != null)
                         {
-                            // NUEVO: Validar y formatear BaseImp antes de enviar a AFIP
-                            decimal baseImponible = Math.Round(iva.Value.baseImponible, 2);
-                            decimal importeIva = Math.Round(iva.Value.importeIva, 2);
-
-                            // CRÍTICO: Asegurar que BaseImp cumple exactamente con el formato AFIP
-                            if (baseImponible >= 10000000000000m) // 13 dígitos
+                            propertyIVAPerNro.SetValue(comprobante, ivaPerNro);
+                            System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Campo asignado: IVAPerNro = {ivaPerNro}");
+                        }
+                        else
+                        {
+                            // Opción 2: IvaPer
+                            var propertyIvaPer = comprobante.GetType().GetProperty("IvaPer");
+                            if (propertyIvaPer != null)
                             {
-                                System.Diagnostics.Debug.WriteLine($"🚨 BaseImp excede límite AFIP: {baseImponible:F2}");
-                                baseImponible = 9999999999999.99m; // Máximo permitido por AFIP
-                                importeIva = Math.Round(iva.Value.baseImponible + iva.Value.importeIva - baseImponible, 2);
-                                System.Diagnostics.Debug.WriteLine($"🔧 BaseImp ajustada: {baseImponible:F2}, IVA ajustado: {importeIva:F2}");
+                                propertyIvaPer.SetValue(comprobante, ivaPerNro);
+                                System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Campo asignado: IvaPer = {ivaPerNro}");
                             }
-
-                            // NUEVO: Validación formato exacto con regex-like check
-                            string baseFormateada = baseImponible.ToString("F2", CultureInfo.InvariantCulture);
-                            string[] partesBase = baseFormateada.Split('.');
-
-                            if (partesBase[0].Length > 13 || partesBase[1].Length != 2)
+                            else
                             {
-                                System.Diagnostics.Debug.WriteLine($"❌ Formato inválido BaseImp: {baseFormateada}");
-                                // Forzar formato correcto
-                                baseImponible = Math.Min(baseImponible, 9999999999999.99m);
-                                baseImponible = Math.Round(baseImponible, 2);
-                                System.Diagnostics.Debug.WriteLine($"🔧 BaseImp corregida: {baseImponible.ToString("F2", CultureInfo.InvariantCulture)}");
+                                // Opción 3: CondicionIVAReceptorId (usado en tu código anterior)
+                                var propertyCondicionIVA = comprobante.GetType().GetProperty("CondicionIVAReceptorId");
+                                if (propertyCondicionIVA != null)
+                                {
+                                    propertyCondicionIVA.SetValue(comprobante, ivaPerNro);
+                                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Campo asignado: CondicionIVAReceptorId = {ivaPerNro}");
+                                }
+                                else
+                                {
+                                    // Si no existe ninguno de estos campos, listar todos los disponibles
+                                    var props = comprobante.GetType().GetProperties();
+                                    System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ NO SE ENCONTRÓ campo IVAPerNro. Propiedades disponibles:");
+                                    foreach (var prop in props)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"   - {prop.Name} ({prop.PropertyType.Name})");
+                                    }
+
+                                    return (false, "", null, "Error crítico: No se pudo asignar condición IVA del receptor. Verifique la referencia del servicio AFIP.");
+                                }
                             }
-
-                            // Mapear porcentaje de IVA a código AFIP
-                            int codigoAfip = MapearPorcentajeIvaACodigoAfip(iva.Key);
-
-                            // NUEVO: Validación final antes de agregar al array
-                            double baseImpDouble = (double)baseImponible;
-                            double importeIvaDouble = (double)importeIva;
-
-                            // Verificar que los valores double mantengan la precisión
-                            if (Math.Abs((decimal)baseImpDouble - baseImponible) > 0.01m)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"⚠️ Pérdida de precisión en BaseImp: {baseImponible:F2} -> {baseImpDouble:F2}");
-                            }
-
-                            ivaArray.Add(new ArcaWS.AlicIva
-                            {
-                                Id = codigoAfip,
-                                BaseImp = baseImpDouble,
-                                Importe = importeIvaDouble
-                            });
-
-                            System.Diagnostics.Debug.WriteLine($"📊 IVA {iva.Key}% -> Código AFIP: {codigoAfip}, BaseImp: {baseImponible:F2} ({baseImpDouble}), Importe: {importeIva:F2} ({importeIvaDouble})");
                         }
                     }
+                    catch (Exception exReflection)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error asignando IVAPerNro: {exReflection.Message}");
+                        return (false, "", null, $"Error asignando condición IVA: {exReflection.Message}");
+                    }
 
-                    // Solicitar CAE
+                    // Solo para Factura A y B: agregar array de IVA
+                    if (!esFacturaC)
+                    {
+                        var ivaArray = new List<ArcaWS.AlicIva>();
+                        var datosIva = CalcularDetalleIVA();
+
+                        var (esValido, errorValidacion) = ValidarDatosParaAfip(datosIva, importeTotalCalculado);
+                        if (!esValido)
+                        {
+                            return (false, "", null, $"Error de validación: {errorValidacion}");
+                        }
+
+                        foreach (var iva in datosIva)
+                        {
+                            if (iva.Value.baseImponible > 0)
+                            {
+                                decimal baseImponible = Math.Round(iva.Value.baseImponible, 2);
+                                decimal importeIva = Math.Round(iva.Value.importeIva, 2);
+
+                                if (baseImponible >= 10000000000000m)
+                                {
+                                    baseImponible = 9999999999999.99m;
+                                    importeIva = Math.Round(iva.Value.baseImponible + iva.Value.importeIva - baseImponible, 2);
+                                }
+
+                                string baseFormateada = baseImponible.ToString("F2", CultureInfo.InvariantCulture);
+                                string[] partesBase = baseFormateada.Split('.');
+
+                                if (partesBase[0].Length > 13 || partesBase[1].Length != 2)
+                                {
+                                    baseImponible = Math.Min(baseImponible, 9999999999999.99m);
+                                    baseImponible = Math.Round(baseImponible, 2);
+                                }
+
+                                int codigoAfip = MapearPorcentajeIvaACodigoAfip(iva.Key);
+
+                                ivaArray.Add(new ArcaWS.AlicIva
+                                {
+                                    Id = codigoAfip,
+                                    BaseImp = (double)baseImponible,
+                                    Importe = (double)importeIva
+                                });
+                            }
+                        }
+
+                        if (ivaArray.Any())
+                        {
+                            comprobante.Iva = ivaArray.ToArray();
+                            System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Array IVA: {ivaArray.Count} alícuotas");
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Factura C - Sin array IVA");
+                    }
+
                     var request = new ArcaWS.FECAERequest
                     {
                         FeCabReq = new ArcaWS.FECAECabRequest
@@ -1758,18 +2070,9 @@ namespace Comercio.NET
                         FeDetReq = new ArcaWS.FECAEDetRequest[] { comprobante }
                     };
 
-                    // Agregar IVA si hay
-                    if (ivaArray.Any())
-                    {
-                        comprobante.Iva = ivaArray.ToArray();
-                    }
-
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] 📤 Enviando solicitud CAE - Comprobante: {tipoComprobante}-{puntoVenta:D4}-{numero:D8}");
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] DocTipo: {docTipo}, DocNro: {docNro}, IVAPerNro: {ivaPerNro}");
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] Importe Total: {comprobante.ImpTotal:F2}");
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] Base Imponible: {comprobante.ImpNeto:F2}");
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] IVA: {comprobante.ImpIVA:F2}");
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] Cantidad AlicIva: {ivaArray.Count}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 📤 Enviando: {tipoComprobante}-{puntoVenta:D4}-{numero:D8}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] DocTipo: {docTipo}, DocNro: {docNro}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Total: {comprobante.ImpTotal:F2}, Neto: {comprobante.ImpNeto:F2}, IVA: {comprobante.ImpIVA:F2}");
 
                     var response = await wsfeClient.FECAESolicitarAsync(authRequest, request);
                     var resultado = response.Body.FECAESolicitarResult;
@@ -1777,7 +2080,7 @@ namespace Comercio.NET
                     if (resultado?.Errors != null && resultado.Errors.Length > 0)
                     {
                         string errores = string.Join(", ", resultado.Errors.Select(e => e.Msg));
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Errores CAE: {errores}");
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Errores: {errores}");
                         return (false, "", null, errores);
                     }
 
@@ -1790,41 +2093,30 @@ namespace Comercio.NET
                             DateTime? fechaVencimiento = null;
                             if (!string.IsNullOrEmpty(detalle.CAEFchVto))
                             {
-                                if (DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd",
-                                    CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fecha))
-                                {
-                                    fechaVencimiento = fecha;
-                                }
+                                DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd",
+                                    CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fecha);
+                                fechaVencimiento = fecha;
                             }
 
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ CAE obtenido exitosamente: {detalle.CAE}");
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] Vencimiento CAE: {fechaVencimiento:dd/MM/yyyy}");
-
+                            System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ CAE: {detalle.CAE}");
                             return (true, detalle.CAE, fechaVencimiento, "");
                         }
                         else
                         {
-                            string errores = "";
-                            if (detalle.Observaciones != null)
-                            {
-                                errores = string.Join(", ", detalle.Observaciones.Select(o => o.Msg));
-                            }
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ AFIP rechazó el comprobante: {errores}");
-                            return (false, "", null, $"AFIP rechazó el comprobante: {errores}");
+                            string errores = detalle.Observaciones != null
+                                ? string.Join(", ", detalle.Observaciones.Select(o => o.Msg))
+                                : "Sin detalles";
+                            return (false, "", null, $"AFIP rechazó: {errores}");
                         }
                     }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Respuesta inválida de AFIP");
-                        return (false, "", null, "Respuesta inválida de AFIP");
-                    }
+
+                    return (false, "", null, "Respuesta inválida de AFIP");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[AFIP] 💥 Error crítico solicitando CAE: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[AFIP] Stack trace: {ex.StackTrace}");
-                return (false, "", null, $"Error solicitando CAE: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 💥 Error: {ex.Message}");
+                return (false, "", null, $"Error: {ex.Message}");
             }
         }
 
@@ -1865,18 +2157,29 @@ namespace Comercio.NET
                 if (string.IsNullOrEmpty(cuitLimpio) || cuitLimpio.Length != 11)
                 {
                     System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] CUIT inválido para Factura A: '{cuitCliente}' -> usando Responsable Inscripto (1)");
-                    return 1; // NUNCA retornar 0 - usar Responsable Inscripto por defecto
+                    return 1; // Por defecto Responsable Inscripto para Factura A
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Factura A con CUIT válido: '{cuitCliente}' -> Responsable Inscripto (1)");
+                // ✅ NUEVO: Determinar tipo según prefijo CUIT
+                string prefijo = cuitLimpio.Substring(0, 2);
 
-                // Dejar como 1 (IVA Responsable Inscripto) si el CUIT es válido - AFIP no permite otra cosa
-                return 1;
+                // Prefijos para Responsables Inscriptos (empresas): 30, 33, 34
+                if (prefijo == "30" || prefijo == "33" || prefijo == "34")
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Factura A - Empresa (prefijo {prefijo}) -> Responsable Inscripto (1)");
+                    return 1; // Responsable Inscripto
+                }
+
+                // Prefijos para personas físicas: 20, 23, 24, 27
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Factura A con CUIT válido: '{cuitCliente}' -> Responsable Inscripto (1)");
+                return 1; // Para Factura A, siempre Responsable Inscripto
             }
             else // Factura B
             {
-                // Para Factura B, asumir Consumidor Final (sin identificación)
-                return 5;
+                // ✅ CORREGIDO: Para Factura B, el receptor es SIEMPRE Consumidor Final
+                // porque el emisor (tu CUIT) es Monotributista
+                System.Diagnostics.Debug.WriteLine($"[CONDICION IVA] Factura B -> Consumidor Final (5)");
+                return 5; // Consumidor Final
             }
         }
 
@@ -1933,8 +2236,8 @@ namespace Comercio.NET
                         return (false, $"Importe IVA para alícuota {iva.Key}% no puede ser negativo: {importeIva:F2}");
                     }
 
-                    // Validar coherencia entre porcentaje, base e importe
-                    decimal ivaCalculadoEsperado = Math.Round(baseImponible * iva.Key / 100, 2);
+                    // ✅ CORREGIDO: Validar coherencia entre porcentaje, base e importe
+                    decimal ivaCalculadoEsperado = Math.Round(baseImponible * (iva.Key / 100m), 2);
                     decimal diferencia = Math.Abs(importeIva - ivaCalculadoEsperado);
 
                     if (diferencia > 0.05m) // Tolerancia de 5 centavos por redondeos
@@ -1980,6 +2283,52 @@ namespace Comercio.NET
             }
         }
 
+        // ✅ AGREGAR este nuevo método al final de la clase (línea ~1900):
+        /// <summary>
+        /// Obtiene el punto de venta configurado para el ambiente activo
+        /// </summary>
+        private int ObtenerPuntoVentaActivo()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+
+                string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Testing";
+
+                // ✅ NUEVO: Intentar leer de múltiples formas
+                string puntoVentaStr = config[$"AFIP:{ambienteActivo}:PuntoVenta"];
+
+                if (string.IsNullOrEmpty(puntoVentaStr))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ⚠️ No se encontró configuración para {ambienteActivo}, usando 1");
+                    return 1;
+                }
+
+                if (!int.TryParse(puntoVentaStr, out int puntoVenta))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ⚠️ Valor inválido '{puntoVentaStr}', usando 1");
+                    return 1;
+                }
+
+                if (puntoVenta < 1 || puntoVenta > 9999)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ⚠️ Punto de venta fuera de rango ({puntoVenta}), usando 1");
+                    return 1;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ✅ Ambiente: {ambienteActivo}, PV: {puntoVenta}");
+                return puntoVenta;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ❌ Error: {ex.Message}, usando PV 1 por defecto");
+                return 1;
+            }
+        }
+
         private void AplicarConfiguracionFacturacion()
         {
             try
@@ -1991,18 +2340,33 @@ namespace Comercio.NET
 
                 bool permitirA = config.GetValue<bool>("Facturacion:PermitirFacturaA", true);
                 bool permitirB = config.GetValue<bool>("Facturacion:PermitirFacturaB", true);
+                bool permitirC = config.GetValue<bool>("Facturacion:PermitirFacturaC", true);
+
+                // ✅ NUEVO: Obtener condición IVA del emisor
+                var (esMonotributo, condicionEmisor) = DeterminarCondicionIVAEmisor();
+
+                // ✅ NUEVO: Si es Monotributo, forzar configuración específica
+                if (esMonotributo)
+                {
+                    permitirA = false; // Monotributo NO puede emitir A
+                    permitirB = false; // Monotributo NO puede emitir B (solo C)
+                    permitirC = true;  // Monotributo DEBE emitir C
+
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] ⚠️ MONOTRIBUTO detectado - Forzando: A=false, B=false, C=true");
+                }
 
                 if (btnFacturaA != null) btnFacturaA.Visible = permitirA;
                 if (btnFacturaB != null) btnFacturaB.Visible = permitirB;
+                if (btnFacturaC != null) btnFacturaC.Visible = permitirC;
 
-                // Recalcular posiciones si cambió la visibilidad
                 PosicionarBotones();
 
-                System.Diagnostics.Debug.WriteLine($"[CONFIG] FacturaA visible={permitirA}, FacturaB visible={permitirB}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Condición: {condicionEmisor}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] FacturaA={permitirA}, FacturaB={permitirB}, FacturaC={permitirC}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[CONFIG ERROR] AplicarConfiguracionFacturacion: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG ERROR] {ex.Message}");
             }
         }
 
@@ -2201,7 +2565,7 @@ namespace Comercio.NET
 
                 if (limitarFacturacion && montoLimiteFacturacion > 0 && montoAcumuladoHoy >= montoLimiteFacturacion)
                 {
-                    // ❌ BLOQUEAR: Ya se alcanzó el límite
+                    // ❌ BLOQUEO TOTAL: Ya se alcanzó el límite
                     puedeFacturas = false;
                     mensajeLimite = $"⛔ Límite diario alcanzado ({montoLimiteFacturacion:C2})";
                     System.Diagnostics.Debug.WriteLine($"[LÍMITE FACTURACIÓN] ❌ Facturas bloqueadas - Límite alcanzado");
@@ -2210,13 +2574,15 @@ namespace Comercio.NET
                 btnRemito.Enabled = puedeRemito;
                 btnFacturaA.Enabled = puedeFacturas;
                 btnFacturaB.Enabled = puedeFacturas;
+                btnFacturaC.Enabled = puedeFacturas;  // ✅ NUEVO
                 btnFinalizarSinImpresion.Enabled = puedeFinalizarSinImpresion; // ✅ CORREGIDO
 
                 // Actualizar apariencia
                 btnRemito.BackColor = puedeRemito ? Color.FromArgb(102, 51, 153) : Color.LightGray;
                 btnFacturaA.BackColor = puedeFacturas ? Color.FromArgb(40, 167, 69) : Color.LightGray;
                 btnFacturaB.BackColor = puedeFacturas ? Color.FromArgb(0, 123, 255) : Color.LightGray;
-                btnFinalizarSinImpresion.BackColor = puedeFinalizarSinImpresion ? Color.FromArgb(255, 193, 7) : Color.LightGray; // ✅ CORREGIDO
+                btnFacturaC.BackColor = puedeFacturas ? Color.FromArgb(255, 87, 34) : Color.LightGray;  // ✅ NUEVO
+                btnFinalizarSinImpresion.BackColor = puedeFinalizarSinImpresion ? Color.FromArgb(255, 193, 7) : Color.LightGray;
 
                 // ✅ NUEVO: Mostrar mensaje de límite alcanzado
                 if (!string.IsNullOrEmpty(mensajeLimite))
@@ -2273,7 +2639,7 @@ namespace Comercio.NET
                 buttonsBottom = EsPagoMultiple ? (390 + 45) : (270 + 45);
             }
 
-            int topPos = buttonsBottom + 8;
+            int topPos = buttonsBottom + 8; // margen de 8px por debajo de los botones
 
             lblMensajeEstado = new Label
             {
@@ -2331,7 +2697,7 @@ namespace Comercio.NET
                     return;
                 }
 
-                // PASO 3: Validar código verificador según la ley argentina
+                // PASO 3: Validar código verificador según la ley
                 if (!ValidarCuitVerificador(cuitLimpio))
                 {
                     lblRazonSocial.Text = "❌ CUIT inválido - Código verificadorincorrecto";
@@ -2577,7 +2943,14 @@ namespace Comercio.NET
 
         private string FormatearNumeroFactura(int tipoComprobante, int puntoVenta, int numero)
         {
-            string tipoLetra = tipoComprobante == 1 ? "A" : "B";
+            string tipoLetra = tipoComprobante switch
+            {
+                1 => "A",     // Factura A
+                6 => "B",     // Factura B
+                11 => "C",    // ✅ NUEVO: Factura C (Monotributo)
+                _ => "X"      // Desconocido
+            };
+
             return $"{tipoLetra} {puntoVenta:D4}-{numero:D8}";
         }
 
@@ -2628,7 +3001,7 @@ namespace Comercio.NET
                         // NUEVO: Validar que BaseImp no exceda el límite de AFIP (13 dígitos)
                         if (baseImponible >= 10000000000000m) // 13 dígitos
                         {
-                            System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp muy grande: {baseImponible:N2}, ajustando...");
+                            System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp muy grande: {baseImponible:N2}, corrigiendo...");
                             baseImponible = Math.Min(baseImponible, 9999999999999.99m); // Máximo permitido
                             importeIva = Math.Round(total - baseImponible, 2);
                         }
@@ -2642,7 +3015,7 @@ namespace Comercio.NET
                             // NUEVO: Validar el acumulado también
                             if (nuevaBase >= 10000000000000m) // 13 dígitos
                             {
-                                System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp acumulada muy grande: {nuevaBase:N2}, ajustando...");
+                                System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp acumulada muy grande: {nuevaBase:N2}, corrigiendo...");
                                 nuevaBase = Math.Min(nuevaBase, 9999999999999.99m);
                                 // Recalar IVA para mantener consistencia
                                 nuevoIva = Math.Round(nuevaBase * porcIva / 100, 2);
@@ -2669,7 +3042,7 @@ namespace Comercio.NET
                 // NUEVO: Validar valores por defecto también
                 if (baseImponible >= 10000000000000m)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp por defecto muy grande: {baseImponible:N2}, ajustando...");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ BaseImp por defecto muy grande: {baseImponible:N2}, corrigiendo...");
                     baseImponible = Math.Min(baseImponible, 9999999999999.99m);
                     importeIva = Math.Round(importeTotalVenta - baseImponible, 2);
                 }

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -498,6 +499,87 @@ namespace Comercio.NET.Servicios
             (token, sign, expirationTime) = ExtractTokenAndSign(taXml);
 
             return (token, sign, expirationTime);
+        }
+
+        /// <summary>
+        /// Obtiene el endpoint WSFE configurado para el ambiente activo
+        /// </summary>
+        public static string ObtenerWSFEUrlActivo()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+
+                string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Testing";
+                string wsfeUrl = config[$"AFIP:{ambienteActivo}:WSFEUrl"];
+
+                if (string.IsNullOrEmpty(wsfeUrl))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ WSFE URL no encontrada para {ambienteActivo}, usando Testing");
+                    wsfeUrl = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] WSFE URL ({ambienteActivo}): {wsfeUrl}");
+                return wsfeUrl;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo WSFE URL: {ex.Message}");
+                return "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"; // Fallback a Testing
+            }
+        }
+
+        /// <summary>
+        /// Crea un cliente WSFE con el endpoint correcto según el ambiente
+        /// </summary>
+        public static ArcaWS.ServiceSoapClient CrearClienteWSFE()
+        {
+            try
+            {
+                string wsfeUrl = ObtenerWSFEUrlActivo();
+
+                // Crear endpoint dinámico
+                var endpoint = new System.ServiceModel.EndpointAddress(wsfeUrl);
+
+                // ✅ CORREGIDO: Configurar binding correctamente
+                var binding = new System.ServiceModel.BasicHttpBinding
+                {
+                    MaxReceivedMessageSize = 65536,
+                    // ✅ Security es una propiedad, Mode es una propiedad dentro de Security
+                    Security = new System.ServiceModel.BasicHttpSecurity
+                    {
+                        Mode = System.ServiceModel.BasicHttpSecurityMode.Transport
+                    }
+                };
+
+                // Configurar timeouts para evitar problemas de conexión
+                binding.SendTimeout = TimeSpan.FromMinutes(2);
+                binding.ReceiveTimeout = TimeSpan.FromMinutes(2);
+                binding.OpenTimeout = TimeSpan.FromMinutes(1);
+                binding.CloseTimeout = TimeSpan.FromMinutes(1);
+
+                // Crear cliente con configuración dinámica
+                var client = new ArcaWS.ServiceSoapClient(binding, endpoint);
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Cliente WSFE creado para: {wsfeUrl}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Security Mode: {binding.Security.Mode}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Max Message Size: {binding.MaxReceivedMessageSize}");
+
+                return client;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error creando cliente WSFE: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Stack: {ex.StackTrace}");
+
+                // Fallback al cliente por defecto
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Usando configuración por defecto");
+                return new ArcaWS.ServiceSoapClient(
+                    ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
+            }
         }
 
         // NUEVO: Crear TRA con uniqueId alternativo para reintentos

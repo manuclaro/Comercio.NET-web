@@ -42,7 +42,9 @@ namespace Comercio.NET.Formularios
         private TextBox txtAfipProduccionWSAAUrl, txtAfipProduccionWSFEUrl;
         private Button btnSeleccionarCertificadoProduccion, btnVerificarCertificadoProduccion;
         private Panel panelAfip;
-        
+
+        private TextBox txtAfipTestingPuntoVenta, txtAfipProduccionPuntoVenta;
+
         // NUEVO: Controles para restricciones de impresión
         private Panel panelRestriccionesImpresion;
         private CheckBox chkRestringirRemitoPorPago;
@@ -60,6 +62,7 @@ namespace Comercio.NET.Formularios
         // NUEVO: Opciones para permitir Factura A / Factura B
         private CheckBox chkPermitirFacturaA;
         private CheckBox chkPermitirFacturaB;
+        private CheckBox chkPermitirFacturaC; // ✅ NUEVO
 
         // Estados de colapso para cada sección
         private bool _comercioColapsado = false;
@@ -300,6 +303,19 @@ namespace Comercio.NET.Formularios
                 Checked = true
             };
             panelContenido.Controls.Add(chkPermitirFacturaB);
+
+            // ✅ NUEVO: CheckBox para Factura C
+            chkPermitirFacturaC = new CheckBox
+            {
+                Name = "chkPermitirFacturaC",
+                Text = "Permitir Factura C",
+                Location = new Point(365, 130),
+                Size = new Size(160, 22),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = true
+            };
+            panelContenido.Controls.Add(chkPermitirFacturaC);
 
             // Ajuste final: aumentar altura visible del panel si es necesario
             panelContenido.Height = 160 + 20;
@@ -697,7 +713,7 @@ namespace Comercio.NET.Formularios
             var panel = new Panel
             {
                 Location = new Point(15, y),
-                Size = new Size(ancho, 330),
+                Size = new Size(ancho, 360), // Altura aumentada para el nuevo campo
                 BackColor = Color.FromArgb(245, 248, 252),
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = esTesting // Solo Testing visible por defecto
@@ -738,7 +754,42 @@ namespace Comercio.NET.Formularios
             }
             panel.Controls.Add(txtCuit);
 
-            // Certificado
+            // ✅ NUEVO: Punto de Venta
+            panel.Controls.Add(CrearLabel("Punto de Venta:", 290, 45));
+            var txtPuntoVenta = new TextBox
+            {
+                Location = new Point(400, 43),
+                Size = new Size(80, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "1-9999",
+                MaxLength = 4
+            };
+
+            // Validar que solo sean números
+            txtPuntoVenta.KeyPress += (s, e) =>
+            {
+                if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
+                {
+                    e.Handled = true;
+                }
+            };
+
+            if (esTesting)
+            {
+                txtAfipTestingPuntoVenta = txtPuntoVenta;
+            }
+            else
+            {
+                txtAfipProduccionPuntoVenta = txtPuntoVenta;
+            }
+            panel.Controls.Add(txtPuntoVenta);
+
+            // ✅ Tooltip para punto de venta
+            toolTip.SetToolTip(txtPuntoVenta,
+                "Número de punto de venta asignado por AFIP\n" +
+                "Rango válido: 1 a 9999");
+
+            // Certificado (ahora en línea 75 en lugar de 45)
             panel.Controls.Add(CrearLabel("Certificado (.p12):", 15, 75));
             var txtCertPath = new TextBox
             {
@@ -1114,6 +1165,7 @@ namespace Comercio.NET.Formularios
             // Nuevos checkboxes
             chkPermitirFacturaA.TabIndex = 9;
             chkPermitirFacturaB.TabIndex = 10;
+            chkPermitirFacturaC.TabIndex = 11; // ✅ NUEVO
 
             // TabIndex para controles AFIP (desplazados)
             //txtAfipCuit.TabIndex = 11;
@@ -1377,8 +1429,11 @@ namespace Comercio.NET.Formularios
                 // Cargar opciones de facturación: permitir Factura A / B
                 bool permitirA = _configuracionOriginal["Facturacion"]?["PermitirFacturaA"]?.ToObject<bool>() ?? true;
                 bool permitirB = _configuracionOriginal["Facturacion"]?["PermitirFacturaB"]?.ToObject<bool>() ?? true;
+                bool permitirC = _configuracionOriginal["Facturacion"]?["PermitirFacturaC"]?.ToObject<bool>() ?? true; // ✅ NUEVO
+
                 if (chkPermitirFacturaA != null) chkPermitirFacturaA.Checked = permitirA;
                 if (chkPermitirFacturaB != null) chkPermitirFacturaB.Checked = permitirB;
+                if (chkPermitirFacturaC != null) chkPermitirFacturaC.Checked = permitirC; // ✅ NUEVO
 
                 // Cargar fecha de inicio de actividades
                 if (DateTime.TryParse(_configuracionOriginal["Facturacion"]?["InicioActividades"]?.ToString(), out DateTime fechaInicio))
@@ -1457,6 +1512,7 @@ namespace Comercio.NET.Formularios
                 if (afipTesting != null)
                 {
                     txtAfipTestingCuit.Text = afipTesting["CUIT"]?.ToString() ?? "";
+                    txtAfipTestingPuntoVenta.Text = afipTesting["PuntoVenta"]?.ToString() ?? "1"; // ✅ NUEVO
                     txtAfipTestingCertificadoPath.Text = afipTesting["CertificadoPath"]?.ToString() ?? "";
                     txtAfipTestingCertificadoPassword.Text = afipTesting["CertificadoPassword"]?.ToString() ?? "";
                     txtAfipTestingWSAAUrl.Text = afipTesting["WSAAUrl"]?.ToString() ?? "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
@@ -1468,6 +1524,7 @@ namespace Comercio.NET.Formularios
                 if (afipProduccion != null)
                 {
                     txtAfipProduccionCuit.Text = afipProduccion["CUIT"]?.ToString() ?? "";
+                    txtAfipProduccionPuntoVenta.Text = afipProduccion["PuntoVenta"]?.ToString() ?? "1"; // ✅ NUEVO
                     txtAfipProduccionCertificadoPath.Text = afipProduccion["CertificadoPath"]?.ToString() ?? "";
                     txtAfipProduccionCertificadoPassword.Text = afipProduccion["CertificadoPassword"]?.ToString() ?? "";
                     txtAfipProduccionWSAAUrl.Text = afipProduccion["WSAAUrl"]?.ToString() ?? "https://wsaa.afip.gov.ar/ws/services/LoginCms";
@@ -1578,7 +1635,8 @@ namespace Comercio.NET.Formularios
                         ["InicioActividades"] = DateTime.Now.ToString("yyyy-MM-dd"),
                         ["Condicion"] = "",
                         ["PermitirFacturaA"] = true,
-                        ["PermitirFacturaB"] = true
+                        ["PermitirFacturaB"] = true,
+                        ["PermitirFacturaC"] = true  // ✅ NUEVO
                     },
                     ["Inventario"] = new JObject
                     {
@@ -1643,8 +1701,6 @@ namespace Comercio.NET.Formularios
         {
             System.Diagnostics.Debug.WriteLine("[SAVE] === INICIANDO GUARDADO ===");
             System.Diagnostics.Debug.WriteLine($"[SAVE] Nombres CtaCte: {lstNombresCtaCte.Items.Count}");
-            //System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP CUIT: {txtAfipCuit.Text}");
-            //System.Diagnostics.Debug.WriteLine($"[SAVE] Certificado: {txtAfipCertificadoPath.Text}");
             System.Diagnostics.Debug.WriteLine($"[SAVE] Restringir Remito: {chkRestringirRemitoPorPago.Checked}");
 
             if (!ValidarDatos())
@@ -1659,7 +1715,21 @@ namespace Comercio.NET.Formularios
                 btnGuardar.Text = "💾 Guardando...";
                 MostrarMensaje("Guardando configuración...", Color.Blue);
 
-                System.Diagnostics.Debug.WriteLine($"[SAVE] Iniciando guardado en: {_rutaAppsettings}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] === RUTAS DE GUARDADO ===");
+
+                // ✅ RUTA 1: Runtime (bin\Debug\...)
+                string rutaRuntime = _rutaAppsettings;
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Runtime: {rutaRuntime}");
+
+                // ✅ RUTA 2: Proyecto (raíz)
+                string rutaProyecto = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    @"..\..\..\appsettings.json"
+                );
+                rutaProyecto = Path.GetFullPath(rutaProyecto);
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Proyecto: {rutaProyecto}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Proyecto existe: {File.Exists(rutaProyecto)}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] ================================");
 
                 // Verificar que tenemos la configuración original
                 if (_configuracionOriginal == null)
@@ -1670,6 +1740,8 @@ namespace Comercio.NET.Formularios
                 }
 
                 var nuevaConfiguracion = JObject.Parse(_configuracionOriginal.ToString());
+
+                // === ACTUALIZAR TODA LA CONFIGURACIÓN ===
 
                 // Actualizar información del comercio
                 if (nuevaConfiguracion["Comercio"] == null)
@@ -1691,54 +1763,48 @@ namespace Comercio.NET.Formularios
                 nuevaConfiguracion["Facturacion"]["CodigoPostal"] = txtCodigoPostal.Text.Trim();
                 nuevaConfiguracion["Facturacion"]["InicioActividades"] = dtpInicioActividades.Value.ToString("yyyy-MM-dd");
                 nuevaConfiguracion["Facturacion"]["Condicion"] = cmbCondicion.SelectedItem?.ToString() ?? "";
+                nuevaConfiguracion["Facturacion"]["PermitirFacturaA"] = chkPermitirFacturaA?.Checked ?? true;
+                nuevaConfiguracion["Facturacion"]["PermitirFacturaB"] = chkPermitirFacturaB?.Checked ?? true;
+                nuevaConfiguracion["Facturacion"]["PermitirFacturaC"] = chkPermitirFacturaC?.Checked ?? true; // ✅ NUEVO
 
                 // Actualizar configuración de AFIP
                 if (nuevaConfiguracion["AFIP"] == null)
                     nuevaConfiguracion["AFIP"] = new JObject();
 
-                // Guardar ambiente activo
                 nuevaConfiguracion["AFIP"]["AmbienteActivo"] = rbAfipProduccion.Checked ? "Produccion" : "Testing";
 
-                // Guardar configuración de Testing
+                // Testing
                 if (nuevaConfiguracion["AFIP"]["Testing"] == null)
                     nuevaConfiguracion["AFIP"]["Testing"] = new JObject();
 
                 nuevaConfiguracion["AFIP"]["Testing"]["CUIT"] = txtAfipTestingCuit.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Testing"]["PuntoVenta"] = int.TryParse(txtAfipTestingPuntoVenta.Text.Trim(), out int pvTesting) ? pvTesting : 1; // ✅ NUEVO
                 nuevaConfiguracion["AFIP"]["Testing"]["CertificadoPath"] = txtAfipTestingCertificadoPath.Text.Trim();
                 nuevaConfiguracion["AFIP"]["Testing"]["CertificadoPassword"] = txtAfipTestingCertificadoPassword.Text;
                 nuevaConfiguracion["AFIP"]["Testing"]["WSAAUrl"] = txtAfipTestingWSAAUrl.Text.Trim();
                 nuevaConfiguracion["AFIP"]["Testing"]["WSFEUrl"] = txtAfipTestingWSFEUrl.Text.Trim();
 
-                // Guardar configuración de Producción
+                // Producción
                 if (nuevaConfiguracion["AFIP"]["Produccion"] == null)
                     nuevaConfiguracion["AFIP"]["Produccion"] = new JObject();
 
                 nuevaConfiguracion["AFIP"]["Produccion"]["CUIT"] = txtAfipProduccionCuit.Text.Trim();
+                nuevaConfiguracion["AFIP"]["Produccion"]["PuntoVenta"] = int.TryParse(txtAfipProduccionPuntoVenta.Text.Trim(), out int pvProduccion) ? pvProduccion : 1; // ✅ NUEVO
                 nuevaConfiguracion["AFIP"]["Produccion"]["CertificadoPath"] = txtAfipProduccionCertificadoPath.Text.Trim();
                 nuevaConfiguracion["AFIP"]["Produccion"]["CertificadoPassword"] = txtAfipProduccionCertificadoPassword.Text;
                 nuevaConfiguracion["AFIP"]["Produccion"]["WSAAUrl"] = txtAfipProduccionWSAAUrl.Text.Trim();
                 nuevaConfiguracion["AFIP"]["Produccion"]["WSFEUrl"] = txtAfipProduccionWSFEUrl.Text.Trim();
 
-                // Opciones adicionales de facturación
-                nuevaConfiguracion["Facturacion"]["PermitirFacturaA"] = chkPermitirFacturaA?.Checked ?? true;
-                nuevaConfiguracion["Facturacion"]["PermitirFacturaB"] = chkPermitirFacturaB?.Checked ?? true;
+                System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP - Ambiente: {(rbAfipProduccion.Checked ? "Producción" : "Testing")}");
 
-                System.Diagnostics.Debug.WriteLine($"[SAVE] AFIP - Ambiente Activo: {(rbAfipProduccion.Checked ? "Producción" : "Testing")}");
-
-                // NUEVO: Actualizar configuración de restricciones de impresión
+                // Restricciones de impresión
                 if (nuevaConfiguracion["RestriccionesImpresion"] == null)
                     nuevaConfiguracion["RestriccionesImpresion"] = new JObject();
 
                 nuevaConfiguracion["RestriccionesImpresion"]["RestringirRemitoPorPago"] = chkRestringirRemitoPorPago.Checked;
-
-
-                // NUEVO: Guardar configuración de vista previa
                 nuevaConfiguracion["RestriccionesImpresion"]["UsarVistaPrevia"] = chkVistaPreviaImpresionDirecta.Checked;
-
-                // NUEVO: Guardar configuración de límite de facturación
                 nuevaConfiguracion["RestriccionesImpresion"]["LimitarFacturacion"] = chkLimitarFacturacion.Checked;
 
-                // Parsear y guardar el monto límite
                 decimal montoLimite = 0m;
                 if (!string.IsNullOrWhiteSpace(txtMontoLimiteFacturacion.Text))
                 {
@@ -1750,98 +1816,179 @@ namespace Comercio.NET.Formularios
                 }
                 nuevaConfiguracion["RestriccionesImpresion"]["MontoLimiteFacturacion"] = montoLimite;
 
-                System.Diagnostics.Debug.WriteLine($"[SAVE] Limitar Facturación configurado - Habilitado: {chkLimitarFacturacion.Checked}, Monto: ${montoLimite:F2}");
-
-                // Mantener compatibilidad con sección "Validaciones" existente
+                // Inventario
                 if (nuevaConfiguracion["Validaciones"] == null)
                     nuevaConfiguracion["Validaciones"] = new JObject();
 
                 nuevaConfiguracion["Validaciones"]["ValidarStockDisponible"] = chkVerificarStock.Checked;
 
-                // Guardar nombres de cuentas corrientes
+                // Cuentas corrientes
                 GuardarNombresCuentasCorrientes(nuevaConfiguracion);
 
-                // Actualizar cadena de conexión solo si la edición está habilitada
+                // Connection string (si está habilitada la edición)
                 if (_edicionBaseDatosHabilitada)
                 {
                     if (nuevaConfiguracion["ConnectionStrings"] == null)
                         nuevaConfiguracion["ConnectionStrings"] = new JObject();
 
                     nuevaConfiguracion["ConnectionStrings"]["DefaultConnection"] = txtConnectionString.Text.Trim();
-                    System.Diagnostics.Debug.WriteLine("[SAVE] Connection String actualizada");
                 }
 
-                // Crear backup del archivo original
-                string backupPath = _rutaAppsettings + $".backup.{DateTime.Now:yyyyMMdd_HHmmss}";
-                if (File.Exists(_rutaAppsettings))
+                // ✅ CREAR BACKUP DEL ARCHIVO RUNTIME
+                string backupPath = rutaRuntime + $".backup.{DateTime.Now:yyyyMMdd_HHmmss}";
+                if (File.Exists(rutaRuntime))
                 {
-                    File.Copy(_rutaAppsettings, backupPath);
+                    File.Copy(rutaRuntime, backupPath);
                     System.Diagnostics.Debug.WriteLine($"[SAVE] Backup creado: {backupPath}");
                 }
 
-                // Guardar nueva configuración con formato JSON legible
+                // ✅ FORMATEAR JSON UNA SOLA VEZ
                 string jsonFormateado = JsonConvert.SerializeObject(nuevaConfiguracion, Formatting.Indented);
-                System.Diagnostics.Debug.WriteLine($"[SAVE] JSON a guardar:\n{jsonFormateado}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] JSON generado ({jsonFormateado.Length} caracteres)");
 
-                await File.WriteAllTextAsync(_rutaAppsettings, jsonFormateado);
-                System.Diagnostics.Debug.WriteLine("[SAVE] Archivo escrito");
+                // ✅ === GUARDADO DUAL COMIENZA AQUÍ ===
 
-                // Verificar que se guardó correctamente
-                if (File.Exists(_rutaAppsettings))
+                bool guardadoRuntimeExitoso = false;
+                bool guardadoProyectoExitoso = false;
+                string errorRuntime = "";
+                string errorProyecto = "";
+
+                // ✅ GUARDAR EN RUNTIME
+                try
                 {
-                    string contenidoGuardado = await File.ReadAllTextAsync(_rutaAppsettings);
-                    System.Diagnostics.Debug.WriteLine($"[SAVE] Verificación - Archivo guardado correctamente. Tamaño: {contenidoGuardado.Length} caracteres");
+                    await File.WriteAllTextAsync(rutaRuntime, jsonFormateado);
 
-                    // Actualizar configuración original para futuras comparaciones
-                    _configuracionOriginal = nuevaConfiguracion;
-
-                    MostrarMensaje("✅ Configuración guardada correctamente", Color.Green);
-
-                    // Nuevo comportamiento: informar que no es necesario reloguear/reiniciar y ofrecer aplicar en caliente
-                    var result = MessageBox.Show(
-                        "✅ Configuración guardada exitosamente.\n\n" +
-                        "Los cambios se aplicarán en caliente y no es necesario volver a iniciar sesión.\n\n" +
-                        "¿Desea aplicar los cambios ahora en las ventanas abiertas?",
-                        "Configuración Guardada",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Information);
-
-                    // ... dentro de GuardarConfiguracion(), en el bloque donde result == DialogResult.Yes
-                    if (result == DialogResult.Yes)
+                    if (File.Exists(rutaRuntime))
                     {
-                        try
+                        string verificacion = await File.ReadAllTextAsync(rutaRuntime);
+                        guardadoRuntimeExitoso = verificacion.Length == jsonFormateado.Length;
+                        System.Diagnostics.Debug.WriteLine($"[SAVE] ✅ Runtime guardado - {verificacion.Length} bytes");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorRuntime = ex.Message;
+                    System.Diagnostics.Debug.WriteLine($"[SAVE] ❌ Error en runtime: {ex.Message}");
+                }
+
+                // ✅ GUARDAR EN PROYECTO (solo si existe)
+                if (File.Exists(rutaProyecto))
+                {
+                    try
+                    {
+                        // Crear backup del proyecto también
+                        string backupProyecto = rutaProyecto + $".backup.{DateTime.Now:yyyyMMdd_HHmmss}";
+                        File.Copy(rutaProyecto, backupProyecto);
+                        System.Diagnostics.Debug.WriteLine($"[SAVE] Backup proyecto creado: {backupProyecto}");
+
+                        await File.WriteAllTextAsync(rutaProyecto, jsonFormateado);
+
+                        if (File.Exists(rutaProyecto))
                         {
-                            // Forzar recarga y notificar a suscriptores de manera segura
-                            try
-                            {
-                                Comercio.NET.Servicios.SettingsManager.ReloadConfiguration();
-                                MostrarMensaje("✅ Cambios aplicados en caliente", Color.Green);
-                                System.Diagnostics.Debug.WriteLine("[SAVE] SettingsManager.ReloadConfiguration invocado");
-                            }
-                            catch (Exception exNotify)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[SAVE] Error notificando cambios: {exNotify.Message}");
-                                MostrarMensaje("⚠️ No se pudieron notificar todos los formularios. Reinicie si observa inconsistencias.", Color.Orange);
-                            }
+                            string verificacion = await File.ReadAllTextAsync(rutaProyecto);
+                            guardadoProyectoExitoso = verificacion.Length == jsonFormateado.Length;
+                            System.Diagnostics.Debug.WriteLine($"[SAVE] ✅ Proyecto guardado - {verificacion.Length} bytes");
                         }
-                        finally
-                        {
-                            await Task.Delay(800);
-                            this.DialogResult = DialogResult.OK;
-                            this.Close();
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorProyecto = ex.Message;
+                        System.Diagnostics.Debug.WriteLine($"[SAVE] ⚠️ Error en proyecto: {ex.Message}");
                     }
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("[SAVE ERROR] El archivo no existe después del guardado");
-                    MostrarMensaje("❌ Error: El archivo no se guardó correctamente", Color.Red);
+                    System.Diagnostics.Debug.WriteLine("[SAVE] ℹ️ Archivo de proyecto no encontrado, solo se guardó en runtime");
                 }
+
+                // ✅ === EVALUAR RESULTADOS DEL GUARDADO ===
+
+                if (guardadoRuntimeExitoso)
+                {
+                    // Actualizar configuración original
+                    _configuracionOriginal = nuevaConfiguracion;
+
+                    string mensajeExito = "✅ CONFIGURACIÓN GUARDADA EXITOSAMENTE\n\n";
+
+                    if (guardadoProyectoExitoso)
+                    {
+                        mensajeExito += "📁 Guardado en:\n" +
+                                       "  ✓ Ejecutable (runtime)\n" +
+                                       "  ✓ Proyecto (código fuente)\n\n" +
+                                       "Los cambios se aplicarán inmediatamente y\n" +
+                                       "persisti rán en futuras compilaciones.";
+                    }
+                    else
+                    {
+                        mensajeExito += "📁 Guardado en:\n" +
+                                       "  ✓ Ejecutable (runtime)\n" +
+                                       $"  ⚠️ Proyecto: {(File.Exists(rutaProyecto) ? "Error al guardar" : "No encontrado")}\n\n";
+
+                        if (!string.IsNullOrEmpty(errorProyecto))
+                        {
+                            mensajeExito += $"⚠️ Advertencia: {errorProyecto}\n\n";
+                        }
+
+                        mensajeExito += "Los cambios se aplicarán pero podrían perderse\n" +
+                                       "al recompilar si no se guardaron en el proyecto.";
+                    }
+
+                    MostrarMensaje("✅ Configuración guardada", Color.Green);
+
+                    var result = MessageBox.Show(
+                        mensajeExito + "\n\n¿Desea aplicar los cambios ahora en las ventanas abiertas?",
+                        "Configuración Guardada",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        try
+                        {
+                            Comercio.NET.Servicios.SettingsManager.ReloadConfiguration();
+                            MostrarMensaje("✅ Cambios aplicados en caliente", Color.Green);
+                            System.Diagnostics.Debug.WriteLine("[SAVE] SettingsManager.ReloadConfiguration invocado");
+                        }
+                        catch (Exception exNotify)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[SAVE] Error notificando: {exNotify.Message}");
+                            MostrarMensaje("⚠️ No se pudieron notificar todos los formularios", Color.Orange);
+                        }
+
+                        await Task.Delay(800);
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                }
+                else
+                {
+                    // Error crítico - no se pudo guardar en runtime
+                    string mensajeError = "❌ ERROR AL GUARDAR CONFIGURACIÓN\n\n" +
+                                         "No se pudo guardar el archivo en la ubicación de ejecución.\n\n" +
+                                         $"Error: {errorRuntime}\n\n" +
+                                         "Los cambios NO se aplicaron.";
+
+                    MostrarMensaje("❌ Error al guardar", Color.Red);
+                    MessageBox.Show(mensajeError, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+
+                System.Diagnostics.Debug.WriteLine("[SAVE] === RESUMEN GUARDADO ===");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Runtime: {(guardadoRuntimeExitoso ? "✅ OK" : "❌ FALLÓ")}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Proyecto: {(guardadoProyectoExitoso ? "✅ OK" : File.Exists(rutaProyecto) ? "⚠️ ERROR" : "ℹ️ N/A")}");
+                System.Diagnostics.Debug.WriteLine("[SAVE] ===========================");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SAVE ERROR] Excepción: {ex}");
-                MostrarMensaje($"❌ Error al guardar: {ex.Message}", Color.Red);
+                System.Diagnostics.Debug.WriteLine($"[SAVE ERROR] Excepción general: {ex}");
+                MostrarMensaje($"❌ Error: {ex.Message}", Color.Red);
+
+                MessageBox.Show(
+                    $"❌ ERROR INESPERADO\n\n{ex.Message}\n\n" +
+                    $"Tipo: {ex.GetType().Name}\n" +
+                    $"StackTrace:\n{ex.StackTrace}",
+                    "Error Crítico",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
             finally
             {
@@ -2036,6 +2183,32 @@ namespace Comercio.NET.Formularios
                 txtCertPathActivo.SelectAll();
                 return false;
             }
+
+            // ✅ NUEVO: Validar punto de venta
+            var txtPuntoVentaActivo = esProduccion ? txtAfipProduccionPuntoVenta : txtAfipTestingPuntoVenta;
+
+            if (string.IsNullOrWhiteSpace(txtPuntoVentaActivo.Text))
+            {
+                MostrarMensaje($"❌ El punto de venta para {ambienteNombre} es requerido", Color.Red);
+                _afipColapsado = false;
+                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 465);
+                ActualizarPosicionesTodasLasSecciones();
+                txtPuntoVentaActivo.Focus();
+                return false;
+            }
+
+            if (!int.TryParse(txtPuntoVentaActivo.Text, out int puntoVenta) || puntoVenta < 1 || puntoVenta > 9999)
+            {
+                MostrarMensaje($"❌ El punto de venta debe ser un número entre 1 y 9999", Color.Red);
+                _afipColapsado = false;
+                ActualizarEstadoSeccion(panelAfip, "panelContenidoAfip", _afipColapsado, btnColapsarAfip, 35, 465);
+                ActualizarPosicionesTodasLasSecciones();
+                txtPuntoVentaActivo.Focus();
+                txtPuntoVentaActivo.SelectAll();
+                return false;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[VALIDACIÓN] Punto de venta {ambienteNombre}: {puntoVenta}");
 
             return true;
         }
