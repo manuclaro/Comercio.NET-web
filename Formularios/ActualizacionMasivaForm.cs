@@ -38,6 +38,7 @@ namespace Comercio.NET.Formularios
         private Button btnAplicarCambios;
         private Button btnCancelar;
         private Button btnLimpiar;
+        private Button btnPrecargarFiltro; // NUEVO: Botón para precargar productos filtrados
         
         private DataTable dtProductosAfectados;
         private bool cambiosAplicados = false;
@@ -120,10 +121,6 @@ namespace Comercio.NET.Formularios
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
             this.Controls.Add(lblMensaje);
-            currentY += 35;
-
-            // === BOTONES DE ACCIÓN ===
-            CrearBotonesAccion(margin, currentY, panelWidth);
         }
 
         private Panel CrearPanelFiltros(int x, int y, int ancho)
@@ -131,7 +128,7 @@ namespace Comercio.NET.Formularios
             var panel = new Panel
             {
                 Location = new Point(x, y),
-                Size = new Size(ancho, 90), // REDUCIDO: De 115 a 95
+                Size = new Size(ancho, 120), // AUMENTADO: De 90 a 120 para el nuevo botón
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -213,20 +210,45 @@ namespace Comercio.NET.Formularios
             };
             panel.Controls.Add(txtFiltroDescripcion);
 
+            // NUEVO: Botón para precargar productos filtrados
+            btnPrecargarFiltro = new Button
+            {
+                Text = "👁️ Ver Productos",
+                Location = new Point(805, 31),
+                Size = new Size(130, 30),
+                BackColor = Color.FromArgb(156, 39, 176), // Color púrpura
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Enabled = false,
+                Cursor = Cursors.Hand
+            };
+            btnPrecargarFiltro.FlatAppearance.BorderSize = 0;
+            panel.Controls.Add(btnPrecargarFiltro);
+
             // Label informativo para búsqueda por descripción
             var lblInfoDescripcion = new Label
             {
                 Text = "💡 La búsqueda encuentra productos que contengan el texto en cualquier parte de la descripción",
-                Location = new Point(15, 63), // AJUSTADO: De 65 a 63
-                Size = new Size(ancho - 30, 16), // REDUCIDO: De 20 a 16
-                Font = new Font("Segoe UI", 7F, FontStyle.Italic), // REDUCIDO: De 7.5F a 7F
+                Location = new Point(15, 68),
+                Size = new Size(ancho - 30, 16),
+                Font = new Font("Segoe UI", 7F, FontStyle.Italic),
                 ForeColor = Color.FromArgb(33, 150, 243),
                 Visible = false
             };
             panel.Controls.Add(lblInfoDescripcion);
 
-            // Descripción informativa general - ELIMINADO label largo para ahorrar espacio
-            // Ya no es necesario porque es autoexplicativo
+            // NUEVO: Label informativo para el botón de precarga
+            var lblInfoPrecarga = new Label
+            {
+                Text = "💡 Usa 'Ver Productos' para verificar qué productos serán afectados por los filtros antes de calcular",
+                Location = new Point(15, 90),
+                Size = new Size(ancho - 30, 20),
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(156, 39, 176),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            panel.Controls.Add(lblInfoPrecarga);
 
             return panel;
         }
@@ -236,7 +258,7 @@ namespace Comercio.NET.Formularios
             var panel = new Panel
             {
                 Location = new Point(x, y),
-                Size = new Size(ancho, 165), // REDUCIDO: De 200 a 165
+                Size = new Size(ancho, 165),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -247,7 +269,7 @@ namespace Comercio.NET.Formularios
                 Text = "⚙️ CRITERIO DE ACTUALIZACIÓN",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181),
-                Location = new Point(15, 8), // REDUCIDO: De 10 a 8
+                Location = new Point(15, 8),
                 Size = new Size(350, 25)
             };
             panel.Controls.Add(lblTitulo);
@@ -255,7 +277,7 @@ namespace Comercio.NET.Formularios
             // Panel para valor de actualización (arriba a la derecha)
             var panelValor = new Panel
             {
-                Location = new Point(500, 8), // REDUCIDO: De 10 a 8
+                Location = new Point(500, 8),
                 Size = new Size(ancho - 530, 90),
                 BackColor = Color.FromArgb(240, 245, 250),
                 BorderStyle = BorderStyle.FixedSingle
@@ -284,11 +306,26 @@ namespace Comercio.NET.Formularios
             {
                 Text = "%",
                 Location = new Point(170, 35),
-                Size = new Size(50, 25),
+                Size = new Size(30, 25),
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             panelValor.Controls.Add(lblUnidadActualizacion);
+
+            // Botón "Cargar Vista Previa" dentro del panel de valor
+            btnCargarPreview = new Button
+            {
+                Text = "👁️ Vista Previa",
+                Location = new Point(210, 33),
+                Size = new Size(120, 30),
+                BackColor = Color.FromArgb(33, 150, 243),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnCargarPreview.FlatAppearance.BorderSize = 0;
+            panelValor.Controls.Add(btnCargarPreview);
 
             var lblEjemplo = new Label
             {
@@ -301,53 +338,53 @@ namespace Comercio.NET.Formularios
             panelValor.Controls.Add(lblEjemplo);
 
             // Radio buttons para tipo de actualización
-            int radioY = 40; // REDUCIDO: De 45 a 40
+            int radioY = 40;
 
             rbPorcentaje = new RadioButton
             {
                 Text = "🔼 Incremento/Decremento por porcentaje sobre precio actual",
                 Location = new Point(15, radioY),
-                Size = new Size(470, 17), // REDUCIDO: De 18 a 17
+                Size = new Size(470, 17),
                 Checked = true,
                 Font = new Font("Segoe UI", 8F)
             };
             panel.Controls.Add(rbPorcentaje);
-            radioY += 19; // REDUCIDO: De 20 a 19
+            radioY += 19;
 
             rbPorcentajeGanancia = new RadioButton
             {
                 Text = "📊 Actualizar porcentaje de ganancia (recalcula precio desde costo)",
                 Location = new Point(15, radioY),
-                Size = new Size(470, 17), // REDUCIDO: De 18 a 17
+                Size = new Size(470, 17),
                 Font = new Font("Segoe UI", 8F)
             };
             panel.Controls.Add(rbPorcentajeGanancia);
-            radioY += 19; // REDUCIDO: De 20 a 19
+            radioY += 19;
 
             rbValorFijo = new RadioButton
             {
                 Text = "💰 Incremento/Decremento por valor fijo en pesos",
                 Location = new Point(15, radioY),
-                Size = new Size(470, 17), // REDUCIDO: De 18 a 17
+                Size = new Size(470, 17),
                 Font = new Font("Segoe UI", 8F)
             };
             panel.Controls.Add(rbValorFijo);
-            radioY += 19; // REDUCIDO: De 20 a 19
+            radioY += 19;
 
             rbPrecioFinal = new RadioButton
             {
                 Text = "🎯 Establecer precio final específico",
                 Location = new Point(15, radioY),
-                Size = new Size(470, 17), // REDUCIDO: De 18 a 17
+                Size = new Size(470, 17),
                 Font = new Font("Segoe UI", 8F)
             };
             panel.Controls.Add(rbPrecioFinal);
 
-            // Checkboxes para qué actualizar - MOVIDOS MÁS ARRIBA
+            // Checkboxes para qué actualizar
             var lblQueActualizar = new Label
             {
                 Text = "¿Qué actualizar?",
-                Location = new Point(15, 135), // REDUCIDO: De 170 a 135
+                Location = new Point(15, 135),
                 Size = new Size(120, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
@@ -356,7 +393,7 @@ namespace Comercio.NET.Formularios
             chkActualizarCosto = new CheckBox
             {
                 Text = "💵 Costo",
-                Location = new Point(150, 135), // REDUCIDO: De 170 a 135
+                Location = new Point(150, 135),
                 Size = new Size(100, 20),
                 Checked = false
             };
@@ -365,7 +402,7 @@ namespace Comercio.NET.Formularios
             chkActualizarPorcentaje = new CheckBox
             {
                 Text = "📊 % Ganancia",
-                Location = new Point(270, 135), // REDUCIDO: De 170 a 135
+                Location = new Point(270, 135),
                 Size = new Size(120, 20),
                 Checked = false
             };
@@ -374,11 +411,60 @@ namespace Comercio.NET.Formularios
             chkActualizarPrecio = new CheckBox
             {
                 Text = "💰 Precio Venta",
-                Location = new Point(410, 135), // REDUCIDO: De 170 a 135
+                Location = new Point(410, 135),
                 Size = new Size(130, 20),
                 Checked = true
             };
             panel.Controls.Add(chkActualizarPrecio);
+
+            // Botones de acción a la derecha de los checkboxes
+            int btnY = 110;
+            int btnX = 560;
+            int btnWidth = 140;
+            int btnSpacing = 10;
+
+            btnLimpiar = new Button
+            {
+                Text = "🧹 Limpiar",
+                Location = new Point(btnX, btnY),
+                Size = new Size(btnWidth, 35),
+                BackColor = Color.FromArgb(158, 158, 158),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnLimpiar.FlatAppearance.BorderSize = 0;
+            panel.Controls.Add(btnLimpiar);
+
+            btnAplicarCambios = new Button
+            {
+                Text = "✅ Aplicar Cambios",
+                Location = new Point(btnX + btnWidth + btnSpacing, btnY),
+                Size = new Size(btnWidth, 35),
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Enabled = false,
+                Cursor = Cursors.Hand
+            };
+            btnAplicarCambios.FlatAppearance.BorderSize = 0;
+            panel.Controls.Add(btnAplicarCambios);
+
+            btnCancelar = new Button
+            {
+                Text = "❌ Cancelar",
+                Location = new Point(btnX + (btnWidth + btnSpacing) * 2, btnY),
+                Size = new Size(btnWidth, 35),
+                BackColor = Color.FromArgb(244, 67, 54),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnCancelar.FlatAppearance.BorderSize = 0;
+            panel.Controls.Add(btnCancelar);
 
             return panel;
         }
@@ -494,93 +580,28 @@ namespace Comercio.NET.Formularios
             dgvVistaPrevia.Columns["diferencia"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         }
 
-        private void CrearBotonesAccion(int x, int y, int ancho)
-        {
-            int btnWidth = 150;
-            int spacing = 15;
-            int totalBtnWidth = (btnWidth * 4) + (spacing * 3);
-            int startX = x + (ancho - totalBtnWidth) / 2;
-
-            btnCargarPreview = new Button
-            {
-                Text = "👁️ Cargar Vista Previa",
-                Location = new Point(startX, y - 3), // REDUCIDO: -10 para estar más cerca de la grilla
-                Size = new Size(btnWidth, 40),
-                BackColor = Color.FromArgb(33, 150, 243),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Anchor = AnchorStyles.Bottom
-            };
-            btnCargarPreview.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnCargarPreview);
-
-            btnLimpiar = new Button
-            {
-                Text = "🧹 Limpiar",
-                Location = new Point(startX + btnWidth + spacing, y - 3), // REDUCIDO: -10
-                Size = new Size(btnWidth, 40),
-                BackColor = Color.FromArgb(158, 158, 158),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Anchor = AnchorStyles.Bottom
-            };
-            btnLimpiar.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnLimpiar);
-
-            btnAplicarCambios = new Button
-            {
-                Text = "✅ Aplicar Cambios",
-                Location = new Point(startX + (btnWidth + spacing) * 2, y - 3), // REDUCIDO: -10
-                Size = new Size(btnWidth, 40),
-                BackColor = Color.FromArgb(76, 175, 80),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Enabled = false,
-                Anchor = AnchorStyles.Bottom
-            };
-            btnAplicarCambios.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnAplicarCambios);
-
-            btnCancelar = new Button
-            {
-                Text = "❌ Cancelar",
-                Location = new Point(startX + (btnWidth + spacing) * 3, y - 3), // REDUCIDO: -10
-                Size = new Size(btnWidth, 40),
-                BackColor = Color.FromArgb(244, 67, 54),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Anchor = AnchorStyles.Bottom
-            };
-            btnCancelar.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnCancelar);
-        }
-
         private void ConfigurarEventos()
         {
             // Eventos de checkboxes y radio buttons
             chkAplicarFiltro.CheckedChanged += (s, e) =>
             {
                 cmbFiltroTipo.Enabled = chkAplicarFiltro.Checked;
-                ActualizarVisibilidadControlesFiltro(); // MODIFICADO
+                btnPrecargarFiltro.Enabled = chkAplicarFiltro.Checked; // NUEVO: Habilitar botón con filtro
+                ActualizarVisibilidadControlesFiltro();
             };
 
             cmbFiltroTipo.SelectedIndexChanged += (s, e) =>
             {
-                ActualizarVisibilidadControlesFiltro(); // NUEVO
+                ActualizarVisibilidadControlesFiltro();
                 if (cmbFiltroTipo.SelectedItem?.ToString() != "Descripción")
                 {
                     _ = CargarValoresFiltro();
                 }
             };
 
-            // NUEVO: Evento para el TextBox de descripción
+            // Evento para el TextBox de descripción
             txtFiltroDescripcion.TextChanged += (s, e) =>
             {
-                // Mostrar información visual al usuario mientras escribe
                 var panel = txtFiltroDescripcion.Parent;
                 var lblInfo = panel.Controls.OfType<Label>()
                     .FirstOrDefault(l => l.ForeColor == Color.FromArgb(33, 150, 243));
@@ -591,6 +612,9 @@ namespace Comercio.NET.Formularios
                 }
             };
 
+            // NUEVO: Evento del botón de precarga
+            btnPrecargarFiltro.Click += async (s, e) => await PrecargarProductosFiltrados();
+
             var radioButtons = new[] { rbPorcentaje, rbPorcentajeGanancia, rbValorFijo, rbPrecioFinal };
             foreach (var rb in radioButtons)
             {
@@ -599,14 +623,12 @@ namespace Comercio.NET.Formularios
 
             txtValorActualizacion.KeyPress += (s, e) =>
             {
-                // Permitir números, punto, coma, menos y teclas de control
                 if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && 
                     e.KeyChar != '.' && e.KeyChar != ',' && e.KeyChar != '-')
                 {
                     e.Handled = true;
                 }
 
-                // Solo un signo menos al principio
                 if (e.KeyChar == '-' && txtValorActualizacion.Text.Contains("-"))
                 {
                     e.Handled = true;
@@ -1127,7 +1149,7 @@ namespace Comercio.NET.Formularios
             cmbFiltroTipo.SelectedIndex = 0;
             cmbValorFiltro.Items.Clear();
             cmbValorFiltro.Text = "";
-            txtFiltroDescripcion.Clear(); // NUEVO
+            txtFiltroDescripcion.Clear();
             
             rbPorcentaje.Checked = true;
             txtValorActualizacion.Clear();
@@ -1139,6 +1161,7 @@ namespace Comercio.NET.Formularios
             dgvVistaPrevia.Rows.Clear();
             lblContador.Text = "0 productos afectados";
             btnAplicarCambios.Enabled = false;
+            btnPrecargarFiltro.Enabled = false; // NUEVO: Deshabilitar botón
             
             MostrarMensaje("🧹 Formulario limpiado", Color.Blue);
         }
@@ -1244,6 +1267,165 @@ namespace Comercio.NET.Formularios
                 System.Diagnostics.Debug.WriteLine($"Error convirtiendo {columnName}: {ex.Message}");
                 return 0m;
             }
+        }
+
+        // NUEVO: Método para precargar productos filtrados sin cálculos
+        private async Task PrecargarProductosFiltrados()
+        {
+            if (!ValidarFiltros())
+                return;
+
+            try
+            {
+                btnPrecargarFiltro.Enabled = false;
+                MostrarMensaje("⏳ Cargando productos filtrados...", Color.Blue);
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                // Construir query con filtros
+                string query = "SELECT codigo, descripcion, marca, rubro, costo, porcentaje, precio FROM Productos";
+
+                if (chkAplicarFiltro.Checked)
+                {
+                    string tipoFiltro = cmbFiltroTipo.SelectedItem.ToString();
+
+                    if (tipoFiltro == "Descripción")
+                    {
+                        if (!string.IsNullOrWhiteSpace(txtFiltroDescripcion.Text))
+                        {
+                            query += " WHERE descripcion LIKE @valorFiltro";
+                        }
+                    }
+                    else
+                    {
+                        if (cmbValorFiltro.SelectedItem != null)
+                        {
+                            string columna = tipoFiltro.ToLower();
+                            query += $" WHERE {columna} = @valorFiltro";
+                        }
+                    }
+                }
+
+                using var connection = new SqlConnection(connectionString);
+                using var cmd = new SqlCommand(query, connection);
+
+                if (chkAplicarFiltro.Checked)
+                {
+                    string tipoFiltro = cmbFiltroTipo.SelectedItem.ToString();
+
+                    if (tipoFiltro == "Descripción")
+                    {
+                        if (!string.IsNullOrWhiteSpace(txtFiltroDescripcion.Text))
+                        {
+                            cmd.Parameters.AddWithValue("@valorFiltro", $"%{txtFiltroDescripcion.Text.Trim()}%");
+                        }
+                    }
+                    else
+                    {
+                        if (cmbValorFiltro.SelectedItem != null)
+                        {
+                            cmd.Parameters.AddWithValue("@valorFiltro", cmbValorFiltro.SelectedItem.ToString());
+                        }
+                    }
+                }
+
+                await connection.OpenAsync();
+
+                dgvVistaPrevia.Rows.Clear();
+                btnAplicarCambios.Enabled = false; // No permitir aplicar cambios sin cálculos
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                int contador = 0;
+
+                while (reader.Read())
+                {
+                    string codigo = reader["codigo"].ToString();
+                    string descripcion = reader["descripcion"].ToString();
+                    string marca = reader["marca"].ToString();
+
+                    decimal costoActual = ObtenerDecimalSeguro(reader, "costo");
+                    decimal porcentajeActual = ObtenerDecimalSeguro(reader, "porcentaje");
+                    decimal precioActual = ObtenerDecimalSeguro(reader, "precio"); // ✅ CORREGIDO: Sin espacio
+
+                    // Mostrar solo valores actuales (sin cálculos)
+                    dgvVistaPrevia.Rows.Add(
+                        codigo,
+                        descripcion,
+                        marca,
+                        costoActual,
+                        porcentajeActual,
+                        precioActual,
+                        "-", // Sin valor nuevo
+                        "-",
+                        "-",
+                        "-"
+                    );
+
+                    contador++;
+                }
+
+                lblContador.Text = $"{contador} productos encontrados";
+
+                if (contador > 0)
+                {
+                    MostrarMensaje($"✅ {contador} productos cargados. Ahora configura los criterios y presiona 'Cargar Vista Previa'", Color.Green);
+                }
+                else
+                {
+                    MostrarMensaje("⚠️ No se encontraron productos con los filtros aplicados", Color.Orange);
+                }
+            }
+            catch (Exception ex)
+            {
+                MostrarMensaje($"❌ Error cargando productos: {ex.Message}", Color.Red);
+                MessageBox.Show($"Error al cargar productos:\n\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnPrecargarFiltro.Enabled = true;
+            }
+        }
+
+        // NUEVO: Método para validar solo los filtros
+        private bool ValidarFiltros()
+        {
+            if (!chkAplicarFiltro.Checked)
+            {
+                MessageBox.Show("Activa el filtro de selección para usar esta función.",
+                    "Validación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return false;
+            }
+
+            string tipoFiltro = cmbFiltroTipo.SelectedItem?.ToString();
+            
+            if (tipoFiltro == "Descripción")
+            {
+                if (string.IsNullOrWhiteSpace(txtFiltroDescripcion.Text))
+                {
+                    MessageBox.Show("Ingresa un texto para buscar en la descripción.",
+                        "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtFiltroDescripcion.Focus();
+                    return false;
+                }
+            }
+            else
+            {
+                if (cmbValorFiltro.SelectedItem == null)
+                {
+                    MessageBox.Show("Selecciona un valor de filtro.",
+                        "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    cmbValorFiltro.Focus();
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
