@@ -936,6 +936,50 @@ namespace Comercio.NET
             }
         }
 
+        private void BtnActualizacionMasiva_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar permisos
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+
+                    // Solo administradores o usuarios con permiso de editar precios
+                    if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
+                    {
+                        // ✅ CORRECTO: Mostrar como diálogo modal SIN asignar MdiParent
+                        using (var form = new ActualizacionMasivaForm())
+                        {
+                            // NO asignar MdiParent para diálogos modales
+                            form.ShowDialog(this);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para actualizar precios masivamente.\n\n" +
+                            "Este módulo requiere el permiso 'Editar Precios'.\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir actualización masiva: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         // ✅ AGREGAR: Método para mover "Compra Proveedores" al menú Proveedores
         private void MoverCompraProveedoresAMenuProveedores()
         {
@@ -1170,7 +1214,15 @@ namespace Comercio.NET
                     ToolTipText = "Actualización rápida de precios y stock (Ctrl+Shift+P)"
                 };
 
-                // 3. Ofertas y Combos (ya existe, lo agregamos aquí también)
+                // 3. Actualización Masiva - CORREGIDO
+                var itemActualizacionMasiva = new ToolStripMenuItem("⚡ Actualización Masiva de Precios", null, BtnActualizacionMasiva_Click)
+                {
+                    Name = "actualizacionMasivaToolStripMenuItem",
+                    ShortcutKeys = Keys.Control | Keys.Shift | Keys.M, // Atajo diferente: Ctrl+Shift+M
+                    ToolTipText = "Actualización masiva de precios por filtros (Ctrl+Shift+M)"
+                };
+
+                // 4. Ofertas y Combos
                 var itemOfertas = new ToolStripMenuItem("🎁 Ofertas y Combos", null, (s, e) => AbrirGestionOfertas())
                 {
                     Name = "ofertasYCombosToolStripMenuItem",
@@ -1183,6 +1235,7 @@ namespace Comercio.NET
                 menuProductos.DropDownItems.Add(itemAbmProductos);
                 menuProductos.DropDownItems.Add(new ToolStripSeparator());
                 menuProductos.DropDownItems.Add(itemActualizacionRapida);
+                menuProductos.DropDownItems.Add(itemActualizacionMasiva); // ✅ Agregado aquí
                 menuProductos.DropDownItems.Add(new ToolStripSeparator());
                 menuProductos.DropDownItems.Add(itemOfertas);
 
@@ -1229,6 +1282,28 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ Error creando menú Productos: {ex.Message}");
             }
+
+            var menuActualizacionMasiva = new ToolStripMenuItem
+            {
+                Text = "⚡ Actualización Masiva de Precios",
+                //Image = Properties.Resources.IconoActualizacionMasiva, // Opcional: si tienes un icono
+                ShortcutKeys = Keys.Control | Keys.Shift | Keys.P // Atajo opcional: Ctrl+Shift+P
+            };
+            menuActualizacionMasiva.Click += (s, e) =>
+            {
+                try
+                {
+                    using (var form = new ActualizacionMasivaForm())
+                    {
+                        form.ShowDialog(this);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al abrir actualización masiva: {ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
         }
 
         // En el método ConfigurarMenuSegunPermisos() o donde tengas tus opciones de menú

@@ -30,7 +30,7 @@
     ]
   },
   "AFIP": {
-    "AmbienteActivo": "Testing",
+    "AmbienteActivo": "Produccion",
     "Testing": {
       "CUIT": "20-28069473-9",
       "CondicionIVA": "Monotributo",

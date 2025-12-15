@@ -67,23 +67,21 @@ namespace Comercio.NET.Formularios
             var btnActualizacionRapida = new Button
             {
                 Text = "⚡ Actualización Rápida",
-                // ✅ CAMBIO: Ubicarlo ARRIBA, restando altura del botón + espaciado
-                Location = new Point(btnAgregarProducto.Left, btnAgregarProducto.Top + 10 - btnAgregarProducto.Height - 10),
-                Size = new Size(btnAgregarProducto.Width + btnModificarProducto.Width + 10, btnAgregarProducto.Height-5),
+                Location = new Point(790, 15), // Posición en el borde derecho, arriba
+                Size = new Size(180, 25), // Tamaño compacto
                 BackColor = Color.FromArgb(255, 152, 0),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Cursor = Cursors.Hand
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right // Anclado a la derecha
             };
             btnActualizacionRapida.FlatAppearance.BorderSize = 0;
             btnActualizacionRapida.Click += BtnActualizacionRapida_Click;
 
             this.Controls.Add(btnActualizacionRapida);
-            // ✅ OPCIONAL: Traer al frente para asegurar visibilidad
             btnActualizacionRapida.BringToFront();
         }
-
         private void BtnActualizacionRapida_Click(object sender, EventArgs e)
         {
             try
@@ -99,6 +97,72 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al abrir actualización rápida: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        private void CrearBotonActualizacionMasiva()
+        {
+            // Crear botón para actualización masiva
+            var btnActualizacionMasiva = new Button
+            {
+                Text = "⚡ Actualización Masiva",
+                Location = new Point(790, 42), // Posición debajo del botón de Actualización Rápida
+                Size = new Size(180, 25), // Tamaño compacto
+                BackColor = Color.FromArgb(156, 39, 176), // Morado para diferenciarlo
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right // Anclado a la derecha
+            };
+            btnActualizacionMasiva.FlatAppearance.BorderSize = 0;
+            btnActualizacionMasiva.Click += BtnActualizacionMasiva_Click;
+
+            this.Controls.Add(btnActualizacionMasiva);
+            btnActualizacionMasiva.BringToFront();
+        }
+
+        //private void CrearBotonActualizacionMasiva()
+        //{
+        //    // Crear botón para actualización masiva
+        //    var btnActualizacionMasiva = new Button
+        //    {
+        //        Text = "⚡ Actualización Masiva",
+        //        // ✅ CORREGIDO: A la derecha del botón de Actualización Rápida
+        //        Location = new Point(255, 75), // 15 + 230 + 10 (spacing)
+        //        Size = new Size(230, 35),
+        //        BackColor = Color.FromArgb(156, 39, 176), // Morado para diferenciarlo
+        //        ForeColor = Color.White,
+        //        FlatStyle = FlatStyle.Flat,
+        //        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        //        Cursor = Cursors.Hand
+        //    };
+        //    btnActualizacionMasiva.FlatAppearance.BorderSize = 0;
+        //    btnActualizacionMasiva.Click += BtnActualizacionMasiva_Click;
+
+        //    this.Controls.Add(btnActualizacionMasiva);
+        //    btnActualizacionMasiva.BringToFront();
+        //}
+
+        private void BtnActualizacionMasiva_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // ✅ CORRECTO: Mostrar como diálogo modal SIN asignar MdiParent
+                using (var form = new ActualizacionMasivaForm())
+                {
+                    // NO asignar MdiParent cuando usamos ShowDialog
+                    // form.MdiParent = this; // ❌ NO HACER ESTO con ShowDialog
+
+                    form.ShowDialog(this);
+
+                    // Refrescar la grilla después de cerrar el formulario
+                    _ = CargarProductosAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir actualización masiva: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -136,6 +200,7 @@ namespace Comercio.NET.Formularios
                 ConfigurarGrilla();
 
                 CrearBotonActualizacionRapida();
+                CrearBotonActualizacionMasiva();
 
                 // Cargar productos
                 await CargarProductosAsync();
