@@ -1215,7 +1215,7 @@ namespace Comercio.NET
                 };
 
                 // 3. Actualización Masiva - CORREGIDO
-                var itemActualizacionMasiva = new ToolStripMenuItem("⚡ Actualización Masiva de Precios", null, BtnActualizacionMasiva_Click)
+                var itemActualizacionMasiva = new ToolStripMenuItem("⚡⚡ Actualización Masiva de Precios", null, BtnActualizacionMasiva_Click)
                 {
                     Name = "actualizacionMasivaToolStripMenuItem",
                     ShortcutKeys = Keys.Control | Keys.Shift | Keys.M, // Atajo diferente: Ctrl+Shift+M
@@ -1285,7 +1285,7 @@ namespace Comercio.NET
 
             var menuActualizacionMasiva = new ToolStripMenuItem
             {
-                Text = "⚡ Actualización Masiva de Precios",
+                Text = "⚡⚡ Actualización Masiva de Precios",
                 //Image = Properties.Resources.IconoActualizacionMasiva, // Opcional: si tienes un icono
                 ShortcutKeys = Keys.Control | Keys.Shift | Keys.P // Atajo opcional: Ctrl+Shift+P
             };

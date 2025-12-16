@@ -105,7 +105,7 @@ namespace Comercio.NET.Formularios
             // Crear botón para actualización masiva
             var btnActualizacionMasiva = new Button
             {
-                Text = "⚡ Actualización Masiva",
+                Text = "⚡⚡ Actualización Masiva",
                 Location = new Point(790, 42), // Posición debajo del botón de Actualización Rápida
                 Size = new Size(180, 25), // Tamaño compacto
                 BackColor = Color.FromArgb(156, 39, 176), // Morado para diferenciarlo
