@@ -29,6 +29,14 @@ namespace Comercio.NET.Formularios
         private Panel panelEdicion;
         private Label lblOfertaActual;
         
+        // ✅ NUEVO: Controles adicionales para Combo
+        private TextBox txtPrecioCombo;
+        private Label lblPrecioCombo;
+        
+        // ✅ NUEVO: Controles adicionales para Descuento
+        private NumericUpDown nudPorcentajeDescuento;
+        private Label lblPorcentajeDescuento;
+        
         private int ofertaSeleccionadaId = 0;
         private bool modoEdicion = false;
 
@@ -55,13 +63,11 @@ namespace Comercio.NET.Formularios
             this.BackColor = Color.WhiteSmoke;
             this.Font = new Font("Segoe UI", 10F);
 
-            // ========================================
-            // PANEL SUPERIOR - Grilla más ancha, botones más angostos
-            // ========================================
+            // Panel superior (sin cambios)
             var panelSuperior = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 155, // ✅ REDUCIDO: De 165 a 155 (10px menos)
+                Height = 155,
                 BackColor = Color.White,
                 Padding = new Padding(10)
             };
@@ -74,12 +80,11 @@ namespace Comercio.NET.Formularios
                 AutoSize = true
             };
 
-            // ✅ GRILLA MÁS ANCHA
             dgvOfertas = new DataGridView
             {
                 Location = new Point(10, 40),
-                Width = 780, // ✅ AMPLIADO: De 660 a 780 (120px más)
-                Height = 100, // ✅ REDUCIDO: De 110 a 100 (10px menos)
+                Width = 780,
+                Height = 100,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -90,16 +95,15 @@ namespace Comercio.NET.Formularios
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
 
-            // ✅ BOTONES MÁS ANGOSTOS A LA DERECHA
-            int botonX = 800; // ✅ Más a la derecha
+            int botonX = 800;
             int botonY = 40;
-            int espacioVertical = 34; // ✅ REDUCIDO: De 37 a 34
+            int espacioVertical = 34;
 
             btnNuevaOferta = new Button
             {
                 Text = "Nueva Oferta",
                 Location = new Point(botonX, botonY),
-                Size = new Size(170, 30), // ✅ REDUCIDO: De 270x32 a 170x30
+                Size = new Size(170, 30),
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -138,12 +142,12 @@ namespace Comercio.NET.Formularios
             panelSuperior.Controls.Add(btnEliminarOferta);
 
             // ========================================
-            // PANEL DE EDICIÓN - MÁS COMPACTO
+            // PANEL DE EDICIÓN
             // ========================================
             panelEdicion = new Panel
             {
                 Dock = DockStyle.Fill,
-                AutoScroll = false, // ✅ CAMBIADO: Desactivar scroll ya que optimizamos el espacio
+                AutoScroll = false,
                 Padding = new Padding(15),
                 Visible = false,
                 BackColor = Color.White
@@ -152,17 +156,17 @@ namespace Comercio.NET.Formularios
             lblOfertaActual = new Label
             {
                 Text = "📝 Nueva Oferta",
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold), // ✅ REDUCIDO: De 12F a 11F
-                Location = new Point(15, 10), // ✅ REDUCIDO: De 15 a 10
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(15, 10),
                 AutoSize = true,
                 ForeColor = Color.FromArgb(0, 120, 215)
             };
 
-            // ✅ FILA 1: Nombre y Tipo (más compacta)
+            // FILA 1: Nombre y Tipo
             var lblNombre = new Label
             {
                 Text = "Nombre:",
-                Location = new Point(15, 45), // ✅ REDUCIDO: De 55 a 45
+                Location = new Point(15, 45),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
@@ -200,11 +204,11 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(0, 150, 136)
             };
 
-            // ✅ FILA 2: Descripción + Fechas (más compacta)
+            // FILA 2: Descripción + Fechas
             var lblDescripcion = new Label
             {
                 Text = "Descripción:",
-                Location = new Point(15, 80), // ✅ REDUCIDO: De 95 a 80
+                Location = new Point(15, 80),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
@@ -212,7 +216,7 @@ namespace Comercio.NET.Formularios
             {
                 Location = new Point(100, 77),
                 Width = 360,
-                Height = 60, // ✅ REDUCIDO: De 70 a 60
+                Height = 60,
                 Multiline = true,
                 Font = new Font("Segoe UI", 9F)
             };
@@ -234,7 +238,7 @@ namespace Comercio.NET.Formularios
             var lblFechaFin = new Label
             {
                 Text = "Fecha Fin:",
-                Location = new Point(480, 110), // ✅ REDUCIDO: De 130 a 110
+                Location = new Point(480, 110),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
@@ -245,12 +249,51 @@ namespace Comercio.NET.Formularios
                 Format = DateTimePickerFormat.Short
             };
 
+            // ✅ NUEVO: Controles específicos para tipo Combo
+            lblPrecioCombo = new Label
+            {
+                Text = "Precio Combo:",
+                Location = new Point(750, 80),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Visible = false
+            };
+            txtPrecioCombo = new TextBox
+            {
+                Location = new Point(750, 100),
+                Width = 120,
+                Font = new Font("Segoe UI", 9F),
+                Visible = false,
+                Text = "0.00"
+            };
+
+            // ✅ NUEVO: Controles específicos para tipo Descuento
+            lblPorcentajeDescuento = new Label
+            {
+                Text = "% Descuento:",
+                Location = new Point(750, 80),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Visible = false
+            };
+            nudPorcentajeDescuento = new NumericUpDown
+            {
+                Location = new Point(750, 100),
+                Width = 120,
+                Font = new Font("Segoe UI", 9F),
+                Visible = false,
+                Minimum = 0,
+                Maximum = 100,
+                DecimalPlaces = 2,
+                Value = 0
+            };
+
             // Separador
             var separador = new Label
             {
                 BorderStyle = BorderStyle.Fixed3D,
                 Height = 2,
-                Location = new Point(15, 150), // ✅ REDUCIDO: De 175 a 150
+                Location = new Point(15, 150),
                 Width = 950,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -259,16 +302,15 @@ namespace Comercio.NET.Formularios
             var lblProductos = new Label
             {
                 Text = "🛒 Productos en la Oferta",
-                Location = new Point(15, 160), // ✅ REDUCIDO: De 190 a 160
+                Location = new Point(15, 160),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 AutoSize = true
             };
 
-            // ✅ GRILLA INFERIOR MÁS ANCHA
             dgvDetalleOferta = new DataGridView
             {
-                Location = new Point(15, 185), // ✅ REDUCIDO: De 220 a 185
-                Size = new Size(780, 120), // ✅ AMPLIADO: De 660x130 a 780x120
+                Location = new Point(15, 185),
+                Size = new Size(780, 120),
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = false,
@@ -280,16 +322,16 @@ namespace Comercio.NET.Formularios
 
             ConfigurarGridDetalleOferta();
 
-            // ✅ BOTONES INFERIORES MÁS ANGOSTOS A LA DERECHA
+            // Botones inferiores
             int botonDetalleX = 800;
             int botonDetalleY = 185;
-            int espacioVerticalDetalle = 32; // ✅ REDUCIDO: De 35 a 32
+            int espacioVerticalDetalle = 32;
 
             btnAgregarProducto = new Button
             {
                 Text = "➕ Agregar",
                 Location = new Point(botonDetalleX, botonDetalleY),
-                Size = new Size(170, 28), // ✅ REDUCIDO: De 270x32 a 170x28
+                Size = new Size(170, 28),
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -346,6 +388,10 @@ namespace Comercio.NET.Formularios
             panelEdicion.Controls.Add(dtpFechaInicio);
             panelEdicion.Controls.Add(lblFechaFin);
             panelEdicion.Controls.Add(dtpFechaFin);
+            panelEdicion.Controls.Add(lblPrecioCombo);
+            panelEdicion.Controls.Add(txtPrecioCombo);
+            panelEdicion.Controls.Add(lblPorcentajeDescuento);
+            panelEdicion.Controls.Add(nudPorcentajeDescuento);
             panelEdicion.Controls.Add(separador);
             panelEdicion.Controls.Add(lblProductos);
             panelEdicion.Controls.Add(dgvDetalleOferta);
@@ -359,11 +405,12 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(panelSuperior);
         }
 
+        // ✅ NUEVO: Ajustar columnas según tipo de oferta
         private void ConfigurarGridDetalleOferta()
         {
             dgvDetalleOferta.Columns.Clear();
 
-            // ✅ Columna oculta para IdProducto
+            // Columnas comunes (siempre visibles)
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "IdProducto",
@@ -371,7 +418,6 @@ namespace Comercio.NET.Formularios
                 Visible = false
             });
 
-            // Columna oculta para ID del detalle
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Id",
@@ -379,60 +425,55 @@ namespace Comercio.NET.Formularios
                 Visible = false
             });
 
-            // Código de producto
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "CodigoProducto",
                 HeaderText = "Código",
-                Width = 120, 
+                Width = 120,
                 ReadOnly = false
             });
 
-            // Descripción (se expande para ocupar espacio restante)
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Descripcion",
                 HeaderText = "Descripción",
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, // ✅ Se expande
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
                 ReadOnly = true
             });
 
-            // Precio original
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "PrecioOriginal",
                 HeaderText = "Precio Normal",
-                Width = 100, // ✅ REDUCIDO: De 120 a 100
+                Width = 100,
                 ReadOnly = true,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" }
             });
 
-            // Cantidad mínima - ✅ MÁS ANGOSTA
+            // ✅ Columnas específicas según tipo
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "CantidadMinima",
                 HeaderText = "Cant. Mín.",
-                Width = 50, // ✅ REDUCIDO: De 120 a 70
+                Width = 70,
                 ReadOnly = false,
                 DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
 
-            // Precio de oferta - ✅ MÁS ANGOSTA
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "PrecioOferta",
                 HeaderText = "Precio Oferta",
-                Width = 100, // ✅ REDUCIDO: De 120 a 100
+                Width = 100,
                 ReadOnly = false,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" }
             });
 
-            // % Descuento
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "PorcentajeDescuento",
                 HeaderText = "% Desc.",
-                Width = 70, // ✅ REDUCIDO: De 100 a 70
+                Width = 70,
                 ReadOnly = true,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
@@ -440,6 +481,63 @@ namespace Comercio.NET.Formularios
                     Alignment = DataGridViewContentAlignment.MiddleCenter
                 }
             });
+
+            // ✅ NUEVO: Columna para cantidad (Combos)
+            dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CantidadCombo",
+                HeaderText = "Cant.",
+                Width = 60,
+                ReadOnly = false,
+                Visible = false,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+        }
+
+        // ✅ NUEVO: Ajustar visibilidad de columnas según tipo de oferta
+        private void AjustarColumnasSegunTipo(string tipoOferta)
+        {
+            switch (tipoOferta)
+            {
+                case "PorCantidad":
+                    dgvDetalleOferta.Columns["CantidadMinima"].Visible = true;
+                    dgvDetalleOferta.Columns["CantidadMinima"].HeaderText = "Cant. Mín.";
+                    dgvDetalleOferta.Columns["PrecioOferta"].Visible = true;
+                    dgvDetalleOferta.Columns["PrecioOferta"].ReadOnly = false;
+                    dgvDetalleOferta.Columns["PorcentajeDescuento"].Visible = true;
+                    dgvDetalleOferta.Columns["CantidadCombo"].Visible = false;
+                    
+                    lblPrecioCombo.Visible = false;
+                    txtPrecioCombo.Visible = false;
+                    lblPorcentajeDescuento.Visible = false;
+                    nudPorcentajeDescuento.Visible = false;
+                    break;
+
+                case "Combo":
+                    dgvDetalleOferta.Columns["CantidadMinima"].Visible = true;
+                    dgvDetalleOferta.Columns["CantidadMinima"].HeaderText = "Cantidad";
+                    dgvDetalleOferta.Columns["PrecioOferta"].Visible = false;
+                    dgvDetalleOferta.Columns["PorcentajeDescuento"].Visible = false;
+                    dgvDetalleOferta.Columns["CantidadCombo"].Visible = false;
+                    
+                    lblPrecioCombo.Visible = true;
+                    txtPrecioCombo.Visible = true;
+                    lblPorcentajeDescuento.Visible = false;
+                    nudPorcentajeDescuento.Visible = false;
+                    break;
+
+                case "Descuento":
+                    dgvDetalleOferta.Columns["CantidadMinima"].Visible = false;
+                    dgvDetalleOferta.Columns["PrecioOferta"].Visible = false;
+                    dgvDetalleOferta.Columns["PorcentajeDescuento"].Visible = false;
+                    dgvDetalleOferta.Columns["CantidadCombo"].Visible = false;
+                    
+                    lblPrecioCombo.Visible = false;
+                    txtPrecioCombo.Visible = false;
+                    lblPorcentajeDescuento.Visible = true;
+                    nudPorcentajeDescuento.Visible = true;
+                    break;
+            }
         }
 
         private Button CrearBoton(string texto, int left, Color backColor)
@@ -476,6 +574,15 @@ namespace Comercio.NET.Formularios
             dgvOfertas.SelectionChanged += DgvOfertas_SelectionChanged;
             dgvDetalleOferta.CellValueChanged += DgvDetalleOferta_CellValueChanged;
             dgvDetalleOferta.CellEndEdit += DgvDetalleOferta_CellEndEdit;
+            
+            // ✅ NUEVO: Evento para cambiar columnas según tipo
+            cboTipoOferta.SelectedIndexChanged += CboTipoOferta_SelectedIndexChanged;
+        }
+
+        // ✅ NUEVO: Evento para cambio de tipo de oferta
+        private void CboTipoOferta_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AjustarColumnasSegunTipo(cboTipoOferta.SelectedItem.ToString());
         }
 
         private void CargarOfertas()
@@ -504,47 +611,45 @@ namespace Comercio.NET.Formularios
 
                     dgvOfertas.DataSource = dt;
 
-                    // ✅ OCULTAR columna Id
                     if (dgvOfertas.Columns["Id"] != null)
                         dgvOfertas.Columns["Id"].Visible = false;
 
-                    // ✅ AJUSTAR ANCHOS PARA GRILLA MÁS ANGOSTA (660px total)
                     if (dgvOfertas.Columns["Nombre"] != null)
                     {
-                        dgvOfertas.Columns["Nombre"].Width = 200; // ✅ Reducido
+                        dgvOfertas.Columns["Nombre"].Width = 200;
                         dgvOfertas.Columns["Nombre"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                     }
 
                     if (dgvOfertas.Columns["Tipo"] != null)
                     {
-                        dgvOfertas.Columns["Tipo"].Width = 110; // ✅ Reducido
+                        dgvOfertas.Columns["Tipo"].Width = 110;
                         dgvOfertas.Columns["Tipo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     }
 
                     if (dgvOfertas.Columns["Inicio"] != null)
                     {
-                        dgvOfertas.Columns["Inicio"].Width = 90; // ✅ Reducido
+                        dgvOfertas.Columns["Inicio"].Width = 90;
                         dgvOfertas.Columns["Inicio"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                         dgvOfertas.Columns["Inicio"].DefaultCellStyle.Format = "dd/MM/yyyy";
                     }
 
                     if (dgvOfertas.Columns["Fin"] != null)
                     {
-                        dgvOfertas.Columns["Fin"].Width = 90; // ✅ Reducido
+                        dgvOfertas.Columns["Fin"].Width = 90;
                         dgvOfertas.Columns["Fin"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                         dgvOfertas.Columns["Fin"].DefaultCellStyle.Format = "dd/MM/yyyy";
                     }
 
                     if (dgvOfertas.Columns["Activa"] != null)
                     {
-                        dgvOfertas.Columns["Activa"].Width = 60; // ✅ Reducido
+                        dgvOfertas.Columns["Activa"].Width = 60;
                         dgvOfertas.Columns["Activa"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                         dgvOfertas.Columns["Activa"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     }
 
                     if (dgvOfertas.Columns["Productos"] != null)
                     {
-                        dgvOfertas.Columns["Productos"].Width = 70; // ✅ Reducido
+                        dgvOfertas.Columns["Productos"].Width = 70;
                         dgvOfertas.Columns["Productos"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                         dgvOfertas.Columns["Productos"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     }
@@ -565,6 +670,7 @@ namespace Comercio.NET.Formularios
             LimpiarFormularioEdicion();
             panelEdicion.Visible = true;
             txtNombreOferta.Focus();
+            AjustarColumnasSegunTipo("PorCantidad"); // ✅ Configurar vista inicial
         }
 
         private void BtnEditarOferta_Click(object sender, EventArgs e)
@@ -583,6 +689,7 @@ namespace Comercio.NET.Formularios
             panelEdicion.Visible = true;
         }
 
+        // ✅ MODIFICADO: Cargar oferta con soporte para todos los tipos
         private void CargarOfertaParaEdicion(int idOferta)
         {
             try
@@ -595,7 +702,8 @@ namespace Comercio.NET.Formularios
 
                     // Cargar datos de la oferta
                     var queryOferta = @"
-                        SELECT Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta
+                        SELECT Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta,
+                               PrecioCombo, PorcentajeDescuentoGlobal
                         FROM OfertasProductos
                         WHERE Id = @Id";
 
@@ -614,7 +722,15 @@ namespace Comercio.NET.Formularios
                                     dtpFechaFin.Value = Convert.ToDateTime(reader["FechaFin"]);
                                 
                                 chkActivo.Checked = Convert.ToBoolean(reader["Activo"]);
-                                cboTipoOferta.SelectedItem = reader["TipoOferta"].ToString();
+                                string tipoOferta = reader["TipoOferta"].ToString();
+                                cboTipoOferta.SelectedItem = tipoOferta;
+                                
+                                // ✅ Cargar campos específicos
+                                if (tipoOferta == "Combo" && reader["PrecioCombo"] != DBNull.Value)
+                                    txtPrecioCombo.Text = reader["PrecioCombo"].ToString();
+                                
+                                if (tipoOferta == "Descuento" && reader["PorcentajeDescuentoGlobal"] != DBNull.Value)
+                                    nudPorcentajeDescuento.Value = Convert.ToDecimal(reader["PorcentajeDescuentoGlobal"]);
                             }
                         }
                     }
@@ -644,18 +760,22 @@ namespace Comercio.NET.Formularios
                             while (reader.Read())
                             {
                                 dgvDetalleOferta.Rows.Add(
-                                    reader["IdProducto"],        // ✅ Columna oculta
+                                    reader["IdProducto"],
                                     reader["Id"],
-                                    reader["CodigoProducto"],    // ✅ Visible para el usuario
+                                    reader["CodigoProducto"],
                                     reader["Descripcion"],
                                     reader["PrecioOriginal"],
                                     reader["CantidadMinima"],
                                     reader["PrecioOferta"],
-                                    reader["PorcentajeDescuento"]
+                                    reader["PorcentajeDescuento"],
+                                    reader["CantidadMinima"] // ✅ Para combos
                                 );
                             }
                         }
                     }
+
+                    // ✅ Ajustar columnas según el tipo cargado
+                    AjustarColumnasSegunTipo(cboTipoOferta.SelectedItem.ToString());
                 }
             }
             catch (Exception ex)
@@ -717,8 +837,7 @@ namespace Comercio.NET.Formularios
 
         private void BtnAgregarProducto_Click(object sender, EventArgs e)
         {
-            // Agregar fila vacía para ingreso
-            dgvDetalleOferta.Rows.Add(0, "", "", 0, 1, 0, 0);
+            dgvDetalleOferta.Rows.Add(0, "", "", 0, 1, 0, 0, 1);
             dgvDetalleOferta.CurrentCell = dgvDetalleOferta.Rows[dgvDetalleOferta.Rows.Count - 1].Cells["CodigoProducto"];
             dgvDetalleOferta.BeginEdit(true);
         }
@@ -745,14 +864,12 @@ namespace Comercio.NET.Formularios
                 if (string.IsNullOrEmpty(codigo))
                     return;
 
-                // ✅ MODIFICADO: Buscar producto y obtener su ID
                 try
                 {
                     string connectionString = GetConnectionString();
 
                     using (var connection = new SqlConnection(connectionString))
                     {
-                        // ✅ CAMBIO: Incluir ID en la consulta
                         var query = "SELECT ID, descripcion, precio FROM Productos WHERE codigo = @codigo";
 
                         using (var cmd = new SqlCommand(query, connection))
@@ -764,13 +881,13 @@ namespace Comercio.NET.Formularios
                             {
                                 if (reader.Read())
                                 {
-                                    // ✅ NUEVO: Guardar el ID del producto (oculto)
                                     row.Cells["IdProducto"].Value = reader["ID"];
                                     row.Cells["Descripcion"].Value = reader["descripcion"];
                                     row.Cells["PrecioOriginal"].Value = reader["precio"];
                                     row.Cells["PrecioOferta"].Value = reader["precio"];
                                     row.Cells["CantidadMinima"].Value = 1;
                                     row.Cells["PorcentajeDescuento"].Value = 0;
+                                    row.Cells["CantidadCombo"].Value = 1;
                                 }
                                 else
                                 {
@@ -810,6 +927,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        // ✅ MODIFICADO: Guardar con soporte para todos los tipos
         private async void BtnGuardar_Click(object sender, EventArgs e)
         {
             if (!ValidarFormulario())
@@ -818,6 +936,7 @@ namespace Comercio.NET.Formularios
             try
             {
                 string connectionString = GetConnectionString();
+                string tipoOferta = cboTipoOferta.SelectedItem.ToString();
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -831,9 +950,11 @@ namespace Comercio.NET.Formularios
                                 // Insertar nueva oferta
                                 var queryInsert = @"
                                     INSERT INTO OfertasProductos 
-                                        (Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta, UsuarioCreacion)
+                                        (Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta, 
+                                         PrecioCombo, PorcentajeDescuentoGlobal, UsuarioCreacion)
                                     VALUES 
-                                        (@Nombre, @Descripcion, @FechaInicio, @FechaFin, @Activo, @TipoOferta, @Usuario);
+                                        (@Nombre, @Descripcion, @FechaInicio, @FechaFin, @Activo, @TipoOferta,
+                                         @PrecioCombo, @PorcentajeDescuentoGlobal, @Usuario);
                                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                                 using (var cmd = new SqlCommand(queryInsert, connection, transaction))
@@ -846,7 +967,19 @@ namespace Comercio.NET.Formularios
                                             ? (object)dtpFechaFin.Value.Date 
                                             : DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
-                                    cmd.Parameters.AddWithValue("@TipoOferta", cboTipoOferta.SelectedItem.ToString());
+                                    cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
+                                    
+                                    // ✅ Campos específicos
+                                    cmd.Parameters.AddWithValue("@PrecioCombo", 
+                                        tipoOferta == "Combo" && decimal.TryParse(txtPrecioCombo.Text, out decimal precio) 
+                                            ? (object)precio 
+                                            : DBNull.Value);
+                                    
+                                    cmd.Parameters.AddWithValue("@PorcentajeDescuentoGlobal", 
+                                        tipoOferta == "Descuento" 
+                                            ? (object)nudPorcentajeDescuento.Value 
+                                            : DBNull.Value);
+                                    
                                     cmd.Parameters.AddWithValue("@Usuario", 
                                         AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName);
 
@@ -863,7 +996,9 @@ namespace Comercio.NET.Formularios
                                         FechaInicio = @FechaInicio,
                                         FechaFin = @FechaFin,
                                         Activo = @Activo,
-                                        TipoOferta = @TipoOferta
+                                        TipoOferta = @TipoOferta,
+                                        PrecioCombo = @PrecioCombo,
+                                        PorcentajeDescuentoGlobal = @PorcentajeDescuentoGlobal
                                     WHERE Id = @Id";
 
                                 using (var cmd = new SqlCommand(queryUpdate, connection, transaction))
@@ -877,7 +1012,17 @@ namespace Comercio.NET.Formularios
                                             ? (object)dtpFechaFin.Value.Date
                                             : DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
-                                    cmd.Parameters.AddWithValue("@TipoOferta", cboTipoOferta.SelectedItem.ToString());
+                                    cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
+                                    
+                                    cmd.Parameters.AddWithValue("@PrecioCombo", 
+                                        tipoOferta == "Combo" && decimal.TryParse(txtPrecioCombo.Text, out decimal precio) 
+                                            ? (object)precio 
+                                            : DBNull.Value);
+                                    
+                                    cmd.Parameters.AddWithValue("@PorcentajeDescuentoGlobal", 
+                                        tipoOferta == "Descuento" 
+                                            ? (object)nudPorcentajeDescuento.Value 
+                                            : DBNull.Value);
 
                                     cmd.ExecuteNonQuery();
                                 }
@@ -891,13 +1036,12 @@ namespace Comercio.NET.Formularios
                                 }
                             }
 
-                            // ✅ MODIFICADO: Insertar detalles usando IdProducto
+                            // Insertar detalles
                             foreach (DataGridViewRow row in dgvDetalleOferta.Rows)
                             {
                                 if (string.IsNullOrEmpty(row.Cells["CodigoProducto"].Value?.ToString()))
                                     continue;
 
-                                // ✅ CAMBIO: Usar IdProducto en lugar de CodigoProducto
                                 var queryDetalle = @"
                                     INSERT INTO DetalleOfertasProductos
                                         (IdOferta, IdProducto, CantidadMinima, PrecioOferta, PorcentajeDescuento)
@@ -907,17 +1051,37 @@ namespace Comercio.NET.Formularios
                                 using (var cmd = new SqlCommand(queryDetalle, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@IdOferta", ofertaSeleccionadaId);
-                                    
-                                    // ✅ CRÍTICO: Usar IdProducto en lugar de CodigoProducto
                                     cmd.Parameters.AddWithValue("@IdProducto", 
                                         Convert.ToInt32(row.Cells["IdProducto"].Value));
                                     
-                                    cmd.Parameters.AddWithValue("@CantidadMinima", 
-                                        Convert.ToInt32(row.Cells["CantidadMinima"].Value ?? 1));
-                                    cmd.Parameters.AddWithValue("@PrecioOferta", 
-                                        Convert.ToDecimal(row.Cells["PrecioOferta"].Value ?? 0));
-                                    cmd.Parameters.AddWithValue("@PorcentajeDescuento",
-                                        Convert.ToDecimal(row.Cells["PorcentajeDescuento"].Value ?? 0));
+                                    // ✅ Ajustar valores según tipo
+                                    int cantidadMinima = 1;
+                                    decimal precioOferta = 0;
+                                    decimal porcentajeDescuento = 0;
+
+                                    switch (tipoOferta)
+                                    {
+                                        case "PorCantidad":
+                                            cantidadMinima = Convert.ToInt32(row.Cells["CantidadMinima"].Value ?? 1);
+                                            precioOferta = Convert.ToDecimal(row.Cells["PrecioOferta"].Value ?? 0);
+                                            porcentajeDescuento = Convert.ToDecimal(row.Cells["PorcentajeDescuento"].Value ?? 0);
+                                            break;
+
+                                        case "Combo":
+                                            cantidadMinima = Convert.ToInt32(row.Cells["CantidadMinima"].Value ?? 1);
+                                            // El precio del combo está en txtPrecioCombo (se divide entre productos al aplicar)
+                                            break;
+
+                                        case "Descuento":
+                                            porcentajeDescuento = nudPorcentajeDescuento.Value;
+                                            decimal precioOriginal = Convert.ToDecimal(row.Cells["PrecioOriginal"].Value ?? 0);
+                                            precioOferta = precioOriginal * (1 - (porcentajeDescuento / 100));
+                                            break;
+                                    }
+
+                                    cmd.Parameters.AddWithValue("@CantidadMinima", cantidadMinima);
+                                    cmd.Parameters.AddWithValue("@PrecioOferta", precioOferta);
+                                    cmd.Parameters.AddWithValue("@PorcentajeDescuento", porcentajeDescuento);
 
                                     cmd.ExecuteNonQuery();
                                 }
@@ -946,6 +1110,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        // ✅ MODIFICADO: Validación según tipo de oferta
         private bool ValidarFormulario()
         {
             if (string.IsNullOrWhiteSpace(txtNombreOferta.Text))
@@ -963,6 +1128,32 @@ namespace Comercio.NET.Formularios
                 return false;
             }
 
+            string tipoOferta = cboTipoOferta.SelectedItem.ToString();
+
+            // Validación específica para Combo
+            if (tipoOferta == "Combo")
+            {
+                if (!decimal.TryParse(txtPrecioCombo.Text, out decimal precioCombo) || precioCombo <= 0)
+                {
+                    MessageBox.Show("Ingrese un precio válido para el combo.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtPrecioCombo.Focus();
+                    return false;
+                }
+            }
+
+            // Validación específica para Descuento
+            if (tipoOferta == "Descuento")
+            {
+                if (nudPorcentajeDescuento.Value <= 0 || nudPorcentajeDescuento.Value > 100)
+                {
+                    MessageBox.Show("El porcentaje de descuento debe estar entre 0 y 100.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    nudPorcentajeDescuento.Focus();
+                    return false;
+                }
+            }
+
             // Validar que todos los productos tengan datos completos
             foreach (DataGridViewRow row in dgvDetalleOferta.Rows)
             {
@@ -973,18 +1164,22 @@ namespace Comercio.NET.Formularios
                     return false;
                 }
 
-                if (!int.TryParse(row.Cells["CantidadMinima"].Value?.ToString(), out int cantidad) || cantidad < 1)
+                // Validación específica para PorCantidad
+                if (tipoOferta == "PorCantidad")
                 {
-                    MessageBox.Show("La cantidad mínima debe ser mayor a 0.", "Validación",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return false;
-                }
+                    if (!int.TryParse(row.Cells["CantidadMinima"].Value?.ToString(), out int cantidad) || cantidad < 1)
+                    {
+                        MessageBox.Show("La cantidad mínima debe ser mayor a 0.", "Validación",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return false;
+                    }
 
-                if (!decimal.TryParse(row.Cells["PrecioOferta"].Value?.ToString(), out decimal precio) || precio < 0)
-                {
-                    MessageBox.Show("El precio de oferta no es válido.", "Validación",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return false;
+                    if (!decimal.TryParse(row.Cells["PrecioOferta"].Value?.ToString(), out decimal precio) || precio < 0)
+                    {
+                        MessageBox.Show("El precio de oferta no es válido.", "Validación",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return false;
+                    }
                 }
             }
 
@@ -1014,6 +1209,8 @@ namespace Comercio.NET.Formularios
             dtpFechaFin.Value = DateTime.Now.AddMonths(1);
             cboTipoOferta.SelectedIndex = 0;
             chkActivo.Checked = true;
+            txtPrecioCombo.Text = "0.00";
+            nudPorcentajeDescuento.Value = 0;
             dgvDetalleOferta.Rows.Clear();
             ofertaSeleccionadaId = 0;
         }
