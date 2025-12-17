@@ -1,4 +1,8 @@
 ﻿using ArcaWS;
+using Comercio.NET.Formularios;
+using Comercio.NET.Models;
+using Comercio.NET.Services;
+using Comercio.NET.Servicios;
 using Microsoft.Extensions.Configuration;
 using Microsoft.VisualBasic;
 using System;
@@ -11,19 +15,16 @@ using System.Drawing.Printing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
 using System.Windows.Forms;
 using System.Xml;
-using Comercio.NET.Servicios;
-using Comercio.NET.Formularios;
-using Comercio.NET.Models;
-using Comercio.NET.Services;
-using System.Net.Sockets;
-using System.Net;
 
 namespace Comercio.NET
 {
@@ -511,7 +512,9 @@ namespace Comercio.NET
                                 precioFinal = await CalcularPrecioComboProrrateado(
                                     oferta.Id,
                                     codigo,
-                                    oferta.PrecioCombo);
+                                    oferta.PrecioCombo,
+                                    connection,      // ✅ AGREGAR AQUÍ
+                                    transaction);    // ✅ AGREGAR AQUÍ
 
                                 System.Diagnostics.Debug.WriteLine(
                                     $"✅ COMBO COMPLETO - Aplicando precio prorrateado: {precioFinal:C2}");
@@ -538,7 +541,7 @@ namespace Comercio.NET
                         }
                         else if (oferta != null && oferta.PrecioOferta > 0)
                         {
-                            // ✅ OFERTA NORMAL (no combo)
+                            // ✅ OFERTA NORMAL (no combo) - Aplicar precio de oferta
                             precioFinal = oferta.PrecioOferta;
 
                             if (Math.Abs(precio - oferta.PrecioOferta) > 0.01m)
@@ -550,6 +553,7 @@ namespace Comercio.NET
                                     mensajeOferta =
                                         $"🎉 ¡OFERTA APLICADA!\n\n" +
                                         $"Oferta: {oferta.NombreOferta}\n" +
+                                        $"Tipo: {oferta.TipoOferta}\n" +  // ✅ AGREGAR tipo
                                         $"Cantidad requerida: {oferta.CantidadMinima}\n" +
                                         $"Nueva cantidad: {nuevaCantidad}\n\n" +
                                         $"Precio anterior: {precio:C2}\n" +
@@ -557,6 +561,12 @@ namespace Comercio.NET
                                         $"Ahorro: {(precio - oferta.PrecioOferta):C2} ({oferta.PorcentajeDescuento:N2}%)";
                                 }
                             }
+
+                            System.Diagnostics.Debug.WriteLine(
+                                $"✅ OFERTA APLICADA - Tipo: {oferta.TipoOferta}\n" +  // ✅ DEBUG mejorado
+                                $"   Precio normal: {precioOriginal:C2}\n" +
+                                $"   Precio con oferta: {precioFinal:C2}\n" +
+                                $"   Descuento: {(precioOriginal - precioFinal):C2}");
                         }
                         else
                         {
@@ -2523,11 +2533,29 @@ namespace Comercio.NET
             // ✅ PASO 1: Verificar si el producto tiene oferta activa
             var ofertaAplicable = await BuscarOfertaAplicable(codigoBuscado, cantidadPersonalizada);
 
+            // ✅✅✅ CRÍTICO: Aplicar precio de oferta para tipos "Descuento" y "PorCantidad"
+            if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
+            {
+                // ✅ Para ofertas NO-Combo, aplicar el precio directamente
+                if (ofertaAplicable.PrecioOferta > 0)
+                {
+                    precioUnitario = ofertaAplicable.PrecioOferta;
+
+                    System.Diagnostics.Debug.WriteLine(
+                        $"✅ OFERTA APLICADA AL AGREGAR\n" +
+                        $"   Tipo: {ofertaAplicable.TipoOferta}\n" +
+                        $"   Producto: {producto["descripcion"]}\n" +
+                        $"   Precio normal: {Convert.ToDecimal(producto["precio"]):C2}\n" +
+                        $"   Precio con oferta: {precioUnitario:C2}\n" +
+                        $"   Descuento: {(Convert.ToDecimal(producto["precio"]) - precioUnitario):C2}");
+                }
+            }
+
             // ✅ PASO 2: Si es un Combo, verificar si ya está completo en la venta actual
             if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
             {
-                // ✅ Verificar si el combo YA está completo en la venta actual
                 bool comboYaCompleto = false;
+                decimal precioProrrateadoPreexistente = 0m; // ✅ Declarar FUERA
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -2546,43 +2574,47 @@ namespace Comercio.NET
                             comboYaCompleto = await VerificarComboCompleto(
                                 ofertaAplicable.Id,
                                 codigoBuscado,
-                                0, // ✅ NO sumar cantidad actual, solo verificar estado previo
+                                0,
                                 connection,
                                 transaction);
+
+                            // ✅ MOVER AQUÍ: Calcular precio DENTRO de la transacción
+                            if (comboYaCompleto)
+                            {
+                                precioProrrateadoPreexistente = await CalcularPrecioComboProrrateado(
+                                    ofertaAplicable.Id,
+                                    codigoBuscado,
+                                    ofertaAplicable.PrecioCombo,
+                                    connection,      // ✅ Ahora SÍ existen
+                                    transaction);    // ✅ Dentro del alcance
+
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"✅ COMBO PREEXISTENTE - Aplicando precio prorrateado: {precioProrrateadoPreexistente:C2}");
+                            }
 
                             transaction.Commit();
                         }
                         catch
                         {
                             transaction.Rollback();
+                            throw; // ✅ Propagar la excepción
                         }
                     }
-                }
+                } // ✅ Ahora la conexión se cierra DESPUÉS de calcular
 
                 System.Diagnostics.Debug.WriteLine(
                     $"⚠️ COMBO DETECTADO - ¿Ya completo?: {comboYaCompleto}\n" +
                     $"   Producto: {producto["descripcion"]}\n" +
                     $"   Cantidad a agregar: {cantidadPersonalizada}");
 
+                // ✅ Sobrescribir el precio FUERA del using (ya tenemos el valor)
                 if (comboYaCompleto)
                 {
-                    // ✅ CRÍTICO: Si el combo YA está completo, calcular precio prorrateado
-                    decimal precioProrrateadoPreexistente = await CalcularPrecioComboProrrateado(
-                        ofertaAplicable.Id,
-                        codigoBuscado,
-                        ofertaAplicable.PrecioCombo);
-
-                    // ✅ Sobrescribir el precio de oferta con el prorrateado
                     ofertaAplicable.PrecioOferta = precioProrrateadoPreexistente;
-
-                    System.Diagnostics.Debug.WriteLine(
-                        $"✅ COMBO PREEXISTENTE - Aplicando precio prorrateado: {precioProrrateadoPreexistente:C2}");
                 }
                 else
                 {
-                    // ✅ Combo NO está completo, usar precio normal (sin descuento)
                     ofertaAplicable.PrecioOferta = Convert.ToDecimal(producto["precio"]);
-
                     System.Diagnostics.Debug.WriteLine(
                         $"⚠️ COMBO INCOMPLETO - Usando precio normal: {ofertaAplicable.PrecioOferta:C2}");
                 }
@@ -2677,20 +2709,20 @@ namespace Comercio.NET
 
                             // ✅✅✅ CRÍTICO: UPDATE COMPLETO con todos los campos de oferta
                             var query = @"UPDATE Ventas 
-              SET cantidad = cantidad + @nuevaCantidad, 
-                  precio = @precioFinal,
-                  total = @nuevaCantidad * @precioFinal,
-                  IvaCalculado = (@precioFinal * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva),
-                  PorcentajeIva = @porcentajeIva,
-                  IdOferta = @IdOferta,
-                  NombreOferta = @NombreOferta,
-                  PrecioOriginal = @PrecioOriginal,
-                  PrecioConOferta = @PrecioConOferta,
-                  DescuentoAplicado = @DescuentoAplicado,
-                  EsOferta = @EsOferta
-              WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                                  SET cantidad = cantidad + @nuevaCantidad, 
+                                      precio = @precioFinal,
+                                      total = (cantidad + @nuevaCantidad) * @precioFinal,
+                                      IvaCalculado = (@precioFinal * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva),
+                                      PorcentajeIva = @porcentajeIva,
+                                      IdOferta = @IdOferta,
+                                      NombreOferta = @NombreOferta,
+                                      PrecioOriginal = @PrecioOriginal,
+                                      PrecioConOferta = @PrecioConOferta,
+                                      DescuentoAplicado = @DescuentoAplicado,
+                                      EsOferta = @EsOferta
+                                  WHERE nrofactura = @nrofactura AND codigo = @codigo";
 
-                            using (var cmd = new SqlCommand(query, connection))
+                            using (var cmd = new SqlCommand(query, connection, transaction))
                             {
                                 var cmdSet = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction);
                                 await cmdSet.ExecuteNonQueryAsync();
@@ -3932,8 +3964,16 @@ namespace Comercio.NET
                                         decimal porcentajeGlobal = reader["PorcentajeDescuentoGlobal"] != DBNull.Value
                                             ? Convert.ToDecimal(reader["PorcentajeDescuentoGlobal"])
                                             : 0m;
+
+                                        // ✅ Calcular precio con descuento
                                         oferta.PrecioOferta = precioOriginalDesc * (1 - porcentajeGlobal / 100);
                                         oferta.PorcentajeDescuento = porcentajeGlobal;
+
+                                        System.Diagnostics.Debug.WriteLine(
+                                            $"✅ DESCUENTO APLICADO\n" +
+                                            $"   Precio original: {precioOriginalDesc:C2}\n" +
+                                            $"   Porcentaje: {porcentajeGlobal}%\n" +
+                                            $"   Precio final: {oferta.PrecioOferta:C2}");
                                         break;
 
                                     case "PorCantidad":
@@ -4292,7 +4332,7 @@ namespace Comercio.NET
 
                     // ✅ Calcular precio prorrateado SOLO para las unidades con descuento
                     decimal precioProrrateado = await CalcularPrecioComboProrrateado(
-                        idOferta, producto.codigo, precioCombo);
+                             idOferta, producto.codigo, precioCombo, connection, transaction);       
 
                     // ✅ Si TODAS las unidades tienen descuento, actualizar directamente
                     if (unidadesSinDescuento == 0)
@@ -4381,99 +4421,65 @@ namespace Comercio.NET
         private async Task<decimal> CalcularPrecioComboProrrateado(
             int idOferta,
             string codigoProducto,
-            decimal precioComboTotal)
+            decimal precioComboTotal,
+            SqlConnection connection,
+            SqlTransaction transaction)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"🔢 INICIANDO CalcularPrecioComboProrrateado (sin transacción):");
-                System.Diagnostics.Debug.WriteLine($"   IdOferta: {idOferta}");
-                System.Diagnostics.Debug.WriteLine($"   Código producto: {codigoProducto}");
-                System.Diagnostics.Debug.WriteLine($"   Precio combo total: {precioComboTotal:C2}");
+                System.Diagnostics.Debug.WriteLine($"🔢 INICIANDO CalcularPrecioComboProrrateado (con transacción):");
 
-                string connectionString = GetConnectionString();
+                var query = @"
+            SELECT 
+                p.codigo,
+                p.precio AS PrecioOriginal,
+                d.CantidadMinima
+            FROM DetalleOfertasProductos d
+            INNER JOIN productos p ON d.IdProducto = p.ID
+            WHERE d.IdOferta = @IdOferta";
 
-                using (var connection = new SqlConnection(connectionString))
+                decimal sumaPreciosOriginales = 0m;
+                decimal precioOriginalProductoActual = 0m;
+                int cantidadProductoActual = 1;
+
+                using (var cmd = new SqlCommand(query, connection, transaction))
                 {
-                    await connection.OpenAsync();
+                    cmd.Parameters.AddWithValue("@IdOferta", idOferta);
 
-                    var query = @"
-                SELECT 
-                    p.codigo,
-                    p.precio AS PrecioOriginal,
-                    d.CantidadMinima
-                FROM DetalleOfertasProductos d
-                INNER JOIN productos p ON d.IdProducto = p.ID
-                WHERE d.IdOferta = @IdOferta";
-
-                    decimal sumaPreciosOriginales = 0m;
-                    decimal precioOriginalProductoActual = 0m;
-                    int cantidadProductoActual = 1;
-
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        cmd.Parameters.AddWithValue("@IdOferta", idOferta);
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
+                        while (await reader.ReadAsync())
                         {
-                            while (await reader.ReadAsync())
+                            string codigo = reader["codigo"].ToString();
+                            decimal precioOriginal = Convert.ToDecimal(reader["PrecioOriginal"]);
+                            int cantidad = Convert.ToInt32(reader["CantidadMinima"]);
+
+                            decimal subtotalProducto = precioOriginal * cantidad;
+                            sumaPreciosOriginales += subtotalProducto;
+
+                            if (codigo == codigoProducto)
                             {
-                                string codigo = reader["codigo"].ToString();
-                                decimal precioOriginal = Convert.ToDecimal(reader["PrecioOriginal"]);
-                                int cantidad = Convert.ToInt32(reader["CantidadMinima"]);
-
-                                decimal subtotalProducto = precioOriginal * cantidad;
-                                sumaPreciosOriginales += subtotalProducto;
-
-                                System.Diagnostics.Debug.WriteLine(
-                                    $"   📦 Producto en combo: {codigo}\n" +
-                                    $"      Precio: {precioOriginal:C2} x {cantidad} = {subtotalProducto:C2}");
-
-                                if (codigo == codigoProducto)
-                                {
-                                    precioOriginalProductoActual = precioOriginal;
-                                    cantidadProductoActual = cantidad;
-                                    System.Diagnostics.Debug.WriteLine($"      ⭐ Este es el producto actual");
-                                }
+                                precioOriginalProductoActual = precioOriginal;
+                                cantidadProductoActual = cantidad;
                             }
                         }
                     }
+                }
 
-                    System.Diagnostics.Debug.WriteLine($"   💰 Suma total precios originales: {sumaPreciosOriginales:C2}");
+                if (sumaPreciosOriginales > 0 && precioOriginalProductoActual > 0)
+                {
+                    decimal subtotalProductoActual = precioOriginalProductoActual * cantidadProductoActual;
+                    decimal participacion = subtotalProductoActual / sumaPreciosOriginales;
+                    decimal precioProrrateado = (precioComboTotal * participacion) / cantidadProductoActual;
 
-                    // ✅ Calcular precio prorrateado según participación en el combo
-                    if (sumaPreciosOriginales > 0 && precioOriginalProductoActual > 0)
-                    {
-                        decimal subtotalProductoActual = precioOriginalProductoActual * cantidadProductoActual;
-                        decimal participacion = subtotalProductoActual / sumaPreciosOriginales;
-                        decimal precioProrrateado = (precioComboTotal * participacion) / cantidadProductoActual;
-
-                        System.Diagnostics.Debug.WriteLine(
-                            $"   ✅ CÁLCULO EXITOSO:\n" +
-                            $"      Subtotal producto actual: {subtotalProductoActual:C2}\n" +
-                            $"      Participación: {participacion:P2}\n" +
-                            $"      Precio asignado al combo: {precioComboTotal * participacion:C2}\n" +
-                            $"      Cantidad del producto: {cantidadProductoActual}\n" +
-                            $"      Precio prorrateado unitario: {precioProrrateado:C2}");
-
-                        return precioProrrateado;
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"   ❌ ERROR: No se pudo calcular\n" +
-                            $"      Suma precios: {sumaPreciosOriginales:C2}\n" +
-                            $"      Precio original actual: {precioOriginalProductoActual:C2}");
-                    }
+                    return precioProrrateado;
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ ERROR en CalcularPrecioComboProrrateado: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"   Stack: {ex.StackTrace}");
             }
 
-            // Fallback: retornar 0 para que se use el precio original
-            System.Diagnostics.Debug.WriteLine("   ⚠️ RETORNANDO 0 (fallback)");
             return 0m;
         }
     }
