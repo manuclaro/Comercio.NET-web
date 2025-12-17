@@ -235,16 +235,25 @@ namespace Comercio.NET.Servicios
 
             y = ImprimirFechaHora(e.Graphics, fontNormal, leftMargin, rightMargin, y);
 
-            bool esFactura = configuracion.TipoComprobante.Contains("Factura") ||
-                           configuracion.TipoComprobante.Contains("FACTURA") ||
-                           !string.IsNullOrEmpty(configuracion.CAE);
+            // ✅ CORREGIDO: Validación estricta del tipo de comprobante
+            // Un REMITO nunca debe mostrar datos fiscales, incluso si tiene CAE
+            bool esFactura = (configuracion.TipoComprobante.Contains("Factura") ||
+                             configuracion.TipoComprobante.Contains("FACTURA")) &&
+                             !configuracion.TipoComprobante.Contains("REMITO") &&
+                             !configuracion.TipoComprobante.ToUpper().Contains("REMITO");
+
+            System.Diagnostics.Debug.WriteLine($"🔍 Validación: esFactura = {esFactura}");
+            System.Diagnostics.Debug.WriteLine($"   - TipoComprobante: '{configuracion.TipoComprobante}'");
+            System.Diagnostics.Debug.WriteLine($"   - CAE: '{configuracion.CAE}'");
 
             if (esFactura)
             {
+                System.Diagnostics.Debug.WriteLine("📄 Imprimiendo como FACTURA con datos fiscales");
                 y = ImprimirDatosFacturacion(e.Graphics, fontTitulo, fontSubtitulo, leftMargin, rightMargin, y);
             }
             else
             {
+                System.Diagnostics.Debug.WriteLine("📄 Imprimiendo como REMITO sin datos fiscales");
                 y = ImprimirInfoComercio(e.Graphics, fontTitulo, fontSubtitulo, leftMargin, rightMargin, y);
             }
 
@@ -282,9 +291,15 @@ namespace Comercio.NET.Servicios
                 y = ImprimirPieTicket(e.Graphics, fontSubtitulo, leftMargin, rightMargin, y);
             }
 
-            if (!string.IsNullOrEmpty(configuracion.CAE))
+            // ✅ CORREGIDO: Solo imprimir información CAE para FACTURAS
+            if (esFactura && !string.IsNullOrEmpty(configuracion.CAE))
             {
+                System.Diagnostics.Debug.WriteLine("📋 Imprimiendo información CAE");
                 y = ImprimirInformacionCAE(e.Graphics, fontSubtitulo, leftMargin, rightMargin, y);
+            }
+            else if (!string.IsNullOrEmpty(configuracion.CAE))
+            {
+                System.Diagnostics.Debug.WriteLine("⚠️ CAE presente pero NO se imprime (es REMITO)");
             }
         }
 
@@ -474,12 +489,54 @@ namespace Comercio.NET.Servicios
             string productosStr = $"PRODUCTOS: {cantidadTotal}";
             graphics.DrawString(productosStr, fontBold, Brushes.Black, leftMargin, y);
 
-            string totalStr = $"TOTAL: {sumaTotal:C2}";
-            SizeF totalSize = graphics.MeasureString(totalStr, fontBold);
+            // ✅ MODIFICADO: Mostrar subtotal
+            string subtotalStr = $"SUBTOTAL: {sumaTotal:C2}";
+            SizeF subtotalSize = graphics.MeasureString(subtotalStr, fontBold);
+            float subtotalX = rightMargin - subtotalSize.Width;
+            graphics.DrawString(subtotalStr, fontBold, Brushes.Black, subtotalX, y);
+            y += subtotalSize.Height + 4;
+
+            // ✅ DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔍 ImprimirTotalesFacturaC:");
+            System.Diagnostics.Debug.WriteLine($"   - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"   - ImporteDescuento: {configuracion?.ImporteDescuento ?? 0}");
+
+            // ✅ MODIFICADO: Mostrar descuento si existe
+            if (configuracion != null && configuracion.PorcentajeDescuento > 0)
+            {
+                string descuentoStr = $"DESCUENTO ({configuracion.PorcentajeDescuento:N2}%): -{configuracion.ImporteDescuento:C2}";
+                SizeF descuentoSize = graphics.MeasureString(descuentoStr, fontBold);
+                float descuentoX = rightMargin - descuentoSize.Width;
+
+                // ✅ CAMBIO: Color negro en lugar de rojo
+                graphics.DrawString(descuentoStr, fontBold, Brushes.Black, descuentoX, y);
+                y += descuentoSize.Height + 4;
+            }
+
+            // ✅ MODIFICADO: TOTAL FINAL con validación mejorada
+            decimal totalFinal;
+
+            if (configuracion != null && configuracion.ImporteFinal > 0)
+            {
+                totalFinal = configuracion.ImporteFinal;
+            }
+            else if (configuracion != null && configuracion.PorcentajeDescuento > 0 && configuracion.ImporteDescuento > 0)
+            {
+                totalFinal = sumaTotal - configuracion.ImporteDescuento;
+            }
+            else
+            {
+                totalFinal = sumaTotal;
+            }
+
+            string totalStr = $"TOTAL: {totalFinal:C2}";
+            Font fontTotal = new Font(fontBold.FontFamily, fontBold.Size + 2, FontStyle.Bold);
+            SizeF totalSize = graphics.MeasureString(totalStr, fontTotal);
             float totalX = rightMargin - totalSize.Width;
 
-            graphics.DrawString(totalStr, fontBold, Brushes.Black, totalX, y);
-
+            // ✅ CAMBIO: Color negro en lugar de verde
+            graphics.DrawString(totalStr, fontTotal, Brushes.Black, totalX, y);
+            fontTotal.Dispose();
             y += totalSize.Height + 6;
 
             Font fontNota = new Font("Arial", 6, FontStyle.Italic);
@@ -631,11 +688,55 @@ namespace Comercio.NET.Servicios
             string productosStr = $"PRODUCTOS: {cantidadTotal}";
             graphics.DrawString(productosStr, fontBold, Brushes.Black, leftMargin, y);
 
-            string totalStr = $"TOTAL FACTURA: {sumaTotal:C2}";
-            SizeF totalSize = graphics.MeasureString(totalStr, fontBold);
+            // ✅ MODIFICADO: Mostrar subtotal antes del descuento
+            string subtotalStr = $"SUBTOTAL: {sumaTotal:C2}";
+            SizeF subtotalSize = graphics.MeasureString(subtotalStr, fontBold);
+            float subtotalX = rightMargin - subtotalSize.Width;
+            graphics.DrawString(subtotalStr, fontBold, Brushes.Black, subtotalX, y);
+            y += subtotalSize.Height + 4;
+
+            // ✅ DEBUG
+            System.Diagnostics.Debug.WriteLine($"🔍 ImprimirTotalesBasicosFormatoFactura:");
+            System.Diagnostics.Debug.WriteLine($"   - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"   - ImporteDescuento: {configuracion?.ImporteDescuento ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"   - ImporteFinal: {configuracion?.ImporteFinal ?? 0}");
+
+            // ✅ MODIFICADO: Mostrar descuento si existe
+            if (configuracion != null && configuracion.PorcentajeDescuento > 0)
+            {
+                string descuentoStr = $"DESCUENTO ({configuracion.PorcentajeDescuento:N2}%): -{configuracion.ImporteDescuento:C2}";
+                SizeF descuentoSize = graphics.MeasureString(descuentoStr, fontBold);
+                float descuentoX = rightMargin - descuentoSize.Width;
+
+                // ✅ CAMBIO: Color negro en lugar de rojo
+                graphics.DrawString(descuentoStr, fontBold, Brushes.Black, descuentoX, y);
+                y += descuentoSize.Height + 4;
+            }
+
+            // ✅ MODIFICADO: Mostrar TOTAL FINAL con validación mejorada
+            decimal totalFinal;
+
+            if (configuracion != null && configuracion.ImporteFinal > 0)
+            {
+                totalFinal = configuracion.ImporteFinal;
+            }
+            else if (configuracion != null && configuracion.PorcentajeDescuento > 0 && configuracion.ImporteDescuento > 0)
+            {
+                totalFinal = sumaTotal - configuracion.ImporteDescuento;
+            }
+            else
+            {
+                totalFinal = sumaTotal;
+            }
+
+            string totalFinalStr = $"TOTAL: {totalFinal:C2}";
+            Font fontTotal = new Font(fontBold.FontFamily, fontBold.Size + 2, FontStyle.Bold);
+            SizeF totalSize = graphics.MeasureString(totalFinalStr, fontTotal);
             float totalX = rightMargin - totalSize.Width;
 
-            graphics.DrawString(totalStr, fontBold, Brushes.Black, totalX, y);
+            // ✅ CAMBIO: Color negro en lugar de verde
+            graphics.DrawString(totalFinalStr, fontTotal, Brushes.Black, totalX, y);
+            fontTotal.Dispose();
 
             return y + totalSize.Height + 8;
         }
@@ -960,13 +1061,74 @@ namespace Comercio.NET.Servicios
             string cantidadTotalStr = $"PRODUCTOS: {cantidadTotal}";
             graphics.DrawString(cantidadTotalStr, fontBold, Brushes.Black, leftMargin, y);
 
-            string totalGeneralStr = $"TOTAL: {sumaTotal:C2}";
-            SizeF totalGeneralSize = graphics.MeasureString(totalGeneralStr, fontBold);
+            // ✅ MODIFICADO: Mostrar subtotal
+            string subtotalStr = $"SUBTOTAL: {sumaTotal:C2}";
+            SizeF subtotalSize = graphics.MeasureString(subtotalStr, fontBold);
+            float subtotalX = rightMargin - subtotalSize.Width;
+            graphics.DrawString(subtotalStr, fontBold, Brushes.Black, subtotalX, y);
+            y += subtotalSize.Height + 4;
+
+            // ✅ DEBUG: Verificar valores de configuración
+            System.Diagnostics.Debug.WriteLine($"🔍 ImprimirTotalesBasicos - Configuración:");
+            System.Diagnostics.Debug.WriteLine($"   - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"   - ImporteDescuento: {configuracion?.ImporteDescuento ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"   - ImporteFinal: {configuracion?.ImporteFinal ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"   - SumaTotal recibido: {sumaTotal}");
+
+            // ✅ MODIFICADO: Mostrar descuento si existe
+            if (configuracion != null && configuracion.PorcentajeDescuento > 0)
+            {
+                string descuentoStr = $"DESCUENTO ({configuracion.PorcentajeDescuento:N2}%): -{configuracion.ImporteDescuento:C2}";
+                SizeF descuentoSize = graphics.MeasureString(descuentoStr, fontBold);
+                float descuentoX = rightMargin - descuentoSize.Width;
+
+                // ✅ CAMBIO: Color negro en lugar de rojo
+                graphics.DrawString(descuentoStr, fontBold, Brushes.Black, descuentoX, y);
+                y += descuentoSize.Height + 4;
+
+                System.Diagnostics.Debug.WriteLine($"✅ Descuento mostrado en ticket: {descuentoStr}");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ NO se muestra descuento - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
+            }
+
+            // ✅ MODIFICADO: TOTAL FINAL con validación mejorada
+            decimal totalFinal;
+
+            if (configuracion != null && configuracion.ImporteFinal > 0)
+            {
+                // Si ImporteFinal tiene valor, usarlo directamente
+                totalFinal = configuracion.ImporteFinal;
+                System.Diagnostics.Debug.WriteLine($"✅ Usando ImporteFinal: {totalFinal:C2}");
+            }
+            else if (configuracion != null && configuracion.PorcentajeDescuento > 0 && configuracion.ImporteDescuento > 0)
+            {
+                // Si no hay ImporteFinal pero hay descuento, calcularlo
+                totalFinal = sumaTotal - configuracion.ImporteDescuento;
+                System.Diagnostics.Debug.WriteLine($"✅ Calculando: {sumaTotal:C2} - {configuracion.ImporteDescuento:C2} = {totalFinal:C2}");
+            }
+            else
+            {
+                // Si no hay descuento, usar el total sin descuento
+                totalFinal = sumaTotal;
+                System.Diagnostics.Debug.WriteLine($"✅ Sin descuento, usando sumaTotal: {totalFinal:C2}");
+            }
+
+            System.Diagnostics.Debug.WriteLine($"💰 Total Final a imprimir: {totalFinal:C2}");
+
+            string totalGeneralStr = $"TOTAL: {totalFinal:C2}";
+            Font fontTotal = new Font(fontBold.FontFamily, fontBold.Size + 2, FontStyle.Bold);
+            SizeF totalGeneralSize = graphics.MeasureString(totalGeneralStr, fontTotal);
             float totalGeneralX = rightMargin - totalGeneralSize.Width;
-            graphics.DrawString(totalGeneralStr, fontBold, Brushes.Black, totalGeneralX, y);
+
+            // ✅ CAMBIO: Color negro en lugar de verde
+            graphics.DrawString(totalGeneralStr, fontTotal, Brushes.Black, totalGeneralX, y);
+            fontTotal.Dispose();
 
             return y + totalGeneralSize.Height + 8;
         }
+
 
         private float ImprimirPieTicket(Graphics graphics, Font fontSubtitulo, float leftMargin, float rightMargin, float y)
         {
@@ -1133,9 +1295,13 @@ namespace Comercio.NET.Servicios
         public string NumeroComprobante { get; set; } = "1";
         public string MensajePie { get; set; } = "";
         public string FormaPago { get; set; } = "";
-
         public string CAE { get; set; } = "";
         public DateTime? CAEVencimiento { get; set; }
         public string CUIT { get; set; } = "";
+
+        // ✅ NUEVO: Propiedades para descuento
+        public decimal PorcentajeDescuento { get; set; }
+        public decimal ImporteDescuento { get; set; }
+        public decimal ImporteFinal { get; set; }
     }
 }

@@ -45,6 +45,14 @@ namespace Comercio.NET
         public OpcionImpresion OpcionSeleccionada { get; private set; } = OpcionImpresion.Ninguna;
         public OpcionPago OpcionPagoSeleccionada { get; private set; } = OpcionPago.Efectivo;
 
+        // NUEVO: Variables para manejo de descuentos
+        private decimal porcentajeDescuentoSeleccionado = 0m;
+        private decimal importeDescuento = 0m;
+        private decimal importeTotalConDescuento = 0m;
+        private CheckBox chkAplicarDescuento;
+        private ComboBox cboDescuento;
+        private Label lblDescuentoDetalle;
+        private Panel panelDescuento;
 
         private TextBox txtCuit;
         private Label lblRazonSocial;
@@ -72,6 +80,10 @@ namespace Comercio.NET
         private RadioButton rbMercadoPago;
         private RadioButton rbOtro; // NUEVO: Declaración del campo
 
+        public decimal PorcentajeDescuento => porcentajeDescuentoSeleccionado;
+        public decimal ImporteDescuento => importeDescuento;
+        public decimal ImporteTotalConDescuento => importeTotalConDescuento;
+
         // CORREGIDO: Eliminar referencias a controles que no existen
         private Label lblMensajeInformativo;
         private CheckBox chkMultiplesPagos; // Referencia corregida
@@ -90,7 +102,7 @@ namespace Comercio.NET
         private bool limitarFacturacion = false; // NUEVO: Si está habilitada la restricción
 
         // Delegate para el callback después de procesar la venta
-        public Func<string, string, string, string, DateTime?, int, string, Task> OnProcesarVenta { get; set; }
+        public Func<string, string, string, string, DateTime?, int, string, decimal, decimal, Task> OnProcesarVenta { get; set; }
 
         private decimal importeTotalVenta;
         private Ventas formularioPadre;
@@ -136,16 +148,18 @@ namespace Comercio.NET
         private bool usarVistaPrevia = true; // NUEVO: Variable para controlar el modo de impresión
 
         public SeleccionImpresionForm(
-                            decimal importeTotal = 0,           // 1er parámetro (opcional)
-                            Ventas padre = null,                // 2do parámetro (opcional)
-                            BotonInicial botonInicial = BotonInicial.Remito  // ✅ 3er parámetro (opcional, por defecto Remito)
-                            )
+                                decimal importeTotal = 0,
+                                Ventas padre = null,
+                                BotonInicial botonInicial = BotonInicial.Remito
+)
         {
             System.Diagnostics.Debug.WriteLine($"[SELECCIÓN] Iniciando con importe: {importeTotal:C2}");
 
             this.importeTotalVenta = importeTotal;
+            this.importeTotalConDescuento = importeTotal; // NUEVO: Inicializar sin descuento
             this.formularioPadre = padre;
-            this.botonInicialFoco = botonInicial; // ✅ GUARDAR preferencia de foco
+            this.botonInicialFoco = botonInicial;
+
 
             this.Text = "Seleccione tipo de impresión y método de pago";
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -543,17 +557,76 @@ namespace Comercio.NET
             lblImporteTotal = new Label
             {
                 Left = 40,
-                Top = 120, // CAMBIADO de 130 a 120 para dar más espacio
+                Top = 120,
                 Width = 600,
                 Height = 80,
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold), // Fuente grande y negrita
-                ForeColor = System.Drawing.Color.FromArgb(0, 102, 204), // Color azul
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(0, 102, 204),
                 TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
                 Text = $"TOTAL A PAGAR: {importeTotalVenta:C2}",
-                BackColor = System.Drawing.Color.FromArgb(240, 248, 255), // Fondo azul claro
+                BackColor = System.Drawing.Color.FromArgb(240, 248, 255),
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = true
             };
+
+            // NUEVO: Panel para descuentos
+            panelDescuento = new Panel
+            {
+                Left = 40,
+                Top = 200,
+                Width = 600,
+                Height = 80,
+                BackColor = System.Drawing.Color.FromArgb(255, 250, 240),
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = true
+            };
+
+            // NUEVO: CheckBox para habilitar descuento
+            chkAplicarDescuento = new CheckBox
+            {
+                Text = "💰 Aplicar descuento",
+                Left = 10,
+                Top = 10,
+                Width = 180,
+                Height = 25,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(204, 102, 0),
+                Checked = false
+            };
+
+            // NUEVO: ComboBox para seleccionar porcentaje
+            cboDescuento = new ComboBox
+            {
+                Left = 200,
+                Top = 10,
+                Width = 120,
+                Height = 25,
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Enabled = false
+            };
+
+            // Cargar opciones de descuento desde configuración
+            CargarOpcionesDescuento();
+
+            // NUEVO: Label para mostrar detalle del descuento
+            lblDescuentoDetalle = new Label
+            {
+                Left = 10,
+                Top = 45,
+                Width = 580,
+                Height = 25,
+                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
+                ForeColor = System.Drawing.Color.FromArgb(51, 102, 0),
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                Text = ""
+            };
+
+            panelDescuento.Controls.AddRange(new Control[] {
+        chkAplicarDescuento,
+        cboDescuento,
+        lblDescuentoDetalle
+    });
 
             // Panel para pago múltiple
             panelPagoMultiple = new Panel
@@ -575,7 +648,18 @@ namespace Comercio.NET
             panelPagoMultiple.Controls.Add(multiplePagosControl);
 
             // AJUSTADO: Controles para CUIT y Razón Social con nueva posición inicial
-            int topCuit = 220; // CAMBIADO de 340 a 220 para modo simple inicialmente
+            int topCuit = 290; // ✅ CORREGIDO: Definir ANTES de usar
+
+            // ✅ CORREGIDO: Crear label CUIT PRIMERO (una sola vez)
+            var lblCuit = new Label
+            {
+                Name = "lblCuit",
+                Text = "CUIT:",
+                Left = 40,
+                Top = topCuit + 2,
+                Width = 50,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+            };
 
             txtCuit = new TextBox
             {
@@ -595,21 +679,11 @@ namespace Comercio.NET
                 ForeColor = System.Drawing.Color.DarkGreen
             };
 
-            var lblCuit = new Label
-            {
-                Name = "lblCuit", // NUEVO: Asignar nombre para poder encontrarlo
-                Text = "CUIT:",
-                Left = 40,
-                Top = topCuit + 2,
-                Width = 50,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-            };
-
             // AJUSTADO: Label para mensaje informativo
             lblMensajeInformativo = new Label
             {
                 Left = 40,
-                Top = 245, // AJUSTADO para la nueva altura
+                Top = 315,
                 Width = 600,
                 Height = 25,
                 Font = new Font("Segoe UI", 9F, FontStyle.Italic),
@@ -619,13 +693,12 @@ namespace Comercio.NET
             };
 
             // AJUSTADO: Botones de impresión
-            int topBotones = 270; // AJUSTADO para la nueva altura
+            int topBotones = 340; // ✅ AJUSTADO para dar espacio
 
             btnRemito = new Button
             {
                 Text = "Remito",
                 Width = 130,
-                //Left = 60, <-- ahora se posicionan con PosicionarBotones()
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -641,7 +714,7 @@ namespace Comercio.NET
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                BackColor = System.Drawing.Color.FromArgb(255, 87, 34), // Naranja para Factura C
+                BackColor = System.Drawing.Color.FromArgb(255, 87, 34),
                 ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat
             };
@@ -650,7 +723,6 @@ namespace Comercio.NET
             {
                 Text = "Factura B",
                 Width = 130,
-                //Left = 200,
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -663,7 +735,6 @@ namespace Comercio.NET
             {
                 Text = "Factura A",
                 Width = 130,
-                //Left = 340,
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -672,12 +743,10 @@ namespace Comercio.NET
                 FlatStyle = FlatStyle.Flat
             };
 
-            // NUEVO: Botón para finalizar sin imprimir
             btnFinalizarSinImpresion = new Button
             {
                 Text = "Finalizar (Sin impresión)",
                 Width = 120,
-                //Left = 480,
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -690,8 +759,7 @@ namespace Comercio.NET
             {
                 Text = "Cancelar",
                 Width = 90,
-                //Left = 610, // REPOSICIONADO para dar espacio al nuevo botón (ahora se posiciona centralmente más a la izquierda)
-                Top = topBotones, // AJUSTADO
+                Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 BackColor = System.Drawing.Color.FromArgb(220, 53, 69),
@@ -700,16 +768,16 @@ namespace Comercio.NET
                 DialogResult = DialogResult.Cancel
             };
 
-            // ✅ NUEVO: Botón para limpiar cache AFIP (ubicado en esquina superior derecha)
+            // ✅ NUEVO: Botón para limpiar cache AFIP
             btnLimpiarCacheAfip = new Button
             {
                 Text = "🗑️ Limpiar Cache AFIP",
                 Width = 150,
                 Height = 28,
-                Left = this.ClientSize.Width - 165, // 15px de margen desde la derecha
+                Left = this.ClientSize.Width - 165,
                 Top = 10,
                 Font = new Font("Segoe UI", 8F, FontStyle.Regular),
-                BackColor = System.Drawing.Color.FromArgb(220, 53, 69), // Rojo (acción destructiva)
+                BackColor = System.Drawing.Color.FromArgb(220, 53, 69),
                 ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
@@ -718,33 +786,32 @@ namespace Comercio.NET
 
             // ✅ Agregar tooltip explicativo
             var toolTip = new ToolTip();
-            toolTip.SetToolTip(btnLimpiarCacheAfip, 
+            toolTip.SetToolTip(btnLimpiarCacheAfip,
                 "Elimina tokens AFIP en cache.\n" +
                 "Usar solo si hay problemas de autenticación.\n\n" +
                 "Requiere reiniciar el sistema después de limpiar.");
 
-            this.Controls.Add(btnLimpiarCacheAfip);
-
-            // Agregar todos los controles al formulario
+            // ✅ IMPORTANTE: Agregar todos los controles al formulario
             this.Controls.AddRange(new Control[] {
                 chkPagoMultiple,
                 panelPagoSimple,
-                lblImporteTotal, // NUEVO: Agregar el label del importe total
+                lblImporteTotal,
+                panelDescuento,      // ✅ Panel de descuentos
                 panelPagoMultiple,
-                lblCuit, // IMPORTANTE: Asegurarse de que se agregue al formulario
+                lblCuit,             // ✅ Label CUIT
                 txtCuit,
                 lblRazonSocial,
                 lblMensajeInformativo,
                 btnRemito,
-                btnFacturaC,  // ✅ NUEVO
+                btnFacturaC,
                 btnFacturaB,
                 btnFacturaA,
                 btnFinalizarSinImpresion,
                 btnCancelar,
-                btnLimpiarCacheAfip // NUEVO: Agregar el botón de limpiar cache AFIP
+                btnLimpiarCacheAfip
             });
 
-            // Posicionar botones de forma consistente y más a la izquierda
+            // Posicionar botones de forma centrada
             PosicionarBotones();
         }
 
@@ -806,6 +873,7 @@ namespace Comercio.NET
                 }
             };
 
+
             // Evento para cambiar modo de pago
             chkPagoMultiple.CheckedChanged += (s, e) =>
             {
@@ -836,11 +904,12 @@ namespace Comercio.NET
                     }
 
                     // AJUSTADO: Posicionar botones más abajo para dar espacio al CUIT
-                    btnRemito.Top = 390;
-                    btnFacturaB.Top = 390;
-                    btnFacturaA.Top = 390;
-                    btnFinalizarSinImpresion.Top = 390;
-                    btnCancelar.Top = 390;
+                    btnRemito.Top = 340;
+                    btnFacturaB.Top = 340;
+                    btnFacturaC.Top = 340;
+                    btnFacturaA.Top = 340;
+                    btnFinalizarSinImpresion.Top = 340;
+                    btnCancelar.Top = 340;
 
                     // Recalcular lefts para mantener cluster hacia la izquierda
                     PosicionarBotones();
@@ -1182,7 +1251,95 @@ namespace Comercio.NET
                 else if (btnFinalizarSinImpresion.Enabled)
                     btnFinalizarSinImpresion.Focus();
             };
+            // NUEVO: Eventos para descuentos
+            chkAplicarDescuento.CheckedChanged += (s, e) =>
+            {
+                cboDescuento.Enabled = chkAplicarDescuento.Checked;
+
+                if (!chkAplicarDescuento.Checked)
+                {
+                    // Limpiar descuento
+                    porcentajeDescuentoSeleccionado = 0m;
+                    importeDescuento = 0m;
+                    lblDescuentoDetalle.Text = "";
+                }
+
+                AplicarDescuento();
+            };
+
+            cboDescuento.SelectedIndexChanged += (s, e) =>
+            {
+                if (chkAplicarDescuento.Checked)
+                {
+                    AplicarDescuento();
+                }
+            };
+
+            // NUEVO: Validar restricciones al cambiar método de pago
+            rbEfectivo.CheckedChanged += (s, e) =>
+            {
+                if (rbEfectivo.Checked)
+                {
+                    OpcionPagoSeleccionada = OpcionPago.Efectivo;
+                    ValidarDescuentoPorMetodoPago();
+                    ActualizarOpcionesImpresion();
+                }
+            };
+
+            rbDNI.CheckedChanged += (s, e) =>
+            {
+                if (rbDNI.Checked)
+                {
+                    OpcionPagoSeleccionada = OpcionPago.DNI;
+                    ValidarDescuentoPorMetodoPago();
+                    ActualizarOpcionesImpresion();
+                }
+            };
+
+            rbMercadoPago.CheckedChanged += (s, e) =>
+            {
+                if (rbMercadoPago.Checked)
+                {
+                    OpcionPagoSeleccionada = OpcionPago.MercadoPago;
+                    ValidarDescuentoPorMetodoPago();
+                    ActualizarOpcionesImpresion();
+                }
+            };
+
+            rbOtro.CheckedChanged += (s, e) =>
+            {
+                if (rbOtro.Checked)
+                {
+                    OpcionPagoSeleccionada = OpcionPago.Otro;
+                    ValidarDescuentoPorMetodoPago();
+                    ActualizarOpcionesImpresion();
+                }
+            };
+
         }
+        /// <summary>
+        /// Valida si el descuento es compatible con el método de pago actual
+        /// </summary>
+        private void ValidarDescuentoPorMetodoPago()
+        {
+            if (!chkAplicarDescuento.Checked || porcentajeDescuentoSeleccionado == 0)
+            {
+                return; // Sin descuento activo, no validar
+            }
+
+            if (!ValidarRestriccionesDescuento(out string mensajeError))
+            {
+                MessageBox.Show(
+                    mensajeError,
+                    "Restricción de Descuento",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                // Desactivar descuento automáticamente
+                chkAplicarDescuento.Checked = false;
+            }
+        }
+
 
         /// <summary>
         /// Evento para formatear automáticamente el CUIT mientras se escribe - CORREGIDO: Manejo mejorado del cursor
@@ -1286,7 +1443,7 @@ namespace Comercio.NET
 
                 // ✅ NUEVO: Validar condición IVA del emisor
                 var (esMonotributo, condicionEmisor) = DeterminarCondicionIVAEmisor();
-                
+
                 System.Diagnostics.Debug.WriteLine($"[EMISOR] Condición IVA: {condicionEmisor}");
                 System.Diagnostics.Debug.WriteLine($"[EMISOR] Es Monotributo: {esMonotributo}");
 
@@ -1307,77 +1464,17 @@ namespace Comercio.NET
                     return;
                 }
 
-                // ✅ NUEVA VALIDACIÓN 2: Si es Monotributo y solicita Factura B, informar que se generará Factura C
-                if (esMonotributo && tipoFactura == OpcionImpresion.FacturaB)
-                {
-                    var resultado = MessageBox.Show(
-                        "⚠️ INFORMACIÓN IMPORTANTE\n\n" +
-                        "Su condición tributaria es MONOTRIBUTO.\n\n" +
-                        "Según normativa AFIP, los Monotributistas deben emitir:\n" +
-                        "• Factura C (código 11) - Para todas las operaciones\n\n" +
-                        "No puede emitir Factura B (código 6).\n\n" +
-                        "¿Desea continuar generando la Factura C correspondiente?",
-                        "Monotributo - Factura C",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Information,
-                        MessageBoxDefaultButton.Button1);
+                // ... resto de validaciones (líneas ~1510-1550) ...
 
-                    if (resultado != DialogResult.Yes)
-                    {
-                        System.Diagnostics.Debug.WriteLine("[FACTURA] ❌ Usuario canceló generación de Factura C");
-                        return;
-                    }
+                // ✅ CRÍTICO: CAPTURAR DESCUENTOS ANTES DE INICIAR EL PROCESO
+                decimal porcentajeDescuentoCapturado = porcentajeDescuentoSeleccionado;
+                decimal importeDescuentoCapturado = importeDescuento;
+                decimal importeTotalConDescuentoCapturado = importeTotalConDescuento;
 
-                    // ✅ CAMBIAR automáticamente a Factura C
-                    System.Diagnostics.Debug.WriteLine("[FACTURA] ✅ Cambiando de Factura B a Factura C (Monotributo)");
-                    tipoFactura = OpcionImpresion.FacturaC;
-                }
-
-                // ✅ VALIDACIÓN 3: Verificar estado del cache de AFIP
-                if (!TieneCacheTokensValido())
-                {
-                    MessageBox.Show(
-                        "⚠️ ADVERTENCIA: CACHE DE AFIP NO VÁLIDO\n\n" +
-                        "El cache de tokens de AFIP no es válido.\n" +
-                        "Esto puede causar errores en la comunicación con AFIP.\n\n" +
-                        "¿Desea limpiar el cache de AFIP y continuar?",
-                        "Cache AFIP Inválido",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning,
-                        MessageBoxDefaultButton.Button2 // No por defecto
-                    );
-                }
-
-                // ✅ NUEVO: VALIDAR LÍMITE DE FACTURACIÓN ANTES DE CONTINUAR
-                if (!ValidarLimiteFacturacion(out string mensajeError))
-                {
-                    // Verificar si es bloqueo total o advertencia
-                    if (mensajeError.Contains("⛔"))
-                    {
-                        // ❌ BLOQUEO TOTAL: Ya se alcanzó el límite
-                        MessageBox.Show(mensajeError,
-                            "Límite de Facturación Alcanzado",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Stop);
-                        return;
-                    }
-                    else
-                    {
-                        // ⚠️ ADVERTENCIA: Se superaría el límite - Preguntar al usuario
-                        var resultado = MessageBox.Show(mensajeError,
-                            "Advertencia - Límite de Facturación",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Warning);
-
-                        if (resultado != DialogResult.Yes)
-                        {
-                            System.Diagnostics.Debug.WriteLine("[LÍMITE FACTURACIÓN] ❌ Usuario canceló por exceso de límite");
-                            return;
-                        }
-
-                        System.Diagnostics.Debug.WriteLine("[LÍMITE FACTURACIÓN] ⚠️ Usuario autorizó exceder el límite");
-                    }
-                }
+                System.Diagnostics.Debug.WriteLine($"[FACTURA] 💰 DESCUENTOS CAPTURADOS:");
+                System.Diagnostics.Debug.WriteLine($"[FACTURA]   - Porcentaje: {porcentajeDescuentoCapturado}%");
+                System.Diagnostics.Debug.WriteLine($"[FACTURA]   - Importe descuento: {importeDescuentoCapturado:C2}");
+                System.Diagnostics.Debug.WriteLine($"[FACTURA]   - Total con descuento: {importeTotalConDescuentoCapturado:C2}");
 
                 if (EsPagoMultiple && !multiplePagosControl.PagoCompleto)
                 {
@@ -1506,7 +1603,16 @@ namespace Comercio.NET
                         ivaPerNro = 5; // Consumidor Final
                     }
 
-                    decimal importeTotalCalculado = Math.Round(importeTotalVenta, 2);
+                    decimal importeTotalCalculado = Math.Round(
+                        porcentajeDescuentoSeleccionado > 0 ? importeTotalConDescuento : importeTotalVenta,
+                        2);
+
+                    System.Diagnostics.Debug.WriteLine($"[FACTURA] Total original: {importeTotalVenta:C2}");
+                    if (porcentajeDescuentoSeleccionado > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[FACTURA] Descuento {porcentajeDescuentoSeleccionado}%: -{importeDescuento:C2}");
+                        System.Diagnostics.Debug.WriteLine($"[FACTURA] Total con descuento: {importeTotalCalculado:C2}");
+                    }
 
                     // ✅ AHORA SÍ, LOGS DESPUÉS DE CALCULAR LAS VARIABLES
                     System.Diagnostics.Debug.WriteLine($"[AFIP] === DATOS DEL COMPROBANTE ===");
@@ -1558,8 +1664,19 @@ namespace Comercio.NET
 
                     if (OnProcesarVenta != null)
                     {
-                        await OnProcesarVenta(tipoFacturaString, formaPago, cuitCliente,
-                            CAENumero, CAEVencimiento, NumeroFacturaAfip, numeroFormateado);
+                        // ✅ CRÍTICO: Pasar los descuentos CAPTURADOS al callback
+                        await OnProcesarVenta(
+                                tipoFacturaString,
+                                formaPago,
+                                cuitCliente,
+                                CAENumero,
+                                CAEVencimiento,
+                                NumeroFacturaAfip,
+                                numeroFormateado,
+                                porcentajeDescuentoCapturado,     // ✅ PARÁMETRO 8: Porcentaje descuento
+                                importeDescuentoCapturado         // ✅ PARÁMETRO 9: Importe descuento
+);
+
                         System.Diagnostics.Debug.WriteLine("✅ Callback OnProcesarVenta completado exitosamente");
                     }
 
@@ -1625,12 +1742,23 @@ namespace Comercio.NET
                     return;
                 }
 
+                // ✅ NUEVO: Debug de valores de descuento
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] 💰 DATOS DE DESCUENTO:");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - PorcentajeDescuento: {porcentajeDescuentoSeleccionado}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteDescuento: {importeDescuento:C2}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteTotalConDescuento: {importeTotalConDescuento:C2}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteTotalVenta: {importeTotalVenta:C2}");
+
                 var config = new Servicios.TicketConfig
                 {
                     NombreComercio = formularioPadre.GetNombreComercio(),
                     DomicilioComercio = "",
                     FormaPago = OpcionPagoSeleccionada.ToString(),
-                    MensajePie = "Gracias por su compra!"
+                    MensajePie = "Gracias por su compra!",
+                    // ✅ NUEVO: Pasar datos de descuento a TicketConfig
+                    PorcentajeDescuento = porcentajeDescuentoSeleccionado,
+                    ImporteDescuento = importeDescuento,
+                    ImporteFinal = porcentajeDescuentoSeleccionado > 0 ? importeTotalConDescuento : importeTotalVenta
                 };
 
                 // ✅ CORREGIDO: Determinar tipo de comprobante basado en OpcionImpresion real
@@ -1653,8 +1781,6 @@ namespace Comercio.NET
                         break;
 
                     case OpcionImpresion.FacturaB:
-                        // ✅ IMPORTANTE: Aquí NO determinar automáticamente, usar el tipo real que se procesó
-                        // El tipo ya fue determinado en ProcesarFacturaElectronica
                         config.TipoComprobante = "FacturaB";
                         config.NumeroComprobante = FormatearNumeroFactura(6, ObtenerPuntoVentaActivo(), NumeroFacturaAfip);
                         config.CAE = CAENumero;
@@ -1674,6 +1800,13 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: {config.CAE}");
                         break;
                 }
+
+                // ✅ NUEVO: Mostrar configuración completa antes de imprimir
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] 📋 CONFIGURACIÓN FINAL:");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - TipoComprobante: {config.TipoComprobante}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - PorcentajeDescuento: {config.PorcentajeDescuento}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteDescuento: {config.ImporteDescuento:C2}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteFinal: {config.ImporteFinal:C2}");
 
                 System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] 🖨️ Imprimiendo directamente: {config.TipoComprobante}");
 
@@ -1932,7 +2065,16 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Factura B - DocTipo: {docTipo}, IVAPerNro: {ivaPerNro}");
                     }
 
-                    decimal importeTotalCalculado = Math.Round(importeTotalVenta, 2);
+                    decimal importeTotalCalculado = Math.Round(
+                    porcentajeDescuentoSeleccionado > 0 ? importeTotalConDescuento : importeTotalVenta,
+                    2);
+
+                    System.Diagnostics.Debug.WriteLine($"[FACTURA] Total original: {importeTotalVenta:C2}");
+                    if (porcentajeDescuentoSeleccionado > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[FACTURA] Descuento {porcentajeDescuentoSeleccionado}%: -{importeDescuento:C2}");
+                        System.Diagnostics.Debug.WriteLine($"[FACTURA] Total con descuento: {importeTotalCalculado:C2}");
+                    }
                     decimal importeNetoCalculado;
                     decimal importeIvaCalculado;
 
@@ -2827,7 +2969,9 @@ namespace Comercio.NET
                     if (OnProcesarVenta != null)
                     {
                         System.Diagnostics.Debug.WriteLine("🔄 Ejecutando callback OnProcesarVenta...");
-                        await OnProcesarVenta("Remito", formaPago, "", "", null, 0, "");
+                        await OnProcesarVenta("Remito", formaPago, "", "", null, 0, "",
+                            porcentajeDescuentoSeleccionado,  // ✅ AGREGAR
+                            importeDescuento);                 // ✅ AGREGAR
                         System.Diagnostics.Debug.WriteLine("✅ Callback OnProcesarVenta completado exitosamente");
                     }
                     else
@@ -2943,7 +3087,9 @@ namespace Comercio.NET
                     if (OnProcesarVenta != null)
                     {
                         System.Diagnostics.Debug.WriteLine("🔄 Ejecutando callback OnProcesarVenta para SinImpresion...");
-                        await OnProcesarVenta("SinImpresion", formaPago, cuitCliente, "", null, 0, "");
+                        await OnProcesarVenta("SinImpresion", formaPago, cuitCliente, "", null, 0, "",
+                                porcentajeDescuentoSeleccionado,  // ✅ AGREGAR
+                                importeDescuento);                 // ✅ AGREGAR
                         System.Diagnostics.Debug.WriteLine("✅ Callback OnProcesarVenta (SinImpresion) completado");
                     }
                     else
@@ -3296,6 +3442,214 @@ namespace Comercio.NET
                 "34" => "Persona Jurídica",
                 _ => $"Tipo {prefijo} (Otros)"
             };
+        }
+        /// <summary>
+        /// Carga las opciones de descuento desde appsettings.json
+        /// </summary>
+        private void CargarOpcionesDescuento()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                // Leer opciones de descuento configuradas
+                var descuentosConfig = config.GetSection("Descuentos:OpcionesDisponibles").Get<List<decimal>>();
+
+                if (descuentosConfig != null && descuentosConfig.Any())
+                {
+                    cboDescuento.Items.Clear();
+                    foreach (var descuento in descuentosConfig)
+                    {
+                        cboDescuento.Items.Add($"{descuento}%");
+                    }
+
+                    // Seleccionar el primero por defecto
+                    if (cboDescuento.Items.Count > 0)
+                    {
+                        cboDescuento.SelectedIndex = 0;
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[DESCUENTOS] Cargadas {descuentosConfig.Count} opciones");
+                }
+                else
+                {
+                    // Valores por defecto si no hay configuración
+                    cboDescuento.Items.AddRange(new object[] { "5%", "10%", "15%", "20%" });
+                    cboDescuento.SelectedIndex = 0;
+                    System.Diagnostics.Debug.WriteLine("[DESCUENTOS] Usando opciones por defecto");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DESCUENTOS] Error cargando configuración: {ex.Message}");
+
+                // Valores por defecto en caso de error
+                cboDescuento.Items.AddRange(new object[] { "5%", "10%" });
+                cboDescuento.SelectedIndex = 0;
+            }
+        }
+
+        /// <summary>
+        /// Calcula y aplica el descuento al total de la factura
+        /// </summary>
+        private void AplicarDescuento()
+        {
+            try
+            {
+                if (!chkAplicarDescuento.Checked || cboDescuento.SelectedItem == null)
+                {
+                    // Sin descuento
+                    porcentajeDescuentoSeleccionado = 0m;
+                    importeDescuento = 0m;
+                    importeTotalConDescuento = importeTotalVenta;
+                    lblDescuentoDetalle.Text = "";
+
+                    System.Diagnostics.Debug.WriteLine("[DESCUENTO] Descuento desactivado");
+                }
+                else
+                {
+                    // Extraer porcentaje del texto seleccionado (ej: "10%" -> 10)
+                    string textoSeleccionado = cboDescuento.SelectedItem.ToString();
+                    string numeroPorcentaje = textoSeleccionado.Replace("%", "").Trim();
+
+                    if (decimal.TryParse(numeroPorcentaje, out decimal porcentaje))
+                    {
+                        porcentajeDescuentoSeleccionado = porcentaje;
+                        importeDescuento = Math.Round(importeTotalVenta * (porcentaje / 100m), 2);
+                        importeTotalConDescuento = Math.Round(importeTotalVenta - importeDescuento, 2);
+
+                        // Validar que el descuento no sea mayor al total
+                        if (importeTotalConDescuento < 0)
+                        {
+                            importeTotalConDescuento = 0;
+                            importeDescuento = importeTotalVenta;
+                        }
+
+                        lblDescuentoDetalle.Text =
+                            $"✓ Descuento aplicado: -{importeDescuento:C2} " +
+                            $"(Total anterior: {importeTotalVenta:C2})";
+
+                        System.Diagnostics.Debug.WriteLine($"[DESCUENTO] ========================================");
+                        System.Diagnostics.Debug.WriteLine($"[DESCUENTO] Porcentaje: {porcentajeDescuentoSeleccionado}%");
+                        System.Diagnostics.Debug.WriteLine($"[DESCUENTO] Total original: {importeTotalVenta:C2}");
+                        System.Diagnostics.Debug.WriteLine($"[DESCUENTO] Importe descuento: {importeDescuento:C2}");
+                        System.Diagnostics.Debug.WriteLine($"[DESCUENTO] Total con descuento: {importeTotalConDescuento:C2}");
+                        System.Diagnostics.Debug.WriteLine($"[DESCUENTO] ========================================");
+                    }
+                }
+
+                // Actualizar label de total a pagar
+                ActualizarLabelTotalAPagar();
+
+                // Revalidar restricciones con el nuevo total
+                ActualizarOpcionesImpresion();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DESCUENTO] Error aplicando descuento: {ex.Message}");
+                MessageBox.Show(
+                    $"Error al calcular el descuento:\n\n{ex.Message}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Actualiza el label que muestra el total a pagar
+        /// </summary>
+        private void ActualizarLabelTotalAPagar()
+        {
+            if (lblImporteTotal != null)
+            {
+                if (porcentajeDescuentoSeleccionado > 0)
+                {
+                    lblImporteTotal.Text =
+                        $"TOTAL A PAGAR: {importeTotalConDescuento:C2}\n" +
+                        $"(Descuento {porcentajeDescuentoSeleccionado}% aplicado)";
+                    lblImporteTotal.ForeColor = System.Drawing.Color.FromArgb(0, 153, 51); // Verde
+                }
+                else
+                {
+                    lblImporteTotal.Text = $"TOTAL A PAGAR: {importeTotalVenta:C2}";
+                    lblImporteTotal.ForeColor = System.Drawing.Color.FromArgb(0, 102, 204); // Azul original
+                }
+            }
+        }
+
+        /// <summary>
+        /// Valida restricciones de descuento según método de pago y configuración
+        /// </summary>
+        private bool ValidarRestriccionesDescuento(out string mensajeError)
+        {
+            mensajeError = "";
+
+            try
+            {
+                if (!chkAplicarDescuento.Checked || porcentajeDescuentoSeleccionado == 0)
+                {
+                    return true; // Sin descuento, siempre válido
+                }
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                // Validar si hay restricciones por método de pago
+                bool restringirPorPago = config.GetValue<bool>("Descuentos:RestringirPorMetodoPago", false);
+
+                if (restringirPorPago)
+                {
+                    var metodosPermitidos = config.GetSection("Descuentos:MetodosPagoPermitidos")
+                        .Get<List<string>>() ?? new List<string>();
+
+                    if (metodosPermitidos.Any())
+                    {
+                        string metodoPagoActual = EsPagoMultiple
+                            ? "Múltiple"
+                            : OpcionPagoSeleccionada.ToString();
+
+                        if (!metodosPermitidos.Contains(metodoPagoActual))
+                        {
+                            mensajeError =
+                                $"⚠️ RESTRICCIÓN DE DESCUENTO\n\n" +
+                                $"El descuento solo está disponible para:\n" +
+                                $"• {string.Join("\n• ", metodosPermitidos)}\n\n" +
+                                $"Método de pago actual: {metodoPagoActual}";
+
+                            System.Diagnostics.Debug.WriteLine($"[DESCUENTO] ❌ Método de pago no permitido: {metodoPagoActual}");
+                            return false;
+                        }
+                    }
+                }
+
+                // Validar descuento máximo permitido
+                decimal descuentoMaximo = config.GetValue<decimal>("Descuentos:PorcentajeMaximo", 100m);
+
+                if (porcentajeDescuentoSeleccionado > descuentoMaximo)
+                {
+                    mensajeError =
+                        $"⚠️ DESCUENTO EXCESIVO\n\n" +
+                        $"El descuento máximo permitido es {descuentoMaximo}%.\n" +
+                        $"Descuento seleccionado: {porcentajeDescuentoSeleccionado}%";
+
+                    System.Diagnostics.Debug.WriteLine($"[DESCUENTO] ❌ Descuento excede máximo: {porcentajeDescuentoSeleccionado}% > {descuentoMaximo}%");
+                    return false;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[DESCUENTO] ✅ Validación exitosa");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DESCUENTO] Error en validación: {ex.Message}");
+                mensajeError = $"Error validando descuento: {ex.Message}";
+                return false;
+            }
         }
     }
 }

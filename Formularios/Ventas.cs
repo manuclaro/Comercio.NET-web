@@ -1,4 +1,5 @@
 ﻿using ArcaWS;
+using Comercio.NET.Controles;
 using Comercio.NET.Formularios;
 using Comercio.NET.Models;
 using Comercio.NET.Services;
@@ -1969,18 +1970,23 @@ namespace Comercio.NET
                     return;
                 }
 
+                // ✅ CORREGIDO: Calcular el total usando el método existente
                 decimal importeTotal = CalcularTotal();
+
                 System.Diagnostics.Debug.WriteLine($"[VENTAS] Iniciando finalización de venta con total: {importeTotal:C2}, Foco: {botonInicial}");
 
                 using (var seleccionModal = new SeleccionImpresionForm(importeTotal, this, botonInicial))
                 {
                     // ✅ CRÍTICO: Configurar el callback ANTES de mostrar el modal
                     seleccionModal.OnProcesarVenta = async (tipoComprobante, formaPago, cuitCliente,
-                        caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
+    caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado, porcentajeDescuento, importeDescuento) =>
                     {
                         try
                         {
                             System.Diagnostics.Debug.WriteLine($"[VENTAS] OnProcesarVenta - Tipo: {tipoComprobante}, FormaPago: {formaPago}");
+
+                            System.Diagnostics.Debug.WriteLine($"[DESCUENTO CAPTURADO] Porcentaje: {porcentajeDescuento}%");
+                            System.Diagnostics.Debug.WriteLine($"[DESCUENTO CAPTURADO] Importe: {importeDescuento:C2}");
 
                             // Guardar en BD
                             await GuardarFacturaEnBD(
@@ -1991,7 +1997,9 @@ namespace Comercio.NET
                                 caeVencimiento,
                                 numeroFacturaAfip,
                                 numeroFormateado,
-                                seleccionModal.EsPagoMultiple ? seleccionModal.PagosMultiples : null
+                                seleccionModal.EsPagoMultiple ? seleccionModal.PagosMultiples : null,
+                                porcentajeDescuento,    // ✅ CRÍTICO: Pasar descuento
+                                importeDescuento        // ✅ CRÍTICO: Pasar descuento
                             );
 
                             System.Diagnostics.Debug.WriteLine("[VENTAS] ✅ Factura guardada en BD exitosamente");
@@ -3258,12 +3266,24 @@ namespace Comercio.NET
                     return;
                 }
 
+                // ✅ NUEVO: Debug de valores de descuento
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] 💰 DATOS DE DESCUENTO:");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - PorcentajeDescuento: {seleccion.PorcentajeDescuento}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteDescuento: {seleccion.ImporteDescuento:C2}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteTotalConDescuento: {seleccion.ImporteTotalConDescuento:C2}");
+
                 var config = new Servicios.TicketConfig
                 {
                     NombreComercio = GetNombreComercio(),
                     DomicilioComercio = "",
                     FormaPago = seleccion.EsPagoMultiple ? "Múltiple" : seleccion.OpcionPagoSeleccionada.ToString(),
-                    MensajePie = "Gracias por su compra!"
+                    MensajePie = "Gracias por su compra!",
+                    // ✅ NUEVO: Pasar datos de descuento a TicketConfig
+                    PorcentajeDescuento = seleccion.PorcentajeDescuento,
+                    ImporteDescuento = seleccion.ImporteDescuento,
+                    ImporteFinal = seleccion.PorcentajeDescuento > 0
+                        ? seleccion.ImporteTotalConDescuento
+                        : CalcularTotal()
                 };
 
                 // ✅ CRÍTICO: Determinar el TipoComprobante correcto según OpcionSeleccionada
@@ -3289,7 +3309,7 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA B");
                         break;
 
-                    case SeleccionImpresionForm.OpcionImpresion.FacturaC:  // ✅ CASO CRÍTICO PARA FACTURA C
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaC:
                         config.TipoComprobante = "FacturaC";
                         config.NumeroComprobante = seleccion.NumeroFacturaAfip > 0
                             ? $"C {seleccion.NumeroFacturaAfip:D4}-{seleccion.NumeroFacturaAfip:D8}"
@@ -3310,10 +3330,12 @@ namespace Comercio.NET
                         break;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] Configuración Final:");
-                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   TipoComprobante: '{config.TipoComprobante}'");
-                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   NumeroComprobante: '{config.NumeroComprobante}'");
-                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: '{config.CAE}'");
+                // ✅ NUEVO: Mostrar configuración completa antes de imprimir
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] 📋 CONFIGURACIÓN FINAL:");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - TipoComprobante: {config.TipoComprobante}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - PorcentajeDescuento: {config.PorcentajeDescuento}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteDescuento: {config.ImporteDescuento:C2}");
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   - ImporteFinal: {config.ImporteFinal:C2}");
 
                 using (var ticketService = new Servicios.TicketPrintingService())
                 {
@@ -3368,68 +3390,51 @@ namespace Comercio.NET
                 decimal importeTotal = CalcularTotal();
                 System.Diagnostics.Debug.WriteLine($"[VENTAS] Iniciando finalización de venta con total: {importeTotal:C2}");
 
-                using (var seleccionModal = new SeleccionImpresionForm(importeTotal, this))
+                using (var seleccion = new SeleccionImpresionForm(importeTotal, this))
                 {
-                    // ✅ CRÍTICO: Configurar el callback ANTES de mostrar el modal
-                    seleccionModal.OnProcesarVenta = async (tipoComprobante, formaPago, cuitCliente,
-                        caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado) =>
+                    seleccion.OnProcesarVenta = async (tipoFactura, formaPago, cuitCliente, caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado, porcentajeDescuento, importeDescuento) =>
                     {
+                        System.Diagnostics.Debug.WriteLine($"[CALLBACK] Iniciando procesamiento - Tipo: {tipoFactura}");
+
                         try
                         {
-                            System.Diagnostics.Debug.WriteLine($"[VENTAS] OnProcesarVenta - Tipo: {tipoComprobante}, FormaPago: {formaPago}");
+                            // ✅ CRÍTICO: Ahora recibimos los descuentos como parámetros
+                            System.Diagnostics.Debug.WriteLine($"[DESCUENTO CALLBACK] Porcentaje: {porcentajeDescuento}%");
+                            System.Diagnostics.Debug.WriteLine($"[DESCUENTO CALLBACK] Importe: {importeDescuento:C2}");
 
-                            // Guardar en BD
+                            // Obtener pagos múltiples si existen
+                            var pagosMultiples = seleccion.EsPagoMultiple
+                                ? seleccion.PagosMultiples
+                                : null;
+
+                            // ✅ Pasar datos de descuento al método GuardarFacturaEnBD
                             await GuardarFacturaEnBD(
-                                tipoComprobante,
+                                tipoFactura,
                                 formaPago,
                                 cuitCliente,
                                 caeNumero,
                                 caeVencimiento,
                                 numeroFacturaAfip,
                                 numeroFormateado,
-                                seleccionModal.EsPagoMultiple ? seleccionModal.PagosMultiples : null
+                                pagosMultiples,
+                                porcentajeDescuento,    // ✅ Ahora viene del parámetro
+                                importeDescuento        // ✅ Ahora viene del parámetro
                             );
 
-                            System.Diagnostics.Debug.WriteLine("[VENTAS] ✅ Factura guardada en BD exitosamente");
-
-                            // ✅✅✅ CRÍTICO: NO IMPRIMIR AQUÍ - YA LO HIZO SeleccionImpresionForm
-                            // La impresión ya se realizó en ProcesarRemito() o ProcesarFacturaElectronica()
-                            // según la configuración de usarVistaPrevia
-
-                            // ELIMINADO:
-                            // await ImprimirSinModal(...); 
-
-                            System.Diagnostics.Debug.WriteLine("[VENTAS] ✅ Proceso de venta completado (sin impresión adicional)");
+                            System.Diagnostics.Debug.WriteLine("[CALLBACK] Factura guardada exitosamente");
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[VENTAS] ❌ Error en OnProcesarVenta: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($"[CALLBACK ERROR] {ex.Message}");
                             throw;
                         }
                     };
 
-                    var resultado = seleccionModal.ShowDialog();
+                    var resultado = seleccion.ShowDialog();
 
                     if (resultado == DialogResult.OK)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[VENTAS] ✅ Venta finalizada exitosamente - Opción: {seleccionModal.OpcionSeleccionada}");
-
-                        // ✅ NUEVO: Verificar si finalizó sin impresión
-                        //if (seleccionModal.FinalizadoSinImpresion)
-                        //{
-                        //    System.Diagnostics.Debug.WriteLine("[VENTAS] ℹ️ Venta finalizada sin impresión");
-                        //    MessageBox.Show(
-                        //        "Venta registrada exitosamente sin impresión de comprobante.",
-                        //        "Venta Finalizada",
-                        //        MessageBoxButtons.OK,
-                        //        MessageBoxIcon.Information);
-                        //}
-                        //else
-                        //{
-                        //    System.Diagnostics.Debug.WriteLine($"[VENTAS] ℹ️ Comprobante: {seleccionModal.OpcionSeleccionada}");
-                        //}
-
-                        // Limpiar y reiniciar para nueva venta
+                        System.Diagnostics.Debug.WriteLine($"[VENTAS] ✅ Venta finalizada exitosamente - Opción: {seleccion.OpcionSeleccionada}");
                         LimpiarYReiniciarVenta();
                     }
                     else
@@ -3576,7 +3581,17 @@ namespace Comercio.NET
 
         // GuardarFacturaEnBD: implementación mínima que compila y puede ampliarse.
         // Actualmente registra en debug y retorna; si necesitas persistir realmente, lo integro con la lógica completa.
-        private async Task GuardarFacturaEnBD(string tipoFactura, string formaPago, string cuitCliente = "", string caeNumero = "", DateTime? caeVencimiento = null, int numeroFacturaAfip = 0, string numeroFormateado = "", List<Comercio.NET.Controles.MultiplePagosControl.DetallePago> pagosMultiples = null)
+        private async Task GuardarFacturaEnBD(
+                        string tipoFactura,
+                        string formaPago,
+                        string cuitCliente = "",
+                        string caeNumero = "",
+                        DateTime? caeVencimiento = null,
+                        int numeroFacturaAfip = 0,
+                        string numeroFormateado = "",
+                        List<MultiplePagosControl.DetallePago> pagosMultiples = null,
+                        decimal porcentajeDescuento = 0m,
+                        decimal importeDescuento = 0m)
         {
             if (remitoActual == null || remitoActual.Rows.Count == 0)
             {
@@ -3584,7 +3599,7 @@ namespace Comercio.NET
                 return;
             }
 
-            // Calcular totales desde remitoActual (defensivo)
+            // Calcular totales desde remitoActual
             decimal totalFactura = 0m;
             decimal ivaTotal = 0m;
             foreach (DataRow r in remitoActual.Rows)
@@ -3606,44 +3621,70 @@ namespace Comercio.NET
                     {
                         try
                         {
-                            // Insertar cabecera en Facturas (mapeado a tu esquema)
-                            var insertFacturaSql = @"
-                        INSERT INTO Facturas
-                            (NumeroRemito, Fecha, Hora, ImporteTotal, FormadePago, esCtaCte, CtaCteNombre,
-                             Cajero, TipoFactura, CAENumero, CAEVencimiento, CUITCliente, NroFactura, UsuarioVenta, IVA)
-                        VALUES
-                            (@NumeroRemito, @Fecha, @Hora, @ImporteTotal, @FormadePago, @esCtaCte, @CtaCteNombre,
-                             @Cajero, @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente, @NroFactura, @UsuarioVenta, @IVA);
+                            // ✅ CALCULAR importes con descuento
+                            decimal importeTotal = totalFactura;
+                            decimal importeFinal = importeTotal - importeDescuento;
+
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ===================================");
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Importe Total Original: {importeTotal:C2}");
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Porcentaje Descuento: {porcentajeDescuento}%");
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Importe Descuento: {importeDescuento:C2}");
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Importe Final: {importeFinal:C2}");
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] IVA Total: {ivaTotal:C2}");
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ===================================");
+
+                            // ✅ DECLARAR la variable idFactura
+                            int idFactura = 0;
+
+                            // Obtener datos adicionales
+                            string nombreCtaCte = chkEsCtaCte?.Checked == true ? cbnombreCtaCte?.Text : null;
+                            string usuarioVenta = ObtenerUsuarioActual();
+                            int numeroCajero = obtenerNumeroCajero();
+
+                            // ✅ CORREGIDO: INSERT con nombres de columnas exactos de la base de datos
+                            string queryFactura = @"
+                        INSERT INTO Facturas 
+                            ([NumeroRemito], [Fecha], [Hora], [ImporteTotal], 
+                             [FormadePago], [esCtaCte], [CtaCteNombre], [Cajero],
+                             [TipoFactura], [CAENumero], [CAEVencimiento], [CUITCliente],
+                             [NroFactura], [UsuarioVenta], [IVA],
+                             [PorcentajeDescuento], [ImporteDescuento], [ImporteFinal])
+                        VALUES 
+                            (@NumeroRemito, @Fecha, @Hora, @ImporteTotal,
+                             @FormadePago, @esCtaCte, @CtaCteNombre, @Cajero,
+                             @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente,
+                             @NroFactura, @UsuarioVenta, @IVA,
+                             @PorcentajeDescuento, @ImporteDescuento, @ImporteFinal);
                         SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-                            int facturaId;
-                            using (var cmd = new SqlCommand(insertFacturaSql, connection, transaction))
+                            using (var cmdFactura = new SqlCommand(queryFactura, connection, transaction))
                             {
-                                cmd.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
-                                cmd.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
-                                cmd.Parameters.AddWithValue("@Hora", DateTime.Now);
-                                cmd.Parameters.AddWithValue("@ImporteTotal", totalFactura);
-                                cmd.Parameters.AddWithValue("@FormadePago", string.IsNullOrEmpty(formaPago) ? (object)DBNull.Value : formaPago);
-                                cmd.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte.Checked);
-                                cmd.Parameters.AddWithValue("@CtaCteNombre", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
+                                // ✅ PARÁMETROS CORREGIDOS según la estructura de la tabla
+                                cmdFactura.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                                cmdFactura.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
+                                cmdFactura.Parameters.AddWithValue("@Hora", DateTime.Now);
+                                cmdFactura.Parameters.AddWithValue("@ImporteTotal", importeTotal);
+                                cmdFactura.Parameters.AddWithValue("@FormadePago", formaPago ?? "");
+                                cmdFactura.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte?.Checked ?? false);
+                                cmdFactura.Parameters.AddWithValue("@CtaCteNombre", (object)nombreCtaCte ?? DBNull.Value);
+                                cmdFactura.Parameters.AddWithValue("@Cajero", numeroCajero.ToString());
+                                cmdFactura.Parameters.AddWithValue("@TipoFactura", tipoFactura ?? "");
+                                cmdFactura.Parameters.AddWithValue("@CAENumero", (object)caeNumero ?? DBNull.Value);
+                                cmdFactura.Parameters.AddWithValue("@CAEVencimiento", (object)caeVencimiento ?? DBNull.Value);
+                                cmdFactura.Parameters.AddWithValue("@CUITCliente", (object)cuitCliente ?? DBNull.Value);
+                                cmdFactura.Parameters.AddWithValue("@NroFactura", numeroFormateado ?? "");
+                                cmdFactura.Parameters.AddWithValue("@UsuarioVenta", usuarioVenta ?? "");
+                                cmdFactura.Parameters.AddWithValue("@IVA", ivaTotal);
+                                cmdFactura.Parameters.AddWithValue("@PorcentajeDescuento", porcentajeDescuento);
+                                cmdFactura.Parameters.AddWithValue("@ImporteDescuento", importeDescuento);
+                                cmdFactura.Parameters.AddWithValue("@ImporteFinal", importeFinal);
 
-                                int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 0;
-                                cmd.Parameters.AddWithValue("@Cajero", numeroCajero.ToString());
-
-                                cmd.Parameters.AddWithValue("@TipoFactura", string.IsNullOrEmpty(tipoFactura) ? (object)DBNull.Value : tipoFactura);
-                                cmd.Parameters.AddWithValue("@CAENumero", string.IsNullOrEmpty(caeNumero) ? (object)DBNull.Value : caeNumero);
-                                cmd.Parameters.AddWithValue("@CAEVencimiento", caeVencimiento.HasValue ? (object)caeVencimiento.Value : DBNull.Value);
-                                cmd.Parameters.AddWithValue("@CUITCliente", string.IsNullOrEmpty(cuitCliente) ? (object)DBNull.Value : cuitCliente);
-                                cmd.Parameters.AddWithValue("@NroFactura", !string.IsNullOrEmpty(numeroFormateado) ? (object)numeroFormateado : (numeroFacturaAfip > 0 ? (object)numeroFacturaAfip.ToString() : (object)DBNull.Value));
-                                cmd.Parameters.AddWithValue("@UsuarioVenta", ObtenerUsuarioActual());
-                                cmd.Parameters.AddWithValue("@IVA", ivaTotal);
-
-                                var result = await cmd.ExecuteScalarAsync();
-                                facturaId = result != null && int.TryParse(result.ToString(), out int id) ? id : 0;
-                                System.Diagnostics.Debug.WriteLine($"GuardarFacturaEnBD: Factura insertada con Id={facturaId}");
+                                // ✅ ASIGNAR el resultado a idFactura
+                                idFactura = (int)await cmdFactura.ExecuteScalarAsync();
+                                System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ✅ Factura guardada con ID: {idFactura}");
                             }
 
-                            // Insertar registros en DetallesPagoFactura
+                            // ✅ Insertar registros en DetallesPagoFactura (si existe esa tabla)
                             var insertDetalleSql = @"
                         INSERT INTO DetallesPagoFactura
                             (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario, NumeroRemito)
@@ -3656,17 +3697,12 @@ namespace Comercio.NET
                                 {
                                     using (var cmdPago = new SqlCommand(insertDetalleSql, connection, transaction))
                                     {
-                                        cmdPago.Parameters.AddWithValue("@IdFactura", facturaId);
+                                        cmdPago.Parameters.AddWithValue("@IdFactura", idFactura);
                                         cmdPago.Parameters.AddWithValue("@MedioPago", pago.MedioPago ?? "");
                                         cmdPago.Parameters.AddWithValue("@Importe", pago.Importe);
-
-                                        // GRABAR Observaciones correctamente (usar DBNull si vacío)
-                                        var obsVal = string.IsNullOrWhiteSpace(pago.Observaciones) ? (object)DBNull.Value : pago.Observaciones;
-                                        cmdPago.Parameters.AddWithValue("@Observaciones", obsVal);
-
-                                        var fechaPago = pago.Fecha != default ? pago.Fecha : DateTime.Now;
-                                        cmdPago.Parameters.AddWithValue("@FechaPago", fechaPago);
-                                        cmdPago.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
+                                        cmdPago.Parameters.AddWithValue("@Observaciones", string.IsNullOrWhiteSpace(pago.Observaciones) ? (object)DBNull.Value : pago.Observaciones);
+                                        cmdPago.Parameters.AddWithValue("@FechaPago", pago.Fecha != default ? pago.Fecha : DateTime.Now);
+                                        cmdPago.Parameters.AddWithValue("@Usuario", usuarioVenta);
                                         cmdPago.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
                                         await cmdPago.ExecuteNonQueryAsync();
                                     }
@@ -3674,35 +3710,38 @@ namespace Comercio.NET
                             }
                             else
                             {
-                                // Pago simple: registrar un único detalle con la forma de pago y el total
+                                // Pago simple
                                 using (var cmdPago = new SqlCommand(insertDetalleSql, connection, transaction))
                                 {
-                                    cmdPago.Parameters.AddWithValue("@IdFactura", facturaId);
+                                    cmdPago.Parameters.AddWithValue("@IdFactura", idFactura);
                                     cmdPago.Parameters.AddWithValue("@MedioPago", string.IsNullOrEmpty(formaPago) ? "Desconocido" : formaPago);
-                                    cmdPago.Parameters.AddWithValue("@Importe", totalFactura);
+                                    cmdPago.Parameters.AddWithValue("@Importe", importeFinal); // ✅ Usar importeFinal con descuento
                                     cmdPago.Parameters.AddWithValue("@Observaciones", DBNull.Value);
                                     cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
-                                    cmdPago.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
+                                    cmdPago.Parameters.AddWithValue("@Usuario", usuarioVenta);
                                     cmdPago.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
                                     await cmdPago.ExecuteNonQueryAsync();
                                 }
                             }
 
                             transaction.Commit();
+                            System.Diagnostics.Debug.WriteLine("[GuardarFacturaEnBD] ✅ Factura guardada exitosamente");
                         }
                         catch (Exception exTx)
                         {
                             transaction.Rollback();
-                            System.Diagnostics.Debug.WriteLine($"GuardarFacturaEnBD ERROR: {exTx.Message}");
-                            MessageBox.Show($"Error al guardar la factura en la base de datos: {exTx.Message}", "Error BD", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ❌ Error en transacción: {exTx.Message}");
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Stack trace: {exTx.StackTrace}");
+                            throw;
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"GuardarFacturaEnBD (conexion) ERROR: {ex.Message}");
-                MessageBox.Show($"Error al guardar la factura: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ❌ Error: {ex.Message}");
+                MessageBox.Show($"Error procesando remito: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                throw;
             }
         }
 
