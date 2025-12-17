@@ -167,7 +167,7 @@ namespace Comercio.NET
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Width = 700;
-            this.Height = 400;
+            this.Height = 470;
 
             CrearControles();
             ConfigurarEventos();
@@ -559,8 +559,8 @@ namespace Comercio.NET
                 Left = 40,
                 Top = 120,
                 Width = 600,
-                Height = 80,
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                Height = 100,  // ✅ AUMENTADO de 80 a 100 para dar espacio al texto de descuento
+                Font = new Font("Segoe UI", 30F, FontStyle.Bold),
                 ForeColor = System.Drawing.Color.FromArgb(0, 102, 204),
                 TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
                 Text = $"TOTAL A PAGAR: {importeTotalVenta:C2}",
@@ -573,7 +573,7 @@ namespace Comercio.NET
             panelDescuento = new Panel
             {
                 Left = 40,
-                Top = 200,
+                Top = 230,
                 Width = 600,
                 Height = 80,
                 BackColor = System.Drawing.Color.FromArgb(255, 250, 240),
@@ -648,7 +648,7 @@ namespace Comercio.NET
             panelPagoMultiple.Controls.Add(multiplePagosControl);
 
             // AJUSTADO: Controles para CUIT y Razón Social con nueva posición inicial
-            int topCuit = 290; // ✅ CORREGIDO: Definir ANTES de usar
+            int topCuit = 320; // ✅ CORREGIDO: Definir ANTES de usar
 
             // ✅ CORREGIDO: Crear label CUIT PRIMERO (una sola vez)
             var lblCuit = new Label
@@ -693,7 +693,7 @@ namespace Comercio.NET
             };
 
             // AJUSTADO: Botones de impresión
-            int topBotones = 340; // ✅ AJUSTADO para dar espacio
+            int topBotones = 370; // ✅ AJUSTADO para dar espacio
 
             btnRemito = new Button
             {
@@ -746,7 +746,7 @@ namespace Comercio.NET
             btnFinalizarSinImpresion = new Button
             {
                 Text = "Finalizar (Sin impresión)",
-                Width = 120,
+                Width = 130,
                 Top = topBotones,
                 Height = 45,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -882,65 +882,75 @@ namespace Comercio.NET
                 panelPagoSimple.Visible = !esPagoMultiple;
                 panelPagoMultiple.Visible = esPagoMultiple;
 
-                // NUEVO: Controlar visibilidad del label de importe total
-                lblImporteTotal.Visible = !esPagoMultiple; // Solo visible en modo pago simple
+                // ✅ NUEVO: Controlar visibilidad del label de importe total
+                lblImporteTotal.Visible = !esPagoMultiple;
+
+                // ✅ NUEVO: Ocultar panel de descuento cuando se activa pago múltiple
+                panelDescuento.Visible = !esPagoMultiple;
 
                 if (esPagoMultiple)
                 {
                     multiplePagosControl.EstablecerImporteTotal(importeTotalVenta);
                     this.Height = 550;
 
-                    // CORREGIDO: Ajustar posiciones para que CUIT sea visible en modo múltiple
+                    // Posiciones para modo MÚLTIPLE
                     txtCuit.Top = 340;
                     lblRazonSocial.Top = 342;
                     lblMensajeInformativo.Top = 365;
 
-                    // CORREGIDO: Asegurar que el label CUIT también se posicione correctamente
                     var lblCuit = this.Controls.Find("lblCuit", true).FirstOrDefault();
                     if (lblCuit != null)
                     {
                         lblCuit.SetBounds(40, 342, 50, 20);
-                        lblCuit.Visible = true; // NUEVO: Asegurar que sea visible
+                        lblCuit.Visible = true;
                     }
 
-                    // AJUSTADO: Posicionar botones más abajo para dar espacio al CUIT
-                    btnRemito.Top = 340;
-                    btnFacturaB.Top = 340;
-                    btnFacturaC.Top = 340;
-                    btnFacturaA.Top = 340;
-                    btnFinalizarSinImpresion.Top = 340;
-                    btnCancelar.Top = 340;
-
-                    // Recalcular lefts para mantener cluster hacia la izquierda
-                    PosicionarBotones();
+                    // ✅ CORREGIDO: Posición consistente de botones en modo múltiple
+                    int topBotones = 390;
+                    btnRemito.Top = topBotones;
+                    btnFacturaB.Top = topBotones;
+                    btnFacturaC.Top = topBotones;
+                    btnFacturaA.Top = topBotones;
+                    btnFinalizarSinImpresion.Top = topBotones;
+                    btnCancelar.Top = topBotones;
                 }
                 else
                 {
-                    // CORREGIDO: Aumentar altura para que se vea el CUIT y todos los elementos
-                    this.Height = 400;
+                    // ✅ MODO SIMPLE: Restaurar posiciones originales
+                    this.Height = 550;  // ✅ AUMENTADO de 500 a 550 para dar más espacio
 
-                    // AJUSTADO: Reposicionar elementos para el nuevo tamaño
-                    txtCuit.Top = 220;
-                    lblRazonSocial.Top = 222;
-                    lblMensajeInformativo.Top = 245;
+                    // Reposicionar label de importe total (visible en modo simple)
+                    lblImporteTotal.Top = 120;
+                    lblImporteTotal.Visible = true;
 
-                    // CORREGIDO: Posicionar también el label CUIT correctamente
+                    // Reposicionar panel de descuento (visible en modo simple)
+                    panelDescuento.Top = 230;
+                    panelDescuento.Visible = true;
+
+                    // Reposicionar CUIT
+                    txtCuit.Top = 320;
+                    lblRazonSocial.Top = 322;
+                    lblMensajeInformativo.Top = 345;
+
                     var lblCuit = this.Controls.Find("lblCuit", true).FirstOrDefault();
                     if (lblCuit != null)
                     {
-                        lblCuit.SetBounds(40, 222, 50, 20);
-                        lblCuit.Visible = true; // NUEVO: Asegurar que sea visible
+                        lblCuit.SetBounds(40, 322, 50, 20);
+                        lblCuit.Visible = true;
                     }
 
-                    btnRemito.Top = 270;
-                    btnFacturaB.Top = 270;
-                    btnFacturaA.Top = 270;
-                    btnFinalizarSinImpresion.Top = 270;
-                    btnCancelar.Top = 270;
-
-                    // Recalcular lefts para modo simple
-                    PosicionarBotones();
+                    // ✅ CORREGIDO: Posición consistente de botones en modo simple
+                    int topBotones = 370;
+                    btnRemito.Top = topBotones;
+                    btnFacturaB.Top = topBotones;
+                    btnFacturaC.Top = topBotones;
+                    btnFacturaA.Top = topBotones;
+                    btnFinalizarSinImpresion.Top = topBotones;
+                    btnCancelar.Top = topBotones;
                 }
+
+                // ✅ CRÍTICO: Reposicionar botones CENTRADOS después de ajustar posiciones Y
+                PosicionarBotones();
 
                 ActualizarOpcionesImpresion();
             };
@@ -3567,6 +3577,8 @@ namespace Comercio.NET
             {
                 if (porcentajeDescuentoSeleccionado > 0)
                 {
+                    // ✅ MEJORADO: Usar fuente más pequeña cuando hay descuento para evitar cortes
+                    lblImporteTotal.Font = new Font("Segoe UI", 24F, FontStyle.Bold);
                     lblImporteTotal.Text =
                         $"TOTAL A PAGAR: {importeTotalConDescuento:C2}\n" +
                         $"(Descuento {porcentajeDescuentoSeleccionado}% aplicado)";
@@ -3574,6 +3586,8 @@ namespace Comercio.NET
                 }
                 else
                 {
+                    // ✅ RESTAURADO: Fuente original cuando no hay descuento
+                    lblImporteTotal.Font = new Font("Segoe UI", 30F, FontStyle.Bold);
                     lblImporteTotal.Text = $"TOTAL A PAGAR: {importeTotalVenta:C2}";
                     lblImporteTotal.ForeColor = System.Drawing.Color.FromArgb(0, 102, 204); // Azul original
                 }

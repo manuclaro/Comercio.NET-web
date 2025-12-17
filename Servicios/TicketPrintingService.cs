@@ -864,7 +864,8 @@ namespace Comercio.NET.Servicios
                 List<string> lineasDescripcion = DividirTextoEnLineasMejorado(graphics, descripcion, font, maxDescripcionWidth);
 
                 decimal precio = Convert.ToDecimal(row["precio"]);
-                string precioStr = precio < 1000 ? precio.ToString("C2") : precio.ToString("C0");
+                // ✅ CORREGIDO: Siempre mostrar con 2 decimales
+                string precioStr = precio.ToString("C2");
                 SizeF precioSize = graphics.MeasureString(precioStr, font);
                 float precioX = colX[1] + colWidths[1] - precioSize.Width - 2;
 
@@ -877,7 +878,8 @@ namespace Comercio.NET.Servicios
 
                 decimal total = Convert.ToDecimal(row["total"]);
                 sumaTotal += total;
-                string totalStr = total < 1000 ? total.ToString("C2") : total.ToString("C0");
+                // ✅ CORREGIDO: Siempre mostrar con 2 decimales
+                string totalStr = total.ToString("C2");
                 SizeF totalSize = graphics.MeasureString(totalStr, font);
                 float totalX = colX[3] + colWidths[3] - totalSize.Width - 2;
 
