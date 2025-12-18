@@ -1762,8 +1762,8 @@ namespace Comercio.NET
                 var config = new Servicios.TicketConfig
                 {
                     NombreComercio = formularioPadre.GetNombreComercio(),
-                    DomicilioComercio = "",
-                    FormaPago = OpcionPagoSeleccionada.ToString(),
+                    DomicilioComercio = formularioPadre.GetDomicilioComercio(), // ✅ Verificar que esto no esté vacío
+                    FormaPago = EsPagoMultiple ? "Múltiple" : OpcionPagoSeleccionada.ToString(), // ✅ CORREGIDO
                     MensajePie = "Gracias por su compra!",
                     // ✅ NUEVO: Pasar datos de descuento a TicketConfig
                     PorcentajeDescuento = porcentajeDescuentoSeleccionado,
@@ -1780,11 +1780,26 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurando REMITO");
                         break;
 
-                    case OpcionImpresion.FacturaC:  // ✅ CORREGIDO: Caso específico para Factura C
+                    case OpcionImpresion.FacturaC:
                         config.TipoComprobante = "FacturaC";
-                        config.NumeroComprobante = FormatearNumeroFactura(11, ObtenerPuntoVentaActivo(), NumeroFacturaAfip);
+
+                        // ✅ CRÍTICO: Debug COMPLETO antes de formatear
+                        int puntoVentaObtenido = ObtenerPuntoVentaActivo();
+
+                        System.Diagnostics.Debug.WriteLine($"[DEBUG FACTURA C] ============================");
+                        System.Diagnostics.Debug.WriteLine($"[DEBUG FACTURA C] NumeroFacturaAfip (propiedad): {NumeroFacturaAfip}");
+                        System.Diagnostics.Debug.WriteLine($"[DEBUG FACTURA C] Punto Venta obtenido: {puntoVentaObtenido}");
+                        System.Diagnostics.Debug.WriteLine($"[DEBUG FACTURA C] ============================");
+
+                        // ✅ VERIFICAR: Si NumeroFacturaAfip está mal, usar el número correcto
+                        string numeroFormateado = FormatearNumeroFactura(11, puntoVentaObtenido, NumeroFacturaAfip);
+
+                        System.Diagnostics.Debug.WriteLine($"[DEBUG FACTURA C] Número formateado: {numeroFormateado}");
+
+                        config.NumeroComprobante = numeroFormateado;
                         config.CAE = CAENumero;
                         config.CAEVencimiento = CAEVencimiento;
+
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurando FACTURA C");
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   Número: {config.NumeroComprobante}");
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: {config.CAE}");

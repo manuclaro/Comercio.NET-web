@@ -312,6 +312,7 @@ namespace Comercio.NET.Servicios
             graphics.DrawString(configuracion.NombreComercio, fontTitulo, Brushes.Black, nombreX, y);
             y += nombreSize.Height;
 
+            // ✅ AGREGADO: Imprimir domicilio comercial si está disponible
             if (!string.IsNullOrEmpty(configuracion.DomicilioComercio))
             {
                 SizeF domicilioSize = graphics.MeasureString(configuracion.DomicilioComercio, fontSubtitulo);

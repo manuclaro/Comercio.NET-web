@@ -26,6 +26,7 @@ using System.Threading.Tasks;
 using System.Transactions;
 using System.Windows.Forms;
 using System.Xml;
+using static Comercio.NET.SeleccionImpresionForm;
 
 namespace Comercio.NET
 {
@@ -1914,20 +1915,40 @@ namespace Comercio.NET
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = "UPDATE Productos SET precio = @precio WHERE codigo = @codigo";
+                    // ✅ CRÍTICO: Actualizar el precio SOLO para productos con EditarPrecio = true
+                    var query = @"UPDATE Productos 
+                          SET precio = @precio 
+                          WHERE codigo = @codigo 
+                          AND EditarPrecio = 1";
+
                     using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
-                        connection.Open();
-                        await cmd.ExecuteNonQueryAsync();
+
+                        await connection.OpenAsync();
+                        int filasAfectadas = await cmd.ExecuteNonQueryAsync();
+
+                        if (filasAfectadas > 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine(
+                                $"✅ Precio actualizado en BD:\n" +
+                                $"   Código: {codigo}\n" +
+                                $"   Nuevo precio: {nuevoPrecio:C2}");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine(
+                                $"⚠️ No se actualizó el precio (producto sin EditarPrecio o no encontrado):\n" +
+                                $"   Código: {codigo}");
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
                 // Error silencioso para evitar interrumpir la experiencia del usuario
-                System.Diagnostics.Debug.WriteLine($"Error actualizando precio: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Error actualizando precio: {ex.Message}");
             }
         }
 
@@ -1978,8 +1999,10 @@ namespace Comercio.NET
                 using (var seleccionModal = new SeleccionImpresionForm(importeTotal, this, botonInicial))
                 {
                     // ✅ CRÍTICO: Configurar el callback ANTES de mostrar el modal
+                    // ✅✅✅ CORREGIDO: Agregar los parámetros de descuento
                     seleccionModal.OnProcesarVenta = async (tipoComprobante, formaPago, cuitCliente,
-    caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado, porcentajeDescuento, importeDescuento) =>
+                        caeNumero, caeVencimiento, numeroFacturaAfip, numeroFormateado,
+                        porcentajeDescuento, importeDescuento) => // ✅ AGREGADOS: últimos 2 parámetros
                     {
                         try
                         {
@@ -1998,8 +2021,8 @@ namespace Comercio.NET
                                 numeroFacturaAfip,
                                 numeroFormateado,
                                 seleccionModal.EsPagoMultiple ? seleccionModal.PagosMultiples : null,
-                                porcentajeDescuento,    // ✅ CRÍTICO: Pasar descuento
-                                importeDescuento        // ✅ CRÍTICO: Pasar descuento
+                                porcentajeDescuento,    // ✅ Pasar descuento
+                                importeDescuento        // ✅ Pasar descuento
                             );
 
                             System.Diagnostics.Debug.WriteLine("[VENTAS] ✅ Factura guardada en BD exitosamente");
@@ -2314,18 +2337,22 @@ namespace Comercio.NET
                     decimal precioActualEnBD = Convert.ToDecimal(producto["precio"]);
                     if (decimal.TryParse(txtPrecio.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioMostrado))
                     {
-                        // Comparar con tolerancia de 0.01
-                        if (Math.Abs(precioMostrado - precioActualEnBD) > 0.005m)
+                        // ✅ MEJORADO: Comparar con tolerancia de 0.01 centavos
+                        if (Math.Abs(precioMostrado - precioActualEnBD) > 0.01m)
                         {
                             // Actualizar de forma asíncrona y no bloquear la UI si hay algún error
                             await ActualizarPrecioProductoAsync(producto["codigo"].ToString(), precioMostrado);
-                            System.Diagnostics.Debug.WriteLine($"Precio actualizado en BD: Código={producto["codigo"]}, NuevoPrecio={precioMostrado:F2}");
+                            System.Diagnostics.Debug.WriteLine(
+                                $"💾 Precio actualizado en BD al cargar producto:\n" +
+                                $"   Código: {producto["codigo"]}\n" +
+                                $"   Precio anterior: {precioActualEnBD:C2}\n" +
+                                $"   Precio nuevo: {precioMostrado:C2}");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error actualizando precio al cargar producto: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ Error actualizando precio al cargar producto: {ex.Message}");
                     // No interrumpir al usuario por un fallo al persistir el precio
                 }
             }
@@ -2387,9 +2414,7 @@ namespace Comercio.NET
             {
                 try
                 {
-                    string codigoProducto = textoIngresado.Substring(2, 5); // 5 dígitos (posiciones 2-6)
-
-                    // NUEVO: Eliminar ceros a la izquierda del código del producto
+                    string codigoProducto = textoIngresado.Substring(2, 5);
                     codigoProducto = codigoProducto.TrimStart('0');
                     if (string.IsNullOrEmpty(codigoProducto))
                         codigoProducto = "0";
@@ -2406,14 +2431,11 @@ namespace Comercio.NET
             }
             else if (textoIngresado.Length == 8)
             {
-                // TRATamiento ESPECIAL PARA CÓDIGOS TEMPORALES DE TESTING (8 DÍGITOS)
-                // Asumimos que vienen en el formato XXXXXXXX y son válidos para testing
                 codigoBuscado = textoIngresado;
                 esCodigoTemporal = true;
             }
             else
             {
-                // NUEVO: Para códigos normales también eliminar ceros a la izquierda
                 codigoBuscado = codigoBuscado.TrimStart('0');
                 if (string.IsNullOrEmpty(codigoBuscado))
                     codigoBuscado = "0";
@@ -2425,11 +2447,9 @@ namespace Comercio.NET
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            // NUEVO: Verificar si el producto existe antes de continuar
             DataRow producto = null;
             using (var connection = new SqlConnection(connectionString))
             {
-                // MODIFICADO: Incluir el campo cantidad (stock) en la consulta
                 var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, cantidad, EditarPrecio, iva 
                       FROM Productos WHERE codigo = @codigo";
                 using (var adapter = new SqlDataAdapter(query, connection))
@@ -2439,7 +2459,6 @@ namespace Comercio.NET
                     adapter.Fill(dt);
                     if (dt.Rows.Count == 0)
                     {
-                        // Usar MessageBox estándar en lugar de CustomMessageBox
                         var resultado = MessageBox.Show(
                             $"El producto con código '{codigoBuscado}' no existe.\n\n" +
                             "¿Desea agregarlo ahora para continuar con la venta?",
@@ -2449,7 +2468,6 @@ namespace Comercio.NET
 
                         if (resultado == DialogResult.Yes)
                         {
-                            // Extraer precio si es código especial
                             decimal? precioPersonalizado = null;
                             if (esCodigoEspecial)
                             {
@@ -2461,11 +2479,9 @@ namespace Comercio.NET
                                 }
                                 catch
                                 {
-                                    // Si hay error, continuar sin precio personalizado
                                 }
                             }
 
-                            // CORREGIDO: Usar await correctamente
                             await AbrirFormularioAgregarProductoRapido(codigoBuscado, precioPersonalizado);
                             return;
                         }
@@ -2479,14 +2495,11 @@ namespace Comercio.NET
                 }
             }
 
-            // NUEVO: Verificar permiteAcumular para determinar si se puede agregar y modificar stock
             bool permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
-
-            // MODIFICADO: Solo verificar stock si el producto permite acumular (manejo de stock)
             int stockDisponible = Convert.ToInt32(producto["cantidad"]);
+
             if (permiteAcumular && validarStockHabilitado && stockDisponible < cantidadPersonalizada)
             {
-                // CAMBIADO: Mostrar advertencia pero permitir continuar
                 var resultado = MessageBox.Show(
                     $"ADVERTENCIA: Stock insuficiente\n\n" +
                     $"Producto: {producto["descripcion"]}\n" +
@@ -2505,7 +2518,6 @@ namespace Comercio.NET
                 }
             }
 
-            // 1. Si es el primer producto de la venta, incrementa el remito y obtén el nuevo valor
             if (!remitoIncrementado)
             {
                 using (var connection = new SqlConnection(connectionString))
@@ -2517,7 +2529,7 @@ namespace Comercio.NET
                         cmd.ExecuteNonQuery();
                     }
                 }
-                // Obtener el nuevo nroRemitoActual
+
                 using (var connection = new SqlConnection(connectionString))
                 {
                     var query = "SELECT nroremito FROM numeroremito";
@@ -2535,97 +2547,143 @@ namespace Comercio.NET
                 remitoIncrementado = true;
             }
 
-            // 3. Determinar el precio a usar
-            decimal precioUnitario = Convert.ToDecimal(producto["precio"]); // ✅ Inicializar con precio normal por defecto
+            // ✅✅✅ CRÍTICO: Determinar el precio a usar
+            decimal precioUnitario;
+            bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
 
-            // ✅ PASO 1: Verificar si el producto tiene oferta activa
-            var ofertaAplicable = await BuscarOfertaAplicable(codigoBuscado, cantidadPersonalizada);
-
-            // ✅✅✅ CRÍTICO: Aplicar precio de oferta para tipos "Descuento" y "PorCantidad"
-            if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
+            // ✅ NUEVO: Si el producto permite editar precio Y hay un precio válido en txtPrecio, usarlo
+            if (editarPrecio && !string.IsNullOrWhiteSpace(txtPrecio.Text))
             {
-                // ✅ Para ofertas NO-Combo, aplicar el precio directamente
-                if (ofertaAplicable.PrecioOferta > 0)
+                if (decimal.TryParse(txtPrecio.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioManual))
                 {
-                    precioUnitario = ofertaAplicable.PrecioOferta;
-
+                    precioUnitario = precioManual;
                     System.Diagnostics.Debug.WriteLine(
-                        $"✅ OFERTA APLICADA AL AGREGAR\n" +
-                        $"   Tipo: {ofertaAplicable.TipoOferta}\n" +
+                        $"✅ PRECIO MANUAL APLICADO:\n" +
                         $"   Producto: {producto["descripcion"]}\n" +
-                        $"   Precio normal: {Convert.ToDecimal(producto["precio"]):C2}\n" +
-                        $"   Precio con oferta: {precioUnitario:C2}\n" +
-                        $"   Descuento: {(Convert.ToDecimal(producto["precio"]) - precioUnitario):C2}");
-                }
-            }
+                        $"   Precio BD: {Convert.ToDecimal(producto["precio"]):C2}\n" +
+                        $"   Precio manual: {precioUnitario:C2}");
 
-            // ✅ PASO 2: Si es un Combo, verificar si ya está completo en la venta actual
-            if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
-            {
-                bool comboYaCompleto = false;
-                decimal precioProrrateadoPreexistente = 0m; // ✅ Declarar FUERA
-
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    await connection.OpenAsync();
-
-                    using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                    // ✅✅✅ NUEVO: Guardar el precio manual en la BD para la próxima vez
+                    decimal precioOriginalBD = Convert.ToDecimal(producto["precio"]);
+                    if (Math.Abs(precioManual - precioOriginalBD) > 0.01m)
                     {
-                        await cmdConfig.ExecuteNonQueryAsync();
+                        await ActualizarPrecioProductoAsync(codigoBuscado, precioManual);
+                        System.Diagnostics.Debug.WriteLine(
+                            $"💾 Precio guardado en BD para próximas ventas:\n" +
+                            $"   Código: {codigoBuscado}\n" +
+                            $"   Precio anterior: {precioOriginalBD:C2}\n" +
+                            $"   Precio nuevo: {precioManual:C2}");
                     }
-
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        try
-                        {
-                            // ✅ Verificar combo con cantidad 1 (mínima) para saber si ya existe
-                            comboYaCompleto = await VerificarComboCompleto(
-                                ofertaAplicable.Id,
-                                codigoBuscado,
-                                0,
-                                connection,
-                                transaction);
-
-                            // ✅ MOVER AQUÍ: Calcular precio DENTRO de la transacción
-                            if (comboYaCompleto)
-                            {
-                                precioProrrateadoPreexistente = await CalcularPrecioComboProrrateado(
-                                    ofertaAplicable.Id,
-                                    codigoBuscado,
-                                    ofertaAplicable.PrecioCombo,
-                                    connection,      // ✅ Ahora SÍ existen
-                                    transaction);    // ✅ Dentro del alcance
-
-                                System.Diagnostics.Debug.WriteLine(
-                                    $"✅ COMBO PREEXISTENTE - Aplicando precio prorrateado: {precioProrrateadoPreexistente:C2}");
-                            }
-
-                            transaction.Commit();
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw; // ✅ Propagar la excepción
-                        }
-                    }
-                } // ✅ Ahora la conexión se cierra DESPUÉS de calcular
-
-                System.Diagnostics.Debug.WriteLine(
-                    $"⚠️ COMBO DETECTADO - ¿Ya completo?: {comboYaCompleto}\n" +
-                    $"   Producto: {producto["descripcion"]}\n" +
-                    $"   Cantidad a agregar: {cantidadPersonalizada}");
-
-                // ✅ Sobrescribir el precio FUERA del using (ya tenemos el valor)
-                if (comboYaCompleto)
-                {
-                    ofertaAplicable.PrecioOferta = precioProrrateadoPreexistente;
                 }
                 else
                 {
-                    ofertaAplicable.PrecioOferta = Convert.ToDecimal(producto["precio"]);
-                    System.Diagnostics.Debug.WriteLine(
-                        $"⚠️ COMBO INCOMPLETO - Usando precio normal: {ofertaAplicable.PrecioOferta:C2}");
+                    // Si no se pudo parsear, usar el precio de la BD
+                    precioUnitario = Convert.ToDecimal(producto["precio"]);
+                    System.Diagnostics.Debug.WriteLine($"⚠️ No se pudo parsear txtPrecio, usando precio BD: {precioUnitario:C2}");
                 }
+            }
+            else
+            {
+                // Si no permite editar o txtPrecio está vacío, usar precio de la BD
+                precioUnitario = Convert.ToDecimal(producto["precio"]);
+                System.Diagnostics.Debug.WriteLine($"📋 Usando precio de BD: {precioUnitario:C2}");
+            }
+
+            // ✅ PASO 1: Verificar si el producto tiene oferta activa
+            // ⚠️ IMPORTANTE: Las ofertas SOLO se aplican si NO se modificó el precio manualmente
+            var ofertaAplicable = await BuscarOfertaAplicable(codigoBuscado, cantidadPersonalizada);
+
+            // ✅✅✅ CRÍTICO: Aplicar precio de oferta SOLO si NO se modificó manualmente el precio
+            if (!editarPrecio || string.IsNullOrWhiteSpace(txtPrecio.Text))
+            {
+                if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
+                {
+                    if (ofertaAplicable.PrecioOferta > 0)
+                    {
+                        precioUnitario = ofertaAplicable.PrecioOferta;
+                        System.Diagnostics.Debug.WriteLine(
+                            $"✅ OFERTA APLICADA AL AGREGAR\n" +
+                            $"   Tipo: {ofertaAplicable.TipoOferta}\n" +
+                            $"   Producto: {producto["descripcion"]}\n" +
+                            $"   Precio normal: {Convert.ToDecimal(producto["precio"]):C2}\n" +
+                            $"   Precio con oferta: {precioUnitario:C2}\n" +
+                            $"   Descuento: {(Convert.ToDecimal(producto["precio"]) - precioUnitario):C2}");
+                    }
+                }
+
+                // ✅ PASO 2: Si es un Combo, verificar si ya está completo en la venta actual
+                if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
+                {
+                    bool comboYaCompleto = false;
+                    decimal precioProrrateadoPreexistente = 0m;
+
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        await connection.OpenAsync();
+
+                        using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                        {
+                            await cmdConfig.ExecuteNonQueryAsync();
+                        }
+
+                        using (var transaction = connection.BeginTransaction())
+                        {
+                            try
+                            {
+                                comboYaCompleto = await VerificarComboCompleto(
+                                    ofertaAplicable.Id,
+                                    codigoBuscado,
+                                    0,
+                                    connection,
+                                    transaction);
+
+                                if (comboYaCompleto)
+                                {
+                                    precioProrrateadoPreexistente = await CalcularPrecioComboProrrateado(
+                                        ofertaAplicable.Id,
+                                        codigoBuscado,
+                                        ofertaAplicable.PrecioCombo,
+                                        connection,
+                                        transaction);
+
+                                    System.Diagnostics.Debug.WriteLine(
+                                        $"✅ COMBO PREEXISTENTE - Aplicando precio prorrateado: {precioProrrateadoPreexistente:C2}");
+                                }
+
+                                transaction.Commit();
+                            }
+                            catch
+                            {
+                                transaction.Rollback();
+                                throw;
+                            }
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine(
+                        $"⚠️ COMBO DETECTADO - ¿Ya completo?: {comboYaCompleto}\n" +
+                        $"   Producto: {producto["descripcion"]}\n" +
+                        $"   Cantidad a agregar: {cantidadPersonalizada}");
+
+                    if (comboYaCompleto)
+                    {
+                        ofertaAplicable.PrecioOferta = precioProrrateadoPreexistente;
+                    }
+                    else
+                    {
+                        ofertaAplicable.PrecioOferta = Convert.ToDecimal(producto["precio"]);
+                        System.Diagnostics.Debug.WriteLine(
+                            $"⚠️ COMBO INCOMPLETO - Usando precio normal: {ofertaAplicable.PrecioOferta:C2}");
+                    }
+                }
+            }
+            else
+            {
+                // ✅ NUEVO: Si se modificó manualmente el precio, anular la oferta
+                ofertaAplicable = null;
+                System.Diagnostics.Debug.WriteLine(
+                    $"⚠️ PRECIO MANUAL DETECTADO - Ofertas desactivadas\n" +
+                    $"   Precio usado: {precioUnitario:C2}");
             }
 
             // NUEVO: Obtener el porcentaje de IVA del producto (async-resiliente, sin .Value ni .Close redundante)
@@ -3275,7 +3333,7 @@ namespace Comercio.NET
                 var config = new Servicios.TicketConfig
                 {
                     NombreComercio = GetNombreComercio(),
-                    DomicilioComercio = "",
+                    DomicilioComercio = GetDomicilioComercio(), // ✅ CORREGIDO: usar el método
                     FormaPago = seleccion.EsPagoMultiple ? "Múltiple" : seleccion.OpcionPagoSeleccionada.ToString(),
                     MensajePie = "Gracias por su compra!",
                     // ✅ NUEVO: Pasar datos de descuento a TicketConfig
@@ -3311,13 +3369,21 @@ namespace Comercio.NET
 
                     case SeleccionImpresionForm.OpcionImpresion.FacturaC:
                         config.TipoComprobante = "FacturaC";
+
+                        // ✅ CRÍTICO: Obtener punto de venta PRIMERO
+                        int puntoVentaFC = ObtenerPuntoVentaActivo();
+
                         config.NumeroComprobante = seleccion.NumeroFacturaAfip > 0
-                            ? $"C {seleccion.NumeroFacturaAfip:D4}-{seleccion.NumeroFacturaAfip:D8}"
+                            ? $"C {puntoVentaFC:D4}-{seleccion.NumeroFacturaAfip:D8}"  // ✅ CORREGIDO
                             : $"Factura C N° {nroRemitoActual}";
+
                         config.CAE = seleccion.CAENumero;
                         config.CAEVencimiento = seleccion.CAEVencimiento;
+
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA C");
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   TipoComprobante: {config.TipoComprobante}");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   Punto Venta: {puntoVentaFC}");
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   Número: {seleccion.NumeroFacturaAfip}");
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   NumeroComprobante: {config.NumeroComprobante}");
                         System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN]   CAE: {config.CAE}");
                         break;
@@ -3373,6 +3439,12 @@ namespace Comercio.NET
         public string GetNombreComercio()
         {
             return nombreComercio;
+        }
+
+        // ✅ NUEVO: Agregar método para obtener el domicilio
+        public string GetDomicilioComercio()
+        {
+            return domicilioComercio;
         }
 
         // Handler del botón Finalizar Venta (construido para usar el modal SeleccionImpresionForm)
@@ -3569,6 +3641,41 @@ namespace Comercio.NET
             finally
             {
                 procesandoEliminacion = false;
+            }
+        }
+
+        // ✅ NUEVO: Obtener punto de venta desde configuración
+        private int ObtenerPuntoVentaActivo()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+
+                string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Testing";
+                string puntoVentaStr = config[$"AFIP:{ambienteActivo}:PuntoVenta"];
+
+                if (string.IsNullOrEmpty(puntoVentaStr))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ⚠️ No configurado para {ambienteActivo}, usando 1");
+                    return 1;
+                }
+
+                if (!int.TryParse(puntoVentaStr, out int puntoVenta))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ⚠️ Valor inválido '{puntoVentaStr}', usando 1");
+                    return 1;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ✅ Ambiente: {ambienteActivo}, PV: {puntoVenta}");
+                return puntoVenta;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PUNTO VENTA] ❌ Error: {ex.Message}, usando 1 por defecto");
+                return 1;
             }
         }
 
@@ -3771,38 +3878,69 @@ namespace Comercio.NET
                         config.TipoComprobante = "REMITO";
                         config.NumeroComprobante = $"Remito N° {nroRemitoActual}";
                         break;
-                    case SeleccionImpresionForm.OpcionImpresion.FacturaB:
-                        config.TipoComprobante = "FacturaB";
-                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(6, 1, numeroFacturaAfip);
-                        config.CAE = caeNumero;
-                        config.CAEVencimiento = caeVencimiento;
-                        break;
+                
                     case SeleccionImpresionForm.OpcionImpresion.FacturaA:
                         config.TipoComprobante = "FacturaA";
-                        config.NumeroComprobante = FormatearNumeroFacturaParaBD(1, 1, numeroFacturaAfip);
-                        config.CAE = caeNumero;
-                        config.CAEVencimiento = caeVencimiento;
+                
+                        int puntoVentaFA = ObtenerPuntoVentaActivo();
+
+            config.NumeroComprobante = numeroFacturaAfip > 0
+                            ? $"A {puntoVentaFA:D4}-{numeroFacturaAfip:D8}"  // ✅ USAR PARÁMETRO
+                            : $"Factura A N° {nroRemitoActual}";
+                    
+                        config.CAE = caeNumero;  // ✅ USAR PARÁMETRO
+                        config.CAEVencimiento = caeVencimiento;  // ✅ USAR PARÁMETRO
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA A");
                         break;
+
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaB:
+                        config.TipoComprobante = "FacturaB";
+                
+                        int puntoVentaFB = ObtenerPuntoVentaActivo();
+
+            config.NumeroComprobante = numeroFacturaAfip > 0
+                            ? $"B {puntoVentaFB:D4}-{numeroFacturaAfip:D8}"  // ✅ USAR PARÁMETRO
+                            : $"Factura B N° {nroRemitoActual}";
+                    
+                        config.CAE = caeNumero;  // ✅ USAR PARÁMETRO
+                        config.CAEVencimiento = caeVencimiento;  // ✅ USAR PARÁMETRO
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA B");
+                        break;
+
+                    case SeleccionImpresionForm.OpcionImpresion.FacturaC:
+                        config.TipoComprobante = "FacturaC";
+                
+                        int puntoVentaFC = ObtenerPuntoVentaActivo();
+
+            config.NumeroComprobante = numeroFacturaAfip > 0
+                            ? $"C {puntoVentaFC:D4}-{numeroFacturaAfip:D8}"  // ✅ USAR PARÁMETRO
+                            : $"Factura C N° {nroRemitoActual}";
+                    
+                        config.CAE = caeNumero;  // ✅ USAR PARÁMETRO
+                        config.CAEVencimiento = caeVencimiento;  // ✅ USAR PARÁMETRO
+                        System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Configurado como FACTURA C");
+                        break;
+                
                     default:
                         config.TipoComprobante = "SINCOMPROBANTE";
                         config.NumeroComprobante = "";
                         break;
                 }
 
-                System.Diagnostics.Debug.WriteLine("🖨️ Iniciando impresión (sin modal)...");
-                System.Diagnostics.Debug.WriteLine($"   Tipo: {config.TipoComprobante}, Num: {config.NumeroComprobante}, CAE: {config.CAE}");
+        System.Diagnostics.Debug.WriteLine("🖨️ Iniciando impresión (sin modal)...");
+        System.Diagnostics.Debug.WriteLine($"   Tipo: {config.TipoComprobante}, Num: {config.NumeroComprobante}, CAE: {config.CAE}");
 
-                using (var ticketService = new TicketPrintingService())
-                {
-                    await ticketService.ImprimirTicket(remitoActual, config);
-                }
+        using (var ticketService = new TicketPrintingService())
+        {
+            await ticketService.ImprimirTicket(remitoActual, config);
+        }
 
-                System.Diagnostics.Debug.WriteLine("✅ Impresión completada");
+        System.Diagnostics.Debug.WriteLine("✅ Impresión completada");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error en ImprimirSinModal: {ex.Message}");
-                MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        MessageBox.Show($"Error al imprimir: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
