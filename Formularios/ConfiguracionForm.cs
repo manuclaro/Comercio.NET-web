@@ -37,6 +37,18 @@ namespace Comercio.NET.Formularios
         private TextBox txtAfipTestingWSAAUrl, txtAfipTestingWSFEUrl;
         private Button btnSeleccionarCertificadoTesting, btnVerificarCertificadoTesting;
 
+        private Panel panelDescuentos;
+        private Button btnColapsarDescuentos;
+        private bool _descuentosColapsado = false;
+
+        // NUEVO: Controles para configuración de descuentos
+        private ListBox lstOpcionesDescuento;
+        private TextBox txtNuevaOpcionDescuento;
+        private Button btnAgregarOpcionDescuento, btnEliminarOpcionDescuento, btnEditarOpcionDescuento;
+        private TextBox txtPorcentajeMaximo;
+        private CheckBox chkRestringirPorMetodoPago;
+        private CheckedListBox chkListMetodosPago;
+
         // Controles duplicados para ambiente de Producción  
         private TextBox txtAfipProduccionCuit, txtAfipProduccionCertificadoPath, txtAfipProduccionCertificadoPassword;
         private TextBox txtAfipProduccionWSAAUrl, txtAfipProduccionWSFEUrl;
@@ -544,6 +556,10 @@ namespace Comercio.NET.Formularios
             panelRestriccionesImpresion = CrearSeccionRestriccionesImpresionColapsable("🚫 RESTRICCIONES DE IMPRESIÓN", 0, ancho);
             panelPrincipal.Controls.Add(panelRestriccionesImpresion);
 
+            // ✅ NUEVA SECCIÓN: CONFIGURACIÓN DE DESCUENTOS
+            panelDescuentos = CrearSeccionDescuentosColapsable("💰 CONFIGURACIÓN DE DESCUENTOS", 0, ancho);
+            panelPrincipal.Controls.Add(panelDescuentos);
+
             // === SECCIÓN INVENTARIO ===
             panelInventario = CrearSeccionColapsable("📦 CONFIGURACIÓN DE INVENTARIO", 0, ancho, "Inventario");
             panelPrincipal.Controls.Add(panelInventario);
@@ -578,6 +594,421 @@ namespace Comercio.NET.Formularios
             // === SECCIÓN BASE DE DATOS ===
             panelBaseDatos = CrearSeccionBaseDatos("🗄️ BASE DE DATOS", 0, ancho);
             panelPrincipal.Controls.Add(panelBaseDatos);
+        }
+
+        // NUEVO: Método para crear la sección de descuentos
+        private Panel CrearSeccionDescuentosColapsable(string titulo, int y, int ancho)
+        {
+            var panel = new Panel
+            {
+                Location = new Point(10, y),
+                Size = new Size(ancho, 35),
+                BackColor = Color.FromArgb(248, 250, 252),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // Header con título y botón colapsar
+            var panelHeader = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(ancho, 30),
+                BackColor = Color.FromArgb(230, 235, 240),
+                Cursor = Cursors.Hand
+            };
+            panel.Controls.Add(panelHeader);
+
+            var lblTitulo = new Label
+            {
+                Text = titulo,
+                Location = new Point(10, 6),
+                Size = new Size(ancho - 50, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181),
+                Cursor = Cursors.Hand
+            };
+            panelHeader.Controls.Add(lblTitulo);
+
+            // Botón colapsar/expandir
+            btnColapsarDescuentos = new Button
+            {
+                Text = "▼",
+                Location = new Point(ancho - 35, 3),
+                Size = new Size(25, 24),
+                BackColor = Color.FromArgb(200, 200, 200),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnColapsarDescuentos.FlatAppearance.BorderSize = 0;
+            panelHeader.Controls.Add(btnColapsarDescuentos);
+
+            // Contenido colapsable
+            var panelContenido = new Panel
+            {
+                Name = "panelContenidoDescuentos",
+                Location = new Point(0, 30),
+                Size = new Size(ancho, 380),
+                BackColor = Color.FromArgb(248, 250, 252),
+                Visible = true
+            };
+            panel.Controls.Add(panelContenido);
+
+            // === OPCIONES DE DESCUENTO DISPONIBLES ===
+            var lblOpcionesDescuento = new Label
+            {
+                Text = "Opciones de descuento disponibles (%):",
+                Location = new Point(15, 10),
+                Size = new Size(280, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblOpcionesDescuento);
+
+            // Lista de opciones
+            lstOpcionesDescuento = new ListBox
+            {
+                Location = new Point(15, 35),
+                Size = new Size(150, 120),
+                Font = new Font("Segoe UI", 9F),
+                SelectionMode = SelectionMode.One,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            lstOpcionesDescuento.SelectedIndexChanged += (s, e) => ActualizarBotonesDescuento();
+            panelContenido.Controls.Add(lstOpcionesDescuento);
+
+            // Panel para agregar nueva opción
+            var panelAgregarOpcion = new Panel
+            {
+                Location = new Point(175, 35),
+                Size = new Size(200, 120),
+                BackColor = Color.FromArgb(240, 245, 250),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            panelContenido.Controls.Add(panelAgregarOpcion);
+
+            var lblNuevaOpcion = new Label
+            {
+                Text = "Agregar opción (%):",
+                Location = new Point(10, 10),
+                Size = new Size(180, 20),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelAgregarOpcion.Controls.Add(lblNuevaOpcion);
+
+            txtNuevaOpcionDescuento = new TextBox
+            {
+                Location = new Point(10, 30),
+                Size = new Size(180, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "Ej: 15"
+            };
+            // Validar solo números
+            txtNuevaOpcionDescuento.KeyPress += (s, e) =>
+            {
+                if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
+                {
+                    e.Handled = true;
+                }
+            };
+            panelAgregarOpcion.Controls.Add(txtNuevaOpcionDescuento);
+
+            // Botones de gestión
+            btnAgregarOpcionDescuento = new Button
+            {
+                Text = "➕ Agregar",
+                Location = new Point(10, 60),
+                Size = new Size(55, 25),
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                UseVisualStyleBackColor = false
+            };
+            btnAgregarOpcionDescuento.FlatAppearance.BorderSize = 0;
+            btnAgregarOpcionDescuento.Click += (s, e) => AgregarOpcionDescuento();
+            panelAgregarOpcion.Controls.Add(btnAgregarOpcionDescuento);
+
+            btnEditarOpcionDescuento = new Button
+            {
+                Text = "✏️ Editar",
+                Location = new Point(70, 60),
+                Size = new Size(55, 25),
+                BackColor = Color.FromArgb(255, 152, 0),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                UseVisualStyleBackColor = false,
+                Enabled = false
+            };
+            btnEditarOpcionDescuento.FlatAppearance.BorderSize = 0;
+            btnEditarOpcionDescuento.Click += (s, e) => EditarOpcionDescuento();
+            panelAgregarOpcion.Controls.Add(btnEditarOpcionDescuento);
+
+            btnEliminarOpcionDescuento = new Button
+            {
+                Text = "🗑️ Quitar",
+                Location = new Point(130, 60),
+                Size = new Size(60, 25),
+                BackColor = Color.FromArgb(244, 67, 54),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                UseVisualStyleBackColor = false,
+                Enabled = false
+            };
+            btnEliminarOpcionDescuento.FlatAppearance.BorderSize = 0;
+            btnEliminarOpcionDescuento.Click += (s, e) => EliminarOpcionDescuento();
+            panelAgregarOpcion.Controls.Add(btnEliminarOpcionDescuento);
+
+            // === PORCENTAJE MÁXIMO ===
+            var lblPorcentajeMaximo = new Label
+            {
+                Text = "Porcentaje máximo de descuento:",
+                Location = new Point(15, 170),
+                Size = new Size(220, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblPorcentajeMaximo);
+
+            txtPorcentajeMaximo = new TextBox
+            {
+                Location = new Point(240, 168),
+                Size = new Size(80, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "Ej: 20"
+            };
+            // Validar solo números
+            txtPorcentajeMaximo.KeyPress += (s, e) =>
+            {
+                if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
+                {
+                    e.Handled = true;
+                }
+            };
+            panelContenido.Controls.Add(txtPorcentajeMaximo);
+
+            var lblPorcentaje = new Label
+            {
+                Text = "%",
+                Location = new Point(325, 170),
+                Size = new Size(20, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblPorcentaje);
+
+            var lblInfoMaximo = new Label
+            {
+                Text = "Este es el valor máximo de descuento que puede aplicarse en el sistema",
+                Location = new Point(35, 195),
+                Size = new Size(520, 20),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.Gray
+            };
+            panelContenido.Controls.Add(lblInfoMaximo);
+
+            // === RESTRICCIÓN POR MÉTODO DE PAGO ===
+            chkRestringirPorMetodoPago = new CheckBox
+            {
+                Text = "Restringir descuentos por método de pago",
+                Location = new Point(15, 230),
+                Size = new Size(350, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = true
+            };
+            chkRestringirPorMetodoPago.CheckedChanged += (s, e) =>
+            {
+                chkListMetodosPago.Enabled = chkRestringirPorMetodoPago.Checked;
+            };
+            panelContenido.Controls.Add(chkRestringirPorMetodoPago);
+
+            var lblMetodosPago = new Label
+            {
+                Text = "Métodos de pago permitidos para descuentos:",
+                Location = new Point(35, 260),
+                Size = new Size(300, 20),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblMetodosPago);
+
+            // CheckedListBox para métodos de pago
+            chkListMetodosPago = new CheckedListBox
+            {
+                Location = new Point(35, 285),
+                Size = new Size(200, 80),
+                Font = new Font("Segoe UI", 9F),
+                BorderStyle = BorderStyle.FixedSingle,
+                CheckOnClick = true
+            };
+            chkListMetodosPago.Items.AddRange(new string[] {
+        "Efectivo",
+        "DNI",
+        "MercadoPago",
+        "Débito",
+        "Crédito"
+    });
+            panelContenido.Controls.Add(chkListMetodosPago);
+
+            var lblInfoMetodos = new Label
+            {
+                Text = "Seleccione los métodos de pago en los que se permitirán descuentos.\n" +
+                       "Si no restringe, los descuentos estarán disponibles para todos los métodos.",
+                Location = new Point(250, 285),
+                Size = new Size(310, 40),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.Gray
+            };
+            panelContenido.Controls.Add(lblInfoMetodos);
+
+            // Configurar eventos
+            EventHandler clickHandler = (s, e) => ToggleColapsarDescuentos();
+            panelHeader.Click += clickHandler;
+            lblTitulo.Click += clickHandler;
+
+            return panel;
+        }
+
+        // NUEVO: Toggle para la sección de descuentos
+        private void ToggleColapsarDescuentos()
+        {
+            _descuentosColapsado = !_descuentosColapsado;
+            ActualizarEstadoSeccion(panelDescuentos, "panelContenidoDescuentos",
+                _descuentosColapsado, btnColapsarDescuentos, 35, 415);
+            ActualizarPosicionesTodasLasSecciones();
+        }
+
+        // NUEVO: Métodos para gestionar opciones de descuento
+        private void AgregarOpcionDescuento()
+        {
+            string porcentajeTexto = txtNuevaOpcionDescuento.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(porcentajeTexto))
+            {
+                MostrarMensaje("❌ Ingrese un porcentaje válido", Color.Red);
+                txtNuevaOpcionDescuento.Focus();
+                return;
+            }
+
+            if (!int.TryParse(porcentajeTexto, out int porcentaje) || porcentaje <= 0 || porcentaje > 100)
+            {
+                MostrarMensaje("❌ El porcentaje debe estar entre 1 y 100", Color.Red);
+                txtNuevaOpcionDescuento.Focus();
+                txtNuevaOpcionDescuento.SelectAll();
+                return;
+            }
+
+            // Verificar si ya existe
+            foreach (var item in lstOpcionesDescuento.Items)
+            {
+                if (int.TryParse(item.ToString(), out int existente) && existente == porcentaje)
+                {
+                    MostrarMensaje("❌ Este porcentaje ya existe en la lista", Color.Red);
+                    txtNuevaOpcionDescuento.Focus();
+                    txtNuevaOpcionDescuento.SelectAll();
+                    return;
+                }
+            }
+
+            lstOpcionesDescuento.Items.Add(porcentaje);
+            // Ordenar la lista
+            var items = lstOpcionesDescuento.Items.Cast<int>().OrderBy(x => x).ToList();
+            lstOpcionesDescuento.Items.Clear();
+            foreach (var item in items)
+            {
+                lstOpcionesDescuento.Items.Add(item);
+            }
+
+            txtNuevaOpcionDescuento.Clear();
+            txtNuevaOpcionDescuento.Focus();
+
+            MostrarMensaje($"✅ Opción {porcentaje}% agregada correctamente", Color.Green);
+        }
+
+        private void EditarOpcionDescuento()
+        {
+            if (lstOpcionesDescuento.SelectedIndex == -1)
+            {
+                MostrarMensaje("❌ Seleccione una opción para editar", Color.Red);
+                return;
+            }
+
+            string opcionActual = lstOpcionesDescuento.SelectedItem.ToString();
+            string opcionNueva = Microsoft.VisualBasic.Interaction.InputBox(
+                $"Editar opción de descuento:\n\nPorcentaje actual: {opcionActual}%\n\nIngrese el nuevo porcentaje (1-100):",
+                "Editar Opción de Descuento",
+                opcionActual);
+
+            if (string.IsNullOrWhiteSpace(opcionNueva) || opcionNueva == opcionActual)
+            {
+                return;
+            }
+
+            if (!int.TryParse(opcionNueva, out int porcentaje) || porcentaje <= 0 || porcentaje > 100)
+            {
+                MostrarMensaje("❌ El porcentaje debe estar entre 1 y 100", Color.Red);
+                return;
+            }
+
+            // Verificar si el nuevo porcentaje ya existe
+            foreach (var item in lstOpcionesDescuento.Items)
+            {
+                if (item.ToString() != opcionActual &&
+                    int.TryParse(item.ToString(), out int existente) &&
+                    existente == porcentaje)
+                {
+                    MostrarMensaje("❌ Este porcentaje ya existe en la lista", Color.Red);
+                    return;
+                }
+            }
+
+            int indiceSeleccionado = lstOpcionesDescuento.SelectedIndex;
+            lstOpcionesDescuento.Items[indiceSeleccionado] = porcentaje;
+
+            // Reordenar
+            var items = lstOpcionesDescuento.Items.Cast<int>().OrderBy(x => x).ToList();
+            lstOpcionesDescuento.Items.Clear();
+            foreach (var item in items)
+            {
+                lstOpcionesDescuento.Items.Add(item);
+            }
+
+            MostrarMensaje($"✅ Opción actualizada a {porcentaje}%", Color.Green);
+        }
+
+        private void EliminarOpcionDescuento()
+        {
+            if (lstOpcionesDescuento.SelectedIndex == -1)
+            {
+                MostrarMensaje("❌ Seleccione una opción para eliminar", Color.Red);
+                return;
+            }
+
+            string opcionSeleccionada = lstOpcionesDescuento.SelectedItem.ToString();
+
+            var resultado = MessageBox.Show(
+                $"¿Está seguro de eliminar la opción de descuento {opcionSeleccionada}%?",
+                "Confirmar Eliminación",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (resultado == DialogResult.Yes)
+            {
+                lstOpcionesDescuento.Items.RemoveAt(lstOpcionesDescuento.SelectedIndex);
+                MostrarMensaje($"✅ Opción {opcionSeleccionada}% eliminada", Color.Green);
+            }
+        }
+
+        private void ActualizarBotonesDescuento()
+        {
+            bool haySeleccion = lstOpcionesDescuento.SelectedIndex != -1;
+            btnEditarOpcionDescuento.Enabled = haySeleccion;
+            btnEliminarOpcionDescuento.Enabled = haySeleccion;
         }
 
         // NUEVO: Crear sección de AFIP - AUMENTAR ALTURA
@@ -1181,6 +1612,16 @@ namespace Comercio.NET.Formularios
             chkVistaPreviaImpresionDirecta.TabIndex = 19; // NUEVO
             chkLimitarFacturacion.TabIndex = 20; // NUEVO
 
+            // ✅ NUEVO: TabIndex para controles de descuentos
+            lstOpcionesDescuento.TabIndex = 21;
+            txtNuevaOpcionDescuento.TabIndex = 22;
+            btnAgregarOpcionDescuento.TabIndex = 23;
+            btnEditarOpcionDescuento.TabIndex = 24;
+            btnEliminarOpcionDescuento.TabIndex = 25;
+            txtPorcentajeMaximo.TabIndex = 26;
+            chkRestringirPorMetodoPago.TabIndex = 27;
+            chkListMetodosPago.TabIndex = 28;
+
             // Ajustar todos los siguientes TabIndex +1:
             chkVerificarStock.TabIndex = 21; // Era 19
             lstNombresCtaCte.TabIndex = 22; // Era 20
@@ -1242,6 +1683,17 @@ namespace Comercio.NET.Formularios
                 }
             };
 
+            // NUEVO: Evento para Descuentos
+            btnColapsarDescuentos.Click += (s, e) => ToggleColapsarDescuentos();
+
+            // Permitir agregar opción con Enter
+            txtNuevaOpcionDescuento.KeyDown += (s, e) => {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    AgregarOpcionDescuento();
+                }
+            };
             // Formatear CUITs mientras el usuario escribe
             txtCUIT.TextChanged += (s, e) => FormatearCUIT();
             //txtAfipCuit.TextChanged += (s, e) => FormatearCUITAfip();
@@ -1253,6 +1705,7 @@ namespace Comercio.NET.Formularios
             
             System.Diagnostics.Debug.WriteLine("[CONFIG] Eventos configurados");
         }
+
 
         // NUEVOS: Métodos para gestionar nombres de cuenta corriente
         private void AgregarNombreCtaCte()
@@ -1483,6 +1936,44 @@ namespace Comercio.NET.Formularios
 
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Usar Vista Previa: {chkVistaPreviaImpresionDirecta.Checked}");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Limitar Facturación: {chkLimitarFacturacion.Checked}, Monto: ${montoLimite:F2}");
+
+                // NUEVO: Cargar configuración de descuentos
+                var descuentos = _configuracionOriginal["Descuentos"];
+                if (descuentos != null)
+                {
+                    // Cargar opciones disponibles
+                    lstOpcionesDescuento.Items.Clear();
+                    var opciones = descuentos["OpcionesDisponibles"] as JArray;
+                    if (opciones != null)
+                    {
+                        foreach (var opcion in opciones.OrderBy(x => (int)x))
+                        {
+                            lstOpcionesDescuento.Items.Add((int)opcion);
+                        }
+                    }
+
+                    // Cargar porcentaje máximo
+                    txtPorcentajeMaximo.Text = descuentos["PorcentajeMaximo"]?.ToString() ?? "20";
+
+                    // Cargar restricción por método de pago
+                    chkRestringirPorMetodoPago.Checked =
+                        descuentos["RestringirPorMetodoPago"]?.ToObject<bool>() ?? true;
+
+                    // Cargar métodos de pago permitidos
+                    var metodosPagos = descuentos["MetodosPagoPermitidos"] as JArray;
+                    if (metodosPagos != null)
+                    {
+                        for (int i = 0; i < chkListMetodosPago.Items.Count; i++)
+                        {
+                            string metodo = chkListMetodosPago.Items[i].ToString();
+                            chkListMetodosPago.SetItemChecked(i,
+                                metodosPagos.Any(m => m.ToString() == metodo));
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Opciones Descuento: {lstOpcionesDescuento.Items.Count}");
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - % Máximo: {txtPorcentajeMaximo.Text}");
+                }
 
                 // Cargar configuración de inventario
                 bool verificarStock = _configuracionOriginal["Inventario"]?["VerificarStock"]?.ToObject<bool>() ?? 
@@ -1817,6 +2308,47 @@ namespace Comercio.NET.Formularios
                     }
                 }
                 nuevaConfiguracion["RestriccionesImpresion"]["MontoLimiteFacturacion"] = montoLimite;
+
+                // NUEVO: Actualizar configuración de descuentos
+                if (nuevaConfiguracion["Descuentos"] == null)
+                    nuevaConfiguracion["Descuentos"] = new JObject();
+
+                // Opciones disponibles
+                var opcionesArray = new JArray();
+                foreach (int opcion in lstOpcionesDescuento.Items)
+                {
+                    opcionesArray.Add(opcion);
+                }
+                nuevaConfiguracion["Descuentos"]["OpcionesDisponibles"] = opcionesArray;
+
+                // Porcentaje máximo
+                if (int.TryParse(txtPorcentajeMaximo.Text, out int porcentajeMax))
+                {
+                    nuevaConfiguracion["Descuentos"]["PorcentajeMaximo"] = porcentajeMax;
+                }
+                else
+                {
+                    nuevaConfiguracion["Descuentos"]["PorcentajeMaximo"] = 20;
+                }
+
+                // Restricción por método de pago
+                nuevaConfiguracion["Descuentos"]["RestringirPorMetodoPago"] = chkRestringirPorMetodoPago.Checked;
+
+                // Métodos de pago permitidos
+                var metodosPermitidos = new JArray();
+                for (int i = 0; i < chkListMetodosPago.Items.Count; i++)
+                {
+                    if (chkListMetodosPago.GetItemChecked(i))
+                    {
+                        metodosPermitidos.Add(chkListMetodosPago.Items[i].ToString());
+                    }
+                }
+                nuevaConfiguracion["Descuentos"]["MetodosPagoPermitidos"] = metodosPermitidos;
+
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Descuentos - Opciones: {opcionesArray.Count}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Descuentos - % Máximo: {porcentajeMax}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Descuentos - Métodos permitidos: {metodosPermitidos.Count}");
+
 
                 // Inventario
                 if (nuevaConfiguracion["Validaciones"] == null)
@@ -2210,6 +2742,82 @@ namespace Comercio.NET.Formularios
                 return false;
             }
 
+            // ✅ NUEVO: Validaciones para descuentos
+            if (lstOpcionesDescuento.Items.Count == 0)
+            {
+                MostrarMensaje("❌ Debe agregar al menos una opción de descuento", Color.Red);
+                _descuentosColapsado = false;
+                ActualizarEstadoSeccion(panelDescuentos, "panelContenidoDescuentos",
+                    _descuentosColapsado, btnColapsarDescuentos, 35, 415);
+                ActualizarPosicionesTodasLasSecciones();
+                txtNuevaOpcionDescuento.Focus();
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(txtPorcentajeMaximo.Text))
+            {
+                MostrarMensaje("❌ El porcentaje máximo de descuento es requerido", Color.Red);
+                _descuentosColapsado = false;
+                ActualizarEstadoSeccion(panelDescuentos, "panelContenidoDescuentos",
+                    _descuentosColapsado, btnColapsarDescuentos, 35, 415);
+                ActualizarPosicionesTodasLasSecciones();
+                txtPorcentajeMaximo.Focus();
+                return false;
+            }
+
+            if (!int.TryParse(txtPorcentajeMaximo.Text, out int maxPorcentaje) ||
+                maxPorcentaje <= 0 || maxPorcentaje > 100)
+            {
+                MostrarMensaje("❌ El porcentaje máximo debe estar entre 1 y 100", Color.Red);
+                _descuentosColapsado = false;
+                ActualizarEstadoSeccion(panelDescuentos, "panelContenidoDescuentos",
+                    _descuentosColapsado, btnColapsarDescuentos, 35, 415);
+                ActualizarPosicionesTodasLasSecciones();
+                txtPorcentajeMaximo.Focus();
+                txtPorcentajeMaximo.SelectAll();
+                return false;
+            }
+
+            // Verificar que todas las opciones sean <= al máximo
+            foreach (int opcion in lstOpcionesDescuento.Items)
+            {
+                if (opcion > maxPorcentaje)
+                {
+                    MostrarMensaje($"❌ La opción {opcion}% supera el porcentaje máximo permitido ({maxPorcentaje}%)", Color.Red);
+                    _descuentosColapsado = false;
+                    ActualizarEstadoSeccion(panelDescuentos, "panelContenidoDescuentos",
+                        _descuentosColapsado, btnColapsarDescuentos, 35, 415);
+                    ActualizarPosicionesTodasLasSecciones();
+                    lstOpcionesDescuento.SelectedItem = opcion;
+                    return false;
+                }
+            }
+
+            // Verificar que si está restringido, hay al menos un método seleccionado
+            if (chkRestringirPorMetodoPago.Checked)
+            {
+                bool hayMetodoSeleccionado = false;
+                for (int i = 0; i < chkListMetodosPago.Items.Count; i++)
+                {
+                    if (chkListMetodosPago.GetItemChecked(i))
+                    {
+                        hayMetodoSeleccionado = true;
+                        break;
+                    }
+                }
+
+                if (!hayMetodoSeleccionado)
+                {
+                    MostrarMensaje("❌ Debe seleccionar al menos un método de pago permitido", Color.Red);
+                    _descuentosColapsado = false;
+                    ActualizarEstadoSeccion(panelDescuentos, "panelContenidoDescuentos",
+                        _descuentosColapsado, btnColapsarDescuentos, 35, 415);
+                    ActualizarPosicionesTodasLasSecciones();
+                    chkListMetodosPago.Focus();
+                    return false;
+                }
+            }
+
             System.Diagnostics.Debug.WriteLine($"[VALIDACIÓN] Punto de venta {ambienteNombre}: {puntoVenta}");
 
             return true;
@@ -2381,6 +2989,10 @@ namespace Comercio.NET.Formularios
             // Sección Restricciones de Impresión
             panelRestriccionesImpresion.Location = new Point(10, currentY);
             currentY += panelRestriccionesImpresion.Height + spacing;
+
+            // ✅ NUEVA: Sección Descuentos
+            panelDescuentos.Location = new Point(10, currentY);
+            currentY += panelDescuentos.Height + spacing;
 
             // Sección Inventario
             panelInventario.Location = new Point(10, currentY);

@@ -70,10 +70,10 @@
     "OpcionesDisponibles": [
       5,
       10,
-      12,
-      25
+      15,
+      20
     ],
-    "PorcentajeMaximo": 25,
+    "PorcentajeMaximo": 20,
     "RestringirPorMetodoPago": true,
     "MetodosPagoPermitidos": [
       "Efectivo"
