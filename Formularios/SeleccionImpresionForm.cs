@@ -1273,6 +1273,16 @@ namespace Comercio.NET
                     importeDescuento = 0m;
                     lblDescuentoDetalle.Text = "";
                 }
+                else
+                {
+                    // ✅ NUEVO: Si se habilita el descuento, seleccionar "Efectivo" automáticamente
+                    if (!EsPagoMultiple) // Solo si NO es pago múltiple
+                    {
+                        rbEfectivo.Checked = true;
+                        OpcionPagoSeleccionada = OpcionPago.Efectivo;
+                        System.Diagnostics.Debug.WriteLine("[DESCUENTO] ✅ Método de pago cambiado automáticamente a Efectivo");
+                    }
+                }
 
                 AplicarDescuento();
             };

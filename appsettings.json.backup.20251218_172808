@@ -76,8 +76,7 @@
     "PorcentajeMaximo": 25,
     "RestringirPorMetodoPago": true,
     "MetodosPagoPermitidos": [
-      "Efectivo",
-      "DNI"
+      "Efectivo"
     ]
   }
 }

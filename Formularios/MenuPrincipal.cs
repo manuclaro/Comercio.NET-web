@@ -1188,11 +1188,10 @@ namespace Comercio.NET
                     return;
                 }
 
-                // ✅ CREAR el menú "Productos" como menú principal (SIN evento Click directo)
+                // ✅ CREAR el menú "Productos" como menú principal
                 var menuProductos = new ToolStripMenuItem("Productos")
                 {
                     Name = "productosToolStripMenuItem"
-                    // ❌ NO asignar Click aquí - será un menú con submenús
                 };
 
                 // ========================================
@@ -1206,7 +1205,7 @@ namespace Comercio.NET
                     ToolTipText = "Administración de productos (Alta, Baja, Modificación)"
                 };
 
-                // 2. Actualización Rápida (ya existe, lo agregamos aquí también)
+                // 2. Actualización Rápida
                 var itemActualizacionRapida = new ToolStripMenuItem("⚡ Actualización Rápida Precio/Stock", null, ActualizacionRapida_Click)
                 {
                     Name = "actualizacionRapidaToolStripMenuItem",
@@ -1214,15 +1213,22 @@ namespace Comercio.NET
                     ToolTipText = "Actualización rápida de precios y stock (Ctrl+Shift+P)"
                 };
 
-                // 3. Actualización Masiva - CORREGIDO
+                // 3. Actualización Masiva
                 var itemActualizacionMasiva = new ToolStripMenuItem("⚡⚡ Actualización Masiva de Precios", null, BtnActualizacionMasiva_Click)
                 {
                     Name = "actualizacionMasivaToolStripMenuItem",
-                    ShortcutKeys = Keys.Control | Keys.Shift | Keys.M, // Atajo diferente: Ctrl+Shift+M
+                    ShortcutKeys = Keys.Control | Keys.Shift | Keys.M,
                     ToolTipText = "Actualización masiva de precios por filtros (Ctrl+Shift+M)"
                 };
 
-                // 4. Ofertas y Combos
+                // ✅ 4. NUEVO: Actualización desde Excel
+                var itemActualizacionExcel = new ToolStripMenuItem("📊 Actualización desde Excel", null, ActualizacionExcel_Click)
+                {
+                    Name = "actualizacionExcelToolStripMenuItem",
+                    ToolTipText = "Actualización masiva de productos desde archivo Excel"
+                };
+
+                // 5. Ofertas y Combos
                 var itemOfertas = new ToolStripMenuItem("🎁 Ofertas y Combos", null, (s, e) => AbrirGestionOfertas())
                 {
                     Name = "ofertasYCombosToolStripMenuItem",
@@ -1235,26 +1241,24 @@ namespace Comercio.NET
                 menuProductos.DropDownItems.Add(itemAbmProductos);
                 menuProductos.DropDownItems.Add(new ToolStripSeparator());
                 menuProductos.DropDownItems.Add(itemActualizacionRapida);
-                menuProductos.DropDownItems.Add(itemActualizacionMasiva); // ✅ Agregado aquí
+                menuProductos.DropDownItems.Add(itemActualizacionMasiva);
+                menuProductos.DropDownItems.Add(itemActualizacionExcel); // ✅ NUEVO
                 menuProductos.DropDownItems.Add(new ToolStripSeparator());
                 menuProductos.DropDownItems.Add(itemOfertas);
 
                 // ✅ CALCULAR la posición correcta: después de "Proveedores"
                 int insertIndex = -1;
 
-                // Buscar el menú "Proveedores"
                 var proveedoresMenu = this.menuStrip.Items
                     .OfType<ToolStripMenuItem>()
                     .FirstOrDefault(i => i.Name == "proveedoresToolStripMenuItem");
 
                 if (proveedoresMenu != null)
                 {
-                    // Insertar justo después de "Proveedores"
                     insertIndex = this.menuStrip.Items.IndexOf(proveedoresMenu) + 1;
                 }
                 else
                 {
-                    // Si no existe "Proveedores", buscar "Ver" para insertar antes
                     var verMenu = this.menuStrip.Items
                         .OfType<ToolStripMenuItem>()
                         .FirstOrDefault(i => i.Name == "viewMenu");
@@ -1265,7 +1269,6 @@ namespace Comercio.NET
                     }
                 }
 
-                // ✅ INSERTAR en la posición correcta
                 if (insertIndex >= 0 && insertIndex <= this.menuStrip.Items.Count)
                 {
                     this.menuStrip.Items.Insert(insertIndex, menuProductos);
@@ -1273,7 +1276,6 @@ namespace Comercio.NET
                 }
                 else
                 {
-                    // Fallback: agregar al final
                     this.menuStrip.Items.Add(menuProductos);
                     System.Diagnostics.Debug.WriteLine("⚠️ Menú 'Productos' agregado al final (fallback)");
                 }
@@ -1282,28 +1284,48 @@ namespace Comercio.NET
             {
                 System.Diagnostics.Debug.WriteLine($"⚠️ Error creando menú Productos: {ex.Message}");
             }
+        }
 
-            var menuActualizacionMasiva = new ToolStripMenuItem
+        // ✅ NUEVO: Handler para abrir Actualización desde Excel
+        private void ActualizacionExcel_Click(object sender, EventArgs e)
+        {
+            try
             {
-                Text = "⚡⚡ Actualización Masiva de Precios",
-                //Image = Properties.Resources.IconoActualizacionMasiva, // Opcional: si tienes un icono
-                ShortcutKeys = Keys.Control | Keys.Shift | Keys.P // Atajo opcional: Ctrl+Shift+P
-            };
-            menuActualizacionMasiva.Click += (s, e) =>
-            {
-                try
+                // Verificar permisos
+                if (AuthenticationService.SesionActual?.Usuario != null)
                 {
-                    using (var form = new ActualizacionMasivaForm())
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+
+                    if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
                     {
-                        form.ShowDialog(this);
+                        using (var form = new Comercio.NET.Formularios.ActualizacionExcelForm())
+                        {
+                            form.ShowDialog(this);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para actualizar productos desde Excel.\n\n" +
+                            "Este módulo requiere el permiso 'Editar Precios'.\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show($"Error al abrir actualización masiva: {ex.Message}", "Error",
+                    MessageBox.Show("No hay una sesión activa.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-            };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir actualización desde Excel: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // En el método ConfigurarMenuSegunPermisos() o donde tengas tus opciones de menú

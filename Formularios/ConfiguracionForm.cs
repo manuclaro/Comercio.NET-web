@@ -849,9 +849,7 @@ namespace Comercio.NET.Formularios
             chkListMetodosPago.Items.AddRange(new string[] {
         "Efectivo",
         "DNI",
-        "MercadoPago",
-        "Débito",
-        "Crédito"
+        "MercadoPago"
     });
             panelContenido.Controls.Add(chkListMetodosPago);
 
