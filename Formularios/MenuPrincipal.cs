@@ -1,5 +1,6 @@
 ﻿using Comercio.NET;
 using Comercio.NET.Formularios;
+using Comercio.NET.Models;
 using Comercio.NET.Services;
 using Comercio.NET.Servicios;
 using System;
@@ -7,11 +8,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient; // ✅ AGREGAR ESTA LÍNEA
 using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Extensions.Configuration; // ✅ AGREGAR ESTA TAMBIÉN (para ConfigurationBuilder)
 using static Grpc.Core.Metadata;
 
 namespace Comercio.NET
@@ -30,15 +33,158 @@ namespace Comercio.NET
             InitializeComponent();
             ConfigurarInformacionUsuario();
             ConfigurarMenuSegunPermisos();
-            ConfigurarIconoConfiguracion();
             AgregarMenuProveedores();
-            CrearMenuProductos(); // ✅ AGREGAR ESTA LÍNEA - crea el menú en la posición correcta
+            CrearMenuProductos();
             MoverCompraProveedoresAMenuProveedores();
             AgregarMenuCaja();
             ConfigurarMenuCaja();
             AgregarBotonCierreTurnoToolbar();
             AgregarActualizacionRapidaAlMenu();
             AgregarOpcionGestionOfertas();
+            AgregarMenuConfiguracionPermisos(); // ✅ AGREGAR ESTA LÍNEA
+        }
+
+        // ✅ NUEVO MÉTODO: Agregar menú de configuración de permisos
+        private void AgregarMenuConfiguracionPermisos()
+        {
+            try
+            {
+                // Buscar el menú "Herramientas" o "Configuración"
+                var menuHerramientas = this.menuStrip?.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Text.Contains("Herramientas") || i.Text.Contains("Tools"));
+
+                // Si no existe, buscar el menú donde está "Configuración Sistema"
+                if (menuHerramientas == null)
+                {
+                    // Buscar en todos los menús el item "Configuración Sistema"
+                    foreach (ToolStripMenuItem menu in this.menuStrip.Items.OfType<ToolStripMenuItem>())
+                    {
+                        var configItem = menu.DropDownItems
+                            .OfType<ToolStripMenuItem>()
+                            .FirstOrDefault(i => i.Text.Contains("Configuración"));
+
+                        if (configItem != null)
+                        {
+                            menuHerramientas = menu;
+                            break;
+                        }
+                    }
+                }
+
+                // Si aún no encontramos el menú, crear uno nuevo
+                if (menuHerramientas == null)
+                {
+                    menuHerramientas = new ToolStripMenuItem("⚙️ Configuración")
+                    {
+                        Name = "configuracionToolStripMenuItem"
+                    };
+
+                    // Insertar antes del menú "Ayuda" o al final
+                    var menuAyuda = this.menuStrip.Items
+                        .OfType<ToolStripMenuItem>()
+                        .FirstOrDefault(i => i.Text.Contains("Ayuda") || i.Text.Contains("Help"));
+
+                    if (menuAyuda != null)
+                    {
+                        int index = this.menuStrip.Items.IndexOf(menuAyuda);
+                        this.menuStrip.Items.Insert(index, menuHerramientas);
+                    }
+                    else
+                    {
+                        this.menuStrip.Items.Add(menuHerramientas);
+                    }
+                }
+
+                // ✅ NUEVO: Agregar "Configuración General" al principio del menú
+                var configGeneralExistente = menuHerramientas.DropDownItems
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "configuracionGeneralToolStripMenuItem");
+
+                if (configGeneralExistente == null)
+                {
+                    var itemConfigGeneral = new ToolStripMenuItem
+                    {
+                        Name = "configuracionGeneralToolStripMenuItem",
+                        Text = "⚙️ Configuración General",
+                        ToolTipText = "Configuración general del sistema (Solo Administradores)",
+                        ShortcutKeys = Keys.Control | Keys.Alt | Keys.C
+                    };
+
+                    // Asignar el evento (reutilizar el método existente)
+                    itemConfigGeneral.Click += configuracionSistemaToolStripMenuItem_Click;
+
+                    // Insertar al principio del menú
+                    menuHerramientas.DropDownItems.Insert(0, itemConfigGeneral);
+                    menuHerramientas.DropDownItems.Insert(1, new ToolStripSeparator());
+
+                    System.Diagnostics.Debug.WriteLine("✅ 'Configuración General' agregado al menú");
+                }
+
+                // Verificar si ya existe el item de permisos
+                var permisosExistente = menuHerramientas.DropDownItems
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "configuracionPermisosToolStripMenuItem");
+
+                if (permisosExistente == null)
+                {
+                    // Crear el item de configuración de permisos
+                    var itemPermisos = new ToolStripMenuItem
+                    {
+                        Name = "configuracionPermisosToolStripMenuItem",
+                        Text = "🔐 Configuración de Permisos",
+                        ToolTipText = "Configurar permisos por perfil de usuario (Solo Administradores)",
+                        ShortcutKeys = Keys.Control | Keys.Shift | Keys.F2
+                    };
+
+                    // Asignar el evento
+                    itemPermisos.Click += ConfiguracionPermisosToolStripMenuItem_Click;
+
+                    // Agregar al menú (después de Configuración General)
+                    if (menuHerramientas.DropDownItems.Count > 0)
+                        menuHerramientas.DropDownItems.Add(new ToolStripSeparator());
+
+                    menuHerramientas.DropDownItems.Add(itemPermisos);
+
+                    System.Diagnostics.Debug.WriteLine("✅ Menú 'Configuración de Permisos' agregado");
+                }
+
+                // ✅ NUEVO: Ocultar el botón de configuración de la toolbar
+                OcultarBotonConfiguracionToolbar();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando menú de permisos: {ex.Message}");
+            }
+        }
+
+        // ✅ NUEVO: Método para ocultar/eliminar el botón de configuración de la toolbar
+        private void OcultarBotonConfiguracionToolbar()
+        {
+            try
+            {
+                if (this.toolStrip == null) return;
+
+                // Buscar el botón de configuración en la toolbar
+                var btnConfiguracion = this.toolStrip.Items
+                    .OfType<ToolStripButton>()
+                    .FirstOrDefault(b => b.Name == "toolStripConfiguracion");
+
+                if (btnConfiguracion != null)
+                {
+                    // Opción 1: Ocultarlo (mantiene el espacio)
+                    // btnConfiguracion.Visible = false;
+
+                    // Opción 2: Eliminarlo completamente (recomendado)
+                    this.toolStrip.Items.Remove(btnConfiguracion);
+
+                    System.Diagnostics.Debug.WriteLine("✅ Botón 'Configuración' eliminado de la toolbar");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error ocultando botón configuración: {ex.Message}");
+            }
         }
 
         // NUEVO: Método para configurar el ícono de configuración
@@ -431,61 +577,7 @@ namespace Comercio.NET
             }
         }
 
-        //private void ConfigurarMenuSegunPermisos()
-        //{
-        //    // Verificar permisos del usuario actual para mostrar/ocultar opciones
-        //    if (AuthenticationService.SesionActual?.Usuario != null)
-        //    {
-        //        var usuario = AuthenticationService.SesionActual.Usuario;
-
-        //        // Solo mostrar gestión de usuarios si tiene permisos
-        //        bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador ||
-        //                                     usuario.PuedeGestionarUsuarios;
-
-        //        // CORREGIDO: Verificar que los controles existen antes de usarlos
-        //        if (gestionUsuariosToolStripMenuItem != null)
-        //        {
-        //            gestionUsuariosToolStripMenuItem.Visible = puedeGestionarUsuarios;
-        //        }
-
-        //        if (toolStripGestionUsuarios != null)
-        //        {
-        //            toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
-        //        }
-
-        //        // Solo mostrar configuración a administradores
-        //        bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
-
-        //        if (InformesToolStripMenuItem != null)
-        //        {
-        //            InformesToolStripMenuItem.Visible = esAdministrador;
-        //        }
-
-        //        if (toolStripConfiguracion != null)
-        //        {
-        //            toolStripConfiguracion.Visible = esAdministrador;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        // Si no hay usuario logueado, ocultar opciones administrativas
-        //        if (gestionUsuariosToolStripMenuItem != null)
-        //            gestionUsuariosToolStripMenuItem.Visible = false;
-        //        if (toolStripGestionUsuarios != null)
-        //            toolStripGestionUsuarios.Visible = false;
-        //        if (InformesToolStripMenuItem != null)
-        //            InformesToolStripMenuItem.Visible = false;
-        //        if (toolStripConfiguracion != null)
-        //            toolStripConfiguracion.Visible = false;
-
-        //        // NUEVO: También ocultar cartelitos si no hay usuario
-        //        if (cartelitosToolStripMenuItem != null)
-        //            cartelitosToolStripMenuItem.Visible = false;
-        //        if (toolStripCartelitos != null)
-        //            toolStripCartelitos.Visible = false;
-        //    }
-        //}
-
+        
         private void OpenFile(object sender, EventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -573,29 +665,39 @@ namespace Comercio.NET
         // MODIFICADO: Verificar permisos antes de abrir productos
         private void productosToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // Verificar si el usuario tiene permisos para editar precios
+            // ✅ VERIFICAR PERMISOS DE ABM_PRODUCTOS
             if (AuthenticationService.SesionActual?.Usuario != null)
             {
                 var usuario = AuthenticationService.SesionActual.Usuario;
+                var permisos = ObtenerPermisosUsuario(usuario.Nivel);
 
-                // Solo permitir acceso si puede editar precios o es administrador
-                if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
-                {
-                    var productosForm = new ProductosOptimizado();
-                    productosForm.MdiParent = this;
-                    productosForm.Show();
-                }
-                else
+                // Verificar permiso específico de abm_productos
+                if (!permisos.ContainsKey("abm_productos") || !permisos["abm_productos"])
                 {
                     MessageBox.Show(
                         "⚠️ ACCESO DENEGADO\n\n" +
                         "No tienes permisos para acceder a la gestión de productos.\n\n" +
-                        "Este módulo requiere el permiso 'Editar Precios'.\n" +
+                        "Este módulo requiere el permiso 'ABM Productos'.\n" +
                         "Contacta a un administrador si necesitas acceso.",
                         "Permisos Insuficientes",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
+                    return;
                 }
+
+                // Verificar si ya está abierto
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is ProductosOptimizado)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                var productosForm = new ProductosOptimizado();
+                productosForm.MdiParent = this;
+                productosForm.Show();
             }
             else
             {
@@ -873,6 +975,25 @@ namespace Comercio.NET
         {
             try
             {
+                // ✅ VERIFICAR PERMISOS
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    var permisos = ObtenerPermisosUsuario(usuario.Nivel);
+
+                    if (!permisos.ContainsKey("cta_cte_proveedores") || !permisos["cta_cte_proveedores"])
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para acceder a la Cuenta Corriente de Proveedores.\n\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
                 // Verificar si ya está abierto (con nombre correcto del Form)
                 foreach (Form f in this.MdiChildren)
                 {
@@ -1092,8 +1213,28 @@ namespace Comercio.NET
                     {
                         var menu = new ToolStripMenuItem("Proveedores") { Name = "proveedoresToolStripMenuItem" };
 
+                        // ✅ MODIFICAR: Agregar verificación de permisos al ABM Proveedores
                         var submenuAbm = new ToolStripMenuItem("ABM Proveedores", null, (s, e) =>
                         {
+                            // ✅ VERIFICAR PERMISOS
+                            if (AuthenticationService.SesionActual?.Usuario != null)
+                            {
+                                var usuario = AuthenticationService.SesionActual.Usuario;
+                                var permisos = ObtenerPermisosUsuario(usuario.Nivel);
+
+                                if (!permisos.ContainsKey("abm_proveedores") || !permisos["abm_proveedores"])
+                                {
+                                    MessageBox.Show(
+                                        "⚠️ ACCESO DENEGADO\n\n" +
+                                        "No tienes permisos para acceder al ABM de Proveedores.\n\n" +
+                                        "Contacta a un administrador si necesitas acceso.",
+                                        "Permisos Insuficientes",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Warning);
+                                    return;
+                                }
+                            }
+
                             // abrir como MDI child
                             foreach (Form f in this.MdiChildren)
                                 if (f is Comercio.NET.Formularios.ProveedoresForm) { f.Activate(); return; }
@@ -1103,7 +1244,7 @@ namespace Comercio.NET
                         })
                         { Name = "abmProveedoresToolStripMenuItem" };
 
-                        // Intentar detectar si ya existe el item top-level "compraProveedoresToolStripMenuItem"
+                        // ... resto del código existente (sin cambios)
                         ToolStripItem existingCompraItem = this.menuStrip.Items
                             .Cast<ToolStripItem>()
                             .FirstOrDefault(i =>
@@ -1111,17 +1252,15 @@ namespace Comercio.NET
                                 string.Equals(i.Text, "Compras Proveedores", StringComparison.OrdinalIgnoreCase) ||
                                 string.Equals(i.Text, "Compra Proveedores", StringComparison.OrdinalIgnoreCase));
 
-                        // Construir menú en el orden deseado
                         menu.DropDownItems.Add(submenuAbm);
                         menu.DropDownItems.Add(new ToolStripSeparator());
 
-                        // Preparar el item "Control Compras"
                         var submenuControlCompras = new ToolStripMenuItem("Control Compras", null, ControlComprasToolStripMenuItem_Click)
                         {
                             Name = "controlComprasToolStripMenuItem"
                         };
 
-                        // Item para CtaCte Proveedores
+                        // ✅ MODIFICAR: Item para CtaCte Proveedores con verificación
                         var submenuCtaCte = new ToolStripMenuItem("Cuenta Corriente Proveedores", null, CtaCteProveedoresToolStripMenuItem_Click)
                         {
                             Name = "ctaCteProveedoresToolStripMenuItem"
@@ -1150,7 +1289,6 @@ namespace Comercio.NET
                         menu.DropDownItems.Add(new ToolStripSeparator());
                         menu.DropDownItems.Add(submenuCtaCte);
 
-                        // ✅ MODIFICADO: Insertar "Proveedores" antes de "Ver" (viewMenu)
                         int insertIndex = -1;
                         if (menuStrip.Items.Contains(viewMenu))
                         {
@@ -1881,103 +2019,7 @@ namespace Comercio.NET
             return bitmap;
         }
 
-        // ✅ OPCIONAL: Método para actualizar visibilidad del botón según permisos
-        // Agrégalo dentro de ConfigurarMenuSegunPermisos():
-        private void ConfigurarMenuSegunPermisos()
-        {
-            // Verificar permisos del usuario actual para mostrar/ocultar opciones
-            if (AuthenticationService.SesionActual?.Usuario != null)
-            {
-                var usuario = AuthenticationService.SesionActual.Usuario;
-
-                // Solo mostrar gestión de usuarios si tiene permisos
-                bool puedeGestionarUsuarios = usuario.Nivel == Models.NivelUsuario.Administrador ||
-                                             usuario.PuedeGestionarUsuarios;
-
-                // CORREGIDO: Verificar que los controles existen antes de usarlos
-                if (gestionUsuariosToolStripMenuItem != null)
-                {
-                    gestionUsuariosToolStripMenuItem.Visible = puedeGestionarUsuarios;
-                }
-
-                if (toolStripGestionUsuarios != null)
-                {
-                    toolStripGestionUsuarios.Visible = puedeGestionarUsuarios;
-                }
-
-                // Solo mostrar configuración a administradores
-                bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
-
-                if (InformesToolStripMenuItem != null)
-                {
-                    InformesToolStripMenuItem.Visible = esAdministrador;
-                }
-
-                if (toolStripConfiguracion != null)
-                {
-                    toolStripConfiguracion.Visible = esAdministrador;
-                }
-
-                // ✅ NUEVO: Controlar visibilidad del menú Caja según permisos
-                bool puedeCerrarTurnos = usuario.Nivel == Models.NivelUsuario.Administrador ||
-                                        usuario.Nivel == Models.NivelUsuario.Supervisor;
-
-                // Menú Caja en menuStrip
-                var menuCaja = this.menuStrip?.Items
-                    .OfType<ToolStripMenuItem>()
-                    .FirstOrDefault(i => i.Name == "cajaToolStripMenuItem");
-
-                if (menuCaja != null)
-                {
-                    menuCaja.Visible = puedeCerrarTurnos;
-                }
-
-                // Botón Cierre Turno en toolbar
-                var btnCierreTurno = this.toolStrip?.Items
-                    .OfType<ToolStripButton>()
-                    .FirstOrDefault(b => b.Name == "toolStripCierreTurno");
-
-                if (btnCierreTurno != null)
-                {
-                    btnCierreTurno.Visible = puedeCerrarTurnos;
-                }
-            }
-            else
-            {
-                // Si no hay usuario logueado, ocultar opciones administrativas
-                if (gestionUsuariosToolStripMenuItem != null)
-                    gestionUsuariosToolStripMenuItem.Visible = false;
-                if (toolStripGestionUsuarios != null)
-                    toolStripGestionUsuarios.Visible = false;
-                if (InformesToolStripMenuItem != null)
-                    InformesToolStripMenuItem.Visible = false;
-                if (toolStripConfiguracion != null)
-                    toolStripConfiguracion.Visible = false;
-
-                // NUEVO: También ocultar cartelitos si no hay usuario
-                if (cartelitosToolStripMenuItem != null)
-                    cartelitosToolStripMenuItem.Visible = false;
-                if (toolStripCartelitos != null)
-                    toolStripCartelitos.Visible = false;
-
-                // ✅ NUEVO: Ocultar menú Caja si no hay sesión
-                var menuCaja = this.menuStrip?.Items
-                    .OfType<ToolStripMenuItem>()
-                    .FirstOrDefault(i => i.Name == "cajaToolStripMenuItem");
-
-                if (menuCaja != null)
-                    menuCaja.Visible = false;
-
-                // Ocultar botón toolbar
-                var btnCierreTurno = this.toolStrip?.Items
-                    .OfType<ToolStripButton>()
-                    .FirstOrDefault(b => b.Name == "toolStripCierreTurno");
-
-                if (btnCierreTurno != null)
-                    btnCierreTurno.Visible = false;
-            }
-        }
-
+        
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             // Atajo para Cierre de Turno: Ctrl+Shift+T
@@ -2069,6 +2111,26 @@ namespace Comercio.NET
         {
             try
             {
+                // ✅ VERIFICAR PERMISOS
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    var permisos = ObtenerPermisosUsuario(usuario.Nivel);
+
+                    // Verificar si tiene permiso de historial_cierres
+                    if (!permisos.ContainsKey("historial_cierres") || !permisos["historial_cierres"])
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para ver el historial de cierres.\n\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
                 // Verificar si ya está abierto
                 foreach (Form form in this.MdiChildren)
                 {
@@ -2354,6 +2416,240 @@ namespace Comercio.NET
                 MessageBox.Show($"Error al abrir gestión de ofertas: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // NUEVO: Método para abrir configuración de permisos
+        private void ConfiguracionPermisosToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar permisos de administrador
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    bool esAdministrador = usuario.Nivel == Models.NivelUsuario.Administrador;
+
+                    if (!esAdministrador)
+                    {
+                        MessageBox.Show("Solo los administradores pueden configurar permisos de perfiles.",
+                            "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // Verificar si ya está abierto
+                    foreach (Form form in this.MdiChildren)
+                    {
+                        if (form is ConfiguracionPermisosForm)
+                        {
+                            form.Activate();
+                            return;
+                        }
+                    }
+
+                    // Abrir formulario de configuración de permisos
+                    var configuracionPermisosForm = new ConfiguracionPermisosForm();
+                    configuracionPermisosForm.MdiParent = this;
+                    configuracionPermisosForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir configuración de permisos: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Modificar el método ConfigurarMenuSegunPermisos() para usar los permisos de la BD
+        private void ConfigurarMenuSegunPermisos()
+        {
+            if (AuthenticationService.SesionActual?.Usuario != null)
+            {
+                var usuario = AuthenticationService.SesionActual.Usuario;
+                var permisos = ObtenerPermisosUsuario(usuario.Nivel);
+
+                // Aplicar permisos a cada menú/funcionalidad
+                ConfigurarVisibilidadMenu("ventas", ventasToolStripMenuItem, printPreviewToolStripButton, permisos);
+                ConfigurarVisibilidadMenu("cartelitos", cartelitosToolStripMenuItem, toolStripCartelitos, permisos);
+                ConfigurarVisibilidadMenu("control_facturas", controlFacturasToolStripMenuItem, toolStripButton1, permisos);
+                ConfigurarVisibilidadMenu("gestion_usuarios", gestionUsuariosToolStripMenuItem, toolStripGestionUsuarios, permisos);
+
+                // ✅ MODIFICADO: Ya no hay botón en toolbar, solo menú
+                ConfigurarVisibilidadMenu("configuracion", null, null, permisos);
+
+                ConfigurarVisibilidadMenu("informes", InformesToolStripMenuItem, null, permisos);
+
+                // ✅ NUEVO: Configurar visibilidad de "Configuración General" en el menú
+                var menuConfiguracion = this.menuStrip?.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "configuracionToolStripMenuItem");
+
+                if (menuConfiguracion != null)
+                {
+                    var configGeneral = menuConfiguracion.DropDownItems
+                        .OfType<ToolStripMenuItem>()
+                        .FirstOrDefault(i => i.Name == "configuracionGeneralToolStripMenuItem");
+
+                    if (configGeneral != null)
+                        configGeneral.Visible = permisos.ContainsKey("configuracion") && permisos["configuracion"];
+                }
+
+                // Menús específicos
+                var menuCaja = this.menuStrip?.Items.OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "cajaToolStripMenuItem");
+                if (menuCaja != null)
+                    menuCaja.Visible = permisos.ContainsKey("apertura_caja") && permisos["apertura_caja"];
+
+                var menuProductos = this.menuStrip?.Items.OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "productosToolStripMenuItem");
+                if (menuProductos != null)
+                    menuProductos.Visible = permisos.ContainsKey("abm_productos") && permisos["abm_productos"];
+
+                // Configurar visibilidad del menú Proveedores
+                var menuProveedores = this.menuStrip?.Items.OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "proveedoresToolStripMenuItem");
+
+                if (menuProveedores != null)
+                {
+                    var abmProveedores = menuProveedores.DropDownItems
+                        .OfType<ToolStripMenuItem>()
+                        .FirstOrDefault(i => i.Name == "abmProveedoresToolStripMenuItem");
+
+                    var ctaCteProveedores = menuProveedores.DropDownItems
+                        .OfType<ToolStripMenuItem>()
+                        .FirstOrDefault(i => i.Name == "ctaCteProveedoresToolStripMenuItem");
+
+                    if (abmProveedores != null)
+                        abmProveedores.Visible = permisos.ContainsKey("abm_proveedores") && permisos["abm_proveedores"];
+
+                    if (ctaCteProveedores != null)
+                        ctaCteProveedores.Visible = permisos.ContainsKey("cta_cte_proveedores") && permisos["cta_cte_proveedores"];
+                }
+
+                // Configurar visibilidad de Historial de Cierres
+                var menuCajaItems = menuCaja?.DropDownItems.OfType<ToolStripMenuItem>();
+                var historialCierres = menuCajaItems?.FirstOrDefault(i => i.Name == "historialCierresToolStripMenuItem");
+
+                if (historialCierres != null)
+                    historialCierres.Visible = permisos.ContainsKey("historial_cierres") && permisos["historial_cierres"];
+            }
+        }
+
+        // Método auxiliar para obtener permisos del usuario
+        private Dictionary<string, bool> ObtenerPermisosUsuario(NivelUsuario nivel)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+                var permisos = new Dictionary<string, bool>();
+
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                var query = "SELECT CodigoFuncionalidad, Permitido FROM PermisosPerfiles WHERE NivelUsuario = @nivel";
+                using var cmd = new SqlCommand(query, connection);
+                cmd.Parameters.AddWithValue("@nivel", (int)nivel);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    permisos[reader.GetString(0)] = reader.GetBoolean(1);
+                }
+
+                return permisos;
+            }
+            catch
+            {
+                // Si falla, usar permisos predeterminados
+                return ObtenerPermisosPredeterminados(nivel);
+            }
+        }
+
+        private Dictionary<string, bool> ObtenerPermisosPredeterminados(NivelUsuario nivel)
+        {
+            // ✅ ADMINISTRADOR: Acceso completo a TODO
+            if (nivel == NivelUsuario.Administrador)
+            {
+                return new Dictionary<string, bool>
+                {
+                    ["ventas"] = true,
+                    ["cartelitos"] = true,
+                    ["control_facturas"] = true,
+                    ["gestion_usuarios"] = true,
+                    ["configuracion"] = true,
+                    ["informes"] = true,
+                    ["apertura_caja"] = true,
+                    ["abm_productos"] = true,
+                    ["actualizacion_rapida"] = true,
+                    ["actualizacion_masiva"] = true,
+                    ["actualizacion_excel"] = true,
+                    ["compras_proveedores"] = true,
+                    ["pagos_proveedores"] = true,
+                    ["ofertas_combos"] = true,
+                    ["cierre_turno"] = true,
+                    ["arqueo_caja"] = true,
+                    ["historial_cierres"] = true,
+                    ["abm_proveedores"] = true,
+                    ["control_compras"] = true,
+                    ["cta_cte_proveedores"] = true
+                };
+            }
+
+            // ✅ SUPERVISOR: Acceso intermedio
+            if (nivel == NivelUsuario.Supervisor)
+            {
+                return new Dictionary<string, bool>
+                {
+                    ["ventas"] = true,
+                    ["cartelitos"] = true,
+                    ["control_facturas"] = true,
+                    ["apertura_caja"] = true,
+                    ["cierre_turno"] = true,
+                    ["arqueo_caja"] = true,
+                    ["historial_cierres"] = true,
+                    ["abm_productos"] = true,
+                    ["actualizacion_rapida"] = true,
+                    ["compras_proveedores"] = true,
+                    ["informes"] = true
+                };
+            }
+
+            // ✅ VENDEDOR: Acceso básico
+            if (nivel == NivelUsuario.Vendedor)
+            {
+                return new Dictionary<string, bool>
+                {
+                    ["ventas"] = true,
+                    ["cartelitos"] = true,
+                    ["apertura_caja"] = true,
+                    ["actualizacion_rapida"] = true,
+                    ["compras_proveedores"] = true,
+                    ["pagos_proveedores"] = true
+                };
+            }
+
+            // ✅ INVITADO: Sin acceso (diccionario vacío)
+            return new Dictionary<string, bool>();
+        }
+
+        private void ConfigurarVisibilidadMenu(string codigoPermiso, ToolStripMenuItem menuItem, ToolStripButton toolButton, Dictionary<string, bool> permisos)
+        {
+            bool permitido = permisos.ContainsKey(codigoPermiso) && permisos[codigoPermiso];
+
+            if (menuItem != null)
+                menuItem.Visible = permitido;
+            
+            if (toolButton != null)
+                toolButton.Visible = permitido;
         }
     }
 }
