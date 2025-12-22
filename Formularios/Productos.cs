@@ -202,9 +202,6 @@ namespace Comercio.NET.Formularios
                 CrearBotonActualizacionRapida();
                 CrearBotonActualizacionMasiva();
 
-                // ✅ AGREGAR esta línea:
-                CrearBotonActualizarDesdeExcel();
-
                 // Cargar productos
                 await CargarProductosAsync();
                 
@@ -1285,50 +1282,6 @@ namespace Comercio.NET.Formularios
                 System.Diagnostics.Debug.WriteLine($"Error limpiando cache: {ex.Message}");
             }
         }
-
         #endregion
-
-        // ✅ AGREGAR en el formulario de ABM Productos
-        private void CrearBotonActualizarDesdeExcel()
-        {
-            // Crear botón para actualización desde Excel
-            var btnActualizarDesdeExcel = new Button
-            {
-                Text = "📊 Actualizar desde Excel",
-                Location = new Point(790, 69), // ✅ Posición debajo del botón de Actualización Masiva
-                Size = new Size(180, 25), // Tamaño compacto
-                BackColor = Color.FromArgb(0, 150, 136), // Verde azulado para diferenciarlo
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right // Anclado a la derecha
-            };
-            btnActualizarDesdeExcel.FlatAppearance.BorderSize = 0;
-            btnActualizarDesdeExcel.Click += BtnActualizarDesdeExcel_Click;
-
-            this.Controls.Add(btnActualizarDesdeExcel);
-            btnActualizarDesdeExcel.BringToFront();
-        }
-
-        private void BtnActualizarDesdeExcel_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                using (var form = new ActualizacionExcelForm())
-                {
-                    if (form.ShowDialog(this) == DialogResult.OK)
-                    {
-                        // Recargar grilla de productos después de cerrar el formulario
-                        _ = CargarProductosAsync();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al abrir actualización desde Excel: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
     }
 }

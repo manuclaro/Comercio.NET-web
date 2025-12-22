@@ -70,13 +70,14 @@
     "OpcionesDisponibles": [
       5,
       10,
-      15,
-      20
+      12,
+      25
     ],
-    "PorcentajeMaximo": 20,
+    "PorcentajeMaximo": 25,
     "RestringirPorMetodoPago": true,
     "MetodosPagoPermitidos": [
-      "Efectivo"
+      "Efectivo",
+      "DNI"
     ]
   }
 }

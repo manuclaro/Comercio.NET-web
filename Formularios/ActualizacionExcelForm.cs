@@ -364,23 +364,44 @@ namespace Comercio.NET.Formularios
 
                 dtPrevia = await GenerarTablaPreviaAsync(dtExcel);
 
-                // 🔹 NUEVO: Filtrar productos "SIN CAMBIOS" antes de mostrar
-                var dtPreviaFiltrada = dtPrevia.AsEnumerable()
-                    .Where(r => r["Accion"].ToString() != "SIN CAMBIOS")
-                    .CopyToDataTable();
+                // ✅ CORRECCIÓN: Verificar si hay registros después del filtro
+                var registrosFiltrados = dtPrevia.AsEnumerable()
+                    .Where(r => r["Accion"].ToString() != "SIN CAMBIOS");
 
-                // Ordenar por Estado antes de mostrar
-                DataView dv = dtPreviaFiltrada.DefaultView;
-                dv.Sort = "Estado ASC";
-                var dtFinal = dv.ToTable();
+                DataTable dtFinal;
+
+                if (registrosFiltrados.Any())
+                {
+                    // Hay registros para mostrar
+                    var dtPreviaFiltrada = registrosFiltrados.CopyToDataTable();
+
+                    // Ordenar por Estado antes de mostrar
+                    DataView dv = dtPreviaFiltrada.DefaultView;
+                    dv.Sort = "Estado ASC";
+                    dtFinal = dv.ToTable();
+                }
+                else
+                {
+                    // No hay registros para actualizar - crear tabla vacía con estructura
+                    dtFinal = dtPrevia.Clone(); // Clona la estructura sin datos
+                }
 
                 dgvPrevia.DataSource = dtFinal;
                 FormatearDataGridView();
 
                 ActualizarContadores();
 
-                btnAplicarCambios.Enabled = true;
-                lblEstado.Text = $"✅ Vista previa generada: {dtFinal.Rows.Count} productos requieren acción.";
+                btnAplicarCambios.Enabled = dtFinal.Rows.Count > 0; // Solo habilitar si hay cambios
+
+                if (dtFinal.Rows.Count == 0)
+                {
+                    lblEstado.Text = "✅ Vista previa generada: No hay productos para actualizar. Todos los precios coinciden.";
+                }
+                else
+                {
+                    lblEstado.Text = $"✅ Vista previa generada: {dtFinal.Rows.Count} productos requieren acción.";
+                }
+
                 progressBar.Visible = false;
             }
             catch (IOException ioEx) when (ioEx.Message.Contains("being used by another process"))
@@ -561,8 +582,8 @@ namespace Comercio.NET.Formularios
                                 decimal porcentajeActual = reader["Porcentaje"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["Porcentaje"]);
                                 decimal precioActual = reader["Precio"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["Precio"]);
 
-                                // Verificar si hay cambios en el precio
-                                bool hayCambios = (precioNuevo != precioActual);
+                                // ✅ CORRECCIÓN: Redondear a 2 decimales antes de comparar
+                                bool hayCambios = Math.Round(precioNuevo, 2) != Math.Round(precioActual, 2);
 
                                 string accion;
                                 string estado;
@@ -865,7 +886,7 @@ namespace Comercio.NET.Formularios
             decimal porcentajeAnterior = Convert.ToDecimal(row["Porcentaje_Actual"]);
             decimal precioAnterior = Convert.ToDecimal(row["Precio_Actual"]);
 
-            // 🔹 CORRECCIÓN: Eliminar FechaModificacion
+            // ✅ CORRECCIÓN: Actualizar COSTO, PORCENTAJE y PRECIO
             var queryUpdate = @"
         UPDATE Productos 
         SET Costo = @Costo, 
@@ -925,10 +946,18 @@ namespace Comercio.NET.Formularios
                 ? rowExcel["proveedor"]?.ToString()?.Trim() ?? ""
                 : "";
 
-            // 🔹 CORRECCIÓN: Eliminar FechaCreacion
+            // ✅ CORRECCIÓN: Agregar campos por defecto (PermiteAcumular, EditarPrecio, cantidad)
             var queryInsert = @"
-                INSERT INTO Productos (Codigo, Descripcion, Costo, Porcentaje, Precio, Marca, Rubro, Proveedor)
-                VALUES (@Codigo, @Descripcion, @Costo, @Porcentaje, @Precio, @Marca, @Rubro, @Proveedor)";
+        INSERT INTO Productos (
+            Codigo, Descripcion, Costo, Porcentaje, Precio, 
+            Marca, Rubro, Proveedor, 
+            PermiteAcumular, EditarPrecio, cantidad
+        )
+        VALUES (
+            @Codigo, @Descripcion, @Costo, @Porcentaje, @Precio, 
+            @Marca, @Rubro, @Proveedor, 
+            @PermiteAcumular, @EditarPrecio, @Cantidad
+        )";
 
             using (var cmd = new SqlCommand(queryInsert, connection))
             {
@@ -940,6 +969,11 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@Marca", string.IsNullOrEmpty(marca) ? (object)DBNull.Value : marca);
                 cmd.Parameters.AddWithValue("@Rubro", string.IsNullOrEmpty(rubro) ? (object)DBNull.Value : rubro);
                 cmd.Parameters.AddWithValue("@Proveedor", string.IsNullOrEmpty(proveedor) ? (object)DBNull.Value : proveedor);
+
+                // ✅ NUEVOS: Valores por defecto para productos nuevos
+                cmd.Parameters.AddWithValue("@PermiteAcumular", 1);  // Permite acumular = true
+                cmd.Parameters.AddWithValue("@EditarPrecio", 0);     // Editar precio = false
+                cmd.Parameters.AddWithValue("@Cantidad", 0);         // Stock inicial = 0
 
                 await cmd.ExecuteNonQueryAsync();
             }
