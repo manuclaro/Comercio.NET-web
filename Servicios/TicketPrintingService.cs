@@ -67,7 +67,7 @@ namespace Comercio.NET.Servicios
 
         private void ConfigurarTamañoTicket()
         {
-            int anchoTicket = (int)(80 / 25.4 * 100);
+            int anchoTicket = (int)(70 / 25.4 * 100);
             int altoTicket = (int)(200 / 25.4 * 100);
 
             PaperSize ticketSize = new PaperSize("Ticket", anchoTicket, altoTicket);
