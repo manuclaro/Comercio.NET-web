@@ -328,19 +328,19 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(25, 118, 210)
             };
 
-            // GroupBox para tamaños (altura aumentada para permitir texto multilínea)
+            // GroupBox para tamaños - ✅ AUMENTADO para 4 opciones
             gbTamañosCartel = new GroupBox
             {
                 Text = "Tamaño del cartelito",
                 Location = new Point(10, 45),
-                Size = new Size(320, 180),
+                Size = new Size(320, 220), // ✅ AUMENTADO de 180 a 220
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
 
-            // RadioButtons para tamaños - AutoSize desactivado y mayor altura para permitir wrap
+            // RadioButtons para tamaños
             rbTamañoEstandar = new RadioButton
             {
-                Text = "Estándar (7x5 cm)\r\nProductos generales",
+                Text = "Estándar (7x5 cm)\r\nProductos generales - A4",
                 Location = new Point(15, 25),
                 Size = new Size(290, 42),
                 AutoSize = false,
@@ -351,7 +351,7 @@ namespace Comercio.NET.Formularios
 
             rbTamañoPerfumeria = new RadioButton
             {
-                Text = "Perfumería (5x3 cm)\r\nProductos pequeños",
+                Text = "Perfumería (5x3 cm)\r\nProductos pequeños - A4",
                 Location = new Point(15, 70),
                 Size = new Size(290, 42),
                 AutoSize = false,
@@ -361,7 +361,7 @@ namespace Comercio.NET.Formularios
 
             rbTamañoOferta = new RadioButton
             {
-                Text = "Oferta (10x7 cm)\r\nProductos destacados",
+                Text = "Oferta (10x7 cm)\r\nProductos destacados - A4",
                 Location = new Point(15, 115),
                 Size = new Size(290, 42),
                 AutoSize = false,
@@ -369,15 +369,31 @@ namespace Comercio.NET.Formularios
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
+            // ✅ NUEVO: RadioButton para impresora térmica
+            var rbTamañoTermico = new RadioButton
+            {
+                Name = "rbTamañoTermico",
+                Text = "🖨️ Térmico 70mm\r\nImpresora térmica POS",
+                Location = new Point(15, 160),
+                Size = new Size(290, 42),
+                AutoSize = false,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = Color.FromArgb(204, 102, 0) // Color naranja para destacar
+            };
+
             gbTamañosCartel.Controls.AddRange(new Control[] {
-        rbTamañoEstandar, rbTamañoPerfumeria, rbTamañoOferta
+        rbTamañoEstandar,
+        rbTamañoPerfumeria,
+        rbTamañoOferta,
+        rbTamañoTermico // ✅ NUEVO
     });
 
-            // Botones de acción (posición ajustada)
+            // Botones de acción - ✅ AJUSTADA POSICIÓN
             btnEliminarSeleccionado = new Button
             {
                 Text = "Eliminar\nSeleccionado",
-                Location = new Point(15, 270),
+                Location = new Point(15, 275), // ✅ AJUSTADO de 270 a 275
                 Size = new Size(90, 50),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
@@ -389,7 +405,7 @@ namespace Comercio.NET.Formularios
             btnLimpiarLista = new Button
             {
                 Text = "Limpiar\nTodo",
-                Location = new Point(115, 270),
+                Location = new Point(115, 275), // ✅ AJUSTADO
                 Size = new Size(90, 50),
                 BackColor = Color.FromArgb(255, 193, 7),
                 ForeColor = Color.Black,
@@ -401,7 +417,7 @@ namespace Comercio.NET.Formularios
             btnVistaPrevia = new Button
             {
                 Text = "Vista\nPrevia",
-                Location = new Point(215, 270),
+                Location = new Point(215, 275), // ✅ AJUSTADO
                 Size = new Size(90, 50),
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
@@ -412,10 +428,11 @@ namespace Comercio.NET.Formularios
 
             panel.Controls.AddRange(new Control[] {
             lblTitulo, gbTamañosCartel, btnEliminarSeleccionado, btnLimpiarLista, btnVistaPrevia
-        });
+            });
 
             return panel;
         }
+    
 
         private Panel CrearPanelInferior()
         {
@@ -769,6 +786,14 @@ namespace Comercio.NET.Formularios
 
         private TamañoCartelito ObtenerTamañoSeleccionado()
         {
+            // ✅ NUEVO: Verificar opción térmica primero
+            var rbTermico = gbTamañosCartel?.Controls.Find("rbTamañoTermico", true).FirstOrDefault() as RadioButton;
+            if (rbTermico?.Checked == true)
+            {
+                System.Diagnostics.Debug.WriteLine("[CARTELITOS] ✅ Seleccionado: Térmico 70mm");
+                return TamañoCartelito.Termico70mm;
+            }
+
             if (rbTamañoPerfumeria.Checked)
                 return TamañoCartelito.Perfumeria;
             else if (rbTamañoOferta.Checked)
@@ -840,6 +865,7 @@ namespace Comercio.NET.Formularios
     {
         Estandar,   // 7x5 cm
         Perfumeria, // 5x3 cm  
-        Oferta      // 10x7 cm
+        Oferta,     // 10x7 cm (A4)
+        Termico70mm // ✅ NUEVO: 70mm papel térmico
     }
 }
