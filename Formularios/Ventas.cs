@@ -2680,8 +2680,7 @@ namespace Comercio.NET
                     {
                         ofertaAplicable.PrecioOferta = precioProrrateadoPreexistente;
                     }
-                    else
-                    {
+                    7790064001701                    {
                         ofertaAplicable.PrecioOferta = Convert.ToDecimal(producto["precio"]);
                     }
                 }
