@@ -1511,11 +1511,13 @@ namespace Comercio.NET
             if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
             {
                 // Código especial de balanza
-                string codigoProducto = textoIngresado.Substring(2, 5);
+                // ✅ CORREGIDO: Extraer desde posición 0 para incluir el "50"
+                string codigoProducto = textoIngresado.Substring(0, 7); // Posiciones 0-6 = "50" + 5 dígitos
                 codigoProducto = codigoProducto.TrimStart('0');
                 if (string.IsNullOrEmpty(codigoProducto))
                     codigoProducto = "0";
 
+                // El precio sigue estando en las posiciones 7-11
                 string parteEntera = textoIngresado.Substring(7, 5);
                 decimal precio = decimal.Parse(parteEntera);
 
@@ -2441,9 +2443,6 @@ namespace Comercio.NET
         private async void btnAgregar_Click(object sender, EventArgs e)
         {
             string textoIngresado = txtBuscarProducto.Text.Trim();
-            string codigoBuscado = textoIngresado;
-            bool esCodigoTemporal = false;
-            bool esCodigoEspecial = false;
 
             if (string.IsNullOrEmpty(textoIngresado))
             {
@@ -2452,37 +2451,12 @@ namespace Comercio.NET
                 return;
             }
 
-            // NUEVO: Procesar código especial también en btnAgregar_Click
-            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
-            {
-                try
-                {
-                    string codigoProducto = textoIngresado.Substring(2, 5);
-                    codigoProducto = codigoProducto.TrimStart('0');
-                    if (string.IsNullOrEmpty(codigoProducto))
-                        codigoProducto = "0";
+            var resultadoCodigo = ProcesarCodigo(textoIngresado);
+            string codigoBuscado = resultadoCodigo.codigoBuscado;
+            decimal? precioPersonalizado = resultadoCodigo.precioPersonalizado; // ✅ Precio del código de barras
+            bool esCodigoEspecial = resultadoCodigo.esEspecial;
 
-                    codigoBuscado = codigoProducto;
-                    esCodigoEspecial = true;
-                }
-                catch
-                {
-                    MessageBox.Show("Error procesando código especial.");
-                    txtBuscarProducto.Focus();
-                    return;
-                }
-            }
-            else if (textoIngresado.Length == 8)
-            {
-                codigoBuscado = textoIngresado;
-                esCodigoTemporal = true;
-            }
-            else
-            {
-                codigoBuscado = codigoBuscado.TrimStart('0');
-                if (string.IsNullOrEmpty(codigoBuscado))
-                    codigoBuscado = "0";
-            }
+            bool esCodigoTemporal = textoIngresado.Length == 8;
 
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -2502,29 +2476,15 @@ namespace Comercio.NET
                     adapter.Fill(dt);
                     if (dt.Rows.Count == 0)
                     {
-                        var resultado = MessageBox.Show(
+                        var resultadoMsg = MessageBox.Show(
                             $"El producto con código '{codigoBuscado}' no existe.\n\n" +
                             "¿Desea agregarlo ahora para continuar con la venta?",
                             "Producto no encontrado",
                             MessageBoxButtons.YesNo,
                             MessageBoxIcon.Question);
 
-                        if (resultado == DialogResult.Yes)
+                        if (resultadoMsg == DialogResult.Yes)
                         {
-                            decimal? precioPersonalizado = null;
-                            if (esCodigoEspecial)
-                            {
-                                try
-                                {
-                                    string parteEntera = textoIngresado.Substring(7, 5);
-                                    int parteEnteraNumero = int.Parse(parteEntera);
-                                    precioPersonalizado = parteEnteraNumero;
-                                }
-                                catch
-                                {
-                                }
-                            }
-
                             await AbrirFormularioAgregarProductoRapido(codigoBuscado, precioPersonalizado);
                             return;
                         }
@@ -2543,7 +2503,7 @@ namespace Comercio.NET
 
             if (permiteAcumular && validarStockHabilitado && stockDisponible < cantidadPersonalizada)
             {
-                var resultado = MessageBox.Show(
+                var resultadoStock = MessageBox.Show(
                     $"ADVERTENCIA: Stock insuficiente\n\n" +
                     $"Producto: {producto["descripcion"]}\n" +
                     $"Stock disponible: {stockDisponible}\n" +
@@ -2554,7 +2514,7 @@ namespace Comercio.NET
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning);
 
-                if (resultado != DialogResult.Yes)
+                if (resultadoStock != DialogResult.Yes)
                 {
                     txtBuscarProducto.Focus();
                     return;
@@ -2590,23 +2550,36 @@ namespace Comercio.NET
                 remitoIncrementado = true;
             }
 
-            // ✅✅✅ CRÍTICO: Determinar el precio a usar
+            // ✅✅✅ CRÍTICO: Determinar el precio a usar - MODIFICADO
             decimal precioUnitario;
             bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
 
-            // ✅ NUEVO: Si el producto permite editar precio Y hay un precio válido en txtPrecio, usarlo
-            if (editarPrecio && !string.IsNullOrWhiteSpace(txtPrecio.Text))
+            // ✅✅✅ PRIORIDAD 1: Si viene de un código especial (balanza), usar ese precio SIEMPRE
+            if (precioPersonalizado.HasValue && precioPersonalizado.Value > 0)
+            {
+                precioUnitario = precioPersonalizado.Value;
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"✅ PRECIO DE BALANZA APLICADO:\n" +
+                    $"   Producto: {producto["descripcion"]}\n" +
+                    $"   Código escaneado: {textoIngresado}\n" +
+                    $"   Precio BD: {Convert.ToDecimal(producto["precio"]):C2}\n" +
+                    $"   Precio balanza: {precioUnitario:C2}");
+            }
+            // ✅ PRIORIDAD 2: Si el producto permite editar precio Y hay un precio válido en txtPrecio
+            else if (editarPrecio && !string.IsNullOrWhiteSpace(txtPrecio.Text))
             {
                 if (decimal.TryParse(txtPrecio.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioManual))
                 {
                     precioUnitario = precioManual;
+
                     System.Diagnostics.Debug.WriteLine(
                         $"✅ PRECIO MANUAL APLICADO:\n" +
                         $"   Producto: {producto["descripcion"]}\n" +
                         $"   Precio BD: {Convert.ToDecimal(producto["precio"]):C2}\n" +
                         $"   Precio manual: {precioUnitario:C2}");
 
-                    // ✅✅✅ NUEVO: Guardar el precio manual en la BD para la próxima vez
+                    // Guardar el precio manual en la BD para la próxima vez
                     decimal precioOriginalBD = Convert.ToDecimal(producto["precio"]);
                     if (Math.Abs(precioManual - precioOriginalBD) > 0.01m)
                     {
@@ -2625,19 +2598,19 @@ namespace Comercio.NET
                     System.Diagnostics.Debug.WriteLine($"⚠️ No se pudo parsear txtPrecio, usando precio BD: {precioUnitario:C2}");
                 }
             }
+            // ✅ PRIORIDAD 3: Usar precio de la BD
             else
             {
-                // Si no permite editar o txtPrecio está vacío, usar precio de la BD
                 precioUnitario = Convert.ToDecimal(producto["precio"]);
                 System.Diagnostics.Debug.WriteLine($"📋 Usando precio de BD: {precioUnitario:C2}");
             }
 
             // ✅ PASO 1: Verificar si el producto tiene oferta activa
-            // ⚠️ IMPORTANTE: Las ofertas SOLO se aplican si NO se modificó el precio manualmente
+            // ⚠️ IMPORTANTE: Las ofertas SOLO se aplican si NO viene de balanza ni se modificó manualmente
             var ofertaAplicable = await BuscarOfertaAplicable(codigoBuscado, cantidadPersonalizada);
 
-            // ✅✅✅ CRÍTICO: Aplicar precio de oferta SOLO si NO se modificó manualmente el precio
-            if (!editarPrecio || string.IsNullOrWhiteSpace(txtPrecio.Text))
+            // ✅✅✅ CRÍTICO: Aplicar precio de oferta SOLO si NO es código de balanza ni precio manual
+            if (!precioPersonalizado.HasValue && (!editarPrecio || string.IsNullOrWhiteSpace(txtPrecio.Text)))
             {
                 if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
                 {
@@ -2654,7 +2627,7 @@ namespace Comercio.NET
                     }
                 }
 
-                // ✅ PASO 2: Si es un Combo, verificar si ya está completo en la venta actual
+                // Verificar combos...
                 if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
                 {
                     bool comboYaCompleto = false;
@@ -2703,11 +2676,6 @@ namespace Comercio.NET
                         }
                     }
 
-                    System.Diagnostics.Debug.WriteLine(
-                        $"⚠️ COMBO DETECTADO - ¿Ya completo?: {comboYaCompleto}\n" +
-                        $"   Producto: {producto["descripcion"]}\n" +
-                        $"   Cantidad a agregar: {cantidadPersonalizada}");
-
                     if (comboYaCompleto)
                     {
                         ofertaAplicable.PrecioOferta = precioProrrateadoPreexistente;
@@ -2715,17 +2683,16 @@ namespace Comercio.NET
                     else
                     {
                         ofertaAplicable.PrecioOferta = Convert.ToDecimal(producto["precio"]);
-                        System.Diagnostics.Debug.WriteLine(
-                            $"⚠️ COMBO INCOMPLETO - Usando precio normal: {ofertaAplicable.PrecioOferta:C2}");
                     }
                 }
             }
             else
             {
-                // ✅ NUEVO: Si se modificó manualmente el precio, anular la oferta
+                // ✅ NUEVO: Si es código de balanza o precio manual, anular la oferta
                 ofertaAplicable = null;
                 System.Diagnostics.Debug.WriteLine(
-                    $"⚠️ PRECIO MANUAL DETECTADO - Ofertas desactivadas\n" +
+                    $"⚠️ PRECIO ESPECIAL DETECTADO - Ofertas desactivadas\n" +
+                    $"   Tipo: {(precioPersonalizado.HasValue ? "Balanza" : "Manual")}\n" +
                     $"   Precio usado: {precioUnitario:C2}");
             }
 

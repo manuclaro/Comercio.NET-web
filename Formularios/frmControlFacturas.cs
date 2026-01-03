@@ -937,19 +937,19 @@ namespace Comercio.NET.Formularios
         // CORREGIR: Método de carga con conversión de datos numéricos
         private void CargarVentasPorFecha(DateTime desde, DateTime hasta)
         {
-    try
-    {
-        var config = new ConfigurationBuilder()
-            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-            .AddJsonFile("appsettings.json")
-            .Build();
-        string connectionString = config.GetConnectionString("DefaultConnection");
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
 
-        using (var connection = new SqlConnection(connectionString))
-        {
-            // ✅ MODIFICADO: Cambiar ImporteTotal por ImporteFinal y agregar columnas de descuento
-            var query = chkCtaCte.Checked
-                ? @"SELECT 
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    // ✅ MODIFICADO: Remover columnas CUITCliente y Rubro
+                    var query = chkCtaCte.Checked
+                        ? @"SELECT 
                     f.NumeroRemito as 'Remito',
                     f.NroFactura as 'N° Factura',
                     CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
@@ -963,17 +963,12 @@ namespace Comercio.NET.Formularios
                     ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
                     ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
                     f.CAENumero as 'CAE',
-                    f.CtaCteNombre as 'Cta. Cte. Nombre',
-                    (SELECT TOP 1 ISNULL(p.rubro, 'Sin rubro')
-                     FROM Ventas v 
-                     INNER JOIN Productos p ON v.codigo = p.codigo
-                     WHERE v.NroFactura = f.NumeroRemito
-                    ) as 'Rubro'
+                    f.CtaCteNombre as 'Cta. Cte. Nombre'
                 FROM Facturas f
                 WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
                 AND f.esCtaCte = @esCtaCte
                 ORDER BY f.NumeroRemito DESC"
-                : @"SELECT 
+                        : @"SELECT 
                     f.NumeroRemito as 'Remito',
                     f.NroFactura as 'N° Factura',
                     CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
@@ -986,70 +981,64 @@ namespace Comercio.NET.Formularios
                     f.Hora as 'Hora',
                     ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
                     ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
-                    f.CAENumero as 'CAE',
-                    f.CUITCliente as 'CUIT Cliente',
-                    (SELECT TOP 1 ISNULL(p.rubro, 'Sin rubro')
-                     FROM Ventas v 
-                     INNER JOIN Productos p ON v.codigo = p.codigo
-                     WHERE v.NroFactura = f.NumeroRemito
-                    ) as 'Rubro'
+                    f.CAENumero as 'CAE'
                 FROM Facturas f
                 WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
                 AND f.esCtaCte = @esCtaCte
                 ORDER BY f.NumeroRemito DESC";
 
-            using (var adapter = new SqlDataAdapter(query, connection))
-            {
-                adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
-                adapter.SelectCommand.Parameters.AddWithValue("@hasta", hasta.Date);
-                adapter.SelectCommand.Parameters.AddWithValue("@esCtaCte", chkCtaCte.Checked);
-                DataTable dt = new DataTable();
-                adapter.Fill(dt);
-
-                // Eliminar filas completamente vacías
-                for (int i = dt.Rows.Count - 1; i >= 0; i--)
-                {
-                    var row = dt.Rows[i];
-                    bool empty = true;
-                    foreach (var cell in row.ItemArray)
+                    using (var adapter = new SqlDataAdapter(query, connection))
                     {
-                        if (cell != DBNull.Value && !string.IsNullOrWhiteSpace(cell?.ToString()))
+                        adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
+                        adapter.SelectCommand.Parameters.AddWithValue("@hasta", hasta.Date);
+                        adapter.SelectCommand.Parameters.AddWithValue("@esCtaCte", chkCtaCte.Checked);
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+
+                        // Eliminar filas completamente vacías
+                        for (int i = dt.Rows.Count - 1; i >= 0; i--)
                         {
-                            empty = false;
-                            break;
+                            var row = dt.Rows[i];
+                            bool empty = true;
+                            foreach (var cell in row.ItemArray)
+                            {
+                                if (cell != DBNull.Value && !string.IsNullOrWhiteSpace(cell?.ToString()))
+                                {
+                                    empty = false;
+                                    break;
+                                }
+                            }
+                            if (empty)
+                                dt.Rows.RemoveAt(i);
+                        }
+
+                        dgvVentas.DataSource = dt;
+                        FormatearColumnas();
+
+                        CargarFormasDePago();
+                        CargarTiposFactura();
+                        CargarRubros();
+
+                        if (!string.IsNullOrEmpty(txtFiltroCajero.Text) ||
+                            (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text)) ||
+                            (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas"))
+                        {
+                            AplicarFiltros();
+                        }
+                        else
+                        {
+                            ActualizarResumen(dt);
+                            ActualizarTituloConFiltros(0, dt.Rows.Count, dt.Rows.Count);
                         }
                     }
-                    if (empty)
-                        dt.Rows.RemoveAt(i);
-                }
-
-                dgvVentas.DataSource = dt;
-                FormatearColumnas();
-
-                CargarFormasDePago();
-                CargarTiposFactura();
-                CargarRubros();
-
-                if (!string.IsNullOrEmpty(txtFiltroCajero.Text) ||
-                    (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text)) ||
-                    (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas"))
-                {
-                    AplicarFiltros();
-                }
-                else
-                {
-                    ActualizarResumen(dt);
-                    ActualizarTituloConFiltros(0, dt.Rows.Count, dt.Rows.Count);
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al cargar las ventas: {ex.Message}\n\nDetalles: {ex.ToString()}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        MessageBox.Show($"Error al cargar las ventas: {ex.Message}\n\nDetalles: {ex.ToString()}", "Error",
-            MessageBoxButtons.OK, MessageBoxIcon.Error);
-    }
-}
 
         // MODIFICAR: Event handler para el checkbox
         private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
@@ -2075,15 +2064,6 @@ namespace Comercio.NET.Formularios
                     tipoFacturaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                var rubroCol = dgvVentas.Columns["Rubro"];
-                if (rubroCol != null)
-                {
-                    rubroCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    rubroCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    rubroCol.FillWeight = 80;
-                    rubroCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-
                 var caeCol = dgvVentas.Columns["CAE"];
                 if (caeCol != null)
                 {
@@ -2091,16 +2071,6 @@ namespace Comercio.NET.Formularios
                     caeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                     caeCol.FillWeight = 100;
                     caeCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-
-                var cuitCol = dgvVentas.Columns["CUIT Cliente"];
-                if (cuitCol != null)
-                {
-                    cuitCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    cuitCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    cuitCol.FillWeight = 100;
-                    cuitCol.HeaderText = "CUIT Cte";
-                    cuitCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var ctaCteCol = dgvVentas.Columns["Cta. Cte. Nombre"];
