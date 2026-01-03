@@ -461,15 +461,17 @@ namespace Comercio.NET
                 {
                     try
                     {
-                        // ✅ PASO 1: Obtener información completa del producto
+                        // ✅ PASO 1: Obtener información completa del producto Y cantidad actual
                         string codigo = "";
+                        string descripcion = "";
+                        int cantidadActual = 0;
                         decimal precioOriginal = 0m;
 
                         var queryObtenerDatos = @"
-    SELECT v.codigo, p.precio as precio_producto 
-    FROM Ventas v
-    INNER JOIN Productos p ON v.codigo = p.codigo
-    WHERE v.id = @idVenta";
+                    SELECT v.codigo, v.descripcion, v.cantidad, p.precio as precio_producto 
+                    FROM Ventas v
+                    INNER JOIN Productos p ON v.codigo = p.codigo
+                    WHERE v.id = @idVenta";
 
                         using (var cmd = new SqlCommand(queryObtenerDatos, connection, transaction))
                         {
@@ -480,6 +482,8 @@ namespace Comercio.NET
                                 if (await reader.ReadAsync())
                                 {
                                     codigo = reader["codigo"].ToString();
+                                    descripcion = reader["descripcion"].ToString();
+                                    cantidadActual = Convert.ToInt32(reader["cantidad"]);
                                     precioOriginal = Convert.ToDecimal(reader["precio_producto"]);
                                 }
                             }
@@ -488,6 +492,56 @@ namespace Comercio.NET
                         if (string.IsNullOrEmpty(codigo))
                         {
                             throw new Exception("No se pudo obtener el código del producto.");
+                        }
+
+                        // ✅✅✅ NUEVO: Si se reduce la cantidad, registrar en auditoría
+                        if (nuevaCantidad < cantidadActual)
+                        {
+                            int cantidadEliminada = cantidadActual - nuevaCantidad;
+                            string usuario = ObtenerUsuarioActual();
+                            int numeroCajero = obtenerNumeroCajero();
+
+                            string queryAuditoria = @"
+                        INSERT INTO AuditoriaProductosEliminados 
+                            (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+                             TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+                             MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+                             NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
+                        VALUES 
+                            (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
+                             @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+                             @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
+                             @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+
+                            using (var cmdAudit = new SqlCommand(queryAuditoria, connection, transaction))
+                            {
+                                cmdAudit.Parameters.AddWithValue("@CodigoProducto", codigo);
+                                cmdAudit.Parameters.AddWithValue("@DescripcionProducto", descripcion);
+                                cmdAudit.Parameters.AddWithValue("@PrecioUnitario", precio);
+                                cmdAudit.Parameters.AddWithValue("@Cantidad", cantidadEliminada);
+                                cmdAudit.Parameters.AddWithValue("@TotalEliminado", precio * cantidadEliminada);
+                                cmdAudit.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                                cmdAudit.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
+                                cmdAudit.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+                                cmdAudit.Parameters.AddWithValue("@MotivoEliminacion", "REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL");
+                                cmdAudit.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte?.Checked ?? false);
+                                cmdAudit.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
+                                cmdAudit.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
+                                cmdAudit.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                                cmdAudit.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                                cmdAudit.Parameters.AddWithValue("@EsEliminacionCompleta", false); // ✅ SIEMPRE false porque es reducción
+                                cmdAudit.Parameters.AddWithValue("@CantidadOriginal", cantidadActual);
+
+                                await cmdAudit.ExecuteNonQueryAsync();
+
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"📝 AUDITORÍA REGISTRADA - Reducción de cantidad:\n" +
+                                    $"   Producto: {descripcion} ({codigo})\n" +
+                                    $"   Cantidad original: {cantidadActual}\n" +
+                                    $"   Cantidad eliminada: {cantidadEliminada}\n" +
+                                    $"   Cantidad nueva: {nuevaCantidad}\n" +
+                                    $"   Usuario: {usuario}");
+                            }
                         }
 
                         // ✅ PASO 2: Verificar si hay oferta para la nueva cantidad
@@ -515,8 +569,8 @@ namespace Comercio.NET
                                     oferta.Id,
                                     codigo,
                                     oferta.PrecioCombo,
-                                    connection,      // ✅ AGREGAR AQUÍ
-                                    transaction);    // ✅ AGREGAR AQUÍ
+                                    connection,
+                                    transaction);
 
                                 System.Diagnostics.Debug.WriteLine(
                                     $"✅ COMBO COMPLETO - Aplicando precio prorrateado: {precioFinal:C2}");
@@ -555,7 +609,7 @@ namespace Comercio.NET
                                     mensajeOferta =
                                         $"🎉 ¡OFERTA APLICADA!\n\n" +
                                         $"Oferta: {oferta.NombreOferta}\n" +
-                                        $"Tipo: {oferta.TipoOferta}\n" +  // ✅ AGREGAR tipo
+                                        $"Tipo: {oferta.TipoOferta}\n" +
                                         $"Cantidad requerida: {oferta.CantidadMinima}\n" +
                                         $"Nueva cantidad: {nuevaCantidad}\n\n" +
                                         $"Precio anterior: {precio:C2}\n" +
@@ -565,7 +619,7 @@ namespace Comercio.NET
                             }
 
                             System.Diagnostics.Debug.WriteLine(
-                                $"✅ OFERTA APLICADA - Tipo: {oferta.TipoOferta}\n" +  // ✅ DEBUG mejorado
+                                $"✅ OFERTA APLICADA - Tipo: {oferta.TipoOferta}\n" +
                                 $"   Precio normal: {precioOriginal:C2}\n" +
                                 $"   Precio con oferta: {precioFinal:C2}\n" +
                                 $"   Descuento: {(precioOriginal - precioFinal):C2}");
@@ -588,16 +642,16 @@ namespace Comercio.NET
 
                         // ✅✅✅ CRÍTICO: UPDATE COMPLETO incluyendo campos de oferta
                         var query = @"UPDATE Ventas 
-              SET cantidad = @nuevaCantidad, 
-                  precio = @precio,
-                  total = @nuevaCantidad * @precio,
-                  IdOferta = @IdOferta,
-                  NombreOferta = @NombreOferta,
-                  PrecioOriginal = @PrecioOriginal,
-                  PrecioConOferta = @PrecioConOferta,
-                  DescuentoAplicado = @DescuentoAplicado,
-                  EsOferta = @EsOferta
-              WHERE id = @idVenta";
+                      SET cantidad = @nuevaCantidad, 
+                          precio = @precio,
+                          total = @nuevaCantidad * @precio,
+                          IdOferta = @IdOferta,
+                          NombreOferta = @NombreOferta,
+                          PrecioOriginal = @PrecioOriginal,
+                          PrecioConOferta = @PrecioConOferta,
+                          DescuentoAplicado = @DescuentoAplicado,
+                          EsOferta = @EsOferta
+                      WHERE id = @idVenta";
 
                         using (var cmd = new SqlCommand(query, connection, transaction))
                         {
@@ -661,7 +715,9 @@ namespace Comercio.NET
                         // DEBUG
                         System.Diagnostics.Debug.WriteLine(
                             $"✅ Cantidad actualizada - ID: {idVenta}, Código: {codigo}\n" +
+                            $"   Cantidad original: {cantidadActual}\n" +
                             $"   Nueva cantidad: {nuevaCantidad}\n" +
+                            $"   ¿Se redujo?: {(nuevaCantidad < cantidadActual ? "Sí (auditado)" : "No")}\n" +
                             $"   Precio aplicado: {precioFinal:C2}\n" +
                             $"   ¿Tiene oferta?: {(oferta != null ? "Sí" : "No")}\n" +
                             $"   ¿Es combo?: {(oferta?.TipoOferta == "Combo" ? "Sí" : "No")}\n" +
@@ -1691,7 +1747,7 @@ namespace Comercio.NET
                 {
                     Name = "ColOferta",
                     HeaderText = "🎁",
-                    Width = 35, // ✅ REDUCIDO: Ancho mínimo para el emoji
+                    Width = 35,
                     MinimumWidth = 30,
                     ReadOnly = true,
                     Frozen = false,
@@ -1699,88 +1755,90 @@ namespace Comercio.NET
                     DefaultCellStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new Font("Segoe UI Emoji", 11F, FontStyle.Regular),
+                        Font = new Font("Segoe UI Emoji", 14F, FontStyle.Regular),
                         ForeColor = Color.Green,
                         Padding = new Padding(0)
                     }
                 };
 
-                // ✅✅✅ CRÍTICO: Insertar como PRIMERA columna (índice 0)
                 dataGridView1.Columns.Insert(0, colOferta);
-
                 System.Diagnostics.Debug.WriteLine("✅ Columna ColOferta creada como PRIMERA columna (35px)");
             }
 
-            // Formatear columnas numéricas
+            // ✅✅✅ CÓDIGO: SIN negrita (Regular)
+            if (dataGridView1.Columns["codigo"] != null)
+            {
+                var colCodigo = dataGridView1.Columns["codigo"];
+                colCodigo.DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+                colCodigo.DefaultCellStyle.ForeColor = Color.FromArgb(33, 33, 33);
+                colCodigo.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            }
+
+            // ✅✅✅ DESCRIPCIÓN: CON negrita (Bold) - APLICAR A NIVEL DE COLUMNA
+            if (dataGridView1.Columns["descripcion"] != null)
+            {
+                var colDescripcion = dataGridView1.Columns["descripcion"];
+                colDescripcion.DefaultCellStyle.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
+                colDescripcion.DefaultCellStyle.ForeColor = Color.FromArgb(33, 33, 33);
+                colDescripcion.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                colDescripcion.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                colDescripcion.FillWeight = 250;
+
+                System.Diagnostics.Debug.WriteLine("✅ Columna descripción configurada: 13pt Bold, FillWeight=250");
+            }
+
+            // ✅✅✅ PRECIO: SIN negrita (Regular)
             if (dataGridView1.Columns["precio"] != null)
             {
                 dataGridView1.Columns["precio"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dataGridView1.Columns["precio"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
             }
 
+            // ✅✅✅ CANTIDAD: SIN negrita (Regular)
+            if (dataGridView1.Columns["cantidad"] != null)
+            {
+                dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                dataGridView1.Columns["cantidad"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+            }
+
+            // ✅✅✅ TOTAL: CON negrita (Bold) - APLICAR A NIVEL DE COLUMNA
             if (dataGridView1.Columns["total"] != null)
             {
                 dataGridView1.Columns["total"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["total"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dataGridView1.Columns["total"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             }
 
-            if (dataGridView1.Columns["cantidad"] != null)
+            // ✅✅✅ IVA%: SIN negrita (Regular)
+            if (dataGridView1.Columns["PorcentajeIva"] != null)
             {
-                dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
             }
 
-            // ✅✅✅ NUEVO: OCULTAR columna IvaCalculado (IVA $)
+            // ✅✅✅ OCULTAR columna IvaCalculado (IVA $)
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
                 dataGridView1.Columns["IvaCalculado"].Visible = false;
                 System.Diagnostics.Debug.WriteLine("✅ Columna IvaCalculado OCULTADA");
             }
 
-            if (dataGridView1.Columns["codigo"] != null)
-            {
-                var colCodigo = dataGridView1.Columns["codigo"];
-                colCodigo.DefaultCellStyle.Font = new Font("Segoe UI", 11F, FontStyle.Regular);
-                //colCodigo.Width = 80;
-                colCodigo.DefaultCellStyle.ForeColor = Color.FromArgb(33, 33, 33);
-                colCodigo.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-
-            }
-            // ✅✅✅ MEJORADO: Configurar columna descripción con fuente MÁS GRANDE, NEGRITA y MÁS ESPACIO
-            if (dataGridView1.Columns["descripcion"] != null)
-            {
-                var colDescripcion = dataGridView1.Columns["descripcion"];
-                colDescripcion.DefaultCellStyle.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-                colDescripcion.DefaultCellStyle.ForeColor = Color.FromArgb(33, 33, 33);
-                colDescripcion.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-
-                // ✅ NUEVO: Dar más espacio con Fill y FillWeight aumentado
-                colDescripcion.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                colDescripcion.FillWeight = 250; // ✅ AUMENTADO de 200 a 250 para ocupar espacio de IVA $
-
-                System.Diagnostics.Debug.WriteLine("✅ Columna descripción configurada: 11pt Bold, FillWeight=250");
-            }
-
-            // ✅ DEBUG: Verificar cuántas filas hay
             System.Diagnostics.Debug.WriteLine($"📊 Procesando {dataGridView1.Rows.Count} filas en FormatearDataGridView");
 
-            // ✅ CORREGIDO: Recorrer las filas y marcar visualmente las que tienen oferta
+            // ✅ CORREGIDO: Recorrer las filas SOLO para marcar ofertas (sin modificar fuentes)
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
                 if (row.IsNewRow) continue;
 
-                // Verificar si la celda EsOferta existe
                 if (row.Cells["EsOferta"] == null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Fila {row.Index}: Celda EsOferta es NULL");
                     continue;
                 }
 
                 var valorEsOferta = row.Cells["EsOferta"].Value;
-                System.Diagnostics.Debug.WriteLine($"🔍 Fila {row.Index}: EsOferta Value = '{valorEsOferta ?? "NULL"}' (Type: {valorEsOferta?.GetType().Name ?? "NULL"})");
 
                 if (valorEsOferta != null && valorEsOferta != DBNull.Value)
                 {
-                    // ✅ Manejo robusto de conversión
                     bool esOferta = false;
 
                     if (valorEsOferta is bool boolValue)
@@ -1796,42 +1854,29 @@ namespace Comercio.NET
                         esOferta = parsedValue == 1;
                     }
 
-                    System.Diagnostics.Debug.WriteLine($"   └─ EsOferta parseado: {esOferta}");
-
                     if (esOferta)
                     {
-                        // ✅ Producto con oferta - mostrar emoji
                         if (row.Cells["ColOferta"] != null)
                         {
                             row.Cells["ColOferta"].Value = "🎁";
                             row.Cells["ColOferta"].Style.ForeColor = Color.Green;
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240);
 
-                            // ✅ OPCIONAL: Colorear toda la fila para destacar más
-                            row.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240); // Verde muy claro
-
-                            // ✅ NUEVO: Hacer la descripción aún más visible en productos con oferta
+                            // ✅ MODIFICADO: Solo cambiar el color de la descripción, NO la fuente
+                            // La fuente Bold ya está configurada a nivel de columna
                             if (row.Cells["descripcion"] != null)
                             {
-                                row.Cells["descripcion"].Style.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-                                row.Cells["descripcion"].Style.ForeColor = Color.FromArgb(0, 100, 0); // Verde oscuro
+                                row.Cells["descripcion"].Style.ForeColor = Color.FromArgb(0, 100, 0);
                             }
-
-                            System.Diagnostics.Debug.WriteLine($"   └─ ✅ EMOJI APLICADO en fila {row.Index}");
                         }
                     }
                     else
                     {
-                        // Producto sin oferta - dejar vacío
                         if (row.Cells["ColOferta"] != null)
                         {
                             row.Cells["ColOferta"].Value = "";
-                            System.Diagnostics.Debug.WriteLine($"   └─ Celda vacía (sin oferta) en fila {row.Index}");
                         }
                     }
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"   └─ Valor NULL o DBNull en fila {row.Index}");
                 }
             }
 
@@ -2235,34 +2280,32 @@ namespace Comercio.NET
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
-            // MEJORADO: Estilos de selección más contrastantes
+            // ✅ MODIFICADO: NO establecer Font aquí - se configura por columna
             dataGridView1.DefaultCellStyle.BackColor = Color.White;
             dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White;
-            dataGridView1.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            // ❌ ELIMINADO: dataGridView1.DefaultCellStyle.Font = ...
 
-            // Estilos de encabezados
+            // ✅ Fuente para encabezados
             var headerStyle = dataGridView1.ColumnHeadersDefaultCellStyle;
-            headerStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            headerStyle.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
             headerStyle.BackColor = Color.FromArgb(248, 249, 250);
             headerStyle.ForeColor = Color.Black;
 
-            // MEJORADO: Filas alternadas más oscuras para mejor diferenciación
+            // ✅ MODIFICADO: NO establecer Font en filas alternadas - heredará de las columnas
             dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(240, 245, 250);
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
+            // ❌ ELIMINADO: dataGridView1.AlternatingRowsDefaultCellStyle.Font = ...
 
-            // NUEVO: Configuración adicional para mejor experiencia visual
-            dataGridView1.RowTemplate.Height = 28;
+            dataGridView1.RowTemplate.Height = 36;
             dataGridView1.GridColor = Color.FromArgb(220, 220, 220);
 
-            // ✅✅✅ NUEVO: Desactivar auto-resize inicial para columnas específicas
-            dataGridView1.AutoGenerateColumns = true; // Permitir auto-generación
+            dataGridView1.AutoGenerateColumns = true;
             dataGridView1.ColumnAdded += (s, e) =>
             {
-                // Al agregar columna "codigo", fijar ancho inmediatamente
                 if (e.Column.Name == "codigo")
                 {
                     e.Column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
@@ -3107,7 +3150,7 @@ namespace Comercio.NET
             // Crear el panel footer programáticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 65; // ✅ REDUCIDO: de 100 a 65 píxeles
+            panelFooter.Height = 85; // ✅✅✅ AUMENTADO: de 65 a 85 píxeles para que no se corte el total
             panelFooter.BackColor = Color.FromArgb(0, 120, 215);
 
             // Configurar lbCantidadProductos (dock left)
@@ -3119,20 +3162,20 @@ namespace Comercio.NET
             lbCantidadProductos.ForeColor = Color.White;
             lbCantidadProductos.Text = "Productos: 0";
 
-            // ✅ NUEVO: Panel contenedor para centrar verticalmente el RichTextBox
+            // ✅ Panel contenedor para centrar verticalmente el RichTextBox
             Panel panelTotalContainer = new Panel
             {
                 Dock = DockStyle.Right,
                 Width = 500,
                 BackColor = Color.FromArgb(0, 120, 215),
-                Padding = new Padding(0, 12, 20, 12) // ✅ Padding vertical para centrar
+                Padding = new Padding(0, 15, 20, 15) // ✅ AUMENTADO: Padding vertical de 12 a 15
             };
 
-            // RichTextBox para totales - ✅ MODIFICADO: Ahora dentro del contenedor
+            // RichTextBox para totales
             rtbTotal = new RichTextBox
             {
                 AutoSize = false,
-                Dock = DockStyle.Fill, // ✅ CAMBIADO: Fill en lugar de Right
+                Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.None,
@@ -3145,7 +3188,7 @@ namespace Comercio.NET
             panelTotalContainer.Controls.Add(rtbTotal);
 
             // Agregar controles al panel footer
-            panelFooter.Controls.Add(panelTotalContainer); // ✅ CAMBIADO: Agregar el contenedor en lugar del RichTextBox directamente
+            panelFooter.Controls.Add(panelTotalContainer);
             panelFooter.Controls.Add(lbCantidadProductos);
 
             // Agregar el panel al formulario
@@ -3169,7 +3212,6 @@ namespace Comercio.NET
 
             using (var connection = new SqlConnection(connectionString))
             {
-                // ✅ ASEGURAR que EsOferta está en la consulta
                 var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, 
                  PorcentajeIva, IvaCalculado, 
                  ISNULL(EsOferta, 0) AS EsOferta,
@@ -3188,7 +3230,7 @@ namespace Comercio.NET
                 }
             }
 
-            // ✅ Ocultar columnas internas
+            // Ocultar columnas internas
             if (dataGridView1.Columns["EsOferta"] != null)
             {
                 dataGridView1.Columns["EsOferta"].Visible = false;
@@ -3204,7 +3246,6 @@ namespace Comercio.NET
                 dataGridView1.Columns["id"].Visible = false;
             }
 
-            // ✅✅✅ NUEVO: OCULTAR columna IvaCalculado (IVA $)
             if (dataGridView1.Columns["IvaCalculado"] != null)
             {
                 dataGridView1.Columns["IvaCalculado"].Visible = false;
@@ -3241,7 +3282,7 @@ namespace Comercio.NET
                 colTotal.DefaultCellStyle.Format = "C2";
                 colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                 colTotal.DefaultCellStyle.BackColor = dataGridView1.DefaultCellStyle.BackColor;
-                colTotal.DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+                colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Bold); // ✅ AUMENTADO
                 colTotal.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 colTotal.Width = 120;
             }
@@ -3266,17 +3307,17 @@ namespace Comercio.NET
                 dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
 
-            // ✅ CRÍTICO: Llamar a FormatearDataGridView DESPUÉS de configurar todas las columnas
+            // Llamar a FormatearDataGridView DESPUÉS de configurar todas las columnas
             FormatearDataGridView();
 
-            // ✅✅✅ NUEVO: FORZAR ancho de ColOferta DESPUÉS de formatear
+            // FORZAR ancho de ColOferta DESPUÉS de formatear
             if (dataGridView1.Columns["ColOferta"] != null)
             {
                 dataGridView1.Columns["ColOferta"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dataGridView1.Columns["ColOferta"].Width = 35;
                 dataGridView1.Columns["ColOferta"].MinimumWidth = 35;
                 dataGridView1.Columns["ColOferta"].Resizable = DataGridViewTriState.False;
-                dataGridView1.Columns["ColOferta"].DisplayIndex = 0; // ✅ ASEGURAR que es la primera
+                dataGridView1.Columns["ColOferta"].DisplayIndex = 0;
 
                 System.Diagnostics.Debug.WriteLine("✅ Ancho ColOferta FORZADO a 35px después de DataSource");
             }
@@ -3300,10 +3341,10 @@ namespace Comercio.NET
                 btnAnularFactura.BringToFront();
             }
 
-            // Mostrar en RichTextBox
+            // ✅✅✅ MODIFICADO: Fuente del TOTAL más grande (de 28F a 36F)
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
-            rtbTotal.SelectionFont = new Font("Segoe UI", 28F, FontStyle.Bold);
+            rtbTotal.SelectionFont = new Font("Segoe UI", 36F, FontStyle.Bold); // ✅ AUMENTADO: 28F → 36F
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
         }
 
@@ -3531,84 +3572,43 @@ namespace Comercio.NET
         // NUEVO: Eliminar factura completa (todas las líneas) con devolución de stock y auditoría
         private async Task EliminarFacturaCompletaAsync()
         {
-            if (procesandoEliminacion) return;
-
-            if (nroRemitoActual <= 0)
+            try
             {
-                MessageBox.Show("No hay un remito/factura seleccionado para eliminar.", "Información",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            // Asegurar que tenemos las líneas cargadas
-            if (remitoActual == null || remitoActual.Rows.Count == 0)
-            {
-                // Intentar recargar
-                CargarVentasActuales();
-                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                if (string.IsNullOrEmpty(nroRemitoActual.ToString()) || dataGridView1.Rows.Count == 0)
                 {
-                    MessageBox.Show("No se encontraron productos para el remito actual.", "Información",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-            }
-
-            // Confirmación por parte del usuario (mostrar resumen mínimo)
-            decimal importeTotal = 0m;
-            foreach (DataRow r in remitoActual.Rows)
-            {
-                if (r["total"] != null && decimal.TryParse(r["total"].ToString(), out decimal t))
-                    importeTotal += t;
-            }
-
-            var confirmar = MessageBox.Show(
-                $"¿Confirma la eliminación TOTAL del remito/factura N° {nroRemitoActual}?\n\n" +
-                $"Se eliminarán {remitoActual.Rows.Count} líneas por un total de {importeTotal:C2}.\n\n" +
-                "Esta acción devolverá las cantidades vendidas al stock y registrará una auditoría.",
-                "Confirmar eliminación completa",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
-            if (confirmar != DialogResult.Yes)
-                return;
-
-            // Verificar permisos si aplica
-            if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true)
-            {
-                if (AuthenticationService.SesionActual?.Usuario == null)
-                {
-                    MessageBox.Show("No hay una sesión activa.", "Error de Autenticación",
+                    MessageBox.Show("No hay factura para eliminar.", "Aviso",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                var usuario = AuthenticationService.SesionActual.Usuario;
-                if (!usuario.PuedeEliminarProductos && usuario.Nivel != Models.NivelUsuario.Administrador)
+                // ✅ MODIFICADO: Confirmación simple sin formulario de motivo
+                var resultado = MessageBox.Show(
+                    $"⚠️ ANULAR FACTURA COMPLETA\n\n" +
+                    $"Remito #{nroRemitoActual}\n" +
+                    $"Productos: {dataGridView1.Rows.Count}\n" +
+                    $"Total: {CalcularTotal():C2}\n\n" +
+                    $"¿Está seguro de que desea anular esta factura?\n\n" +
+                    $"Esta acción quedará registrada en la auditoría.",
+                    "Confirmar Anulación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2);
+
+                if (resultado != DialogResult.Yes)
                 {
-                    MessageBox.Show(
-                        "❌ ACCESO DENEGADO\n\n" +
-                        "No tienes permisos para eliminar facturas completas.\n" +
-                        "Contacta a un administrador si necesitas realizar esta acción.",
-                        "Permisos Insuficientes",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    return;
+                    return; // Usuario canceló
                 }
-            }
 
-            procesandoEliminacion = true;
+                // ✅ MOTIVO AUTOMÁTICO
+                string motivo = "ANULACIÓN FACTURA COMPLETA";
 
-            try
-            {
                 string connectionString = GetConnectionString();
-                string usuarioNombre = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName;
-                int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    await connection.OpenAsync(); // ✅ USAR OpenAsync
+                    await connection.OpenAsync();
 
-                    // ✅✅✅ CRÍTICO: Configurar ARITHABORT ANTES de la transacción
+                    // ✅✅✅ CRÍTICO: Configurar ARITHABORT ANTES de abrir la transacción
                     using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
                     {
                         await cmdConfig.ExecuteNonQueryAsync();
@@ -3618,29 +3618,102 @@ namespace Comercio.NET
                     {
                         try
                         {
-                            // ... resto del código de eliminación ...
+                            // Guardar en auditoría ANTES de eliminar
+                            string usuarioActual = ObtenerUsuarioActual();
+                            int numeroCajero = obtenerNumeroCajero();
+
+                            // Registrar cada producto de la venta en la auditoría
+                            foreach (DataGridViewRow row in dataGridView1.Rows)
+                            {
+                                if (row.IsNewRow) continue;
+
+                                string codigo = row.Cells["Codigo"].Value?.ToString();
+                                string descripcion = row.Cells["Descripcion"].Value?.ToString();
+                                int cantidad = Convert.ToInt32(row.Cells["Cantidad"].Value);
+                                decimal precio = Convert.ToDecimal(row.Cells["Precio"].Value);
+
+                                // Insertar en AuditoriaProductosEliminados
+                                string queryAuditoria = @"
+                            INSERT INTO AuditoriaProductosEliminados 
+                                (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+                                 TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+                                 MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+                                 NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
+                            VALUES 
+                                (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
+                                 @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+                                 @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
+                                 @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+
+                                using (var cmdAudit = new SqlCommand(queryAuditoria, connection, transaction))
+                                {
+                                    cmdAudit.Parameters.AddWithValue("@CodigoProducto", codigo ?? "");
+                                    cmdAudit.Parameters.AddWithValue("@DescripcionProducto", descripcion ?? "");
+                                    cmdAudit.Parameters.AddWithValue("@PrecioUnitario", precio);
+                                    cmdAudit.Parameters.AddWithValue("@Cantidad", cantidad);
+                                    cmdAudit.Parameters.AddWithValue("@TotalEliminado", precio * cantidad);
+                                    cmdAudit.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                                    cmdAudit.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
+                                    cmdAudit.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+                                    cmdAudit.Parameters.AddWithValue("@MotivoEliminacion", motivo); // ✅ Motivo automático
+                                    cmdAudit.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte?.Checked ?? false);
+                                    cmdAudit.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
+                                    cmdAudit.Parameters.AddWithValue("@UsuarioEliminacion", usuarioActual);
+                                    cmdAudit.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                                    cmdAudit.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                                    cmdAudit.Parameters.AddWithValue("@EsEliminacionCompleta", true);
+                                    cmdAudit.Parameters.AddWithValue("@CantidadOriginal", cantidad);
+
+                                    await cmdAudit.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            // Eliminar de la tabla Ventas
+                            string queryEliminarVentas = "DELETE FROM Ventas WHERE nrofactura = @nroRemito";
+                            using (var cmdVentas = new SqlCommand(queryEliminarVentas, connection, transaction))
+                            {
+                                cmdVentas.Parameters.AddWithValue("@nroRemito", nroRemitoActual);
+                                await cmdVentas.ExecuteNonQueryAsync();
+                            }
+
+                            // Eliminar de la tabla Facturas
+                            string queryEliminarFacturas = "DELETE FROM Facturas WHERE NumeroRemito = @nroRemito";
+                            using (var cmdFacturas = new SqlCommand(queryEliminarFacturas, connection, transaction))
+                            {
+                                cmdFacturas.Parameters.AddWithValue("@nroRemito", nroRemitoActual);
+                                await cmdFacturas.ExecuteNonQueryAsync();
+                            }
 
                             transaction.Commit();
+
+                            // ✅ MODIFICADO: Mensaje de confirmación simplificado
+                            MessageBox.Show(
+                                $"✅ FACTURA ANULADA\n\n" +
+                                $"Remito: #{nroRemitoActual}\n" +
+                                $"Productos eliminados: {dataGridView1.Rows.Count}\n" +
+                                $"Usuario: {usuarioActual}\n\n" +
+                                $"Registro guardado en auditoría.",
+                                "Anulación Exitosa",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+
                             LimpiarYReiniciarVenta();
-                            System.Diagnostics.Debug.WriteLine($"✅ Factura/remito {nroRemitoActual} eliminada por {usuarioNombre}. Stock devuelto donde aplica.");
                         }
-                        catch (Exception exTx)
+                        catch (Exception ex)
                         {
                             transaction.Rollback();
-                            System.Diagnostics.Debug.WriteLine($"❌ Error al eliminar factura completa: {exTx.Message}");
-                            MessageBox.Show($"Error al eliminar la factura completa: {exTx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            throw new Exception($"Error al anular la factura: {ex.Message}", ex);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error al procesar eliminación completa: {ex.Message}");
-                MessageBox.Show($"Error al procesar la eliminación: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                procesandoEliminacion = false;
+                MessageBox.Show(
+                    $"Error al eliminar la factura:\n{ex.Message}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
