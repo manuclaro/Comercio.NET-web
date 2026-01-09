@@ -3169,16 +3169,47 @@ namespace Comercio.NET
         }
 
         private string FormatearNumeroFactura(int tipoComprobante, int puntoVenta, int numero)
-        {
-            string tipoLetra = tipoComprobante switch
-            {
-                1 => "A",     // Factura A
-                6 => "B",     // Factura B
-                11 => "C",    // ✅ NUEVO: Factura C (Monotributo)
-                _ => "X"      // Desconocido
-            };
+        //{
+        //    string tipoLetra = tipoComprobante switch
+        //    {
+        //        1 => "A",     // Factura A
+        //        6 => "B",     // Factura B
+        //        11 => "C",    // ✅ NUEVO: Factura C (Monotributo)
+        //        _ => "X"      // Desconocido
+        //    };
 
-            return $"{tipoLetra} {puntoVenta:D4}-{numero:D8}";
+        //    return $"{tipoLetra} {puntoVenta:D4}-{numero:D8}";
+        //}
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"🔧 FormatearNumeroFactura:");
+                System.Diagnostics.Debug.WriteLine($"   - Tipo: {tipoComprobante}");
+                System.Diagnostics.Debug.WriteLine($"   - Punto Venta: {puntoVenta}");
+                System.Diagnostics.Debug.WriteLine($"   - Número: {numero}");
+
+                // ✅ CRÍTICO: Convertir código numérico AFIP a letra
+                string tipoLetra = tipoComprobante switch
+                {
+                    1 => "A",      // Factura A
+                    6 => "B",      // Factura B
+                    11 => "C",     // Factura C (Monotributo)
+                    _ => "X"       // Desconocido
+                };
+
+                // ✅ FORMATO CORRECTO PARA BASE DE DATOS: "B 0007-00000003"
+                string numeroFormateado = $"{tipoLetra} {puntoVenta:D4}-{numero:D8}";
+
+                System.Diagnostics.Debug.WriteLine($"   ✅ Número formateado final: {numeroFormateado}");
+
+                return numeroFormateado;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error en FormatearNumeroFactura: {ex.Message}");
+                // Fallback seguro
+                return $"X {puntoVenta:D4}-{numero:D8}";
+            }
         }
 
         private string ObtenerCuitEmisor()

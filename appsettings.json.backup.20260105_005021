@@ -1,10 +1,10 @@
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=192.168.1.124\\SQLEXPRESS;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
   },
   "Comercio": {
-    "Nombre": "Pistola",
-    "Domicilio": "Calle 66"
+    "Nombre": "Comercio",
+    "Domicilio": "domicilio 122"
   },
   "Facturacion": {
     "RazonSocial": "DEL ZOTTO CARLOS",
@@ -13,8 +13,8 @@
     "DomicilioFiscal": "122 N°2838 BERISSO",
     "CodigoPostal": "1923",
     "InicioActividades": "2017-07-01",
-    "Condicion": "Responsable Inscripto",
-    "PermitirFacturaA": true,
+    "Condicion": "Monotributo",
+    "PermitirFacturaA": false,
     "PermitirFacturaB": true,
     "PermitirFacturaC": true
   },
@@ -33,8 +33,8 @@
     "AmbienteActivo": "Testing",
     "Testing": {
       "CUIT": "20-28069473-9",
-      "CondicionIVA": "Responsable Inscripto",
-      "PuntoVenta": 7,
+      "CondicionIVA": "Monotributo",
+      "PuntoVenta": 1,
       "CertificadoPath": "C:\\Users\\Manuel\\source\\repos\\Comercio .NET\\Certificados FE\\FETesting.p12",
       "CertificadoPassword": "Micertificado",
       "WSAAUrl": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
@@ -47,8 +47,8 @@
     },
     "Produccion": {
       "CUIT": "20-12826537-7",
-      "CondicionIVA": "Responsable Inscripto",
-      "PuntoVenta": 7,
+      "CondicionIVA": "Monotributo",
+      "PuntoVenta": 5,
       "CertificadoPath": "C:\\Certificados FE\\CertificadoFEPele.p12",
       "CertificadoPassword": "Micertificado",
       "WSAAUrl": "https://wsaa.afip.gov.ar/ws/services/LoginCms",

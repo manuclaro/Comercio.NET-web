@@ -960,6 +960,34 @@ namespace Comercio.NET.Servicios
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"🔍 FormatearNumeroParaImpresion:");
+                System.Diagnostics.Debug.WriteLine($"   - Número completo recibido: '{numeroCompleto}'");
+                System.Diagnostics.Debug.WriteLine($"   - Tipo comprobante: '{tipoComprobante}'");
+
+                // ✅ NUEVO: Detectar formato legado 'B 0002-00000002' o 'A 0002-00000002'
+                if (numeroCompleto.Contains(" ") && numeroCompleto.Contains("-"))
+                {
+                    var partes = numeroCompleto.Split(new[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (partes.Length >= 2)
+                    {
+                        string letraFactura = partes[0]; // "A", "B", o "C"
+
+                        // ✅ CRÍTICO: El segundo valor es el NÚMERO, NO el punto de venta
+                        // Necesitamos obtener el punto de venta del JSON
+                        int puntoVentaJson = ObtenerPuntoVentaDesdeConfiguracion();
+
+                        if (int.TryParse(partes[partes.Length - 1], out int numeroFactura))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"   ⚠️ Formato legado detectado: '{numeroCompleto}'");
+                            System.Diagnostics.Debug.WriteLine($"   ✅ Usando punto de venta del JSON: {puntoVentaJson}");
+                            System.Diagnostics.Debug.WriteLine($"   ✅ Número factura: {numeroFactura}");
+
+                            return $"FACTURA {letraFactura} N° {puntoVentaJson:D4}-{numeroFactura:D8}";
+                        }
+                    }
+                }
+
                 if (tipoComprobante.Contains("REMITO") || tipoComprobante.Contains("Remito"))
                 {
                     if (numeroCompleto.Contains("Remito N°"))
@@ -979,6 +1007,7 @@ namespace Comercio.NET.Servicios
 
                 if (tipoComprobante.Contains("Factura") || tipoComprobante.Contains("FACTURA"))
                 {
+                    // ✅ FORMATO CORRECTO: "0006-0007-00000002"
                     if (numeroCompleto.Contains("-") && numeroCompleto.Length >= 19)
                     {
                         string[] partes = numeroCompleto.Split('-');
@@ -986,6 +1015,7 @@ namespace Comercio.NET.Servicios
                         {
                             string tipoFormateado = "FACTURA";
 
+                            // Determinar tipo de factura desde el primer segmento
                             if (partes[0].StartsWith("0001") || partes[0].StartsWith("1"))
                             {
                                 tipoFormateado = "FACTURA A";
@@ -999,14 +1029,17 @@ namespace Comercio.NET.Servicios
                                 tipoFormateado = "FACTURA C";
                             }
 
-                            if (int.TryParse(partes[1], out int puntoVentaNumero))
-                            {
-                                string puntoVentaFormateado = puntoVentaNumero.ToString("D4");
-                                return $"{tipoFormateado} N° {puntoVentaFormateado}-{partes[2]}";
-                            }
+                            // ✅ USAR el punto de venta del segundo segmento TAL CUAL VIENE
+                            string puntoVentaFormateado = partes[1];
+
+                            System.Diagnostics.Debug.WriteLine($"   ✅ Punto de venta extraído: '{puntoVentaFormateado}'");
+                            System.Diagnostics.Debug.WriteLine($"   ✅ Número formateado: {tipoFormateado} N° {puntoVentaFormateado}-{partes[2]}");
+
+                            return $"{tipoFormateado} N° {puntoVentaFormateado}-{partes[2]}";
                         }
                     }
 
+                    // ✅ FALLBACK: Si el número no tiene el formato esperado
                     if (int.TryParse(numeroCompleto, out int numeroSimple))
                     {
                         string letra = "";
@@ -1027,9 +1060,14 @@ namespace Comercio.NET.Servicios
                             letra = "B";
                         }
 
-                        return $"FACTURA {letra} N° 0001-{numeroSimple:D8}";
+                        int puntoVentaJson = ObtenerPuntoVentaDesdeConfiguracion();
+
+                        System.Diagnostics.Debug.WriteLine($"   ⚠️ Número simple detectado, usando punto de venta del JSON: {puntoVentaJson}");
+
+                        return $"FACTURA {letra} N° {puntoVentaJson:D4}-{numeroSimple:D8}";
                     }
 
+                    // Si viene con formato pero no es el esperado
                     if (tipoComprobante.ToUpper().Contains("FACTURA A"))
                     {
                         return $"FACTURA A N° {numeroCompleto}";
@@ -1054,6 +1092,30 @@ namespace Comercio.NET.Servicios
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error formateando número de comprobante: {ex.Message}");
                 return numeroCompleto;
+            }
+        }
+
+        // ✅ NUEVO: Método helper para obtener punto de venta desde configuración
+        private int ObtenerPuntoVentaDesdeConfiguracion()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Testing";
+                int puntoVenta = int.Parse(config[$"AFIP:{ambienteActivo}:PuntoVenta"] ?? "1");
+
+                System.Diagnostics.Debug.WriteLine($"📋 Punto de venta desde JSON ({ambienteActivo}): {puntoVenta}");
+
+                return puntoVenta;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error leyendo punto de venta del JSON: {ex.Message}");
+                return 1; // Valor por defecto
             }
         }
 
