@@ -17,19 +17,19 @@ namespace Comercio.NET.Formularios
     {
         public enum ModoOperacion { Agregar, Modificar }
         public enum OrigenLlamada { Productos, Ventas }
-        
+
         // Propiedades principales
         public ModoOperacion Modo { get; set; } = ModoOperacion.Agregar;
         public OrigenLlamada Origen { get; set; } = OrigenLlamada.Productos;
         public string CodigoProducto { get; set; } = "";
         public string CodigoAgregado { get; private set; } = "";
         public bool HuboCambios { get; private set; } = false;
-        
+
         // Estado interno
         private bool _cargandoDatos = false;
         private bool _precioModificadoManualmente = false;
         private ProductoInfo? _datosOriginales = null;
-        
+
         // Controles dinámicos
         private Panel panelHeader;
         private Panel panelContenido;
@@ -37,7 +37,7 @@ namespace Comercio.NET.Formularios
         private Label lblTitulo;
         private Label lblSubtitulo;
         private PictureBox iconoFormulario;
-        
+
         // Campos del producto
         private TextBox txtCodigo;
         private TextBox txtDescripcion;
@@ -51,12 +51,14 @@ namespace Comercio.NET.Formularios
         private ComboBox? cmbIva;
         private CheckBox? chkPermiteAcumular;
         private CheckBox? chkEditarPrecio;
-        
+        private CheckBox? chkActivo; // ✅ NUEVO: Checkbox para producto activo
+
         // Botones
         private Button btnGuardar;
         private Button btnCancelar;
         private Button? btnBuscar; // Solo para modo Modificar
-        
+        private Button? btnEliminar; // ✅ NUEVO: Botón para eliminar producto
+
         public ProductoFormUnificado()
         {
             InitializeComponent();
@@ -64,21 +66,21 @@ namespace Comercio.NET.Formularios
             CrearControles();
             ConfigurarEventos();
         }
-        
+
         public ProductoFormUnificado(ModoOperacion modo, string codigo = "", OrigenLlamada origen = OrigenLlamada.Productos) : this()
         {
             Modo = modo;
             CodigoProducto = codigo?.Trim() ?? "";
             Origen = origen;
-            
+
             AjustarFormularioSegunModo();
-            
+
             if (modo == ModoOperacion.Modificar && !string.IsNullOrEmpty(codigo))
             {
                 this.Load += async (s, e) => await CargarProductoAsync(codigo);
             }
         }
-        
+
         private void ConfigurarFormulario()
         {
             this.Text = "Gestión de Productos";
@@ -89,8 +91,8 @@ namespace Comercio.NET.Formularios
             this.StartPosition = FormStartPosition.CenterParent;
             this.KeyPreview = true;
             this.BackColor = Color.FromArgb(248, 250, 252);
-            this.Size = new Size(650, 600);
-            
+            this.Size = new Size(650, 650); // ✅ AUMENTADO para acomodar nuevo checkbox
+
             this.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape)
@@ -103,11 +105,11 @@ namespace Comercio.NET.Formularios
                 }
             };
         }
-        
+
         private void CrearControles()
         {
             this.SuspendLayout();
-            
+
             // Panel Header - Reducido
             panelHeader = new Panel
             {
@@ -116,7 +118,7 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.FromArgb(63, 81, 181),
                 Padding = new Padding(20, 10, 20, 10)
             };
-            
+
             iconoFormulario = new PictureBox
             {
                 Size = new Size(40, 40),
@@ -124,7 +126,7 @@ namespace Comercio.NET.Formularios
                 SizeMode = PictureBoxSizeMode.CenterImage,
                 BackColor = Color.Transparent
             };
-            
+
             lblTitulo = new Label
             {
                 Location = new Point(70, 15),
@@ -134,7 +136,7 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.Transparent,
                 Text = "Agregar Producto"
             };
-            
+
             lblSubtitulo = new Label
             {
                 Location = new Point(70, 40),
@@ -144,21 +146,21 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.Transparent,
                 Text = "Complete la información del producto"
             };
-            
+
             panelHeader.Controls.AddRange(new Control[] { iconoFormulario, lblTitulo, lblSubtitulo });
-            
+
             // Panel Contenido
             panelContenido = new Panel
             {
                 Location = new Point(0, 70),
-                Size = new Size(650, 460),
+                Size = new Size(650, 500), // ✅ AUMENTADO para campo Activo
                 BackColor = Color.Transparent,
                 AutoScroll = true,
                 Padding = new Padding(25, 15, 25, 15)
             };
-            
+
             CrearCamposFormulario();
-            
+
             // Panel Botones
             panelBotones = new Panel
             {
@@ -167,13 +169,13 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.FromArgb(240, 242, 245),
                 Padding = new Padding(30, 15, 30, 15)
             };
-            
+
             CrearBotones();
-            
+
             this.Controls.AddRange(new Control[] { panelHeader, panelContenido, panelBotones });
             this.ResumeLayout(true);
         }
-        
+
         private void CrearCamposFormulario()
         {
             int yPos = 15;
@@ -182,12 +184,12 @@ namespace Comercio.NET.Formularios
             int anchoControl = 200;
             int xLabel = 25;
             int xControl = xLabel + anchoLabel + 10;
-            
+
             // Código (con botón buscar para modo Modificar)
             txtCodigo = CrearTextBox(xControl, yPos - 2, anchoControl);
             CrearLabel("Código:", xLabel, yPos, anchoLabel);
             panelContenido.Controls.AddRange(new Control[] { txtCodigo });
-            
+
             if (Modo == ModoOperacion.Modificar)
             {
                 btnBuscar = new Button
@@ -205,104 +207,97 @@ namespace Comercio.NET.Formularios
                 panelContenido.Controls.Add(btnBuscar);
             }
             yPos += margenCampo;
-            
+
             // Descripción
             txtDescripcion = CrearTextBox(xControl, yPos - 2, anchoControl + 100);
             CrearLabel("Descripción:", xLabel, yPos, anchoLabel);
             panelContenido.Controls.Add(txtDescripcion);
             yPos += margenCampo;
-            
+
             // Mostrar campos según el origen
             if (Origen == OrigenLlamada.Productos)
             {
-                // Marca y Rubro en la misma línea - CORREGIDO: Mejor espaciado
-                txtMarca = CrearTextBox(xControl, yPos - 2, 140); // Reducido ancho
+                // Marca y Rubro en la misma línea
+                txtMarca = CrearTextBox(xControl, yPos - 2, 140);
                 CrearLabel("Marca:", xLabel, yPos, anchoLabel);
                 panelContenido.Controls.Add(txtMarca);
-                
-                // CORREGIDO: Mejor posicionamiento para Rubro
-                int xRubroLabel = xControl + 150; // Más espacio entre controles
-                int xRubroControl = xRubroLabel + 55; // Espacio para la label "Rubro:"
+
+                int xRubroLabel = xControl + 150;
+                int xRubroControl = xRubroLabel + 55;
                 txtRubro = CrearTextBox(xRubroControl, yPos - 2, 150);
                 CrearLabelSecundario("Rubro:", xRubroLabel, yPos, 55);
                 panelContenido.Controls.Add(txtRubro);
                 yPos += margenCampo;
-                
+
                 // Proveedor
-                cmbProveedor = CrearComboBox(xControl, yPos - 2, anchoControl, 
+                cmbProveedor = CrearComboBox(xControl, yPos - 2, anchoControl,
                     new[] { "Proveedor Principal", "Proveedor Secundario", "Distribuidora", "Fábrica", "Otro" });
                 CrearLabel("Proveedor:", xLabel, yPos, anchoLabel);
                 panelContenido.Controls.Add(cmbProveedor);
                 yPos += margenCampo;
-                
-                // Costo y % Ganancia en la misma línea - CORREGIDO: Mejor espaciado
-                txtCosto = CrearTextBox(xControl, yPos - 2, 90); // Reducido ancho
+
+                // Costo y % Ganancia en la misma línea
+                txtCosto = CrearTextBox(xControl, yPos - 2, 90);
                 CrearLabel("Costo ($):", xLabel, yPos, anchoLabel);
                 panelContenido.Controls.Add(txtCosto);
-                
-                // CORREGIDO: Mejor posicionamiento para % Ganancia
-                int xPorcentajeLabel = xControl + 100; // Más espacio
-                int xPorcentajeControl = xPorcentajeLabel + 80; // Espacio para "% Ganancia:"
+
+                int xPorcentajeLabel = xControl + 100;
+                int xPorcentajeControl = xPorcentajeLabel + 80;
                 txtPorcentaje = CrearTextBox(xPorcentajeControl, yPos - 2, 100);
                 CrearLabelSecundario("% Ganancia:", xPorcentajeLabel, yPos, 80);
                 panelContenido.Controls.Add(txtPorcentaje);
                 yPos += margenCampo;
             }
-            
+
             // Precio (siempre visible)
             txtPrecio = CrearTextBox(xControl, yPos - 2, 120);
             CrearLabel("Precio Venta ($):", xLabel, yPos, anchoLabel);
             panelContenido.Controls.Add(txtPrecio);
             yPos += margenCampo;
-            
+
             if (Origen == OrigenLlamada.Productos)
             {
-                // Stock e IVA en la misma línea - CORREGIDO: Mejor espaciado
-                numStock = CrearNumericUpDown(xControl, yPos - 2, 70); // Reducido ancho
+                // Stock e IVA en la misma línea
+                numStock = CrearNumericUpDown(xControl, yPos - 2, 70);
                 CrearLabel("Stock:", xLabel, yPos, anchoLabel);
                 panelContenido.Controls.Add(numStock);
-                
-                // CORREGIDO: Mejor posicionamiento para IVA
-                int xIvaLabel = xControl + 80; // Más espacio
-                int xIvaControl = xIvaLabel + 50; // Espacio para "IVA %:"
+
+                int xIvaLabel = xControl + 80;
+                int xIvaControl = xIvaLabel + 50;
                 cmbIva = CrearComboBox(xIvaControl, yPos - 2, 80, new[] { "0.00", "10.50", "21.00", "27.00" });
                 CrearLabelSecundario("IVA %:", xIvaLabel, yPos, 45);
                 panelContenido.Controls.Add(cmbIva);
                 yPos += margenCampo;
-                
-                // Checkboxes - Reducido espacio
+
+                // ✅ NUEVO: Checkbox Activo
+                yPos += 5;
+                chkActivo = CrearCheckBox("✓ Producto Activo (disponible para vender)", xLabel, yPos, 350);
+                chkActivo.Checked = true; // Por defecto activo
+                chkActivo.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                chkActivo.ForeColor = Color.FromArgb(40, 167, 69);
+                panelContenido.Controls.Add(chkActivo);
+                yPos += 30;
+
+                // Checkboxes existentes
                 yPos += 5;
                 chkPermiteAcumular = CrearCheckBox("Permite Acumular", xLabel, yPos, 180);
                 panelContenido.Controls.Add(chkPermiteAcumular);
                 yPos += 30;
-                
+
                 chkEditarPrecio = CrearCheckBox("Editar Precio en Ventas", xLabel, yPos, 280);
                 panelContenido.Controls.Add(chkEditarPrecio);
                 yPos += 30;
-                
-                //// Nota explicativa
-                //var lblNota = new Label
-                //{
-                //    Text = "Nota: Las opciones 'Permite Acumular' y 'Editar Precio' son excluyentes",
-                //    Location = new Point(xLabel, yPos),
-                //    Size = new Size(450, 30),
-                //    Font = new Font("Segoe UI", 7.5F, FontStyle.Italic),
-                //    ForeColor = Color.FromArgb(120, 120, 120),
-                //    AutoSize = false
-                //};
-                //panelContenido.Controls.Add(lblNota);
-                //yPos += 35;
             }
-            
+
             // Ajustar altura dinámicamente
-            panelContenido.Height = Math.Max(yPos + 20, 400);
-            int alturaTotal = 70 + panelContenido.Height + 70; // Header + Contenido + Botones
+            panelContenido.Height = Math.Max(yPos + 20, 450);
+            int alturaTotal = 70 + panelContenido.Height + 70;
             if (this.Height < alturaTotal)
             {
                 this.Height = alturaTotal;
             }
         }
-        
+
         // MÉTODOS HELPER SIMPLIFICADOS
         private TextBox CrearTextBox(int x, int y, int ancho)
         {
@@ -316,7 +311,7 @@ namespace Comercio.NET.Formularios
                 BorderStyle = BorderStyle.FixedSingle
             };
         }
-        
+
         private ComboBox CrearComboBox(int x, int y, int ancho, string[] opciones)
         {
             var comboBox = new ComboBox
@@ -330,16 +325,16 @@ namespace Comercio.NET.Formularios
                 AutoCompleteMode = AutoCompleteMode.SuggestAppend,
                 AutoCompleteSource = AutoCompleteSource.ListItems
             };
-            
+
             comboBox.Items.AddRange(opciones);
             if (opciones.Length > 0)
             {
                 comboBox.Text = opciones[0];
             }
-            
+
             return comboBox;
         }
-        
+
         private NumericUpDown CrearNumericUpDown(int x, int y, int ancho)
         {
             return new NumericUpDown
@@ -349,13 +344,13 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 9.5F),
                 BackColor = Color.White,
                 ForeColor = Color.FromArgb(62, 80, 100),
-                Minimum = -9999, // Permitir valores negativos
+                Minimum = -9999,
                 Maximum = 9999,
                 DecimalPlaces = 0,
                 Value = 0
             };
         }
-        
+
         private CheckBox CrearCheckBox(string texto, int x, int y, int ancho)
         {
             return new CheckBox
@@ -369,7 +364,7 @@ namespace Comercio.NET.Formularios
                 TextAlign = ContentAlignment.MiddleLeft
             };
         }
-        
+
         private Label CrearLabel(string texto, int x, int y, int ancho)
         {
             var label = new Label
@@ -381,12 +376,11 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(62, 80, 100),
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            
+
             panelContenido.Controls.Add(label);
             return label;
         }
-        
-        // Método para crear labels secundarios (más pequeños)
+
         private Label CrearLabelSecundario(string texto, int x, int y, int ancho)
         {
             var label = new Label
@@ -394,15 +388,15 @@ namespace Comercio.NET.Formularios
                 Text = texto,
                 Location = new Point(x, y),
                 Size = new Size(ancho, 22),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold), // Font más pequeño
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(62, 80, 100),
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            
+
             panelContenido.Controls.Add(label);
             return label;
         }
-        
+
         private void CrearBotones()
         {
             btnGuardar = new Button
@@ -417,7 +411,7 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
             btnGuardar.FlatAppearance.BorderSize = 0;
-            
+
             btnCancelar = new Button
             {
                 Text = "Cancelar",
@@ -430,17 +424,36 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
             btnCancelar.FlatAppearance.BorderSize = 0;
-            
+
+            // ✅ NUEVO: Botón Eliminar (solo en modo Modificar)
+            if (Modo == ModoOperacion.Modificar)
+            {
+                btnEliminar = new Button
+                {
+                    Text = "🗑️ Eliminar",
+                    Size = new Size(120, 40),
+                    Location = new Point(30, 15),
+                    Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(220, 53, 69),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                };
+                btnEliminar.FlatAppearance.BorderSize = 0;
+                btnEliminar.Click += async (s, e) => await EliminarProducto();
+                panelBotones.Controls.Add(btnEliminar);
+            }
+
             panelBotones.Controls.AddRange(new Control[] { btnGuardar, btnCancelar });
         }
-        
+
         private void AjustarFormularioSegunModo()
         {
             if (Modo == ModoOperacion.Agregar)
             {
                 lblTitulo.Text = Origen == OrigenLlamada.Ventas ? "Agregar Producto Rápido" : "Agregar Nuevo Producto";
-                lblSubtitulo.Text = Origen == OrigenLlamada.Ventas ? 
-                    "Agregue el producto para continuar con la venta" : 
+                lblSubtitulo.Text = Origen == OrigenLlamada.Ventas ?
+                    "Agregue el producto para continuar con la venta" :
                     "Complete todos los campos del producto";
                 iconoFormulario.Image = CrearIcono("+", Color.White);
             }
@@ -450,14 +463,13 @@ namespace Comercio.NET.Formularios
                 lblSubtitulo.Text = "Edite los campos que desea actualizar - F5 para recalcular precio";
                 iconoFormulario.Image = CrearIcono("E", Color.White);
             }
-            
-            // Ajustar tamaño para modo Ventas (solo campos básicos)
+
             if (Origen == OrigenLlamada.Ventas)
             {
                 this.Size = new Size(650, 320);
             }
         }
-        
+
         private Bitmap CrearIcono(string texto, Color color)
         {
             var bitmap = new Bitmap(40, 40);
@@ -474,10 +486,9 @@ namespace Comercio.NET.Formularios
             }
             return bitmap;
         }
-        
+
         private void ConfigurarEventos()
         {
-            // Eventos de teclado para navegación
             foreach (Control control in panelContenido.Controls)
             {
                 if (control is TextBox textBox)
@@ -490,7 +501,7 @@ namespace Comercio.NET.Formularios
                             this.SelectNextControl((Control)s, true, true, true, true);
                         }
                     };
-                    
+
                     textBox.GotFocus += (s, e) => ((TextBox)s).SelectAll();
                 }
                 else if (control is ComboBox comboBox)
@@ -505,18 +516,15 @@ namespace Comercio.NET.Formularios
                     };
                 }
             }
-            
-            // Eventos específicos
+
             btnGuardar.Click += async (s, e) => await GuardarProducto();
             btnCancelar.Click += (s, e) => CerrarFormulario();
-            
+
             if (Origen == OrigenLlamada.Productos)
             {
-                // Cálculo automático de precio
                 if (txtCosto != null) txtCosto.TextChanged += CalcularPrecioAutomatico;
                 if (txtPorcentaje != null) txtPorcentaje.TextChanged += CalcularPrecioAutomatico;
-                
-                // Exclusión mutua de checkboxes
+
                 if (chkPermiteAcumular != null)
                 {
                     chkPermiteAcumular.CheckedChanged += (s, e) =>
@@ -527,7 +535,7 @@ namespace Comercio.NET.Formularios
                         }
                     };
                 }
-                
+
                 if (chkEditarPrecio != null)
                 {
                     chkEditarPrecio.CheckedChanged += (s, e) =>
@@ -539,27 +547,24 @@ namespace Comercio.NET.Formularios
                     };
                 }
             }
-            
-            // Validaciones de entrada
+
             ConfigurarValidaciones();
         }
-        
+
         private void ConfigurarValidaciones()
         {
-            // Validación para campos numéricos
             if (txtCosto != null) txtCosto.KeyPress += ValidarDecimal;
             if (txtPorcentaje != null) txtPorcentaje.KeyPress += ValidarDecimal;
             if (txtPrecio != null) txtPrecio.KeyPress += ValidarDecimal;
             if (cmbIva != null) cmbIva.KeyPress += ValidarDecimal;
         }
-        
+
         private void ValidarDecimal(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == '.') e.KeyChar = ',';
-            
+
             if (char.IsControl(e.KeyChar)) return;
-            
-            // Obtener el texto actual según el tipo de control
+
             string textoActual = "";
             if (sender is TextBox textBox)
             {
@@ -569,7 +574,7 @@ namespace Comercio.NET.Formularios
             {
                 textoActual = comboBox.Text;
             }
-            
+
             if (char.IsDigit(e.KeyChar) || e.KeyChar == ',')
             {
                 if (e.KeyChar == ',' && textoActual.Contains(","))
@@ -582,11 +587,11 @@ namespace Comercio.NET.Formularios
                 e.Handled = true;
             }
         }
-        
+
         private void CalcularPrecioAutomatico(object sender, EventArgs e)
         {
             if (_cargandoDatos || _precioModificadoManualmente) return;
-            
+
             if (decimal.TryParse(txtCosto?.Text?.Replace(".", ","), out decimal costo) &&
                 decimal.TryParse(txtPorcentaje?.Text?.Replace(".", ","), out decimal porcentaje))
             {
@@ -597,63 +602,64 @@ namespace Comercio.NET.Formularios
                 }
             }
         }
-        
+
         private void RecalcularPrecio()
         {
             _precioModificadoManualmente = false;
             CalcularPrecioAutomatico(null, null);
         }
-        
+
         private async Task BuscarProducto()
         {
             string codigo = txtCodigo?.Text?.Trim() ?? "";
             if (string.IsNullOrEmpty(codigo))
             {
-                MessageBox.Show("Ingrese un código de producto para buscar.", "Búsqueda", 
+                MessageBox.Show("Ingrese un código de producto para buscar.", "Búsqueda",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtCodigo?.Focus();
                 return;
             }
-            
+
             await CargarProductoAsync(codigo);
         }
-        
+
         private async Task CargarProductoAsync(string codigo)
         {
             if (string.IsNullOrEmpty(codigo)) return;
-            
+
             _cargandoDatos = true;
             try
             {
                 this.Cursor = Cursors.WaitCursor;
                 btnGuardar.Enabled = false;
-                
+
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                     .AddJsonFile("appsettings.json")
                     .Build();
-                
+
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
-                
+
                 using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
-                    
+
+                    // ✅ MODIFICADO: Incluir campo Activo en la consulta
                     string query = @"SELECT codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, precio, 
                                           cantidad, iva, 
                                           CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular, 
-                                          CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio 
+                                          CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio,
+                                          CAST(ISNULL(Activo, 1) AS BIT) as Activo
                                    FROM Productos WHERE codigo = @codigo";
-                    
+
                     using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo);
-                        
+
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             if (reader.Read())
                             {
-                                // Guardar datos originales
                                 _datosOriginales = new ProductoInfo
                                 {
                                     Codigo = reader["codigo"].ToString() ?? "",
@@ -667,19 +673,17 @@ namespace Comercio.NET.Formularios
                                     Stock = Convert.ToInt32(reader["cantidad"]),
                                     Iva = Convert.ToDecimal(reader["iva"]),
                                     PermiteAcumular = Convert.ToBoolean(reader["PermiteAcumular"]),
-                                    EditarPrecio = Convert.ToBoolean(reader["EditarPrecio"])
+                                    EditarPrecio = Convert.ToBoolean(reader["EditarPrecio"]),
+                                    Activo = Convert.ToBoolean(reader["Activo"]) // ✅ NUEVO
                                 };
-                                
-                                // Cargar datos en el formulario
+
                                 CargarDatosEnFormulario(_datosOriginales);
-                                
-                                // Enfocar en el primer campo editable
                                 txtDescripcion?.Focus();
                                 txtDescripcion?.SelectAll();
                             }
                             else
                             {
-                                MessageBox.Show($"No se encontró un producto con el código '{codigo}'.", 
+                                MessageBox.Show($"No se encontró un producto con el código '{codigo}'.",
                                     "Producto no encontrado", MessageBoxButtons.OK, MessageBoxIcon.Information);
                                 LimpiarFormulario();
                                 txtCodigo?.Focus();
@@ -690,7 +694,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al cargar el producto: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al cargar el producto: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -700,12 +704,12 @@ namespace Comercio.NET.Formularios
                 btnGuardar.Enabled = true;
             }
         }
-        
+
         private void CargarDatosEnFormulario(ProductoInfo datos)
         {
             txtCodigo.Text = datos.Codigo;
             txtDescripcion.Text = datos.Descripcion;
-            
+
             if (Origen == OrigenLlamada.Productos)
             {
                 if (txtMarca != null) txtMarca.Text = datos.Marca;
@@ -715,97 +719,150 @@ namespace Comercio.NET.Formularios
                 if (txtPorcentaje != null) txtPorcentaje.Text = datos.Porcentaje.ToString("F2");
                 if (numStock != null) numStock.Value = datos.Stock;
                 if (cmbIva != null) cmbIva.Text = datos.Iva.ToString("F2");
-                
-                // Cargar valores de checkbox correctamente
-                if (chkPermiteAcumular != null) 
+
+                if (chkPermiteAcumular != null)
                 {
                     chkPermiteAcumular.Checked = datos.PermiteAcumular;
-                    System.Diagnostics.Debug.WriteLine($"✅ Cargando PermiteAcumular: {datos.PermiteAcumular}");
                 }
-                if (chkEditarPrecio != null) 
+                if (chkEditarPrecio != null)
                 {
                     chkEditarPrecio.Checked = datos.EditarPrecio;
-                    System.Diagnostics.Debug.WriteLine($"✅ Cargando EditarPrecio: {datos.EditarPrecio}");
+                }
+                // ✅ NUEVO: Cargar estado Activo
+                if (chkActivo != null)
+                {
+                    chkActivo.Checked = datos.Activo;
                 }
             }
-            
+
             txtPrecio.Text = datos.Precio.ToString("F2");
         }
-        
-        private async Task GuardarProducto()
+
+        // ✅ NUEVA FUNCIONALIDAD 3: Validar código duplicado
+        private async Task<bool> ExisteCodigoEnBaseDatos(string codigo)
         {
-            if (!ValidarDatos()) return;
-            
             try
             {
-                this.Cursor = Cursors.WaitCursor;
-                btnGuardar.Enabled = false;
-                
                 var config = new ConfigurationBuilder()
                     .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                     .AddJsonFile("appsettings.json")
                     .Build();
-                
+
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
-                
+
                 using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
-                    
+
+                    string query = "SELECT COUNT(*) FROM Productos WHERE codigo = @codigo";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@codigo", codigo);
+
+                        int count = (int)await cmd.ExecuteScalarAsync();
+                        return count > 0;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task GuardarProducto()
+        {
+            if (!ValidarDatos()) return;
+
+            // ✅ NUEVA FUNCIONALIDAD 3: Validar código duplicado en modo Agregar
+            if (Modo == ModoOperacion.Agregar)
+            {
+                string codigo = txtCodigo.Text.Trim();
+                if (await ExisteCodigoEnBaseDatos(codigo))
+                {
+                    MessageBox.Show(
+                        $"❌ El código '{codigo}' ya existe en la base de datos.\n\n" +
+                        "Por favor ingrese un código diferente.",
+                        "Código Duplicado",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    txtCodigo.Focus();
+                    txtCodigo.SelectAll();
+                    return;
+                }
+            }
+
+            try
+            {
+                this.Cursor = Cursors.WaitCursor;
+                btnGuardar.Enabled = false;
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
                     using (var transaction = connection.BeginTransaction())
                     {
                         try
                         {
                             SqlCommand cmd;
-                            
+
                             if (Modo == ModoOperacion.Agregar)
                             {
+                                // ✅ MODIFICADO: Incluir campo Activo en INSERT
                                 cmd = new SqlCommand(@"
                                     INSERT INTO Productos (codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, 
-                                                         precio, cantidad, iva, PermiteAcumular, EditarPrecio)
+                                                         precio, cantidad, iva, PermiteAcumular, EditarPrecio, Activo)
                                     VALUES (@codigo, @descripcion, @marca, @rubro, @proveedor, @costo, @porcentaje, 
-                                           @precio, @cantidad, @iva, @permiteAcumular, @editarPrecio)", connection, transaction);
+                                           @precio, @cantidad, @iva, @permiteAcumular, @editarPrecio, @activo)", connection, transaction);
                             }
                             else
                             {
+                                // ✅ MODIFICADO: Incluir campo Activo en UPDATE
                                 cmd = new SqlCommand(@"
                                     UPDATE Productos SET 
                                         descripcion = @descripcion, marca = @marca, rubro = @rubro, proveedor = @proveedor,
                                         costo = @costo, porcentaje = @porcentaje, precio = @precio, cantidad = @cantidad,
-                                        iva = @iva, PermiteAcumular = @permiteAcumular, EditarPrecio = @editarPrecio
+                                        iva = @iva, PermiteAcumular = @permiteAcumular, EditarPrecio = @editarPrecio,
+                                        Activo = @activo
                                     WHERE codigo = @codigo", connection, transaction);
                             }
-                            
+
                             AgregarParametros(cmd);
-                            
+
                             int filasAfectadas = await cmd.ExecuteNonQueryAsync();
-                            
+
                             if (filasAfectadas > 0)
                             {
                                 transaction.Commit();
                                 HuboCambios = true;
                                 CodigoAgregado = txtCodigo.Text.Trim();
-                                
-                                string mensaje = Modo == ModoOperacion.Agregar ? 
-                                    "Producto agregado exitosamente." : 
+
+                                string mensaje = Modo == ModoOperacion.Agregar ?
+                                    "Producto agregado exitosamente." :
                                     "Producto actualizado exitosamente.";
-                                
-                                // CORREGIDO: No mostrar mensaje y cerrar inmediatamente en modo Modificar
+
                                 if (Modo == ModoOperacion.Modificar)
                                 {
-                                    // Cerrar sin mostrar mensaje para una experiencia más fluida
                                     this.DialogResult = DialogResult.OK;
                                     this.Close();
-                                    return; // Salir inmediatamente
+                                    return;
                                 }
-                                
-                                // Solo mostrar mensaje para modo Agregar
-                                MessageBox.Show(mensaje, "Operación exitosa", 
+
+                                MessageBox.Show(mensaje, "Operación exitosa",
                                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                
+
                                 if (Modo == ModoOperacion.Agregar && Origen == OrigenLlamada.Productos)
                                 {
-                                    // Limpiar para agregar otro producto
                                     LimpiarFormulario();
                                     txtCodigo?.Focus();
                                 }
@@ -818,7 +875,7 @@ namespace Comercio.NET.Formularios
                             else
                             {
                                 transaction.Rollback();
-                                MessageBox.Show("No se pudieron guardar los cambios.", "Error", 
+                                MessageBox.Show("No se pudieron guardar los cambios.", "Error",
                                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             }
                         }
@@ -832,21 +889,21 @@ namespace Comercio.NET.Formularios
             }
             catch (SqlException ex)
             {
-                if (ex.Number == 2627) // Error de clave duplicada
+                if (ex.Number == 2627)
                 {
-                    MessageBox.Show("Ya existe un producto con ese código.", "Código duplicado", 
+                    MessageBox.Show("Ya existe un producto con ese código.", "Código duplicado",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     txtCodigo?.Focus();
                 }
                 else
                 {
-                    MessageBox.Show($"Error en la base de datos: {ex.Message}", "Error SQL", 
+                    MessageBox.Show($"Error en la base de datos: {ex.Message}", "Error SQL",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error inesperado: {ex.Message}", "Error", 
+                MessageBox.Show($"Error inesperado: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -855,12 +912,12 @@ namespace Comercio.NET.Formularios
                 btnGuardar.Enabled = true;
             }
         }
-        
+
         private void AgregarParametros(SqlCommand cmd)
         {
             cmd.Parameters.AddWithValue("@codigo", txtCodigo.Text.Trim());
             cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
-            
+
             if (Origen == OrigenLlamada.Productos)
             {
                 cmd.Parameters.AddWithValue("@marca", txtMarca?.Text?.Trim() ?? "");
@@ -872,70 +929,163 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@iva", ParseDecimal(cmbIva?.Text, 21.00m));
                 cmd.Parameters.AddWithValue("@permiteAcumular", chkPermiteAcumular?.Checked ?? false);
                 cmd.Parameters.AddWithValue("@editarPrecio", chkEditarPrecio?.Checked ?? false);
+                // ✅ NUEVO: Agregar parámetro Activo
+                cmd.Parameters.AddWithValue("@activo", chkActivo?.Checked ?? true);
             }
             else
             {
-                // Valores por defecto para agregar desde Ventas
                 cmd.Parameters.AddWithValue("@marca", "Ventas");
                 cmd.Parameters.AddWithValue("@rubro", "Agregado en ventas");
                 cmd.Parameters.AddWithValue("@proveedor", "Proveedor");
-                
+
                 decimal precio = ParseDecimal(txtPrecio?.Text);
                 decimal costo = Math.Round(precio / 1.5m, 2);
-                
+
                 cmd.Parameters.AddWithValue("@costo", costo);
                 cmd.Parameters.AddWithValue("@porcentaje", 50.00m);
                 cmd.Parameters.AddWithValue("@cantidad", 10);
                 cmd.Parameters.AddWithValue("@iva", 21.00m);
                 cmd.Parameters.AddWithValue("@permiteAcumular", false);
                 cmd.Parameters.AddWithValue("@editarPrecio", false);
+                // ✅ NUEVO: Productos desde ventas se crean activos
+                cmd.Parameters.AddWithValue("@activo", true);
             }
-            
+
             cmd.Parameters.AddWithValue("@precio", ParseDecimal(txtPrecio?.Text));
         }
-        
+
+        // ✅ NUEVA FUNCIONALIDAD 2: Eliminar producto
+        private async Task EliminarProducto()
+        {
+            if (string.IsNullOrEmpty(CodigoProducto))
+            {
+                MessageBox.Show("No se puede identificar el producto a eliminar.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            var resultado = MessageBox.Show(
+                $"¿Está seguro de que desea eliminar el producto?\n\n" +
+                $"Código: {CodigoProducto}\n" +
+                $"Descripción: {txtDescripcion.Text}\n\n" +
+                "⚠️ Esta acción NO se puede deshacer.\n\n" +
+                "ALTERNATIVA: Puede desmarcar 'Producto Activo' para deshabilitarlo sin eliminarlo.",
+                "Confirmar Eliminación",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+
+            if (resultado != DialogResult.Yes)
+                return;
+
+            try
+            {
+                this.Cursor = Cursors.WaitCursor;
+                btnEliminar.Enabled = false;
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    string query = "DELETE FROM Productos WHERE codigo = @codigo";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@codigo", CodigoProducto);
+
+                        int filasAfectadas = await cmd.ExecuteNonQueryAsync();
+
+                        if (filasAfectadas > 0)
+                        {
+                            MessageBox.Show("Producto eliminado exitosamente.", "Eliminación Exitosa",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                            HuboCambios = true;
+                            this.DialogResult = DialogResult.OK;
+                            this.Close();
+                        }
+                        else
+                        {
+                            MessageBox.Show("No se pudo eliminar el producto.", "Error",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                // Error de clave foránea (producto usado en otras tablas)
+                if (ex.Number == 547)
+                {
+                    MessageBox.Show(
+                        "No se puede eliminar el producto porque está siendo utilizado en otras operaciones (ventas, facturas, etc.).\n\n" +
+                        "💡 SUGERENCIA: Desmárquelo como 'Producto Activo' para deshabilitarlo.",
+                        "No se puede eliminar",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    MessageBox.Show($"Error al eliminar: {ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+                btnEliminar.Enabled = true;
+            }
+        }
+
         private decimal ParseDecimal(string? text, decimal defaultValue = 0)
         {
             if (string.IsNullOrWhiteSpace(text)) return defaultValue;
-            
+
             text = text.Replace(".", ",");
-            return decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal result) 
+            return decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal result)
                 ? result : defaultValue;
         }
-        
+
         private bool ValidarDatos()
         {
             var errores = new List<string>();
-            
+
             if (string.IsNullOrWhiteSpace(txtCodigo?.Text))
                 errores.Add("• El código es obligatorio");
-            
+
             if (string.IsNullOrWhiteSpace(txtDescripcion?.Text))
                 errores.Add("• La descripción es obligatoria");
-            
+
             if (string.IsNullOrWhiteSpace(txtPrecio?.Text) || ParseDecimal(txtPrecio?.Text) <= 0)
                 errores.Add("• El precio debe ser mayor a cero");
-            
+
             if (Origen == OrigenLlamada.Productos)
             {
                 if (ParseDecimal(txtCosto?.Text) < 0)
                     errores.Add("• El costo no puede ser negativo");
-                
+
                 decimal iva = ParseDecimal(cmbIva?.Text, 21.00m);
                 if (iva < 0 || iva > 99.99m)
                     errores.Add("• El IVA debe estar entre 0 y 99.99%");
             }
-            
+
             if (errores.Any())
             {
                 string mensaje = "Por favor corrija los siguientes errores:\n\n" + string.Join("\n", errores);
                 MessageBox.Show(mensaje, "Datos incompletos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
-            
+
             return true;
         }
-        
+
         private void LimpiarFormulario()
         {
             foreach (Control control in panelContenido.Controls)
@@ -947,13 +1097,13 @@ namespace Comercio.NET.Formularios
                 else if (control is NumericUpDown numeric)
                     numeric.Value = 0;
                 else if (control is CheckBox checkBox)
-                    checkBox.Checked = false;
+                    checkBox.Checked = checkBox.Name == "chkActivo"; // ✅ Activo por defecto
             }
-            
+
             _datosOriginales = null;
             _precioModificadoManualmente = false;
         }
-        
+
         private void CerrarFormulario()
         {
             if (HuboCambios)
@@ -966,8 +1116,8 @@ namespace Comercio.NET.Formularios
             }
             this.Close();
         }
-        
-        // Clase auxiliar para almacenar datos del producto
+
+        // ✅ MODIFICADA: Clase auxiliar para incluir Activo
         private class ProductoInfo
         {
             public string Codigo { get; set; } = "";
@@ -982,6 +1132,7 @@ namespace Comercio.NET.Formularios
             public decimal Iva { get; set; }
             public bool PermiteAcumular { get; set; }
             public bool EditarPrecio { get; set; }
+            public bool Activo { get; set; } = true; // ✅ NUEVO
         }
     }
 }

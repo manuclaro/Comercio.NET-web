@@ -1757,7 +1757,7 @@ namespace Comercio.NET
                     DefaultCellStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new Font("Segoe UI Emoji", 14F, FontStyle.Regular),
+                        Font = new Font("Segoe UI Emoji", 18F, FontStyle.Regular), // ✅ AUMENTADO: 14F → 18F
                         ForeColor = Color.Green,
                         Padding = new Padding(0)
                     }
@@ -1767,55 +1767,55 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine("✅ Columna ColOferta creada como PRIMERA columna (35px)");
             }
 
-            // ✅✅✅ CÓDIGO: SIN negrita (Regular)
+            // ✅✅✅ CÓDIGO: Fuente más grande
             if (dataGridView1.Columns["codigo"] != null)
             {
                 var colCodigo = dataGridView1.Columns["codigo"];
-                colCodigo.DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+                colCodigo.DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Regular); // ✅ AUMENTADO: 12F → 16F
                 colCodigo.DefaultCellStyle.ForeColor = Color.FromArgb(33, 33, 33);
                 colCodigo.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             }
 
-            // ✅✅✅ DESCRIPCIÓN: CON negrita (Bold) - APLICAR A NIVEL DE COLUMNA
+            // ✅✅✅ DESCRIPCIÓN: Fuente más grande y negrita
             if (dataGridView1.Columns["descripcion"] != null)
             {
                 var colDescripcion = dataGridView1.Columns["descripcion"];
-                colDescripcion.DefaultCellStyle.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
+                colDescripcion.DefaultCellStyle.Font = new Font("Segoe UI", 17F, FontStyle.Bold); // ✅ AUMENTADO: 13F → 17F
                 colDescripcion.DefaultCellStyle.ForeColor = Color.FromArgb(33, 33, 33);
                 colDescripcion.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
                 colDescripcion.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                 colDescripcion.FillWeight = 250;
 
-                System.Diagnostics.Debug.WriteLine("✅ Columna descripción configurada: 13pt Bold, FillWeight=250");
+                System.Diagnostics.Debug.WriteLine("✅ Columna descripción configurada: 17pt Bold, FillWeight=250");
             }
 
-            // ✅✅✅ PRECIO: SIN negrita (Regular)
+            // ✅✅✅ PRECIO: Fuente más grande
             if (dataGridView1.Columns["precio"] != null)
             {
                 dataGridView1.Columns["precio"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dataGridView1.Columns["precio"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+                dataGridView1.Columns["precio"].DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Regular); // ✅ AUMENTADO: 12F → 16F
             }
 
-            // ✅✅✅ CANTIDAD: SIN negrita (Regular)
+            // ✅✅✅ CANTIDAD: Fuente más grande
             if (dataGridView1.Columns["cantidad"] != null)
             {
                 dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                dataGridView1.Columns["cantidad"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+                dataGridView1.Columns["cantidad"].DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Regular); // ✅ AUMENTADO: 12F → 16F
             }
 
-            // ✅✅✅ TOTAL: CON negrita (Bold) - APLICAR A NIVEL DE COLUMNA
+            // ✅✅✅ TOTAL: Fuente más grande y negrita
             if (dataGridView1.Columns["total"] != null)
             {
                 dataGridView1.Columns["total"].DefaultCellStyle.Format = "C2";
                 dataGridView1.Columns["total"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dataGridView1.Columns["total"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+                dataGridView1.Columns["total"].DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Bold); // ✅ AUMENTADO: 12F → 16F
             }
 
-            // ✅✅✅ IVA%: SIN negrita (Regular)
+            // ✅✅✅ IVA%: Fuente más grande
             if (dataGridView1.Columns["PorcentajeIva"] != null)
             {
-                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+                dataGridView1.Columns["PorcentajeIva"].DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Regular); // ✅ AUMENTADO: 12F → 16F
             }
 
             // ✅✅✅ OCULTAR columna IvaCalculado (IVA $)
@@ -2287,11 +2287,10 @@ namespace Comercio.NET
             dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White;
-            // ❌ ELIMINADO: dataGridView1.DefaultCellStyle.Font = ...
 
-            // ✅ Fuente para encabezados
+            // ✅ Fuente para encabezados - MÁS GRANDE
             var headerStyle = dataGridView1.ColumnHeadersDefaultCellStyle;
-            headerStyle.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
+            headerStyle.Font = new Font("Segoe UI", 17F, FontStyle.Bold); // ✅ AUMENTADO: 13F → 17F
             headerStyle.BackColor = Color.FromArgb(248, 249, 250);
             headerStyle.ForeColor = Color.Black;
 
@@ -2300,9 +2299,8 @@ namespace Comercio.NET
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
-            // ❌ ELIMINADO: dataGridView1.AlternatingRowsDefaultCellStyle.Font = ...
 
-            dataGridView1.RowTemplate.Height = 36;
+            dataGridView1.RowTemplate.Height = 48; // ✅ AUMENTADO: 36 → 48 (más alto para fuentes grandes)
             dataGridView1.GridColor = Color.FromArgb(220, 220, 220);
 
             dataGridView1.AutoGenerateColumns = true;
@@ -2311,7 +2309,7 @@ namespace Comercio.NET
                 if (e.Column.Name == "codigo")
                 {
                     e.Column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                    e.Column.Width = 120;
+                    e.Column.Width = 150;
                 }
             };
         }
@@ -2406,28 +2404,59 @@ namespace Comercio.NET
         // CORREGIDO: Cambiar el tipo de retorno a Task<DataRow>
         private async Task<DataRow> BuscarProductoAsync(string codigo)
         {
-            try
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            string connectionString = config.GetConnectionString("DefaultConnection");
+
+            using var connection = new SqlConnection(connectionString);
+
+            // ✅ MODIFICADO: Agregar validación del campo Activo
+            var query = @"SELECT codigo, descripcion, precio, cantidad, marca, rubro, costo, proveedor, 
+                         CAST(ISNULL(Activo, 1) AS BIT) as Activo,
+                         CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular,
+                         CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio
+                  FROM Productos 
+                  WHERE codigo = @codigo AND ISNULL(Activo, 1) = 1";  // ✅ VALIDAR QUE ESTÉ ACTIVO
+
+            using var adapter = new SqlDataAdapter(query, connection);
+            adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
+
+            var dt = new DataTable();
+            adapter.Fill(dt);
+
+            if (dt.Rows.Count > 0)
             {
-                string connectionString = GetConnectionString();
-
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, EditarPrecio, cantidad, iva 
-                                  FROM Productos WHERE codigo = @codigo";
-
-                    using (var adapter = new SqlDataAdapter(query, connection))
-                    {
-                        adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
-                        DataTable dt = new DataTable();
-                        await Task.Run(() => adapter.Fill(dt));
-
-                        return dt.Rows.Count > 0 ? dt.Rows[0] : null;
-                    }
-                }
+                return dt.Rows[0];
             }
-            catch (Exception ex)
+            else
             {
-                System.Diagnostics.Debug.WriteLine($"Error buscando producto: {ex.Message}");
+                // ✅ NUEVO: Verificar si el producto existe pero está inactivo
+                var queryInactivo = @"SELECT codigo, descripcion 
+                              FROM Productos 
+                              WHERE codigo = @codigo AND ISNULL(Activo, 1) = 0";
+
+                using var adapterInactivo = new SqlDataAdapter(queryInactivo, connection);
+                adapterInactivo.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
+
+                var dtInactivo = new DataTable();
+                adapterInactivo.Fill(dtInactivo);
+
+                if (dtInactivo.Rows.Count > 0)
+                {
+                    string descripcion = dtInactivo.Rows[0]["descripcion"]?.ToString() ?? "Sin descripción";
+                    MessageBox.Show(
+                        $"⚠️ El producto '{descripcion}' (código: {codigo}) está INACTIVO.\n\n" +
+                        "No se puede agregar a la venta.\n\n" +
+                        "Si necesita activarlo, vaya al módulo de Productos.",
+                        "Producto Inactivo",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                }
+
                 return null;
             }
         }
@@ -3020,11 +3049,16 @@ namespace Comercio.NET
         }
         private void Ventas_Load(object sender, EventArgs e)
         {
-            // Abrir un poco más ancho si la ventana de diseño es más pequeña
-            const int anchoDeseado = 850;
-            if (this.ClientSize.Width < anchoDeseado)
+            // ✅✅✅ MODIFICADO: Formulario más corto y ancho ajustado para MDI
+            const int anchoDeseado = 1100; // ✅ Mantener ancho actual
+            const int altoDeseado = 600;   // ✅ REDUCIDO: 900 → 750px (más corto, sin scroll)
+
+            if (this.ClientSize.Width < anchoDeseado || this.ClientSize.Height < altoDeseado)
             {
-                this.ClientSize = new Size(anchoDeseado, this.ClientSize.Height);
+                this.ClientSize = new Size(
+                    Math.Max(anchoDeseado, this.ClientSize.Width),
+                    Math.Max(altoDeseado, this.ClientSize.Height)
+                );
             }
 
             var config = new ConfigurationBuilder()
@@ -3048,10 +3082,6 @@ namespace Comercio.NET
                 }
             }
 
-            // Reposicionar el botón anular ahora que el tamaño inicial se ha establecido
-            //ReposicionarBotonAnular();
-
-            // (resto del Ventas_Load original sigue igual...)
             // Deja la grilla vacía al abrir el formulario
             dataGridView1.DataSource = null;
             dataGridView1.Rows.Clear();
@@ -3060,7 +3090,7 @@ namespace Comercio.NET
 
             // CORREGIDO: Cambiar SelectionMode para permitir selección de filas completas
             dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dataGridView1.MultiSelect = false; // Permitir solo una fila seleccionada
+            dataGridView1.MultiSelect = false;
             dataGridView1.Enabled = true;
 
             // CORREGIDO: Solo limpiar la selección inicial, pero permitir selecciones futuras
@@ -3085,7 +3115,7 @@ namespace Comercio.NET
 
             // MEJORADO: Personalizar estilo de DataGridView con mejor contraste de selección
             dataGridView1.EnableHeadersVisualStyles = false;
-            dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 17F, FontStyle.Bold); // ✅ Mantener fuente grande
             dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
             dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250);
@@ -3094,21 +3124,17 @@ namespace Comercio.NET
             // MEJORADO: Estilos de selección más contrastantes
             dataGridView1.DefaultCellStyle.BackColor = Color.White;
             dataGridView1.DefaultCellStyle.ForeColor = Color.Black;
-            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215); // Azul más intenso
-            dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White; // Texto blanco para mayor contraste
+            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White;
 
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
             // MEJORADO: Color más oscuro para filas alternas con mejor selección
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(235, 242, 248); // Más oscuro
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(235, 242, 248);
             dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
-
-            // AGREGADO: Configurar eventos para eliminar productos (llamar al método que ya tienes)
-            // NOTA: Ya se configura en el constructor mediante ConfigurarEventHandlers(), 
-            // por eso evitamos hacerlo nuevamente para no duplicar handlers.
         }
 
         private void ConfigurarPanelFooter()
@@ -3116,25 +3142,25 @@ namespace Comercio.NET
             // Crear el panel footer programáticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 85; // ✅✅✅ AUMENTADO: de 65 a 85 píxeles para que no se corte el total
+            panelFooter.Height = 120; // ✅ AUMENTADO: 95 → 110 píxeles (más espacio para total)
             panelFooter.BackColor = Color.FromArgb(0, 120, 215);
 
             // Configurar lbCantidadProductos (dock left)
             lbCantidadProductos.AutoSize = false;
             lbCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
             lbCantidadProductos.Dock = DockStyle.Left;
-            lbCantidadProductos.Width = 220;
-            lbCantidadProductos.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
+            lbCantidadProductos.Width = 250;
+            lbCantidadProductos.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
             lbCantidadProductos.ForeColor = Color.White;
             lbCantidadProductos.Text = "Productos: 0";
 
-            // ✅ Panel contenedor para centrar verticalmente el RichTextBox
+            // ✅ Panel contenedor MÁS ANCHO para el total
             Panel panelTotalContainer = new Panel
             {
                 Dock = DockStyle.Right,
-                Width = 500,
+                Width = 700, // ✅ AUMENTADO: 600 → 700px (más espacio para texto)
                 BackColor = Color.FromArgb(0, 120, 215),
-                Padding = new Padding(0, 15, 20, 15) // ✅ AUMENTADO: Padding vertical de 12 a 15
+                Padding = new Padding(0, 20, 20, 20)
             };
 
             // RichTextBox para totales
@@ -3222,7 +3248,7 @@ namespace Comercio.NET
             {
                 dataGridView1.Columns["codigo"].HeaderText = "Codigo";
                 dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["codigo"].Width = 120;
+                dataGridView1.Columns["codigo"].Width = 170;
             }
 
             if (dataGridView1.Columns["descripcion"] != null)
@@ -3236,7 +3262,7 @@ namespace Comercio.NET
             {
                 dataGridView1.Columns["precio"].HeaderText = "Precio";
                 dataGridView1.Columns["precio"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["precio"].Width = 100;
+                dataGridView1.Columns["precio"].Width = 120; // ✅ AUMENTADO: 100 → 120
                 dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             }
 
@@ -3248,9 +3274,9 @@ namespace Comercio.NET
                 colTotal.DefaultCellStyle.Format = "C2";
                 colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                 colTotal.DefaultCellStyle.BackColor = dataGridView1.DefaultCellStyle.BackColor;
-                colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Bold); // ✅ AUMENTADO
+                colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Bold); // ✅ AUMENTADO: 12F → 16F
                 colTotal.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                colTotal.Width = 120;
+                colTotal.Width = 140; // ✅ AUMENTADO: 120 → 140
             }
 
             // IVA%: ancho fijo
@@ -3259,8 +3285,8 @@ namespace Comercio.NET
                 var colIvaPct = dataGridView1.Columns["PorcentajeIva"];
                 colIvaPct.HeaderText = "IVA%";
                 colIvaPct.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                colIvaPct.Width = 60;
-                colIvaPct.MinimumWidth = 50;
+                colIvaPct.Width = 70; // ✅ AUMENTADO: 60 → 70
+                colIvaPct.MinimumWidth = 60;
                 colIvaPct.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
 
@@ -3269,7 +3295,7 @@ namespace Comercio.NET
             {
                 dataGridView1.Columns["cantidad"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dataGridView1.Columns["cantidad"].HeaderText = "Cant.";
-                dataGridView1.Columns["cantidad"].Width = 50;
+                dataGridView1.Columns["cantidad"].Width = 60; // ✅ AUMENTADO: 50 → 60
                 dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
 
@@ -3280,12 +3306,12 @@ namespace Comercio.NET
             if (dataGridView1.Columns["ColOferta"] != null)
             {
                 dataGridView1.Columns["ColOferta"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["ColOferta"].Width = 35;
-                dataGridView1.Columns["ColOferta"].MinimumWidth = 35;
+                dataGridView1.Columns["ColOferta"].Width = 40; // ✅ AUMENTADO: 35 → 40
+                dataGridView1.Columns["ColOferta"].MinimumWidth = 40;
                 dataGridView1.Columns["ColOferta"].Resizable = DataGridViewTriState.False;
                 dataGridView1.Columns["ColOferta"].DisplayIndex = 0;
 
-                System.Diagnostics.Debug.WriteLine("✅ Ancho ColOferta FORZADO a 35px después de DataSource");
+                System.Diagnostics.Debug.WriteLine("✅ Ancho ColOferta FORZADO a 40px después de DataSource");
             }
 
             // Actualizar totales
@@ -3307,10 +3333,10 @@ namespace Comercio.NET
                 btnAnularFactura.BringToFront();
             }
 
-            // ✅✅✅ MODIFICADO: Fuente del TOTAL más grande (de 28F a 36F)
+            // ✅✅✅ MODIFICADO: Fuente del TOTAL MUY GRANDE (de 36F a 48F)
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
-            rtbTotal.SelectionFont = new Font("Segoe UI", 36F, FontStyle.Bold); // ✅ AUMENTADO: 28F → 36F
+            rtbTotal.SelectionFont = new Font("Segoe UI", 48F, FontStyle.Bold); // ✅ AUMENTADO: 36F → 48F
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
         }
 

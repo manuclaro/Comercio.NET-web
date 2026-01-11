@@ -31,6 +31,8 @@ namespace Comercio.NET
         public MenuPrincipal()
         {
             InitializeComponent();
+            // ✅✅✅ NUEVO: Configurar tamaño del formulario MDI ANTES de otros métodos
+            ConfigurarTamañoFormulario();
             ConfigurarInformacionUsuario();
             ConfigurarMenuSegunPermisos();
             AgregarMenuProveedores();
@@ -42,6 +44,31 @@ namespace Comercio.NET
             AgregarActualizacionRapidaAlMenu();
             AgregarOpcionGestionOfertas();
             AgregarMenuConfiguracionPermisos(); // ✅ AGREGAR ESTA LÍNEA
+        }
+
+        // ✅✅✅ NUEVO MÉTODO: Configurar tamaño del formulario MDI
+        private void ConfigurarTamañoFormulario()
+        {
+            // Tamaño óptimo para acomodar Ventas (1100x750) + menú y barras
+            this.ClientSize = new Size(1250, 750);
+
+            // Centrar en pantalla
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            // Establecer tamaño mínimo
+            this.MinimumSize = new Size(1250, 750);
+
+            // Opcional: Maximizar si la pantalla es grande
+            var screenHeight = Screen.PrimaryScreen.WorkingArea.Height;
+            var screenWidth = Screen.PrimaryScreen.WorkingArea.Width;
+
+            // Si la pantalla es suficientemente grande, maximizar
+            if (screenWidth >= 1920 && screenHeight >= 1080)
+            {
+                this.WindowState = FormWindowState.Maximized;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"✅ Formulario MDI configurado: {this.ClientSize.Width}x{this.ClientSize.Height}");
         }
 
         // ✅ NUEVO MÉTODO: Agregar menú de configuración de permisos
