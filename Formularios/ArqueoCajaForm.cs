@@ -51,6 +51,7 @@ namespace Comercio.NET.Formularios
             ConfigurarEventos();
         }
 
+
         private void CrearControles()
         {
             int margin = 15;
@@ -522,6 +523,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
+
         private async Task CargarCajeros()
         {
             try
@@ -766,37 +768,51 @@ namespace Comercio.NET.Formularios
             }
 
             // ========================================
-            // QUERY DE EGRESOS (PAGOS A PROVEEDORES)
+            // ✅ QUERY DE EGRESOS (PAGOS A PROVEEDORES)
             // ========================================
-            var queryEgresos = @"
+            var queryPagosProveedores = @"
         SELECT 
-            COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-            SUM(cpp.Monto) as TotalEgresos,
+            'Efectivo' as MedioPago,
+            SUM(Monto) as TotalEgresos,
             COUNT(*) as CantidadEgresos
-        FROM ComprasProveedoresPagos cpp
-        INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-        WHERE cp.Cajero = @numeroCajero
-        AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
-        GROUP BY COALESCE(cpp.Metodo, 'Efectivo')";
+        FROM PagosProveedores
+        WHERE NumeroCajero = @numeroCajero
+        AND FechaPago BETWEEN @fechaInicio AND @fechaFin";
 
-            using (var cmd = new SqlCommand(queryEgresos, connection))
+            using (var cmd = new SqlCommand(queryPagosProveedores, connection))
             {
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                 cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
                 cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (reader.Read())
+                try
                 {
-                    string medioPago = reader.GetString(0);
-                    decimal egresos = reader.GetDecimal(1);
-                    int cantidad = reader.GetInt32(2);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    while (reader.Read())
+                    {
+                        string medioPago = reader.GetString(0);
+                        decimal egresos = reader.GetDecimal(1);
+                        int cantidad = reader.GetInt32(2);
 
-                    if (!resumen.ContainsKey(medioPago))
-                        resumen[medioPago] = (0m, 0m, 0, 0);
+                        // ✅ CORREGIDO: Asegurarse de que la clave "Efectivo" existe
+                        if (!resumen.ContainsKey(medioPago))
+                            resumen[medioPago] = (0m, 0m, 0, 0);
 
-                    var actual = resumen[medioPago];
-                    resumen[medioPago] = (actual.Ingresos, egresos, actual.CantIngresos, cantidad);
+                        var actual = resumen[medioPago];
+                        // ✅ CRÍTICO: SUMAR egresos a los existentes, NO reemplazar
+                        resumen[medioPago] = (actual.Ingresos, actual.Egresos + egresos, actual.CantIngresos, actual.CantEgresos + cantidad);
+
+                        System.Diagnostics.Debug.WriteLine(
+                            $"💳 PAGOS PROVEEDORES SUMADOS:\n" +
+                            $"   Total egresos: {egresos:C2}\n" +
+                            $"   Cantidad: {cantidad}\n" +
+                            $"   Medio: {medioPago}\n" +
+                            $"   Egresos acumulados: {resumen[medioPago].Egresos:C2}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ Tabla PagosProveedores no disponible: {ex.Message}");
                 }
             }
 
@@ -804,12 +820,12 @@ namespace Comercio.NET.Formularios
             // QUERY DE RETIROS DE EFECTIVO
             // ========================================
             var queryRetiros = @"
-    SELECT 
-        SUM(Monto) as TotalRetiros,
-        COUNT(*) as CantidadRetiros
-    FROM RetirosEfectivo
-    WHERE NumeroCajero = @numeroCajero
-    AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
+        SELECT 
+            SUM(Monto) as TotalRetiros,
+            COUNT(*) as CantidadRetiros
+        FROM RetirosEfectivo
+        WHERE NumeroCajero = @numeroCajero
+        AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
 
             using (var cmd = new SqlCommand(queryRetiros, connection))
             {
@@ -817,39 +833,58 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
                 cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
 
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (reader.Read())
+                try
                 {
-                    decimal totalRetiros = reader["TotalRetiros"] != DBNull.Value
-                        ? reader.GetDecimal(0)
-                        : 0m;
-                    int cantidadRetiros = reader["CantidadRetiros"] != DBNull.Value
-                        ? reader.GetInt32(1)
-                        : 0;
-
-                    // ✅ Registrar retiros como EGRESO de EFECTIVO
-                    if (totalRetiros > 0)
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (reader.Read())
                     {
-                        string medioPago = "Efectivo";
+                        decimal totalRetiros = reader["TotalRetiros"] != DBNull.Value
+                            ? reader.GetDecimal(0)
+                            : 0m;
+                        int cantidadRetiros = reader["CantidadRetiros"] != DBNull.Value
+                            ? reader.GetInt32(1)
+                            : 0;
 
-                        if (!resumen.ContainsKey(medioPago))
-                            resumen[medioPago] = (0m, 0m, 0, 0);
+                        if (totalRetiros > 0)
+                        {
+                            string medioPago = "Efectivo";
 
-                        var actual = resumen[medioPago];
-                        resumen[medioPago] = (
-                            actual.Ingresos,
-                            actual.Egresos + totalRetiros,  // ✅ SUMAR retiros a egresos
-                            actual.CantIngresos,
-                            actual.CantEgresos + cantidadRetiros
-                        );
+                            if (!resumen.ContainsKey(medioPago))
+                                resumen[medioPago] = (0m, 0m, 0, 0);
 
-                        System.Diagnostics.Debug.WriteLine(
-                            $"💰 RETIROS REGISTRADOS:\n" +
-                            $"   Total: {totalRetiros:C2}\n" +
-                            $"   Cantidad: {cantidadRetiros}\n" +
-                            $"   Medio: {medioPago}");
+                            var actual = resumen[medioPago];
+                            // ✅ SUMAR retiros a egresos existentes
+                            resumen[medioPago] = (
+                                actual.Ingresos,
+                                actual.Egresos + totalRetiros,
+                                actual.CantIngresos,
+                                actual.CantEgresos + cantidadRetiros
+                            );
+
+                            System.Diagnostics.Debug.WriteLine(
+                                $"💰 RETIROS SUMADOS:\n" +
+                                $"   Total: {totalRetiros:C2}\n" +
+                                $"   Cantidad: {cantidadRetiros}\n" +
+                                $"   Medio: {medioPago}\n" +
+                                $"   Egresos acumulados: {resumen[medioPago].Egresos:C2}");
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ Tabla RetirosEfectivo no disponible: {ex.Message}");
+                }
+            }
+
+            // ✅ NUEVO: Debug final para verificar el resumen completo
+            System.Diagnostics.Debug.WriteLine($"\n📊 RESUMEN FINAL POR MEDIO:");
+            foreach (var kvp in resumen)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"   {kvp.Key}:\n" +
+                    $"      Ingresos: {kvp.Value.Ingresos:C2} ({kvp.Value.CantIngresos} trans.)\n" +
+                    $"      Egresos: {kvp.Value.Egresos:C2} ({kvp.Value.CantEgresos} trans.)\n" +
+                    $"      Neto: {(kvp.Value.Ingresos - kvp.Value.Egresos):C2}");
             }
 
             return resumen;
@@ -889,20 +924,19 @@ namespace Comercio.NET.Formularios
             AND f.Hora BETWEEN @fechaInicio AND @fechaFin
             AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
         ),
-        -- Pagos a Proveedores
+        -- ✅ CORREGIDO: Pagos a Proveedores
         TransaccionesPagosProveedores AS (
             SELECT 
-                cpp.Fecha,
-                'Pago #' + CAST(cpp.Id AS NVARCHAR) + ' - ' + cp.Proveedor as NumeroFactura,
-                COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-                cpp.Monto as Importe,
+                pp.FechaPago as Fecha,
+                'Pago #' + CAST(pp.Id AS NVARCHAR) + ' - ' + pp.Proveedor as NumeroFactura,
+                'Efectivo' as MedioPago,
+                pp.Monto as Importe,
                 'Egreso (Pago Prov.)' as Tipo
-            FROM ComprasProveedoresPagos cpp
-            INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-            WHERE cp.Cajero = @numeroCajero
-            AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
-        ),  -- ✅ AGREGAR COMA AQUÍ
-        -- ✅ NUEVO: Retiros de Efectivo
+            FROM PagosProveedores pp
+            WHERE pp.NumeroCajero = @numeroCajero
+            AND pp.FechaPago BETWEEN @fechaInicio AND @fechaFin
+        ),
+        -- Retiros de Efectivo
         TransaccionesRetiros AS (
             SELECT 
                 FechaRetiro as Fecha,
@@ -914,13 +948,16 @@ namespace Comercio.NET.Formularios
             WHERE NumeroCajero = @numeroCajero
             AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin
         )
-        SELECT * FROM TransaccionesVentasSimples
-        UNION ALL
-        SELECT * FROM TransaccionesVentasMultiples
-        UNION ALL
-        SELECT * FROM TransaccionesPagosProveedores
-        UNION ALL
-        SELECT * FROM TransaccionesRetiros  -- ✅ INCLUIR RETIROS
+        SELECT Fecha, NumeroFactura, MedioPago, Importe, Tipo
+        FROM (
+            SELECT * FROM TransaccionesVentasSimples
+            UNION ALL
+            SELECT * FROM TransaccionesVentasMultiples
+            UNION ALL
+            SELECT * FROM TransaccionesPagosProveedores
+            UNION ALL
+            SELECT * FROM TransaccionesRetiros
+        ) TodasTransacciones
         ORDER BY Fecha DESC";
 
             using var cmd = new SqlCommand(queryDetalle, connection);
@@ -930,33 +967,42 @@ namespace Comercio.NET.Formularios
 
             dgvDetalleTransacciones.Rows.Clear();
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (reader.Read())
+            try
             {
-                DateTime fecha = reader.GetDateTime(0);
-                string numeroFactura = reader.GetString(1);
-                string medioPago = reader.GetString(2);
-                decimal importe = reader.GetDecimal(3);
-                string tipo = reader.GetString(4);
-
-                dgvDetalleTransacciones.Rows.Add(
-                    fecha.ToString("dd/MM/yy HH:mm"),
-                    numeroFactura,
-                    medioPago,
-                    importe.ToString("C2"),
-                    tipo
-                );
-
-                int rowIndex = dgvDetalleTransacciones.Rows.Count - 1;
-                if (tipo.Contains("Egreso"))
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (reader.Read())
                 {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54);
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDetalleTransacciones.Font, FontStyle.Bold);
+                    DateTime fecha = reader.GetDateTime(0);
+                    string numeroFactura = reader.GetString(1);
+                    string medioPago = reader.GetString(2);
+                    decimal importe = reader.GetDecimal(3);
+                    string tipo = reader.GetString(4);
+
+                    dgvDetalleTransacciones.Rows.Add(
+                        fecha.ToString("dd/MM/yy HH:mm"),
+                        numeroFactura,
+                        medioPago,
+                        importe.ToString("C2"),
+                        tipo
+                    );
+
+                    int rowIndex = dgvDetalleTransacciones.Rows.Count - 1;
+                    if (tipo.Contains("Egreso"))
+                    {
+                        dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54);
+                        dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDetalleTransacciones.Font, FontStyle.Bold);
+                    }
+                    else
+                    {
+                        dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
+                    }
                 }
-                else
-                {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
-                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error cargando detalle: {ex.Message}");
+                MessageBox.Show($"Error parcial cargando detalle de transacciones:\n{ex.Message}\n\nLos datos disponibles se mostrarán.",
+                    "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

@@ -60,6 +60,8 @@ namespace Comercio.NET
         // ✅ NUEVO: Botón para retiros de efectivo
         private Button btnRetirarEfectivo;
 
+        private Button btnPagoProveedor;
+
         // En lugar del Label lbTotal, usar un RichTextBox para mejor control de formato
         private RichTextBox rtbTotal;
 
@@ -218,8 +220,9 @@ namespace Comercio.NET
             }
         }
 
-        private void ConfigurarBotonRetiroEfectivo()
+        private void ConfigurarBotonesCaja()
         {
+            // Botón Retirar (existente)
             btnRetirarEfectivo = new Button
             {
                 Text = "💰 Retirar",
@@ -230,63 +233,226 @@ namespace Comercio.NET
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 TabStop = false
             };
-
             btnRetirarEfectivo.FlatAppearance.BorderSize = 0;
             btnRetirarEfectivo.Click += BtnRetirarEfectivo_Click;
 
-            // ✅ CORREGIDO: Agregar al mismo contenedor que btnFinalizarVenta
             if (btnFinalizarVenta?.Parent != null)
             {
                 btnFinalizarVenta.Parent.Controls.Add(btnRetirarEfectivo);
             }
             else
             {
-                // Fallback: agregar directamente al formulario
                 this.Controls.Add(btnRetirarEfectivo);
             }
-
             btnRetirarEfectivo.BringToFront();
 
-            // ✅ CORREGIDO: Función de reposicionamiento simplificada
-            void ReposicionarRetiro()
+            // ✅ NUEVO: Botón Pagar Proveedor
+            btnPagoProveedor = new Button
+            {
+                Text = "💳 Pagar Prov.",
+                Size = new Size(130, 40),
+                BackColor = Color.FromArgb(0, 150, 136), // Verde azulado
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                TabStop = false
+            };
+            btnPagoProveedor.FlatAppearance.BorderSize = 0;
+            btnPagoProveedor.Click += BtnPagoProveedor_Click;
+
+            if (btnFinalizarVenta?.Parent != null)
+            {
+                btnFinalizarVenta.Parent.Controls.Add(btnPagoProveedor);
+            }
+            else
+            {
+                this.Controls.Add(btnPagoProveedor);
+            }
+            btnPagoProveedor.BringToFront();
+
+            // ✅ Función de reposicionamiento para AMBOS botones
+            void ReposicionarBotonesCaja()
             {
                 try
                 {
-                    // ✅ OPCIÓN 1: Posicionar junto a btnFinalizarVenta (mismo alto)
                     if (btnFinalizarVenta != null)
                     {
+                        // Retirar a la derecha de Finalizar
                         btnRetirarEfectivo.Height = btnFinalizarVenta.Height;
                         btnRetirarEfectivo.Top = btnFinalizarVenta.Top;
                         btnRetirarEfectivo.Left = btnFinalizarVenta.Right + 15;
+
+                        // Pagar Proveedor a la derecha de Retirar
+                        btnPagoProveedor.Height = btnFinalizarVenta.Height;
+                        btnPagoProveedor.Top = btnFinalizarVenta.Top;
+                        btnPagoProveedor.Left = btnRetirarEfectivo.Right + 15;
                     }
-                    // ✅ OPCIÓN 2: Fallback - posicionar junto a btnAnularFactura
                     else if (btnAnularFactura != null)
                     {
                         btnRetirarEfectivo.Height = btnAnularFactura.Height;
                         btnRetirarEfectivo.Top = btnAnularFactura.Top;
                         btnRetirarEfectivo.Left = btnAnularFactura.Right + 15;
+
+                        btnPagoProveedor.Height = btnAnularFactura.Height;
+                        btnPagoProveedor.Top = btnAnularFactura.Top;
+                        btnPagoProveedor.Left = btnRetirarEfectivo.Right + 15;
                     }
-                    // ✅ OPCIÓN 3: Último recurso - posición fija
                     else
                     {
-                        btnRetirarEfectivo.Top = 115; // Debajo del header (70px) + margen
+                        btnRetirarEfectivo.Top = 115;
                         btnRetirarEfectivo.Left = 800;
+
+                        btnPagoProveedor.Top = 115;
+                        btnPagoProveedor.Left = 935;
                     }
                 }
-                catch
-                {
-                    // Silenciar errores
-                }
+                catch { }
             }
 
-            // ✅ Ejecutar reposicionamiento inicial DESPUÉS de que se cargue el form
-            this.Load += (s, e) => ReposicionarRetiro();
-            this.Resize += (s, e) => ReposicionarRetiro();
+            this.Load += (s, e) => ReposicionarBotonesCaja();
+            this.Resize += (s, e) => ReposicionarBotonesCaja();
 
-            // ✅ CRÍTICO: Reposicionar también cuando cambie el tamaño del contenedor
             if (btnFinalizarVenta?.Parent != null)
             {
-                btnFinalizarVenta.Parent.SizeChanged += (s, e) => ReposicionarRetiro();
+                btnFinalizarVenta.Parent.SizeChanged += (s, e) => ReposicionarBotonesCaja();
+            }
+        }
+
+        // ✅ NUEVO: Event handler para pago a proveedor
+        private async void BtnPagoProveedor_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var dialogoPago = new Formularios.PagoProveedorRapidoForm())
+                {
+                    var resultado = dialogoPago.ShowDialog(this);
+
+                    if (resultado == DialogResult.OK && dialogoPago.Confirmado)
+                    {
+                        await RegistrarPagoProveedorAsync(
+                            dialogoPago.ProveedorSeleccionado,
+                            dialogoPago.Monto,
+                            dialogoPago.Observaciones);
+
+                        MessageBox.Show(
+                            $"✅ PAGO REGISTRADO\n\n" +
+                            $"Proveedor: {dialogoPago.ProveedorSeleccionado}\n" +
+                            $"Monto: {dialogoPago.Monto:C2}\n" +
+                            $"Observaciones: {dialogoPago.Observaciones}\n\n" +
+                            $"El pago se reflejará en:\n" +
+                            $"• Cuenta corriente del proveedor\n" +
+                            $"• Cálculos de arqueo y cierre de caja",
+                            "Pago a Proveedor",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al registrar el pago: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Registrar pago en base de datos
+        private async Task RegistrarPagoProveedorAsync(string proveedor, decimal monto, string observaciones)
+        {
+            string connectionString = GetConnectionString();
+            string usuario = ObtenerUsuarioActual();
+            int numeroCajero = obtenerNumeroCajero();
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // ✅ MODIFICADO: Obtener IdProveedor desde el nombre
+                        int? idProveedor = null;
+                        var queryGetId = "SELECT Id FROM Proveedores WHERE Nombre = @nombre";
+                        using (var cmdId = new SqlCommand(queryGetId, connection, transaction))
+                        {
+                            cmdId.Parameters.AddWithValue("@nombre", proveedor);
+                            var result = await cmdId.ExecuteScalarAsync();
+                            if (result != null && result != DBNull.Value)
+                            {
+                                idProveedor = Convert.ToInt32(result);
+                            }
+                        }
+
+                        // 1. Registrar el pago en tabla de pagos a proveedores
+                        var queryPago = @"
+                    INSERT INTO PagosProveedores 
+                        (IdProveedor, Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, 
+                         FechaPago, NumeroRemito, NombreEquipo)
+                    VALUES 
+                        (@IdProveedor, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @UsuarioRegistro,
+                         @FechaPago, @NumeroRemito, @NombreEquipo);
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+                        int idPago;
+                        using (var cmd = new SqlCommand(queryPago, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.HasValue ? (object)idProveedor.Value : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Proveedor", proveedor);
+                            cmd.Parameters.AddWithValue("@Monto", monto);
+                            cmd.Parameters.AddWithValue("@Observaciones",
+                                string.IsNullOrWhiteSpace(observaciones) ? (object)DBNull.Value : observaciones);
+                            cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                            cmd.Parameters.AddWithValue("@UsuarioRegistro", usuario);
+                            cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+                            cmd.Parameters.AddWithValue("@NumeroRemito", (object)nroRemitoActual ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+
+                            idPago = (int)await cmd.ExecuteScalarAsync();
+                        }
+
+                        // 2. Actualizar cuenta corriente del proveedor
+                        if (idProveedor.HasValue)
+                        {
+                            try
+                            {
+                                var queryCtaCte = @"
+                            INSERT INTO CtaCteProveedores 
+                                (IdProveedor, Proveedor, Fecha, Concepto, Debe, Haber, IdPago, Usuario)
+                            VALUES 
+                                (@IdProveedor, @Proveedor, @Fecha, @Concepto, @Debe, @Haber, @IdPago, @Usuario)";
+
+                                using (var cmd = new SqlCommand(queryCtaCte, connection, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.Value);
+                                    cmd.Parameters.AddWithValue("@Proveedor", proveedor);
+                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@Concepto",
+                                        $"Pago - {(string.IsNullOrWhiteSpace(observaciones) ? "Sin observaciones" : observaciones)}");
+                                    cmd.Parameters.AddWithValue("@Debe", 0);
+                                    cmd.Parameters.AddWithValue("@Haber", monto);
+                                    cmd.Parameters.AddWithValue("@IdPago", idPago);
+                                    cmd.Parameters.AddWithValue("@Usuario", usuario);
+
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"⚠️ Error actualizando CtaCte: {ex.Message}");
+                            }
+                        }
+
+                        transaction.Commit();
+
+                        System.Diagnostics.Debug.WriteLine(
+                            $"💳 Pago registrado - Proveedor: {proveedor} (ID: {idProveedor}), Monto: {monto:C2}, Usuario: {usuario}");
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw new Exception($"Error en transacción de pago: {ex.Message}", ex);
+                    }
+                }
             }
         }
 
@@ -2248,7 +2414,7 @@ namespace Comercio.NET
             ConfigurarBoton(btnSalir, Color.FromArgb(220, 53, 69));
 
             ConfigurarPaneles();
-            ConfigurarBotonRetiroEfectivo();
+            ConfigurarBotonesCaja();
             ConfigurarDataGridView();
             ConfigurarTextBoxes();
         }
