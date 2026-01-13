@@ -604,7 +604,7 @@ namespace Comercio.NET
             }
         }
 
-        
+
         private void OpenFile(object sender, EventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -995,7 +995,7 @@ namespace Comercio.NET
             }
         }
 
-        
+
 
         // ✅ MODIFICAR el handler para abrir CtaCte con el Form contenedor correcto:
         private void CtaCteProveedoresToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1079,7 +1079,7 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error abriendo Control Compras Proveedores: {ex.Message}", 
+                MessageBox.Show($"Error abriendo Control Compras Proveedores: {ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1502,9 +1502,9 @@ namespace Comercio.NET
                 if (AuthenticationService.SesionActual?.Usuario != null)
                 {
                     var usuario = AuthenticationService.SesionActual.Usuario;
-                    
+
                     // Solo supervisores y administradores pueden cerrar turnos
-                    if (usuario.Nivel != Models.NivelUsuario.Administrador && 
+                    if (usuario.Nivel != Models.NivelUsuario.Administrador &&
                         usuario.Nivel != Models.NivelUsuario.Supervisor)
                     {
                         MessageBox.Show(
@@ -1938,7 +1938,7 @@ namespace Comercio.NET
 
                     // Buscar la posición ideal: después del botón de Control Facturas
                     int insertIndex = -1;
-                    
+
                     // Intentar encontrar el botón de Control Facturas
                     var btnControlFacturas = this.toolStrip.Items
                         .OfType<ToolStripButton>()
@@ -1970,7 +1970,7 @@ namespace Comercio.NET
                             this.toolStrip.Items.Insert(insertIndex, new ToolStripSeparator());
                             insertIndex++;
                         }
-                        
+
                         this.toolStrip.Items.Insert(insertIndex, btnCierreTurno);
                     }
                     else
@@ -2046,7 +2046,7 @@ namespace Comercio.NET
             return bitmap;
         }
 
-        
+
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             // Atajo para Cierre de Turno: Ctrl+Shift+T
@@ -2086,7 +2086,7 @@ namespace Comercio.NET
                 var aperturaTurnoItem = menuCaja.DropDownItems
                     .OfType<ToolStripMenuItem>()
                     .FirstOrDefault(x => x.Text.Contains("Apertura de Turno"));
-                
+
                 if (aperturaTurnoItem != null)
                 {
                     aperturaTurnoItem.Enabled = true; // Habilitar el menú
@@ -2097,7 +2097,7 @@ namespace Comercio.NET
                 var historialCierresItem = menuCaja.DropDownItems
                     .OfType<ToolStripMenuItem>()
                     .FirstOrDefault(x => x.Text.Contains("Historial de Cierres"));
-                
+
                 if (historialCierresItem != null)
                 {
                     historialCierresItem.Enabled = true; // Habilitar el menú
@@ -2674,9 +2674,14 @@ namespace Comercio.NET
 
             if (menuItem != null)
                 menuItem.Visible = permitido;
-            
+
             if (toolButton != null)
                 toolButton.Visible = permitido;
+        }
+
+        private void MenuPrincipal_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

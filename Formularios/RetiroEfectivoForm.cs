@@ -25,26 +25,26 @@ namespace Comercio.NET.Formularios
         private void InitializeComponent()
         {
             this.Text = "Retiro de Efectivo";
-            this.Size = new Size(450, 280);
+            this.Size = new Size(480, 300); // ? Formulario más ancho
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.BackColor = Color.White;
 
-            // Label y TextBox para Monto
+            // ? CORREGIDO: Label Monto más ancho
             var lblMonto = new Label
             {
                 Text = "Monto a retirar: $",
                 Location = new Point(20, 20),
-                Size = new Size(120, 25),
+                Size = new Size(150, 25), // ? Aumentado de 120 a 150
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 120, 215)
             };
 
             txtMonto = new TextBox
             {
-                Location = new Point(145, 18),
+                Location = new Point(175, 18), // ? Ajustado para nuevo ancho de label
                 Size = new Size(270, 30),
                 Font = new Font("Segoe UI", 14F),
                 PlaceholderText = "0.00"
@@ -56,14 +56,14 @@ namespace Comercio.NET.Formularios
             {
                 Text = "Motivo:",
                 Location = new Point(20, 70),
-                Size = new Size(120, 25),
+                Size = new Size(150, 25), // ? Mismo ancho para consistencia
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 120, 215)
             };
 
             txtMotivo = new TextBox
             {
-                Location = new Point(145, 68),
+                Location = new Point(175, 68), // ? Ajustado
                 Size = new Size(270, 30),
                 Font = new Font("Segoe UI", 11F),
                 PlaceholderText = "Gastos, pagos, etc.",
@@ -75,26 +75,32 @@ namespace Comercio.NET.Formularios
             {
                 Text = "Responsable:",
                 Location = new Point(20, 120),
-                Size = new Size(120, 25),
+                Size = new Size(150, 25), // ? Mismo ancho para consistencia
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 120, 215)
             };
 
             txtResponsable = new TextBox
             {
-                Location = new Point(145, 118),
+                Location = new Point(175, 118), // ? Ajustado
                 Size = new Size(270, 30),
                 Font = new Font("Segoe UI", 11F),
                 PlaceholderText = "Nombre del responsable",
                 MaxLength = 100
             };
 
-            // Botones
+            // ? CORREGIDO: Botones centrados dinámicamente
+            int anchoBoton = 120;
+            int altoBoton = 40;
+            int espacioEntreBotones = 15;
+            int anchoTotal = (anchoBoton * 2) + espacioEntreBotones;
+            int centroFormulario = (this.ClientSize.Width - anchoTotal) / 2;
+
             btnAceptar = new Button
             {
                 Text = "Confirmar",
-                Size = new Size(120, 40),
-                Location = new Point(230, 180),
+                Size = new Size(anchoBoton, altoBoton),
+                Location = new Point(centroFormulario, 190), // ? USAR centroFormulario
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -106,8 +112,8 @@ namespace Comercio.NET.Formularios
             btnCancelar = new Button
             {
                 Text = "Cancelar",
-                Size = new Size(120, 40),
-                Location = new Point(360, 180),
+                Size = new Size(anchoBoton, altoBoton),
+                Location = new Point(centroFormulario + anchoBoton + espacioEntreBotones, 190), // ? USAR centroFormulario
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,

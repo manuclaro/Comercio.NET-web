@@ -510,6 +510,15 @@ namespace Comercio.NET.Formularios
 
             cmbNivel.SelectedIndexChanged += CmbNivel_SelectedIndexChanged;
 
+            // NUEVO: Validación en tiempo real del número de cajero
+            nudNumeroCajero.ValueChanged += async (s, e) =>
+            {
+                if (nudNumeroCajero.Value > 0)
+                {
+                    await ValidarNumeroCajeroEnTiempoReal();
+                }
+            };
+
             this.Load += (s, e) =>
             {
                 if (!_esEdicion)
@@ -523,6 +532,51 @@ namespace Comercio.NET.Formularios
                     txtNombre.Focus();
                 }
             };
+        }
+
+        private async Task ValidarNumeroCajeroEnTiempoReal()
+        {
+            try
+            {
+                int numeroCajero = (int)nudNumeroCajero.Value;
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using var connection = new SqlConnection(connectionString);
+                var query = @"
+            SELECT NombreUsuario, Nombre, Apellido 
+            FROM Usuarios 
+            WHERE NumeroCajero = @numeroCajero 
+            AND NombreUsuario != @nombreUsuarioActual";
+
+                using var cmd = new SqlCommand(query, connection);
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                cmd.Parameters.AddWithValue("@nombreUsuarioActual", _nombreUsuarioOriginal ?? "");
+
+                connection.Open();
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                if (reader.Read())
+                {
+                    string usuarioExistente = reader.GetString("NombreUsuario");
+                    string nombreCompleto = $"{reader.GetString("Nombre")} {reader.GetString("Apellido")}";
+
+                    MostrarMensaje($"⚠️ Cajero {numeroCajero} ya usado por {nombreCompleto}", Color.Orange);
+                }
+                else
+                {
+                    MostrarMensaje("", Color.Black);
+                }
+            }
+            catch
+            {
+                // Silenciar errores de validación en tiempo real
+            }
         }
 
         private void CmbNivel_SelectedIndexChanged(object sender, EventArgs e)
@@ -665,6 +719,10 @@ namespace Comercio.NET.Formularios
         private async Task GuardarUsuario()
         {
             if (!ValidarDatos())
+                return;
+
+            // NUEVO: Validar que el número de cajero no esté duplicado
+            if (!await ValidarNumeroCajeroUnico())
                 return;
 
             try
@@ -834,6 +892,83 @@ namespace Comercio.NET.Formularios
             }
 
             return true;
+        }
+
+        private async Task<bool> ValidarNumeroCajeroUnico()
+        {
+            try
+            {
+                int numeroCajero = (int)nudNumeroCajero.Value;
+
+                // Si estamos editando, obtener el número original para comparar
+                int numeroCajeroOriginal = -1;
+                if (_esEdicion)
+                {
+                    var config = new ConfigurationBuilder()
+                        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                        .AddJsonFile("appsettings.json")
+                        .Build();
+
+                    string connectionString = config.GetConnectionString("DefaultConnection");
+
+                    using var connection = new SqlConnection(connectionString);
+                    var query = "SELECT NumeroCajero FROM Usuarios WHERE NombreUsuario = @nombreUsuario";
+                    using var cmd = new SqlCommand(query, connection);
+                    cmd.Parameters.AddWithValue("@nombreUsuario", _nombreUsuarioOriginal);
+
+                    connection.Open();
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != null)
+                    {
+                        numeroCajeroOriginal = (int)result;
+                    }
+                }
+
+                // Si estamos editando y el número no cambió, está bien
+                if (_esEdicion && numeroCajero == numeroCajeroOriginal)
+                {
+                    return true;
+                }
+
+                // Verificar si otro usuario ya tiene este número de cajero
+                var config2 = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString2 = config2.GetConnectionString("DefaultConnection");
+
+                using var connection2 = new SqlConnection(connectionString2);
+                var query2 = @"
+            SELECT NombreUsuario, Nombre, Apellido 
+            FROM Usuarios 
+            WHERE NumeroCajero = @numeroCajero 
+            AND NombreUsuario != @nombreUsuarioActual";
+
+                using var cmd2 = new SqlCommand(query2, connection2);
+                cmd2.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                cmd2.Parameters.AddWithValue("@nombreUsuarioActual", _nombreUsuarioOriginal ?? "");
+
+                connection2.Open();
+                using var reader = await cmd2.ExecuteReaderAsync();
+
+                if (reader.Read())
+                {
+                    string usuarioExistente = reader.GetString("NombreUsuario");
+                    string nombreCompleto = $"{reader.GetString("Nombre")} {reader.GetString("Apellido")}";
+
+                    MostrarMensaje($"El número de cajero {numeroCajero} ya está asignado a {nombreCompleto} ({usuarioExistente})", Color.Red);
+                    nudNumeroCajero.Focus();
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MostrarMensaje($"Error al validar número de cajero: {ex.Message}", Color.Red);
+                return false;
+            }
         }
 
         private bool EsEmailValido(string email)

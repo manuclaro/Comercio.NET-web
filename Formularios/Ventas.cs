@@ -222,9 +222,9 @@ namespace Comercio.NET
         {
             btnRetirarEfectivo = new Button
             {
-                Text = "💰 Retirar Efectivo",
-                Size = new Size(140, 35),
-                BackColor = Color.FromArgb(255, 152, 0), // Color naranja
+                Text = "💰 Retirar",
+                Size = new Size(120, 40),
+                BackColor = Color.FromArgb(255, 152, 0),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -234,33 +234,60 @@ namespace Comercio.NET
             btnRetirarEfectivo.FlatAppearance.BorderSize = 0;
             btnRetirarEfectivo.Click += BtnRetirarEfectivo_Click;
 
-            // Posicionar junto a otros botones (ajustar según diseño)
-            Control buttonContainer = btnFinalizarVenta?.Parent ?? this;
-            buttonContainer.Controls.Add(btnRetirarEfectivo);
+            // ✅ CORREGIDO: Agregar al mismo contenedor que btnFinalizarVenta
+            if (btnFinalizarVenta?.Parent != null)
+            {
+                btnFinalizarVenta.Parent.Controls.Add(btnRetirarEfectivo);
+            }
+            else
+            {
+                // Fallback: agregar directamente al formulario
+                this.Controls.Add(btnRetirarEfectivo);
+            }
+
             btnRetirarEfectivo.BringToFront();
 
-            // Posicionar dinámicamente
+            // ✅ CORREGIDO: Función de reposicionamiento simplificada
             void ReposicionarRetiro()
             {
                 try
                 {
-                    if (btnAnularFactura != null && btnAnularFactura.Parent == buttonContainer)
+                    // ✅ OPCIÓN 1: Posicionar junto a btnFinalizarVenta (mismo alto)
+                    if (btnFinalizarVenta != null)
                     {
-                        btnRetirarEfectivo.Left = btnAnularFactura.Right + 15;
-                        btnRetirarEfectivo.Top = btnAnularFactura.Top;
-                    }
-                    else if (btnFinalizarVenta != null)
-                    {
-                        btnRetirarEfectivo.Left = btnFinalizarVenta.Right + 15;
+                        btnRetirarEfectivo.Height = btnFinalizarVenta.Height;
                         btnRetirarEfectivo.Top = btnFinalizarVenta.Top;
+                        btnRetirarEfectivo.Left = btnFinalizarVenta.Right + 15;
+                    }
+                    // ✅ OPCIÓN 2: Fallback - posicionar junto a btnAnularFactura
+                    else if (btnAnularFactura != null)
+                    {
+                        btnRetirarEfectivo.Height = btnAnularFactura.Height;
+                        btnRetirarEfectivo.Top = btnAnularFactura.Top;
+                        btnRetirarEfectivo.Left = btnAnularFactura.Right + 15;
+                    }
+                    // ✅ OPCIÓN 3: Último recurso - posición fija
+                    else
+                    {
+                        btnRetirarEfectivo.Top = 115; // Debajo del header (70px) + margen
+                        btnRetirarEfectivo.Left = 800;
                     }
                 }
-                catch { }
+                catch
+                {
+                    // Silenciar errores
+                }
             }
 
-            ReposicionarRetiro();
-            buttonContainer.SizeChanged += (s, e) => ReposicionarRetiro();
+            // ✅ Ejecutar reposicionamiento inicial DESPUÉS de que se cargue el form
+            this.Load += (s, e) => ReposicionarRetiro();
             this.Resize += (s, e) => ReposicionarRetiro();
+
+            // ✅ CRÍTICO: Reposicionar también cuando cambie el tamaño del contenedor
+            if (btnFinalizarVenta?.Parent != null)
+            {
+                btnFinalizarVenta.Parent.SizeChanged += (s, e) => ReposicionarRetiro();
+            }
         }
 
         // ✅ NUEVO MÉTODO: Verificar si existe turno abierto en la base de datos
@@ -2254,16 +2281,15 @@ namespace Comercio.NET
             // Mantener el footer como antes
             ConfigurarPanelFooter();
 
-            // Crear el botón "Anular" pero añadirlo AL MISMO CONTENEDOR que los botones grandes
-            // (btnAgregar/btnFinalizarVenta/btnSalir suelen existir en el diseñador y comparten padre).
+            // ✅ CORREGIDO: Crear botón "Anular" DESPUÉS de crear btnRetirarEfectivo
             btnAnularFactura = new Button
             {
                 Text = "Anular",
-                Size = new Size(64, 28),                // mucho más pequeño
+                Size = new Size(75, 35),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Enabled = false,
                 Visible = true,
                 TabStop = false
@@ -2271,51 +2297,78 @@ namespace Comercio.NET
             btnAnularFactura.FlatAppearance.BorderSize = 0;
             btnAnularFactura.Click += BtnEliminarFacturaCompleta_Click;
 
-            // Intentar añadir al mismo padre que btnAgregar (si existe), sino al formulario
-            Control buttonContainer = btnAgregar?.Parent ?? this;
-            buttonContainer.Controls.Add(btnAnularFactura);
+            // ✅ Agregar al formulario
+            this.Controls.Add(btnAnularFactura);
             btnAnularFactura.BringToFront();
 
-            // Función de posicionamiento relativa a btnFinalizarVenta (si existe) o btnAgregar
+            // ✅ CORREGIDO: Posicionar junto a btnRetirarEfectivo (NO btnFinalizarVenta)
             void ReposicionarAnular()
             {
                 try
                 {
-                    if (btnFinalizarVenta != null && btnFinalizarVenta.Parent != null)
+                    // ✅ OPCIÓN 1: Posicionar junto a btnRetirarEfectivo (PRIMERO)
+                    if (btnRetirarEfectivo != null && btnRetirarEfectivo.Visible)
                     {
-                        // Si btnFinalizarVenta comparte el mismo padre, posicionar a su derecha
-                        if (btnFinalizarVenta.Parent == buttonContainer)
-                        {
-                            btnAnularFactura.Left = btnFinalizarVenta.Right + 20;
-                            btnAnularFactura.Top = btnFinalizarVenta.Top + (btnFinalizarVenta.Height - btnAnularFactura.Height) / 2;
-                            return;
-                        }
-                    }
-
-                    // Fallback: posicionar junto a btnAgregar si está en el mismo contenedor
-                    if (btnAgregar != null && btnAgregar.Parent == buttonContainer)
-                    {
-                        btnAnularFactura.Left = btnAgregar.Right + 8;
-                        btnAnularFactura.Top = btnAgregar.Top + (btnAgregar.Height - btnAnularFactura.Height) / 2;
+                        btnAnularFactura.Height = btnRetirarEfectivo.Height;
+                        btnAnularFactura.Left = btnRetirarEfectivo.Right + 15;
+                        btnAnularFactura.Top = btnRetirarEfectivo.Top;
                         return;
                     }
 
-                    // Último recurso: esquina superior derecha del formulario, con márgen
-                    btnAnularFactura.Left = Math.Max(8, this.ClientSize.Width - btnAnularFactura.Width - 12);
-                    btnAnularFactura.Top = panelHeader.Bottom - btnAnularFactura.Height - 10;
+                    // ✅ OPCIÓN 2: Fallback - junto a btnFinalizarVenta
+                    if (btnFinalizarVenta != null && btnFinalizarVenta.Visible)
+                    {
+                        btnAnularFactura.Height = btnFinalizarVenta.Height;
+                        btnAnularFactura.Left = btnFinalizarVenta.Right + 15;
+                        btnAnularFactura.Top = btnFinalizarVenta.Top;
+                        return;
+                    }
+
+                    // ✅ OPCIÓN 3: Fallback - junto a btnAgregar
+                    if (btnAgregar != null && btnAgregar.Visible)
+                    {
+                        btnAnularFactura.Height = btnAgregar.Height;
+                        btnAnularFactura.Left = btnAgregar.Right + 15;
+                        btnAnularFactura.Top = btnAgregar.Top;
+                        return;
+                    }
+
+                    // ✅ OPCIÓN 4: Posición fija
+                    btnAnularFactura.Left = 950;
+                    btnAnularFactura.Top = 115;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Silenciar errores de posicionamiento en tiempo de diseño/ejecución temprana
+                    System.Diagnostics.Debug.WriteLine($"Error posicionando botón Anular: {ex.Message}");
                 }
             }
 
-            // Posicionar ahora y al cambiar tamaño del contenedor/formulario
-            ReposicionarAnular();
-            buttonContainer.SizeChanged += (s, e) => ReposicionarAnular();
+            // ✅ Ejecutar posicionamiento en diferentes eventos
+            this.Load += (s, e) =>
+            {
+                ReposicionarAnular();
+                btnAnularFactura.BringToFront();
+            };
+
             this.Resize += (s, e) => ReposicionarAnular();
 
-            // Asegurar que el título no tape controles si usa DockFill
+            // ✅ CRÍTICO: Reposicionar cuando cambien los botones de referencia
+            if (btnRetirarEfectivo != null)
+            {
+                btnRetirarEfectivo.VisibleChanged += (s, e) => ReposicionarAnular();
+            }
+
+            if (btnFinalizarVenta != null)
+            {
+                btnFinalizarVenta.VisibleChanged += (s, e) => ReposicionarAnular();
+            }
+
+            if (btnAgregar != null)
+            {
+                btnAgregar.VisibleChanged += (s, e) => ReposicionarAnular();
+            }
+
+            // Asegurar que el título no tape controles
             lblTitulo.SendToBack();
         }
 
