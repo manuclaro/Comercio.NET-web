@@ -24,6 +24,7 @@ namespace Comercio.NET.Formularios
         private Button btnMes;
         private Button btnBuscar;
         private Button btnHoy;
+        private Button btnAyer;
         private Label lblTotal;
         private Label lblCantidadVentas;
         private Label lblTitulo;
@@ -92,6 +93,7 @@ namespace Comercio.NET.Formularios
             dtpHasta = new DateTimePicker();
             btnBuscar = new Button();
             btnHoy = new Button();
+            btnAyer = new Button();
             btnSemana = new Button();
             btnMes = new Button();
             lblDesde = new Label();
@@ -167,6 +169,17 @@ namespace Comercio.NET.Formularios
             btnHoy.Text = "Hoy";
             btnHoy.UseVisualStyleBackColor = false;
             btnHoy.Click += BtnHoy_Click;
+
+            // ✅ NUEVO: Botón Ayer
+            btnAyer = new Button();
+            btnAyer.BackColor = Color.FromArgb(156, 39, 176); // Color púrpura
+            btnAyer.FlatStyle = FlatStyle.Flat;
+            btnAyer.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnAyer.ForeColor = Color.White;
+            btnAyer.Size = new Size(60, 28);
+            btnAyer.Text = "Ayer";
+            btnAyer.UseVisualStyleBackColor = false;
+            btnAyer.Click += BtnAyer_Click;
 
             btnSemana.BackColor = Color.FromArgb(255, 193, 7);
             btnSemana.FlatStyle = FlatStyle.Flat;
@@ -288,7 +301,12 @@ namespace Comercio.NET.Formularios
 
             btnHoy.Location = new Point(x, y1);
             panelFiltros.Controls.Add(btnHoy);
-            x += btnHoy.Width + 8;
+            x += btnHoy.Width + 6; // ✅ CAMBIO: Reducir espacio de 8 a 6
+
+            // ✅ NUEVO: Agregar botón Ayer
+            btnAyer.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(btnAyer);
+            x += btnAyer.Width + 8;
 
             btnSemana.Location = new Point(x, y1);
             panelFiltros.Controls.Add(btnSemana);
@@ -575,6 +593,15 @@ namespace Comercio.NET.Formularios
             panelResumen.ResumeLayout(false);
             panelTotales.ResumeLayout(false);
             ResumeLayout(false);
+        }
+
+        // ✅ NUEVO: Event handler para el botón Ayer
+        private void BtnAyer_Click(object sender, EventArgs e)
+        {
+            DateTime ayer = DateTime.Today.AddDays(-1);
+            dtpDesde.Value = ayer;
+            dtpHasta.Value = ayer;
+            CargarVentasPorFecha(ayer, ayer);
         }
 
         private void ConfigurarFormulario()
@@ -2066,7 +2093,7 @@ namespace Comercio.NET.Formularios
                 var remitoCol = dgvVentas.Columns["Remito"];
                 if (remitoCol != null)
                 {
-                    remitoCol.Width = 60;
+                    remitoCol.Width = 80;
                     remitoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     remitoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     remitoCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -2076,16 +2103,16 @@ namespace Comercio.NET.Formularios
                 if (facturaCol != null)
                 {
                     facturaCol.Width = 100;
-                    facturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    facturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                     facturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     facturaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // ✅ MODIFICADO: Cambiar "Importe" por "Importe Final"
+                // ✅ MODIFICADO: Aumentar ancho de "Total Final" (era 100, ahora 120)
                 var importeFinalCol = dgvVentas.Columns["Importe Final"];
                 if (importeFinalCol != null)
                 {
-                    importeFinalCol.Width = 100;
+                    importeFinalCol.Width = 140; // ✅ CAMBIO: de 100 a 120
                     importeFinalCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     importeFinalCol.DefaultCellStyle.Format = "C2";
                     importeFinalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
@@ -2095,7 +2122,7 @@ namespace Comercio.NET.Formularios
                     importeFinalCol.HeaderText = "Total Final";
                 }
 
-                // ✅ NUEVO: Columna % Descuento
+                // Columna % Descuento
                 var porcentajeDescCol = dgvVentas.Columns["% Descuento"];
                 if (porcentajeDescCol != null)
                 {
@@ -2109,7 +2136,7 @@ namespace Comercio.NET.Formularios
                     porcentajeDescCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // ✅ NUEVO: Columna Descuento
+                // Columna Descuento
                 var descuentoCol = dgvVentas.Columns["Descuento"];
                 if (descuentoCol != null)
                 {
@@ -2151,7 +2178,7 @@ namespace Comercio.NET.Formularios
                     subtotalCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // Resto de columnas igual que antes...
+                // Columna Cajero
                 var cajeroCol = dgvVentas.Columns["Cajero"];
                 if (cajeroCol != null)
                 {
@@ -2166,7 +2193,7 @@ namespace Comercio.NET.Formularios
                 {
                     fechaCol.DefaultCellStyle.Format = "dd/MM/yyyy";
                     fechaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    fechaCol.Width = 70;
+                    fechaCol.Width = 80;
                     fechaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     fechaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
@@ -2174,19 +2201,20 @@ namespace Comercio.NET.Formularios
                 var horaCol = dgvVentas.Columns["Hora"];
                 if (horaCol != null)
                 {
-                    horaCol.Width = 50;
+                    horaCol.Width = 60;
                     horaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     horaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     horaCol.DefaultCellStyle.Format = "HH:mm";
                     horaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
+                // ✅ MODIFICADO: Reducir ancho de "Forma de Pago" (era Fill con FillWeight 120, ahora ancho fijo 90)
                 var formaPagoCol = dgvVentas.Columns["Forma de Pago"];
                 if (formaPagoCol != null)
                 {
+                    formaPagoCol.Width = 110; // ✅ CAMBIO: de Fill a ancho fijo de 90
+                    formaPagoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // ✅ CAMBIO: de Fill a None
                     formaPagoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    formaPagoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    formaPagoCol.FillWeight = 120;
                     formaPagoCol.HeaderText = "Forma/Pago";
                     formaPagoCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
@@ -2195,17 +2223,18 @@ namespace Comercio.NET.Formularios
                 if (tipoFacturaCol != null)
                 {
                     tipoFacturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    tipoFacturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    tipoFacturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     tipoFacturaCol.FillWeight = 80;
                     tipoFacturaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
+                // ✅ MODIFICADO: Reducir ancho de "CAE" (era Fill con FillWeight 100, ahora ancho fijo 70)
                 var caeCol = dgvVentas.Columns["CAE"];
                 if (caeCol != null)
                 {
+                    caeCol.Width = 110; // ✅ CAMBIO: de Fill a ancho fijo de 70
+                    caeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // ✅ CAMBIO: de Fill a None
                     caeCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    caeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    caeCol.FillWeight = 100;
                     caeCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 

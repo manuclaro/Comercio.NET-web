@@ -27,6 +27,7 @@ namespace Comercio.NET.Formularios
 
         // ✅ Agregar un campo para almacenar el monto inicial
         private decimal montoInicialTurno = 0m;
+        private decimal totalEsperadoTurno = 0m;
 
         public CierreTurnoCajeroForm()
         {
@@ -152,7 +153,7 @@ namespace Comercio.NET.Formularios
             {
                 Text = "📊 Calcular",
                 Location = new Point(650, 10), // X=650
-                Size = new Size(85, 28),
+                Size = new Size(100, 28),
                 BackColor = Color.FromArgb(33, 150, 243),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -161,12 +162,16 @@ namespace Comercio.NET.Formularios
             btnCalcular.FlatAppearance.BorderSize = 0;
             panelFiltros.Controls.Add(btnCalcular);
 
+            // ✅ NUEVO: Agregar tooltip
+            var tooltipCalcular = new ToolTip();
+            tooltipCalcular.SetToolTip(btnCalcular, "Calcular el turno actual del cajero seleccionado");
+
             // Botón Imprimir
             btnImprimir = new Button
             {
-                Text = "🖨️",
-                Location = new Point(750, 10), // X=685 ❌ ¡Muy cerca!
-                Size = new Size(75, 28),
+                Text = "🖨️ Imprimir",
+                Location = new Point(760, 10), // X=685 ❌ ¡Muy cerca!
+                Size = new Size(90, 28),
                 BackColor = Color.FromArgb(158, 158, 158),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -175,6 +180,11 @@ namespace Comercio.NET.Formularios
             };
             btnImprimir.FlatAppearance.BorderSize = 0;
             panelFiltros.Controls.Add(btnImprimir);
+
+            // ✅ NUEVO: Agregar tooltip
+            var tooltipImprimir = new ToolTip();
+            tooltipImprimir.SetToolTip(btnImprimir, "Imprimir el cierre de turno");
+
 
             // Totales en el mismo panel - ALINEADOS
             int labelY = 42;  // ✅ Altura fija para todas las etiquetas
@@ -257,7 +267,7 @@ namespace Comercio.NET.Formularios
             {
                 Text = "$0.00",
                 Location = new Point(515, valueY),
-                Size = new Size(80, 20),
+                Size = new Size(120, 20),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(244, 67, 54),
                 TextAlign = ContentAlignment.MiddleLeft
@@ -644,135 +654,104 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
+                btnCalcular.Enabled = false;
+                btnCalcular.Text = "⏳ Calculando...";
+
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
                 int numeroCajero = cajeroSeleccionado.NumeroCajero;
 
-                if (dtpFechaFin.Value < dtpFechaInicio.Value)
-                {
-                    MessageBox.Show("La fecha final debe ser mayor a la fecha inicial", "Validación",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                int? turnoAbiertoId = await ObtenerTurnoAbiertoId(numeroCajero);
-                
-                if (turnoAbiertoId == null)
-                {
-                    var resultado = MessageBox.Show(
-                        "⚠️ No hay turno abierto.\n\n¿Desea abrir un turno ahora?",
-                        "Sin Turno",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning);
-
-                    if (resultado == DialogResult.Yes)
-                    {
-                        using var formApertura = new AperturaTurnoCajeroForm();
-                        formApertura.ShowDialog();
-                    }
-                    return;
-                }
-
-                turnoActualId = turnoAbiertoId.Value;
-
                 var config = new ConfigurationBuilder()
-                   .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                   .AddJsonFile("appsettings.json")
-                   .Build();
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                //MessageBox.Show(
-                //    $"Rango de búsqueda:\n" +
-                //    $"Desde: {dtpFechaInicio.Value:dd/MM/yyyy HH:mm:ss}\n" +
-                //    $"Hasta: {dtpFechaFin.Value:dd/MM/yyyy HH:mm:ss}",
-                //    "Debug - Fechas",
-                //    MessageBoxButtons.OK,
-                //    MessageBoxIcon.Information);
+                // ========================================
+                // ✅ VALIDACIÓN: VERIFICAR SI HAY TURNO ABIERTO
+                // ========================================
+                var idTurnoAbierto = await ObtenerTurnoAbiertoId(numeroCajero);
 
-                var queryIngresos = @"
-                    WITH TransaccionesSimples AS (
-                        SELECT 
-                            COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                            f.ImporteTotal as Importe,
-                            'Ingreso' as TipoMovimiento
-                        FROM Facturas f
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple' (con acento, sin 's')
-                        AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
-                    ),
-                    TransaccionesMultiples AS (
-                        SELECT 
-                            dp.MedioPago,
-                            dp.Importe,
-                            'Ingreso' as TipoMovimiento
-                        FROM DetallesPagoFactura dp
-                        INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple' (con acento, sin 's')
-                        AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
-                    )
-                    SELECT 
-                        MedioPago,
-                        SUM(Importe) as TotalIngresos,
-                        COUNT(*) as CantidadIngresos
-                    FROM (
-                        SELECT * FROM TransaccionesSimples
-                        UNION ALL
-                        SELECT * FROM TransaccionesMultiples
-                    ) TodasTransacciones
-                    GROUP BY MedioPago";
-
-                var queryEgresos = @"
-                    SELECT 
-                        COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-                        SUM(cpp.Monto) as TotalEgresos,
-                        COUNT(*) as CantidadEgresos
-                    FROM ComprasProveedoresPagos cpp
-                    INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-                    WHERE cp.Cajero = @numeroCajero
-                    AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
-                    GROUP BY COALESCE(cpp.Metodo, 'Efectivo')";
-
-
-                // ✅ NUEVO: Obtener el monto inicial del turno
-                montoInicialTurno = await ObtenerMontoInicialTurno(connectionString, numeroCajero);
-
-                // ✅ Mostrar en la label permanente
-                lblMontoInicial.Text = montoInicialTurno.ToString("C2");
-
-                bool turnoCerrado = await VerificarTurnoCerrado(
-                    numeroCajero, 
-                    dtpFechaInicio.Value,
-                    dtpFechaFin.Value
-                );
-                
-                if (turnoCerrado)
+                if (!idTurnoAbierto.HasValue)
                 {
+                    // ❌ NO HAY TURNO ABIERTO
+                    MessageBox.Show(
+                        "⚠️ No hay un turno abierto para este cajero.\n\n" +
+                        "Para realizar un cierre de turno, primero debe abrir un turno desde el módulo de Apertura de Turno.",
+                        "Sin Turno Abierto",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    btnCalcular.Text = "📊 Calcular";
+                    btnCalcular.Enabled = true;
+
+                    // ✅ Limpiar formulario
+                    LimpiarFormulario();
                     return;
                 }
 
-                btnCalcular.Enabled = false;
-                btnCalcular.Text = "⏳...";
+                // ✅ Guardar el ID del turno abierto
+                turnoActualId = idTurnoAbierto.Value;
 
-               
+                // ========================================
+                // 1. OBTENER MONTO INICIAL
+                // ========================================
+                montoInicialTurno = await ObtenerMontoInicialTurno(connectionString, numeroCajero);
+                lblMontoInicial.Text = montoInicialTurno.ToString("C2");
+
+                // ========================================
+                // 2. CALCULAR RESUMEN POR MEDIO DE PAGO
+                // ========================================
                 var resumenPorMedio = new Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>();
 
-                using (var cmdIngresos = new SqlCommand(queryIngresos, connection))
-                {
-                    cmdIngresos.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                    cmdIngresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value); // ✅ Con hora
-                    cmdIngresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);       // ✅ Con hora
+                // ========================================
+                // QUERY DE INGRESOS (VENTAS)
+                // ========================================
+                var queryIngresos = @"
+            WITH TransaccionesSimples AS (
+                SELECT 
+                    COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
+                    f.ImporteTotal as Importe,
+                    'Ingreso' as TipoMovimiento
+                FROM Facturas f
+                INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+                WHERE u.NumeroCajero = @numeroCajero
+                AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+                AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+            ),
+            TransaccionesMultiples AS (
+                SELECT 
+                    dp.MedioPago,
+                    dp.Importe,
+                    'Ingreso' as TipoMovimiento
+                FROM DetallesPagoFactura dp
+                INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
+                INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+                WHERE u.NumeroCajero = @numeroCajero
+                AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+                AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+            )
+            SELECT 
+                MedioPago,
+                SUM(Importe) as TotalIngresos,
+                COUNT(*) as CantidadIngresos
+            FROM (
+                SELECT * FROM TransaccionesSimples
+                UNION ALL
+                SELECT * FROM TransaccionesMultiples
+            ) TodasTransacciones
+            GROUP BY MedioPago";
 
-                    using var reader = await cmdIngresos.ExecuteReaderAsync();
+                using (var cmd = new SqlCommand(queryIngresos, connection))
+                {
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+                    cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
+
+                    using var reader = await cmd.ExecuteReaderAsync();
                     while (reader.Read())
                     {
                         string medioPago = reader.GetString(0);
@@ -787,13 +766,27 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                using (var cmdEgresos = new SqlCommand(queryEgresos, connection))
-                {
-                    cmdEgresos.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                    cmdEgresos.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-                    cmdEgresos.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
+                // ========================================
+                // QUERY DE EGRESOS (PAGOS A PROVEEDORES)
+                // ========================================
+                var queryEgresos = @"
+            SELECT 
+                COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
+                SUM(cpp.Monto) as TotalEgresos,
+                COUNT(*) as CantidadEgresos
+            FROM ComprasProveedoresPagos cpp
+            INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
+            WHERE cp.Cajero = @numeroCajero
+            AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
+            GROUP BY COALESCE(cpp.Metodo, 'Efectivo')";
 
-                    using var reader = await cmdEgresos.ExecuteReaderAsync();
+                using (var cmd = new SqlCommand(queryEgresos, connection))
+                {
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+                    cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
+
+                    using var reader = await cmd.ExecuteReaderAsync();
                     while (reader.Read())
                     {
                         string medioPago = reader.GetString(0);
@@ -808,82 +801,133 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
+                // ========================================
+                // ✅ NUEVO: QUERY DE RETIROS DE EFECTIVO
+                // ========================================
+                var queryRetiros = @"
+            SELECT 
+                SUM(Monto) as TotalRetiros,
+                COUNT(*) as CantidadRetiros
+            FROM RetirosEfectivo
+            WHERE NumeroCajero = @numeroCajero
+            AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
+
+                using (var cmd = new SqlCommand(queryRetiros, connection))
+                {
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+                    cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
+
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (reader.Read())
+                    {
+                        decimal totalRetiros = reader["TotalRetiros"] != DBNull.Value
+                            ? reader.GetDecimal(0)
+                            : 0m;
+                        int cantidadRetiros = reader["CantidadRetiros"] != DBNull.Value
+                            ? reader.GetInt32(1)
+                            : 0;
+
+                        // ✅ Registrar retiros como EGRESO de EFECTIVO
+                        if (totalRetiros > 0)
+                        {
+                            string medioPago = "Efectivo";
+
+                            if (!resumenPorMedio.ContainsKey(medioPago))
+                                resumenPorMedio[medioPago] = (0m, 0m, 0, 0);
+
+                            var actual = resumenPorMedio[medioPago];
+                            resumenPorMedio[medioPago] = (
+                                actual.Ingresos,
+                                actual.Egresos + totalRetiros,  // ✅ SUMAR retiros a egresos
+                                actual.CantIngresos,
+                                actual.CantEgresos + cantidadRetiros
+                            );
+
+                            System.Diagnostics.Debug.WriteLine(
+                                $"💰 RETIROS REGISTRADOS EN CIERRE:\n" +
+                                $"   Total: {totalRetiros:C2}\n" +
+                                $"   Cantidad: {cantidadRetiros}\n" +
+                                $"   Medio: {medioPago}");
+                        }
+                    }
+                }
+
+                // ========================================
+                // 3. LLENAR GRILLA CON EL RESUMEN
+                // ========================================
                 dgvResumenPorMedio.Rows.Clear();
-                decimal totalEsperado = 0;
+                decimal totalEsperado = montoInicialTurno; // Partir del monto inicial
 
-                // ✅ CAMBIO: Ordenar para que "Efectivo" siempre sea primero
-                var mediosOrdenados = resumenPorMedio
-                    .OrderByDescending(kvp => kvp.Key.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
-                    .ThenBy(kvp => kvp.Key);
+                // ✅ CAMBIO: Ordenar para que Efectivo aparezca primero
+                var medioPagosOrdenados = resumenPorMedio
+                    .OrderByDescending(x => x.Key.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(x => x.Key);
 
-                foreach (var kvp in mediosOrdenados)
+                foreach (var kvp in medioPagosOrdenados)
                 {
                     string medioPago = kvp.Key;
                     decimal ingresos = kvp.Value.Ingresos;
                     decimal egresos = kvp.Value.Egresos;
-                    int cantTotal = kvp.Value.CantIngresos + kvp.Value.CantEgresos;
                     decimal neto = ingresos - egresos;
-
-                    // ✅ CAMBIO: Si es efectivo, sumar el monto inicial
-                    decimal netoConInicial = medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase) 
-                        ? neto + montoInicialTurno 
-                        : neto;
 
                     dgvResumenPorMedio.Rows.Add(
                         medioPago,
-                        cantTotal,
+                        kvp.Value.CantIngresos + kvp.Value.CantEgresos,
                         ingresos.ToString("C2"),
                         egresos.ToString("C2"),
-                        netoConInicial.ToString("C2"),
-                        "$0.00",
-                        "$0.00"
+                        neto.ToString("C2"),
+                        "0.00" // Declarado (inicialmente en 0)
                     );
 
-                    // ✅ Sumar al total esperado el neto CON monto inicial si es efectivo
-                    totalEsperado += netoConInicial;
+                    // Solo sumar al total esperado si es efectivo
+                    if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        totalEsperado += neto;
+                    }
 
+                    // Colorear egresos en rojo
+                    int rowIndex = dgvResumenPorMedio.Rows.Count - 1;
                     if (egresos > 0)
                     {
-                        dgvResumenPorMedio.Rows[dgvResumenPorMedio.Rows.Count - 1].Cells["Egresos"].Style.ForeColor = Color.Red;
-                    }
-            
-                    // ✅ OPCIONAL: Marcar la fila de efectivo con un color diferente para destacarla
-                    if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase) && montoInicialTurno > 0)
-                    {
-                        int rowIndex = dgvResumenPorMedio.Rows.Count - 1;
-                        dgvResumenPorMedio.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 205); // Amarillo claro
+                        dgvResumenPorMedio.Rows[rowIndex].Cells["Egresos"].Style.ForeColor = Color.Red;
+                        dgvResumenPorMedio.Rows[rowIndex].Cells["Egresos"].Style.Font = new Font(dgvResumenPorMedio.Font, FontStyle.Bold);
                     }
                 }
 
-                // ✅ Mostrar el monto inicial si existe
-                if (montoInicialTurno > 0)
-                {
-                    MessageBox.Show(
-                        $"✅ Calculado: {totalEsperado:C2}\n\n" +
-                        $"💰 Monto inicial del turno: {montoInicialTurno:C2}\n" +
-                        $"💵 Total en efectivo a rendir: {(resumenPorMedio.ContainsKey("Efectivo") ? resumenPorMedio["Efectivo"].Ingresos - resumenPorMedio["Efectivo"].Egresos + montoInicialTurno : montoInicialTurno):C2}",
-                        "Éxito",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show($"✅ Calculado: {totalEsperado:C2}", "Éxito",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                // ✅ GUARDAR el valor calculado en la variable de clase
+                totalEsperadoTurno = totalEsperado;
 
+                // ✅ CORREGIDO: Solo mostrar valores sin texto descriptivo
                 lblTotalEsperado.Text = totalEsperado.ToString("C2");
+                lblTotalDeclarado.Text = "$0.00";
+                lblDiferencia.Text = "$0.00";
 
+                // Cargar detalle de transacciones
                 await CargarDetalleTransacciones(connectionString, numeroCajero);
 
+                // Habilitar botones
                 btnDeclarar.Enabled = true;
-                btnImprimir.Enabled = true;
-                btnCalcular.Text = "📊 Calcular";
+                btnCerrarTurno.Enabled = false;
+                btnImprimir.Enabled = false;
+
+                btnCalcular.Text = "🔄 Recalcular";
                 btnCalcular.Enabled = true;
+
+                turnoAbierto = true;
+
+                MessageBox.Show(
+                    $"✅ Turno calculado exitosamente\n\n" +
+                    $"Monto Inicial: {montoInicialTurno:C2}\n" +
+                    $"Total Esperado en Efectivo: {totalEsperado:C2}\n" +
+                    $"Transacciones: {dgvDetalleTransacciones.Rows.Count}",
+                    "Cálculo Completado",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}", "Error",
+                MessageBox.Show($"Error al calcular turno: {ex.Message}\n\n{ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 btnCalcular.Text = "📊 Calcular";
                 btnCalcular.Enabled = true;
@@ -923,65 +967,76 @@ namespace Comercio.NET.Formularios
             connection.Open();
 
             var queryDetalle = @"
-                    WITH TransaccionesVentasSimples AS (
-                        SELECT 
-                            f.Hora as Fecha,
-                            COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                            COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                            f.ImporteTotal as Importe,
-                            'Ingreso' as Tipo
-                        FROM Facturas f
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple'
-                        AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
-                    ),
-                    TransaccionesVentasMultiples AS (
-                        SELECT 
-                            f.Hora as Fecha,
-                            COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                            dp.MedioPago,
-                            dp.Importe,
-                            'Ingreso' as Tipo
-                        FROM DetallesPagoFactura dp
-                        INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora >= @fechaInicio
-                        AND f.Hora <= @fechaFin
-                        -- ✅ CORREGIDO: Agregar 'Múltiple'
-                        AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple', 'Multipago', 'Múltiple')
-                    ),
-                    TransaccionesPagos AS (
-                        SELECT 
-                            cpp.Fecha,
-                            'Pago #' + CAST(cpp.Id AS NVARCHAR) as NumeroFactura,
-                            COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-                            cpp.Monto as Importe,
-                            'Egreso' as Tipo
-                        FROM ComprasProveedoresPagos cpp
-                        INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-                        WHERE cp.Cajero = @numeroCajero
-                        AND cpp.Fecha >= @fechaInicio
-                        AND cpp.Fecha <= @fechaFin
-                    )
-                    SELECT * FROM TransaccionesVentasSimples
-                    UNION ALL
-                    SELECT * FROM TransaccionesVentasMultiples
-                    UNION ALL
-                    SELECT * FROM TransaccionesPagos
-                    ORDER BY Fecha DESC";
+        -- Ventas (✅ USANDO CAMPO HORA)
+        WITH TransaccionesVentasSimples AS (
+            SELECT 
+                f.Hora as Fecha,
+                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
+                COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
+                f.ImporteTotal as Importe,
+                'Ingreso (Venta)' as Tipo
+            FROM Facturas f
+            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+            WHERE u.NumeroCajero = @numeroCajero
+            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+            AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+        ),
+        TransaccionesVentasMultiples AS (
+            SELECT 
+                f.Hora as Fecha,
+                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
+                dp.MedioPago,
+                dp.Importe,
+                'Ingreso (Venta)' as Tipo
+            FROM DetallesPagoFactura dp
+            INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
+            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+            WHERE u.NumeroCajero = @numeroCajero
+            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+            AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+        ),
+        -- Pagos a Proveedores
+        TransaccionesPagosProveedores AS (
+            SELECT 
+                cpp.Fecha,
+                'Pago #' + CAST(cpp.Id AS NVARCHAR) + ' - ' + cp.Proveedor as NumeroFactura,
+                COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
+                cpp.Monto as Importe,
+                'Egreso (Pago Prov.)' as Tipo
+            FROM ComprasProveedoresPagos cpp
+            INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
+            WHERE cp.Cajero = @numeroCajero
+            AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
+        ),
+        -- ✅ NUEVO: Retiros de Efectivo
+        TransaccionesRetiros AS (
+            SELECT 
+                FechaRetiro as Fecha,
+                'Retiro #' + CAST(Id AS NVARCHAR) + ' - ' + Responsable + ' - ' + Motivo as NumeroFactura,
+                'Efectivo' as MedioPago,
+                Monto as Importe,
+                'Egreso (Retiro)' as Tipo
+            FROM RetirosEfectivo
+            WHERE NumeroCajero = @numeroCajero
+            AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin
+        )
+        SELECT * FROM TransaccionesVentasSimples
+        UNION ALL
+        SELECT * FROM TransaccionesVentasMultiples
+        UNION ALL
+        SELECT * FROM TransaccionesPagosProveedores
+        UNION ALL
+        SELECT * FROM TransaccionesRetiros  -- ✅ INCLUIR RETIROS
+        ORDER BY Fecha DESC";
 
-            using var cmdDetalle = new SqlCommand(queryDetalle, connection);
-            cmdDetalle.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-            cmdDetalle.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-            cmdDetalle.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
+            using var cmd = new SqlCommand(queryDetalle, connection);
+            cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+            cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+            cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
 
             dgvDetalleTransacciones.Rows.Clear();
 
-            using var reader = await cmdDetalle.ExecuteReaderAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
             while (reader.Read())
             {
                 DateTime fecha = reader.GetDateTime(0);
@@ -991,7 +1046,7 @@ namespace Comercio.NET.Formularios
                 string tipo = reader.GetString(4);
 
                 dgvDetalleTransacciones.Rows.Add(
-                    fecha.ToString("dd/MM HH:mm"),
+                    fecha.ToString("dd/MM/yy HH:mm"),
                     numeroFactura,
                     medioPago,
                     importe.ToString("C2"),
@@ -999,9 +1054,10 @@ namespace Comercio.NET.Formularios
                 );
 
                 int rowIndex = dgvDetalleTransacciones.Rows.Count - 1;
-                if (tipo == "Egreso")
+                if (tipo.Contains("Egreso"))
                 {
                     dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54);
+                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDetalleTransacciones.Font, FontStyle.Bold);
                 }
                 else
                 {
@@ -1012,40 +1068,72 @@ namespace Comercio.NET.Formularios
 
         private void DeclarMontos()
         {
-            using var formDeclaracion = new DeclaracionMontosForm(dgvResumenPorMedio);
+            // ✅ PASAR el monto inicial al formulario
+            using var formDeclaracion = new DeclaracionMontosForm(dgvResumenPorMedio, montoInicialTurno);
             if (formDeclaracion.ShowDialog() == DialogResult.OK)
             {
-                decimal totalDeclarado = 0;
-                decimal totalEsperado = decimal.Parse(lblTotalEsperado.Text, NumberStyles.Currency, CultureInfo.CurrentCulture);
+                decimal totalDeclaradoEfectivo = 0; // ✅ Solo efectivo
+                decimal totalEsperado = totalEsperadoTurno;
 
                 foreach (DataGridViewRow row in dgvResumenPorMedio.Rows)
                 {
                     if (row.IsNewRow) continue;
 
+                    string medioPago = row.Cells["MedioPago"].Value.ToString();
                     string declaradoStr = row.Cells["Declarado"].Value?.ToString() ?? "$0.00";
                     decimal declarado = decimal.Parse(declaradoStr, NumberStyles.Currency, CultureInfo.CurrentCulture);
-                    totalDeclarado += declarado;
 
                     string netoStr = row.Cells["Neto"].Value.ToString();
                     decimal neto = decimal.Parse(netoStr, NumberStyles.Currency, CultureInfo.CurrentCulture);
-                    decimal diferencia = declarado - neto;
-                    
+
+                    // ✅ CORREGIDO: Para efectivo, sumar el monto inicial al neto esperado
+                    decimal esperadoReal = neto;
+                    if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        esperadoReal += montoInicialTurno;
+                    }
+
+                    decimal diferencia = declarado - esperadoReal;
+
                     row.Cells["Diferencia"].Value = diferencia.ToString("C2");
-                    
+
                     if (diferencia != 0)
                     {
                         row.Cells["Diferencia"].Style.ForeColor = diferencia > 0 ? Color.Green : Color.Red;
                     }
+
+                    // ✅ CORREGIDO: Solo sumar el efectivo declarado
+                    if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        totalDeclaradoEfectivo = declarado;
+                    }
                 }
 
-                lblTotalDeclarado.Text = totalDeclarado.ToString("C2");
-                decimal diferenciaTotal = totalDeclarado - totalEsperado;
+                // ✅ Mostrar solo el total de efectivo declarado
+                lblTotalDeclarado.Text = totalDeclaradoEfectivo.ToString("C2");
+
+                // ✅ Calcular diferencia solo con efectivo
+                decimal diferenciaTotal = totalDeclaradoEfectivo - totalEsperado;
                 lblDiferencia.Text = diferenciaTotal.ToString("C2");
-                lblDiferencia.ForeColor = diferenciaTotal >= 0 ? Color.Green : Color.Red;
+
+                // ✅ CORREGIDO: Verde = Sobra (positivo), Rojo = Falta (negativo)
+                if (diferenciaTotal > 0)
+                {
+                    lblDiferencia.ForeColor = Color.Green; // Sobra dinero
+                }
+                else if (diferenciaTotal < 0)
+                {
+                    lblDiferencia.ForeColor = Color.Red; // Falta dinero
+                }
+                else
+                {
+                    lblDiferencia.ForeColor = Color.FromArgb(96, 125, 139); // Exacto (gris)
+                }
 
                 btnCerrarTurno.Enabled = true;
             }
         }
+
 
         private async Task CerrarTurno()
         {
@@ -1069,114 +1157,18 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 connection.Open();
 
-                // ✅ DECLARAR VARIABLES PRIMERO
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
                 int numeroCajero = cajeroSeleccionado.NumeroCajero;
 
-            //    // ===== 🔍 CÓDIGO DE DIAGNÓSTICO TEMPORAL =====
-
-            //    // DIAGNÓSTICO 1: Ver facturas con el campo FormadePago
-            //    var queryDiag1 = @"
-            //SELECT TOP 10
-            //    f.idFactura,
-            //    f.NumeroRemito,
-            //    f.FormadePago,
-            //    f.ImporteTotal,
-            //    f.Hora
-            //FROM Facturas f
-            //INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            //WHERE u.NumeroCajero = @numeroCajero
-            //AND f.Hora >= @fechaInicio
-            //AND f.Hora <= @fechaFin
-            //ORDER BY f.Hora DESC";
-
-            //    string diagnostico1 = "📋 FACTURAS ENCONTRADAS:\n\n";
-            //    using (var cmdDiag1 = new SqlCommand(queryDiag1, connection))
-            //    {
-            //        cmdDiag1.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-            //        cmdDiag1.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-            //        cmdDiag1.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
-
-            //        using var reader = await cmdDiag1.ExecuteReaderAsync();
-            //        while (reader.Read())
-            //        {
-            //            diagnostico1 += $"• Fact #{reader["NumeroRemito"]} | " +
-            //                           $"FormaPago: '{reader["FormadePago"]}' | " +
-            //                           $"Total: {reader["ImporteTotal"]:C2}\n";
-            //        }
-            //    }
-
-            //    // DIAGNÓSTICO 2: Ver detalles de pagos múltiples
-            //    var queryDiag2 = @"
-            //SELECT 
-            //    f.idFactura,
-            //    f.NumeroRemito,
-            //    f.FormadePago,
-            //    dp.MedioPago,
-            //    dp.Importe
-            //FROM Facturas f
-            //INNER JOIN DetallesPagoFactura dp ON f.idFactura = dp.IdFactura
-            //INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            //WHERE u.NumeroCajero = @numeroCajero
-            //AND f.Hora >= @fechaInicio
-            //AND f.Hora <= @fechaFin";
-
-            //    string diagnostico2 = "\n\n📊 DETALLES PAGO MÚLTIPLE:\n\n";
-            //    bool tieneDetalles = false;
-
-            //    using (var cmdDiag2 = new SqlCommand(queryDiag2, connection))
-            //    {
-            //        cmdDiag2.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-            //        cmdDiag2.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-            //        cmdDiag2.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
-
-            //        using var reader = await cmdDiag2.ExecuteReaderAsync();
-            //        while (reader.Read())
-            //        {
-            //            tieneDetalles = true;
-            //            diagnostico2 += $"• Fact #{reader["NumeroRemito"]} ({reader["FormadePago"]})\n" +
-            //                           $"  → {reader["MedioPago"]}: {reader["Importe"]:C2}\n";
-            //        }
-            //    }
-
-            //    if (!tieneDetalles)
-            //    {
-            //        diagnostico2 += "❌ NO HAY REGISTROS en DetallesPagoFactura\n";
-            //    }
-
-            //        // DIAGNÓSTICO 3: Ver valores únicos de FormadePago
-            //    var queryDiag3 = @"
-            //SELECT DISTINCT FormadePago, COUNT(*) as Cantidad
-            //FROM Facturas
-            //WHERE FormadePago IS NOT NULL
-            //GROUP BY FormadePago
-            //ORDER BY Cantidad DESC";
-
-            //    string diagnostico3 = "\n\n🔍 VALORES ÚNICOS de FormadePago:\n\n";
-            //    using (var cmdDiag3 = new SqlCommand(queryDiag3, connection))
-            //    {
-            //        using var reader = await cmdDiag3.ExecuteReaderAsync();
-            //        while (reader.Read())
-            //        {
-            //            diagnostico3 += $"• '{reader["FormadePago"]}' → {reader["Cantidad"]} facturas\n";
-            //        }
-            //    }
-
-            //    // Mostrar diagnóstico completo
-            //    MessageBox.Show(
-            //        diagnostico1 + diagnostico2 + diagnostico3,
-            //        "🔍 DIAGNÓSTICO COMPLETO",
-            //        MessageBoxButtons.OK,
-            //        MessageBoxIcon.Information);
-
-            //    // ===== FIN DEL CÓDIGO DE DIAGNÓSTICO =====
-
-                // ✅ CONTINUAR CON EL CÓDIGO ORIGINAL DE CIERRE
                 string usuarioCierre = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
                 int idTurno;
 
+                // ✅ DIAGNÓSTICO: Mostrar estado antes de cerrar
+                System.Diagnostics.Debug.WriteLine($"🔍 CERRANDO TURNO - turnoActualId: {turnoActualId}");
+
                 if (turnoActualId > 0)
                 {
+                    // ✅ CASO 1: Actualizar turno existente
                     var queryActualizar = @"
                 UPDATE TurnosCajero 
                 SET FechaCierre = @fechaCierre, 
@@ -1190,30 +1182,55 @@ namespace Comercio.NET.Formularios
                         cmdActualizar.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
                         cmdActualizar.Parameters.AddWithValue("@obs", txtObservaciones.Text ?? "");
 
-                        await cmdActualizar.ExecuteNonQueryAsync();
+                        int rowsAffected = await cmdActualizar.ExecuteNonQueryAsync();
+
+                        System.Diagnostics.Debug.WriteLine($"✅ Turno actualizado. Rows affected: {rowsAffected}");
                     }
 
                     idTurno = turnoActualId;
                 }
                 else
                 {
-                    var queryTurno = @"
-                INSERT INTO TurnosCajero (NumeroCajero, Usuario, FechaApertura, FechaCierre, Estado, Observaciones)
-                OUTPUT INSERTED.Id
-                VALUES (@numeroCajero, @usuario, @fechaInicio, @fechaFin, 'Cerrado', @observaciones)";
+                    // ✅ CASO 2: Intentar obtener el ID del turno abierto
+                    var idTurnoAbierto = await ObtenerTurnoAbiertoId(numeroCajero);
 
-                    using (var cmdTurno = new SqlCommand(queryTurno, connection))
+                    if (idTurnoAbierto.HasValue)
                     {
-                        cmdTurno.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                        cmdTurno.Parameters.AddWithValue("@usuario", usuarioCierre);
-                        cmdTurno.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-                        cmdTurno.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
-                        cmdTurno.Parameters.AddWithValue("@observaciones", txtObservaciones.Text ?? "");
+                        // Actualizar el turno abierto encontrado
+                        var queryActualizar = @"
+                UPDATE TurnosCajero 
+                SET FechaCierre = @fechaCierre, 
+                    Estado = 'Cerrado',
+                    Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + @obs
+                WHERE Id = @idTurno";
 
-                        idTurno = (int)await cmdTurno.ExecuteScalarAsync();
+                        using (var cmdActualizar = new SqlCommand(queryActualizar, connection))
+                        {
+                            cmdActualizar.Parameters.AddWithValue("@idTurno", idTurnoAbierto.Value);
+                            cmdActualizar.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
+                            cmdActualizar.Parameters.AddWithValue("@obs", txtObservaciones.Text ?? "");
+
+                            int rowsAffected = await cmdActualizar.ExecuteNonQueryAsync();
+
+                            System.Diagnostics.Debug.WriteLine($"✅ Turno abierto encontrado y actualizado. ID: {idTurnoAbierto.Value}, Rows: {rowsAffected}");
+                        }
+
+                        idTurno = idTurnoAbierto.Value;
+                    }
+                    else
+                    {
+                        // ⚠️ CASO 3: No hay turno abierto, crear uno cerrado (no recomendado)
+                        MessageBox.Show(
+                            "⚠️ No se encontró un turno abierto para este cajero.\n\n" +
+                            "Esto no debería ocurrir. Por favor, verifique que el cajero tenga un turno abierto.",
+                            "Advertencia",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
                     }
                 }
 
+                // Guardar detalles del cierre
                 foreach (DataGridViewRow row in dgvResumenPorMedio.Rows)
                 {
                     if (row.IsNewRow) continue;
@@ -1243,7 +1260,7 @@ namespace Comercio.NET.Formularios
                     await cmdCierre.ExecuteNonQueryAsync();
                 }
 
-                MessageBox.Show("✅ Turno cerrado", "Éxito",
+                MessageBox.Show($"✅ Turno #{idTurno} cerrado exitosamente", "Éxito",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 turnoActualId = 0;
@@ -1251,7 +1268,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}", "Error",
+                MessageBox.Show($"Error: {ex.Message}\n\n{ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1266,14 +1283,25 @@ namespace Comercio.NET.Formularios
         {
             dgvResumenPorMedio.Rows.Clear();
             dgvDetalleTransacciones.Rows.Clear();
-            lblMontoInicial.Text = "$0.00";  // ✅ NUEVO
+            lblMontoInicial.Text = "$0.00";
             lblTotalEsperado.Text = "$0.00";
             lblTotalDeclarado.Text = "$0.00";
             lblDiferencia.Text = "$0.00";
+            lblDiferencia.ForeColor = Color.FromArgb(244, 67, 54); // ✅ Resetear color
             txtObservaciones.Clear();
             btnDeclarar.Enabled = false;
             btnCerrarTurno.Enabled = false;
             btnImprimir.Enabled = false;
+
+            // ✅ Resetear botón Calcular
+            btnCalcular.Text = "📊 Calcular";
+            btnCalcular.Enabled = true;
+
+            // ✅ RESETEAR las variables de clase
+            montoInicialTurno = 0m;
+            totalEsperadoTurno = 0m;
+            turnoActualId = 0; // ✅ Importante: resetear el ID del turno
+            turnoAbierto = false; // ✅ Importante: resetear el flag
         }
 
         private async Task<bool> VerificarTurnoCerrado(int numeroCajero, DateTime fechaInicio, DateTime fechaFin)
@@ -1430,10 +1458,12 @@ namespace Comercio.NET.Formularios
         private DataGridView dgvDeclaracion;
         private Button btnGuardar, btnCancelar;
         private DataGridView dgvReferencia;
+        private decimal montoInicial; // ✅ NUEVO
 
-        public DeclaracionMontosForm(DataGridView dgvReferencia)
+        public DeclaracionMontosForm(DataGridView dgvReferencia, decimal montoInicial) // ✅ PARÁMETRO NUEVO
         {
             this.dgvReferencia = dgvReferencia;
+            this.montoInicial = montoInicial; // ✅ GUARDAR
             InitializeComponent();
             CrearControles();
         }
@@ -1502,7 +1532,7 @@ namespace Comercio.NET.Formularios
             dgvDeclaracion.Columns["Esperado"].Width = 140;
             dgvDeclaracion.Columns["Declarado"].Width = 150;
 
-                dgvDeclaracion.RowTemplate.Height = 35;
+            dgvDeclaracion.RowTemplate.Height = 35;
 
             // Eventos
             dgvDeclaracion.CellContentClick += DgvDeclaracion_CellContentClick;
@@ -1517,12 +1547,35 @@ namespace Comercio.NET.Formularios
 
             foreach (DataGridViewRow row in filasOrdenadas)
             {
+                string medioPago = row.Cells["MedioPago"].Value.ToString();
+                decimal neto = decimal.Parse(row.Cells["Neto"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
+
+                // ✅ SUMAR monto inicial solo al efectivo
+                decimal esperado = neto;
+                if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                {
+                    esperado += montoInicial;
+                }
+
+                // ✅ CAMBIO: Precargar valores automáticamente para medios diferentes a Efectivo
+                bool esEfectivo = medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase);
+                string valorDeclarado = esEfectivo ? "$0,00" : esperado.ToString("C2");
+                bool autoCopiado = !esEfectivo; // ✅ Marcar checkbox para no-efectivo
+
                 dgvDeclaracion.Rows.Add(
-                    row.Cells["MedioPago"].Value,
-                    row.Cells["Neto"].Value,
-                    "$0,00",
-                    false
+                    medioPago,
+                    esperado.ToString("C2"),
+                    valorDeclarado, // ✅ Precargar si no es efectivo
+                    autoCopiado // ✅ Marcar checkbox si no es efectivo
                 );
+
+                // ✅ NUEVO: Colorear la fila de Efectivo para destacarla
+                int rowIndex = dgvDeclaracion.Rows.Count - 1;
+                if (esEfectivo)
+                {
+                    dgvDeclaracion.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(255, 252, 231); // Amarillo claro
+                    dgvDeclaracion.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDeclaracion.Font, FontStyle.Bold);
+                }
             }
 
             this.Controls.Add(dgvDeclaracion);

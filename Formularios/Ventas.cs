@@ -57,6 +57,9 @@ namespace Comercio.NET
         // NUEVO: botón para anular factura completa
         private Button btnAnularFactura;
 
+        // ✅ NUEVO: Botón para retiros de efectivo
+        private Button btnRetirarEfectivo;
+
         // En lugar del Label lbTotal, usar un RichTextBox para mejor control de formato
         private RichTextBox rtbTotal;
 
@@ -213,6 +216,51 @@ namespace Comercio.NET
                     MessageBoxIcon.Error);
                 return false;
             }
+        }
+
+        private void ConfigurarBotonRetiroEfectivo()
+        {
+            btnRetirarEfectivo = new Button
+            {
+                Text = "💰 Retirar Efectivo",
+                Size = new Size(140, 35),
+                BackColor = Color.FromArgb(255, 152, 0), // Color naranja
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                TabStop = false
+            };
+
+            btnRetirarEfectivo.FlatAppearance.BorderSize = 0;
+            btnRetirarEfectivo.Click += BtnRetirarEfectivo_Click;
+
+            // Posicionar junto a otros botones (ajustar según diseño)
+            Control buttonContainer = btnFinalizarVenta?.Parent ?? this;
+            buttonContainer.Controls.Add(btnRetirarEfectivo);
+            btnRetirarEfectivo.BringToFront();
+
+            // Posicionar dinámicamente
+            void ReposicionarRetiro()
+            {
+                try
+                {
+                    if (btnAnularFactura != null && btnAnularFactura.Parent == buttonContainer)
+                    {
+                        btnRetirarEfectivo.Left = btnAnularFactura.Right + 15;
+                        btnRetirarEfectivo.Top = btnAnularFactura.Top;
+                    }
+                    else if (btnFinalizarVenta != null)
+                    {
+                        btnRetirarEfectivo.Left = btnFinalizarVenta.Right + 15;
+                        btnRetirarEfectivo.Top = btnFinalizarVenta.Top;
+                    }
+                }
+                catch { }
+            }
+
+            ReposicionarRetiro();
+            buttonContainer.SizeChanged += (s, e) => ReposicionarRetiro();
+            this.Resize += (s, e) => ReposicionarRetiro();
         }
 
         // ✅ NUEVO MÉTODO: Verificar si existe turno abierto en la base de datos
@@ -2173,6 +2221,7 @@ namespace Comercio.NET
             ConfigurarBoton(btnSalir, Color.FromArgb(220, 53, 69));
 
             ConfigurarPaneles();
+            ConfigurarBotonRetiroEfectivo();
             ConfigurarDataGridView();
             ConfigurarTextBoxes();
         }
@@ -2317,6 +2366,76 @@ namespace Comercio.NET
         private void btnSalir_Click(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        // ✅ NUEVO: Event handler para retiros de efectivo
+        private async void BtnRetirarEfectivo_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var dialogoRetiro = new RetiroEfectivoForm())
+                {
+                    var resultado = dialogoRetiro.ShowDialog(this);
+
+                    if (resultado == DialogResult.OK && dialogoRetiro.Confirmado)
+                    {
+                        await RegistrarRetiroEfectivo(
+                            dialogoRetiro.Monto,
+                            dialogoRetiro.Motivo,
+                            dialogoRetiro.Responsable);
+
+                        MessageBox.Show(
+                            $"✅ RETIRO REGISTRADO\n\n" +
+                            $"Monto: {dialogoRetiro.Monto:C2}\n" +
+                            $"Motivo: {dialogoRetiro.Motivo}\n" +
+                            $"Responsable: {dialogoRetiro.Responsable}\n\n" +
+                            $"El retiro se considerará en el cierre de caja.",
+                            "Retiro de Efectivo",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al registrar el retiro: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Registrar retiro en base de datos
+        private async Task RegistrarRetiroEfectivo(decimal monto, string motivo, string responsable)
+        {
+            string connectionString = GetConnectionString();
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                var query = @"
+            INSERT INTO RetirosEfectivo 
+                (Monto, Motivo, Responsable, NumeroCajero, UsuarioRegistro, 
+                 FechaRetiro, NumeroRemito, NombreEquipo)
+            VALUES 
+                (@Monto, @Motivo, @Responsable, @NumeroCajero, @UsuarioRegistro,
+                 @FechaRetiro, @NumeroRemito, @NombreEquipo)";
+
+                using (var cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@Monto", monto);
+                    cmd.Parameters.AddWithValue("@Motivo", motivo);
+                    cmd.Parameters.AddWithValue("@Responsable", responsable);
+                    cmd.Parameters.AddWithValue("@NumeroCajero", obtenerNumeroCajero());
+                    cmd.Parameters.AddWithValue("@UsuarioRegistro", ObtenerUsuarioActual());
+                    cmd.Parameters.AddWithValue("@FechaRetiro", DateTime.Now);
+                    cmd.Parameters.AddWithValue("@NumeroRemito", (object)nroRemitoActual ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+
+                    await connection.OpenAsync();
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine(
+                $"💰 Retiro registrado - Monto: {monto:C2}, Motivo: {motivo}, Responsable: {responsable}");
         }
 
         private async void txtBuscarProducto_TextChanged(object sender, EventArgs e)

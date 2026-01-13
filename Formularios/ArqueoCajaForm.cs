@@ -800,6 +800,58 @@ namespace Comercio.NET.Formularios
                 }
             }
 
+            // ========================================
+            // QUERY DE RETIROS DE EFECTIVO
+            // ========================================
+            var queryRetiros = @"
+    SELECT 
+        SUM(Monto) as TotalRetiros,
+        COUNT(*) as CantidadRetiros
+    FROM RetirosEfectivo
+    WHERE NumeroCajero = @numeroCajero
+    AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
+
+            using (var cmd = new SqlCommand(queryRetiros, connection))
+            {
+                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
+                cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (reader.Read())
+                {
+                    decimal totalRetiros = reader["TotalRetiros"] != DBNull.Value
+                        ? reader.GetDecimal(0)
+                        : 0m;
+                    int cantidadRetiros = reader["CantidadRetiros"] != DBNull.Value
+                        ? reader.GetInt32(1)
+                        : 0;
+
+                    // ✅ Registrar retiros como EGRESO de EFECTIVO
+                    if (totalRetiros > 0)
+                    {
+                        string medioPago = "Efectivo";
+
+                        if (!resumen.ContainsKey(medioPago))
+                            resumen[medioPago] = (0m, 0m, 0, 0);
+
+                        var actual = resumen[medioPago];
+                        resumen[medioPago] = (
+                            actual.Ingresos,
+                            actual.Egresos + totalRetiros,  // ✅ SUMAR retiros a egresos
+                            actual.CantIngresos,
+                            actual.CantEgresos + cantidadRetiros
+                        );
+
+                        System.Diagnostics.Debug.WriteLine(
+                            $"💰 RETIROS REGISTRADOS:\n" +
+                            $"   Total: {totalRetiros:C2}\n" +
+                            $"   Cantidad: {cantidadRetiros}\n" +
+                            $"   Medio: {medioPago}");
+                    }
+                }
+            }
+
             return resumen;
         }
 
@@ -849,12 +901,26 @@ namespace Comercio.NET.Formularios
             INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
             WHERE cp.Cajero = @numeroCajero
             AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
+        ),  -- ✅ AGREGAR COMA AQUÍ
+        -- ✅ NUEVO: Retiros de Efectivo
+        TransaccionesRetiros AS (
+            SELECT 
+                FechaRetiro as Fecha,
+                'Retiro #' + CAST(Id AS NVARCHAR) + ' - ' + Responsable as NumeroFactura,
+                'Efectivo' as MedioPago,
+                Monto as Importe,
+                'Egreso (Retiro)' as Tipo
+            FROM RetirosEfectivo
+            WHERE NumeroCajero = @numeroCajero
+            AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin
         )
         SELECT * FROM TransaccionesVentasSimples
         UNION ALL
         SELECT * FROM TransaccionesVentasMultiples
         UNION ALL
         SELECT * FROM TransaccionesPagosProveedores
+        UNION ALL
+        SELECT * FROM TransaccionesRetiros  -- ✅ INCLUIR RETIROS
         ORDER BY Fecha DESC";
 
             using var cmd = new SqlCommand(queryDetalle, connection);
