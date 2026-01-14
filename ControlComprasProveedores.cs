@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+Ôªøusing Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
 using System.Data.SqlClient;
@@ -20,13 +20,13 @@ namespace Comercio.NET.Formularios
         private DateTimePicker dtpHasta;
         private Button btnRefrescar;
         private Button btnNuevo;
-        private Button btnImprimir; // boton existente (totales por dÌa)
-        private Button btnImprimirMensual; // nuevo botÛn (totales por mes)
-        private Button btnImprimirMensualProveedor; // nuevo botÛn (mensual detallado por proveedor)
+        private Button btnImprimir; // boton existente (totales por d√≠a)
+        private Button btnImprimirMensual; // nuevo bot√≥n (totales por mes)
+        private Button btnImprimirMensualProveedor; // nuevo bot√≥n (mensual detallado por proveedor)
         private DataGridView dgv;
         private Label lblTotales;
 
-        // Grilla para totalizar por alÌcuota
+        // Grilla para totalizar por al√≠cuota
         private DataGridView dgvIvaTotals;
 
         // Nuevos elementos para estilo
@@ -38,7 +38,7 @@ namespace Comercio.NET.Formularios
         private Label lblProveedor; // nueva label
         private Label lblFecha; // nueva label para el filtro Fecha
 
-        // Nuevo botÛn para registrar pagos sobre una compra seleccionada
+        // Nuevo bot√≥n para registrar pagos sobre una compra seleccionada
         private Button btnRegistrarPago;
 
         // Flag para evitar reentradas mientras poblamos el combo
@@ -47,14 +47,14 @@ namespace Comercio.NET.Formularios
         // padding usado en todo el control (antes era variable local)
         private readonly int contentPadding = 12;
 
-        // Datos y rango actuales (para impresiÛn / reuso)
+        // Datos y rango actuales (para impresi√≥n / reuso)
         private DataTable currentComprasDt;
         private DataTable currentAlicuotasDt;
         private DateTime lastDesde;
         private DateTime lastHasta;
         private string lastProveedorSeleccionado = "";
 
-        // ImpresiÛn
+        // Impresi√≥n
         private PrintDocument printDoc;
         private List<string> printLines;
         private Font printFont = new Font("Consolas", 9F);
@@ -63,7 +63,7 @@ namespace Comercio.NET.Formularios
         public ControlComprasProveedores()
         {
             InitializeComponent();
-            // carga inicial: solo aplicar rango (antes carg·bamos proveedores desde la tabla)
+            // carga inicial: solo aplicar rango (antes carg√°bamos proveedores desde la tabla)
             this.Load += async (s, e) =>
             {
                 await AplicarRangoYCargarAsync();
@@ -111,7 +111,7 @@ namespace Comercio.NET.Formularios
 
             var lblSubtitle = new Label
             {
-                Text = "Listado y gestiÛn de compras por proveedor",
+                Text = "Listado y gesti√≥n de compras por proveedor",
                 ForeColor = Color.FromArgb(230, 230, 255),
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular),
                 Left = lblIcon.Right + 8,
@@ -138,7 +138,7 @@ namespace Comercio.NET.Formularios
 
             // Controles dentro de pnlContent
 
-            // Label para el filtro Fecha (aÒadir antes de cmbRango)
+            // Label para el filtro Fecha (a√±adir antes de cmbRango)
             lblFecha = new Label
             {
                 Left = 12,
@@ -157,7 +157,7 @@ namespace Comercio.NET.Formularios
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
 
-            // Hice los controles m·s compactos para que quepan en pantallas pequeÒas
+            // Hice los controles m√°s compactos para que quepan en pantallas peque√±as
             cmbRango = new ComboBox
             {
                 Left = 12,
@@ -193,7 +193,7 @@ namespace Comercio.NET.Formularios
             };
             cmbProveedor.SelectedIndexChanged += CmbProveedor_SelectedIndexChanged;
 
-            // Label para el filtro Fecha (despuÈs de Proveedor)
+            // Label para el filtro Fecha (despu√©s de Proveedor)
             lblFecha = new Label
             {
                 Left = cmbProveedor.Right + 8,
@@ -220,7 +220,7 @@ namespace Comercio.NET.Formularios
             dtpDesde = new DateTimePicker { Left = cmbRango.Right + 8, Top = 12, Width = 100, Format = DateTimePickerFormat.Short, Visible = false };
             dtpHasta = new DateTimePicker { Left = dtpDesde.Right + 8, Top = 12, Width = 100, Format = DateTimePickerFormat.Short, Visible = false };
 
-            // Botones (se colocan despuÈs; posicionamiento final en Resize)
+            // Botones (se colocan despu√©s; posicionamiento final en Resize)
             btnRefrescar = new Button
             {
                 Top = 10,
@@ -249,7 +249,7 @@ namespace Comercio.NET.Formularios
             {
                 Top = 10,
                 Width = 100,
-                Text = "Imprimir (dÌa)",
+                Text = "Imprimir (d√≠a)",
                 BackColor = Color.FromArgb(33, 150, 243),
                 FlatStyle = FlatStyle.Flat,
                 ForeColor = Color.White
@@ -257,7 +257,7 @@ namespace Comercio.NET.Formularios
             btnImprimir.FlatAppearance.BorderSize = 0;
             btnImprimir.Click += async (s, e) => await BtnImprimir_Click(s, e);
 
-            // Nuevo botÛn: imprimir resumen mensual (1 total por mes)
+            // Nuevo bot√≥n: imprimir resumen mensual (1 total por mes)
             btnImprimirMensual = new Button
             {
                 Top = 10,
@@ -270,7 +270,7 @@ namespace Comercio.NET.Formularios
             btnImprimirMensual.FlatAppearance.BorderSize = 0;
             btnImprimirMensual.Click += async (s, e) => await BtnImprimirMensual_Click(s, e);
 
-            // Nuevo botÛn: imprimir resumen mensual detallado por proveedor
+            // Nuevo bot√≥n: imprimir resumen mensual detallado por proveedor
             btnImprimirMensualProveedor = new Button
             {
                 Top = 10,
@@ -283,7 +283,7 @@ namespace Comercio.NET.Formularios
             btnImprimirMensualProveedor.FlatAppearance.BorderSize = 0;
             btnImprimirMensualProveedor.Click += async (s, e) => await BtnImprimirMensualPorProveedor_Click(s, e);
 
-            // Nuevo botÛn: Registrar Pago sobre compra seleccionada
+            // Nuevo bot√≥n: Registrar Pago sobre compra seleccionada
             btnRegistrarPago = new Button
             {
                 Top = 10,
@@ -296,7 +296,7 @@ namespace Comercio.NET.Formularios
             btnRegistrarPago.FlatAppearance.BorderSize = 0;
             btnRegistrarPago.Click += BtnRegistrarPago_Click;
 
-            // Por defecto dejaremos la grilla principal m·s alta; la altura final se ajusta en Resize
+            // Por defecto dejaremos la grilla principal m√°s alta; la altura final se ajusta en Resize
             dgv = new DataGridView
             {
                 Left = 12,
@@ -321,7 +321,7 @@ namespace Comercio.NET.Formularios
             {
                 Left = 12,
                 Top = dgv.Bottom + 6,
-                Width = 500, // ancho fijo para centrar despuÈs
+                Width = 500, // ancho fijo para centrar despu√©s
                 Height = 22,
                 Anchor = AnchorStyles.Bottom,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -329,10 +329,10 @@ namespace Comercio.NET.Formularios
                 TextAlign = ContentAlignment.MiddleCenter // centrar texto
             };
 
-            // Grilla para totalizaciÛn por alÌcuota (ser· m·s angosta y centrada)
+            // Grilla para totalizaci√≥n por al√≠cuota (ser√° m√°s angosta y centrada)
             dgvIvaTotals = new DataGridView
             {
-                // width y left se calcular·n en el Resize para centrarla
+                // width y left se calcular√°n en el Resize para centrarla
                 Top = lblTotales.Bottom + 1,
                 Height = 160,
                 Anchor = AnchorStyles.Bottom,
@@ -348,8 +348,8 @@ namespace Comercio.NET.Formularios
                 ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
                 ScrollBars = ScrollBars.None
             };
-            // Columnas con anchos fijos (m·s ancha para mostrar la 3™ columna)
-            dgvIvaTotals.Columns.Add(new DataGridViewTextBoxColumn { Name = "Alicuota", HeaderText = "AlÌcuota %", Width = 100 });
+            // Columnas con anchos fijos (m√°s ancha para mostrar la 3¬™ columna)
+            dgvIvaTotals.Columns.Add(new DataGridViewTextBoxColumn { Name = "Alicuota", HeaderText = "Al√≠cuota %", Width = 100 });
             dgvIvaTotals.Columns.Add(new DataGridViewTextBoxColumn { Name = "Base", HeaderText = "Base Imponible", Width = 220 });
             dgvIvaTotals.Columns.Add(new DataGridViewTextBoxColumn { Name = "ImporteIva", HeaderText = "IVA $", Width = 160 });
 
@@ -359,12 +359,12 @@ namespace Comercio.NET.Formularios
             dgvIvaTotals.Columns["ImporteIva"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
 
             pnlContent.Controls.AddRange(new Control[] { lblProveedor, cmbProveedor, lblFecha, cmbRango, dtpDesde, dtpHasta, btnRefrescar, btnRegistrarPago, btnImprimirMensualProveedor, btnImprimirMensual, btnImprimir, btnNuevo, dgv, lblTotales, dgvIvaTotals });
-            // AÒadir header y contenido al control
+            // A√±adir header y contenido al control
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlContent);
 
 
-            // Manejo de resize para ajustar dgv y paneles y centrar la grilla de alÌcuotas
+            // Manejo de resize para ajustar dgv y paneles y centrar la grilla de al√≠cuotas
             this.Resize += (s, e) =>
             {
                 pnlHeader.Width = this.ClientSize.Width;
@@ -373,7 +373,7 @@ namespace Comercio.NET.Formularios
                 pnlContent.Width = this.ClientSize.Width - contentPadding * 2;
                 pnlContent.Height = Math.Max(220, this.ClientSize.Height - pnlHeader.Height - contentPadding * 2);
 
-                // ColocaciÛn horizontal de controles de filtros (m·s robusta)
+                // Colocaci√≥n horizontal de controles de filtros (m√°s robusta)
                 int startX = 12;
                 int gap = 8;
 
@@ -430,13 +430,13 @@ namespace Comercio.NET.Formularios
                 dgv.Left = 12;
                 dgv.Width = pnlContent.ClientSize.Width - 24;
 
-                // lblTotales y posicionamiento de la grilla de alÌcuotas se calcular·n dentro AjustarIvaTotalsSize
+                // lblTotales y posicionamiento de la grilla de al√≠cuotas se calcular√°n dentro AjustarIvaTotalsSize
                 AjustarIvaTotalsSize();
             }
             ;
         }
 
-        // Ajusta el tamaÒo de dgvIvaTotals para que calce exactamente a sus columnas y filas
+        // Ajusta el tama√±o de dgvIvaTotals para que calce exactamente a sus columnas y filas
         private void AjustarIvaTotalsSize()
         {
             if (dgvIvaTotals == null || pnlContent == null) return;
@@ -445,7 +445,7 @@ namespace Comercio.NET.Formularios
             int totalColsWidth = dgvIvaTotals.Columns.Cast<DataGridViewColumn>().Sum(c => c.Width);
             int rowHeader = dgvIvaTotals.RowHeadersVisible ? dgvIvaTotals.RowHeadersWidth : 0;
 
-            // si las filas exceden la altura visible, aparecer· scrollbar vertical; estimamos si es necesario
+            // si las filas exceden la altura visible, aparecer√° scrollbar vertical; estimamos si es necesario
             int visibleRows = Math.Max(1, (pnlContent.ClientSize.Height - 200) / dgvIvaTotals.RowTemplate.Height);
             bool needVScroll = dgvIvaTotals.Rows.Count > visibleRows;
 
@@ -454,7 +454,7 @@ namespace Comercio.NET.Formularios
             // ancho objetivo: suma columnas + posibles scroll + bordes
             int desiredWidth = totalColsWidth + rowHeader + vScrollWidth + 4;
 
-            // limitar al ancho disponible menos m·rgenes
+            // limitar al ancho disponible menos m√°rgenes
             int maxAvailable = Math.Max(0, pnlContent.ClientSize.Width - 24);
             dgvIvaTotals.Width = Math.Min(desiredWidth, maxAvailable);
 
@@ -464,31 +464,31 @@ namespace Comercio.NET.Formularios
             else
                 dgvIvaTotals.ScrollBars = ScrollBars.None;
 
-            // Reemplazar el c·lculo de altura m·xima y asignaciÛn dentro de `AjustarIvaTotalsSize()`
-            // para permitir que la grilla de alÌcuotas sea m·s alta y forzar un mÌnimo razonable.
+            // Reemplazar el c√°lculo de altura m√°xima y asignaci√≥n dentro de `AjustarIvaTotalsSize()`
+            // para permitir que la grilla de al√≠cuotas sea m√°s alta y forzar un m√≠nimo razonable.
             int headerH = dgvIvaTotals.ColumnHeadersHeight;
             int rowsH = dgvIvaTotals.RowTemplate.Height * Math.Max(1, dgvIvaTotals.Rows.Count);
             int desiredHeight = headerH + rowsH + 8;
 
-            // permitir un m·ximo mayor (hasta la mitad del panel) y garantizar mÌnimo visual
+            // permitir un m√°ximo mayor (hasta la mitad del panel) y garantizar m√≠nimo visual
             int maxHeight = Math.Min(320, pnlContent.ClientSize.Height / 2);
             dgvIvaTotals.Height = Math.Min(Math.Max(desiredHeight, 120), maxHeight);
 
-            // ajustar posiciÛn como antes
+            // ajustar posici√≥n como antes
             dgvIvaTotals.Left = (pnlContent.ClientSize.Width - dgvIvaTotals.Width) / 2;
             dgvIvaTotals.Top = pnlContent.ClientSize.Height - contentPadding - dgvIvaTotals.Height;
 
-            // lblTotales justo encima de la grilla de alÌcuatas, centrado horizontalmente
+            // lblTotales justo encima de la grilla de al√≠cuatas, centrado horizontalmente
             int lblWidth = Math.Min(600, pnlContent.ClientSize.Width - 24);
             lblTotales.Width = lblWidth;
             lblTotales.Left = (pnlContent.ClientSize.Width - lblTotales.Width) / 2;
             lblTotales.Top = dgvIvaTotals.Top - 6 - lblTotales.Height;
 
-            // ajustar altura de la grilla principal seg˙n la nueva posiciÛn (dejamos un poco m·s de separaciÛn)
+            // ajustar altura de la grilla principal seg√∫n la nueva posici√≥n (dejamos un poco m√°s de separaci√≥n)
             dgv.Height = Math.Max(60, lblTotales.Top - dgv.Top - 24);
 
             // -----------------------------
-            // Posicionar botones de impresiÛn a la derecha de la grilla de alÌcuotas
+            // Posicionar botones de impresi√≥n a la derecha de la grilla de al√≠cuotas
             // -----------------------------
             try
             {
@@ -578,7 +578,7 @@ namespace Comercio.NET.Formularios
                 case "Rango personalizado":
                     desde = dtpDesde.Value.Date;
                     hasta = dtpHasta.Value.Date;
-                    if (hasta < desde) { MessageBox.Show("El rango no es v·lido: 'Hasta' es anterior a 'Desde'.", "Rango inv·lido", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                    if (hasta < desde) { MessageBox.Show("El rango no es v√°lido: 'Hasta' es anterior a 'Desde'.", "Rango inv√°lido", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                     break;
                 default:
                     desde = hoy;
@@ -586,7 +586,7 @@ namespace Comercio.NET.Formularios
                     break;
             }
 
-            // guardar ˙ltimos valores para impresiÛn
+            // guardar √∫ltimos valores para impresi√≥n
             lastDesde = desde;
             lastHasta = hasta;
             lastProveedorSeleccionado = cmbProveedor?.SelectedValue?.ToString() ?? "";
@@ -617,11 +617,11 @@ namespace Comercio.NET.Formularios
                 string cs = GetConnectionString();
                 using (var conn = new SqlConnection(cs))
                 {
-                    // Incluir dÌa completo: desde 00:00 hasta 23:59:59
+                    // Incluir d√≠a completo: desde 00:00 hasta 23:59:59
                     var desdeFecha = desde.Date;
                     var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
 
-                    // OBTENER compras SIN FILTRO POR PROVEEDOR ó necesitaremos la lista de proveedores desde estos registros
+                    // OBTENER compras SIN FILTRO POR PROVEEDOR ‚Äî necesitaremos la lista de proveedores desde estos registros
                     string sql = @"
 SELECT cp.Id, cp.NumeroFactura, cp.Fecha, ISNULL(p.Nombre, cp.Proveedor) AS Proveedor, 
        cp.ImporteNeto, cp.ImporteIVA, cp.ImporteTotal, cp.Usuario, cp.Cajero
@@ -643,12 +643,12 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                     // POPULAR combo de proveedores desde los registros obtenidos
                     ActualizarComboProveedorDesdeCompras(dt);
 
-                    // Determinar proveedor seleccionado (nombre). Si es "Todos" o vacÌo -> sin filtro por proveedor
+                    // Determinar proveedor seleccionado (nombre). Si es "Todos" o vac√≠o -> sin filtro por proveedor
                     string proveedorSeleccionado = "";
                     if (cmbProveedor?.SelectedValue != null)
                         proveedorSeleccionado = cmbProveedor.SelectedValue.ToString();
 
-                    // Filtrar en memoria la tabla de compras para mostrar sÛlo el proveedor seleccionado (si corresponde)
+                    // Filtrar en memoria la tabla de compras para mostrar s√≥lo el proveedor seleccionado (si corresponde)
                     DataTable dtParaMostrar = dt;
                     if (!string.IsNullOrEmpty(proveedorSeleccionado))
                     {
@@ -658,7 +658,7 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         dtParaMostrar = dv.ToTable();
                     }
 
-                    // asignar valores a la UI (fuera del using de conexiÛn)
+                    // asignar valores a la UI (fuera del using de conexi√≥n)
                     dgv.DataSource = dtParaMostrar;
 
                     if (dgv.Columns["Cajero"] != null)
@@ -667,7 +667,7 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         colCajero.HeaderText = "Cajero";
                         colCajero.Width = 80;
                         colCajero.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                        // Si quieres que sea la ˙ltima columna:
+                        // Si quieres que sea la √∫ltima columna:
                         colCajero.DisplayIndex = dgv.Columns.Count - 1;
                     }
 
@@ -685,10 +685,10 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
 
                     lblTotales.Text = $"Totales ({desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}):     Neto {sumaNeto:C2}    |    IVA {sumaIva:C2}    |    Total {sumaTotal:C2}";
 
-                    // OBTENER totales por alÌcuota desde la BD:
+                    // OBTENER totales por al√≠cuota desde la BD:
                     var dtAlicuotas = new DataTable();
 
-                    // Base SQL y, si hay proveedor seleccionado, se agrega condiciÛn de nombre de proveedor
+                    // Base SQL y, si hay proveedor seleccionado, se agrega condici√≥n de nombre de proveedor
                     string sqlAlicuotas = @"
                         SELECT d.Alicuota, SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
                         FROM ComprasProveedoresIvaDetalle d
@@ -726,7 +726,7 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         dgvIvaTotals.Rows.Add(ali.ToString("N2"), baseSum.ToString("C2"), ivaSum.ToString("C2"));
                     }
 
-                    // Guardar datos actuales para impresiÛn / reuso
+                    // Guardar datos actuales para impresi√≥n / reuso
                     currentComprasDt = dt;
                     currentAlicuotasDt = dtAlicuotas;
                     lastDesde = desde;
@@ -734,12 +734,12 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                     lastProveedorSeleccionado = proveedorSeleccionado;
                 }
 
-                // Alineaciones de celdas de la grilla de alÌcuotas (fuera del using)
+                // Alineaciones de celdas de la grilla de al√≠cuotas (fuera del using)
                 if (dgvIvaTotals.Columns.Contains("Alicuota")) dgvIvaTotals.Columns["Alicuota"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 if (dgvIvaTotals.Columns.Contains("Base")) dgvIvaTotals.Columns["Base"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                 if (dgvIvaTotals.Columns.Contains("ImporteIva")) dgvIvaTotals.Columns["ImporteIva"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-                // Ajustar tamaÒo y posiciÛn tras llenar filas
+                // Ajustar tama√±o y posici√≥n tras llenar filas
                 AjustarIvaTotalsSize();
             }
             catch (Exception ex)
@@ -757,7 +757,7 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                 dtProv.Columns.Add("Nombre", typeof(string)); // texto mostrado
                 dtProv.Columns.Add("Value", typeof(string));  // valor real usado para filtrar
 
-                // OpciÛn "Todos" -> mostrar "Todos", valor vacÌo para indicar sin filtro
+                // Opci√≥n "Todos" -> mostrar "Todos", valor vac√≠o para indicar sin filtro
                 var rowTodos = dtProv.NewRow();
                 rowTodos["Nombre"] = "Todos";
                 rowTodos["Value"] = "";
@@ -781,18 +781,18 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                     }
                 }
 
-                // Evitar que la asignaciÛn del DataSource dispare SelectedIndexChanged y cause reentrada
+                // Evitar que la asignaci√≥n del DataSource dispare SelectedIndexChanged y cause reentrada
                 isPopulatingProveedor = true;
                 try
                 {
-                    // preservar selecciÛn previa (por valor)
+                    // preservar selecci√≥n previa (por valor)
                     var previous = cmbProveedor?.SelectedValue?.ToString();
 
                     cmbProveedor.DataSource = dtProv;
                     cmbProveedor.DisplayMember = "Nombre";
                     cmbProveedor.ValueMember = "Value";
 
-                    // restaurar selecciÛn previa si existe en la nueva lista; sino "Todos" (valor "")
+                    // restaurar selecci√≥n previa si existe en la nueva lista; sino "Todos" (valor "")
                     if (!string.IsNullOrEmpty(previous))
                     {
                         var exists = dtProv.AsEnumerable().Any(r => string.Equals(r.Field<string>("Value"), previous, StringComparison.CurrentCultureIgnoreCase));
@@ -884,19 +884,19 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
         {
             if (dgv.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Seleccione una compra.", "InformaciÛn", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Seleccione una compra.", "Informaci√≥n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             var row = dgv.SelectedRows[0];
             if (row.Cells["Id"].Value == null)
             {
-                MessageBox.Show("La fila seleccionada no contiene una compra v·lida.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("La fila seleccionada no contiene una compra v√°lida.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             if (!int.TryParse(row.Cells["Id"].Value.ToString(), out int compraId))
             {
-                MessageBox.Show("Id de compra inv·lido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Id de compra inv√°lido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -913,11 +913,11 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
 
                     // Obtener importe total y proveedor
                     var sql = @"
-SELECT cp.ImporteTotal, cp.ProveedorId, ISNULL(p.Nombre, cp.Proveedor) AS ProveedorNombre
-FROM ComprasProveedores cp
-LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
-WHERE cp.Id = @id;
-";
+                SELECT cp.ImporteTotal, cp.ProveedorId, ISNULL(p.Nombre, cp.Proveedor) AS ProveedorNombre
+                FROM ComprasProveedores cp
+                LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+                WHERE cp.Id = @id";
+
                     using (var cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@id", compraId);
@@ -937,33 +937,43 @@ WHERE cp.Id = @id;
                         }
                     }
 
-                    // Sumar pagos ya registrados para esta compra
-                    var cmdSum = new SqlCommand("SELECT ISNULL(SUM(Monto),0) FROM ComprasProveedoresPagos WHERE CompraId = @id;", conn);
-                    cmdSum.Parameters.AddWithValue("@id", compraId);
-                    var obj = await cmdSum.ExecuteScalarAsync();
-                    decimal totalPagado = obj == null ? 0m : Convert.ToDecimal(obj);
+                    // ‚úÖ CAMBIO: Calcular saldo desde ProveedoresCtaCte en lugar de ComprasProveedoresPagos
+                    var cmdCtaCte = new SqlCommand(@"
+                SELECT ISNULL(Saldo, 0) 
+                FROM ProveedoresCtaCte 
+                WHERE CompraId = @id", conn);
+                    cmdCtaCte.Parameters.AddWithValue("@id", compraId);
+                    var objCtaCte = await cmdCtaCte.ExecuteScalarAsync();
 
-                    decimal saldo = importeTotal - totalPagado;
-                    if (saldo <= 0m)
+                    // Si no hay registro en CtaCte, el saldo es el importe total de la compra
+                    decimal saldoActual = objCtaCte != null ? Convert.ToDecimal(objCtaCte) : importeTotal;
+
+                    if (saldoActual <= 0m)
                     {
-                        var resp = MessageBox.Show("La compra ya figura como saldada. øDesea registrar un pago igualmente?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        var resp = MessageBox.Show(
+                            "La compra ya figura como saldada. ¬øDesea registrar un pago igualmente?",
+                            "Confirmar",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
                         if (resp == DialogResult.No) return;
                     }
 
                     // Abrir modal de forma de pago
-                    using (var frmPago = new FormaPagoProveedorForm(saldo, proveedorId, compraId, proveedorNombre))
+                    using (var frmPago = new FormaPagoProveedorForm(saldoActual, proveedorId, compraId, proveedorNombre))
                     {
                         var dr = frmPago.ShowDialog(this.FindForm());
                         if (dr != DialogResult.OK) return;
+
                         var pagos = frmPago.Pagos ?? new List<PagoInfo>();
                         if (pagos.Count == 0)
                         {
-                            MessageBox.Show("No se registraron pagos.", "InformaciÛn", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("No se registraron pagos.", "Informaci√≥n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             return;
                         }
 
                         // Guardar pagos y actualizar CtaCte si corresponde
                         await GuardarPagosYActualizarCtaCteAsync(compraId, proveedorId, pagos, importeTotal, proveedorNombre);
+
                         // refrescar vista
                         await AplicarRangoYCargarAsync();
                     }
@@ -978,115 +988,99 @@ WHERE cp.Id = @id;
         // Guarda pagos asociados a una compra y mantiene/crea/actualiza registro en ProveedoresCtaCte si queda saldo.
         private async Task GuardarPagosYActualizarCtaCteAsync(int compraId, int? proveedorId, List<PagoInfo> pagos, decimal importeTotal, string proveedorNombre)
         {
-            string cs = GetConnectionString();
             try
             {
-                using (var conn = new SqlConnection(cs))
+                string connectionString = GetConnectionString();
+
+                using (var connection = new SqlConnection(connectionString))
                 {
-                    await conn.OpenAsync();
-                    using (var tx = conn.BeginTransaction())
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
                     {
                         try
                         {
-                            decimal totalPagadoNuevo = 0m;
-                            var insertPagoSql = @"
-INSERT INTO ComprasProveedoresPagos
-(CompraId, Metodo, Monto, Referencia, Fecha, Usuario)
-VALUES (@CompraId, @Metodo, @Monto, @Referencia, @Fecha, @Usuario);";
+                            decimal totalPagado = pagos.Sum(p => p.Monto);
+                            decimal saldoPendiente = importeTotal - totalPagado;
 
-                            foreach (var p in pagos)
+                            // 1. Guardar cada pago en la tabla PagosProveedores
+                            foreach (var pago in pagos)
                             {
-                                using (var cmd = new SqlCommand(insertPagoSql, conn, tx))
+                                string insertPagoQuery = @"
+                            INSERT INTO PagosProveedores 
+                            (Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, FechaPago, FechaRegistro, IdProveedor, CtaCteId)
+                            VALUES 
+                            (@Proveedor, @Monto, @Observaciones, @NumeroCajero, @UsuarioRegistro, @FechaPago, @FechaRegistro, @IdProveedor, @CtaCteId)";
+
+                                using (var cmdPago = new SqlCommand(insertPagoQuery, connection, transaction))
                                 {
-                                    cmd.Parameters.AddWithValue("@CompraId", compraId);
-                                    cmd.Parameters.AddWithValue("@Metodo", string.IsNullOrWhiteSpace(p.Metodo) ? (object)DBNull.Value : p.Metodo);
-                                    cmd.Parameters.AddWithValue("@Monto", p.Monto);
-                                    cmd.Parameters.AddWithValue("@Referencia", string.IsNullOrWhiteSpace(p.Referencia) ? (object)DBNull.Value : p.Referencia);
-                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
-                                    cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
-                                    await cmd.ExecuteNonQueryAsync();
+                                    cmdPago.Parameters.AddWithValue("@Proveedor", proveedorNombre);
+                                    cmdPago.Parameters.AddWithValue("@Monto", pago.Monto);
+                                    cmdPago.Parameters.AddWithValue("@Observaciones",
+                                        $"{pago.Metodo} - {pago.Referencia ?? "Sin referencia"} - Compra ID: {compraId}");
+                                    cmdPago.Parameters.AddWithValue("@NumeroCajero", 1); // Ajustar seg√∫n tu l√≥gica
+                                    cmdPago.Parameters.AddWithValue("@UsuarioRegistro",
+                                        Comercio.NET.Services.AuthenticationService.SesionActual?.Usuario?.NombreCompleto ?? "Sistema");
+                                    cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+                                    cmdPago.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
+                                    cmdPago.Parameters.AddWithValue("@IdProveedor",
+                                        proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
+                                    cmdPago.Parameters.AddWithValue("@CtaCteId", DBNull.Value); // Ajustar seg√∫n tu l√≥gica
+
+                                    await cmdPago.ExecuteNonQueryAsync();
                                 }
-                                totalPagadoNuevo += p.Monto;
                             }
 
-                            // recalcular total pagado para la compra (incluye pagos previos)
-                            var cmdSum = new SqlCommand("SELECT ISNULL(SUM(Monto),0) FROM ComprasProveedoresPagos WHERE CompraId = @id;", conn, tx);
-                            cmdSum.Parameters.AddWithValue("@id", compraId);
-                            var obj = await cmdSum.ExecuteScalarAsync();
-                            decimal totalPagado = obj == null ? 0m : Convert.ToDecimal(obj);
-
-                            decimal saldo = importeTotal - totalPagado;
-
-                            // Si queda saldo, crear o actualizar ProveedoresCtaCte; si no, dejar saldo en 0
-                            var selectCta = new SqlCommand("SELECT Id FROM ProveedoresCtaCte WHERE CompraId = @compraId;", conn, tx);
-                            selectCta.Parameters.AddWithValue("@compraId", compraId);
-                            var existing = await selectCta.ExecuteScalarAsync();
-
-                            if (saldo > 0m)
+                            // 2. Actualizar la cuenta corriente si hay saldo pendiente
+                            if (saldoPendiente > 0 && proveedorId.HasValue)
                             {
-                                if (existing != null)
-                                {
-                                    // actualizar
-                                    var upd = new SqlCommand(@"UPDATE ProveedoresCtaCte SET MontoAdeudado = @montoAdeudado, Saldo = @saldo WHERE Id = @id;", conn, tx);
-                                    upd.Parameters.AddWithValue("@montoAdeudado", saldo);
-                                    upd.Parameters.AddWithValue("@saldo", saldo);
-                                    upd.Parameters.AddWithValue("@id", Convert.ToInt32(existing));
-                                    await upd.ExecuteNonQueryAsync();
-                                }
-                                else
-                                {
-                                    // insertar nuevo registro de CtaCte
-                                    var ins = new SqlCommand(@"
-INSERT INTO ProveedoresCtaCte
-(ProveedorId, CompraId, Fecha, MontoTotal, MontoAdeudado, Saldo, Observaciones, Usuario)
-VALUES (@ProveedorId, @CompraId, @Fecha, @MontoTotal, @MontoAdeudado, @Saldo, @Observaciones, @Usuario);", conn, tx);
-                                    ins.Parameters.AddWithValue("@ProveedorId", proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
-                                    ins.Parameters.AddWithValue("@CompraId", compraId);
-                                    ins.Parameters.AddWithValue("@Fecha", DateTime.Now);
-                                    ins.Parameters.AddWithValue("@MontoTotal", importeTotal);
-                                    ins.Parameters.AddWithValue("@MontoAdeudado", saldo);
-                                    ins.Parameters.AddWithValue("@Saldo", saldo);
-                                    ins.Parameters.AddWithValue("@Observaciones", "Deuda generada por pagos parciales desde Control Compras");
-                                    ins.Parameters.AddWithValue("@Usuario", Environment.UserName);
-                                    await ins.ExecuteNonQueryAsync();
-                                }
+                                string updateCtaCteQuery = @"
+                            UPDATE ComprasProveedoresCtaCte
+                            SET Saldo = Saldo + @ImporteSaldo
+                            WHERE ProveedorId = @ProveedorId";
 
-                                // marcar compra como CtaCte
-                                var updCompra = new SqlCommand("UPDATE ComprasProveedores SET EsCtaCte = 1, NombreCtaCte = @nombre WHERE Id = @id;", conn, tx);
-                                updCompra.Parameters.AddWithValue("@nombre", string.IsNullOrWhiteSpace(proveedorNombre) ? (object)DBNull.Value : proveedorNombre);
-                                updCompra.Parameters.AddWithValue("@id", compraId);
-                                await updCompra.ExecuteNonQueryAsync();
-                            }
-                            else
-                            {
-                                // saldo <= 0: si hay registro de ctacte, poner saldo 0; adem·s marcar compra como no cta cte
-                                if (existing != null)
+                                using (var cmdCtaCte = new SqlCommand(updateCtaCteQuery, connection, transaction))
                                 {
-                                    var upd = new SqlCommand(@"UPDATE ProveedoresCtaCte SET MontoAdeudado = 0, Saldo = 0 WHERE Id = @id;", conn, tx);
-                                    upd.Parameters.AddWithValue("@id", Convert.ToInt32(existing));
-                                    await upd.ExecuteNonQueryAsync();
-                                }
+                                    cmdCtaCte.Parameters.AddWithValue("@ImporteSaldo", saldoPendiente);
+                                    cmdCtaCte.Parameters.AddWithValue("@ProveedorId", proveedorId.Value);
 
-                                var updCompra = new SqlCommand("UPDATE ComprasProveedores SET EsCtaCte = 0, NombreCtaCte = @nombre WHERE Id = @id;", conn, tx);
-                                updCompra.Parameters.AddWithValue("@nombre", string.IsNullOrWhiteSpace(proveedorNombre) ? (object)DBNull.Value : proveedorNombre);
-                                updCompra.Parameters.AddWithValue("@id", compraId);
-                                await updCompra.ExecuteNonQueryAsync();
+                                    int rowsAffected = await cmdCtaCte.ExecuteNonQueryAsync();
+
+                                    // Si no existe registro en CtaCte, crear uno
+                                    if (rowsAffected == 0)
+                                    {
+                                        string insertCtaCteQuery = @"
+                                    INSERT INTO ComprasProveedoresCtaCte (ProveedorId, NombreProveedor, Saldo, FechaUltimaActualizacion)
+                                    VALUES (@ProveedorId, @NombreProveedor, @Saldo, @FechaActualizacion)";
+
+                                        using (var cmdInsert = new SqlCommand(insertCtaCteQuery, connection, transaction))
+                                        {
+                                            cmdInsert.Parameters.AddWithValue("@ProveedorId", proveedorId.Value);
+                                            cmdInsert.Parameters.AddWithValue("@NombreProveedor", proveedorNombre);
+                                            cmdInsert.Parameters.AddWithValue("@Saldo", saldoPendiente);
+                                            cmdInsert.Parameters.AddWithValue("@FechaActualizacion", DateTime.Now);
+
+                                            await cmdInsert.ExecuteNonQueryAsync();
+                                        }
+                                    }
+                                }
                             }
 
-                            tx.Commit();
-                            MessageBox.Show("Pago(s) registrado(s) correctamente.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            transaction.Commit();
+                            MessageBox.Show($"Pagos registrados correctamente.\nTotal pagado: {totalPagado:C2}\nSaldo pendiente: {saldoPendiente:C2}",
+                                "√âxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         catch (Exception ex)
                         {
-                            tx.Rollback();
-                            MessageBox.Show($"Error guardando pagos y actualizando CtaCte: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            transaction.Rollback();
+                            throw new Exception($"Error guardando pagos/deuda: {ex.Message}", ex);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error de conexiÛn al guardar pagos: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error guardando pagos/deuda: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1187,10 +1181,10 @@ VALUES (@ProveedorId, @CompraId, @Fecha, @MontoTotal, @MontoAdeudado, @Saldo, @O
         }
 
         // -----------------------------
-        // IMPRESI”N: totales por dÌa
+        // IMPRESI√ìN: totales por d√≠a
         // -----------------------------
 
-        // Obtiene desde la BD los totales por dÌa y alÌcuota (agrupados por fecha)
+        // Obtiene desde la BD los totales por d√≠a y al√≠cuota (agrupados por fecha)
         private async Task<DataTable> ObtenerTotalesPorDiaAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
         {
             var dt = new DataTable();
@@ -1232,13 +1226,13 @@ ORDER BY CAST(cp.Fecha AS DATE) DESC, d.Alicuota DESC;";
             }
             catch
             {
-                // dejar dt vacÌo si falla
+                // dejar dt vac√≠o si falla
             }
             return dt;
         }
 
         // -----------------------------
-        // IMPRESI”N: totales por mes (resumen mensual simple)
+        // IMPRESI√ìN: totales por mes (resumen mensual simple)
         // -----------------------------
         private async Task<DataTable> ObtenerTotalesPorMesAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
         {
@@ -1282,13 +1276,13 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC;";
             }
             catch
             {
-                // dejar dt vacÌo si falla
+                // dejar dt vac√≠o si falla
             }
             return dt;
         }
 
         // -----------------------------
-        // IMPRESI”N: totales por mes + desglose por alÌcuota
+        // IMPRESI√ìN: totales por mes + desglose por al√≠cuota
         // -----------------------------
         private async Task<DataTable> ObtenerTotalesPorMesYAlicuotaAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
         {
@@ -1332,13 +1326,13 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, d.Alicuota DESC;";
             }
             catch
             {
-                // dejar dt vacÌo si falla
+                // dejar dt vac√≠o si falla
             }
             return dt;
         }
 
         // -----------------------------
-        // IMPRESI”N: totales por mes por proveedor (desglose mensual por proveedor)
+        // IMPRESI√ìN: totales por mes por proveedor (desglose mensual por proveedor)
         // -----------------------------
         private async Task<DataTable> ObtenerTotalesPorMesPorProveedorAsync(DateTime desde, DateTime hasta, string proveedorSeleccionado)
         {
@@ -1382,26 +1376,26 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
             }
             catch
             {
-                // dejar dt vacÌo si falla
+                // dejar dt vac√≠o si falla
             }
             return dt;
         }
 
-        // Evento del botÛn Imprimir: prepara datos y muestra vista previa (por dÌa)
+        // Evento del bot√≥n Imprimir: prepara datos y muestra vista previa (por d√≠a)
         private async Task BtnImprimir_Click(object sender, EventArgs e)
         {
             try
             {
-                // usar ˙ltimos filtros aplicados
+                // usar √∫ltimos filtros aplicados
                 var desde = lastDesde;
                 var hasta = lastHasta;
                 var proveedor = lastProveedorSeleccionado;
 
                 var dtPorDia = await ObtenerTotalesPorDiaAsync(desde, hasta, proveedor);
 
-                // preparar lÌneas de texto para imprimir
+                // preparar l√≠neas de texto para imprimir
                 printLines = new List<string>();
-                printLines.Add("Control Compras Proveedores - Totales por dÌa");
+                printLines.Add("Control Compras Proveedores - Totales por d√≠a");
                 printLines.Add($"Rango: {desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}");
                 var provLabel = string.IsNullOrEmpty(proveedor) ? "Todos" : proveedor;
                 printLines.Add($"Proveedor: {provLabel}");
@@ -1426,7 +1420,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                     {
                         if (lastDate.HasValue)
                         {
-                            // imprimir totales del dÌa anterior
+                            // imprimir totales del d√≠a anterior
                             printLines.Add(new string('-', 60));
                             printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-12} {1,10} {2,15} {3,15}", "", "Total:", "", (dayBaseSum + dayIvaSum).ToString("C2")));
                             printLines.Add("");
@@ -1450,7 +1444,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                 if (lastDate.HasValue)
                 {
                     printLines.Add(new string('-', 60));
-                    printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-12} {1,10} {2,15} {3,15}", "", "Total del dÌa:", dayBaseSum.ToString("C2"), dayIvaSum.ToString("C2")));
+                    printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-12} {1,10} {2,15} {3,15}", "", "Total del d√≠a:", dayBaseSum.ToString("C2"), dayIvaSum.ToString("C2")));
                 }
                 else
                 {
@@ -1472,12 +1466,12 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error preparando impresiÛn: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error preparando impresi√≥n: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // Evento del botÛn ImprimirMensual: prepara datos y muestra vista previa (por mes, 1 total por mes
-        // pero ahora incluyendo desglose por alÌcuotas)
+        // Evento del bot√≥n ImprimirMensual: prepara datos y muestra vista previa (por mes, 1 total por mes
+        // pero ahora incluyendo desglose por al√≠cuotas)
         private async Task BtnImprimirMensual_Click(object sender, EventArgs e)
         {
             try
@@ -1486,12 +1480,12 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                 var hasta = lastHasta;
                 var proveedor = lastProveedorSeleccionado;
 
-                // obtenemos por mes+alÌcuota
+                // obtenemos por mes+al√≠cuota
                 var dtPorMesAlicuota = await ObtenerTotalesPorMesYAlicuotaAsync(desde, hasta, proveedor);
 
-                // preparar lÌneas de texto para imprimir
+                // preparar l√≠neas de texto para imprimir
                 printLines = new List<string>();
-                printLines.Add("Control Compras Proveedores - Totales por mes (desglose por alÌcuota)");
+                printLines.Add("Control Compras Proveedores - Totales por mes (desglose por al√≠cuota)");
                 printLines.Add($"Rango: {desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}");
                 var provLabel = string.IsNullOrEmpty(proveedor) ? "Todos" : proveedor;
                 printLines.Add($"Proveedor: {provLabel}");
@@ -1554,7 +1548,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                         grandIva += r.Iva;
                     }
 
-                    // totales ˙ltimo mes
+                    // totales √∫ltimo mes
                     printLines.Add(new string('-', 100));
                     var lastMonthTotal = monthBase + monthIva;
                     printLines.Add(string.Format(CultureInfo.CurrentCulture, "{0,-20} {1,10} {2,18} {3,18} {4,18}",
@@ -1578,12 +1572,12 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error preparando impresiÛn mensual: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error preparando impresi√≥n mensual: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         // -----------------------------
-        // IMPRESI”N: Totales por mes DETALLADO POR PROVEEDOR
+        // IMPRESI√ìN: Totales por mes DETALLADO POR PROVEEDOR
         // -----------------------------
         private async Task BtnImprimirMensualPorProveedor_Click(object sender, EventArgs e)
         {
@@ -1595,16 +1589,16 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
 
                 var dt = await ObtenerTotalesPorMesPorProveedorAsync(desde, hasta, proveedorFiltro);
 
-                // Column widths reducidos: Proveedor m·s angosto
+                // Column widths reducidos: Proveedor m√°s angosto
                 const int monthW = 20;
-                const int provW = 18; // m·s angosto seg˙n tu peticiÛn
+                const int provW = 18; // m√°s angosto seg√∫n tu petici√≥n
                 const int aliW = 6;
                 const int baseW = 15;
                 const int ivaW = 15;
                 const int totalW = 15;
 
                 printLines = new List<string>();
-                printLines.Add("Control Compras Proveedores - Totales por mes (detallado por proveedor y alÌcuota)");
+                printLines.Add("Control Compras Proveedores - Totales por mes (detallado por proveedor y al√≠cuota)");
                 printLines.Add($"Rango: {desde:dd/MM/yyyy} - {hasta:dd/MM/yyyy}");
                 var provLabel = string.IsNullOrEmpty(proveedorFiltro) ? "Todos" : proveedorFiltro;
                 printLines.Add($"Proveedor (filtro): {provLabel}");
@@ -1641,7 +1635,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                     decimal monthBase = 0m, monthIva = 0m;
                     decimal provBase = 0m, provIva = 0m;
 
-                    // Totales por alÌcuota para el mes actual y global
+                    // Totales por al√≠cuota para el mes actual y global
                     var monthAliTotals = new Dictionary<decimal, (decimal Base, decimal Iva)>();
                     var grandAliTotals = new Dictionary<decimal, (decimal Base, decimal Iva)>();
 
@@ -1666,10 +1660,10 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                             // cerrar mes anterior
                             if (curYear != -1)
                             {
-                                // imprimir desglose por alÌcuota del mes anterior (si existen)
+                                // imprimir desglose por al√≠cuota del mes anterior (si existen)
                                 if (monthAliTotals.Count > 0)
                                 {
-                                    printLines.Add("  Desglose alÌcuotas (mes):");
+                                    printLines.Add("  Desglose al√≠cuotas (mes):");
                                     foreach (var kv in monthAliTotals.OrderByDescending(k => k.Key))
                                     {
                                         var ali = kv.Key;
@@ -1691,7 +1685,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                                 printLines.Add("");
                                 monthBase = 0m; monthIva = 0m;
 
-                                // limpiar acumulador de alÌcuotas del mes
+                                // limpiar acumulador de al√≠cuotas del mes
                                 monthAliTotals.Clear();
                             }
 
@@ -1721,7 +1715,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                                 "{0,-" + monthW + "} {1,-" + provW + "}", "", TruncateForPrint(curProveedor, provW)));
                         }
 
-                        // lÌnea por alÌcuota bajo el proveedor actual (no repetimos el proveedor)
+                        // l√≠nea por al√≠cuota bajo el proveedor actual (no repetimos el proveedor)
                         var lineTotal = r.Base + r.Iva;
                         printLines.Add(string.Format(CultureInfo.CurrentCulture,
                             "{0,-" + monthW + "} {1,-" + provW + "} {2," + aliW + "} {3," + baseW + "} {4," + ivaW + "} {5," + totalW + "}",
@@ -1735,7 +1729,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                         grandBase += r.Base;
                         grandIva += r.Iva;
 
-                        // actualizar acumuladores de alÌcuota (mes y global)
+                        // actualizar acumuladores de al√≠cuota (mes y global)
                         if (!monthAliTotals.TryGetValue(r.Alicuota, out var mtuple))
                             monthAliTotals[r.Alicuota] = (r.Base, r.Iva);
                         else
@@ -1747,7 +1741,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                             grandAliTotals[r.Alicuota] = (gtuple.Base + r.Base, gtuple.Iva + r.Iva);
                     }
 
-                    // cerrar ˙ltimo proveedor del ˙ltimo mes
+                    // cerrar √∫ltimo proveedor del √∫ltimo mes
                     if (curProveedor != null)
                     {
                         var provTotal = provBase + provIva;
@@ -1757,10 +1751,10 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                         printLines.Add("");
                     }
 
-                    // imprimir desglose por alÌcuota del ˙ltimo mes
+                    // imprimir desglose por al√≠cuota del √∫ltimo mes
                     if (monthAliTotals.Count > 0)
                     {
-                        printLines.Add("  Desglose alÌcuotas (mes):");
+                        printLines.Add("  Desglose al√≠cuotas (mes):");
                         foreach (var kv in monthAliTotals.OrderByDescending(k => k.Key))
                         {
                             var ali = kv.Key;
@@ -1774,7 +1768,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                         printLines.Add("");
                     }
 
-                    // totales ˙ltimo mes
+                    // totales √∫ltimo mes
                     printLines.Add(new string('-', monthW + provW + aliW + baseW + ivaW + totalW + 10));
                     var lastMonthTotal = monthBase + monthIva;
                     printLines.Add(string.Format(CultureInfo.CurrentCulture,
@@ -1782,10 +1776,10 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
                         "Total mes:", "", "", monthBase.ToString("C2"), monthIva.ToString("C2"), lastMonthTotal.ToString("C2")));
                     printLines.Add(new string('-', monthW + provW + aliW + baseW + ivaW + totalW + 10));
 
-                    // imprimir desglose por alÌcuota GLOBAL antes del TOTAL GENERAL
+                    // imprimir desglose por al√≠cuota GLOBAL antes del TOTAL GENERAL
                     if (grandAliTotals.Count > 0)
                     {
-                        printLines.Add("  Desglose alÌcuotas (total general):");
+                        printLines.Add("  Desglose al√≠cuotas (total general):");
                         foreach (var kv in grandAliTotals.OrderByDescending(k => k.Key))
                         {
                             var ali = kv.Key;
@@ -1819,11 +1813,11 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error preparando impresiÛn mensual por proveedor: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error preparando impresi√≥n mensual por proveedor: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // Helper para recortar texto largo para impresiÛn en columna fija
+        // Helper para recortar texto largo para impresi√≥n en columna fija
         private string TruncateForPrint(string text, int maxLength)
         {
             if (string.IsNullOrEmpty(text)) return "";
@@ -1850,7 +1844,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
             e.HasMorePages = currentPrintLine < printLines.Count;
             if (!e.HasMorePages)
             {
-                // restablecer para prÛxima impresiÛn
+                // restablecer para pr√≥xima impresi√≥n
                 currentPrintLine = 0;
             }
         }
@@ -1868,7 +1862,7 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DE
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
             this.BackColor = Color.FromArgb(250, 250, 250);
 
-            // <-- lÌnea aÒadida -->
+            // <-- l√≠nea a√±adida -->
             this.WindowState = FormWindowState.Maximized;
 
             control = new ControlComprasProveedores { Dock = DockStyle.Fill };

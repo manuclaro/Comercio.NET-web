@@ -354,6 +354,7 @@ namespace Comercio.NET.Formularios
             };
         }
 
+
         private void BtnAgregar_Click(object sender, EventArgs e)
         {
             try
@@ -367,13 +368,36 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
-                // Parsear el monto
-                if (!decimal.TryParse(txtMonto.Text, out decimal monto) || monto <= 0)
+                // Parsear el monto - ✅ MODIFICADO: ahora acepta monto >= 0
+                if (!decimal.TryParse(txtMonto.Text, out decimal monto) || monto < 0)
                 {
-                    MessageBox.Show("El monto debe ser un valor numérico mayor a cero.", "Validación",
+                    MessageBox.Show("El monto debe ser un valor numérico mayor o igual a cero.", "Validación",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     txtMonto.Focus();
                     txtMonto.SelectAll();
+                    return;
+                }
+
+                // ✅ NUEVO: Si el monto es 0, agregar pago "sin pago" y cerrar
+                if (monto == 0)
+                {
+                    Pagos.Add(new PagoInfo
+                    {
+                        Metodo = "Sin pago",
+                        Monto = 0,
+                        Referencia = "Compra sin pago inmediato"
+                    });
+
+                    dgvPagos.Rows.Add("Sin pago", 0, "Compra sin pago inmediato");
+                    ActualizarLabelsDeResumen();
+
+                    // Deshabilitar controles para evitar agregar más pagos
+                    cmbMedioPago.Enabled = false;
+                    txtMonto.Enabled = false;
+                    txtReferencia.Enabled = false;
+                    btnAgregar.Enabled = false;
+                    btnConfirmar.Enabled = true;
+                    btnConfirmar.Focus();
                     return;
                 }
 

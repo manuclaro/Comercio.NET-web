@@ -1,4 +1,4 @@
-using Comercio.NET.Services;
+ï»¿using Comercio.NET.Services;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using System.Windows.Forms;
 
 namespace Comercio.NET.Formularios
 {
-    // DTO público para intercambio de pagos entre formularios
+    // DTO pÃºblico para intercambio de pagos entre formularios
     public class PagoInfo
     {
         public string Metodo { get; set; } = "";
@@ -42,7 +42,7 @@ namespace Comercio.NET.Formularios
         // Lista de proveedores cargados
         private List<ProveedorItem> proveedores = new List<ProveedorItem>();
 
-        // Indica que el formulario está inicializando para evitar que el evento SelectedIndexChanged
+        // Indica que el formulario estÃ¡ inicializando para evitar que el evento SelectedIndexChanged
         // rellene controles mientras se carga el DataSource.
         private bool isInitializing = false;
 
@@ -55,7 +55,7 @@ namespace Comercio.NET.Formularios
             {
                 isInitializing = true;
                 await CargarProveedoresAsync();
-                // mantener los controles vacíos hasta que el usuario elija
+                // mantener los controles vacÃ­os hasta que el usuario elija
                 cmbProveedor.SelectedIndex = -1;
                 isInitializing = false;
             };
@@ -123,7 +123,7 @@ namespace Comercio.NET.Formularios
             // Contenedor principal de contenido
             var padding = 12;
             var contentTop = pnlHeader.Bottom + padding;
-            // Inicial: se asigna un valor alto; se ajustará después para eliminar hueco
+            // Inicial: se asigna un valor alto; se ajustarÃ¡ despuÃ©s para eliminar hueco
             var pnlContent = new Panel
             {
                 Left = padding,
@@ -134,8 +134,8 @@ namespace Comercio.NET.Formularios
             };
             pnlContent.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
-            // Campos arriba (N° Factura, Proveedor + btn)
-            var lblNumero = new Label { Text = "N° Factura", Left = 12, Top = 12, Width = 75, TextAlign = ContentAlignment.MiddleLeft };
+            // Campos arriba (NÂ° Factura, Proveedor + btn)
+            var lblNumero = new Label { Text = "NÂ° Factura", Left = 12, Top = 12, Width = 75, TextAlign = ContentAlignment.MiddleLeft };
             txtNumero = new TextBox { Left = lblNumero.Right + 6, Top = lblNumero.Top - 2, Width = 160 };
 
             var lblProveedor = new Label { Text = "Proveedor", Left = txtNumero.Right + 25, Top = 12, Width = 75, TextAlign = ContentAlignment.MiddleLeft };
@@ -168,8 +168,8 @@ namespace Comercio.NET.Formularios
             var lblDomicilio = new Label { Text = "Domicilio", Left = txtCuit.Right + 25, Top = lblCuit.Top, Width = 70, TextAlign = ContentAlignment.MiddleLeft };
             txtDomicilio = new TextBox { Left = lblDomicilio.Right + 8, Top = lblCuit.Top - 2, Width = 335 };
 
-            // Tercera fila: Telefono y Fecha (Telefono más pequeño)
-            var lblTelefono = new Label { Text = "Teléfono", Left = 12, Top = lblCuit.Bottom + 12, Width = 75, TextAlign = ContentAlignment.MiddleLeft };
+            // Tercera fila: Telefono y Fecha (Telefono mÃ¡s pequeÃ±o)
+            var lblTelefono = new Label { Text = "TelÃ©fono", Left = 12, Top = lblCuit.Bottom + 12, Width = 75, TextAlign = ContentAlignment.MiddleLeft };
             txtTelefono = new TextBox { Left = lblTelefono.Right + 6, Top = lblTelefono.Top - 2, Width = 160 };
 
             var lblFecha = new Label { Text = "Fecha", Left = txtTelefono.Right + 37, Top = lblTelefono.Top, Width = 48, TextAlign = ContentAlignment.MiddleLeft };
@@ -199,11 +199,11 @@ namespace Comercio.NET.Formularios
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
                 BackgroundColor = Color.White
             };
-            dgvIva.Columns.Add(new DataGridViewTextBoxColumn { Name = "Alicuota", HeaderText = "Alícuota %", Width = 80 });
+            dgvIva.Columns.Add(new DataGridViewTextBoxColumn { Name = "Alicuota", HeaderText = "AlÃ­cuota %", Width = 80 });
             dgvIva.Columns.Add(new DataGridViewTextBoxColumn { Name = "Base", HeaderText = "Base Imponible", Width = 160 });
             dgvIva.Columns.Add(new DataGridViewTextBoxColumn { Name = "ImporteIva", HeaderText = "IVA $", Width = 120 });
 
-            var lblAlicuota = new Label { Text = "Alícuota %", Left = 8, Top = dgvIva.Bottom + 10, Width = 70 };
+            var lblAlicuota = new Label { Text = "AlÃ­cuota %", Left = 8, Top = dgvIva.Bottom + 10, Width = 70 };
             txtAlicuota = new TextBox { Left = lblAlicuota.Right + 6, Top = lblAlicuota.Top - 2, Width = 60 };
 
             var lblBase = new Label { Text = "Base", Left = txtAlicuota.Right + 12, Top = lblAlicuota.Top, Width = 40 };
@@ -277,7 +277,7 @@ namespace Comercio.NET.Formularios
             pnlRight.Controls.Add(btnGuardar);
             pnlRight.Controls.Add(btnCancelar);
 
-            // Añadir controles al panel content
+            // AÃ±adir controles al panel content
             pnlContent.Controls.Add(lblNumero);
             pnlContent.Controls.Add(txtNumero);
             pnlContent.Controls.Add(lblProveedor);
@@ -294,13 +294,13 @@ namespace Comercio.NET.Formularios
             pnlContent.Controls.Add(pnlIva);
             pnlContent.Controls.Add(pnlRight);
 
-            // Ajuste dinámico de alturas para eliminar espacio vacío inferior
+            // Ajuste dinÃ¡mico de alturas para eliminar espacio vacÃ­o inferior
             // btnGuardar.Bottom es relativo a pnlRight; convertimos a coordenada de pnlContent
             int bottomButtonsAbsolute = pnlRight.Top + btnGuardar.Bottom;
             int neededContentHeight = Math.Max(pnlIva.Bottom, bottomButtonsAbsolute) + 12;
             pnlContent.Height = neededContentHeight;
 
-            // Ajustar tamaño del formulario justo para el header + padding + contenido + pequeño margen
+            // Ajustar tamaÃ±o del formulario justo para el header + padding + contenido + pequeÃ±o margen
             int newFormHeight = pnlHeader.Height + padding + pnlContent.Height + padding;
             this.ClientSize = new Size(this.ClientSize.Width, newFormHeight);
 
@@ -309,11 +309,11 @@ namespace Comercio.NET.Formularios
             pnlContent.Width = this.ClientSize.Width - padding * 2;
             pnlRight.Width = pnlContent.Width - (pnlIva.Right + 30);
 
-            // Añadir todos los paneles al form
+            // AÃ±adir todos los paneles al form
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlContent);
 
-            // eventos (mantener lógica original)
+            // eventos (mantener lÃ³gica original)
             btnAgregarIva.Click += BtnAgregarIva_Click;
             btnEliminarIva.Click += BtnEliminarIva_Click;
             dgvIva.RowsRemoved += (s, e) => RecalcularTotales();
@@ -357,7 +357,7 @@ namespace Comercio.NET.Formularios
             if (e.KeyCode == Keys.Enter)
             {
                 e.SuppressKeyPress = true; // evita el ding
-                // Mover al siguiente control en el orden de tabulación
+                // Mover al siguiente control en el orden de tabulaciÃ³n
                 var current = sender as Control;
                 if (current != null)
                 {
@@ -379,7 +379,7 @@ namespace Comercio.NET.Formularios
             }
             else
             {
-                // Ningún proveedor seleccionado: mantener controles vacíos
+                // NingÃºn proveedor seleccionado: mantener controles vacÃ­os
                 txtCuit.Text = "";
                 txtDomicilio.Text = "";
                 txtTelefono.Text = "";
@@ -390,12 +390,12 @@ namespace Comercio.NET.Formularios
         {
             if (!decimal.TryParse(txtAlicuota.Text.Trim().Replace(",", "."), NumberStyles.Number, CultureInfo.InvariantCulture, out decimal alicuota))
             {
-                MessageBox.Show("Alicuota inválida.");
+                MessageBox.Show("Alicuota invÃ¡lida.");
                 return;
             }
             if (!decimal.TryParse(txtBase.Text.Trim().Replace(",", "."), NumberStyles.Number, CultureInfo.InvariantCulture, out decimal baseImponible))
             {
-                MessageBox.Show("Base imponible inválida.");
+                MessageBox.Show("Base imponible invÃ¡lida.");
                 return;
             }
 
@@ -406,7 +406,7 @@ namespace Comercio.NET.Formularios
             txtBase.Clear();
             RecalcularTotales();
 
-            // devolver el foco a Alicuota para entrada rápida de la siguiente fila
+            // devolver el foco a Alicuota para entrada rÃ¡pida de la siguiente fila
             txtAlicuota.Focus();
             txtAlicuota.SelectAll();
         }
@@ -481,7 +481,7 @@ namespace Comercio.NET.Formularios
                 cmbProveedor.DisplayMember = nameof(ProveedorItem.Nombre);
                 cmbProveedor.ValueMember = nameof(ProveedorItem.Id);
 
-                // dejar la selección vacía (se gestionará por isInitializing en Load)
+                // dejar la selecciÃ³n vacÃ­a (se gestionarÃ¡ por isInitializing en Load)
                 // cmbProveedor.SelectedIndex = -1; // now set by the Load handler
             }
             catch (Exception ex)
@@ -502,10 +502,10 @@ namespace Comercio.NET.Formularios
                     lastId = frm.LastSavedProveedorId;
                 }
 
-                // Refrescar proveedores después de cerrar ABM
+                // Refrescar proveedores despuÃ©s de cerrar ABM
                 await CargarProveedoresAsync();
 
-                // Si se creó/editar un proveedor, seleccionarlo automáticamente
+                // Si se creÃ³/editar un proveedor, seleccionarlo automÃ¡ticamente
                 if (lastId.HasValue)
                 {
                     var match = proveedores.FirstOrDefault(p => p.Id == lastId.Value);
@@ -525,13 +525,13 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // Intentar obtener el Id del proveedor según lo seleccionado o escrito
+        // Intentar obtener el Id del proveedor segÃºn lo seleccionado o escrito
         private int? ObtenerProveedorIdSeleccionado()
         {
             if (cmbProveedor.SelectedItem is ProveedorItem sel)
                 return sel.Id;
 
-            // Si el usuario escribió un nombre que coincide exactamente con alguno de la lista
+            // Si el usuario escribiÃ³ un nombre que coincide exactamente con alguno de la lista
             var text = cmbProveedor.Text?.Trim();
             if (string.IsNullOrWhiteSpace(text)) return null;
             var match = proveedores.FirstOrDefault(p => string.Equals(p.Nombre, text, StringComparison.CurrentCultureIgnoreCase));
@@ -542,11 +542,11 @@ namespace Comercio.NET.Formularios
         {
             if (string.IsNullOrWhiteSpace(txtNumero.Text) || string.IsNullOrWhiteSpace(cmbProveedor.Text))
             {
-                MessageBox.Show("Complete número y proveedor.");
+                MessageBox.Show("Complete nÃºmero y proveedor.");
                 return;
             }
 
-            // calcular valores numéricos
+            // calcular valores numÃ©ricos
             decimal sumaBase = 0m, sumaIva = 0m;
             foreach (DataGridViewRow r in dgvIva.Rows)
             {
@@ -592,7 +592,7 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@Observaciones", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
 
-                                // NUEVO: número de cajero del usuario logueado
+                                // NUEVO: nÃºmero de cajero del usuario logueado
                                 int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 0;
                                 cmd.Parameters.AddWithValue("@Cajero", numeroCajero);
 
@@ -624,7 +624,7 @@ namespace Comercio.NET.Formularios
 
                             tx.Commit();
 
-                            // Abrir modal de forma de pago después de guardar la compra
+                            // Abrir modal de forma de pago despuÃ©s de guardar la compra
                             try
                             {
                                 using (var frmPago = new FormaPagoProveedorForm(total, proveedorId, compraId, cmbProveedor.Text.Trim()))
@@ -640,7 +640,7 @@ namespace Comercio.NET.Formularios
                             catch (Exception exModal)
                             {
                                 // No interrumpir flujo principal en caso de error en el modal; informar
-                                MessageBox.Show($"La compra fue guardada pero ocurrió un error al procesar los pagos: {exModal.Message}", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                MessageBox.Show($"La compra fue guardada pero ocurriÃ³ un error al procesar los pagos: {exModal.Message}", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             }
 
                             MessageBox.Show("Compra guardada correctamente.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -656,11 +656,12 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error de conexión: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error de conexiÃ³n: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // Guarda pagos y, si hay saldo, deja registro de deuda. Ajusta nombres de tablas según tu BD.
+        // Guarda pagos y, si hay saldo, deja registro de deuda. Ajusta nombres de tablas segÃºn tu BD.
+        // Guarda pagos y, si hay saldo, deja registro de deuda. Ajusta nombres de tablas segÃºn tu BD.
         private async Task GuardarPagosYDeudaAsync(int compraId, int? proveedorId, List<PagoInfo> pagos, decimal totalCompra)
         {
             if ((pagos == null || pagos.Count == 0) && (proveedorId == null))
@@ -680,20 +681,36 @@ namespace Comercio.NET.Formularios
                         try
                         {
                             decimal totalPagado = 0m;
-                            var insertPagoSql = @"INSERT INTO ComprasProveedoresPagos
-                                (CompraId, Metodo, Monto, Referencia, Fecha, Usuario)
-                                VALUES (@CompraId, @Metodo, @Monto, @Referencia, @Fecha, @Usuario);";
+
+                            // âœ… CORREGIDO: Cambiar a la tabla correcta PagosProveedores
+                            var insertPagoSql = @"INSERT INTO PagosProveedores
+                        (Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, FechaPago, FechaRegistro, IdProveedor, CtaCteId)
+                        VALUES (@Proveedor, @Monto, @Observaciones, @NumeroCajero, @UsuarioRegistro, @FechaPago, @FechaRegistro, @IdProveedor, @CtaCteId);";
 
                             foreach (var p in pagos)
                             {
                                 using (var cmd = new SqlCommand(insertPagoSql, conn, tx))
                                 {
-                                    cmd.Parameters.AddWithValue("@CompraId", compraId);
-                                    cmd.Parameters.AddWithValue("@Metodo", string.IsNullOrWhiteSpace(p.Metodo) ? (object)DBNull.Value : p.Metodo);
+                                    cmd.Parameters.AddWithValue("@Proveedor", cmbProveedor.Text.Trim());
                                     cmd.Parameters.AddWithValue("@Monto", p.Monto);
-                                    cmd.Parameters.AddWithValue("@Referencia", string.IsNullOrWhiteSpace(p.Referencia) ? (object)DBNull.Value : p.Referencia);
-                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
-                                    cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
+
+                                    // Observaciones con mÃ©todo, referencia y CompraId
+                                    string observaciones = $"{p.Metodo} - {p.Referencia ?? "Sin referencia"} - Compra ID: {compraId}";
+                                    cmd.Parameters.AddWithValue("@Observaciones", observaciones);
+
+                                    // NÃºmero de cajero del usuario logueado
+                                    int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
+                                    cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+
+                                    // Usuario que registra
+                                    string usuario = AuthenticationService.SesionActual?.Usuario?.NombreCompleto ?? Environment.UserName;
+                                    cmd.Parameters.AddWithValue("@UsuarioRegistro", usuario);
+
+                                    cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@IdProveedor", proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@CtaCteId", DBNull.Value); // Ajustar segÃºn tu lÃ³gica
+
                                     await cmd.ExecuteNonQueryAsync();
                                 }
                                 totalPagado += p.Monto;
@@ -702,10 +719,10 @@ namespace Comercio.NET.Formularios
                             decimal saldo = totalCompra - totalPagado;
                             if (saldo > 0)
                             {
-                                // Insertar registro de deuda (ajusta la tabla/columnas según tu BD)
+                                // Insertar registro de deuda (ajusta la tabla/columnas segÃºn tu BD)
                                 var insertDeudaSql = @"INSERT INTO ProveedoresCtaCte
-                                    (ProveedorId, CompraId, Fecha, MontoTotal, MontoAdeudado, Saldo, Observaciones, Usuario)
-                                    VALUES (@ProveedorId, @CompraId, @Fecha, @MontoTotal, @MontoAdeudado, @Saldo, @Observaciones, @Usuario);";
+                            (ProveedorId, CompraId, Fecha, MontoTotal, MontoAdeudado, Saldo, Observaciones, Usuario)
+                            VALUES (@ProveedorId, @CompraId, @Fecha, @MontoTotal, @MontoAdeudado, @Saldo, @Observaciones, @Usuario);";
 
                                 using (var cmd = new SqlCommand(insertDeudaSql, conn, tx))
                                 {
@@ -731,18 +748,26 @@ namespace Comercio.NET.Formularios
                             }
 
                             tx.Commit();
+
+                            // âœ… Mensaje informativo con detalles
+                            string mensaje = $"Pagos registrados correctamente.\n" +
+                                           $"Total compra: {totalCompra:C2}\n" +
+                                           $"Total pagado: {totalPagado:C2}\n" +
+                                           $"Saldo pendiente: {saldo:C2}";
+
+                            MessageBox.Show(mensaje, "Ã‰xito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         catch (Exception ex)
                         {
                             tx.Rollback();
-                            MessageBox.Show($"Error guardando pagos/deuda: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            throw new Exception($"Error guardando pagos/deuda: {ex.Message}", ex);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error de conexión al guardar pagos/deuda: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error guardando pagos/deuda: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

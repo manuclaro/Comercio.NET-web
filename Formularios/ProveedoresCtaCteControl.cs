@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Globalization;
 using System.Collections.Generic;
+using Comercio.NET.Services;
 
 namespace Comercio.NET.Formularios
 {
@@ -24,27 +25,22 @@ namespace Comercio.NET.Formularios
         private Label lblFiltroProveedor;
 
         private readonly int contentPadding = 12;
-        
-        // ✅ NUEVO: Flag para evitar reentradas
+
         private bool isLoadingData = false;
         private bool isInitialized = false;
 
         public ProveedoresCtaCteControl()
         {
             InitializeComponent();
-            
-            // ✅ CAMBIO: Usar evento Load síncrono con BeginInvoke
             this.Load += ProveedoresCtaCteControl_Load;
         }
 
-        // ✅ NUEVO: Evento Load síncrono que delega la carga asíncrona
         private void ProveedoresCtaCteControl_Load(object sender, EventArgs e)
         {
             if (!isInitialized)
             {
                 isInitialized = true;
-                
-                // Usar BeginInvoke para evitar bloquear el hilo de UI
+
                 this.BeginInvoke(new Action(async () =>
                 {
                     try
@@ -53,7 +49,7 @@ namespace Comercio.NET.Formularios
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Error al cargar datos iniciales: {ex.Message}", 
+                        MessageBox.Show($"Error al cargar datos iniciales: {ex.Message}",
                             "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }));
@@ -66,7 +62,6 @@ namespace Comercio.NET.Formularios
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
             this.BackColor = Color.FromArgb(250, 250, 250);
 
-            // ==================== HEADER ====================
             var headerHeight = 64;
             pnlHeader = new Panel
             {
@@ -74,7 +69,7 @@ namespace Comercio.NET.Formularios
                 Top = 0,
                 Width = this.ClientSize.Width,
                 Height = headerHeight,
-                BackColor = Color.FromArgb(156, 39, 176) // Púrpura
+                BackColor = Color.FromArgb(156, 39, 176)
             };
             pnlHeader.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
@@ -112,7 +107,6 @@ namespace Comercio.NET.Formularios
             pnlHeader.Controls.Add(lblTitle);
             pnlHeader.Controls.Add(lblSubtitle);
 
-            // ==================== CONTENT PANEL ====================
             var contentTop = pnlHeader.Bottom + contentPadding;
             pnlContent = new Panel
             {
@@ -124,7 +118,6 @@ namespace Comercio.NET.Formularios
             };
             pnlContent.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
 
-            // ==================== FILTROS Y CONTROLES ====================
             lblFiltroProveedor = new Label
             {
                 Left = 12,
@@ -142,7 +135,6 @@ namespace Comercio.NET.Formularios
                 Width = 200,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            // ✅ CAMBIO: Usar evento seguro
             cmbFiltroProveedor.SelectedIndexChanged += CmbFiltroProveedor_SelectedIndexChanged;
 
             btnRefrescar = new Button
@@ -184,7 +176,6 @@ namespace Comercio.NET.Formularios
             btnExportar.FlatAppearance.BorderSize = 0;
             btnExportar.Click += BtnExportar_Click;
 
-            // ==================== GRILLA RESUMEN ====================
             dgvResumen = new DataGridView
             {
                 Left = 12,
@@ -204,7 +195,6 @@ namespace Comercio.NET.Formularios
             };
             dgvResumen.DoubleClick += DgvResumen_DoubleClick;
 
-            // ==================== LABEL TOTAL ====================
             lblTotalDeuda = new Label
             {
                 Left = 12,
@@ -218,19 +208,16 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(211, 47, 47)
             };
 
-            // Agregar controles al panel
-            pnlContent.Controls.AddRange(new Control[] 
-            { 
-                lblFiltroProveedor, cmbFiltroProveedor, 
-                btnRefrescar, btnPagoGeneral, btnExportar, 
-                dgvResumen, lblTotalDeuda 
+            pnlContent.Controls.AddRange(new Control[]
+            {
+                lblFiltroProveedor, cmbFiltroProveedor,
+                btnRefrescar, btnPagoGeneral, btnExportar,
+                dgvResumen, lblTotalDeuda
             });
 
-            // Agregar paneles principales
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlContent);
 
-            // ==================== RESIZE HANDLER ====================
             this.Resize += (s, e) =>
             {
                 pnlHeader.Width = this.ClientSize.Width;
@@ -239,7 +226,6 @@ namespace Comercio.NET.Formularios
                 pnlContent.Width = this.ClientSize.Width - contentPadding * 2;
                 pnlContent.Height = Math.Max(220, this.ClientSize.Height - pnlHeader.Height - contentPadding * 2);
 
-                // Posicionar botones a la derecha
                 int rightPadding = 12;
                 int gap = 8;
                 btnExportar.Left = pnlContent.ClientSize.Width - rightPadding - btnExportar.Width;
@@ -251,19 +237,17 @@ namespace Comercio.NET.Formularios
             };
         }
 
-        // ✅ NUEVO: Método seguro para refrescar sin reentradas
         private async Task RefrescarSafeAsync()
         {
             if (isLoadingData) return;
             await CargarResumenAsync();
         }
 
-        // ✅ NUEVO: Handler seguro para el combo
         private async void CmbFiltroProveedor_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (isLoadingData) return;
             if (!isInitialized) return;
-            
+
             await CargarResumenAsync();
         }
 
@@ -278,11 +262,10 @@ namespace Comercio.NET.Formularios
 
         private async Task CargarResumenAsync()
         {
-            // ✅ PROTECCIÓN: Evitar reentradas
             if (isLoadingData) return;
-            
+
             isLoadingData = true;
-            
+
             try
             {
                 string cs = GetConnectionString();
@@ -293,7 +276,6 @@ namespace Comercio.NET.Formularios
                 {
                     await conn.OpenAsync();
 
-                    // ==================== CARGAR COMBO PROVEEDORES ====================
                     var sqlProveedores = @"
                         SELECT DISTINCT 
                             COALESCE(p.Id, 0) AS Id,
@@ -311,15 +293,13 @@ namespace Comercio.NET.Formularios
                         await Task.Run(() => daProv.Fill(dtProveedores));
                     }
 
-                    // Agregar opción "Todos"
                     var rowTodos = dtProveedores.NewRow();
                     rowTodos["Id"] = 0;
                     rowTodos["Nombre"] = "Todos";
                     dtProveedores.Rows.InsertAt(rowTodos, 0);
 
-                    // ✅ CAMBIO: Actualizar combo sin disparar evento
                     var proveedorAnterior = cmbFiltroProveedor.SelectedValue;
-                    
+
                     cmbFiltroProveedor.SelectedIndexChanged -= CmbFiltroProveedor_SelectedIndexChanged;
                     cmbFiltroProveedor.DataSource = dtProveedores;
                     cmbFiltroProveedor.DisplayMember = "Nombre";
@@ -329,12 +309,11 @@ namespace Comercio.NET.Formularios
                         cmbFiltroProveedor.SelectedValue = proveedorAnterior;
                     else
                         cmbFiltroProveedor.SelectedIndex = 0;
-                    
+
                     cmbFiltroProveedor.SelectedIndexChanged += CmbFiltroProveedor_SelectedIndexChanged;
 
-                    // ==================== CARGAR RESUMEN ====================
-                    var proveedorIdFiltro = cmbFiltroProveedor.SelectedValue != null 
-                        ? Convert.ToInt32(cmbFiltroProveedor.SelectedValue) 
+                    var proveedorIdFiltro = cmbFiltroProveedor.SelectedValue != null
+                        ? Convert.ToInt32(cmbFiltroProveedor.SelectedValue)
                         : 0;
 
                     var sqlResumen = @"
@@ -372,11 +351,9 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // Asignar a la grilla
                 dgvResumen.DataSource = dtResumen;
                 FormatearGrilla();
 
-                // Calcular y mostrar total
                 decimal totalDeuda = 0m;
                 foreach (DataRow row in dtResumen.Rows)
                 {
@@ -388,7 +365,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error cargando resumen: {ex.Message}\n\nStack Trace: {ex.StackTrace}", 
+                MessageBox.Show($"Error cargando resumen: {ex.Message}\n\nStack Trace: {ex.StackTrace}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -443,15 +420,13 @@ namespace Comercio.NET.Formularios
             int proveedorId = Convert.ToInt32(row.Cells["ProveedorId"].Value);
             string proveedorNombre = row.Cells["Proveedor"].Value?.ToString() ?? "";
 
-            // Abrir formulario de detalle
             using (var detalle = new DetalleCtaCteProveedorForm(proveedorId, proveedorNombre))
             {
                 detalle.StartPosition = FormStartPosition.CenterParent;
                 var resultado = detalle.ShowDialog(this.FindForm());
-                
+
                 if (resultado == DialogResult.OK)
                 {
-                    // Recargar si hubo cambios
                     _ = CargarResumenAsync();
                 }
             }
@@ -461,7 +436,7 @@ namespace Comercio.NET.Formularios
         {
             if (dgvResumen.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Seleccione un proveedor.", "Información", 
+                MessageBox.Show("Seleccione un proveedor.", "Información",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -471,12 +446,11 @@ namespace Comercio.NET.Formularios
             string proveedorNombre = row.Cells["Proveedor"].Value?.ToString() ?? "";
             decimal totalAdeudado = Convert.ToDecimal(row.Cells["TotalAdeudado"].Value);
 
-            // Abrir formulario de pago general
             using (var frmPago = new PagoGeneralProveedorForm(proveedorId, proveedorNombre, totalAdeudado))
             {
                 frmPago.StartPosition = FormStartPosition.CenterParent;
                 var resultado = frmPago.ShowDialog(this.FindForm());
-                
+
                 if (resultado == DialogResult.OK)
                 {
                     await CargarResumenAsync();
@@ -490,7 +464,7 @@ namespace Comercio.NET.Formularios
             {
                 if (dgvResumen.Rows.Count == 0)
                 {
-                    MessageBox.Show("No hay datos para exportar.", "Información", 
+                    MessageBox.Show("No hay datos para exportar.", "Información",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
@@ -503,11 +477,9 @@ namespace Comercio.NET.Formularios
                     if (sfd.ShowDialog() == DialogResult.OK)
                     {
                         var lines = new List<string>();
-                        
-                        // Encabezado
+
                         lines.Add("Proveedor,Total Adeudado,Facturas Pendientes,Última Compra");
 
-                        // Datos
                         foreach (DataGridViewRow row in dgvResumen.Rows)
                         {
                             if (row.IsNewRow) continue;
@@ -515,28 +487,27 @@ namespace Comercio.NET.Formularios
                             var proveedor = row.Cells["Proveedor"].Value?.ToString() ?? "";
                             var total = row.Cells["TotalAdeudado"].Value?.ToString() ?? "0";
                             var facturas = row.Cells["FacturasPendientes"].Value?.ToString() ?? "0";
-                            var fecha = row.Cells["UltimaCompra"].Value != null 
-                                ? Convert.ToDateTime(row.Cells["UltimaCompra"].Value).ToString("dd/MM/yyyy") 
+                            var fecha = row.Cells["UltimaCompra"].Value != null
+                                ? Convert.ToDateTime(row.Cells["UltimaCompra"].Value).ToString("dd/MM/yyyy")
                                 : "";
 
                             lines.Add($"\"{proveedor}\",{total},{facturas},{fecha}");
                         }
 
                         System.IO.File.WriteAllLines(sfd.FileName, lines);
-                        MessageBox.Show($"Exportado exitosamente a:\n{sfd.FileName}", "Éxito", 
+                        MessageBox.Show($"Exportado exitosamente a:\n{sfd.FileName}", "Éxito",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error exportando: {ex.Message}", "Error", 
+                MessageBox.Show($"Error exportando: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
 
-    // ==================== FORMULARIO DE DETALLE ====================
     public class DetalleCtaCteProveedorForm : Form
     {
         private DataGridView dgvDetalle;
@@ -567,7 +538,6 @@ namespace Comercio.NET.Formularios
             this.MaximizeBox = true;
             this.Font = new Font("Segoe UI", 9F);
 
-            // Header
             var pnlHeader = new Panel
             {
                 Dock = DockStyle.Top,
@@ -598,7 +568,6 @@ namespace Comercio.NET.Formularios
             pnlHeader.Controls.Add(lblProveedor);
             pnlHeader.Controls.Add(lblTotal);
 
-            // Grilla
             dgvDetalle = new DataGridView
             {
                 Left = 12,
@@ -616,7 +585,6 @@ namespace Comercio.NET.Formularios
             };
             dgvDetalle.DoubleClick += DgvDetalle_DoubleClick;
 
-            // Botones
             var pnlBotones = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -691,25 +659,29 @@ namespace Comercio.NET.Formularios
                 using (var conn = new SqlConnection(cs))
                 {
                     var sql = @"
-                        SELECT 
-                            cta.Id,
-                            cta.CompraId,
-                            COALESCE(cp.NumeroFactura, 'Sin Nro.') AS NumeroFactura,
-                            cta.Fecha,
-                            cta.MontoTotal,
-                            (cta.MontoTotal - cta.Saldo) AS Pagado,
-                            cta.Saldo,
-                            cta.Observaciones
-                        FROM ProveedoresCtaCte cta
-                        LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
-                        WHERE cta.Saldo > 0
-                            AND (cta.ProveedorId = @proveedorId OR (@proveedorId = 0 AND cta.ProveedorId IS NULL))
-                        ORDER BY cta.Fecha DESC;
-                    ";
+                SELECT 
+                    cta.Id,
+                    cta.CompraId,
+                    COALESCE(cp.NumeroFactura, 'Sin Nro.') AS NumeroFactura,
+                    cta.Fecha,
+                    cta.MontoTotal,
+                    ISNULL((
+                        SELECT SUM(pp.Monto)
+                        FROM PagosProveedores pp
+                        WHERE (pp.CompraId = cta.CompraId OR pp.CtaCteId = cta.Id)
+                    ), 0) AS Pagado,
+                    cta.Saldo,
+                    cta.Observaciones
+                FROM ProveedoresCtaCte cta
+                LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
+                WHERE cta.Saldo > 0
+                    AND (cta.ProveedorId = @proveedorId OR (@proveedorId = 0 AND cta.ProveedorId IS NULL))
+                ORDER BY cta.Fecha DESC";
 
                     using (var cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@proveedorId", proveedorId);
+
                         using (var da = new SqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
@@ -720,7 +692,6 @@ namespace Comercio.NET.Formularios
                 dgvDetalle.DataSource = dt;
                 FormatearGrilla();
 
-                // Calcular total
                 decimal totalSaldo = 0m;
                 foreach (DataRow row in dt.Rows)
                 {
@@ -732,7 +703,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error cargando detalle: {ex.Message}", "Error", 
+                MessageBox.Show($"Error cargando detalle: {ex.Message}\n\n{ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -801,19 +772,18 @@ namespace Comercio.NET.Formularios
         {
             if (dgvDetalle.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Seleccione una factura.", "Información", 
+                MessageBox.Show("Seleccione una factura.", "Información",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             var row = dgvDetalle.SelectedRows[0];
             int ctaCteId = Convert.ToInt32(row.Cells["Id"].Value);
-            int? compraId = row.Cells["CompraId"].Value == DBNull.Value 
-                ? (int?)null 
+            int? compraId = row.Cells["CompraId"].Value == DBNull.Value
+                ? (int?)null
                 : Convert.ToInt32(row.Cells["CompraId"].Value);
             decimal saldo = Convert.ToDecimal(row.Cells["Saldo"].Value);
 
-            // Abrir formulario de pago
             using (var frmPago = new FormaPagoProveedorForm(saldo, proveedorId == 0 ? (int?)null : proveedorId, compraId, proveedorNombre))
             {
                 frmPago.StartPosition = FormStartPosition.CenterParent;
@@ -832,9 +802,12 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        // ✅ CORREGIDO: Usar tabla PagoProveedores
         private async Task GuardarPagosAsync(int ctaCteId, int? compraId, List<PagoInfo> pagos, decimal saldoActual)
         {
             string cs = GetConnectionString();
+            string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName;
+
             try
             {
                 using (var conn = new SqlConnection(cs))
@@ -846,24 +819,24 @@ namespace Comercio.NET.Formularios
                         {
                             decimal totalPagado = 0m;
 
-                            // Insertar pagos
+                            // ✅ CORREGIDO: Insertar en PagoProveedores
                             foreach (var p in pagos)
                             {
                                 var insertSql = @"
-                                    INSERT INTO ComprasProveedoresPagos
-                                    (CompraId, CtaCteId, Metodo, Monto, Referencia, Fecha, Usuario)
-                                    VALUES (@CompraId, @CtaCteId, @Metodo, @Monto, @Referencia, @Fecha, @Usuario);
+                                    INSERT INTO PagosProveedores
+                                    (CompraId, CtaCteId, MedioPago, Monto, Referencia, FechaPago, Usuario)
+                                    VALUES (@CompraId, @CtaCteId, @MedioPago, @Monto, @Referencia, @FechaPago, @Usuario);
                                 ";
 
                                 using (var cmd = new SqlCommand(insertSql, conn, tx))
                                 {
                                     cmd.Parameters.AddWithValue("@CompraId", compraId.HasValue ? (object)compraId.Value : DBNull.Value);
                                     cmd.Parameters.AddWithValue("@CtaCteId", ctaCteId);
-                                    cmd.Parameters.AddWithValue("@Metodo", string.IsNullOrWhiteSpace(p.Metodo) ? (object)DBNull.Value : p.Metodo);
+                                    cmd.Parameters.AddWithValue("@MedioPago", string.IsNullOrWhiteSpace(p.Metodo) ? (object)DBNull.Value : p.Metodo);
                                     cmd.Parameters.AddWithValue("@Monto", p.Monto);
                                     cmd.Parameters.AddWithValue("@Referencia", string.IsNullOrWhiteSpace(p.Referencia) ? (object)DBNull.Value : p.Referencia);
-                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
-                                    cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
+                                    cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@Usuario", usuario);
                                     await cmd.ExecuteNonQueryAsync();
                                 }
 
@@ -888,7 +861,6 @@ namespace Comercio.NET.Formularios
                                 await cmdUpdate.ExecuteNonQueryAsync();
                             }
 
-                            // Si la compra quedó saldada, actualizar EsCtaCte
                             if (nuevoSaldo == 0 && compraId.HasValue)
                             {
                                 var updateCompra = new SqlCommand(
@@ -898,13 +870,13 @@ namespace Comercio.NET.Formularios
                             }
 
                             tx.Commit();
-                            MessageBox.Show("Pago registrado exitosamente.", "Éxito", 
+                            MessageBox.Show("Pago registrado exitosamente.", "Éxito",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         catch (Exception ex)
                         {
                             tx.Rollback();
-                            MessageBox.Show($"Error guardando pago: {ex.Message}", "Error", 
+                            MessageBox.Show($"Error guardando pago: {ex.Message}", "Error",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                     }
@@ -912,14 +884,13 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error de conexión: {ex.Message}", "Error", 
+                MessageBox.Show($"Error de conexión: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void BtnHistorial_Click(object sender, EventArgs e)
         {
-            // Abrir formulario de historial de pagos
             using (var historial = new HistorialPagosProveedorForm(proveedorId, proveedorNombre))
             {
                 historial.StartPosition = FormStartPosition.CenterParent;
@@ -928,7 +899,6 @@ namespace Comercio.NET.Formularios
         }
     }
 
-    // ==================== FORMULARIO DE PAGO GENERAL ====================
     public class PagoGeneralProveedorForm : Form
     {
         private readonly int proveedorId;
@@ -1011,7 +981,7 @@ namespace Comercio.NET.Formularios
                 Width = 200,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbMetodo.Items.AddRange(new object[] { "Efectivo",  "DNI", "MercadoPago" });
+            cmbMetodo.Items.AddRange(new object[] { "Efectivo", "DNI", "MercadoPago" });
             cmbMetodo.SelectedIndex = 0;
 
             var lblReferencia = new Label
@@ -1066,19 +1036,20 @@ namespace Comercio.NET.Formularios
             btnAceptar.FlatAppearance.BorderSize = 0;
             btnAceptar.Click += async (s, e) => await BtnAceptar_Click(s, e);
 
-            this.Controls.AddRange(new Control[] 
-            { 
-                lblProveedor, lblDeuda, lblMonto, txtMonto, 
+            this.Controls.AddRange(new Control[]
+            {
+                lblProveedor, lblDeuda, lblMonto, txtMonto,
                 lblMetodo, cmbMetodo, lblReferencia, txtReferencia,
-                chkDistribuirAutomatico, btnAceptar, btnCancelar 
+                chkDistribuirAutomatico, btnAceptar, btnCancelar
             });
         }
 
+        // ✅ CORREGIDO: Usar tabla PagoProveedores
         private async Task BtnAceptar_Click(object sender, EventArgs e)
         {
             if (!decimal.TryParse(txtMonto.Text, out decimal monto) || monto <= 0)
             {
-                MessageBox.Show("Ingrese un monto válido.", "Error", 
+                MessageBox.Show("Ingrese un monto válido.", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -1086,9 +1057,9 @@ namespace Comercio.NET.Formularios
             if (monto > totalAdeudado)
             {
                 var result = MessageBox.Show(
-                    $"El monto ingresado ({monto:C2}) supera la deuda total ({totalAdeudado:C2}).\n¿Desea continuar?", 
+                    $"El monto ingresado ({monto:C2}) supera la deuda total ({totalAdeudado:C2}).\n¿Desea continuar?",
                     "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                
+
                 if (result == DialogResult.No) return;
             }
 
@@ -1100,6 +1071,10 @@ namespace Comercio.NET.Formularios
                     .Build()
                     .GetConnectionString("DefaultConnection");
 
+                string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName;
+                string medioPago = cmbMetodo.SelectedItem?.ToString() ?? "Efectivo";
+                string referencia = txtReferencia.Text.Trim();
+
                 using (var conn = new SqlConnection(cs))
                 {
                     await conn.OpenAsync();
@@ -1107,16 +1082,17 @@ namespace Comercio.NET.Formularios
                     {
                         try
                         {
-                            // Obtener facturas pendientes ordenadas por fecha (FIFO)
+                            // Obtener facturas pendientes con fecha y número
                             var sql = @"
-                                SELECT Id, CompraId, Saldo
-                                FROM ProveedoresCtaCte
-                                WHERE (ProveedorId = @proveedorId OR (@proveedorId = 0 AND ProveedorId IS NULL))
-                                    AND Saldo > 0
-                                ORDER BY Fecha ASC;
-                            ";
+                        SELECT cta.Id, cta.CompraId, cta.Saldo, cta.Fecha, COALESCE(cp.NumeroFactura, 'Sin Nro.') AS NumeroFactura
+                        FROM ProveedoresCtaCte cta
+                        LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
+                        WHERE (cta.ProveedorId = @proveedorId OR (@proveedorId = 0 AND cta.ProveedorId IS NULL))
+                            AND cta.Saldo > 0
+                        ORDER BY cta.Fecha ASC;
+                    ";
 
-                            var facturas = new List<(int Id, int? CompraId, decimal Saldo)>();
+                            var facturas = new List<(int Id, int? CompraId, decimal Saldo, DateTime Fecha, string NumeroFactura)>();
 
                             using (var cmd = new SqlCommand(sql, conn, tx))
                             {
@@ -1128,7 +1104,9 @@ namespace Comercio.NET.Formularios
                                         facturas.Add((
                                             reader.GetInt32(0),
                                             reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1),
-                                            reader.GetDecimal(2)
+                                            reader.GetDecimal(2),
+                                            reader.GetDateTime(3),
+                                            reader.GetString(4)
                                         ));
                                     }
                                 }
@@ -1136,39 +1114,45 @@ namespace Comercio.NET.Formularios
 
                             decimal montoRestante = monto;
 
-                            // Distribuir pago entre facturas
                             foreach (var factura in facturas)
                             {
                                 if (montoRestante <= 0) break;
 
                                 decimal montoPagar = Math.Min(montoRestante, factura.Saldo);
 
-                                // Registrar pago
+                                // ✅ Construir Observaciones IGUAL que PagoProveedorRapidoForm
+                                string observaciones = $"Compra #{factura.CompraId ?? 0} | Método: {medioPago} | " +
+                                    $"Ref: {referencia} - {factura.Fecha:dd/MM/yyyy} - Saldo: {factura.Saldo:C2}";
+
+                                // ✅ INSERT usando SOLO las columnas que existen
                                 var insertPago = @"
-                                    INSERT INTO ComprasProveedoresPagos
-                                    (CompraId, CtaCteId, Metodo, Monto, Referencia, Fecha, Usuario)
-                                    VALUES (@CompraId, @CtaCteId, @Metodo, @Monto, @Referencia, @Fecha, @Usuario);
-                                ";
+                                INSERT INTO PagosProveedores (FechaPago, Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, NombreEquipo, FechaRegistro, IdProveedor)
+                                VALUES (@FechaPago, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @Usuario, @NombreEquipo, @FechaRegistro, @IdProveedor);
+";
 
                                 using (var cmdPago = new SqlCommand(insertPago, conn, tx))
                                 {
-                                    cmdPago.Parameters.AddWithValue("@CompraId", factura.CompraId.HasValue ? (object)factura.CompraId.Value : DBNull.Value);
-                                    cmdPago.Parameters.AddWithValue("@CtaCteId", factura.Id);
-                                    cmdPago.Parameters.AddWithValue("@Metodo", cmbMetodo.SelectedItem?.ToString() ?? "");
+                                    cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+                                    cmdPago.Parameters.AddWithValue("@Proveedor", proveedorNombre);
                                     cmdPago.Parameters.AddWithValue("@Monto", montoPagar);
-                                    cmdPago.Parameters.AddWithValue("@Referencia", string.IsNullOrWhiteSpace(txtReferencia.Text) ? (object)DBNull.Value : txtReferencia.Text);
-                                    cmdPago.Parameters.AddWithValue("@Fecha", DateTime.Now);
-                                    cmdPago.Parameters.AddWithValue("@Usuario", Environment.UserName);
+                                    cmdPago.Parameters.AddWithValue("@Observaciones", observaciones);
+                                    cmdPago.Parameters.AddWithValue("@NumeroCajero",
+                                        AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1);
+                                    cmdPago.Parameters.AddWithValue("@Usuario", usuario);
+                                    cmdPago.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                                    cmdPago.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
+                                    cmdPago.Parameters.AddWithValue("@IdProveedor", proveedorId > 0 ? (object)proveedorId : DBNull.Value);
+
                                     await cmdPago.ExecuteNonQueryAsync();
                                 }
 
                                 // Actualizar saldo
                                 decimal nuevoSaldo = factura.Saldo - montoPagar;
                                 var updateSaldo = @"
-                                    UPDATE ProveedoresCtaCte 
-                                    SET Saldo = @nuevoSaldo, MontoAdeudado = @nuevoSaldo 
-                                    WHERE Id = @id;
-                                ";
+                            UPDATE ProveedoresCtaCte 
+                            SET Saldo = @nuevoSaldo, MontoAdeudado = @nuevoSaldo 
+                            WHERE Id = @id;
+                        ";
 
                                 using (var cmdUpdate = new SqlCommand(updateSaldo, conn, tx))
                                 {
@@ -1177,7 +1161,6 @@ namespace Comercio.NET.Formularios
                                     await cmdUpdate.ExecuteNonQueryAsync();
                                 }
 
-                                // Si quedó saldada, actualizar compra
                                 if (nuevoSaldo == 0 && factura.CompraId.HasValue)
                                 {
                                     var updateCompra = new SqlCommand(
@@ -1190,14 +1173,14 @@ namespace Comercio.NET.Formularios
                             }
 
                             tx.Commit();
-                            MessageBox.Show($"Pago de {monto:C2} registrado exitosamente.", "Éxito", 
+                            MessageBox.Show($"Pago de {monto:C2} registrado exitosamente.", "Éxito",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
                             this.DialogResult = DialogResult.OK;
                         }
                         catch (Exception ex)
                         {
                             tx.Rollback();
-                            MessageBox.Show($"Error procesando pago: {ex.Message}", "Error", 
+                            MessageBox.Show($"Error procesando pago: {ex.Message}", "Error",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                     }
@@ -1205,13 +1188,12 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error de conexión: {ex.Message}", "Error", 
+                MessageBox.Show($"Error de conexión: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
 
-    // ==================== FORMULARIO DE HISTORIAL ====================
     public class HistorialPagosProveedorForm : Form
     {
         private readonly int proveedorId;
@@ -1238,22 +1220,22 @@ namespace Comercio.NET.Formularios
             this.Font = new Font("Segoe UI", 9F);
 
             var lblDesde = new Label { Text = "Desde:", Left = 12, Top = 14, AutoSize = true };
-            dtpDesde = new DateTimePicker 
-            { 
-                Left = lblDesde.Right + 6, 
-                Top = 12, 
-                Width = 120, 
+            dtpDesde = new DateTimePicker
+            {
+                Left = lblDesde.Right + 6,
+                Top = 12,
+                Width = 120,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Today.AddMonths(-1)
             };
 
             var lblHasta = new Label { Text = "Hasta:", Left = dtpDesde.Right + 12, Top = 14, AutoSize = true };
-            dtpHasta = new DateTimePicker 
-            { 
-                Left = lblHasta.Right + 6, 
-                Top = 12, 
-                Width = 120, 
-                Format = DateTimePickerFormat.Short 
+            dtpHasta = new DateTimePicker
+            {
+                Left = lblHasta.Right + 6,
+                Top = 12,
+                Width = 120,
+                Format = DateTimePickerFormat.Short
             };
 
             btnFiltrar = new Button
@@ -1296,10 +1278,10 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
 
-            this.Controls.AddRange(new Control[] 
-            { 
-                lblDesde, dtpDesde, lblHasta, dtpHasta, btnFiltrar, 
-                dgvHistorial, lblTotal 
+            this.Controls.AddRange(new Control[]
+            {
+                lblDesde, dtpDesde, lblHasta, dtpHasta, btnFiltrar,
+                dgvHistorial, lblTotal
             });
         }
 
@@ -1312,6 +1294,7 @@ namespace Comercio.NET.Formularios
             return cfg.GetConnectionString("DefaultConnection");
         }
 
+        // ✅ CORREGIDO: Leer de PagoProveedores
         private async Task CargarHistorialAsync()
         {
             try
@@ -1321,29 +1304,39 @@ namespace Comercio.NET.Formularios
 
                 using (var conn = new SqlConnection(cs))
                 {
+                    // ✅ Extraer datos desde Observaciones
                     var sql = @"
-                        SELECT 
-                            p.Id,
-                            p.Fecha,
-                            COALESCE(cp.NumeroFactura, 'Pago General') AS NumeroFactura,
-                            p.Metodo,
-                            p.Monto,
-                            p.Referencia,
-                            p.Usuario
-                        FROM ComprasProveedoresPagos p
-                        LEFT JOIN ComprasProveedores cp ON p.CompraId = cp.Id
-                        LEFT JOIN ProveedoresCtaCte cta ON p.CtaCteId = cta.Id
-                        WHERE (cta.ProveedorId = @proveedorId OR (@proveedorId = 0 AND cta.ProveedorId IS NULL))
-                            AND p.Fecha BETWEEN @desde AND @hasta
-                        ORDER BY p.Fecha DESC;
-                    ";
+                SELECT 
+                    p.Id,
+                    p.FechaPago AS Fecha,
+                    CASE 
+                        WHEN p.Observaciones LIKE 'Compra #%' 
+                        THEN SUBSTRING(p.Observaciones, CHARINDEX('#', p.Observaciones) + 1, 
+                             CHARINDEX(' |', p.Observaciones) - CHARINDEX('#', p.Observaciones) - 1)
+                        ELSE 'N/A'
+                    END AS NumeroFactura,
+                    CASE 
+                        WHEN p.Observaciones LIKE '%Método:%' 
+                        THEN LTRIM(SUBSTRING(p.Observaciones, 
+                             CHARINDEX('Método:', p.Observaciones) + 8, 
+                             CHARINDEX('|', p.Observaciones, CHARINDEX('Método:', p.Observaciones)) - 
+                             CHARINDEX('Método:', p.Observaciones) - 8))
+                        ELSE ''
+                    END AS Metodo,
+                    p.Monto,
+                    p.Observaciones AS Referencia,
+                    '' AS Usuario
+                FROM PagosProveedores p
+                WHERE p.Proveedor = @proveedorNombre
+                    AND p.FechaPago BETWEEN @desde AND @hasta
+                ORDER BY p.FechaPago DESC";
 
                     using (var cmd = new SqlCommand(sql, conn))
                     {
-                        cmd.Parameters.AddWithValue("@proveedorId", proveedorId);
+                        cmd.Parameters.AddWithValue("@proveedorNombre", proveedorNombre);
                         cmd.Parameters.AddWithValue("@desde", dtpDesde.Value.Date);
                         cmd.Parameters.AddWithValue("@hasta", dtpHasta.Value.Date.AddDays(1).AddTicks(-1));
-                        
+
                         using (var da = new SqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
@@ -1354,7 +1347,6 @@ namespace Comercio.NET.Formularios
                 dgvHistorial.DataSource = dt;
                 FormatearGrilla();
 
-                // Calcular total
                 decimal totalPagado = 0m;
                 foreach (DataRow row in dt.Rows)
                 {
@@ -1366,7 +1358,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error cargando historial: {ex.Message}", "Error", 
+                MessageBox.Show($"Error cargando historial: {ex.Message}\n\n{ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

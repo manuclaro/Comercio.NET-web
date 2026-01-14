@@ -329,16 +329,15 @@ namespace Comercio.NET
 
                     if (resultado == DialogResult.OK && dialogoPago.Confirmado)
                     {
-                        await RegistrarPagoProveedorAsync(
-                            dialogoPago.ProveedorSeleccionado,
-                            dialogoPago.Monto,
-                            dialogoPago.Observaciones);
+                        // ✅ ELIMINADO: await RegistrarPagoProveedorAsync(...)
+                        // El formulario ya guardó todo en GuardarPagoEnBaseDatos()
 
                         MessageBox.Show(
                             $"✅ PAGO REGISTRADO\n\n" +
                             $"Proveedor: {dialogoPago.ProveedorSeleccionado}\n" +
                             $"Monto: {dialogoPago.Monto:C2}\n" +
-                            $"Observaciones: {dialogoPago.Observaciones}\n\n" +
+                            $"Método: {dialogoPago.MetodoPago}\n" +
+                            $"Referencia: {dialogoPago.Referencia}\n\n" +
                             $"El pago se reflejará en:\n" +
                             $"• Cuenta corriente del proveedor\n" +
                             $"• Cálculos de arqueo y cierre de caja",
@@ -350,111 +349,114 @@ namespace Comercio.NET
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al registrar el pago: {ex.Message}", "Error",
+                MessageBox.Show($"Error: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         // ✅ NUEVO: Registrar pago en base de datos
-        private async Task RegistrarPagoProveedorAsync(string proveedor, decimal monto, string observaciones)
-        {
-            string connectionString = GetConnectionString();
-            string usuario = ObtenerUsuarioActual();
-            int numeroCajero = obtenerNumeroCajero();
+        //private async Task RegistrarPagoProveedorAsync(string proveedor, decimal monto, string observaciones)
+        //{
+        //    string connectionString = GetConnectionString();
+        //    string usuario = ObtenerUsuarioActual();
+        //    int numeroCajero = obtenerNumeroCajero();
 
-            using (var connection = new SqlConnection(connectionString))
-            {
-                await connection.OpenAsync();
+        //    using (var connection = new SqlConnection(connectionString))
+        //    {
+        //        await connection.OpenAsync();
 
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        // ✅ MODIFICADO: Obtener IdProveedor desde el nombre
-                        int? idProveedor = null;
-                        var queryGetId = "SELECT Id FROM Proveedores WHERE Nombre = @nombre";
-                        using (var cmdId = new SqlCommand(queryGetId, connection, transaction))
-                        {
-                            cmdId.Parameters.AddWithValue("@nombre", proveedor);
-                            var result = await cmdId.ExecuteScalarAsync();
-                            if (result != null && result != DBNull.Value)
-                            {
-                                idProveedor = Convert.ToInt32(result);
-                            }
-                        }
+        //        using (var transaction = connection.BeginTransaction())
+        //        {
+        //            try
+        //            {
+        //                // ✅ MODIFICADO: Obtener IdProveedor desde el nombre
+        //                int? idProveedor = null;
+        //                var queryGetId = "SELECT Id FROM Proveedores WHERE Nombre = @nombre";
+        //                using (var cmdId = new SqlCommand(queryGetId, connection, transaction))
+        //                {
+        //                    cmdId.Parameters.AddWithValue("@nombre", proveedor);
+        //                    var result = await cmdId.ExecuteScalarAsync();
+        //                    if (result != null && result != DBNull.Value)
+        //                    {
+        //                        idProveedor = Convert.ToInt32(result);
+        //                    }
+        //                }
 
-                        // 1. Registrar el pago en tabla de pagos a proveedores
-                        var queryPago = @"
-                    INSERT INTO PagosProveedores 
-                        (IdProveedor, Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, 
-                         FechaPago, NumeroRemito, NombreEquipo)
-                    VALUES 
-                        (@IdProveedor, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @UsuarioRegistro,
-                         @FechaPago, @NumeroRemito, @NombreEquipo);
-                    SELECT CAST(SCOPE_IDENTITY() AS INT);";
+        //                // ✅ CRÍTICO: INSERT con nombres EXACTOS de columnas de tu tabla
+        //                var queryPago = @"
+        //            INSERT INTO PagosProveedores 
+        //                (IdProveedor, Proveedor, Monto, Observaciones, NumeroCajero, 
+        //                 UsuarioRegistro, FechaPago, NumeroRemito, NombreEquipo)
+        //            VALUES 
+        //                (@IdProveedor, @Proveedor, @Monto, @Observaciones, @NumeroCajero, 
+        //                 @UsuarioRegistro, @FechaPago, @NumeroRemito, @NombreEquipo);
+        //            SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-                        int idPago;
-                        using (var cmd = new SqlCommand(queryPago, connection, transaction))
-                        {
-                            cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.HasValue ? (object)idProveedor.Value : DBNull.Value);
-                            cmd.Parameters.AddWithValue("@Proveedor", proveedor);
-                            cmd.Parameters.AddWithValue("@Monto", monto);
-                            cmd.Parameters.AddWithValue("@Observaciones",
-                                string.IsNullOrWhiteSpace(observaciones) ? (object)DBNull.Value : observaciones);
-                            cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
-                            cmd.Parameters.AddWithValue("@UsuarioRegistro", usuario);
-                            cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
-                            cmd.Parameters.AddWithValue("@NumeroRemito", (object)nroRemitoActual ?? DBNull.Value);
-                            cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+        //                int idPago;
+        //                using (var cmd = new SqlCommand(queryPago, connection, transaction))
+        //                {
+        //                    // ✅ PARÁMETROS CORREGIDOS según tu estructura real
+        //                    cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.HasValue ? (object)idProveedor.Value : DBNull.Value);
+        //                    cmd.Parameters.AddWithValue("@Proveedor", proveedor);
+        //                    cmd.Parameters.AddWithValue("@Monto", monto);
+        //                    cmd.Parameters.AddWithValue("@Observaciones",
+        //                        string.IsNullOrWhiteSpace(observaciones) ? (object)DBNull.Value : observaciones);
+        //                    cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+        //                    cmd.Parameters.AddWithValue("@UsuarioRegistro", usuario); // ✅ CORREGIDO: era "Usuario"
+        //                    cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+        //                    cmd.Parameters.AddWithValue("@NumeroRemito", (object)nroRemitoActual ?? DBNull.Value);
+        //                    cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
 
-                            idPago = (int)await cmd.ExecuteScalarAsync();
-                        }
+        //                    idPago = (int)await cmd.ExecuteScalarAsync();
+        //                }
 
-                        // 2. Actualizar cuenta corriente del proveedor
-                        if (idProveedor.HasValue)
-                        {
-                            try
-                            {
-                                var queryCtaCte = @"
-                            INSERT INTO CtaCteProveedores 
-                                (IdProveedor, Proveedor, Fecha, Concepto, Debe, Haber, IdPago, Usuario)
-                            VALUES 
-                                (@IdProveedor, @Proveedor, @Fecha, @Concepto, @Debe, @Haber, @IdPago, @Usuario)";
+        //                // 2. Actualizar cuenta corriente del proveedor (si existe)
+        //                if (idProveedor.HasValue)
+        //                {
+        //                    try
+        //                    {
+        //                        var queryCtaCte = @"
+        //                    INSERT INTO CtaCteProveedores 
+        //                        (IdProveedor, Proveedor, Fecha, Concepto, Debe, Haber, IdPago, Usuario)
+        //                    VALUES 
+        //                        (@IdProveedor, @Proveedor, @Fecha, @Concepto, @Debe, @Haber, @IdPago, @Usuario)";
 
-                                using (var cmd = new SqlCommand(queryCtaCte, connection, transaction))
-                                {
-                                    cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.Value);
-                                    cmd.Parameters.AddWithValue("@Proveedor", proveedor);
-                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
-                                    cmd.Parameters.AddWithValue("@Concepto",
-                                        $"Pago - {(string.IsNullOrWhiteSpace(observaciones) ? "Sin observaciones" : observaciones)}");
-                                    cmd.Parameters.AddWithValue("@Debe", 0);
-                                    cmd.Parameters.AddWithValue("@Haber", monto);
-                                    cmd.Parameters.AddWithValue("@IdPago", idPago);
-                                    cmd.Parameters.AddWithValue("@Usuario", usuario);
+        //                        using (var cmd = new SqlCommand(queryCtaCte, connection, transaction))
+        //                        {
+        //                            cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.Value);
+        //                            cmd.Parameters.AddWithValue("@Proveedor", proveedor);
+        //                            cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
+        //                            cmd.Parameters.AddWithValue("@Concepto",
+        //                                $"Pago - {(string.IsNullOrWhiteSpace(observaciones) ? "Sin observaciones" : observaciones)}");
+        //                            cmd.Parameters.AddWithValue("@Debe", 0);
+        //                            cmd.Parameters.AddWithValue("@Haber", monto);
+        //                            cmd.Parameters.AddWithValue("@IdPago", idPago);
+        //                            cmd.Parameters.AddWithValue("@Usuario", usuario);
 
-                                    await cmd.ExecuteNonQueryAsync();
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"⚠️ Error actualizando CtaCte: {ex.Message}");
-                            }
-                        }
+        //                            await cmd.ExecuteNonQueryAsync();
+        //                        }
+        //                    }
+        //                    catch (Exception ex)
+        //                    {
+        //                        System.Diagnostics.Debug.WriteLine($"⚠️ Error actualizando CtaCte: {ex.Message}");
+        //                    }
+        //                }
 
-                        transaction.Commit();
+        //                // ✅ CORREGIDO: Commit ANTES del debug
+        //                transaction.Commit();
 
-                        System.Diagnostics.Debug.WriteLine(
-                            $"💳 Pago registrado - Proveedor: {proveedor} (ID: {idProveedor}), Monto: {monto:C2}, Usuario: {usuario}");
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        throw new Exception($"Error en transacción de pago: {ex.Message}", ex);
-                    }
-                }
-            }
-        }
+        //                // ✅ CORREGIDO: Debug DESPUÉS del commit exitoso
+        //                System.Diagnostics.Debug.WriteLine(
+        //                    $"💳 Pago registrado - Proveedor: {proveedor} (ID: {idProveedor}), Monto: {monto:C2}, Usuario: {usuario}");
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                transaction.Rollback();
+        //                throw new Exception($"Error en transacción de pago: {ex.Message}", ex);
+        //            }
+        //        }
+        //    }
+        //}
 
         // ✅ NUEVO MÉTODO: Verificar si existe turno abierto en la base de datos
         private bool VerificarTurnoAbierto(int numeroCajero)

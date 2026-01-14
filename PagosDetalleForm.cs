@@ -1,3 +1,4 @@
+﻿
 using System;
 using System.Data.SqlClient;
 using System.Drawing;
@@ -116,13 +117,13 @@ namespace Comercio.NET.Formularios
                 {
                     await conn.OpenAsync();
 
-                    // 1) Cargar pagos relacionados
+                    // ✅ ACTUALIZADO: Cargar pagos desde la nueva tabla PagoProveedores
                     var sql = @"
-                        SELECT Id, CompraId, CtaCteId, Metodo, Monto, Referencia, Fecha, Usuario
-                        FROM ComprasProveedoresPagos
+                        SELECT Id, CompraId, CtaCteId, MedioPago, Monto, Referencia, FechaPago, Usuario
+                        FROM PagoProveedores
                         WHERE (@compraId IS NOT NULL AND CompraId = @compraId)
                            OR (@compraId IS NULL AND @ctacteId IS NOT NULL AND CtaCteId = @ctacteId)
-                        ORDER BY Fecha;
+                        ORDER BY FechaPago;
                     ";
                     using (var cmd = new SqlCommand(sql, conn))
                     {
@@ -142,9 +143,11 @@ namespace Comercio.NET.Formularios
                             while (await reader.ReadAsync())
                             {
                                 int id = reader.GetInt32(0);
+                                // ✅ ACTUALIZADO: Cambio de índice para MedioPago (era índice 3, sigue siendo 3)
                                 string metodo = reader.IsDBNull(3) ? "" : reader.GetString(3);
                                 decimal monto = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4);
                                 string referencia = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                                // ✅ ACTUALIZADO: El campo ahora se llama FechaPago (índice 6)
                                 DateTime fecha = reader.IsDBNull(6) ? DateTime.MinValue : reader.GetDateTime(6);
                                 string usuario = reader.IsDBNull(7) ? "" : reader.GetString(7);
 
@@ -154,7 +157,7 @@ namespace Comercio.NET.Formularios
                         }
                     }
 
-                    // 2) Obtener monto total y saldo seg�n contexto
+                    // 2) Obtener monto total y saldo según contexto
                     if (compraId.HasValue)
                     {
                         var sqlCompra = @"SELECT ImporteTotal FROM ComprasProveedores WHERE Id = @id;";

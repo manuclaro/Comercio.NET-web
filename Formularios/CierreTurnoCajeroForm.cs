@@ -769,35 +769,45 @@ namespace Comercio.NET.Formularios
                 // ========================================
                 // QUERY DE EGRESOS (PAGOS A PROVEEDORES)
                 // ========================================
-                var queryEgresos = @"
-            SELECT 
-                COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-                SUM(cpp.Monto) as TotalEgresos,
-                COUNT(*) as CantidadEgresos
-            FROM ComprasProveedoresPagos cpp
-            INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-            WHERE cp.Cajero = @numeroCajero
-            AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
-            GROUP BY COALESCE(cpp.Metodo, 'Efectivo')";
+                var queryPagosRapidos = @"
+    SELECT 
+        SUM(Monto) AS TotalEgresos,
+        COUNT(*) AS CantidadEgresos
+    FROM PagosProveedores
+    WHERE NumeroCajero = @numeroCajero
+    AND FechaPago BETWEEN @fechaInicio AND @fechaFin";
 
-                using (var cmd = new SqlCommand(queryEgresos, connection))
+                using (var cmd = new SqlCommand(queryPagosRapidos, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
                     cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
 
                     using var reader = await cmd.ExecuteReaderAsync();
-                    while (reader.Read())
+                    if (reader.Read() && reader["TotalEgresos"] != DBNull.Value)
                     {
-                        string medioPago = reader.GetString(0);
-                        decimal egresos = reader.GetDecimal(1);
-                        int cantidad = reader.GetInt32(2);
+                        string medioPago = "Efectivo";  // ✅ SIEMPRE Efectivo
+                        decimal egresos = reader.GetDecimal(0);
+                        int cantidad = reader.GetInt32(1);
 
                         if (!resumenPorMedio.ContainsKey(medioPago))
                             resumenPorMedio[medioPago] = (0m, 0m, 0, 0);
 
                         var actual = resumenPorMedio[medioPago];
-                        resumenPorMedio[medioPago] = (actual.Ingresos, egresos, actual.CantIngresos, cantidad);
+
+                        // ✅ SUMAR a los egresos existentes
+                        resumenPorMedio[medioPago] = (
+                            actual.Ingresos,
+                            actual.Egresos + egresos,  // ✅ SUMAR
+                            actual.CantIngresos,
+                            actual.CantEgresos + cantidad  // ✅ SUMAR
+                        );
+
+                        System.Diagnostics.Debug.WriteLine(
+                            $"💳 PAGOS A PROVEEDORES SUMADOS:\n" +
+                            $"   Total egresos: {egresos:C2}\n" +
+                            $"   Cantidad: {cantidad}\n" +
+                            $"   Egresos acumulados en Efectivo: {resumenPorMedio[medioPago].Egresos:C2}");
                     }
                 }
 
@@ -963,106 +973,96 @@ namespace Comercio.NET.Formularios
 
         private async Task CargarDetalleTransacciones(string connectionString, int numeroCajero)
         {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            var queryDetalle = @"
-        -- Ventas (✅ USANDO CAMPO HORA)
-        WITH TransaccionesVentasSimples AS (
-            SELECT 
-                f.Hora as Fecha,
-                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                f.ImporteTotal as Importe,
-                'Ingreso (Venta)' as Tipo
-            FROM Facturas f
-            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            WHERE u.NumeroCajero = @numeroCajero
-            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-            AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
-        ),
-        TransaccionesVentasMultiples AS (
-            SELECT 
-                f.Hora as Fecha,
-                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                dp.MedioPago,
-                dp.Importe,
-                'Ingreso (Venta)' as Tipo
-            FROM DetallesPagoFactura dp
-            INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            WHERE u.NumeroCajero = @numeroCajero
-            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-            AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-        ),
-        -- Pagos a Proveedores
-        TransaccionesPagosProveedores AS (
-            SELECT 
-                cpp.Fecha,
-                'Pago #' + CAST(cpp.Id AS NVARCHAR) + ' - ' + cp.Proveedor as NumeroFactura,
-                COALESCE(cpp.Metodo, 'Efectivo') as MedioPago,
-                cpp.Monto as Importe,
-                'Egreso (Pago Prov.)' as Tipo
-            FROM ComprasProveedoresPagos cpp
-            INNER JOIN ComprasProveedores cp ON cpp.CompraId = cp.Id
-            WHERE cp.Cajero = @numeroCajero
-            AND cpp.Fecha BETWEEN @fechaInicio AND @fechaFin
-        ),
-        -- ✅ NUEVO: Retiros de Efectivo
-        TransaccionesRetiros AS (
-            SELECT 
-                FechaRetiro as Fecha,
-                'Retiro #' + CAST(Id AS NVARCHAR) + ' - ' + Responsable + ' - ' + Motivo as NumeroFactura,
-                'Efectivo' as MedioPago,
-                Monto as Importe,
-                'Egreso (Retiro)' as Tipo
-            FROM RetirosEfectivo
-            WHERE NumeroCajero = @numeroCajero
-            AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin
-        )
-        SELECT * FROM TransaccionesVentasSimples
-        UNION ALL
-        SELECT * FROM TransaccionesVentasMultiples
-        UNION ALL
-        SELECT * FROM TransaccionesPagosProveedores
-        UNION ALL
-        SELECT * FROM TransaccionesRetiros  -- ✅ INCLUIR RETIROS
-        ORDER BY Fecha DESC";
-
-            using var cmd = new SqlCommand(queryDetalle, connection);
-            cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-            cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
-            cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
-
-            dgvDetalleTransacciones.Rows.Clear();
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (reader.Read())
+            try
             {
-                DateTime fecha = reader.GetDateTime(0);
-                string numeroFactura = reader.GetString(1);
-                string medioPago = reader.GetString(2);
-                decimal importe = reader.GetDecimal(3);
-                string tipo = reader.GetString(4);
+                using var connection = new SqlConnection(connectionString);
+                connection.Open();
 
-                dgvDetalleTransacciones.Rows.Add(
-                    fecha.ToString("dd/MM/yy HH:mm"),
-                    numeroFactura,
-                    medioPago,
-                    importe.ToString("C2"),
-                    tipo
-                );
+                var queryCombinada = @"
+            WITH 
+            -- ✅ Ventas/Remitos - CORREGIDO: Convertir todo a NVARCHAR
+            TransaccionesVentas AS (
+                SELECT 
+                    v.fecha AS Fecha,
+                    CAST(v.NroFactura AS NVARCHAR) AS NumeroFactura,  -- ✅ CONVERTIR a NVARCHAR
+                    COALESCE(f.FormadePago, 'Efectivo') AS MedioPago,
+                    f.ImporteTotal AS Importe,
+                    CASE 
+                        WHEN f.TipoFactura IS NULL OR f.TipoFactura = '' THEN 'Ingreso (Remito)'
+                        ELSE 'Ingreso (Factura)'
+                    END AS Tipo
+                FROM Ventas v
+                LEFT JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                WHERE v.fecha BETWEEN @fechaInicio AND @fechaFin
+                GROUP BY v.fecha, v.NroFactura, f.FormadePago, f.ImporteTotal, f.TipoFactura
+            ),
+            
+            -- ✅ CORREGIDO: Pagos a Proveedores SIN columna 'Metodo'
+            TransaccionesPagosProveedores AS (
+                SELECT 
+                    pp.FechaPago AS Fecha,
+                    'Pago #' + CAST(pp.Id AS NVARCHAR) + ' - ' + pp.Proveedor AS NumeroFactura,
+                    'Efectivo' AS MedioPago,  -- ✅ HARDCODED
+                    pp.Monto AS Importe,
+                    'Egreso (Pago Prov.)' AS Tipo
+                FROM PagosProveedores pp
+                WHERE pp.NumeroCajero = @numeroCajero
+                AND pp.FechaPago BETWEEN @fechaInicio AND @fechaFin
+            ),
+            
+            -- Retiros de efectivo
+            TransaccionesRetiros AS (
+                SELECT 
+                    r.FechaRetiro AS Fecha,
+                    'Retiro #' + CAST(r.Id AS NVARCHAR) + ' - ' + r.Motivo AS NumeroFactura,
+                    'Efectivo' AS MedioPago,
+                    r.Monto AS Importe,
+                    'Egreso (Retiro)' AS Tipo
+                FROM RetirosEfectivo r
+                WHERE r.NumeroCajero = @numeroCajero
+                AND r.FechaRetiro BETWEEN @fechaInicio AND @fechaFin
+            )
+            
+            -- UNION de todas las transacciones
+            SELECT * FROM TransaccionesVentas
+            UNION ALL
+            SELECT * FROM TransaccionesPagosProveedores
+            UNION ALL
+            SELECT * FROM TransaccionesRetiros
+            ORDER BY Fecha ASC";
 
-                int rowIndex = dgvDetalleTransacciones.Rows.Count - 1;
-                if (tipo.Contains("Egreso"))
+                using (var cmd = new SqlCommand(queryCombinada, connection))
                 {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(244, 67, 54);
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDetalleTransacciones.Font, FontStyle.Bold);
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
+                    cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
+
+                    using var reader = await cmd.ExecuteReaderAsync();
+
+                    dgvDetalleTransacciones.Rows.Clear();
+
+                    while (await reader.ReadAsync())
+                    {
+                        string fecha = reader["Fecha"] != DBNull.Value
+                            ? Convert.ToDateTime(reader["Fecha"]).ToString("dd/MM/yyyy HH:mm")
+                            : "";
+                        string numero = reader["NumeroFactura"]?.ToString() ?? "";
+                        string medio = reader["MedioPago"]?.ToString() ?? "Sin especificar";
+                        string importe = reader["Importe"] != DBNull.Value
+                            ? Convert.ToDecimal(reader["Importe"]).ToString("C2")
+                            : "$0,00";
+                        string tipo = reader["Tipo"]?.ToString() ?? "";
+
+                        dgvDetalleTransacciones.Rows.Add(fecha, numero, medio, importe, tipo);
+                    }
                 }
-                else
-                {
-                    dgvDetalleTransacciones.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
-                }
+
+                System.Diagnostics.Debug.WriteLine($"✅ Detalle de transacciones cargado: {dgvDetalleTransacciones.Rows.Count} registros");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error cargando detalle transacciones: {ex.Message}");
+                throw;
             }
         }
 

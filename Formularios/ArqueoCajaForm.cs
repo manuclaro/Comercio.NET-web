@@ -706,45 +706,47 @@ namespace Comercio.NET.Formularios
         private async Task<System.Collections.Generic.Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>>
     CalcularResumenPorMedioPago(SqlConnection connection, int numeroCajero)
         {
-            var resumen = new System.Collections.Generic.Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>();
+            var resumen = new Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>();
 
-            // ========================================
-            // QUERY DE INGRESOS (VENTAS) - ✅ USANDO CAMPO HORA
-            // ========================================
-            var queryIngresos = @"
-        WITH TransaccionesSimples AS (
-            SELECT 
-                COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                f.ImporteTotal as Importe,
-                'Ingreso' as TipoMovimiento
-            FROM Facturas f
-            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            WHERE u.NumeroCajero = @numeroCajero
-            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-            AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
-        ),
-        TransaccionesMultiples AS (
-            SELECT 
-                dp.MedioPago,
-                dp.Importe,
-                'Ingreso' as TipoMovimiento
-            FROM DetallesPagoFactura dp
-            INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            WHERE u.NumeroCajero = @numeroCajero
-            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-            AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-        )
-        SELECT 
-            MedioPago,
-            SUM(Importe) as TotalIngresos,
-            COUNT(*) as CantidadIngresos
-        FROM (
-            SELECT * FROM TransaccionesSimples
-            UNION ALL
-            SELECT * FROM TransaccionesMultiples
-        ) TodasTransacciones
-        GROUP BY MedioPago";
+            try
+            {
+                // ========================================
+                // QUERY DE INGRESOS (VENTAS) - ✅ USANDO CAMPO HORA
+                // ========================================
+                var queryIngresos = @"
+                    WITH TransaccionesSimples AS (
+                        SELECT 
+                            COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
+                            f.ImporteTotal as Importe,
+                            'Ingreso' as TipoMovimiento
+                        FROM Facturas f
+                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+                        WHERE u.NumeroCajero = @numeroCajero
+                        AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+                        AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+                    ),
+                    TransaccionesMultiples AS (
+                        SELECT 
+                            dp.MedioPago,
+                            dp.Importe,
+                            'Ingreso' as TipoMovimiento
+                        FROM DetallesPagoFactura dp
+                        INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
+                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+                        WHERE u.NumeroCajero = @numeroCajero
+                        AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+                        AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+                    )
+                    SELECT 
+                        MedioPago,
+                        SUM(Importe) as TotalIngresos,
+                        COUNT(*) as CantidadIngresos
+                    FROM (
+                        SELECT * FROM TransaccionesSimples
+                        UNION ALL
+                        SELECT * FROM TransaccionesMultiples
+                    ) TodasTransacciones
+                    GROUP BY MedioPago";
 
             using (var cmd = new SqlCommand(queryIngresos, connection))
             {
@@ -767,84 +769,71 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // ========================================
-            // ✅ QUERY DE EGRESOS (PAGOS A PROVEEDORES)
-            // ========================================
-            var queryPagosProveedores = @"
-        SELECT 
-            'Efectivo' as MedioPago,
-            SUM(Monto) as TotalEgresos,
-            COUNT(*) as CantidadEgresos
-        FROM PagosProveedores
-        WHERE NumeroCajero = @numeroCajero
-        AND FechaPago BETWEEN @fechaInicio AND @fechaFin";
+                // ========================================
+                // ✅ QUERY DE EGRESOS (PAGOS A PROVEEDORES)
+                // ========================================
+                var queryPagosProveedores = @"
+                    SELECT 
+                        SUM(Monto) AS TotalEgresos,
+                        COUNT(*) AS CantidadEgresos
+                    FROM PagosProveedores
+                    WHERE NumeroCajero = @numeroCajero
+                    AND FechaPago BETWEEN @fechaInicio AND @fechaFin";
 
-            using (var cmd = new SqlCommand(queryPagosProveedores, connection))
-            {
-                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
-                cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
-
-                try
+                using (var cmd = new SqlCommand(queryPagosProveedores, connection))
                 {
-                    using var reader = await cmd.ExecuteReaderAsync();
-                    while (reader.Read())
-                    {
-                        string medioPago = reader.GetString(0);
-                        decimal egresos = reader.GetDecimal(1);
-                        int cantidad = reader.GetInt32(2);
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
+                    cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
 
-                        // ✅ CORREGIDO: Asegurarse de que la clave "Efectivo" existe
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (reader.Read() && reader["TotalEgresos"] != DBNull.Value)
+                    {
+                        string medioPago = "Efectivo";  // ✅ SIEMPRE Efectivo por ahora
+                        decimal egresos = reader.GetDecimal(0);
+                        int cantidad = reader.GetInt32(1);
+
                         if (!resumen.ContainsKey(medioPago))
                             resumen[medioPago] = (0m, 0m, 0, 0);
 
                         var actual = resumen[medioPago];
-                        // ✅ CRÍTICO: SUMAR egresos a los existentes, NO reemplazar
-                        resumen[medioPago] = (actual.Ingresos, actual.Egresos + egresos, actual.CantIngresos, actual.CantEgresos + cantidad);
+                        resumen[medioPago] = (
+                            actual.Ingresos,
+                            actual.Egresos + egresos,
+                            actual.CantIngresos,
+                            actual.CantEgresos + cantidad);
 
                         System.Diagnostics.Debug.WriteLine(
                             $"💳 PAGOS PROVEEDORES SUMADOS:\n" +
                             $"   Total egresos: {egresos:C2}\n" +
-                            $"   Cantidad: {cantidad}\n" +
-                            $"   Medio: {medioPago}\n" +
-                            $"   Egresos acumulados: {resumen[medioPago].Egresos:C2}");
+                            $"   Cantidad: {cantidad}");
                     }
                 }
-                catch (Exception ex)
+
+                // ========================================
+                // ✅ Query de retiros de efectivo (si existe)
+                // ========================================
+                var queryRetiros = @"
+                    SELECT 
+                        SUM(Monto) AS TotalRetiros,
+                        COUNT(*) AS CantidadRetiros
+                    FROM RetirosEfectivo
+                    WHERE NumeroCajero = @numeroCajero
+                    AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
+
+                using (var cmd = new SqlCommand(queryRetiros, connection))
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Tabla PagosProveedores no disponible: {ex.Message}");
-                }
-            }
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
+                    cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
 
-            // ========================================
-            // QUERY DE RETIROS DE EFECTIVO
-            // ========================================
-            var queryRetiros = @"
-        SELECT 
-            SUM(Monto) as TotalRetiros,
-            COUNT(*) as CantidadRetiros
-        FROM RetirosEfectivo
-        WHERE NumeroCajero = @numeroCajero
-        AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
-
-            using (var cmd = new SqlCommand(queryRetiros, connection))
-            {
-                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
-                cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
-
-                try
-                {
                     using var reader = await cmd.ExecuteReaderAsync();
-                    if (reader.Read())
+                    if (reader.Read() && reader["TotalRetiros"] != DBNull.Value)
                     {
-                        decimal totalRetiros = reader["TotalRetiros"] != DBNull.Value
-                            ? reader.GetDecimal(0)
-                            : 0m;
-                        int cantidadRetiros = reader["CantidadRetiros"] != DBNull.Value
-                            ? reader.GetInt32(1)
-                            : 0;
+                        decimal totalRetiros = reader.GetDecimal(0);
+                        int cantidadRetiros = reader.GetInt32(1);
 
+                        // ✅ Registrar retiros como EGRESO de EFECTIVO
                         if (totalRetiros > 0)
                         {
                             string medioPago = "Efectivo";
@@ -853,10 +842,9 @@ namespace Comercio.NET.Formularios
                                 resumen[medioPago] = (0m, 0m, 0, 0);
 
                             var actual = resumen[medioPago];
-                            // ✅ SUMAR retiros a egresos existentes
                             resumen[medioPago] = (
                                 actual.Ingresos,
-                                actual.Egresos + totalRetiros,
+                                actual.Egresos + totalRetiros,  // ✅ SUMAR retiros a egresos
                                 actual.CantIngresos,
                                 actual.CantEgresos + cantidadRetiros
                             );
@@ -864,30 +852,30 @@ namespace Comercio.NET.Formularios
                             System.Diagnostics.Debug.WriteLine(
                                 $"💰 RETIROS SUMADOS:\n" +
                                 $"   Total: {totalRetiros:C2}\n" +
-                                $"   Cantidad: {cantidadRetiros}\n" +
-                                $"   Medio: {medioPago}\n" +
-                                $"   Egresos acumulados: {resumen[medioPago].Egresos:C2}");
+                                $"   Cantidad: {cantidadRetiros}");
                         }
                     }
                 }
-                catch (Exception ex)
+
+                // ✅ NUEVO: Debug final para verificar el resumen completo
+                System.Diagnostics.Debug.WriteLine($"\n📊 RESUMEN FINAL POR MEDIO:");
+                foreach (var kvp in resumen)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ Tabla RetirosEfectivo no disponible: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine(
+                        $"   {kvp.Key}:\n" +
+                        $"      Ingresos: {kvp.Value.Ingresos:C2} ({kvp.Value.CantIngresos} trans.)\n" +
+                        $"      Egresos: {kvp.Value.Egresos:C2} ({kvp.Value.CantEgresos} trans.)\n" +
+                        $"      Neto: {(kvp.Value.Ingresos - kvp.Value.Egresos):C2}");
                 }
-            }
 
-            // ✅ NUEVO: Debug final para verificar el resumen completo
-            System.Diagnostics.Debug.WriteLine($"\n📊 RESUMEN FINAL POR MEDIO:");
-            foreach (var kvp in resumen)
+                return resumen;
+            
+            }
+            catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"   {kvp.Key}:\n" +
-                    $"      Ingresos: {kvp.Value.Ingresos:C2} ({kvp.Value.CantIngresos} trans.)\n" +
-                    $"      Egresos: {kvp.Value.Egresos:C2} ({kvp.Value.CantEgresos} trans.)\n" +
-                    $"      Neto: {(kvp.Value.Ingresos - kvp.Value.Egresos):C2}");
+                System.Diagnostics.Debug.WriteLine($"❌ Error en CalcularResumenPorMedioPago: {ex.Message}");
+                throw;
             }
-
-            return resumen;
         }
 
         private async Task CargarDetalleTransacciones(string connectionString, int numeroCajero)
@@ -929,7 +917,7 @@ namespace Comercio.NET.Formularios
             SELECT 
                 pp.FechaPago as Fecha,
                 'Pago #' + CAST(pp.Id AS NVARCHAR) + ' - ' + pp.Proveedor as NumeroFactura,
-                'Efectivo' as MedioPago,
+                'Efectivo' AS MedioPago, 
                 pp.Monto as Importe,
                 'Egreso (Pago Prov.)' as Tipo
             FROM PagosProveedores pp
