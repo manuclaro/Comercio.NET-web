@@ -354,111 +354,7 @@ namespace Comercio.NET
             }
         }
 
-        // ✅ NUEVO: Registrar pago en base de datos
-        //private async Task RegistrarPagoProveedorAsync(string proveedor, decimal monto, string observaciones)
-        //{
-        //    string connectionString = GetConnectionString();
-        //    string usuario = ObtenerUsuarioActual();
-        //    int numeroCajero = obtenerNumeroCajero();
-
-        //    using (var connection = new SqlConnection(connectionString))
-        //    {
-        //        await connection.OpenAsync();
-
-        //        using (var transaction = connection.BeginTransaction())
-        //        {
-        //            try
-        //            {
-        //                // ✅ MODIFICADO: Obtener IdProveedor desde el nombre
-        //                int? idProveedor = null;
-        //                var queryGetId = "SELECT Id FROM Proveedores WHERE Nombre = @nombre";
-        //                using (var cmdId = new SqlCommand(queryGetId, connection, transaction))
-        //                {
-        //                    cmdId.Parameters.AddWithValue("@nombre", proveedor);
-        //                    var result = await cmdId.ExecuteScalarAsync();
-        //                    if (result != null && result != DBNull.Value)
-        //                    {
-        //                        idProveedor = Convert.ToInt32(result);
-        //                    }
-        //                }
-
-        //                // ✅ CRÍTICO: INSERT con nombres EXACTOS de columnas de tu tabla
-        //                var queryPago = @"
-        //            INSERT INTO PagosProveedores 
-        //                (IdProveedor, Proveedor, Monto, Observaciones, NumeroCajero, 
-        //                 UsuarioRegistro, FechaPago, NumeroRemito, NombreEquipo)
-        //            VALUES 
-        //                (@IdProveedor, @Proveedor, @Monto, @Observaciones, @NumeroCajero, 
-        //                 @UsuarioRegistro, @FechaPago, @NumeroRemito, @NombreEquipo);
-        //            SELECT CAST(SCOPE_IDENTITY() AS INT);";
-
-        //                int idPago;
-        //                using (var cmd = new SqlCommand(queryPago, connection, transaction))
-        //                {
-        //                    // ✅ PARÁMETROS CORREGIDOS según tu estructura real
-        //                    cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.HasValue ? (object)idProveedor.Value : DBNull.Value);
-        //                    cmd.Parameters.AddWithValue("@Proveedor", proveedor);
-        //                    cmd.Parameters.AddWithValue("@Monto", monto);
-        //                    cmd.Parameters.AddWithValue("@Observaciones",
-        //                        string.IsNullOrWhiteSpace(observaciones) ? (object)DBNull.Value : observaciones);
-        //                    cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
-        //                    cmd.Parameters.AddWithValue("@UsuarioRegistro", usuario); // ✅ CORREGIDO: era "Usuario"
-        //                    cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
-        //                    cmd.Parameters.AddWithValue("@NumeroRemito", (object)nroRemitoActual ?? DBNull.Value);
-        //                    cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-
-        //                    idPago = (int)await cmd.ExecuteScalarAsync();
-        //                }
-
-        //                // 2. Actualizar cuenta corriente del proveedor (si existe)
-        //                if (idProveedor.HasValue)
-        //                {
-        //                    try
-        //                    {
-        //                        var queryCtaCte = @"
-        //                    INSERT INTO CtaCteProveedores 
-        //                        (IdProveedor, Proveedor, Fecha, Concepto, Debe, Haber, IdPago, Usuario)
-        //                    VALUES 
-        //                        (@IdProveedor, @Proveedor, @Fecha, @Concepto, @Debe, @Haber, @IdPago, @Usuario)";
-
-        //                        using (var cmd = new SqlCommand(queryCtaCte, connection, transaction))
-        //                        {
-        //                            cmd.Parameters.AddWithValue("@IdProveedor", idProveedor.Value);
-        //                            cmd.Parameters.AddWithValue("@Proveedor", proveedor);
-        //                            cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
-        //                            cmd.Parameters.AddWithValue("@Concepto",
-        //                                $"Pago - {(string.IsNullOrWhiteSpace(observaciones) ? "Sin observaciones" : observaciones)}");
-        //                            cmd.Parameters.AddWithValue("@Debe", 0);
-        //                            cmd.Parameters.AddWithValue("@Haber", monto);
-        //                            cmd.Parameters.AddWithValue("@IdPago", idPago);
-        //                            cmd.Parameters.AddWithValue("@Usuario", usuario);
-
-        //                            await cmd.ExecuteNonQueryAsync();
-        //                        }
-        //                    }
-        //                    catch (Exception ex)
-        //                    {
-        //                        System.Diagnostics.Debug.WriteLine($"⚠️ Error actualizando CtaCte: {ex.Message}");
-        //                    }
-        //                }
-
-        //                // ✅ CORREGIDO: Commit ANTES del debug
-        //                transaction.Commit();
-
-        //                // ✅ CORREGIDO: Debug DESPUÉS del commit exitoso
-        //                System.Diagnostics.Debug.WriteLine(
-        //                    $"💳 Pago registrado - Proveedor: {proveedor} (ID: {idProveedor}), Monto: {monto:C2}, Usuario: {usuario}");
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                transaction.Rollback();
-        //                throw new Exception($"Error en transacción de pago: {ex.Message}", ex);
-        //            }
-        //        }
-        //    }
-        //}
-
-        // ✅ NUEVO MÉTODO: Verificar si existe turno abierto en la base de datos
+         // ✅ NUEVO MÉTODO: Verificar si existe turno abierto en la base de datos
         private bool VerificarTurnoAbierto(int numeroCajero)
         {
             try
@@ -2449,15 +2345,15 @@ namespace Comercio.NET
             // Mantener el footer como antes
             ConfigurarPanelFooter();
 
-            // ✅ CORREGIDO: Crear botón "Anular" DESPUÉS de crear btnRetirarEfectivo
+            // ✅ MODIFICADO: Botón "Anular" MÁS PEQUEÑO
             btnAnularFactura = new Button
             {
                 Text = "Anular",
-                Size = new Size(75, 35),
+                Size = new Size(60, 25), // ✅ REDUCIDO: de (75, 35) a (60, 25)
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold), // ✅ REDUCIDO: de 9F a 8F
                 Enabled = false,
                 Visible = true,
                 TabStop = false
@@ -2469,41 +2365,39 @@ namespace Comercio.NET
             this.Controls.Add(btnAnularFactura);
             btnAnularFactura.BringToFront();
 
-            // ✅ CORREGIDO: Posicionar junto a btnRetirarEfectivo (NO btnFinalizarVenta)
+            // ✅ NUEVO: Posicionar DEBAJO de btnPagoProveedor
             void ReposicionarAnular()
             {
                 try
                 {
-                    // ✅ OPCIÓN 1: Posicionar junto a btnRetirarEfectivo (PRIMERO)
+                    // ✅ POSICIONAR DEBAJO del botón "Pago Proveedor"
+                    if (btnPagoProveedor != null && btnPagoProveedor.Visible)
+                    {
+                        // ✅ MANTENER su tamaño pequeño independiente del botón de referencia
+                        btnAnularFactura.Left = btnPagoProveedor.Left;   // Misma posición horizontal
+                        btnAnularFactura.Top = btnPagoProveedor.Bottom + 10; // 10px debajo
+                        return;
+                    }
+
+                    // ✅ FALLBACK 1: Si no existe btnPagoProveedor, posicionar junto a btnRetirarEfectivo
                     if (btnRetirarEfectivo != null && btnRetirarEfectivo.Visible)
                     {
-                        btnAnularFactura.Height = btnRetirarEfectivo.Height;
                         btnAnularFactura.Left = btnRetirarEfectivo.Right + 15;
                         btnAnularFactura.Top = btnRetirarEfectivo.Top;
                         return;
                     }
 
-                    // ✅ OPCIÓN 2: Fallback - junto a btnFinalizarVenta
+                    // ✅ FALLBACK 2: Posición junto a btnFinalizarVenta
                     if (btnFinalizarVenta != null && btnFinalizarVenta.Visible)
                     {
-                        btnAnularFactura.Height = btnFinalizarVenta.Height;
                         btnAnularFactura.Left = btnFinalizarVenta.Right + 15;
                         btnAnularFactura.Top = btnFinalizarVenta.Top;
                         return;
                     }
 
-                    // ✅ OPCIÓN 3: Fallback - junto a btnAgregar
-                    if (btnAgregar != null && btnAgregar.Visible)
-                    {
-                        btnAnularFactura.Height = btnAgregar.Height;
-                        btnAnularFactura.Left = btnAgregar.Right + 15;
-                        btnAnularFactura.Top = btnAgregar.Top;
-                        return;
-                    }
-
-                    // ✅ OPCIÓN 4: Posición fija
+                    // ✅ FALLBACK 3: Posición fija
                     btnAnularFactura.Left = 950;
-                    btnAnularFactura.Top = 115;
+                    btnAnularFactura.Top = 160; // Más abajo que antes
                 }
                 catch (Exception ex)
                 {
@@ -2521,6 +2415,12 @@ namespace Comercio.NET
             this.Resize += (s, e) => ReposicionarAnular();
 
             // ✅ CRÍTICO: Reposicionar cuando cambien los botones de referencia
+            if (btnPagoProveedor != null)
+            {
+                btnPagoProveedor.VisibleChanged += (s, e) => ReposicionarAnular();
+                btnPagoProveedor.Move += (s, e) => ReposicionarAnular();
+            }
+
             if (btnRetirarEfectivo != null)
             {
                 btnRetirarEfectivo.VisibleChanged += (s, e) => ReposicionarAnular();
@@ -2529,11 +2429,6 @@ namespace Comercio.NET
             if (btnFinalizarVenta != null)
             {
                 btnFinalizarVenta.VisibleChanged += (s, e) => ReposicionarAnular();
-            }
-
-            if (btnAgregar != null)
-            {
-                btnAgregar.VisibleChanged += (s, e) => ReposicionarAnular();
             }
 
             // Asegurar que el título no tape controles

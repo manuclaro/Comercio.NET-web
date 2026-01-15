@@ -131,7 +131,8 @@ namespace Comercio.NET.Formularios
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F)
             };
-            cmbMedioPago.Items.AddRange(new string[] { "Efectivo", "Transferencia", "Cheque", "Tarjeta" });
+            // ✅ MODIFICADO: Solo Efectivo, DNI y MercadoPago
+            cmbMedioPago.Items.AddRange(new string[] { "Efectivo", "DNI", "MercadoPago" });
             cmbMedioPago.SelectedIndex = 0;
             this.Controls.Add(cmbMedioPago);
 

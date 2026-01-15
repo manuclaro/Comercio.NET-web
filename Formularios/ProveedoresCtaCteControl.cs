@@ -658,6 +658,7 @@ namespace Comercio.NET.Formularios
 
                 using (var conn = new SqlConnection(cs))
                 {
+                    // ✅ CORREGIDO: Query actualizada para coincidir con la estructura real de PagosProveedores
                     var sql = @"
                 SELECT 
                     cta.Id,
@@ -668,7 +669,11 @@ namespace Comercio.NET.Formularios
                     ISNULL((
                         SELECT SUM(pp.Monto)
                         FROM PagosProveedores pp
-                        WHERE (pp.CompraId = cta.CompraId OR pp.CtaCteId = cta.Id)
+                        WHERE pp.IdProveedor = @proveedorId
+                            AND (
+                                pp.CompraId = cta.CompraId 
+                                OR pp.Observaciones LIKE '%Compra #' + CAST(cta.CompraId AS VARCHAR) + '%'
+                            )
                     ), 0) AS Pagado,
                     cta.Saldo,
                     cta.Observaciones
@@ -700,6 +705,17 @@ namespace Comercio.NET.Formularios
                 }
 
                 lblTotal.Text = $"Saldo Total: {totalSaldo:C2}";
+
+                // ✅ NUEVO: Debug para verificar los valores
+                System.Diagnostics.Debug.WriteLine($"📊 DETALLE CARGADO - Proveedor: {proveedorNombre}");
+                foreach (DataRow row in dt.Rows)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"   Factura: {row["NumeroFactura"]} | " +
+                        $"Total: {row["MontoTotal"]:C2} | " +
+                        $"Pagado: {row["Pagado"]:C2} | " +
+                        $"Saldo: {row["Saldo"]:C2}");
+                }
             }
             catch (Exception ex)
             {
@@ -765,7 +781,12 @@ namespace Comercio.NET.Formularios
 
         private void DgvDetalle_DoubleClick(object sender, EventArgs e)
         {
-            _ = BtnPagar_Click(sender, e);
+            // ✅ MODIFICADO: Abrir historial en lugar de iniciar pago
+            using (var historial = new HistorialPagosProveedorForm(proveedorId, proveedorNombre))
+            {
+                historial.StartPosition = FormStartPosition.CenterParent;
+                historial.ShowDialog(this);
+            }
         }
 
         private async Task BtnPagar_Click(object sender, EventArgs e)
@@ -1214,37 +1235,61 @@ namespace Comercio.NET.Formularios
 
         private void InitializeComponent()
         {
+            // ✅ MODIFICADO: Altura reducida de 550 a 450
             this.Text = $"Historial de Pagos - {proveedorNombre}";
-            this.ClientSize = new Size(900, 550);
+            this.ClientSize = new Size(900, 450); // ✅ REDUCIDO
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 9F);
 
-            var lblDesde = new Label { Text = "Desde:", Left = 12, Top = 14, AutoSize = true };
+            // ✅ NUEVO: Panel compacto para filtros
+            var pnlFiltros = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 45, // ✅ Más compacto
+                Padding = new Padding(12, 8, 12, 8),
+                BackColor = Color.FromArgb(245, 245, 245)
+            };
+
+            var lblDesde = new Label
+            {
+                Text = "Desde:",
+                Left = 0,
+                Top = 10,
+                AutoSize = true
+            };
+
             dtpDesde = new DateTimePicker
             {
                 Left = lblDesde.Right + 6,
-                Top = 12,
-                Width = 120,
+                Top = 8,
+                Width = 110, // ✅ Más estrecho
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Today.AddMonths(-1)
             };
 
-            var lblHasta = new Label { Text = "Hasta:", Left = dtpDesde.Right + 12, Top = 14, AutoSize = true };
+            var lblHasta = new Label
+            {
+                Text = "Hasta:",
+                Left = dtpDesde.Right + 10,
+                Top = 10,
+                AutoSize = true
+            };
+
             dtpHasta = new DateTimePicker
             {
                 Left = lblHasta.Right + 6,
-                Top = 12,
-                Width = 120,
+                Top = 8,
+                Width = 110, // ✅ Más estrecho
                 Format = DateTimePickerFormat.Short
             };
 
             btnFiltrar = new Button
             {
                 Text = "Filtrar",
-                Left = dtpHasta.Right + 12,
-                Top = 10,
-                Width = 90,
-                Height = 28,
+                Left = dtpHasta.Right + 10,
+                Top = 7,
+                Width = 80,
+                Height = 26, // ✅ Más bajo
                 BackColor = Color.FromArgb(33, 150, 243),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
@@ -1252,37 +1297,48 @@ namespace Comercio.NET.Formularios
             btnFiltrar.FlatAppearance.BorderSize = 0;
             btnFiltrar.Click += async (s, e) => await CargarHistorialAsync();
 
+            pnlFiltros.Controls.AddRange(new Control[]
+            {
+            lblDesde, dtpDesde, lblHasta, dtpHasta, btnFiltrar
+            });
+
+            // ✅ MODIFICADO: Grilla más grande (ocupa más espacio)
             dgvHistorial = new DataGridView
             {
-                Left = 12,
-                Top = dtpDesde.Bottom + 12,
-                Width = this.ClientSize.Width - 24,
-                Height = this.ClientSize.Height - 120,
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Dock = DockStyle.Fill, // ✅ Ocupa todo el espacio disponible
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 BackgroundColor = Color.White,
                 RowHeadersVisible = false,
-                AllowUserToAddRows = false
+                AllowUserToAddRows = false,
+                BorderStyle = BorderStyle.None // ✅ Sin borde para ganar espacio
+            };
+
+            // ✅ MODIFICADO: Footer más compacto
+            var pnlFooter = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 35, // ✅ REDUCIDO de ~50 a 35
+                BackColor = Color.FromArgb(250, 250, 250),
+                Padding = new Padding(12, 8, 12, 8)
             };
 
             lblTotal = new Label
             {
                 Text = "Total Pagado: $0.00",
-                Left = 12,
-                Top = dgvHistorial.Bottom + 12,
-                Width = this.ClientSize.Width - 24,
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleRight,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(33, 150, 243)
             };
 
-            this.Controls.AddRange(new Control[]
-            {
-                lblDesde, dtpDesde, lblHasta, dtpHasta, btnFiltrar,
-                dgvHistorial, lblTotal
-            });
+            pnlFooter.Controls.Add(lblTotal);
+
+            // ✅ Agregar controles en orden de apilamiento
+            this.Controls.Add(dgvHistorial);
+            this.Controls.Add(pnlFooter);
+            this.Controls.Add(pnlFiltros);
         }
 
         private string GetConnectionString()
@@ -1294,7 +1350,6 @@ namespace Comercio.NET.Formularios
             return cfg.GetConnectionString("DefaultConnection");
         }
 
-        // ✅ CORREGIDO: Leer de PagoProveedores
         private async Task CargarHistorialAsync()
         {
             try
@@ -1304,7 +1359,6 @@ namespace Comercio.NET.Formularios
 
                 using (var conn = new SqlConnection(cs))
                 {
-                    // ✅ Extraer datos desde Observaciones
                     var sql = @"
                 SELECT 
                     p.Id,
@@ -1324,8 +1378,7 @@ namespace Comercio.NET.Formularios
                         ELSE ''
                     END AS Metodo,
                     p.Monto,
-                    p.Observaciones AS Referencia,
-                    '' AS Usuario
+                    p.Observaciones AS Referencia
                 FROM PagosProveedores p
                 WHERE p.Proveedor = @proveedorNombre
                     AND p.FechaPago BETWEEN @desde AND @hasta
@@ -1372,19 +1425,19 @@ namespace Comercio.NET.Formularios
             {
                 dgvHistorial.Columns["Fecha"].HeaderText = "Fecha";
                 dgvHistorial.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
-                dgvHistorial.Columns["Fecha"].Width = 140;
+                dgvHistorial.Columns["Fecha"].Width = 130; // ✅ Más compacto
             }
 
             if (dgvHistorial.Columns.Contains("NumeroFactura"))
             {
                 dgvHistorial.Columns["NumeroFactura"].HeaderText = "Factura";
-                dgvHistorial.Columns["NumeroFactura"].Width = 120;
+                dgvHistorial.Columns["NumeroFactura"].Width = 100; // ✅ Más estrecho
             }
 
             if (dgvHistorial.Columns.Contains("Metodo"))
             {
                 dgvHistorial.Columns["Metodo"].HeaderText = "Método";
-                dgvHistorial.Columns["Metodo"].Width = 100;
+                dgvHistorial.Columns["Metodo"].Width = 90; // ✅ Más estrecho
             }
 
             if (dgvHistorial.Columns.Contains("Monto"))
@@ -1392,21 +1445,17 @@ namespace Comercio.NET.Formularios
                 dgvHistorial.Columns["Monto"].HeaderText = "Monto";
                 dgvHistorial.Columns["Monto"].DefaultCellStyle.Format = "C2";
                 dgvHistorial.Columns["Monto"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvHistorial.Columns["Monto"].Width = 120;
+                dgvHistorial.Columns["Monto"].Width = 110; // ✅ Más estrecho
                 dgvHistorial.Columns["Monto"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
 
             if (dgvHistorial.Columns.Contains("Referencia"))
             {
                 dgvHistorial.Columns["Referencia"].HeaderText = "Referencia";
-                dgvHistorial.Columns["Referencia"].Width = 180;
+                dgvHistorial.Columns["Referencia"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // ✅ Usa espacio restante
             }
 
-            if (dgvHistorial.Columns.Contains("Usuario"))
-            {
-                dgvHistorial.Columns["Usuario"].HeaderText = "Usuario";
-                dgvHistorial.Columns["Usuario"].Width = 100;
-            }
+            // ✅ ELIMINADA: Columna "Usuario" para ahorrar espacio
         }
     }
 }

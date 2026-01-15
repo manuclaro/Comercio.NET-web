@@ -172,10 +172,10 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 10F)
             };
             cboMetodoPago.Items.AddRange(new object[] {
-                "Efectivo",
-                "DNI",
-                "MercadoPago"
-            });
+        "Efectivo",
+        "DNI",
+        "MercadoPago"
+    });
             cboMetodoPago.SelectedIndex = 0;
             cboMetodoPago.SelectedIndexChanged += (s, e) => ValidarFormulario();
             this.Controls.Add(cboMetodoPago);
@@ -202,7 +202,7 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(txtObservaciones);
             currentY += 80;
 
-            // Panel de botones
+            // ✅✅✅ CORREGIDO: Panel de botones CENTRADO
             var panelBotones = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -211,11 +211,16 @@ namespace Comercio.NET.Formularios
                 Padding = new Padding(10)
             };
 
+            // ✅ CRÍTICO: Calcular el ancho del ClientSize para centrar correctamente
+            int anchoFormulario = this.ClientSize.Width;
+            int anchoBotones = 240; // 100 (Cancelar) + 20 (espacio) + 120 (Confirmar)
+            int posicionInicialX = (anchoFormulario - anchoBotones) / 2;
+
             btnCancelar = new Button
             {
                 Text = "Cancelar",
                 Size = new Size(100, 35),
-                Location = new Point(this.Width - 230, 10),
+                Location = new Point(posicionInicialX, 10), // ✅ CENTRADO
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -230,7 +235,7 @@ namespace Comercio.NET.Formularios
             {
                 Text = "Confirmar Pago",
                 Size = new Size(120, 35),
-                Location = new Point(this.Width - 120, 10),
+                Location = new Point(posicionInicialX + 120, 10), // ✅ A la derecha de Cancelar
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -243,6 +248,16 @@ namespace Comercio.NET.Formularios
             panelBotones.Controls.Add(btnConfirmar);
 
             this.Controls.Add(panelBotones);
+
+            // ✅ NUEVO: Reposicionar botones al cambiar tamaño del formulario
+            this.Resize += (s, e) =>
+            {
+                int nuevoAnchoFormulario = this.ClientSize.Width;
+                int nuevaPosicionX = (nuevoAnchoFormulario - anchoBotones) / 2;
+
+                btnCancelar.Left = nuevaPosicionX;
+                btnConfirmar.Left = nuevaPosicionX + 120;
+            };
         }
 
         private void CargarFacturasPendientes(int idProveedor)
@@ -341,6 +356,8 @@ namespace Comercio.NET.Formularios
         }
 
         // ✅ MÉTODO CORREGIDO con las columnas EXACTAS de la tabla PagoProveedores
+        // ✅ MÉTODO CORREGIDO - Estructura actualizada según error de SQL
+        // ✅ MÉTODO CORREGIDO con las columnas REALES de la tabla PagosProveedores
         public async Task<bool> GuardarPagoEnBaseDatos()
         {
             try
@@ -352,6 +369,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
                 string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
+                int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -361,44 +379,64 @@ namespace Comercio.NET.Formularios
                     {
                         try
                         {
-                            // ✅ CORREGIDO: Usar SOLO las columnas que existen en la tabla PagoProveedores
+                            // ✅ CORREGIDO: Usar las columnas EXACTAS que existen en la tabla
+                            /*
+                             * Columnas disponibles según el log:
+                             * - Id, Proveedor, Monto, Observaciones, NumeroCajero, 
+                             * - UsuarioRegistro, FechaPago, NumeroRemito, NombreEquipo, 
+                             * - FechaRegistro, IdProveedor, CompraId, CtaCteId
+                             */
                             var queryInsertPago = @"
-                                INSERT INTO PagoProveedores 
-                                (CompraId, CtaCteId, MedioPago, Monto, Referencia, FechaPago, Usuario)
-                                VALUES 
-                                (@compraId, @ctaCteId, @medioPago, @monto, @referencia, @fechaPago, @usuario)";
+                        INSERT INTO PagosProveedores 
+                        (IdProveedor, CompraId, CtaCteId, Proveedor, Monto, Observaciones, 
+                         FechaPago, UsuarioRegistro, NumeroCajero, NombreEquipo, FechaRegistro)
+                        VALUES 
+                        (@idProveedor, @compraId, @ctaCteId, @proveedor, @monto, @observaciones,
+                         @fechaPago, @usuarioRegistro, @numeroCajero, @nombreEquipo, @fechaRegistro)";
 
                             using (var cmd = new SqlCommand(queryInsertPago, connection, transaction))
                             {
-                                // CompraId: Puede ser NULL si no se vincula a una factura específica
+                                // IdProveedor
+                                cmd.Parameters.AddWithValue("@idProveedor", ProveedorIdSeleccionado);
+
+                                // CompraId (puede ser NULL)
                                 if (CompraIdSeleccionada.HasValue)
                                     cmd.Parameters.AddWithValue("@compraId", CompraIdSeleccionada.Value);
                                 else
                                     cmd.Parameters.AddWithValue("@compraId", DBNull.Value);
 
-                                // CtaCteId: Puede ser NULL (para pagos generales)
+                                // CtaCteId (siempre NULL por ahora)
                                 cmd.Parameters.AddWithValue("@ctaCteId", DBNull.Value);
 
-                                // MedioPago: Efectivo, DNI, MercadoPago
-                                cmd.Parameters.AddWithValue("@medioPago", MetodoPago);
+                                // Proveedor (nombre del proveedor)
+                                cmd.Parameters.AddWithValue("@proveedor", ProveedorSeleccionado);
 
                                 // Monto
                                 cmd.Parameters.AddWithValue("@monto", Monto);
 
-                                // Referencia: Observaciones completas
-                                string observacionesCompletas = ConstruirObservaciones();
-                                cmd.Parameters.AddWithValue("@referencia",
+                                // Observaciones (incluye método de pago + referencias)
+                                string observacionesCompletas = $"Método: {MetodoPago} | {ConstruirObservaciones()}";
+                                cmd.Parameters.AddWithValue("@observaciones",
                                     string.IsNullOrWhiteSpace(observacionesCompletas) ? (object)DBNull.Value : observacionesCompletas);
 
                                 // FechaPago
                                 cmd.Parameters.AddWithValue("@fechaPago", DateTime.Now);
 
-                                // Usuario
-                                cmd.Parameters.AddWithValue("@usuario", usuario);
+                                // UsuarioRegistro
+                                cmd.Parameters.AddWithValue("@usuarioRegistro", usuario);
+
+                                // NumeroCajero
+                                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+
+                                // NombreEquipo
+                                cmd.Parameters.AddWithValue("@nombreEquipo", Environment.MachineName);
+
+                                // FechaRegistro
+                                cmd.Parameters.AddWithValue("@fechaRegistro", DateTime.Now);
 
                                 await cmd.ExecuteNonQueryAsync();
 
-                                System.Diagnostics.Debug.WriteLine($"✅ Pago insertado en PagoProveedores");
+                                System.Diagnostics.Debug.WriteLine($"✅ Pago insertado en PagosProveedores");
                             }
 
                             // ✅ PASO 2: Actualizar saldo en ProveedoresCtaCte SI hay CompraId
@@ -406,9 +444,9 @@ namespace Comercio.NET.Formularios
                             {
                                 decimal saldoActual = 0m;
                                 var queryObtenerSaldo = @"
-                                    SELECT Saldo 
-                                    FROM ProveedoresCtaCte 
-                                    WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
+                            SELECT Saldo 
+                            FROM ProveedoresCtaCte 
+                            WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
 
                                 using (var cmdSaldo = new SqlCommand(queryObtenerSaldo, connection, transaction))
                                 {
@@ -426,10 +464,10 @@ namespace Comercio.NET.Formularios
                                 if (nuevoSaldo < 0) nuevoSaldo = 0;
 
                                 var queryUpdateSaldo = @"
-                                    UPDATE ProveedoresCtaCte 
-                                    SET Saldo = @nuevoSaldo,
-                                        MontoAdeudado = @nuevoSaldo
-                                    WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
+                            UPDATE ProveedoresCtaCte 
+                            SET Saldo = @nuevoSaldo,
+                                MontoAdeudado = @nuevoSaldo
+                            WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
 
                                 using (var cmdUpdate = new SqlCommand(queryUpdateSaldo, connection, transaction))
                                 {
@@ -443,9 +481,9 @@ namespace Comercio.NET.Formularios
                                 if (nuevoSaldo == 0)
                                 {
                                     var queryUpdateCompra = @"
-                                        UPDATE ComprasProveedores 
-                                        SET EsCtaCte = 0 
-                                        WHERE Id = @compraId";
+                                UPDATE ComprasProveedores 
+                                SET EsCtaCte = 0 
+                                WHERE Id = @compraId";
 
                                     using (var cmdCompra = new SqlCommand(queryUpdateCompra, connection, transaction))
                                     {
@@ -467,10 +505,10 @@ namespace Comercio.NET.Formularios
                             {
                                 // FIFO: Aplicar a factura más antigua
                                 var queryFacturasMasAntiguas = @"
-                                    SELECT TOP 1 CompraId, Saldo 
-                                    FROM ProveedoresCtaCte 
-                                    WHERE ProveedorId = @proveedorId AND Saldo > 0
-                                    ORDER BY Fecha ASC";
+                            SELECT TOP 1 CompraId, Saldo 
+                            FROM ProveedoresCtaCte 
+                            WHERE ProveedorId = @proveedorId AND Saldo > 0
+                            ORDER BY Fecha ASC";
 
                                 int? compraIdMasAntigua = null;
                                 decimal saldoMasAntiguo = 0m;
@@ -495,10 +533,10 @@ namespace Comercio.NET.Formularios
                                     decimal nuevoSaldo = saldoMasAntiguo - montoADescontar;
 
                                     var queryUpdateSaldoFIFO = @"
-                                        UPDATE ProveedoresCtaCte 
-                                        SET Saldo = @nuevoSaldo,
-                                            MontoAdeudado = @nuevoSaldo
-                                        WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
+                                UPDATE ProveedoresCtaCte 
+                                SET Saldo = @nuevoSaldo,
+                                    MontoAdeudado = @nuevoSaldo
+                                WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
 
                                     using (var cmdUpdate = new SqlCommand(queryUpdateSaldoFIFO, connection, transaction))
                                     {
@@ -692,12 +730,15 @@ namespace Comercio.NET.Formularios
 
         private void TxtMonto_KeyPress(object sender, KeyPressEventArgs e)
         {
+            // ✅ Solo permitir números, punto, coma y teclas de control
             if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) &&
                 e.KeyChar != '.' && e.KeyChar != ',')
             {
                 e.Handled = true;
+                return;
             }
 
+            // ✅ Solo permitir un separador decimal (punto o coma)
             if ((e.KeyChar == '.' || e.KeyChar == ',') &&
                 (txtMonto.Text.Contains('.') || txtMonto.Text.Contains(',')))
             {
@@ -712,17 +753,37 @@ namespace Comercio.NET.Formularios
 
         private void ValidarFormulario()
         {
+            // ✅ CORREGIDO: Normalizar el texto antes de parsear
             bool valido = cboProveedor.SelectedIndex > 0 &&
                          !string.IsNullOrWhiteSpace(txtMonto.Text) &&
-                         decimal.TryParse(txtMonto.Text.Replace(',', '.'), out decimal monto) &&
+                         TryParseMontoDecimal(txtMonto.Text, out decimal monto) &&
                          monto > 0;
 
             btnConfirmar.Enabled = valido;
         }
 
+        // ✅ NUEVO: Método helper para parsear montos correctamente
+        private bool TryParseMontoDecimal(string texto, out decimal resultado)
+        {
+            resultado = 0m;
+
+            if (string.IsNullOrWhiteSpace(texto))
+                return false;
+
+            // ✅ Normalizar: reemplazar coma por punto para InvariantCulture
+            string textoNormalizado = texto.Replace(',', '.');
+
+            // ✅ Parsear usando InvariantCulture (punto como decimal)
+            return decimal.TryParse(textoNormalizado,
+                System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out resultado);
+        }
+
         private async void BtnConfirmar_Click(object sender, EventArgs e)
         {
-            if (!decimal.TryParse(txtMonto.Text.Replace(',', '.'), out decimal monto) || monto <= 0)
+            // ✅ CORREGIDO: Usar el método helper
+            if (!TryParseMontoDecimal(txtMonto.Text, out decimal monto) || monto <= 0)
             {
                 MessageBox.Show("Ingrese un monto válido mayor a cero.", "Validación",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -751,6 +812,14 @@ namespace Comercio.NET.Formularios
                 facturaTexto = facturaSeleccionada.Texto;
                 compraId = facturaSeleccionada.CompraId;
             }
+
+            // ✅ Debug mejorado
+            System.Diagnostics.Debug.WriteLine($"💰 MONTO PARSEADO:");
+            System.Diagnostics.Debug.WriteLine($"   Texto ingresado: '{txtMonto.Text}'");
+            System.Diagnostics.Debug.WriteLine($"   Texto normalizado: '{txtMonto.Text.Replace(',', '.')}'");
+            System.Diagnostics.Debug.WriteLine($"   Valor decimal: {monto}");
+            System.Diagnostics.Debug.WriteLine($"   Formato C2: {monto:C2}");
+            System.Diagnostics.Debug.WriteLine($"   Formato N2: {monto:N2}");
 
             var mensaje = $"¿Confirmar pago de {monto:C2} a {nombreProveedor}?\n\n" +
                           $"Factura: {facturaTexto}\n" +
@@ -810,7 +879,7 @@ namespace Comercio.NET.Formularios
         {
             this.SuspendLayout();
             this.ClientSize = new System.Drawing.Size(550, 520);
-            this.Name = "PagoProveedorRapidoForm";
+            this.Name = "PagosProveedorRapidoForm";
             this.ResumeLayout(false);
         }
     }
