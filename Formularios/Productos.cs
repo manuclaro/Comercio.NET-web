@@ -421,42 +421,106 @@ namespace Comercio.NET.Formularios
 
             string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
             var dataTable = new DataTable();
+            var productosConError = new List<string>();
 
             using (var connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
-                // ✅ MODIFICADO: Eliminadas las columnas rubro y proveedor
+                // ✅ MODIFICADO: Query más robusta que maneja valores fuera de rango
                 var query = @"SELECT 
-                        codigo, descripcion, marca, 
-                        CAST(costo AS DECIMAL(10,2)) as costo, 
-                        CAST(porcentaje AS DECIMAL(5,2)) as porcentaje, 
-                        CAST(precio AS DECIMAL(10,2)) as precio, 
-                        CAST(cantidad AS INT) as cantidad, 
-                        CAST(ISNULL(iva, 21.00) AS DECIMAL(5,2)) as iva,
-                        CAST(ISNULL(Activo, 1) AS BIT) as Activo,
-                        CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular,
-                        CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio
-                    FROM Productos 
-                    ORDER BY descripcion";
+                codigo, 
+                descripcion, 
+                marca,
+                -- Validar y limitar valores que puedan causar overflow
+                CASE 
+                    WHEN ISNUMERIC(costo) = 1 AND ABS(CAST(costo AS DECIMAL(18,2))) <= 99999999.99 
+                    THEN CAST(costo AS DECIMAL(10,2))
+                    ELSE 0.00 
+                END as costo,
+                CASE 
+                    WHEN ISNUMERIC(porcentaje) = 1 AND ABS(CAST(porcentaje AS DECIMAL(7,2))) <= 999.99 
+                    THEN CAST(porcentaje AS DECIMAL(5,2))
+                    ELSE 0.00 
+                END as porcentaje,
+                CASE 
+                    WHEN ISNUMERIC(precio) = 1 AND ABS(CAST(precio AS DECIMAL(18,2))) <= 99999999.99 
+                    THEN CAST(precio AS DECIMAL(10,2))
+                    ELSE 0.00 
+                END as precio,
+                CAST(cantidad AS INT) as cantidad, 
+                CAST(ISNULL(iva, 21.00) AS DECIMAL(5,2)) as iva,
+                CAST(ISNULL(Activo, 1) AS BIT) as Activo,
+                CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular,
+                CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio,
+                -- Columna auxiliar para detectar errores
+                CASE 
+                    WHEN (ISNUMERIC(costo) = 0 OR ABS(CAST(costo AS DECIMAL(18,2))) > 99999999.99)
+                      OR (ISNUMERIC(porcentaje) = 0 OR ABS(CAST(porcentaje AS DECIMAL(7,2))) > 999.99)
+                      OR (ISNUMERIC(precio) = 0 OR ABS(CAST(precio AS DECIMAL(18,2))) > 99999999.99)
+                    THEN 1 
+                    ELSE 0 
+                END as TieneError
+            FROM Productos 
+            ORDER BY descripcion";
 
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.CommandTimeout = 60;
                     await Task.Run(() => adapter.Fill(dataTable));
                 }
+
+                // Detectar productos con errores
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    if (row["TieneError"] != DBNull.Value && Convert.ToInt32(row["TieneError"]) == 1)
+                    {
+                        productosConError.Add($"• {row["codigo"]} - {row["descripcion"]}");
+                    }
+                }
+            }
+
+            // ⚠️ Si hay productos con error, mostrar advertencia
+            if (productosConError.Count > 0)
+            {
+                string mensaje = $"⚠️ ATENCIÓN: Se encontraron {productosConError.Count} producto(s) con valores fuera de rango.\n\n" +
+                                "Estos productos tienen valores de COSTO, PORCENTAJE o PRECIO demasiado altos.\n" +
+                                "Se mostrarán en ROJO en la grilla.\n\n" +
+                                "Productos con error:\n" +
+                                string.Join("\n", productosConError.Take(10));
+
+                if (productosConError.Count > 10)
+                {
+                    mensaje += $"\n... y {productosConError.Count - 10} más.";
+                }
+
+                mensaje += "\n\n⚠️ Por favor, edite estos productos para corregir los valores.";
+
+                System.Diagnostics.Debug.WriteLine($"⚠️ Productos con error detectados: {productosConError.Count}");
+
+                // Mostrar mensaje sin bloquear la carga
+                MessageBox.Show(mensaje,
+                    "⚠️ Productos con Valores Inválidos Detectados",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
             }
 
             return dataTable;
         }
 
+        
         private void ConfigurarColumnas()
         {
             if (GrillaProductos?.Columns?.Count == 0) return;
 
             try
             {
-                // ✅ MODIFICADO: Eliminadas las configuraciones de rubro y proveedor
+                // ✅ NUEVO: Ocultar columna auxiliar de error
+                if (GrillaProductos.Columns.Contains("TieneError"))
+                {
+                    GrillaProductos.Columns["TieneError"].Visible = false;
+                }
+
                 var columnConfig = new Dictionary<string, (int width, string header, DataGridViewContentAlignment align, string format)>
                 {
                     ["codigo"] = (90, "CÓDIGO", DataGridViewContentAlignment.MiddleCenter, ""),
@@ -497,7 +561,6 @@ namespace Comercio.NET.Formularios
                         }
                         else if (columnName == "activo" || columnName == "permiteacumular" || columnName == "editarprecio")
                         {
-                            // Configurar columnas checkbox como editables
                             col.ReadOnly = false;
 
                             if (columnName == "activo")
@@ -672,20 +735,42 @@ namespace Comercio.NET.Formularios
             {
                 foreach (DataGridViewRow row in GrillaProductos.Rows)
                 {
-                    var cantidadCell = row.Cells["cantidad"];
-                    if (cantidadCell?.Value != null && decimal.TryParse(cantidadCell.Value.ToString(), out decimal stock))
+                    // ✅ NUEVO: Detectar y resaltar productos con errores
+                    bool tieneError = false;
+                    if (row.Cells["TieneError"]?.Value != DBNull.Value)
                     {
-                        if (stock <= 5)
+                        tieneError = Convert.ToInt32(row.Cells["TieneError"].Value) == 1;
+                    }
+
+                    if (tieneError)
+                    {
+                        // ⚠️ Resaltar TODA LA FILA en rojo si tiene error
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 238);
+                        row.DefaultCellStyle.ForeColor = Color.FromArgb(183, 28, 28);
+                        row.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+                        // Agregar tooltip explicativo
+                        row.Cells["codigo"].ToolTipText = "⚠️ PRODUCTO CON ERROR: Valores fuera de rango. Haga doble clic para editar.";
+                        row.Cells["descripcion"].ToolTipText = "⚠️ PRODUCTO CON ERROR: Valores fuera de rango. Haga doble clic para editar.";
+                    }
+                    else
+                    {
+                        // Formato normal de stock (solo si no hay error)
+                        var cantidadCell = row.Cells["cantidad"];
+                        if (cantidadCell?.Value != null && decimal.TryParse(cantidadCell.Value.ToString(), out decimal stock))
                         {
-                            cantidadCell.Style.BackColor = Color.FromArgb(255, 199, 206);
-                            cantidadCell.Style.ForeColor = Color.FromArgb(183, 28, 28);
-                            cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                        }
-                        else if (stock <= 10)
-                        {
-                            cantidadCell.Style.BackColor = Color.FromArgb(255, 248, 225);
-                            cantidadCell.Style.ForeColor = Color.FromArgb(255, 111, 0);
-                            cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                            if (stock <= 5)
+                            {
+                                cantidadCell.Style.BackColor = Color.FromArgb(255, 199, 206);
+                                cantidadCell.Style.ForeColor = Color.FromArgb(183, 28, 28);
+                                cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                            }
+                            else if (stock <= 10)
+                            {
+                                cantidadCell.Style.BackColor = Color.FromArgb(255, 248, 225);
+                                cantidadCell.Style.ForeColor = Color.FromArgb(255, 111, 0);
+                                cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                            }
                         }
                     }
                 }

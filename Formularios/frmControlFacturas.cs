@@ -58,6 +58,13 @@ namespace Comercio.NET.Formularios
 
         private Button btnEstadisticasOfertas; // NUEVO: Botón para estadísticas de ofertas
 
+        // ✅ NUEVO: Labels para totales por rubro (agregar después de btnEstadisticasOfertas)
+        private Label lblTotalCarniceria;
+        private Label lblTotalVerduleria;
+        private Label lblTotalFiambreria;
+        private Label lblTotalPanaderia;
+        private Label lblTotalAlmacen;
+
         // AGREGAR: Clase auxiliar para los datos de la factura
         private class DatosFactura
         {
@@ -505,12 +512,43 @@ namespace Comercio.NET.Formularios
             dgvVentas.AllowUserToDeleteRows = false;
             dgvVentas.AllowUserToResizeRows = false;
 
-            // Resto de la configuración del panel resumen y totales
+            // ✅ NUEVO: Panel central para totales por rubro
+            var panelTotalesRubros = new Panel();
+            panelTotalesRubros.Name = "panelTotalesRubros";
+            panelTotalesRubros.Dock = DockStyle.Fill;
+            panelTotalesRubros.BackColor = Color.FromArgb(0, 120, 215);
+            panelTotalesRubros.Padding = new Padding(10, 5, 10, 5);
+
+            // ✅ Inicializar labels de rubros
+            lblTotalCarniceria = new Label();
+            lblTotalVerduleria = new Label();
+            lblTotalFiambreria = new Label();
+            lblTotalPanaderia = new Label();
+            lblTotalAlmacen = new Label();
+
+            // ✅ Configurar labels de rubros
+            ConfigurarLabelRubro(lblTotalCarniceria, "🥩 Carnicería: $0,00", Color.FromArgb(244, 67, 54));
+            ConfigurarLabelRubro(lblTotalVerduleria, "🥕 Verdulería: $0,00", Color.FromArgb(76, 175, 80));
+            ConfigurarLabelRubro(lblTotalFiambreria, "🧀 Fiambrería: $0,00", Color.FromArgb(255, 193, 7));
+            ConfigurarLabelRubro(lblTotalPanaderia, "🍞 Panadería: $0,00", Color.FromArgb(156, 39, 176));
+            ConfigurarLabelRubro(lblTotalAlmacen, "🛒 Almacén: $0,00", Color.FromArgb(33, 150, 243));
+
+            // ✅ Agregar labels al panel en orden inverso (Dock.Top los apila de abajo hacia arriba)
+            panelTotalesRubros.Controls.Add(lblTotalAlmacen);
+            panelTotalesRubros.Controls.Add(lblTotalPanaderia);
+            panelTotalesRubros.Controls.Add(lblTotalFiambreria);
+            panelTotalesRubros.Controls.Add(lblTotalVerduleria);
+            panelTotalesRubros.Controls.Add(lblTotalCarniceria);
+
+            // ✅ Configurar panelTotales PRIMERO (antes de agregarlo al panelResumen)
+            panelTotales.BackColor = Color.FromArgb(0, 120, 215);
+            panelTotales.Dock = DockStyle.Right;
+            panelTotales.Width = 350;
+
+            // ✅ Configurar labels de totales/IVA
             lblTotal.Dock = DockStyle.Top;
             lblTotal.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
             lblTotal.ForeColor = Color.White;
-            lblTotal.Size = new Size(909, 23);
-            lblTotal.TabIndex = 2;
             lblTotal.Text = "Total: $0,00";
             lblTotal.TextAlign = ContentAlignment.MiddleRight;
 
@@ -518,8 +556,6 @@ namespace Comercio.NET.Formularios
             lblTotalIVA.Dock = DockStyle.Top;
             lblTotalIVA.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             lblTotalIVA.ForeColor = Color.FromArgb(255, 182, 193);
-            lblTotalIVA.Size = new Size(909, 18);
-            lblTotalIVA.TabIndex = 3;
             lblTotalIVA.Text = "IVA Total: $0,00";
             lblTotalIVA.TextAlign = ContentAlignment.MiddleRight;
 
@@ -527,16 +563,31 @@ namespace Comercio.NET.Formularios
             lblSubtotalSinIVA.Dock = DockStyle.Top;
             lblSubtotalSinIVA.Font = new Font("Segoe UI", 10F);
             lblSubtotalSinIVA.ForeColor = Color.FromArgb(200, 200, 200);
-            lblSubtotalSinIVA.Size = new Size(909, 16);
-            lblSubtotalSinIVA.TabIndex = 4;
             lblSubtotalSinIVA.Text = "Subtotal sin IVA: $0,00";
             lblSubtotalSinIVA.TextAlign = ContentAlignment.MiddleRight;
 
+            lblDetalleTiposFactura.Dock = DockStyle.Top;
+            lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F);
+            lblDetalleTiposFactura.ForeColor = Color.White;
+            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
+
+            lblDetalleFormasPago.Dock = DockStyle.Top;
+            lblDetalleFormasPago.Font = new Font("Segoe UI", 9F);
+            lblDetalleFormasPago.ForeColor = Color.White;
+            lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
+
+            // ✅ Agregar controles al panelTotales en orden inverso (se apilan de abajo hacia arriba)
+            panelTotales.Controls.Add(lblSubtotalSinIVA);
+            panelTotales.Controls.Add(lblTotalIVA);
+            panelTotales.Controls.Add(lblDetalleTiposFactura);
+            panelTotales.Controls.Add(lblDetalleFormasPago);
+            panelTotales.Controls.Add(lblTotal);
+
+            // ✅ Configurar lblCantidadVentas y lblTitulo
             lblCantidadVentas.Dock = DockStyle.Left;
             lblCantidadVentas.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             lblCantidadVentas.ForeColor = Color.White;
-            lblCantidadVentas.Size = new Size(175, 95);
-            lblCantidadVentas.TabIndex = 0;
+            lblCantidadVentas.Width = 175;
             lblCantidadVentas.Text = "Ventas: 0";
             lblCantidadVentas.TextAlign = ContentAlignment.MiddleLeft;
 
@@ -544,38 +595,19 @@ namespace Comercio.NET.Formularios
             lblTitulo.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
             lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
             lblTitulo.Size = new Size(909, 47);
-            lblTitulo.TabIndex = 3;
             lblTitulo.Text = "Control de Facturas - Ventas del Día";
             lblTitulo.TextAlign = ContentAlignment.MiddleCenter;
 
-            // panelResumen y panelTotales
+            // ✅ Configurar y ensamblar panelResumen
             panelResumen.BackColor = Color.FromArgb(0, 120, 215);
-            panelResumen.Controls.Add(lblCantidadVentas);
-            panelResumen.Controls.Add(panelTotales);
             panelResumen.Dock = DockStyle.Bottom;
-            panelResumen.Size = new Size(909, 95);
+            panelResumen.Height = 95;
             panelResumen.Click += FrmControlFacturas_Click;
 
-            panelTotales.BackColor = Color.FromArgb(0, 120, 215);
-            panelTotales.Controls.Add(lblSubtotalSinIVA);
-            panelTotales.Controls.Add(lblTotalIVA);
-            panelTotales.Controls.Add(lblDetalleTiposFactura);
-            panelTotales.Controls.Add(lblDetalleFormasPago);
-            panelTotales.Controls.Add(lblTotal);
-            panelTotales.Dock = DockStyle.Fill;
-            panelTotales.Size = new Size(909, 95);
-
-            lblDetalleTiposFactura.Dock = DockStyle.Top;
-            lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F);
-            lblDetalleTiposFactura.ForeColor = Color.White;
-            lblDetalleTiposFactura.Size = new Size(909, 19);
-            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
-
-            lblDetalleFormasPago.Dock = DockStyle.Top;
-            lblDetalleFormasPago.Font = new Font("Segoe UI", 9F);
-            lblDetalleFormasPago.ForeColor = Color.White;
-            lblDetalleFormasPago.Size = new Size(909, 18);
-            lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
+            // ✅ Agregar paneles en orden correcto: primero totales (derecha), luego rubros (fill), luego cantidad (izquierda)
+            panelResumen.Controls.Add(panelTotalesRubros); // Fill (centro)
+            panelResumen.Controls.Add(panelTotales);       // Right (derecha)
+            panelResumen.Controls.Add(lblCantidadVentas);  // Left (izquierda)
 
             // Añadir controles al formulario
             Controls.Add(dgvVentas);
@@ -602,6 +634,19 @@ namespace Comercio.NET.Formularios
             dtpDesde.Value = ayer;
             dtpHasta.Value = ayer;
             CargarVentasPorFecha(ayer, ayer);
+        }
+
+        // ✅ NUEVO: Método helper para configurar labels de rubros
+        private void ConfigurarLabelRubro(Label label, string texto, Color color)
+        {
+            label.Text = texto;
+            label.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            label.ForeColor = color;
+            label.AutoSize = false;
+            label.Height = 18;
+            label.Dock = DockStyle.Top;
+            label.TextAlign = ContentAlignment.MiddleLeft;
+            label.Padding = new Padding(5, 0, 0, 0);
         }
 
         private void ConfigurarFormulario()
@@ -2274,15 +2319,105 @@ namespace Comercio.NET.Formularios
                 decimal totalVentas = 0;
                 decimal totalIVA = 0;
                 decimal subtotalSinIVA = 0;
-                decimal totalDescuentos = 0; // ✅ NUEVO
+                decimal totalDescuentos = 0;
 
-                // Diccionarios para contar tipos de factura y formas de pago
+                // ✅ NUEVO: Totales por rubro
+                decimal totalCarniceria = 0;
+                decimal totalVerduleria = 0;
+                decimal totalFiambreria = 0;
+                decimal totalPanaderia = 0;
+                decimal totalAlmacen = 0;
+
                 var tiposFactura = new Dictionary<string, int>();
                 var formasPago = new Dictionary<string, decimal>();
-
-                // Variables para debugging
                 int filasConErrores = 0;
                 var errores = new List<string>();
+
+                // ✅ NUEVO: Obtener totales por rubro desde la base de datos
+                try
+                {
+                    var config = new ConfigurationBuilder()
+                        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                        .AddJsonFile("appsettings.json")
+                        .Build();
+                    string connectionString = config.GetConnectionString("DefaultConnection");
+
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        // Obtener remitos del DataTable actual
+                        var remitos = new List<string>();
+                        foreach (DataRow row in dt.Rows)
+                        {
+                            var remito = row["Remito"]?.ToString();
+                            if (!string.IsNullOrEmpty(remito))
+                            {
+                                remitos.Add(remito);
+                            }
+                        }
+
+                        if (remitos.Count > 0)
+                        {
+                            // Query para obtener totales por rubro
+                            var query = $@"
+                        SELECT 
+                            CASE 
+                                WHEN UPPER(p.rubro) = 'CARNICERIA' THEN 'Carniceria'
+                                WHEN UPPER(p.rubro) = 'VERDULERIA' THEN 'Verduleria'
+                                WHEN UPPER(p.rubro) = 'FIAMBRERIA' THEN 'Fiambreria'
+                                WHEN UPPER(p.rubro) = 'PANADERIA' THEN 'Panaderia'
+                                ELSE 'Almacen'
+                            END as Rubro,
+                            SUM(v.total) as Total
+                        FROM Ventas v
+                        INNER JOIN Productos p ON v.codigo = p.codigo
+                        WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                        GROUP BY 
+                            CASE 
+                                WHEN UPPER(p.rubro) = 'CARNICERIA' THEN 'Carniceria'
+                                WHEN UPPER(p.rubro) = 'VERDULERIA' THEN 'Verduleria'
+                                WHEN UPPER(p.rubro) = 'FIAMBRERIA' THEN 'Fiambreria'
+                                WHEN UPPER(p.rubro) = 'PANADERIA' THEN 'Panaderia'
+                                ELSE 'Almacen'
+                            END";
+
+                            using (var cmd = new SqlCommand(query, connection))
+                            {
+                                connection.Open();
+                                using (var reader = cmd.ExecuteReader())
+                                {
+                                    while (reader.Read())
+                                    {
+                                        string rubro = reader["Rubro"]?.ToString() ?? "";
+                                        decimal total = reader["Total"] != DBNull.Value ? Convert.ToDecimal(reader["Total"]) : 0m;
+
+                                        switch (rubro)
+                                        {
+                                            case "Carniceria":
+                                                totalCarniceria = total;
+                                                break;
+                                            case "Verduleria":
+                                                totalVerduleria = total;
+                                                break;
+                                            case "Fiambreria":
+                                                totalFiambreria = total;
+                                                break;
+                                            case "Panaderia":
+                                                totalPanaderia = total;
+                                                break;
+                                            case "Almacen":
+                                                totalAlmacen = total;
+                                                break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error obteniendo totales por rubro: {ex.Message}");
+                }
 
                 foreach (DataRow row in dt.Rows)
                 {
@@ -2291,7 +2426,7 @@ namespace Comercio.NET.Formularios
                         // Procesar Importe Total
                         object importeObj = row["Importe Final"];
                         decimal importe = 0;
-                        
+
                         if (importeObj != null && importeObj != DBNull.Value)
                         {
                             if (importeObj is decimal decimalValue)
@@ -2302,7 +2437,7 @@ namespace Comercio.NET.Formularios
                             else
                             {
                                 string importeStr = importeObj.ToString().Trim();
-                                
+
                                 if (decimal.TryParse(importeStr, out importe))
                                 {
                                     totalVentas += importe;
@@ -2320,7 +2455,7 @@ namespace Comercio.NET.Formularios
                             }
                         }
 
-                        // ✅ NUEVO: Procesar Descuento
+                        // Procesar Descuento
                         object descuentoObj = row["Descuento"];
                         decimal descuento = 0;
 
@@ -2344,10 +2479,10 @@ namespace Comercio.NET.Formularios
                             }
                         }
 
-                        // NUEVO: Procesar IVA
+                        // Procesar IVA
                         object ivaObj = row["IVA"];
                         decimal iva = 0;
-                        
+
                         if (ivaObj != null && ivaObj != DBNull.Value)
                         {
                             if (ivaObj is decimal ivaDecimalValue)
@@ -2358,7 +2493,7 @@ namespace Comercio.NET.Formularios
                             else
                             {
                                 string ivaStr = ivaObj.ToString().Trim();
-                                
+
                                 if (decimal.TryParse(ivaStr, out iva) ||
                                     decimal.TryParse(ivaStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out iva) ||
                                     decimal.TryParse(ivaStr, NumberStyles.Number, CultureInfo.InvariantCulture, out iva))
@@ -2368,10 +2503,10 @@ namespace Comercio.NET.Formularios
                             }
                         }
 
-                        // NUEVO: Procesar Subtotal
+                        // Procesar Subtotal
                         object subtotalObj = row["Subtotal"];
                         decimal subtotal = 0;
-                        
+
                         if (subtotalObj != null && subtotalObj != DBNull.Value)
                         {
                             if (subtotalObj is decimal subtotalDecimalValue)
@@ -2382,7 +2517,7 @@ namespace Comercio.NET.Formularios
                             else
                             {
                                 string subtotalStr = subtotalObj.ToString().Trim();
-                                
+
                                 if (decimal.TryParse(subtotalStr, out subtotal) ||
                                     decimal.TryParse(subtotalStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out subtotal) ||
                                     decimal.TryParse(subtotalStr, NumberStyles.Number, CultureInfo.InvariantCulture, out subtotal))
@@ -2416,7 +2551,6 @@ namespace Comercio.NET.Formularios
                 // Actualizar labels principales
                 lblCantidadVentas.Text = $"Ventas: {cantidadVentas}";
 
-                // ✅ MODIFICADO: Mostrar también el total de descuentos si existe
                 if (totalDescuentos > 0)
                 {
                     lblTotal.Text = $"Total Final: {totalVentas:C2} (Desc: {totalDescuentos:C2})";
@@ -2433,6 +2567,13 @@ namespace Comercio.NET.Formularios
                 var lblSubtotalSinIVA = this.Controls.Find("lblSubtotalSinIVA", true).FirstOrDefault() as Label;
                 if (lblSubtotalSinIVA != null)
                     lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {subtotalSinIVA:C2}";
+
+                // ✅ NUEVO: Actualizar labels de rubros
+                lblTotalCarniceria.Text = $"🥩 Carnicería: {totalCarniceria:C2}";
+                lblTotalVerduleria.Text = $"🥕 Verdulería: {totalVerduleria:C2}";
+                lblTotalFiambreria.Text = $"🧀 Fiambrería: {totalFiambreria:C2}";
+                lblTotalPanaderia.Text = $"🍞 Panadería: {totalPanaderia:C2}";
+                lblTotalAlmacen.Text = $"🛒 Almacén: {totalAlmacen:C2}";
 
                 // Actualizar detalle de tipos de factura
                 string detalleTipos = string.Join(" | ",
@@ -2453,7 +2594,8 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentas} ventas, Total Final: {totalVentas:C2}, Descuentos: {totalDescuentos:C2}, IVA: {totalIVA:C2}, Subtotal: {subtotalSinIVA:C2}, Errores: {filasConErrores}");
+                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentas} ventas, Total Final: {totalVentas:C2}, Descuentos: {totalDescuentos:C2}, IVA: {totalIVA:C2}, Subtotal: {subtotalSinIVA:C2}");
+                System.Diagnostics.Debug.WriteLine($"Totales por Rubro - Carnicería: {totalCarniceria:C2}, Verdulería: {totalVerduleria:C2}, Fiambrería: {totalFiambreria:C2}, Panadería: {totalPanaderia:C2}, Almacén: {totalAlmacen:C2}");
             }
             catch (Exception ex)
             {
@@ -2472,6 +2614,13 @@ namespace Comercio.NET.Formularios
 
                 lblDetalleTiposFactura.Text = "Error calculando tipos";
                 lblDetalleFormasPago.Text = "Error calculando formas de pago";
+
+                // ✅ NUEVO: Resetear labels de rubros en caso de error
+                lblTotalCarniceria.Text = "🥩 Carnicería: $0,00";
+                lblTotalVerduleria.Text = "🥕 Verdulería: $0,00";
+                lblTotalFiambreria.Text = "🧀 Fiambrería: $0,00";
+                lblTotalPanaderia.Text = "🍞 Panadería: $0,00";
+                lblTotalAlmacen.Text = "🛒 Almacén: $0,00";
 
                 MessageBox.Show($"❌ Error calculando totales:\n{ex.Message}",
                        "Error Cálculo Totales", MessageBoxButtons.OK, MessageBoxIcon.Error);
