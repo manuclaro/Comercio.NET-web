@@ -44,11 +44,11 @@ namespace Comercio.NET.Formularios
         private ComboBox cboFiltroFormaPago;
         private Label lblFiltroFormaPago;
 
-        private ComboBox cboFiltroRubro;
-        private Label lblFiltroRubro;
+        //private ComboBox cboFiltroRubro;
+        //private Label lblFiltroRubro;
 
-        private ComboBox cboFiltroProveedor;
-        private Label lblFiltroProveedor;
+        //private ComboBox cboFiltroProveedor;
+        //private Label lblFiltroProveedor;
 
         private CheckedListBox clbFiltroTipoFactura;
         private Label lblFiltroTipoFactura;
@@ -233,32 +233,32 @@ namespace Comercio.NET.Formularios
             cboFiltroFormaPago.SelectedIndexChanged += CboFiltroFormaPago_SelectedIndexChanged;
 
             // NUEVO: Label y ComboBox para filtro por Rubro
-            lblFiltroRubro = new Label();
-            lblFiltroRubro.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            lblFiltroRubro.ForeColor = Color.FromArgb(0, 120, 215);
-            lblFiltroRubro.Text = "Rubro:";
-            lblFiltroRubro.AutoSize = true;
+            //lblFiltroRubro = new Label();
+            //lblFiltroRubro.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            //lblFiltroRubro.ForeColor = Color.FromArgb(0, 120, 215);
+            //lblFiltroRubro.Text = "Rubro:";
+            //lblFiltroRubro.AutoSize = true;
 
-            cboFiltroRubro = new ComboBox();
-            cboFiltroRubro.Name = "cboFiltroRubro";
-            cboFiltroRubro.DropDownStyle = ComboBoxStyle.DropDownList;
-            cboFiltroRubro.Font = new Font("Segoe UI", 10F);
-            cboFiltroRubro.Size = new Size(150, 25);
-            cboFiltroRubro.SelectedIndexChanged += CboFiltroRubro_SelectedIndexChanged;
+            //cboFiltroRubro = new ComboBox();
+            //cboFiltroRubro.Name = "cboFiltroRubro";
+            //cboFiltroRubro.DropDownStyle = ComboBoxStyle.DropDownList;
+            //cboFiltroRubro.Font = new Font("Segoe UI", 10F);
+            //cboFiltroRubro.Size = new Size(150, 25);
+            //cboFiltroRubro.SelectedIndexChanged += CboFiltroRubro_SelectedIndexChanged;
 
-            // NUEVO: Label y ComboBox para filtro por Proveedor
-            lblFiltroProveedor = new Label();
-            lblFiltroProveedor.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            lblFiltroProveedor.ForeColor = Color.FromArgb(0, 120, 215);
-            lblFiltroProveedor.Text = "Proveedor:";
-            lblFiltroProveedor.AutoSize = true;
+            //// NUEVO: Label y ComboBox para filtro por Proveedor
+            //lblFiltroProveedor = new Label();
+            //lblFiltroProveedor.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            //lblFiltroProveedor.ForeColor = Color.FromArgb(0, 120, 215);
+            //lblFiltroProveedor.Text = "Proveedor:";
+            //lblFiltroProveedor.AutoSize = true;
 
-            cboFiltroProveedor = new ComboBox();
-            cboFiltroProveedor.Name = "cboFiltroProveedor";
-            cboFiltroProveedor.DropDownStyle = ComboBoxStyle.DropDownList;
-            cboFiltroProveedor.Font = new Font("Segoe UI", 10F);
-            cboFiltroProveedor.Size = new Size(150, 25);
-            cboFiltroProveedor.SelectedIndexChanged += CboFiltroProveedor_SelectedIndexChanged;
+            //cboFiltroProveedor = new ComboBox();
+            //cboFiltroProveedor.Name = "cboFiltroProveedor";
+            //cboFiltroProveedor.DropDownStyle = ComboBoxStyle.DropDownList;
+            //cboFiltroProveedor.Font = new Font("Segoe UI", 10F);
+            //cboFiltroProveedor.Size = new Size(150, 25);
+            //cboFiltroProveedor.SelectedIndexChanged += CboFiltroProveedor_SelectedIndexChanged;
 
             // Label y CheckedListBox para filtro por Tipo de Factura (multi-selección)
             lblFiltroTipoFactura = new Label();
@@ -420,22 +420,22 @@ namespace Comercio.NET.Formularios
             cboFiltroFormaPago.Location = new Point(lblFiltroFormaPago.Right + 8, y2 + 2);
             panelFiltros.Controls.Add(cboFiltroFormaPago);
 
-            // Label y combo "Rubro"
-            lblFiltroRubro.Location = new Point(cboFiltroFormaPago.Right + 12, y2 + 2);
-            panelFiltros.Controls.Add(lblFiltroRubro);
+            //// Label y combo "Rubro"
+            //lblFiltroRubro.Location = new Point(cboFiltroFormaPago.Right + 12, y2 + 2);
+            //panelFiltros.Controls.Add(lblFiltroRubro);
 
-            cboFiltroRubro.Location = new Point(lblFiltroRubro.Right + 8, y2 + 2);
-            panelFiltros.Controls.Add(cboFiltroRubro);
+            //cboFiltroRubro.Location = new Point(lblFiltroRubro.Right + 8, y2 + 2);
+            //panelFiltros.Controls.Add(cboFiltroRubro);
 
-            // Label y combo "Proveedor"
-            lblFiltroProveedor.Location = new Point(cboFiltroRubro.Right + 12, y2 + 2);
-            panelFiltros.Controls.Add(lblFiltroProveedor);
+            //// Label y combo "Proveedor"
+            //lblFiltroProveedor.Location = new Point(cboFiltroRubro.Right + 12, y2 + 2);
+            //panelFiltros.Controls.Add(lblFiltroProveedor);
 
-            cboFiltroProveedor.Location = new Point(lblFiltroProveedor.Right + 8, y2 + 2);
-            panelFiltros.Controls.Add(cboFiltroProveedor);
+            //cboFiltroProveedor.Location = new Point(lblFiltroProveedor.Right + 8, y2 + 2);
+            //panelFiltros.Controls.Add(cboFiltroProveedor);
 
             // Label para Tipo
-            lblFiltroTipoFactura.Location = new Point(cboFiltroProveedor.Right + 12, y2 + 2);
+            lblFiltroTipoFactura.Location = new Point(cboFiltroFormaPago.Right + 12, y2 + 2);
             panelFiltros.Controls.Add(lblFiltroTipoFactura);
 
             // TextBox que actúa como "checked combo" (solo lectura)
@@ -473,13 +473,12 @@ namespace Comercio.NET.Formularios
 
             // TextBox para filtrar por nombre CtaCte - SE POSICIONA ENCIMA DEL LABEL "Tipo Comprobante"
             // Inicialmente oculto
-            txtFiltroCtaCte.Location = new Point(lblFiltroTipoFactura.Left, y2 + 2);
+            txtFiltroCtaCte.Location = new Point(chkCtaCte.Left, y2 + 2); // ✅ Ahora se alinea con el checkbox
             txtFiltroCtaCte.Size = new Size(140, 25);
             txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
             txtFiltroCtaCte.Visible = false; // OCULTO POR DEFECTO
             txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
-            panelFiltros.Controls.Add(txtFiltroCtaCte);
-            txtFiltroCtaCte.BringToFront(); // Traer al frente para que esté sobre otros controles
+            panelFiltros.Controls.Add(txtFiltroCtaCte); // Traer al frente para que esté sobre otros controles
 
             // Crear el host y el dropdown
             var host = new ToolStripControlHost(clbFiltroTipoFactura) { AutoSize = false, Margin = Padding.Empty, Padding = Padding.Empty };
@@ -526,12 +525,12 @@ namespace Comercio.NET.Formularios
             lblTotalPanaderia = new Label();
             lblTotalAlmacen = new Label();
 
-            // ✅ Configurar labels de rubros
-            ConfigurarLabelRubro(lblTotalCarniceria, "🥩 Carnicería: $0,00", Color.FromArgb(244, 67, 54));
-            ConfigurarLabelRubro(lblTotalVerduleria, "🥕 Verdulería: $0,00", Color.FromArgb(76, 175, 80));
-            ConfigurarLabelRubro(lblTotalFiambreria, "🧀 Fiambrería: $0,00", Color.FromArgb(255, 193, 7));
-            ConfigurarLabelRubro(lblTotalPanaderia, "🍞 Panadería: $0,00", Color.FromArgb(156, 39, 176));
-            ConfigurarLabelRubro(lblTotalAlmacen, "🛒 Almacén: $0,00", Color.FromArgb(33, 150, 243));
+            // ✅ Configurar labels de rubros con colores más claros para mejor contraste
+            ConfigurarLabelRubro(lblTotalCarniceria, "🥩 Carnicería: $0,00", Color.FromArgb(255, 120, 120)); // Rojo claro
+            ConfigurarLabelRubro(lblTotalVerduleria, "🥕 Verdulería: $0,00", Color.FromArgb(144, 238, 144)); // Verde claro
+            ConfigurarLabelRubro(lblTotalFiambreria, "🧀 Fiambrería: $0,00", Color.FromArgb(255, 223, 128)); // Amarillo/dorado claro
+            ConfigurarLabelRubro(lblTotalPanaderia, "🍞 Panadería: $0,00", Color.FromArgb(216, 191, 216)); // Púrpura claro/lavanda
+            ConfigurarLabelRubro(lblTotalAlmacen, "🛒 Almacén: $0,00", Color.FromArgb(173, 216, 230)); // Azul claro
 
             // ✅ Agregar labels al panel en orden inverso (Dock.Top los apila de abajo hacia arriba)
             panelTotalesRubros.Controls.Add(lblTotalAlmacen);
@@ -666,67 +665,67 @@ namespace Comercio.NET.Formularios
         }
 
         // NUEVO: Método para cargar proveedores en el ComboBox
-        private void CargarProveedores()
-        {
-            try
-            {
-                cboFiltroProveedor.Items.Clear();
-                cboFiltroProveedor.Items.Add("Todos los proveedores"); // Opción para mostrar todos
+        //private void CargarProveedores()
+        //{
+        //    try
+        //    {
+        //        cboFiltroProveedor.Items.Clear();
+        //        cboFiltroProveedor.Items.Add("Todos los proveedores"); // Opción para mostrar todos
 
-                var config = new ConfigurationBuilder()
-                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json")
-                    .Build();
-                string connectionString = config.GetConnectionString("DefaultConnection");
+        //        var config = new ConfigurationBuilder()
+        //            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        //            .AddJsonFile("appsettings.json")
+        //            .Build();
+        //        string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    // Obtener proveedores únicos desde la tabla Productos
-                    // que tienen ventas registradas
-                    var query = @"
-                SELECT DISTINCT p.proveedor 
-                FROM Productos p
-                INNER JOIN Ventas v ON p.codigo = v.codigo
-                WHERE p.proveedor IS NOT NULL 
-                  AND RTRIM(LTRIM(p.proveedor)) <> '' 
-                ORDER BY p.proveedor";
+        //        using (var connection = new SqlConnection(connectionString))
+        //        {
+        //            // Obtener proveedores únicos desde la tabla Productos
+        //            // que tienen ventas registradas
+        //            var query = @"
+        //        SELECT DISTINCT p.proveedor 
+        //        FROM Productos p
+        //        INNER JOIN Ventas v ON p.codigo = v.codigo
+        //        WHERE p.proveedor IS NOT NULL 
+        //          AND RTRIM(LTRIM(p.proveedor)) <> '' 
+        //        ORDER BY p.proveedor";
 
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        connection.Open();
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                string proveedor = reader["proveedor"]?.ToString()?.Trim();
-                                if (!string.IsNullOrEmpty(proveedor))
-                                {
-                                    cboFiltroProveedor.Items.Add(proveedor);
-                                }
-                            }
-                        }
-                    }
-                }
+        //            using (var cmd = new SqlCommand(query, connection))
+        //            {
+        //                connection.Open();
+        //                using (var reader = cmd.ExecuteReader())
+        //                {
+        //                    while (reader.Read())
+        //                    {
+        //                        string proveedor = reader["proveedor"]?.ToString()?.Trim();
+        //                        if (!string.IsNullOrEmpty(proveedor))
+        //                        {
+        //                            cboFiltroProveedor.Items.Add(proveedor);
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
 
-                // Seleccionar "Todos los proveedores" por defecto
-                cboFiltroProveedor.SelectedIndex = 0;
+        //        // Seleccionar "Todos los proveedores" por defecto
+        //        cboFiltroProveedor.SelectedIndex = 0;
 
-                System.Diagnostics.Debug.WriteLine($"CargarProveedores: Se cargaron {cboFiltroProveedor.Items.Count - 1} proveedores disponibles");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error cargando proveedores: {ex.Message}");
-                cboFiltroProveedor.Items.Clear();
-                cboFiltroProveedor.Items.Add("Todos los proveedores");
-                cboFiltroProveedor.SelectedIndex = 0;
-            }
-        }
+        //        System.Diagnostics.Debug.WriteLine($"CargarProveedores: Se cargaron {cboFiltroProveedor.Items.Count - 1} proveedores disponibles");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"Error cargando proveedores: {ex.Message}");
+        //        cboFiltroProveedor.Items.Clear();
+        //        cboFiltroProveedor.Items.Add("Todos los proveedores");
+        //        cboFiltroProveedor.SelectedIndex = 0;
+        //    }
+        //}
 
         // NUEVO: Event handler para cambio en el ComboBox de proveedor
-        private void CboFiltroProveedor_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            AplicarFiltros();
-        }
+        //private void CboFiltroProveedor_SelectedIndexChanged(object sender, EventArgs e)
+        //{
+        //    AplicarFiltros();
+        //}
 
         // Cargar tipos de factura en el CheckedListBox
         private void CargarTiposFactura()
@@ -890,61 +889,61 @@ namespace Comercio.NET.Formularios
         }
 
         // NUEVO: Método para cargar rubros en el ComboBox
-        private void CargarRubros()
-        {
-            try
-            {
-                cboFiltroRubro.Items.Clear();
-                cboFiltroRubro.Items.Add("Todos los rubros"); // Opción para mostrar todos
+        //private void CargarRubros()
+        //{
+        //    try
+        //    {
+        //        cboFiltroRubro.Items.Clear();
+        //        cboFiltroRubro.Items.Add("Todos los rubros"); // Opción para mostrar todos
 
-                var config = new ConfigurationBuilder()
-                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json")
-                    .Build();
-                string connectionString = config.GetConnectionString("DefaultConnection");
+        //        var config = new ConfigurationBuilder()
+        //            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        //            .AddJsonFile("appsettings.json")
+        //            .Build();
+        //        string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    // Obtener rubros únicos desde la tabla Productos
-                    // ya que los productos de las ventas están relacionados con sus rubros
-                    var query = @"
-                SELECT DISTINCT p.rubro 
-                FROM Productos p
-                INNER JOIN Ventas v ON p.codigo = v.codigo
-                WHERE p.rubro IS NOT NULL 
-                  AND RTRIM(LTRIM(p.rubro)) <> '' 
-                ORDER BY p.rubro";
+        //        using (var connection = new SqlConnection(connectionString))
+        //        {
+        //            // Obtener rubros únicos desde la tabla Productos
+        //            // ya que los productos de las ventas están relacionados con sus rubros
+        //            var query = @"
+        //        SELECT DISTINCT p.rubro 
+        //        FROM Productos p
+        //        INNER JOIN Ventas v ON p.codigo = v.codigo
+        //        WHERE p.rubro IS NOT NULL 
+        //          AND RTRIM(LTRIM(p.rubro)) <> '' 
+        //        ORDER BY p.rubro";
 
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        connection.Open();
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                string rubro = reader["rubro"]?.ToString()?.Trim();
-                                if (!string.IsNullOrEmpty(rubro))
-                                {
-                                    cboFiltroRubro.Items.Add(rubro);
-                                }
-                            }
-                        }
-                    }
-                }
+        //            using (var cmd = new SqlCommand(query, connection))
+        //            {
+        //                connection.Open();
+        //                using (var reader = cmd.ExecuteReader())
+        //                {
+        //                    while (reader.Read())
+        //                    {
+        //                        string rubro = reader["rubro"]?.ToString()?.Trim();
+        //                        if (!string.IsNullOrEmpty(rubro))
+        //                        {
+        //                            cboFiltroRubro.Items.Add(rubro);
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
 
-                // Seleccionar "Todos los rubros" por defecto
-                cboFiltroRubro.SelectedIndex = 0;
+        //        // Seleccionar "Todos los rubros" por defecto
+        //        cboFiltroRubro.SelectedIndex = 0;
 
-                System.Diagnostics.Debug.WriteLine($"CargarRubros: Se cargaron {cboFiltroRubro.Items.Count - 1} rubros disponibles");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error cargando rubros: {ex.Message}");
-                cboFiltroRubro.Items.Clear();
-                cboFiltroRubro.Items.Add("Todos los rubros");
-                cboFiltroRubro.SelectedIndex = 0;
-            }
-        }
+        //        System.Diagnostics.Debug.WriteLine($"CargarRubros: Se cargaron {cboFiltroRubro.Items.Count - 1} rubros disponibles");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"Error cargando rubros: {ex.Message}");
+        //        cboFiltroRubro.Items.Clear();
+        //        cboFiltroRubro.Items.Add("Todos los rubros");
+        //        cboFiltroRubro.SelectedIndex = 0;
+        //    }
+        //}
 
         // NUEVO: Event handler para cambio en el ComboBox de forma de pago
         private void CboFiltroFormaPago_SelectedIndexChanged(object sender, EventArgs e)
@@ -953,10 +952,10 @@ namespace Comercio.NET.Formularios
         }
 
         // NUEVO: Event handler para cambio en el ComboBox de rubro
-        private void CboFiltroRubro_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            AplicarFiltros();
-        }
+        //private void CboFiltroRubro_SelectedIndexChanged(object sender, EventArgs e)
+        //{
+        //    AplicarFiltros();
+        //}
 
         private void CrearVentanaDetalle()
         {
@@ -1207,8 +1206,8 @@ namespace Comercio.NET.Formularios
 
                         CargarFormasDePago();
                         CargarTiposFactura();
-                        CargarRubros();
-                        CargarProveedores(); // ✅ NUEVO
+                        //CargarRubros();
+                        //CargarProveedores(); // ✅ NUEVO
 
                         if (!string.IsNullOrEmpty(txtFiltroCajero.Text) ||
                             (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text)) ||
@@ -1301,27 +1300,27 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // NUEVO: Filtro por rubro
-                if (cboFiltroRubro.SelectedItem != null)
-                {
-                    string rubroSeleccionado = cboFiltroRubro.SelectedItem.ToString();
-                    if (rubroSeleccionado != "Todos los rubros")
-                    {
-                        filtros.Add($"[Rubro] = '{rubroSeleccionado.Replace("'", "''")}'");
-                    }
-                }
+                //// NUEVO: Filtro por rubro
+                //if (cboFiltroRubro.SelectedItem != null)
+                //{
+                //    string rubroSeleccionado = cboFiltroRubro.SelectedItem.ToString();
+                //    if (rubroSeleccionado != "Todos los rubros")
+                //    {
+                //        filtros.Add($"[Rubro] = '{rubroSeleccionado.Replace("'", "''")}'");
+                //    }
+                //}
 
-                // NUEVO: Filtro por proveedor
-                if (cboFiltroProveedor.SelectedItem != null)
-                {
-                    string proveedorSeleccionado = cboFiltroProveedor.SelectedItem.ToString();
-                    if (proveedorSeleccionado != "Todos los proveedores")
-                    {
-                        // Necesitamos filtrar por productos que pertenezcan al proveedor seleccionado
-                        // Esto requiere verificar si algún producto de la venta pertenece al proveedor
-                        filtros.Add($"[Proveedor] = '{proveedorSeleccionado.Replace("'", "''")}'");
-                    }
-                }
+                //// NUEVO: Filtro por proveedor
+                //if (cboFiltroProveedor.SelectedItem != null)
+                //{
+                //    string proveedorSeleccionado = cboFiltroProveedor.SelectedItem.ToString();
+                //    if (proveedorSeleccionado != "Todos los proveedores")
+                //    {
+                //        // Necesitamos filtrar por productos que pertenezcan al proveedor seleccionado
+                //        // Esto requiere verificar si algún producto de la venta pertenece al proveedor
+                //        filtros.Add($"[Proveedor] = '{proveedorSeleccionado.Replace("'", "''")}'");
+                //    }
+                //}
                 var query = chkCtaCte.Checked;
 
                 // Filtro por tipo de factura (multi-selección)
@@ -1422,13 +1421,13 @@ namespace Comercio.NET.Formularios
                     if (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas")
                         filtrosActivos.Add($"Forma Pago: '{cboFiltroFormaPago.SelectedItem}'");
 
-                    // NUEVO: Agregar rubro a los filtros activos
-                    if (cboFiltroRubro.SelectedItem != null && cboFiltroRubro.SelectedItem.ToString() != "Todos los rubros")
-                        filtrosActivos.Add($"Rubro: '{cboFiltroRubro.SelectedItem}'");
+                    //// NUEVO: Agregar rubro a los filtros activos
+                    //if (cboFiltroRubro.SelectedItem != null && cboFiltroRubro.SelectedItem.ToString() != "Todos los rubros")
+                    //    filtrosActivos.Add($"Rubro: '{cboFiltroRubro.SelectedItem}'");
 
-                    // NUEVO: Agregar proveedor a los filtros activos
-                    if (cboFiltroProveedor.SelectedItem != null && cboFiltroProveedor.SelectedItem.ToString() != "Todos los proveedores")
-                        filtrosActivos.Add($"Proveedor: '{cboFiltroProveedor.SelectedItem}'");
+                    //// NUEVO: Agregar proveedor a los filtros activos
+                    //if (cboFiltroProveedor.SelectedItem != null && cboFiltroProveedor.SelectedItem.ToString() != "Todos los proveedores")
+                    //    filtrosActivos.Add($"Proveedor: '{cboFiltroProveedor.SelectedItem}'");
 
                     string infoFiltros = string.Join(" | ", filtrosActivos);
                     lblTitulo.Text = $"{tituloBase} - Filtrado: {registrosFiltrados}/{totalRegistros} ({infoFiltros})";
@@ -2633,15 +2632,15 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                // TODO: Implementar la ventana de auditoría de eliminados
-                using (var consultaForm = new ConsultaAuditoriaEliminados())
+                // ✅ MODIFICADO: Pasar el rango de fechas actual al formulario de auditoría
+                using (var consultaForm = new ConsultaAuditoriaEliminados(dtpDesde.Value.Date, dtpHasta.Value.Date))
                 {
                     consultaForm.ShowDialog(this);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

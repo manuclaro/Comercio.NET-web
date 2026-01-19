@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -21,7 +21,15 @@ namespace Comercio.NET.Formularios
         public ConsultaAuditoriaEliminados()
         {
             ConfigurarFormulario();
-            ConfigurarEventosTextBoxes(); // NUEVO: Configurar eventos de navegación
+            ConfigurarEventosTextBoxes(); // NUEVO: Configurar eventos de navegaciÃ³n
+        }
+
+        // âœ… NUEVO: Constructor sobrecargado que acepta rango de fechas
+        public ConsultaAuditoriaEliminados(DateTime fechaDesde, DateTime fechaHasta) : this()
+        {
+            // Establecer las fechas recibidas como parÃ¡metros
+            dtpDesde.Value = fechaDesde;
+            dtpHasta.Value = fechaHasta;
         }
 
         protected override void OnShown(EventArgs e)
@@ -30,7 +38,7 @@ namespace Comercio.NET.Formularios
             CargarDatosIniciales();
         }
 
-        // NUEVO: Método para configurar eventos de navegación con Enter en TextBoxes
+        // NUEVO: MÃ©todo para configurar eventos de navegaciÃ³n con Enter en TextBoxes
         private void ConfigurarEventosTextBoxes()
         {
             // Configurar cada TextBox para navegar con Enter
@@ -40,7 +48,7 @@ namespace Comercio.NET.Formularios
             ConfigurarTextBoxNavegacion(txtCajero);
         }
 
-        // NUEVO: Método helper para configurar navegación con Enter en un TextBox específico
+        // NUEVO: MÃ©todo helper para configurar navegaciÃ³n con Enter en un TextBox especÃ­fico
         private void ConfigurarTextBoxNavegacion(TextBox textBox)
         {
             textBox.KeyDown += (sender, e) =>
@@ -49,7 +57,7 @@ namespace Comercio.NET.Formularios
                 {
                     e.SuppressKeyPress = true; // Evitar el beep del sistema
                     
-                    // Navegar al siguiente control en el orden de tabulación
+                    // Navegar al siguiente control en el orden de tabulaciÃ³n
                     this.SelectNextControl(textBox, true, true, true, true);
                 }
             };
@@ -63,7 +71,7 @@ namespace Comercio.NET.Formularios
 
         private void ConfigurarFormulario()
         {
-            this.Text = "Consulta de Productos Eliminados - Auditoría";
+            this.Text = "Consulta de Productos Eliminados - AuditorÃ­a";
             this.Size = new Size(1200, 500);
             this.MinimumSize = new Size(1000, 400);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -75,7 +83,7 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.FromArgb(240, 240, 240)
             };
 
-            // PRIMERA FILA - Filtros de fecha, código, remito y usuario
+            // PRIMERA FILA - Filtros de fecha, cÃ³digo, remito y usuario
             var lblDesde = new Label { Text = "Desde:", Location = new Point(10, 15), Size = new Size(50, 20) };
             dtpDesde = new DateTimePicker { Location = new Point(65, 12), Size = new Size(120, 23), TabIndex = 0 }; // NUEVO: TabIndex
             //dtpDesde.Value = DateTime.Now.AddDays(-30);
@@ -84,7 +92,7 @@ namespace Comercio.NET.Formularios
             var lblHasta = new Label { Text = "Hasta:", Location = new Point(200, 15), Size = new Size(50, 20) };
             dtpHasta = new DateTimePicker { Location = new Point(255, 12), Size = new Size(120, 23), TabIndex = 1 }; // NUEVO: TabIndex
 
-            var lblCodigo = new Label { Text = "Código:", Location = new Point(390, 15), Size = new Size(50, 20) };
+            var lblCodigo = new Label { Text = "CÃ³digo:", Location = new Point(390, 15), Size = new Size(50, 20) };
             txtCodigoProducto = new TextBox { Location = new Point(445, 12), Size = new Size(100, 23), TabIndex = 2 }; // NUEVO: TabIndex
 
             var lblFactura = new Label { Text = "Remito:", Location = new Point(560, 15), Size = new Size(50, 20) };
@@ -180,7 +188,7 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(dgvAuditoria);
             this.Controls.Add(panelFiltros);
 
-            // NUEVO: Configurar el orden de tabulación y foco inicial
+            // NUEVO: Configurar el orden de tabulaciÃ³n y foco inicial
             this.TabStop = true;
             dtpDesde.Select(); // Establecer foco inicial en el primer control
         }
@@ -232,16 +240,16 @@ namespace Comercio.NET.Formularios
                 string query = @"
                     SELECT 
                         IdAuditoriaProductosEliminados,
-                        CodigoProducto AS 'Código',
-                        DescripcionProducto AS 'Descripción Producto',
+                        CodigoProducto AS 'CÃ³digo',
+                        DescripcionProducto AS 'DescripciÃ³n Producto',
                         PrecioUnitario AS 'Precio Unitario',
                         Cantidad AS 'Cant.',
                         TotalEliminado AS 'Total Eliminado',
                         NumeroFactura AS 'Remito',
                         FechaHoraVentaOriginal AS 'Fecha Factura',
-                        FechaEliminacion AS 'Fecha Eliminación',
-                        MotivoEliminacion AS 'Motivo de Eliminación',
-                        CASE WHEN EsCtaCte = 1 THEN 'Sí' ELSE 'No' END AS 'CtaCte',
+                        FechaEliminacion AS 'Fecha EliminaciÃ³n',
+                        MotivoEliminacion AS 'Motivo de EliminaciÃ³n',
+                        CASE WHEN EsCtaCte = 1 THEN 'SÃ­' ELSE 'No' END AS 'CtaCte',
                         UsuarioEliminacion AS 'Usuario',
                         NumeroCajero AS 'Cajero',
                         NombreEquipo AS 'Equipo'
@@ -274,7 +282,7 @@ namespace Comercio.NET.Formularios
                     parametros.Add(new SqlParameter("@usuario", $"%{txtUsuario.Text.Trim()}%"));
                 }
 
-                // NUEVO: Filtro por número de cajero
+                // NUEVO: Filtro por nÃºmero de cajero
                 if (!string.IsNullOrWhiteSpace(txtCajero.Text))
                 {
                     if (int.TryParse(txtCajero.Text.Trim(), out int numeroCajero))
@@ -284,7 +292,7 @@ namespace Comercio.NET.Formularios
                     }
                     else
                     {
-                        MessageBox.Show("El número de cajero debe ser un valor numérico.", "Validación", 
+                        MessageBox.Show("El nÃºmero de cajero debe ser un valor numÃ©rico.", "ValidaciÃ³n", 
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -326,24 +334,24 @@ namespace Comercio.NET.Formularios
                 dgvAuditoria.Columns["Precio Unitario"].Visible = false;
 
 
-            ConfigurarColumna("Código", 100, DataGridViewContentAlignment.MiddleCenter);
-            ConfigurarColumna("Descripción Producto", 180, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("CÃ³digo", 100, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("DescripciÃ³n Producto", 180, DataGridViewContentAlignment.MiddleLeft);
             ConfigurarColumna("Cant.", 40, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Total Eliminado", 100, DataGridViewContentAlignment.MiddleRight, "C2");
             ConfigurarColumna("Remito", 70, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Fecha Factura", 110, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
-            ConfigurarColumna("Fecha Eliminación", 115, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
-            ConfigurarColumna("Motivo de Eliminación", 130, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("Fecha EliminaciÃ³n", 115, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
+            ConfigurarColumna("Motivo de EliminaciÃ³n", 130, DataGridViewContentAlignment.MiddleLeft);
             ConfigurarColumna("CtaCte", 45, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Usuario", 70, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Cajero", 50, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Equipo", 80, DataGridViewContentAlignment.MiddleCenter);
 
-            // Ajustar ancho mínimo de "Motivo de Eliminación" para la expansión automática
-            if (dgvAuditoria.Columns["Motivo de Eliminación"] != null)
+            // Ajustar ancho mÃ­nimo de "Motivo de EliminaciÃ³n" para la expansiÃ³n automÃ¡tica
+            if (dgvAuditoria.Columns["Motivo de EliminaciÃ³n"] != null)
             {
-                dgvAuditoria.Columns["Motivo de Eliminación"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                dgvAuditoria.Columns["Motivo de Eliminación"].MinimumWidth = 200;
+                dgvAuditoria.Columns["Motivo de EliminaciÃ³n"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvAuditoria.Columns["Motivo de EliminaciÃ³n"].MinimumWidth = 200;
             }
         }
 
@@ -377,7 +385,7 @@ namespace Comercio.NET.Formularios
                 {
                     columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 0, 150); // Azul oscuro
                 }
-                else if (nombreColumna == "Motivo de Eliminación") // Columna de motivo
+                else if (nombreColumna == "Motivo de EliminaciÃ³n") // Columna de motivo
                 {
                     columna.DefaultCellStyle.ForeColor = Color.FromArgb(150, 0, 0); // Rojo oscuro
                     columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
@@ -409,7 +417,7 @@ namespace Comercio.NET.Formularios
         {
             if (dgvAuditoria.DataSource == null)
             {
-                MessageBox.Show("No hay datos para exportar.", "Información", 
+                MessageBox.Show("No hay datos para exportar.", "InformaciÃ³n", 
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -424,7 +432,7 @@ namespace Comercio.NET.Formularios
                     try
                     {
                         ExportarACSV(saveDialog.FileName);
-                        MessageBox.Show("Datos exportados correctamente.", "Éxito", 
+                        MessageBox.Show("Datos exportados correctamente.", "Ã‰xito", 
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
