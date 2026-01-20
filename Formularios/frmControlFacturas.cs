@@ -533,7 +533,7 @@ namespace Comercio.NET.Formularios
             panelTotalesRubros.Name = "panelTotalesRubros";
             panelTotalesRubros.Dock = DockStyle.Fill;
             panelTotalesRubros.BackColor = Color.FromArgb(0, 120, 215);
-            panelTotalesRubros.Padding = new Padding(10, 5, 10, 5);
+            panelTotalesRubros.Padding = new Padding(15, 8, 15, 8);
 
             // ✅ Inicializar labels de rubros
             lblTotalCarniceria = new Label();
@@ -542,19 +542,47 @@ namespace Comercio.NET.Formularios
             lblTotalPanaderia = new Label();
             lblTotalAlmacen = new Label();
 
-            // ✅ Configurar labels de rubros con colores más claros para mejor contraste
-            ConfigurarLabelRubro(lblTotalCarniceria, "🥩 Carnicería: $0,00", Color.FromArgb(255, 120, 120)); // Rojo claro
-            ConfigurarLabelRubro(lblTotalVerduleria, "🥕 Verdulería: $0,00", Color.FromArgb(144, 238, 144)); // Verde claro
-            ConfigurarLabelRubro(lblTotalFiambreria, "🧀 Fiambrería: $0,00", Color.FromArgb(255, 223, 128)); // Amarillo/dorado claro
-            ConfigurarLabelRubro(lblTotalPanaderia, "🍞 Panadería: $0,00", Color.FromArgb(216, 191, 216)); // Púrpura claro/lavanda
-            ConfigurarLabelRubro(lblTotalAlmacen, "🛒 Almacén: $0,00", Color.FromArgb(173, 216, 230)); // Azul claro
+            // ✅ CORREGIDO: Usar FlowLayoutPanel para distribución automática
+            var panelColumna1 = new FlowLayoutPanel();
+            panelColumna1.Dock = DockStyle.Left;
+            panelColumna1.Width = 380; // ✅ AUMENTADO: de 280 a 380
+            panelColumna1.FlowDirection = FlowDirection.TopDown;
+            panelColumna1.WrapContents = false;
+            panelColumna1.BackColor = Color.Transparent;
+            panelColumna1.Padding = new Padding(0, 5, 10, 5);
 
-            // ✅ Agregar labels al panel en orden inverso (Dock.Top los apila de abajo hacia arriba)
-            panelTotalesRubros.Controls.Add(lblTotalAlmacen);
-            panelTotalesRubros.Controls.Add(lblTotalPanaderia);
-            panelTotalesRubros.Controls.Add(lblTotalFiambreria);
-            panelTotalesRubros.Controls.Add(lblTotalVerduleria);
-            panelTotalesRubros.Controls.Add(lblTotalCarniceria);
+            var panelColumna2 = new FlowLayoutPanel();
+            panelColumna2.Dock = DockStyle.Left;
+            panelColumna2.Width = 380; // ✅ AUMENTADO: de 280 a 380
+            panelColumna2.FlowDirection = FlowDirection.TopDown;
+            panelColumna2.WrapContents = false;
+            panelColumna2.BackColor = Color.Transparent;
+            panelColumna2.Padding = new Padding(10, 5, 0, 5);
+
+            // ✅ MODIFICADO: Configurar labels con AutoSize true para que se ajusten al contenido
+            ConfigurarLabelRubro(lblTotalCarniceria, "🥩 Carnicería: $0,00", Color.FromArgb(255, 120, 120), 14F);
+            ConfigurarLabelRubro(lblTotalVerduleria, "🥕 Verdulería: $0,00", Color.FromArgb(144, 238, 144), 14F);
+            ConfigurarLabelRubro(lblTotalFiambreria, "🧀 Fiambrería: $0,00", Color.FromArgb(255, 223, 128), 14F);
+            ConfigurarLabelRubro(lblTotalPanaderia, "🍞 Panadería: $0,00", Color.FromArgb(216, 191, 216), 14F);
+            ConfigurarLabelRubro(lblTotalAlmacen, "🛒 Almacén: $0,00", Color.FromArgb(173, 216, 230), 14F);
+
+            // ✅ Distribuir labels en dos columnas
+            // Columna 1: Carnicería, Verdulería, Fiambrería
+            panelColumna1.Controls.Add(lblTotalCarniceria);
+            panelColumna1.Controls.Add(lblTotalVerduleria);
+            panelColumna1.Controls.Add(lblTotalFiambreria);
+
+            // Columna 2: Panadería, Almacén
+            panelColumna2.Controls.Add(lblTotalPanaderia);
+            panelColumna2.Controls.Add(lblTotalAlmacen);
+
+            // ✅ Agregar columnas al panel principal
+            panelTotalesRubros.Controls.Add(panelColumna2);
+            panelTotalesRubros.Controls.Add(panelColumna1);
+
+            // ✅ NUEVO: Agregar columnas al panel principal en orden correcto
+            panelTotalesRubros.Controls.Add(panelColumna2);
+            panelTotalesRubros.Controls.Add(panelColumna1);
 
             // ✅ Configurar panelTotales PRIMERO (antes de agregarlo al panelResumen)
             panelTotales.BackColor = Color.FromArgb(0, 120, 215);
@@ -684,47 +712,46 @@ namespace Comercio.NET.Formularios
 
             using (var connection = new SqlConnection(connectionString))
             {
-                // ✅ CORREGIDO: Usar ISNULL y UPPER correctamente
+                // ✅ MODIFICADO: Solo 4 rubros (Carniceria, Verduleria, Cigarrillos, Almacen)
                 var query = @"
-            WITH VentasConTotal AS (
-                SELECT 
-                    v.NroFactura,
-                    CASE 
-                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
-                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
-                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'PANADERIA'
-                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
-                        ELSE 'ALMACEN'
-                    END AS Rubro,
-                    CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                FROM Ventas v
-                INNER JOIN Productos p ON v.codigo = p.codigo
-                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta";
+                            WITH VentasConTotal AS (
+                                SELECT 
+                                    v.NroFactura,
+                                    CASE 
+                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
+                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
+                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
+                                        ELSE 'ALMACEN'
+                                    END AS Rubro,
+                                    CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                                FROM Ventas v
+                                INNER JOIN Productos p ON v.codigo = p.codigo
+                                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta";
 
-                if (chkCtaCte.Checked)
-                {
-                    query += " AND f.TipoFactura = 'CtaCte'";
-                }
+                                    if (chkCtaCte.Checked)
+                                    {
+                                        query += " AND f.TipoFactura = 'CtaCte'";
+                                    }
 
-                query += @"
-            )
-            SELECT 
-                Rubro,
-                COUNT(DISTINCT NroFactura) AS CantidadFacturas,
-                COUNT(*) AS CantidadProductos,
-                CAST(SUM(
-                    CASE 
-                        WHEN TotalFacturaVentas > 0 
-                        THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
-                        ELSE 0
-                    END
-                ) AS DECIMAL(18,2)) AS MontoTotal
-            FROM VentasConTotal
-            GROUP BY Rubro
-            ORDER BY MontoTotal DESC";
+                                    query += @"
+                            )
+                            SELECT 
+                                Rubro,
+                                COUNT(DISTINCT NroFactura) AS CantidadFacturas,
+                                COUNT(*) AS CantidadProductos,
+                                CAST(SUM(
+                                    CASE 
+                                        WHEN TotalFacturaVentas > 0 
+                                        THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                                        ELSE 0
+                                    END
+                                ) AS DECIMAL(18,2)) AS MontoTotal
+                            FROM VentasConTotal
+                            GROUP BY Rubro
+                            ORDER BY MontoTotal DESC";
 
                 using (var cmd = new SqlCommand(query, connection))
                 {
@@ -770,16 +797,16 @@ namespace Comercio.NET.Formularios
         }
 
         // ✅ NUEVO: Método helper para configurar labels de rubros
-        private void ConfigurarLabelRubro(Label label, string texto, Color color)
+        private void ConfigurarLabelRubro(Label label, string texto, Color color, float fontSize = 9F)
         {
             label.Text = texto;
-            label.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            label.Font = new Font("Segoe UI", fontSize, FontStyle.Bold);
             label.ForeColor = color;
-            label.AutoSize = false;
-            label.Height = 18;
-            label.Dock = DockStyle.Top;
+            label.AutoSize = true; // ✅ CAMBIO: de false a true
+            label.MinimumSize = new Size(250, 24); // ✅ NUEVO: Tamaño mínimo garantizado
             label.TextAlign = ContentAlignment.MiddleLeft;
-            label.Padding = new Padding(5, 0, 0, 0);
+            label.Padding = new Padding(0, 0, 0, 0);
+            label.Margin = new Padding(0, 0, 0, 0); // ✅ NUEVO: Margen entre labels
         }
 
         private void ConfigurarFormulario()

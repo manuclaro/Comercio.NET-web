@@ -569,6 +569,17 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"Cantidad actualizada: ID {idVenta} (código {codigo}) - Nueva cantidad: {nuevaCantidad}");
                     }
                 }
+
+                // ✅ NUEVO: Devolver el foco al campo de búsqueda después de cerrar el diálogo
+                if (!this.IsDisposed && txtBuscarProducto != null && !txtBuscarProducto.IsDisposed)
+                {
+                    // Usar BeginInvoke para asegurar que el foco se establezca después de que termine el evento
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        txtBuscarProducto.Focus();
+                        txtBuscarProducto.SelectAll();
+                    }));
+                }
             }
             catch (Exception ex)
             {
@@ -1875,10 +1886,28 @@ namespace Comercio.NET
                         cantidadPersonalizada = 1;
                     }
                 }
+
+                // ✅ NUEVO: Devolver el foco al campo de búsqueda después de cerrar el diálogo
+                if (!this.IsDisposed && txtBuscarProducto != null && !txtBuscarProducto.IsDisposed)
+                {
+                    // Usar BeginInvoke para asegurar que el foco se establezca después de que termine el evento
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        txtBuscarProducto.Focus();
+                        txtBuscarProducto.SelectAll();
+                    }));
+                }
             }
             else
             {
                 cantidadPersonalizada = 1;
+
+                // ✅ NUEVO: También devolver foco cuando se desmarca el checkbox
+                if (!this.IsDisposed && txtBuscarProducto != null && !txtBuscarProducto.IsDisposed)
+                {
+                    txtBuscarProducto.Focus();
+                    txtBuscarProducto.SelectAll();
+                }
             }
         }
 
