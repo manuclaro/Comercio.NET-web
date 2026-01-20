@@ -536,7 +536,7 @@ namespace Comercio.NET.Formularios
                 using (var cmd = new SqlCommand(queryVerificarTurnos, connection))
                 {
                     int existe = (int)await cmd.ExecuteScalarAsync();
-                    
+
                     if (existe == 0)
                     {
                         var queryCrearTurnos = @"
@@ -550,7 +550,7 @@ namespace Comercio.NET.Formularios
                                 Estado NVARCHAR(20) NOT NULL DEFAULT 'Abierto',
                                 Observaciones NVARCHAR(500) NULL
                             )";
-                        
+
                         using var cmdCrear = new SqlCommand(queryCrearTurnos, connection);
                         await cmdCrear.ExecuteNonQueryAsync();
                     }
@@ -565,7 +565,7 @@ namespace Comercio.NET.Formularios
                 using (var cmd = new SqlCommand(queryVerificarCierre, connection))
                 {
                     int existe = (int)await cmd.ExecuteScalarAsync();
-                    
+
                     if (existe == 0)
                     {
                         var queryCrearCierre = @"
@@ -580,7 +580,7 @@ namespace Comercio.NET.Formularios
                                 FechaCierre DATETIME NOT NULL,
                                 UsuarioCierre NVARCHAR(100) NOT NULL
                             )";
-                        
+
                         using var cmdCrear = new SqlCommand(queryCrearCierre, connection);
                         await cmdCrear.ExecuteNonQueryAsync();
                     }
@@ -605,7 +605,7 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 using var connection = new SqlConnection(connectionString);
-                
+
                 var query = @"
                     SELECT DISTINCT NumeroCajero, 
                            COALESCE(MIN(Nombre + ' ' + Apellido), 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
@@ -625,10 +625,10 @@ namespace Comercio.NET.Formularios
                 {
                     int numero = reader.GetInt32(0);
                     string nombre = reader.GetString(1);
-                    cmbCajero.Items.Add(new 
-                    { 
-                        NumeroCajero = numero, 
-                        Display = $"Cajero #{numero} - {nombre}" 
+                    cmbCajero.Items.Add(new
+                    {
+                        NumeroCajero = numero,
+                        Display = $"Cajero #{numero} - {nombre}"
                     });
                 }
 
@@ -1431,317 +1431,441 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 using var connection = new SqlConnection(connectionString);
-                connection.Open();
+                await connection.OpenAsync();
 
+                // ✅ MEJORADO: Consulta más robusta con debugging completo
                 var query = @"
-                    SELECT TOP 1 Id
-                    FROM TurnosCajero 
-                    WHERE NumeroCajero = @numeroCajero 
-                    AND Estado = 'Abierto'
-                    ORDER BY FechaApertura DESC";
+            SELECT 
+                Id,
+                NumeroCajero,
+                Usuario,
+                Estado,
+                '[' + Estado + ']' AS EstadoConCorchetes,
+                LEN(Estado) AS LongitudEstado,
+                FechaApertura
+            FROM TurnosCajero 
+            WHERE NumeroCajero = @numeroCajero 
+            AND LTRIM(RTRIM(UPPER(Estado))) = 'ABIERTO'
+            ORDER BY FechaApertura DESC";
 
                 using var cmd = new SqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
-                var result = await cmd.ExecuteScalarAsync();
-                return result != null ? (int?)result : null;
+                int? turnoId = null;
+                string debugInfo = "";
+
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        int id = reader.GetInt32(0);
+                        int cajero = reader.GetInt32(1);
+                        string usuario = reader.GetString(2);
+                        string estado = reader.GetString(3);
+                        string estadoCorchetes = reader.GetString(4);
+                        int longitudEstado = reader.GetInt32(5);
+                        DateTime fechaApertura = reader.GetDateTime(6);
+
+                        // ✅ GUARDAR información para debug
+                        debugInfo =
+                            $"✅ TURNO ABIERTO ENCONTRADO:\n" +
+                            $"   ID: {id}\n" +
+                            $"   Cajero: #{cajero}\n" +
+                            $"   Usuario: {usuario}\n" +
+                            $"   Estado: '{estado}'\n" +
+                            $"   Estado con corchetes: {estadoCorchetes}\n" +
+                            $"   Longitud Estado: {longitudEstado}\n" +
+                            $"   Fecha Apertura: {fechaApertura:dd/MM/yyyy HH:mm:ss}";
+
+                        turnoId = id;
+                    }
+                } // ✅ CRÍTICO: Cerrar el primer reader ANTES de ejecutar la consulta de diagnóstico
+
+                // ✅ Si se encontró turno, mostrar info y retornar
+                if (turnoId.HasValue)
+                {
+                    System.Diagnostics.Debug.WriteLine(debugInfo);
+                    return turnoId;
+                }
+
+                // ❌ NO se encontró turno abierto - AHORA ejecutar diagnóstico
+                System.Diagnostics.Debug.WriteLine(
+                    $"❌ NO se encontró turno abierto:\n" +
+                    $"   Cajero buscado: #{numeroCajero}");
+
+                // ✅ NUEVA CONSULTA: Verificar TODOS los turnos de este cajero
+                var queryDiagnostico = @"
+            SELECT 
+                Id,
+                NumeroCajero,
+                Usuario,
+                Estado,
+                '[' + Estado + ']' AS EstadoConCorchetes,
+                LEN(Estado) AS LongitudEstado,
+                FechaApertura,
+                FechaCierre
+            FROM TurnosCajero 
+            WHERE NumeroCajero = @numeroCajero
+            ORDER BY FechaApertura DESC";
+
+                using var cmdDiag = new SqlCommand(queryDiagnostico, connection);
+                cmdDiag.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+
+                using (var readerDiag = await cmdDiag.ExecuteReaderAsync())
+                {
+                    System.Diagnostics.Debug.WriteLine($"\n📋 TODOS LOS TURNOS DEL CAJERO #{numeroCajero}:");
+                    int count = 0;
+
+                    while (await readerDiag.ReadAsync())
+                    {
+                        count++;
+                        int id = readerDiag.GetInt32(0);
+                        int cajeroNum = readerDiag.GetInt32(1);
+                        string usuario = readerDiag.GetString(2);
+                        string estado = readerDiag.GetString(3);
+                        string estadoCorchetes = readerDiag.GetString(4);
+                        int longitudEstado = readerDiag.GetInt32(5);
+                        DateTime fechaApertura = readerDiag.GetDateTime(6);
+                        string fechaCierre = readerDiag["FechaCierre"] != DBNull.Value
+                            ? readerDiag.GetDateTime(7).ToString("dd/MM/yyyy HH:mm:ss")
+                            : "NULL";
+
+                        System.Diagnostics.Debug.WriteLine(
+                            $"   Turno {count}:\n" +
+                            $"      ID: {id}\n" +
+                            $"      Cajero: #{cajeroNum}\n" +
+                            $"      Usuario: {usuario}\n" +
+                            $"      Estado: '{estado}'\n" +
+                            $"      Estado con corchetes: {estadoCorchetes}\n" +
+                            $"      Longitud: {longitudEstado} caracteres\n" +
+                            $"      Apertura: {fechaApertura:dd/MM/yyyy HH:mm:ss}\n" +
+                            $"      Cierre: {fechaCierre}\n");
+                    }
+
+                    if (count == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"   ⚠️ Este cajero NO tiene NINGÚN turno registrado");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"\n💡 DIAGNÓSTICO:\n" +
+                            $"   - Se encontraron {count} turno(s) para el cajero #{numeroCajero}\n" +
+                            $"   - Pero NINGUNO tiene Estado = 'ABIERTO' (normalizado)\n" +
+                            $"   - Revise los valores de Estado arriba para identificar el problema");
+                    }
+                }
+
+                return null;
             }
-            catch
+            catch (Exception ex)
             {
+                // ✅ CRÍTICO: Mostrar el error completo
+                System.Diagnostics.Debug.WriteLine(
+                    $"❌ ERROR en ObtenerTurnoAbiertoId:\n" +
+                    $"   Mensaje: {ex.Message}\n" +
+                    $"   StackTrace: {ex.StackTrace}");
+
+                MessageBox.Show(
+                    $"Error al verificar el turno:\n\n{ex.Message}",
+                    "Error de Base de Datos",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
                 return null;
             }
         }
-    }
 
-    public class DeclaracionMontosForm : Form
-    {
-        private DataGridView dgvDeclaracion;
-        private Button btnGuardar, btnCancelar;
-        private DataGridView dgvReferencia;
-        private decimal montoInicial; // ✅ NUEVO
-
-        public DeclaracionMontosForm(DataGridView dgvReferencia, decimal montoInicial) // ✅ PARÁMETRO NUEVO
+        public class DeclaracionMontosForm : Form
         {
-            this.dgvReferencia = dgvReferencia;
-            this.montoInicial = montoInicial; // ✅ GUARDAR
-            InitializeComponent();
-            CrearControles();
-        }
+            private DataGridView dgvDeclaracion;
+            private Button btnGuardar, btnCancelar;
+            private DataGridView dgvReferencia;
+            private decimal montoInicial; // ✅ NUEVO
 
-        private void InitializeComponent()
-        {
-            this.ClientSize = new Size(600, 250);
-            this.Text = "💵 Declarar Montos";
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-        }
-
-        private void CrearControles()
-        {
-            this.Controls.Add(new Label
+            public DeclaracionMontosForm(DataGridView dgvReferencia, decimal montoInicial) // ✅ PARÁMETRO NUEVO
             {
-                Text = "Ingrese el monto real por cada medio:",
-                Location = new Point(15, 15),
-                Size = new Size(570, 25),
-                Font = new Font("Segoe UI", 10F),
-                ForeColor = Color.FromArgb(63, 81, 181)
-            });
+                this.dgvReferencia = dgvReferencia;
+                this.montoInicial = montoInicial; // ✅ GUARDAR
+                InitializeComponent();
+                CrearControles();
+            }
 
-            dgvDeclaracion = new DataGridView
+            private void InitializeComponent()
             {
-                Location = new Point(15, 45),
-                Size = new Size(570, 150),
-                BackgroundColor = Color.White,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.CellSelect,
-                Font = new Font("Segoe UI", 9F),
-                RowHeadersVisible = false,
-                AllowUserToResizeRows = false,
-                ScrollBars = ScrollBars.Vertical
-            };
+                this.ClientSize = new Size(600, 250);
+                this.Text = "💵 Declarar Montos";
+                this.StartPosition = FormStartPosition.CenterParent;
+                this.FormBorderStyle = FormBorderStyle.FixedDialog;
+                this.MaximizeBox = false;
+                this.MinimizeBox = false;
+            }
 
-            dgvDeclaracion.Columns.Add("MedioPago", "Medio");
-            dgvDeclaracion.Columns.Add("Esperado", "Esperado");
-
-            var colDeclarado = new DataGridViewTextBoxColumn
+            private void CrearControles()
             {
-                Name = "Declarado",
-                HeaderText = "Declarado",
-                ValueType = typeof(string)
-            };
-            dgvDeclaracion.Columns.Add(colDeclarado);
-
-            var colCheck = new DataGridViewCheckBoxColumn
-            {
-                Name = "AutoCopiar",
-                HeaderText = "✓ Auto",
-                Width = 70,
-                ReadOnly = false
-            };
-            dgvDeclaracion.Columns.Add(colCheck);
-
-            dgvDeclaracion.Columns["AutoCopiar"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            dgvDeclaracion.Columns["AutoCopiar"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-
-            dgvDeclaracion.Columns["MedioPago"].ReadOnly = true;
-            dgvDeclaracion.Columns["Esperado"].ReadOnly = true;
-            dgvDeclaracion.Columns["MedioPago"].Width = 140;
-            dgvDeclaracion.Columns["Esperado"].Width = 140;
-            dgvDeclaracion.Columns["Declarado"].Width = 150;
-
-            dgvDeclaracion.RowTemplate.Height = 35;
-
-            // Eventos
-            dgvDeclaracion.CellContentClick += DgvDeclaracion_CellContentClick;
-            dgvDeclaracion.EditingControlShowing += DgvDeclaracion_EditingControlShowing;
-            dgvDeclaracion.CellEndEdit += DgvDeclaracion_CellEndEdit;
-            dgvDeclaracion.CellBeginEdit += DgvDeclaracion_CellBeginEdit;
-
-            var filasOrdenadas = dgvReferencia.Rows.Cast<DataGridViewRow>()
-                .Where(row => !row.IsNewRow)
-                .OrderByDescending(row => row.Cells["MedioPago"].Value?.ToString()?.Equals("Efectivo", StringComparison.OrdinalIgnoreCase) ?? false)
-                .ThenBy(row => row.Cells["MedioPago"].Value?.ToString());
-
-            foreach (DataGridViewRow row in filasOrdenadas)
-            {
-                string medioPago = row.Cells["MedioPago"].Value.ToString();
-                decimal neto = decimal.Parse(row.Cells["Neto"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
-
-                // ✅ SUMAR monto inicial solo al efectivo
-                decimal esperado = neto;
-                if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                this.Controls.Add(new Label
                 {
-                    esperado += montoInicial;
+                    Text = "Ingrese el monto real por cada medio:",
+                    Location = new Point(15, 15),
+                    Size = new Size(570, 25),
+                    Font = new Font("Segoe UI", 10F),
+                    ForeColor = Color.FromArgb(63, 81, 181)
+                });
+
+                dgvDeclaracion = new DataGridView
+                {
+                    Location = new Point(15, 45),
+                    Size = new Size(570, 150),
+                    BackgroundColor = Color.White,
+                    AllowUserToAddRows = false,
+                    AllowUserToDeleteRows = false,
+                    SelectionMode = DataGridViewSelectionMode.CellSelect,
+                    Font = new Font("Segoe UI", 9F),
+                    RowHeadersVisible = false,
+                    AllowUserToResizeRows = false,
+                    ScrollBars = ScrollBars.Vertical
+                };
+
+                dgvDeclaracion.Columns.Add("MedioPago", "Medio");
+                dgvDeclaracion.Columns.Add("Esperado", "Esperado");
+
+                var colDeclarado = new DataGridViewTextBoxColumn
+                {
+                    Name = "Declarado",
+                    HeaderText = "Declarado",
+                    ValueType = typeof(string)
+                };
+                dgvDeclaracion.Columns.Add(colDeclarado);
+
+                var colCheck = new DataGridViewCheckBoxColumn
+                {
+                    Name = "AutoCopiar",
+                    HeaderText = "✓ Auto",
+                    Width = 70,
+                    ReadOnly = false
+                };
+                dgvDeclaracion.Columns.Add(colCheck);
+
+                dgvDeclaracion.Columns["AutoCopiar"].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                dgvDeclaracion.Columns["AutoCopiar"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+                dgvDeclaracion.Columns["MedioPago"].ReadOnly = true;
+                dgvDeclaracion.Columns["Esperado"].ReadOnly = true;
+                dgvDeclaracion.Columns["MedioPago"].Width = 140;
+                dgvDeclaracion.Columns["Esperado"].Width = 140;
+                dgvDeclaracion.Columns["Declarado"].Width = 150;
+
+                dgvDeclaracion.RowTemplate.Height = 35;
+
+                // Eventos
+                dgvDeclaracion.CellContentClick += DgvDeclaracion_CellContentClick;
+                dgvDeclaracion.EditingControlShowing += DgvDeclaracion_EditingControlShowing;
+                dgvDeclaracion.CellEndEdit += DgvDeclaracion_CellEndEdit;
+                dgvDeclaracion.CellBeginEdit += DgvDeclaracion_CellBeginEdit;
+
+                var filasOrdenadas = dgvReferencia.Rows.Cast<DataGridViewRow>()
+                    .Where(row => !row.IsNewRow)
+                    .OrderByDescending(row => row.Cells["MedioPago"].Value?.ToString()?.Equals("Efectivo", StringComparison.OrdinalIgnoreCase) ?? false)
+                    .ThenBy(row => row.Cells["MedioPago"].Value?.ToString());
+
+                foreach (DataGridViewRow row in filasOrdenadas)
+                {
+                    string medioPago = row.Cells["MedioPago"].Value.ToString();
+                    decimal neto = decimal.Parse(row.Cells["Neto"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
+
+                    // ✅ SUMAR monto inicial solo al efectivo
+                    decimal esperado = neto;
+                    if (medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        esperado += montoInicial;
+                    }
+
+                    // ✅ CAMBIO: Precargar valores automáticamente para medios diferentes a Efectivo
+                    bool esEfectivo = medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase);
+                    string valorDeclarado = esEfectivo ? "$0,00" : esperado.ToString("C2");
+                    bool autoCopiado = !esEfectivo; // ✅ Marcar checkbox para no-efectivo
+
+                    dgvDeclaracion.Rows.Add(
+                        medioPago,
+                        esperado.ToString("C2"),
+                        valorDeclarado, // ✅ Precargar si no es efectivo
+                        autoCopiado // ✅ Marcar checkbox si no es efectivo
+                    );
+
+                    // ✅ NUEVO: Colorear la fila de Efectivo para destacarla
+                    int rowIndex = dgvDeclaracion.Rows.Count - 1;
+                    if (esEfectivo)
+                    {
+                        dgvDeclaracion.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(255, 252, 231); // Amarillo claro
+                        dgvDeclaracion.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDeclaracion.Font, FontStyle.Bold);
+                    }
                 }
 
-                // ✅ CAMBIO: Precargar valores automáticamente para medios diferentes a Efectivo
-                bool esEfectivo = medioPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase);
-                string valorDeclarado = esEfectivo ? "$0,00" : esperado.ToString("C2");
-                bool autoCopiado = !esEfectivo; // ✅ Marcar checkbox para no-efectivo
+                this.Controls.Add(dgvDeclaracion);
 
-                dgvDeclaracion.Rows.Add(
-                    medioPago,
-                    esperado.ToString("C2"),
-                    valorDeclarado, // ✅ Precargar si no es efectivo
-                    autoCopiado // ✅ Marcar checkbox si no es efectivo
-                );
-
-                // ✅ NUEVO: Colorear la fila de Efectivo para destacarla
-                int rowIndex = dgvDeclaracion.Rows.Count - 1;
-                if (esEfectivo)
+                btnGuardar = new Button
                 {
-                    dgvDeclaracion.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(255, 252, 231); // Amarillo claro
-                    dgvDeclaracion.Rows[rowIndex].DefaultCellStyle.Font = new Font(dgvDeclaracion.Font, FontStyle.Bold);
+                    Text = "💾 Guardar",
+                    Location = new Point(370, 205),
+                    Size = new Size(100, 32),
+                    BackColor = Color.FromArgb(76, 175, 80),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+                btnGuardar.FlatAppearance.BorderSize = 0;
+                btnGuardar.Click += (s, e) =>
+                {
+                    GuardarDeclaracion();
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                };
+                this.Controls.Add(btnGuardar);
+
+                btnCancelar = new Button
+                {
+                    Text = "❌ Cancelar",
+                    Location = new Point(485, 205),
+                    Size = new Size(100, 32),
+                    BackColor = Color.FromArgb(158, 158, 158),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+                btnCancelar.FlatAppearance.BorderSize = 0;
+                btnCancelar.Click += (s, e) => this.Close();
+                this.Controls.Add(btnCancelar);
+            }
+
+            private void DgvDeclaracion_CellContentClick(object sender, DataGridViewCellEventArgs e)
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex == dgvDeclaracion.Columns["AutoCopiar"].Index)
+                {
+                    dgvDeclaracion.CommitEdit(DataGridViewDataErrorContexts.Commit);
+
+                    bool isChecked = Convert.ToBoolean(dgvDeclaracion.Rows[e.RowIndex].Cells["AutoCopiar"].Value ?? false);
+
+                    if (isChecked)
+                    {
+                        string esperadoStr = dgvDeclaracion.Rows[e.RowIndex].Cells["Esperado"].Value?.ToString() ?? "$0.00";
+                        decimal esperado = decimal.Parse(esperadoStr, System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.CurrentCulture);
+                        dgvDeclaracion.Rows[e.RowIndex].Cells["Declarado"].Value = esperado.ToString("C2");
+                    }
+                    else
+                    {
+                        dgvDeclaracion.Rows[e.RowIndex].Cells["Declarado"].Value = "$0.00";
+                    }
                 }
             }
 
-            this.Controls.Add(dgvDeclaracion);
-
-            btnGuardar = new Button
+            private void DgvDeclaracion_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
             {
-                Text = "💾 Guardar",
-                Location = new Point(370, 205),
-                Size = new Size(100, 32),
-                BackColor = Color.FromArgb(76, 175, 80),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnGuardar.FlatAppearance.BorderSize = 0;
-            btnGuardar.Click += (s, e) =>
-            {
-                GuardarDeclaracion();
-                this.DialogResult = DialogResult.OK;
-                this.Close();
-            };
-            this.Controls.Add(btnGuardar);
-
-            btnCancelar = new Button
-            {
-                Text = "❌ Cancelar",
-                Location = new Point(485, 205),
-                Size = new Size(100, 32),
-                BackColor = Color.FromArgb(158, 158, 158),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            btnCancelar.FlatAppearance.BorderSize = 0;
-            btnCancelar.Click += (s, e) => this.Close();
-            this.Controls.Add(btnCancelar);
-        }
-
-        private void DgvDeclaracion_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex >= 0 && e.ColumnIndex == dgvDeclaracion.Columns["AutoCopiar"].Index)
-            {
-                dgvDeclaracion.CommitEdit(DataGridViewDataErrorContexts.Commit);
-
-                bool isChecked = Convert.ToBoolean(dgvDeclaracion.Rows[e.RowIndex].Cells["AutoCopiar"].Value ?? false);
-
-                if (isChecked)
+                if (dgvDeclaracion.CurrentCell.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
                 {
-                    string esperadoStr = dgvDeclaracion.Rows[e.RowIndex].Cells["Esperado"].Value?.ToString() ?? "$0.00";
-                    decimal esperado = decimal.Parse(esperadoStr, System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.CurrentCulture);
-                    dgvDeclaracion.Rows[e.RowIndex].Cells["Declarado"].Value = esperado.ToString("C2");
-                }
-                else
-                {
-                    dgvDeclaracion.Rows[e.RowIndex].Cells["Declarado"].Value = "$0.00";
+                    TextBox txt = e.Control as TextBox;
+                    if (txt != null)
+                    {
+                        txt.KeyPress -= Txt_KeyPress;
+                        txt.TextChanged -= Txt_TextChanged;
+                        txt.KeyPress += Txt_KeyPress;
+                        txt.TextChanged += Txt_TextChanged;
+                    }
                 }
             }
-        }
 
-        private void DgvDeclaracion_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
-        {
-            if (dgvDeclaracion.CurrentCell.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
+            private void Txt_KeyPress(object sender, KeyPressEventArgs e)
             {
-                TextBox txt = e.Control as TextBox;
-                if (txt != null)
-                {
-                    txt.KeyPress -= Txt_KeyPress;
-                    txt.TextChanged -= Txt_TextChanged;
-                    txt.KeyPress += Txt_KeyPress;
-                    txt.TextChanged += Txt_TextChanged;
-                }
-            }
-        }
-
-        private void Txt_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            // Permitir: números, backspace, delete, coma, punto
-            if (!char.IsDigit(e.KeyChar) && 
-                e.KeyChar != ',' && 
-                e.KeyChar != '.' && 
-                e.KeyChar != (char)Keys.Back)
-            {
-                e.Handled = true;
-            }
-
-            // Evitar múltiples separadores decimales
-            TextBox txt = sender as TextBox;
-            if (txt != null && (e.KeyChar == ',' || e.KeyChar == '.'))
-            {
-                if (txt.Text.Contains(",") || txt.Text.Contains("."))
+                // Permitir: números, backspace, delete, coma, punto
+                if (!char.IsDigit(e.KeyChar) &&
+                    e.KeyChar != ',' &&
+                    e.KeyChar != '.' &&
+                    e.KeyChar != (char)Keys.Back)
                 {
                     e.Handled = true;
                 }
-            }
-        }
 
-        private void Txt_TextChanged(object sender, EventArgs e)
-        {
-            // ✅ SIMPLIFICADO: No hacer nada mientras se escribe
-            // Solo permitir que el usuario escriba números normales
-            // El formato se aplicará al salir de la celda en CellEndEdit
-        }
-
-        private void DgvDeclaracion_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
-        {
-            if (e.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
-            {
-                var cell = dgvDeclaracion.Rows[e.RowIndex].Cells[e.ColumnIndex];
-                string valor = cell.Value?.ToString() ?? "$0,00";
-
-                // Si es $0,00 o $0.00, limpiar para que el usuario pueda escribir desde cero
-                if (valor == "$0,00" || valor == "$0.00")
+                // Evitar múltiples separadores decimales
+                TextBox txt = sender as TextBox;
+                if (txt != null && (e.KeyChar == ',' || e.KeyChar == '.'))
                 {
-                    cell.Value = "";
+                    if (txt.Text.Contains(",") || txt.Text.Contains("."))
+                    {
+                        e.Handled = true;
+                    }
                 }
             }
-        }
 
-    // ✅ MÉTODO: Al terminar de editar, aplicar formato completo
-    private void DgvDeclaracion_CellEndEdit(object sender, DataGridViewCellEventArgs e)
-    {
-        if (e.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
-        {
-            var cell = dgvDeclaracion.Rows[e.RowIndex].Cells[e.ColumnIndex];
-            string valor = cell.Value?.ToString() ?? "";
-
-            string valorLimpio = valor.Replace("$", "").Replace(" ", "").Trim();
-
-            if (string.IsNullOrEmpty(valorLimpio))
+            private void Txt_TextChanged(object sender, EventArgs e)
             {
-                cell.Value = "$0,00";
-                return;
+                // ✅ SIMPLIFICADO: No hacer nada mientras se escribe
+                // Solo permitir que el usuario escriba números normales
+                // El formato se aplicará al salir de la celda en CellEndEdit
             }
 
-            valorLimpio = valorLimpio.Replace(".", "");
-            valorLimpio = valorLimpio.Replace(",", ".");
-
-            if (decimal.TryParse(valorLimpio, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal importe))
+            private void DgvDeclaracion_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
             {
-                cell.Value = importe.ToString("C2", CultureInfo.CurrentCulture);
-            }
-            else
-            {
-                cell.Value = "$0,00";
-            }
-        }
-    }
-
-        private void GuardarDeclaracion()
-        {
-            for (int i = 0; i < dgvDeclaracion.Rows.Count; i++)
-            {
-                string medioPago = dgvDeclaracion.Rows[i].Cells["MedioPago"].Value.ToString();
-                string declaradoStr = dgvDeclaracion.Rows[i].Cells["Declarado"].Value?.ToString() ?? "$0,00";
-                
-                if (decimal.TryParse(declaradoStr, System.Globalization.NumberStyles.Currency, 
-                    System.Globalization.CultureInfo.CurrentCulture, out decimal declarado))
+                if (e.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
                 {
-                    foreach (DataGridViewRow row in dgvReferencia.Rows)
+                    var cell = dgvDeclaracion.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                    string valor = cell.Value?.ToString() ?? "$0,00";
+
+                    // Si es $0,00 o $0.00, limpiar para que el usuario pueda escribir desde cero
+                    if (valor == "$0,00" || valor == "$0.00")
                     {
-                        if (row.IsNewRow) continue;
-                        
-                        if (row.Cells["MedioPago"].Value.ToString() == medioPago)
+                        cell.Value = "";
+                    }
+                }
+            }
+
+            // ✅ MÉTODO: Al terminar de editar, aplicar formato completo
+            private void DgvDeclaracion_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+            {
+                if (e.ColumnIndex == dgvDeclaracion.Columns["Declarado"].Index)
+                {
+                    var cell = dgvDeclaracion.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                    string valor = cell.Value?.ToString() ?? "";
+
+                    string valorLimpio = valor.Replace("$", "").Replace(" ", "").Trim();
+
+                    if (string.IsNullOrEmpty(valorLimpio))
+                    {
+                        cell.Value = "$0,00";
+                        return;
+                    }
+
+                    valorLimpio = valorLimpio.Replace(".", "");
+                    valorLimpio = valorLimpio.Replace(",", ".");
+
+                    if (decimal.TryParse(valorLimpio, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal importe))
+                    {
+                        cell.Value = importe.ToString("C2", CultureInfo.CurrentCulture);
+                    }
+                    else
+                    {
+                        cell.Value = "$0,00";
+                    }
+                }
+            }
+
+            private void GuardarDeclaracion()
+            {
+                for (int i = 0; i < dgvDeclaracion.Rows.Count; i++)
+                {
+                    string medioPago = dgvDeclaracion.Rows[i].Cells["MedioPago"].Value.ToString();
+                    string declaradoStr = dgvDeclaracion.Rows[i].Cells["Declarado"].Value?.ToString() ?? "$0,00";
+
+                    if (decimal.TryParse(declaradoStr, System.Globalization.NumberStyles.Currency,
+                        System.Globalization.CultureInfo.CurrentCulture, out decimal declarado))
+                    {
+                        foreach (DataGridViewRow row in dgvReferencia.Rows)
                         {
-                            row.Cells["Declarado"].Value = declarado.ToString("C2");
-                            break;
+                            if (row.IsNewRow) continue;
+
+                            if (row.Cells["MedioPago"].Value.ToString() == medioPago)
+                            {
+                                row.Cells["Declarado"].Value = declarado.ToString("C2");
+                                break;
+                            }
                         }
                     }
                 }

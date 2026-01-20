@@ -1600,18 +1600,28 @@ namespace Comercio.NET
                     // ✅ EJECUTAR el botón Agregar
                     btnAgregar.PerformClick();
 
-                    // ✅ DEVOLVER inmediatamente el foco a txtBuscarProducto
-                    // Usar BeginInvoke para que se ejecute después del PerformClick
-                    this.BeginInvoke(new Action(() =>
+                    // ✅ CRÍTICO: Verificar que el formulario NO esté dispuesto antes de BeginInvoke
+                    if (this.IsHandleCreated && !this.IsDisposed && !this.Disposing)
                     {
-                        txtBuscarProducto.Focus();
-                        txtBuscarProducto.SelectAll();
-                    }));
+                        this.BeginInvoke(new Action(() =>
+                        {
+                            // ✅ DOBLE VERIFICACIÓN dentro del BeginInvoke
+                            if (!this.IsDisposed && txtBuscarProducto != null && !txtBuscarProducto.IsDisposed)
+                            {
+                                txtBuscarProducto.Focus();
+                                txtBuscarProducto.SelectAll();
+                            }
+                        }));
+                    }
                 }
                 else
                 {
                     // Si el campo está vacío o deshabilitado, ir al siguiente control
-                    this.SelectNextControl(txtPrecio, true, true, true, true);
+                    // ✅ TAMBIÉN validar aquí
+                    if (!this.IsDisposed)
+                    {
+                        this.SelectNextControl(txtPrecio, true, true, true, true);
+                    }
                 }
             }
         }
@@ -2704,6 +2714,146 @@ namespace Comercio.NET
 
         }
 
+        // ✅ NUEVO: Método para validar turno abierto antes del primer producto
+        private async Task<bool> ValidarTurnoAbiertoAntesPrimerProducto()
+        {
+            try
+            {
+                var usuarioActual = AuthenticationService.SesionActual?.Usuario;
+
+                if (usuarioActual == null)
+                {
+                    MessageBox.Show(
+                        "❌ ERROR DE SESIÓN\n\n" +
+                        "No hay sesión activa.\n" +
+                        "El formulario de ventas se cerrará por seguridad.",
+                        "Sesión Inactiva",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+
+                    this.Close();
+                    return false;
+                }
+
+                int numeroCajero = usuarioActual.NumeroCajero;
+
+                // Verificar si tiene turno abierto
+                bool tieneTurnoAbierto = VerificarTurnoAbierto(numeroCajero);
+
+                if (tieneTurnoAbierto)
+                {
+                    // ✅ Todo OK, tiene turno abierto
+                    System.Diagnostics.Debug.WriteLine(
+                        $"✅ Validación de turno OK - Cajero #{numeroCajero} tiene turno abierto");
+                    return true;
+                }
+
+                // ❌ NO tiene turno abierto
+                System.Diagnostics.Debug.WriteLine(
+                    $"⚠️ Cajero #{numeroCajero} NO tiene turno abierto");
+
+                var resultado = MessageBox.Show(
+                    $"⚠️ SIN TURNO ABIERTO\n\n" +
+                    $"El cajero #{numeroCajero} ({usuarioActual.NombreUsuario}) no tiene un turno abierto.\n\n" +
+                    $"No se puede iniciar una venta sin turno activo.\n\n" +
+                    $"¿Desea abrir un turno ahora para continuar?",
+                    "Turno Requerido",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button1);
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Abrir formulario de apertura de turno
+                    using (var formApertura = new AperturaTurnoCajeroForm())
+                    {
+                        var resultadoApertura = formApertura.ShowDialog(this);
+
+                        if (resultadoApertura == DialogResult.OK)
+                        {
+                            // Verificar nuevamente si se abrió correctamente
+                            if (VerificarTurnoAbierto(numeroCajero))
+                            {
+                                MessageBox.Show(
+                                    $"✅ TURNO ABIERTO\n\n" +
+                                    $"Cajero: {usuarioActual.NombreUsuario}\n" +
+                                    $"Número: #{numeroCajero}\n\n" +
+                                    $"Ahora puede continuar con las ventas.",
+                                    "Turno Activado",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Information);
+
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"✅ Turno abierto exitosamente - Cajero #{numeroCajero}");
+
+                                return true; // Continuar con la venta
+                            }
+                            else
+                            {
+                                MessageBox.Show(
+                                    "⚠️ ERROR EN APERTURA\n\n" +
+                                    "El turno no pudo ser verificado después de la apertura.\n\n" +
+                                    "El formulario de ventas se cerrará.\n" +
+                                    "Intente abrir el turno desde el menú Caja > Apertura de Turno.",
+                                    "Error de Verificación",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Error);
+
+                                this.Close();
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            // Usuario canceló la apertura
+                            MessageBox.Show(
+                                "⚠️ APERTURA CANCELADA\n\n" +
+                                "Sin turno abierto no se pueden realizar ventas.\n\n" +
+                                "El formulario de ventas se cerrará.",
+                                "Operación Cancelada",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+
+                            this.Close();
+                            return false;
+                        }
+                    }
+                }
+                else
+                {
+                    // Usuario eligió NO abrir turno
+                    MessageBox.Show(
+                        "⚠️ VENTA CANCELADA\n\n" +
+                        "Sin turno abierto no se pueden realizar ventas.\n\n" +
+                        "El formulario de ventas se cerrará.\n\n" +
+                        "Puede abrir un turno desde el menú Caja > Apertura de Turno.",
+                        "Sin Turno Activo",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    this.Close();
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"❌ Error en ValidarTurnoAbiertoAntesPrimerProducto: {ex.Message}");
+
+                MessageBox.Show(
+                    $"❌ ERROR DE VALIDACIÓN\n\n" +
+                    $"Error al verificar el turno del cajero:\n" +
+                    $"{ex.Message}\n\n" +
+                    $"El formulario de ventas se cerrará por seguridad.",
+                    "Error Crítico",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                this.Close();
+                return false;
+            }
+        }
+
         private async void btnAgregar_Click(object sender, EventArgs e)
         {
             string textoIngresado = txtBuscarProducto.Text.Trim();
@@ -2713,6 +2863,16 @@ namespace Comercio.NET
                 MessageBox.Show("Ingrese un código de producto válido.");
                 txtBuscarProducto.Focus();
                 return;
+            }
+
+            // ✅✅✅ NUEVA VALIDACIÓN: Verificar turno abierto SOLO en el primer producto
+            if (dataGridView1.Rows.Count == 0) // Si es el primer producto
+            {
+                if (!await ValidarTurnoAbiertoAntesPrimerProducto())
+                {
+                    // El método ya mostró el mensaje y cerró el formulario si era necesario
+                    return;
+                }
             }
 
             var resultadoCodigo = ProcesarCodigo(textoIngresado);

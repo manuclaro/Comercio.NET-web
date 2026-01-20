@@ -201,10 +201,10 @@ namespace Comercio.NET.Services
             // Usuarios por defecto para desarrollo/pruebas
             var usuariosDefecto = new Dictionary<string, (string password, NivelUsuario nivel, string nombre, string apellido)>
             {
-                { "admin", ("admin", NivelUsuario.Administrador, "Administrador", "Sistema") },
-                { "supervisor", ("supervisor", NivelUsuario.Supervisor, "Supervisor", "Sistema") },
-                { "vendedor", ("vendedor", NivelUsuario.Vendedor, "Vendedor", "Sistema") },
-                { "invitado", ("invitado", NivelUsuario.Invitado, "Invitado", "Sistema") }
+                { "admin", ("1506", NivelUsuario.Administrador, "Administrador", "Sistema") },
+                //{ "supervisor", ("supervisor", NivelUsuario.Supervisor, "Supervisor", "Sistema") },
+                //{ "vendedor", ("vendedor", NivelUsuario.Vendedor, "Vendedor", "Sistema") },
+                //{ "invitado", ("invitado", NivelUsuario.Invitado, "Invitado", "Sistema") }
             };
 
             if (usuariosDefecto.ContainsKey(nombreUsuario.ToLower()) && 
