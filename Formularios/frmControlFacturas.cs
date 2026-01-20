@@ -65,6 +65,8 @@ namespace Comercio.NET.Formularios
         private Label lblTotalPanaderia;
         private Label lblTotalAlmacen;
 
+        private Button btnReportePorRubro;
+
         // AGREGAR: Clase auxiliar para los datos de la factura
         private class DatosFactura
         {
@@ -348,6 +350,21 @@ namespace Comercio.NET.Formularios
             btnIvaTop.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             panelFiltros.Controls.Add(btnIvaTop);
 
+            btnReportePorRubro = new Button
+            {
+                Text = "📊 Reporte por Rubro",
+                Location = new Point(panelFiltros.Width - 560, y1), // ✅ CAMBIO: Mover a la izquierda de Exportar
+                Size = new Size(150, 28), // ✅ CAMBIO: Reducir ancho de 150 a 130
+                BackColor = Color.FromArgb(156, 39, 176), // Color morado
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right // ✅ NUEVO: Agregar anchor
+            };
+            btnReportePorRubro.FlatAppearance.BorderSize = 0;
+            btnReportePorRubro.Click += BtnReportePorRubro_Click;
+            panelFiltros.Controls.Add(btnReportePorRubro);
+
             // ✅ Botón de Estadísticas de Ofertas
             btnEstadisticasOfertas = new Button();
             btnEstadisticasOfertas.BackColor = Color.FromArgb(0, 150, 136);
@@ -624,6 +641,123 @@ namespace Comercio.NET.Formularios
             panelResumen.ResumeLayout(false);
             panelTotales.ResumeLayout(false);
             ResumeLayout(false);
+        }
+
+        private async void BtnReportePorRubro_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                DateTime desde = dtpDesde.Value.Date;
+                DateTime hasta = dtpHasta.Value.Date.AddDays(1).AddSeconds(-1);
+
+                var resumenRubros = await ObtenerResumenPorRubro(desde, hasta);
+
+                if (resumenRubros == null || resumenRubros.Count == 0)
+                {
+                    MessageBox.Show("No hay ventas en el período seleccionado.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Crear y mostrar el formulario de reporte
+                using (var formReporte = new ResumenRubrosForm(desde, hasta, resumenRubros, chkCtaCte.Checked))
+                {
+                    formReporte.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al generar reporte por rubro: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task<List<ResumenRubroGroup>> ObtenerResumenPorRubro(DateTime desde, DateTime hasta)
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            string connectionString = config.GetConnectionString("DefaultConnection");
+            var resultado = new List<ResumenRubroGroup>();
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                // ✅ CORREGIDO: Usar ISNULL y UPPER correctamente
+                var query = @"
+            WITH VentasConTotal AS (
+                SELECT 
+                    v.NroFactura,
+                    CASE 
+                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
+                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
+                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'PANADERIA'
+                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
+                        ELSE 'ALMACEN'
+                    END AS Rubro,
+                    CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                FROM Ventas v
+                INNER JOIN Productos p ON v.codigo = p.codigo
+                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta";
+
+                if (chkCtaCte.Checked)
+                {
+                    query += " AND f.TipoFactura = 'CtaCte'";
+                }
+
+                query += @"
+            )
+            SELECT 
+                Rubro,
+                COUNT(DISTINCT NroFactura) AS CantidadFacturas,
+                COUNT(*) AS CantidadProductos,
+                CAST(SUM(
+                    CASE 
+                        WHEN TotalFacturaVentas > 0 
+                        THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                        ELSE 0
+                    END
+                ) AS DECIMAL(18,2)) AS MontoTotal
+            FROM VentasConTotal
+            GROUP BY Rubro
+            ORDER BY MontoTotal DESC";
+
+                using (var cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@desde", desde);
+                    cmd.Parameters.AddWithValue("@hasta", hasta);
+
+                    connection.Open();
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (reader.Read())
+                        {
+                            resultado.Add(new ResumenRubroGroup
+                            {
+                                Rubro = reader.GetString(0),
+                                CantidadFacturas = reader.GetInt32(1),
+                                CantidadProductos = reader.GetInt32(2),
+                                MontoTotal = reader.GetDecimal(3)
+                            });
+                        }
+                    }
+                }
+            }
+
+            return resultado;
+        }
+
+        // Clase auxiliar para agrupar datos por rubro
+        public class ResumenRubroGroup
+        {
+            public string Rubro { get; set; }
+            public int CantidadFacturas { get; set; }
+            public int CantidadProductos { get; set; }
+            public decimal MontoTotal { get; set; }
         }
 
         // ✅ NUEVO: Event handler para el botón Ayer
@@ -1897,6 +2031,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
+
         // AGREGAR: Método para formatear columnas del DataGridView de detalle
         private void FormatearColumnasDetalle(DataGridView dgvDetalle)
         {
@@ -2332,7 +2467,7 @@ namespace Comercio.NET.Formularios
                 int filasConErrores = 0;
                 var errores = new List<string>();
 
-                // ✅ NUEVO: Obtener totales por rubro desde la base de datos
+                // ✅ CORREGIDO: Obtener totales por rubro CON PRORRATEO de ImporteFinal
                 try
                 {
                     var config = new ConfigurationBuilder()
@@ -2356,28 +2491,37 @@ namespace Comercio.NET.Formularios
 
                         if (remitos.Count > 0)
                         {
-                            // Query para obtener totales por rubro
+                            // ✅ CORREGIDO: Query con PRORRATEO de ImporteFinal
                             var query = $@"
-                        SELECT 
-                            CASE 
-                                WHEN UPPER(p.rubro) = 'CARNICERIA' THEN 'Carniceria'
-                                WHEN UPPER(p.rubro) = 'VERDULERIA' THEN 'Verduleria'
-                                WHEN UPPER(p.rubro) = 'FIAMBRERIA' THEN 'Fiambreria'
-                                WHEN UPPER(p.rubro) = 'PANADERIA' THEN 'Panaderia'
-                                ELSE 'Almacen'
-                            END as Rubro,
-                            SUM(v.total) as Total
-                        FROM Ventas v
-                        INNER JOIN Productos p ON v.codigo = p.codigo
-                        WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
-                        GROUP BY 
-                            CASE 
-                                WHEN UPPER(p.rubro) = 'CARNICERIA' THEN 'Carniceria'
-                                WHEN UPPER(p.rubro) = 'VERDULERIA' THEN 'Verduleria'
-                                WHEN UPPER(p.rubro) = 'FIAMBRERIA' THEN 'Fiambreria'
-                                WHEN UPPER(p.rubro) = 'PANADERIA' THEN 'Panaderia'
-                                ELSE 'Almacen'
-                            END";
+                                            WITH VentasConTotal AS (
+                                                SELECT 
+                                                    v.NroFactura,
+                                                    CASE 
+                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
+                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
+                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
+                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
+                                                        ELSE 'Almacen'
+                                                    END as Rubro,
+                                                    CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                                                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                                                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                                                FROM Ventas v
+                                                INNER JOIN Productos p ON v.codigo = p.codigo
+                                                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                                                WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                                            )
+                                            SELECT 
+                                                Rubro,
+                                                CAST(SUM(
+                                                    CASE 
+                                                        WHEN TotalFacturaVentas > 0 
+                                                        THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                                                        ELSE 0
+                                                    END
+                                                ) AS DECIMAL(18,2)) AS Total
+                                            FROM VentasConTotal
+                                            GROUP BY Rubro";
 
                             using (var cmd = new SqlCommand(query, connection))
                             {
@@ -2547,12 +2691,13 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // Actualizar labels principales
+                // ✅ CORREGIDO: Actualizar labels principales - SIEMPRE mostrar descuento si existe
                 lblCantidadVentas.Text = $"Ventas: {cantidadVentas}";
 
+                // ✅ CAMBIO: Mostrar descuento en línea separada siempre
                 if (totalDescuentos > 0)
                 {
-                    lblTotal.Text = $"Total Final: {totalVentas:C2} (Desc: {totalDescuentos:C2})";
+                    lblTotal.Text = $"Total Final: {totalVentas:C2}\n(Desc: {totalDescuentos:C2})";
                 }
                 else
                 {
