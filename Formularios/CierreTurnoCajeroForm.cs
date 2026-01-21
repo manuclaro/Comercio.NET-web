@@ -606,13 +606,17 @@ namespace Comercio.NET.Formularios
 
                 using var connection = new SqlConnection(connectionString);
 
+                // ✅ MODIFICADO: Solo cargar cajeros con turnos abiertos
                 var query = @"
-                    SELECT DISTINCT NumeroCajero, 
-                           COALESCE(MIN(Nombre + ' ' + Apellido), 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
-                    FROM Usuarios
-                    WHERE Activo = 1
-                    GROUP BY NumeroCajero
-                    ORDER BY NumeroCajero";
+            SELECT DISTINCT 
+                t.NumeroCajero, 
+                COALESCE(MIN(u.Nombre + ' ' + u.Apellido), 'Cajero ' + CAST(t.NumeroCajero AS NVARCHAR)) as NombreCajero,
+                MIN(t.FechaApertura) as FechaApertura
+            FROM TurnosCajero t
+            LEFT JOIN Usuarios u ON t.NumeroCajero = u.NumeroCajero AND u.Activo = 1
+            WHERE t.Estado = 'Abierto'
+            GROUP BY t.NumeroCajero
+            ORDER BY t.NumeroCajero";
 
                 using var cmd = new SqlCommand(query, connection);
                 connection.Open();
@@ -620,21 +624,38 @@ namespace Comercio.NET.Formularios
                 cmbCajero.Items.Clear();
                 cmbCajero.Items.Add(new { NumeroCajero = -1, Display = "-- Seleccionar --" });
 
+                int cajerosEncontrados = 0;
+
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
                 {
                     int numero = reader.GetInt32(0);
                     string nombre = reader.GetString(1);
+                    DateTime fechaApertura = reader.GetDateTime(2);
+
                     cmbCajero.Items.Add(new
                     {
                         NumeroCajero = numero,
                         Display = $"Cajero #{numero} - {nombre}"
                     });
+
+                    cajerosEncontrados++;
                 }
 
                 cmbCajero.DisplayMember = "Display";
                 cmbCajero.ValueMember = "NumeroCajero";
                 cmbCajero.SelectedIndex = 0;
+
+                // ✅ Mostrar mensaje informativo si no hay cajeros con turnos abiertos
+                if (cajerosEncontrados == 0)
+                {
+                    MessageBox.Show(
+                        "⚠️ No hay cajeros con turnos abiertos actualmente.\n\n" +
+                        "Para realizar un cierre de turno, primero debe abrir un turno desde el módulo de Apertura de Turno.",
+                        "Sin Turnos Abiertos",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
             }
             catch (Exception ex)
             {
@@ -926,14 +947,14 @@ namespace Comercio.NET.Formularios
 
                 turnoAbierto = true;
 
-                MessageBox.Show(
-                    $"✅ Turno calculado exitosamente\n\n" +
-                    $"Monto Inicial: {montoInicialTurno:C2}\n" +
-                    $"Total Esperado en Efectivo: {totalEsperado:C2}\n" +
-                    $"Transacciones: {dgvDetalleTransacciones.Rows.Count}",
-                    "Cálculo Completado",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                //MessageBox.Show(
+                //    $"✅ Turno calculado exitosamente\n\n" +
+                //    $"Monto Inicial: {montoInicialTurno:C2}\n" +
+                //    $"Total Esperado en Efectivo: {totalEsperado:C2}\n" +
+                //    $"Transacciones: {dgvDetalleTransacciones.Rows.Count}",
+                //    "Cálculo Completado",
+                //    MessageBoxButtons.OK,
+                //    MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {

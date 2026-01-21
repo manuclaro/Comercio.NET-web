@@ -9,11 +9,11 @@ using System.Windows.Forms;
 namespace Comercio.NET.Formularios
 {
     public partial class HistorialCierresForm : Form
-    {   
+    {
         private ComboBox cmbCajero, cmbEstado;
         private DateTimePicker dtpDesde, dtpHasta;
         private DataGridView dgvHistorial, dgvDetalleCierre;
-        private Button btnBuscar, btnVerDetalle, btnExportar;
+        private Button btnBuscar, btnExportar;
         private Label lblTotalCierres, lblTotalDeclarado, lblTotalDiferencias;
         private Panel panelFiltros, panelResumen, panelDetalle;
         private int? cierreSeleccionadoId = null;
@@ -124,7 +124,8 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 8F),
                 Format = DateTimePickerFormat.Short
             };
-            dtpDesde.Value = DateTime.Today.AddMonths(-1);
+            // ✅ CAMBIO: Por defecto últimos 3 días
+            dtpDesde.Value = DateTime.Today.AddDays(-3);
             panelFiltros.Controls.Add(dtpDesde);
 
             // Hasta
@@ -162,8 +163,8 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 8F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbEstado.Items.AddRange(new object[] 
-            { 
+            cmbEstado.Items.AddRange(new object[]
+            {
                 new { Value = "", Display = "Todos" },
                 new { Value = "Abierto", Display = "Abierto" },
                 new { Value = "Cerrado", Display = "Cerrado" }
@@ -269,7 +270,7 @@ namespace Comercio.NET.Formularios
 
             currentY += 55;
 
-            // DataGridView Principal - Historial
+            // ✅ DataGridView Principal - Historial con FUENTE MÁS GRANDE
             dgvHistorial = new DataGridView
             {
                 Location = new Point(margin, currentY),
@@ -281,13 +282,13 @@ namespace Comercio.NET.Formularios
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                Font = new Font("Segoe UI", 7.5F),
+                Font = new Font("Segoe UI", 9F), // ✅ AUMENTADO: era 7.5F, ahora 9F
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 RowHeadersVisible = false
             };
 
-            dgvHistorial.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
-            dgvHistorial.RowTemplate.Height = 20;
+            dgvHistorial.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold); // ✅ AUMENTADO: era 7.5F
+            dgvHistorial.RowTemplate.Height = 24; // ✅ AUMENTADO: era 20, ahora 24 para mejor legibilidad
 
             // Configurar columnas
             dgvHistorial.Columns.Add("Id", "ID");
@@ -338,7 +339,7 @@ namespace Comercio.NET.Formularios
             dgvDetalleCierre = new DataGridView
             {
                 Location = new Point(8, 28),
-                Size = new Size(725, 80), // Era 105, ahora 75
+                Size = new Size(850, 80), // ✅ AJUSTADO: era 725, ahora 850 (ancho completo)
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.Fixed3D,
                 AllowUserToAddRows = false,
@@ -346,13 +347,13 @@ namespace Comercio.NET.Formularios
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                Font = new Font("Segoe UI", 7.5F),
+                Font = new Font("Segoe UI", 8F), // ✅ Fuente más grande también
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 RowHeadersVisible = false
             };
 
-            dgvDetalleCierre.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
-            dgvDetalleCierre.RowTemplate.Height = 18;
+            dgvDetalleCierre.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            dgvDetalleCierre.RowTemplate.Height = 20; // ✅ Altura ajustada
 
             dgvDetalleCierre.Columns.Add("MedioPago", "Medio de Pago");
             dgvDetalleCierre.Columns.Add("CantidadTransacciones", "Cant.");
@@ -362,27 +363,14 @@ namespace Comercio.NET.Formularios
 
             panelDetalle.Controls.Add(dgvDetalleCierre);
 
-            // Botón Ver Detalle
-            btnVerDetalle = new Button
-            {
-                Text = "👁️ Ver Completo",
-                Location = new Point(743, 40), // Ajustado: era 55, ahora 40
-                Size = new Size(120, 30),
-                BackColor = Color.FromArgb(255, 152, 0),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                Enabled = false
-            };
-            btnVerDetalle.FlatAppearance.BorderSize = 0;
-            panelDetalle.Controls.Add(btnVerDetalle);
+            // ✅ ELIMINADO: Botón "Ver Detalle" removido para simplificar
+            // El detalle ahora se muestra directamente en la grilla inferior
         }
 
         private void ConfigurarEventos()
         {
             btnBuscar.Click += async (s, e) => await CargarHistorial();
             btnExportar.Click += (s, e) => ExportarHistorial();
-            btnVerDetalle.Click += (s, e) => VerDetalleCompleto();
             dgvHistorial.SelectionChanged += async (s, e) => await CargarDetalleCierre();
         }
 
@@ -398,7 +386,7 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 using var connection = new SqlConnection(connectionString);
-                
+
                 var query = @"
                     SELECT DISTINCT NumeroCajero, 
                            COALESCE(MIN(Nombre + ' ' + Apellido), 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
@@ -418,10 +406,10 @@ namespace Comercio.NET.Formularios
                 {
                     int numero = reader.GetInt32(0);
                     string nombre = reader.GetString(1);
-                    cmbCajero.Items.Add(new 
-                    { 
-                        NumeroCajero = numero, 
-                        Display = $"#{numero} - {nombre}" 
+                    cmbCajero.Items.Add(new
+                    {
+                        NumeroCajero = numero,
+                        Display = $"#{numero} - {nombre}"
                     });
                 }
 
@@ -443,6 +431,18 @@ namespace Comercio.NET.Formularios
                 // Validar que los controles estén inicializados
                 if (cmbCajero.SelectedItem == null || cmbEstado.SelectedItem == null)
                 {
+                    return;
+                }
+
+                // ✅ VALIDACIÓN: Verificar que fecha desde no sea mayor que fecha hasta
+                if (dtpDesde.Value.Date > dtpHasta.Value.Date)
+                {
+                    MessageBox.Show(
+                        "⚠️ La fecha 'Desde' no puede ser mayor que la fecha 'Hasta'.\n\n" +
+                        "Por favor, ajuste el rango de fechas.",
+                        "Rango de Fechas Inválido",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -533,7 +533,7 @@ namespace Comercio.NET.Formularios
                     else if (estadoTurno == "Cerrado")
                     {
                         dgvHistorial.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(232, 245, 233);
-                        
+
                         // Colorear diferencia
                         if (diferencia != 0)
                         {
@@ -552,6 +552,17 @@ namespace Comercio.NET.Formularios
                 lblTotalDeclarado.Text = totalDeclarado.ToString("C2");
                 lblTotalDiferencias.Text = totalDiferencias.ToString("C2");
                 lblTotalDiferencias.ForeColor = totalDiferencias >= 0 ? Color.FromArgb(76, 175, 80) : Color.FromArgb(244, 67, 54);
+
+                // ✅ NUEVO: Mostrar mensaje si no hay resultados
+                if (dgvHistorial.Rows.Count == 0)
+                {
+                    MessageBox.Show(
+                        $"ℹ️ No se encontraron cierres en el rango de fechas seleccionado.\n\n" +
+                        $"Período: {dtpDesde.Value:dd/MM/yyyy} - {dtpHasta.Value:dd/MM/yyyy}",
+                        "Sin Resultados",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
 
                 btnBuscar.Text = "🔍 Buscar";
                 btnBuscar.Enabled = true;
@@ -572,7 +583,6 @@ namespace Comercio.NET.Formularios
                 if (dgvHistorial.SelectedRows.Count == 0)
                 {
                     dgvDetalleCierre.Rows.Clear();
-                    btnVerDetalle.Enabled = false;
                     return;
                 }
 
@@ -628,29 +638,10 @@ namespace Comercio.NET.Formularios
                         dgvDetalleCierre.Rows[rowIndex].Cells["Diferencia"].Style.ForeColor = diferencia > 0 ? Color.Green : Color.Red;
                     }
                 }
-
-                btnVerDetalle.Enabled = dgvDetalleCierre.Rows.Count > 0;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error cargando detalle: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void VerDetalleCompleto()
-        {
-            if (!cierreSeleccionadoId.HasValue) return;
-
-            try
-            {
-                // Abrir el formulario de cierre en modo consulta
-                using var formDetalle = new DetalleCierreCompletoForm(cierreSeleccionadoId.Value);
-                formDetalle.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error mostrando detalle: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -675,7 +666,13 @@ namespace Comercio.NET.Formularios
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
                     using var writer = new System.IO.StreamWriter(sfd.FileName, false, System.Text.Encoding.UTF8);
-                    
+
+                    // ✅ Agregar información del filtro usado
+                    writer.WriteLine($"HISTORIAL DE CIERRES DE TURNO");
+                    writer.WriteLine($"Período: {dtpDesde.Value:dd/MM/yyyy} - {dtpHasta.Value:dd/MM/yyyy}");
+                    writer.WriteLine($"Fecha de exportación: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
+                    writer.WriteLine();
+
                     // Escribir encabezados
                     var headers = new System.Collections.Generic.List<string>();
                     foreach (DataGridViewColumn col in dgvHistorial.Columns)
@@ -697,6 +694,13 @@ namespace Comercio.NET.Formularios
                         writer.WriteLine(string.Join(";", values));
                     }
 
+                    // ✅ Agregar resumen al final
+                    writer.WriteLine();
+                    writer.WriteLine("RESUMEN");
+                    writer.WriteLine($"Total Cierres;{lblTotalCierres.Text}");
+                    writer.WriteLine($"Total Declarado;{lblTotalDeclarado.Text}");
+                    writer.WriteLine($"Total Diferencias;{lblTotalDiferencias.Text}");
+
                     MessageBox.Show($"✅ Datos exportados correctamente a:\n{sfd.FileName}", "Éxito",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
@@ -704,283 +708,6 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 MessageBox.Show($"Error exportando: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-    }
-
-    // Formulario de detalle completo (vista de solo lectura)
-    public class DetalleCierreCompletoForm : Form
-    {
-        private int turnoId;
-        private DataGridView dgvDetalle;
-        private Label lblTurnoInfo, lblTotalEsperado, lblTotalDeclarado, lblDiferencia;
-        private TextBox txtObservaciones;
-
-        public DetalleCierreCompletoForm(int turnoId)
-        {
-            this.turnoId = turnoId;
-            InitializeComponent();
-            _ = CargarDatos();
-        }
-
-        private void InitializeComponent()
-        {
-            this.ClientSize = new Size(800, 520);
-            this.Text = $"📄 Detalle del Cierre - Turno #{turnoId}";
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.BackColor = Color.FromArgb(245, 248, 250);
-            this.Font = new Font("Segoe UI", 9F);
-
-            CrearControles();
-        }
-
-        private void CrearControles()
-        {
-            int margin = 15;
-            int currentY = 15;
-
-            // Información del turno
-            lblTurnoInfo = new Label
-            {
-                Text = "Cargando información...",
-                Location = new Point(margin, currentY),
-                Size = new Size(770, 45),
-                Font = new Font("Segoe UI", 8.5F),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(8)
-            };
-            this.Controls.Add(lblTurnoInfo);
-            currentY += 58;
-
-            // Detalle por medio de pago
-            this.Controls.Add(new Label
-            {
-                Text = "💵 DETALLE POR MEDIO DE PAGO",
-                Location = new Point(margin, currentY),
-                Size = new Size(250, 18),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(63, 81, 181)
-            });
-            currentY += 26;
-
-            dgvDetalle = new DataGridView
-            {
-                Location = new Point(margin, currentY),
-                Size = new Size(770, 160),
-                BackgroundColor = Color.White,
-                AllowUserToAddRows = false,
-                ReadOnly = true,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                Font = new Font("Segoe UI", 8.5F),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                RowHeadersVisible = false
-            };
-            dgvDetalle.RowTemplate.Height = 20;
-            this.Controls.Add(dgvDetalle);
-            currentY += 173;
-
-            // Totales
-            var panelTotales = new Panel
-            {
-                Location = new Point(margin, currentY),
-                Size = new Size(770, 62),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            this.Controls.Add(panelTotales);
-
-            panelTotales.Controls.Add(new Label
-            {
-                Text = "TOTAL ESPERADO:",
-                Location = new Point(12, 10),
-                Size = new Size(125, 18),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
-            });
-
-            lblTotalEsperado = new Label
-            {
-                Text = "$0.00",
-                Location = new Point(142, 10),
-                Size = new Size(100, 18),
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 150, 243)
-            };
-            panelTotales.Controls.Add(lblTotalEsperado);
-
-            panelTotales.Controls.Add(new Label
-            {
-                Text = "TOTAL DECLARADO:",
-                Location = new Point(285, 10),
-                Size = new Size(135, 18),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
-            });
-
-            lblTotalDeclarado = new Label
-            {
-                Text = "$0.00",
-                Location = new Point(425, 10),
-                Size = new Size(100, 18),
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 152, 0)
-            };
-            panelTotales.Controls.Add(lblTotalDeclarado);
-
-            panelTotales.Controls.Add(new Label
-            {
-                Text = "DIFERENCIA:",
-                Location = new Point(12, 36),
-                Size = new Size(125, 20),
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
-            });
-
-            lblDiferencia = new Label
-            {
-                Text = "$0.00",
-                Location = new Point(142, 36),
-                Size = new Size(120, 20),
-                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(244, 67, 54)
-            };
-            panelTotales.Controls.Add(lblDiferencia);
-
-            currentY += 75;
-
-            // Observaciones
-            this.Controls.Add(new Label
-            {
-                Text = "📝 OBSERVACIONES:",
-                Location = new Point(margin, currentY),
-                Size = new Size(160, 18),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
-            });
-            currentY += 23;
-
-            txtObservaciones = new TextBox
-            {
-                Location = new Point(margin, currentY),
-                Size = new Size(770, 62),
-                Multiline = true,
-                ReadOnly = true,
-                Font = new Font("Segoe UI", 8.5F),
-                BackColor = Color.White,
-                ScrollBars = ScrollBars.Vertical
-            };
-            this.Controls.Add(txtObservaciones);
-            currentY += 75;
-
-            // Botón Cerrar
-            var btnCerrar = new Button
-            {
-                Text = "Cerrar",
-                Location = new Point(695, currentY),
-                Size = new Size(90, 28),
-                BackColor = Color.FromArgb(158, 158, 158),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
-            };
-            btnCerrar.FlatAppearance.BorderSize = 0;
-            btnCerrar.Click += (s, e) => this.Close();
-            this.Controls.Add(btnCerrar);
-        }
-
-        private async Task CargarDatos()
-        {
-            try
-            {
-                var config = new ConfigurationBuilder()
-                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json")
-                    .Build();
-
-                string connectionString = config.GetConnectionString("DefaultConnection");
-
-                using var connection = new SqlConnection(connectionString);
-                connection.Open();
-
-                // Cargar información del turno
-                var queryTurno = @"
-                    SELECT NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, Observaciones
-                    FROM TurnosCajero
-                    WHERE Id = @id";
-
-                using (var cmd = new SqlCommand(queryTurno, connection))
-                {
-                    cmd.Parameters.AddWithValue("@id", turnoId);
-                    using var reader = await cmd.ExecuteReaderAsync();
-                    if (reader.Read())
-                    {
-                        int cajero = reader.GetInt32(0);
-                        string usuario = reader.GetString(1);
-                        DateTime apertura = reader.GetDateTime(2);
-                        DateTime? cierre = reader.IsDBNull(3) ? null : reader.GetDateTime(3);
-                        decimal montoInicial = reader.GetDecimal(4);
-                        string estado = reader.GetString(5);
-                        string obs = reader.IsDBNull(6) ? "" : reader.GetString(6);
-
-                        lblTurnoInfo.Text = $"Cajero #{cajero} | Usuario: {usuario} | Apertura: {apertura:dd/MM/yyyy HH:mm}\n" +
-                                           $"Cierre: {cierre?.ToString("dd/MM/yyyy HH:mm") ?? "Sin cerrar"} | Monto Inicial: {montoInicial:C2} | Estado: {estado}";
-                        txtObservaciones.Text = obs;
-                    }
-                }
-
-                // Cargar detalle del cierre
-                var queryDetalle = @"
-                    SELECT MedioPago, CantidadTransacciones, TotalEsperado, TotalDeclarado, Diferencia
-                    FROM CierreTurnoCajero
-                    WHERE IdTurno = @id
-                    ORDER BY MedioPago";
-
-                dgvDetalle.Columns.Clear();
-                dgvDetalle.Columns.Add("MedioPago", "Medio de Pago");
-                dgvDetalle.Columns.Add("Cantidad", "Cantidad");
-                dgvDetalle.Columns.Add("Esperado", "Esperado");
-                dgvDetalle.Columns.Add("Declarado", "Declarado");
-                dgvDetalle.Columns.Add("Diferencia", "Diferencia");
-
-                dgvDetalle.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-
-                decimal totalEsperado = 0;
-                decimal totalDeclarado = 0;
-                decimal totalDiferencia = 0;
-
-                using (var cmd = new SqlCommand(queryDetalle, connection))
-                {
-                    cmd.Parameters.AddWithValue("@id", turnoId);
-                    using var reader = await cmd.ExecuteReaderAsync();
-                    while (reader.Read())
-                    {
-                        string medio = reader.GetString(0);
-                        int cantidad = reader.GetInt32(1);
-                        decimal esperado = reader.GetDecimal(2);
-                        decimal declarado = reader.GetDecimal(3);
-                        decimal diferencia = reader.GetDecimal(4);
-
-                        dgvDetalle.Rows.Add(medio, cantidad, esperado.ToString("C2"), declarado.ToString("C2"), diferencia.ToString("C2"));
-
-                        totalEsperado += esperado;
-                        totalDeclarado += declarado;
-                        totalDiferencia += diferencia;
-
-                        int rowIndex = dgvDetalle.Rows.Count - 1;
-                        if (diferencia != 0)
-                        {
-                            dgvDetalle.Rows[rowIndex].Cells["Diferencia"].Style.ForeColor = diferencia > 0 ? Color.Green : Color.Red;
-                            dgvDetalle.Rows[rowIndex].Cells["Diferencia"].Style.Font = new Font(dgvDetalle.Font, FontStyle.Bold);
-                        }
-                    }
-                }
-
-                lblTotalEsperado.Text = totalEsperado.ToString("C2");
-                lblTotalDeclarado.Text = totalDeclarado.ToString("C2");
-                lblDiferencia.Text = totalDiferencia.ToString("C2");
-                lblDiferencia.ForeColor = totalDiferencia >= 0 ? Color.FromArgb(76, 175, 80) : Color.FromArgb(244, 67, 54);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error cargando datos: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
