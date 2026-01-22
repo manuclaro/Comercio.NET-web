@@ -894,29 +894,34 @@ namespace Comercio.NET.Formularios
             {
                 System.Diagnostics.Debug.WriteLine("➕ Agregar nuevo producto");
 
-                // Guardar el filtro actual antes de abrir el modal
+                // Guardar el filtro actual antes de abrir el formulario
                 string filtroActual = txtFiltroDescripcion.Text;
 
-                // CORREGIDO: Usar el nuevo ProductoFormUnificado
-                using (var form = new ProductoFormUnificado(
+                // ✅ CREAR formulario y asignar MdiParent
+                var form = new ProductoFormUnificado(
                     ProductoFormUnificado.ModoOperacion.Agregar,
                     "",
-                    ProductoFormUnificado.OrigenLlamada.Productos))
+                    ProductoFormUnificado.OrigenLlamada.Productos);
+
+                // ✅ ASIGNAR MdiParent del formulario padre (Productos)
+                form.MdiParent = this.MdiParent;
+
+                // Configurar evento de cierre para actualizar cuando se cierre
+                form.FormClosed += async (s, args) =>
                 {
-                    if (form.ShowDialog() == DialogResult.OK)
+                    // Actualizar la grilla manteniendo el filtro aplicado
+                    await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                    // Si se agregó un producto, intentar seleccionarlo en la grilla
+                    if (!string.IsNullOrEmpty(form.CodigoAgregado))
                     {
-                        // Actualizar la grilla manteniendo el filtro aplicado
-                        await ActualizarDatosManteniendoFiltro(filtroActual);
-
-                        // Si se agregó un producto, intentar seleccionarlo en la grilla
-                        if (!string.IsNullOrEmpty(form.CodigoAgregado))
-                        {
-                            await SeleccionarProductoEnGrilla(form.CodigoAgregado);
-                        }
-
-                        txtFiltroDescripcion.Focus();
+                        await SeleccionarProductoEnGrilla(form.CodigoAgregado);
                     }
-                }
+
+                    txtFiltroDescripcion.Focus();
+                };
+
+                form.Show(); // ✅ Muestra el formulario de forma no modal DENTRO del MDI
             }
             catch (Exception ex)
             {
@@ -942,26 +947,31 @@ namespace Comercio.NET.Formularios
                 var filaSeleccionada = GrillaProductos.SelectedRows[0];
                 var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
 
-                // Guardar el filtro actual antes de abrir el modal
+                // Guardar el filtro actual antes de abrir el formulario
                 string filtroActual = txtFiltroDescripcion.Text;
 
-                // CORREGIDO: Usar el nuevo ProductoFormUnificado
-                using (var form = new ProductoFormUnificado(
+                // ✅ CREAR formulario y asignar MdiParent
+                var form = new ProductoFormUnificado(
                     ProductoFormUnificado.ModoOperacion.Modificar,
                     productoId,
-                    ProductoFormUnificado.OrigenLlamada.Productos))
+                    ProductoFormUnificado.OrigenLlamada.Productos);
+
+                // ✅ ASIGNAR MdiParent del formulario padre (Productos)
+                form.MdiParent = this.MdiParent;
+
+                // Configurar evento de cierre para actualizar cuando se cierre
+                form.FormClosed += async (s, args) =>
                 {
-                    if (form.ShowDialog() == DialogResult.OK)
-                    {
-                        // Actualizar la grilla manteniendo el filtro aplicado
-                        await ActualizarDatosManteniendoFiltro(filtroActual);
+                    // Actualizar la grilla manteniendo el filtro aplicado
+                    await ActualizarDatosManteniendoFiltro(filtroActual);
 
-                        // Mantener la selección en el producto modificado
-                        await SeleccionarProductoEnGrilla(productoId);
+                    // Mantener la selección en el producto modificado
+                    await SeleccionarProductoEnGrilla(productoId);
 
-                        txtFiltroDescripcion.Focus();
-                    }
-                }
+                    txtFiltroDescripcion.Focus();
+                };
+
+                form.Show(); // ✅ Muestra el formulario de forma no modal DENTRO del MDI
             }
             catch (Exception ex)
             {
@@ -971,20 +981,19 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // ÚNICO método GrillaProductos_CellDoubleClick corregido
         private async void GrillaProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
             {
                 // Verificar si es una columna editable (checkbox)
                 var columnName = GrillaProductos.Columns[e.ColumnIndex].Name;
-                if (columnName == "PermiteAcumular" || columnName == "EditarPrecio")
+                if (columnName == "PermiteAcumular" || columnName == "EditarPrecio" || columnName == "Activo")
                 {
-                    // No abrir el modal de edición para estas columnas
+                    // No abrir el formulario de edición para estas columnas
                     return;
                 }
 
-                // Guardar el filtro actual antes de abrir el modal
+                // Guardar el filtro actual antes de abrir el formulario
                 string filtroActual = txtFiltroDescripcion.Text;
 
                 // Obtener el código del producto de la fila seleccionada
@@ -995,23 +1004,28 @@ namespace Comercio.NET.Formularios
                 {
                     System.Diagnostics.Debug.WriteLine($"✏️ Modificar producto desde doble click: {productoId}");
 
-                    // CORREGIDO: Usar el nuevo ProductoFormUnificado
-                    using (var form = new ProductoFormUnificado(
+                    // ✅ CREAR formulario y asignar MdiParent
+                    var form = new ProductoFormUnificado(
                         ProductoFormUnificado.ModoOperacion.Modificar,
                         productoId,
-                        ProductoFormUnificado.OrigenLlamada.Productos))
+                        ProductoFormUnificado.OrigenLlamada.Productos);
+
+                    // ✅ ASIGNAR MdiParent del formulario padre (Productos)
+                    form.MdiParent = this.MdiParent;
+
+                    // Configurar evento de cierre para actualizar cuando se cierre
+                    form.FormClosed += async (s, args) =>
                     {
-                        if (form.ShowDialog() == DialogResult.OK)
-                        {
-                            // Actualizar la grilla manteniendo el filtro aplicado
-                            await ActualizarDatosManteniendoFiltro(filtroActual);
+                        // Actualizar la grilla manteniendo el filtro aplicado
+                        await ActualizarDatosManteniendoFiltro(filtroActual);
 
-                            // Mantener la selección en el producto modificado
-                            await SeleccionarProductoEnGrilla(productoId);
+                        // Mantener la selección en el producto modificado
+                        await SeleccionarProductoEnGrilla(productoId);
 
-                            txtFiltroDescripcion.Focus();
-                        }
-                    }
+                        txtFiltroDescripcion.Focus();
+                    };
+
+                    form.Show(); // ✅ Muestra el formulario de forma no modal DENTRO del MDI
                 }
                 catch (Exception ex)
                 {
