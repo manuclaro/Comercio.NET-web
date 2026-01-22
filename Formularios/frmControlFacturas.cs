@@ -335,35 +335,50 @@ namespace Comercio.NET.Formularios
             chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
             panelFiltros.Controls.Add(chkCtaCte);
 
-            // Botones "Auditoría" y "IVA" más a la derecha y juntos
-            var btnIvaTop = new Button();
-            btnIvaTop.BackColor = Color.FromArgb(76, 175, 80);
-            btnIvaTop.FlatStyle = FlatStyle.Flat;
-            btnIvaTop.FlatAppearance.BorderSize = 0;
-            btnIvaTop.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnIvaTop.ForeColor = Color.White;
-            btnIvaTop.Size = new Size(50, 28);
-            btnIvaTop.Text = "IVA";
-            btnIvaTop.UseVisualStyleBackColor = false;
-            btnIvaTop.Click += BtnResumenIva_Click;
-            btnIvaTop.Location = new Point(panelFiltros.Width - 60, y1);
-            btnIvaTop.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            panelFiltros.Controls.Add(btnIvaTop);
+            //// Botones "Auditoría" y "IVA" más a la derecha y juntos
+            //var btnIvaTop = new Button();
+            //btnIvaTop.BackColor = Color.FromArgb(76, 175, 80);
+            //btnIvaTop.FlatStyle = FlatStyle.Flat;
+            //btnIvaTop.FlatAppearance.BorderSize = 0;
+            //btnIvaTop.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            //btnIvaTop.ForeColor = Color.White;
+            //btnIvaTop.Size = new Size(50, 28);
+            //btnIvaTop.Text = "IVA";
+            //btnIvaTop.UseVisualStyleBackColor = false;
+            //btnIvaTop.Click += BtnResumenIva_Click;
+            //btnIvaTop.Location = new Point(panelFiltros.Width - 60, y1);
+            //btnIvaTop.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            //panelFiltros.Controls.Add(btnIvaTop);
 
-            btnReportePorRubro = new Button
-            {
-                Text = "📊 Reporte por Rubro",
-                Location = new Point(panelFiltros.Width - 560, y1), // ✅ CAMBIO: Mover a la izquierda de Exportar
-                Size = new Size(150, 28), // ✅ CAMBIO: Reducir ancho de 150 a 130
-                BackColor = Color.FromArgb(156, 39, 176), // Color morado
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right // ✅ NUEVO: Agregar anchor
-            };
-            btnReportePorRubro.FlatAppearance.BorderSize = 0;
-            btnReportePorRubro.Click += BtnReportePorRubro_Click;
-            panelFiltros.Controls.Add(btnReportePorRubro);
+            //btnReportePorRubro = new Button
+            //{
+            //    Text = "📊 Reporte por Rubro",
+            //    Location = new Point(panelFiltros.Width - 560, y1), // ✅ CAMBIO: Mover a la izquierda de Exportar
+            //    Size = new Size(150, 28), // ✅ CAMBIO: Reducir ancho de 150 a 130
+            //    BackColor = Color.FromArgb(156, 39, 176), // Color morado
+            //    ForeColor = Color.White,
+            //    FlatStyle = FlatStyle.Flat,
+            //    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+            //    Anchor = AnchorStyles.Top | AnchorStyles.Right // ✅ NUEVO: Agregar anchor
+            //};
+            //btnReportePorRubro.FlatAppearance.BorderSize = 0;
+            //btnReportePorRubro.Click += BtnReportePorRubro_Click;
+            //panelFiltros.Controls.Add(btnReportePorRubro);
+
+            // ✅ REEMPLAZAR los botones individuales por uno consolidado
+            var btnReporteConsolidado = new Button();
+            btnReporteConsolidado.BackColor = Color.FromArgb(76, 175, 80);
+            btnReporteConsolidado.FlatStyle = FlatStyle.Flat;
+            btnReporteConsolidado.FlatAppearance.BorderSize = 0;
+            btnReporteConsolidado.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnReporteConsolidado.ForeColor = Color.White;
+            btnReporteConsolidado.Size = new Size(140, 28);
+            btnReporteConsolidado.Text = "📊 Reporte IVA";
+            btnReporteConsolidado.UseVisualStyleBackColor = false;
+            btnReporteConsolidado.Click += BtnReporteConsolidado_Click;
+            btnReporteConsolidado.Location = new Point(panelFiltros.Width - 550, y1);
+            btnReporteConsolidado.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            panelFiltros.Controls.Add(btnReporteConsolidado);
 
             // ✅ Botón de Estadísticas de Ofertas
             btnEstadisticasOfertas = new Button();
@@ -696,6 +711,25 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al generar reporte por rubro: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnReporteConsolidado_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                DateTime desde = dtpDesde.Value.Date;
+                DateTime hasta = dtpHasta.Value.Date.AddDays(1).AddSeconds(-1);
+
+                using (var formReporte = new ResumenConsolidadoForm(desde, hasta, chkCtaCte.Checked))
+                {
+                    formReporte.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al generar reporte consolidado: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
