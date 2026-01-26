@@ -66,7 +66,7 @@
     "RestringirRemitoPorPago": false,
     "UsarVistaPrevia": true,
     "LimitarFacturacion": true,
-    "MontoLimiteFacturacion": 15000.0
+    "MontoLimiteFacturacion": 15000.00
   },
   "Descuentos": {
     "OpcionesDisponibles": [

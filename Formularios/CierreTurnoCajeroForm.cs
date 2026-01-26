@@ -1176,7 +1176,7 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 using var connection = new SqlConnection(connectionString);
-                connection.Open();
+                await connection.OpenAsync();
 
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
                 int numeroCajero = cajeroSeleccionado.NumeroCajero;
@@ -1184,113 +1184,165 @@ namespace Comercio.NET.Formularios
                 string usuarioCierre = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
                 int idTurno;
 
-                // ✅ DIAGNÓSTICO: Mostrar estado antes de cerrar
-                System.Diagnostics.Debug.WriteLine($"🔍 CERRANDO TURNO - turnoActualId: {turnoActualId}");
+                // ✅ INICIO DE TRANSACCIÓN para garantizar atomicidad
+                using var transaction = connection.BeginTransaction();
 
-                if (turnoActualId > 0)
+                try
                 {
-                    // ✅ CASO 1: Actualizar turno existente
-                    var queryActualizar = @"
-                UPDATE TurnosCajero 
-                SET FechaCierre = @fechaCierre, 
-                    Estado = 'Cerrado',
-                    Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + @obs
-                WHERE Id = @idTurno";
+                    System.Diagnostics.Debug.WriteLine($"🔍 CERRANDO TURNO - turnoActualId: {turnoActualId}");
 
-                    using (var cmdActualizar = new SqlCommand(queryActualizar, connection))
+                    if (turnoActualId > 0)
                     {
-                        cmdActualizar.Parameters.AddWithValue("@idTurno", turnoActualId);
-                        cmdActualizar.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
-                        cmdActualizar.Parameters.AddWithValue("@obs", txtObservaciones.Text ?? "");
-
-                        int rowsAffected = await cmdActualizar.ExecuteNonQueryAsync();
-
-                        System.Diagnostics.Debug.WriteLine($"✅ Turno actualizado. Rows affected: {rowsAffected}");
-                    }
-
-                    idTurno = turnoActualId;
-                }
-                else
-                {
-                    // ✅ CASO 2: Intentar obtener el ID del turno abierto
-                    var idTurnoAbierto = await ObtenerTurnoAbiertoId(numeroCajero);
-
-                    if (idTurnoAbierto.HasValue)
-                    {
-                        // Actualizar el turno abierto encontrado
+                        // ✅ MEJORADO: Query optimizado sin concatenación
                         var queryActualizar = @"
-                UPDATE TurnosCajero 
-                SET FechaCierre = @fechaCierre, 
-                    Estado = 'Cerrado',
-                    Observaciones = COALESCE(Observaciones, '') + CHAR(13) + CHAR(10) + @obs
-                WHERE Id = @idTurno";
+                    UPDATE TurnosCajero 
+                    SET FechaCierre = @fechaCierre, 
+                        Estado = 'Cerrado',
+                        Observaciones = @obs
+                    WHERE Id = @idTurno";
 
-                        using (var cmdActualizar = new SqlCommand(queryActualizar, connection))
+                        using (var cmdActualizar = new SqlCommand(queryActualizar, connection, transaction))
                         {
-                            cmdActualizar.Parameters.AddWithValue("@idTurno", idTurnoAbierto.Value);
+                            cmdActualizar.CommandTimeout = 60; // ✅ Aumentar timeout a 60 segundos
+                            cmdActualizar.Parameters.AddWithValue("@idTurno", turnoActualId);
                             cmdActualizar.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
-                            cmdActualizar.Parameters.AddWithValue("@obs", txtObservaciones.Text ?? "");
+
+                            // ✅ MEJORADO: Combinar observaciones existentes sin concatenación SQL
+                            string observacionesActuales = await ObtenerObservacionesActuales(turnoActualId, connection, transaction);
+                            string observacionesCombinadas = string.IsNullOrEmpty(observacionesActuales)
+                                ? txtObservaciones.Text
+                                : $"{observacionesActuales}\r\n{txtObservaciones.Text}";
+
+                            cmdActualizar.Parameters.AddWithValue("@obs", observacionesCombinadas ?? "");
 
                             int rowsAffected = await cmdActualizar.ExecuteNonQueryAsync();
-
-                            System.Diagnostics.Debug.WriteLine($"✅ Turno abierto encontrado y actualizado. ID: {idTurnoAbierto.Value}, Rows: {rowsAffected}");
+                            System.Diagnostics.Debug.WriteLine($"✅ Turno actualizado. Rows affected: {rowsAffected}");
                         }
 
-                        idTurno = idTurnoAbierto.Value;
+                        idTurno = turnoActualId;
                     }
                     else
                     {
-                        // ⚠️ CASO 3: No hay turno abierto, crear uno cerrado (no recomendado)
-                        MessageBox.Show(
-                            "⚠️ No se encontró un turno abierto para este cajero.\n\n" +
-                            "Esto no debería ocurrir. Por favor, verifique que el cajero tenga un turno abierto.",
-                            "Advertencia",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        return;
+                        var idTurnoAbierto = await ObtenerTurnoAbiertoId(numeroCajero);
+
+                        if (idTurnoAbierto.HasValue)
+                        {
+                            var queryActualizar = @"
+                        UPDATE TurnosCajero 
+                        SET FechaCierre = @fechaCierre, 
+                            Estado = 'Cerrado',
+                            Observaciones = @obs
+                        WHERE Id = @idTurno";
+
+                            using (var cmdActualizar = new SqlCommand(queryActualizar, connection, transaction))
+                            {
+                                cmdActualizar.CommandTimeout = 60; // ✅ Aumentar timeout
+                                cmdActualizar.Parameters.AddWithValue("@idTurno", idTurnoAbierto.Value);
+                                cmdActualizar.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
+
+                                string observacionesActuales = await ObtenerObservacionesActuales(idTurnoAbierto.Value, connection, transaction);
+                                string observacionesCombinadas = string.IsNullOrEmpty(observacionesActuales)
+                                    ? txtObservaciones.Text
+                                    : $"{observacionesActuales}\r\n{txtObservaciones.Text}";
+
+                                cmdActualizar.Parameters.AddWithValue("@obs", observacionesCombinadas ?? "");
+
+                                int rowsAffected = await cmdActualizar.ExecuteNonQueryAsync();
+                                System.Diagnostics.Debug.WriteLine($"✅ Turno abierto actualizado. ID: {idTurnoAbierto.Value}, Rows: {rowsAffected}");
+                            }
+
+                            idTurno = idTurnoAbierto.Value;
+                        }
+                        else
+                        {
+                            MessageBox.Show(
+                                "⚠️ No se encontró un turno abierto para este cajero.\n\n" +
+                                "Esto no debería ocurrir. Por favor, verifique que el cajero tenga un turno abierto.",
+                                "Advertencia",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+
+                            await transaction.RollbackAsync();
+                            return;
+                        }
                     }
-                }
 
-                // Guardar detalles del cierre
-                foreach (DataGridViewRow row in dgvResumenPorMedio.Rows)
-                {
-                    if (row.IsNewRow) continue;
-
-                    string medioPago = row.Cells["MedioPago"].Value.ToString();
-                    int cantidad = int.Parse(row.Cells["Cantidad"].Value.ToString());
-                    decimal esperado = decimal.Parse(row.Cells["Neto"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
-                    decimal declarado = decimal.Parse(row.Cells["Declarado"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
-                    decimal diferencia = decimal.Parse(row.Cells["Diferencia"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
-
+                    // ✅ MEJORADO: INSERT batch optimizado
                     var queryCierre = @"
                 INSERT INTO CierreTurnoCajero 
                 (IdTurno, MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
                 VALUES 
                 (@idTurno, @medioPago, @esperado, @declarado, @diferencia, @cantidad, @fechaCierre, @usuarioCierre)";
 
-                    using var cmdCierre = new SqlCommand(queryCierre, connection);
-                    cmdCierre.Parameters.AddWithValue("@idTurno", idTurno);
-                    cmdCierre.Parameters.AddWithValue("@medioPago", medioPago);
-                    cmdCierre.Parameters.AddWithValue("@esperado", esperado);
-                    cmdCierre.Parameters.AddWithValue("@declarado", declarado);
-                    cmdCierre.Parameters.AddWithValue("@diferencia", diferencia);
-                    cmdCierre.Parameters.AddWithValue("@cantidad", cantidad);
-                    cmdCierre.Parameters.AddWithValue("@fechaCierre", DateTime.Now);
-                    cmdCierre.Parameters.AddWithValue("@usuarioCierre", usuarioCierre);
+                    DateTime fechaCierre = DateTime.Now; // ✅ Usar la misma fecha para todos
 
-                    await cmdCierre.ExecuteNonQueryAsync();
+                    foreach (DataGridViewRow row in dgvResumenPorMedio.Rows)
+                    {
+                        if (row.IsNewRow) continue;
+
+                        string medioPago = row.Cells["MedioPago"].Value.ToString();
+                        int cantidad = int.Parse(row.Cells["Cantidad"].Value.ToString());
+                        decimal esperado = decimal.Parse(row.Cells["Neto"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
+                        decimal declarado = decimal.Parse(row.Cells["Declarado"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
+                        decimal diferencia = decimal.Parse(row.Cells["Diferencia"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
+
+                        using var cmdCierre = new SqlCommand(queryCierre, connection, transaction);
+                        cmdCierre.CommandTimeout = 60; // ✅ Aumentar timeout
+                        cmdCierre.Parameters.AddWithValue("@idTurno", idTurno);
+                        cmdCierre.Parameters.AddWithValue("@medioPago", medioPago);
+                        cmdCierre.Parameters.AddWithValue("@esperado", esperado);
+                        cmdCierre.Parameters.AddWithValue("@declarado", declarado);
+                        cmdCierre.Parameters.AddWithValue("@diferencia", diferencia);
+                        cmdCierre.Parameters.AddWithValue("@cantidad", cantidad);
+                        cmdCierre.Parameters.AddWithValue("@fechaCierre", fechaCierre);
+                        cmdCierre.Parameters.AddWithValue("@usuarioCierre", usuarioCierre);
+
+                        await cmdCierre.ExecuteNonQueryAsync();
+                    }
+
+                    // ✅ CONFIRMAR transacción
+                    await transaction.CommitAsync();
+
+                    MessageBox.Show($"✅ Turno #{idTurno} cerrado exitosamente", "Éxito",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    turnoActualId = 0;
+                    LimpiarFormulario();
+
+                    // ✅ Recargar lista de cajeros para actualizar turnos abiertos
+                    await CargarCajeros();
                 }
-
-                MessageBox.Show($"✅ Turno #{idTurno} cerrado exitosamente", "Éxito",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                turnoActualId = 0;
-                LimpiarFormulario();
+                catch (Exception ex)
+                {
+                    // ✅ ROLLBACK en caso de error
+                    await transaction.RollbackAsync();
+                    throw; // Re-lanzar para el catch externo
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error: {ex.Message}\n\n{ex.StackTrace}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO MÉTODO: Obtener observaciones actuales sin bloqueos
+        private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnection connection, SqlTransaction transaction)
+        {
+            try
+            {
+                var query = "SELECT Observaciones FROM TurnosCajero WITH (NOLOCK) WHERE Id = @idTurno";
+
+                using var cmd = new SqlCommand(query, connection, transaction);
+                cmd.CommandTimeout = 30;
+                cmd.Parameters.AddWithValue("@idTurno", idTurno);
+
+                var result = await cmd.ExecuteScalarAsync();
+                return result?.ToString() ?? "";
+            }
+            catch
+            {
+                return "";
             }
         }
 

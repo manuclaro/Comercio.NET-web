@@ -1,8 +1,6 @@
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
-    "Testing": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
-    "Produccion": "Server=10.198.179.155,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=10.198.179.155,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
   },
   "Comercio": {
     "Nombre": "Pistola",
@@ -65,8 +63,8 @@
   "RestriccionesImpresion": {
     "RestringirRemitoPorPago": false,
     "UsarVistaPrevia": true,
-    "LimitarFacturacion": true,
-    "MontoLimiteFacturacion": 15000.0
+    "LimitarFacturacion": false,
+    "MontoLimiteFacturacion": 0.0
   },
   "Descuentos": {
     "OpcionesDisponibles": [
@@ -80,8 +78,5 @@
     "MetodosPagoPermitidos": [
       "Efectivo"
     ]
-  },
-  "BaseDatos": {
-    "AmbienteActivo": "Testing"
   }
 }

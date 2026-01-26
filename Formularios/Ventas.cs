@@ -32,6 +32,11 @@ namespace Comercio.NET
 {
     public partial class Ventas : Form
     {
+        // ✅ NUEVO: Variable estática para controlar instancias abiertas
+        private static int instanciasAbiertas = 0;
+        private static readonly int MAXIMO_INSTANCIAS = 2;
+        private static readonly object lockObject = new object();
+
         private const string PREFIJO_CODIGO_ESPECIAL = "50";
         private const int LONGITUD_CODIGO_ESPECIAL = 13;
         private const int POSICION_CODIGO_PRODUCTO = 2;
@@ -89,12 +94,51 @@ namespace Comercio.NET
 
         private bool aplicandoOferta = false;
 
+        private bool operacionEnCurso = false;
+        private readonly object lockOperacion = new object();
+
         public Ventas()
         {
+            // ✅ CRÍTICO: Validar límite de instancias ANTES de InitializeComponent
+            lock (lockObject)
+            {
+                if (instanciasAbiertas >= MAXIMO_INSTANCIAS)
+                {
+                    MessageBox.Show(
+                        $"⚠️ LÍMITE DE INSTANCIAS ALCANZADO\n\n" +
+                        $"Ya hay {MAXIMO_INSTANCIAS} ventanas de Ventas abiertas.\n\n" +
+                        $"Cierre una de las ventanas existentes antes de abrir una nueva.",
+                        "Máximo de Instancias",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    InicializacionExitosa = false;
+
+                    // ✅ CRÍTICO: Llamar InitializeComponent para evitar errores
+                    InitializeComponent();
+
+                    // ✅ NUEVO: Cerrar inmediatamente después de cargar
+                    this.Load += (s, e) => this.Close();
+                    return;
+                }
+
+                // ✅ Incrementar contador
+                instanciasAbiertas++;
+                System.Diagnostics.Debug.WriteLine($"✅ Nueva instancia de Ventas creada. Total: {instanciasAbiertas}/{MAXIMO_INSTANCIAS}");
+            }
+
             if (!VerificarYSolicitarTurnoAbierto())
             {
                 InicializacionExitosa = false;
-                InitializeComponent(); // Necesario para evitar errores
+                InitializeComponent();
+
+                // ✅ CRÍTICO: Decrementar contador si falla la validación de turno
+                lock (lockObject)
+                {
+                    instanciasAbiertas--;
+                    System.Diagnostics.Debug.WriteLine($"⚠️ Instancia cancelada por turno. Total: {instanciasAbiertas}/{MAXIMO_INSTANCIAS}");
+                }
+
                 return;
             }
 
@@ -106,7 +150,7 @@ namespace Comercio.NET
             CargarConfiguracion();
             ConfigurarCheckboxCantidad();
             ConfigurarAtajosTeclado();
-            ConfigurarMenuContextual(); // NUEVO: Configurar menú contextual
+            ConfigurarMenuContextual();
 
             // DEBUG: Verificar estado de autenticación al abrir Ventas
             System.Diagnostics.Debug.WriteLine($"=== DEBUG VENTAS CONSTRUCTOR ===");
@@ -2885,358 +2929,345 @@ namespace Comercio.NET
 
         private async void btnAgregar_Click(object sender, EventArgs e)
         {
-            string textoIngresado = txtBuscarProducto.Text.Trim();
-
-            if (string.IsNullOrEmpty(textoIngresado))
+            // ✅ CRÍTICO: Evitar múltiples ejecuciones simultáneas
+            lock (lockOperacion)
             {
-                MessageBox.Show("Ingrese un código de producto válido.");
-                txtBuscarProducto.Focus();
-                return;
-            }
-
-            // ✅✅✅ NUEVA VALIDACIÓN: Verificar turno abierto SOLO en el primer producto
-            if (dataGridView1.Rows.Count == 0) // Si es el primer producto
-            {
-                if (!await ValidarTurnoAbiertoAntesPrimerProducto())
+                if (operacionEnCurso)
                 {
-                    // El método ya mostró el mensaje y cerró el formulario si era necesario
+                    System.Diagnostics.Debug.WriteLine("⚠️ BLOQUEADO: Operación ya en curso");
                     return;
                 }
+                operacionEnCurso = true;
             }
 
-            var resultadoCodigo = ProcesarCodigo(textoIngresado);
-            string codigoBuscado = resultadoCodigo.codigoBuscado;
-            decimal? precioPersonalizado = resultadoCodigo.precioPersonalizado; // ✅ Precio del código de barras
-            bool esCodigoEspecial = resultadoCodigo.esEspecial;
-
-            bool esCodigoTemporal = textoIngresado.Length == 8;
-
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
-            string connectionString = config.GetConnectionString("DefaultConnection");
-
-            DataRow producto = null;
-            using (var connection = new SqlConnection(connectionString))
+            try
             {
-                var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, cantidad, EditarPrecio, iva 
-                      FROM Productos WHERE codigo = @codigo";
-                using (var adapter = new SqlDataAdapter(query, connection))
+                string textoIngresado = txtBuscarProducto.Text.Trim();
+
+                if (string.IsNullOrEmpty(textoIngresado))
                 {
-                    adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    if (dt.Rows.Count == 0)
-                    {
-                        var resultadoMsg = MessageBox.Show(
-                            $"El producto con código '{codigoBuscado}' no existe.\n\n" +
-                            "¿Desea agregarlo ahora para continuar con la venta?",
-                            "Producto no encontrado",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Question);
-
-                        if (resultadoMsg == DialogResult.Yes)
-                        {
-                            await AbrirFormularioAgregarProductoRapido(codigoBuscado, precioPersonalizado);
-                            return;
-                        }
-                        else
-                        {
-                            txtBuscarProducto.Focus();
-                            return;
-                        }
-                    }
-                    producto = dt.Rows[0];
-                }
-            }
-
-            bool permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
-            int stockDisponible = Convert.ToInt32(producto["cantidad"]);
-
-            if (permiteAcumular && validarStockHabilitado && stockDisponible < cantidadPersonalizada)
-            {
-                var resultadoStock = MessageBox.Show(
-                    $"ADVERTENCIA: Stock insuficiente\n\n" +
-                    $"Producto: {producto["descripcion"]}\n" +
-                    $"Stock disponible: {stockDisponible}\n" +
-                    $"Cantidad solicitada: {cantidadPersonalizada}\n\n" +
-                    "¿Desea continuar de todas formas?\n" +
-                    "(El stock quedará en negativo)",
-                    "Stock Insuficiente",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-
-                if (resultadoStock != DialogResult.Yes)
-                {
+                    MessageBox.Show("Ingrese un código de producto válido.");
                     txtBuscarProducto.Focus();
                     return;
                 }
-            }
 
-            if (!remitoIncrementado)
-            {
-                using (var connection = new SqlConnection(connectionString))
+                // ✅✅✅ NUEVA VALIDACIÓN: Verificar turno abierto SOLO en el primer producto
+                if (dataGridView1.Rows.Count == 0) // Si es el primer producto
                 {
-                    var query = "UPDATE numeroremito SET nroremito = nroremito + 1";
-                    using (var cmd = new SqlCommand(query, connection))
+                    if (!await ValidarTurnoAbiertoAntesPrimerProducto())
                     {
-                        connection.Open();
-                        cmd.ExecuteNonQuery();
+                        return;
                     }
                 }
 
+                var resultadoCodigo = ProcesarCodigo(textoIngresado);
+                string codigoBuscado = resultadoCodigo.codigoBuscado;
+                decimal? precioPersonalizado = resultadoCodigo.precioPersonalizado;
+                bool esCodigoEspecial = resultadoCodigo.esEspecial;
+
+                bool esCodigoTemporal = textoIngresado.Length == 8;
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                DataRow producto = null;
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = "SELECT nroremito FROM numeroremito";
-                    using (var cmd = new SqlCommand(query, connection))
+                    var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, cantidad, EditarPrecio, iva 
+                  FROM Productos WHERE codigo = @codigo";
+                    using (var adapter = new SqlDataAdapter(query, connection))
                     {
-                        connection.Open();
-                        var result = cmd.ExecuteScalar();
-                        if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
+                        adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        if (dt.Rows.Count == 0)
                         {
-                            MessageBox.Show("No se pudo obtener el número de remito.");
-                            return;
+                            var resultadoMsg = MessageBox.Show(
+                                $"El producto con código '{codigoBuscado}' no existe.\n\n" +
+                                "¿Desea agregarlo ahora para continuar con la venta?",
+                                "Producto no encontrado",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question);
+
+                            if (resultadoMsg == DialogResult.Yes)
+                            {
+                                await AbrirFormularioAgregarProductoRapido(codigoBuscado, precioPersonalizado);
+                                return;
+                            }
+                            else
+                            {
+                                txtBuscarProducto.Focus();
+                                return;
+                            }
+                        }
+                        producto = dt.Rows[0];
+                    }
+                }
+
+                bool permiteAcumular = producto["PermiteAcumular"] != DBNull.Value && Convert.ToBoolean(producto["PermiteAcumular"]);
+                int stockDisponible = Convert.ToInt32(producto["cantidad"]);
+
+                if (permiteAcumular && validarStockHabilitado && stockDisponible < cantidadPersonalizada)
+                {
+                    var resultadoStock = MessageBox.Show(
+                        $"ADVERTENCIA: Stock insuficiente\n\n" +
+                        $"Producto: {producto["descripcion"]}\n" +
+                        $"Stock disponible: {stockDisponible}\n" +
+                        $"Cantidad solicitada: {cantidadPersonalizada}\n\n" +
+                        "¿Desea continuar de todas formas?\n" +
+                        "(El stock quedará en negativo)",
+                        "Stock Insuficiente",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (resultadoStock != DialogResult.Yes)
+                    {
+                        txtBuscarProducto.Focus();
+                        return;
+                    }
+                }
+
+                if (!remitoIncrementado)
+                {
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        var query = "UPDATE numeroremito SET nroremito = nroremito + 1";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            connection.Open();
+                            cmd.ExecuteNonQuery();
                         }
                     }
-                }
-                remitoIncrementado = true;
-            }
 
-            // ✅✅✅ CRÍTICO: Determinar el precio a usar - MODIFICADO
-            decimal precioUnitario;
-            bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
-
-            // ✅✅✅ PRIORIDAD 1: Si viene de un código especial (balanza), usar ese precio SIEMPRE
-            if (precioPersonalizado.HasValue && precioPersonalizado.Value > 0)
-            {
-                precioUnitario = precioPersonalizado.Value;
-
-                System.Diagnostics.Debug.WriteLine(
-                    $"✅ PRECIO DE BALANZA APLICADO:\n" +
-                    $"   Producto: {producto["descripcion"]}\n" +
-                    $"   Código escaneado: {textoIngresado}\n" +
-                    $"   Precio BD: {Convert.ToDecimal(producto["precio"]):C2}\n" +
-                    $"   Precio balanza: {precioUnitario:C2}");
-            }
-            // ✅ PRIORIDAD 2: Si el producto permite editar precio Y hay un precio válido en txtPrecio
-            else if (editarPrecio && !string.IsNullOrWhiteSpace(txtPrecio.Text))
-            {
-                if (decimal.TryParse(txtPrecio.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioManual))
-                {
-                    precioUnitario = precioManual;
-
-                    System.Diagnostics.Debug.WriteLine(
-                        $"✅ PRECIO MANUAL APLICADO:\n" +
-                        $"   Producto: {producto["descripcion"]}\n" +
-                        $"   Precio BD: {Convert.ToDecimal(producto["precio"]):C2}\n" +
-                        $"   Precio manual: {precioUnitario:C2}");
-
-                    // Guardar el precio manual en la BD para la próxima vez
-                    decimal precioOriginalBD = Convert.ToDecimal(producto["precio"]);
-                    if (Math.Abs(precioManual - precioOriginalBD) > 0.01m)
+                    using (var connection = new SqlConnection(connectionString))
                     {
-                        await ActualizarPrecioProductoAsync(codigoBuscado, precioManual);
+                        var query = "SELECT nroremito FROM numeroremito";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            connection.Open();
+                            var result = cmd.ExecuteScalar();
+                            if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
+                            {
+                                MessageBox.Show("No se pudo obtener el número de remito.");
+                                return;
+                            }
+                        }
+                    }
+                    remitoIncrementado = true;
+                }
+
+                // Determinar el precio a usar
+                decimal precioUnitario;
+                bool editarPrecio = producto["EditarPrecio"] != DBNull.Value && Convert.ToBoolean(producto["EditarPrecio"]);
+
+                if (precioPersonalizado.HasValue && precioPersonalizado.Value > 0)
+                {
+                    precioUnitario = precioPersonalizado.Value;
+                    System.Diagnostics.Debug.WriteLine(
+                        $"✅ PRECIO DE BALANZA APLICADO:\n" +
+                        $"   Producto: {producto["descripcion"]}\n" +
+                        $"   Código escaneado: {textoIngresado}\n" +
+                        $"   Precio BD: {Convert.ToDecimal(producto["precio"]):C2}\n" +
+                        $"   Precio balanza: {precioUnitario:C2}");
+                }
+                else if (editarPrecio && !string.IsNullOrWhiteSpace(txtPrecio.Text))
+                {
+                    if (decimal.TryParse(txtPrecio.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioManual))
+                    {
+                        precioUnitario = precioManual;
                         System.Diagnostics.Debug.WriteLine(
-                            $"💾 Precio guardado en BD para próximas ventas:\n" +
-                            $"   Código: {codigoBuscado}\n" +
-                            $"   Precio anterior: {precioOriginalBD:C2}\n" +
-                            $"   Precio nuevo: {precioManual:C2}");
+                            $"✅ PRECIO MANUAL APLICADO:\n" +
+                            $"   Producto: {producto["descripcion"]}\n" +
+                            $"   Precio BD: {Convert.ToDecimal(producto["precio"]):C2}\n" +
+                            $"   Precio manual: {precioUnitario:C2}");
+
+                        decimal precioOriginalBD = Convert.ToDecimal(producto["precio"]);
+                        if (Math.Abs(precioManual - precioOriginalBD) > 0.01m)
+                        {
+                            await ActualizarPrecioProductoAsync(codigoBuscado, precioManual);
+                            System.Diagnostics.Debug.WriteLine(
+                                $"💾 Precio guardado en BD para próximas ventas:\n" +
+                                $"   Código: {codigoBuscado}\n" +
+                                $"   Precio anterior: {precioOriginalBD:C2}\n" +
+                                $"   Precio nuevo: {precioManual:C2}");
+                        }
+                    }
+                    else
+                    {
+                        precioUnitario = Convert.ToDecimal(producto["precio"]);
+                        System.Diagnostics.Debug.WriteLine($"⚠️ No se pudo parsear txtPrecio, usando precio BD: {precioUnitario:C2}");
                     }
                 }
                 else
                 {
-                    // Si no se pudo parsear, usar el precio de la BD
                     precioUnitario = Convert.ToDecimal(producto["precio"]);
-                    System.Diagnostics.Debug.WriteLine($"⚠️ No se pudo parsear txtPrecio, usando precio BD: {precioUnitario:C2}");
-                }
-            }
-            // ✅ PRIORIDAD 3: Usar precio de la BD
-            else
-            {
-                precioUnitario = Convert.ToDecimal(producto["precio"]);
-                System.Diagnostics.Debug.WriteLine($"📋 Usando precio de BD: {precioUnitario:C2}");
-            }
-
-            // ✅ PASO 1: Verificar si el producto tiene oferta activa
-            // ⚠️ IMPORTANTE: Las ofertas SOLO se aplican si NO viene de balanza ni se modificó manualmente
-            var ofertaAplicable = await BuscarOfertaAplicable(codigoBuscado, cantidadPersonalizada);
-
-            // ✅✅✅ CRÍTICO: Aplicar precio de oferta SOLO si NO es código de balanza ni precio manual
-            if (!precioPersonalizado.HasValue && (!editarPrecio || string.IsNullOrWhiteSpace(txtPrecio.Text)))
-            {
-                if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
-                {
-                    if (ofertaAplicable.PrecioOferta > 0)
-                    {
-                        precioUnitario = ofertaAplicable.PrecioOferta;
-                        System.Diagnostics.Debug.WriteLine(
-                            $"✅ OFERTA APLICADA AL AGREGAR\n" +
-                            $"   Tipo: {ofertaAplicable.TipoOferta}\n" +
-                            $"   Producto: {producto["descripcion"]}\n" +
-                            $"   Precio normal: {Convert.ToDecimal(producto["precio"]):C2}\n" +
-                            $"   Precio con oferta: {precioUnitario:C2}\n" +
-                            $"   Descuento: {(Convert.ToDecimal(producto["precio"]) - precioUnitario):C2}");
-                    }
+                    System.Diagnostics.Debug.WriteLine($"📋 Usando precio de BD: {precioUnitario:C2}");
                 }
 
-                // Verificar combos...
-                if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
+                var ofertaAplicable = await BuscarOfertaAplicable(codigoBuscado, cantidadPersonalizada);
+
+                if (!precioPersonalizado.HasValue && (!editarPrecio || string.IsNullOrWhiteSpace(txtPrecio.Text)))
                 {
-                    bool comboYaCompleto = false;
-                    decimal precioProrrateadoPreexistente = 0m;
-
-                    using (var connection = new SqlConnection(connectionString))
+                    if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
                     {
-                        await connection.OpenAsync();
-
-                        using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                        if (ofertaAplicable.PrecioOferta > 0)
                         {
-                            await cmdConfig.ExecuteNonQueryAsync();
+                            precioUnitario = ofertaAplicable.PrecioOferta;
+                            System.Diagnostics.Debug.WriteLine(
+                                $"✅ OFERTA APLICADA AL AGREGAR\n" +
+                                $"   Tipo: {ofertaAplicable.TipoOferta}\n" +
+                                $"   Producto: {producto["descripcion"]}\n" +
+                                $"   Precio normal: {Convert.ToDecimal(producto["precio"]):C2}\n" +
+                                $"   Precio con oferta: {precioUnitario:C2}\n" +
+                                $"   Descuento: {(Convert.ToDecimal(producto["precio"]) - precioUnitario):C2}");
                         }
+                    }
 
-                        using (var transaction = connection.BeginTransaction())
+                    if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
+                    {
+                        bool comboYaCompleto = false;
+                        decimal precioProrrateadoPreexistente = 0m;
+
+                        using (var connection = new SqlConnection(connectionString))
                         {
-                            try
-                            {
-                                comboYaCompleto = await VerificarComboCompleto(
-                                    ofertaAplicable.Id,
-                                    codigoBuscado,
-                                    0,
-                                    connection,
-                                    transaction);
+                            await connection.OpenAsync();
 
-                                if (comboYaCompleto)
+                            using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                            {
+                                await cmdConfig.ExecuteNonQueryAsync();
+                            }
+
+                            using (var transaction = connection.BeginTransaction())
+                            {
+                                try
                                 {
-                                    precioProrrateadoPreexistente = await CalcularPrecioComboProrrateado(
+                                    comboYaCompleto = await VerificarComboCompleto(
                                         ofertaAplicable.Id,
                                         codigoBuscado,
-                                        ofertaAplicable.PrecioCombo,
+                                        0,
                                         connection,
                                         transaction);
 
-                                    System.Diagnostics.Debug.WriteLine(
-                                        $"✅ COMBO PREEXISTENTE - Aplicando precio prorrateado: {precioProrrateadoPreexistente:C2}");
+                                    if (comboYaCompleto)
+                                    {
+                                        precioProrrateadoPreexistente = await CalcularPrecioComboProrrateado(
+                                            ofertaAplicable.Id,
+                                            codigoBuscado,
+                                            ofertaAplicable.PrecioCombo,
+                                            connection,
+                                            transaction);
+
+                                        System.Diagnostics.Debug.WriteLine(
+                                            $"✅ COMBO PREEXISTENTE - Aplicando precio prorrateado: {precioProrrateadoPreexistente:C2}");
+                                    }
+
+                                    transaction.Commit();
+                                }
+                                catch
+                                {
+                                    transaction.Rollback();
+                                    throw;
+                                }
+                            }
+                        }
+
+                        if (comboYaCompleto)
+                        {
+                            ofertaAplicable.PrecioOferta = precioProrrateadoPreexistente;
+                        }
+                        else
+                        {
+                            ofertaAplicable.PrecioOferta = Convert.ToDecimal(producto["precio"]);
+                        }
+                    }
+                }
+                else
+                {
+                    ofertaAplicable = null;
+                    System.Diagnostics.Debug.WriteLine(
+                        $"⚠️ PRECIO ESPECIAL DETECTADO - Ofertas desactivadas\n" +
+                        $"   Tipo: {(precioPersonalizado.HasValue ? "Balanza" : "Manual")}\n" +
+                        $"   Precio usado: {precioUnitario:C2}");
+                }
+
+                decimal porcentajeIva = 0m;
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var queryIva = @"SELECT iva FROM Productos WHERE codigo = @codigo";
+                    using (var cmd = new SqlCommand(queryIva, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@codigo", codigoBuscado ?? "");
+                        await connection.OpenAsync();
+                        var result = await cmd.ExecuteScalarAsync();
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            var text = result.ToString();
+                            if (!decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out porcentajeIva))
+                            {
+                                decimal.TryParse(text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out porcentajeIva);
+                            }
+                        }
+                    }
+                }
+
+                decimal ivaCalculado = CalcularIvaDesdeTotal(precioUnitario * cantidadPersonalizada, porcentajeIva);
+
+                bool productoYaAgregado = false;
+                int cantidadActual = 0;
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                        cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                        connection.Open();
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && int.TryParse(result.ToString(), out cantidadActual))
+                        {
+                            productoYaAgregado = true;
+                        }
+                    }
+                }
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            if (productoYaAgregado && permiteAcumular)
+                            {
+                                int nuevaCantidadTotal = cantidadActual + cantidadPersonalizada;
+                                var ofertaActualizacion = await BuscarOfertaAplicable(codigoBuscado, nuevaCantidadTotal);
+                                decimal precioFinal = precioUnitario;
+                                decimal precioOriginal = Convert.ToDecimal(producto["precio"]);
+
+                                if (ofertaActualizacion != null && ofertaActualizacion.PrecioOferta > 0)
+                                {
+                                    precioFinal = ofertaActualizacion.PrecioOferta;
+
+                                    MessageBox.Show(
+                                        $"🎉 ¡OFERTA APLICADA AL ACTUALIZAR!\n\n" +
+                                        $"Producto: {producto["descripcion"]}\n" +
+                                        $"Oferta: {ofertaActualizacion.NombreOferta}\n" +
+                                        $"Cantidad anterior: {cantidadActual}\n" +
+                                        $"Cantidad nueva: {nuevaCantidadTotal}\n" +
+                                        $"Cantidad mínima oferta: {ofertaActualizacion.CantidadMinima}\n" +
+                                        $"Precio normal: {precioOriginal:C2}\n" +
+                                        $"Precio oferta: {ofertaActualizacion.PrecioOferta:C2}\n" +
+                                        $"Ahorro por unidad: {(precioOriginal - ofertaActualizacion.PrecioOferta):C2} ({ofertaActualizacion.PorcentajeDescuento:N2}%)",
+                                        "Oferta Aplicada",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Information);
                                 }
 
-                                transaction.Commit();
-                            }
-                            catch
-                            {
-                                transaction.Rollback();
-                                throw;
-                            }
-                        }
-                    }
-
-                    if (comboYaCompleto)
-                    {
-                        ofertaAplicable.PrecioOferta = precioProrrateadoPreexistente;
-                    }
-                    {
-                        ofertaAplicable.PrecioOferta = Convert.ToDecimal(producto["precio"]);
-                    }
-                }
-            }
-            else
-            {
-                // ✅ NUEVO: Si es código de balanza o precio manual, anular la oferta
-                ofertaAplicable = null;
-                System.Diagnostics.Debug.WriteLine(
-                    $"⚠️ PRECIO ESPECIAL DETECTADO - Ofertas desactivadas\n" +
-                    $"   Tipo: {(precioPersonalizado.HasValue ? "Balanza" : "Manual")}\n" +
-                    $"   Precio usado: {precioUnitario:C2}");
-            }
-
-            // NUEVO: Obtener el porcentaje de IVA del producto (async-resiliente, sin .Value ni .Close redundante)
-            decimal porcentajeIva = 0m;
-            using (var connection = new SqlConnection(connectionString))
-            {
-                var queryIva = @"SELECT iva FROM Productos WHERE codigo = @codigo";
-                using (var cmd = new SqlCommand(queryIva, connection))
-                {
-                    cmd.Parameters.AddWithValue("@codigo", codigoBuscado ?? "");
-                    await connection.OpenAsync();
-                    var result = await cmd.ExecuteScalarAsync();
-
-                    if (result != null && result != DBNull.Value)
-                    {
-                        // Intentar parsear respetando la cultura actual; fallback reemplazando separador si hace falta
-                        var text = result.ToString();
-                        if (!decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out porcentajeIva))
-                        {
-                            decimal.TryParse(text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out porcentajeIva);
-                        }
-                    }
-                }
-            }
-
-            // NUEVO: Calcular el IVA basado en el precio y porcentaje
-            decimal ivaCalculado = CalcularIvaDesdeTotal(precioUnitario * cantidadPersonalizada, porcentajeIva);
-
-            // 4. Verificar si el producto ya está en la venta actual
-            bool productoYaAgregado = false;
-            int cantidadActual = 0;
-            using (var connection = new SqlConnection(connectionString))
-            {
-                var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
-                using (var cmd = new SqlCommand(query, connection))
-                {
-                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                    cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                    connection.Open();
-                    var result = cmd.ExecuteScalar();
-                    if (result != null && int.TryParse(result.ToString(), out cantidadActual))
-                    {
-                        productoYaAgregado = true;
-                    }
-                }
-            }
-
-            // MODIFICADO: Usar transacción para asegurar consistencia entre ventas y stock
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                using (var transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        if (productoYaAgregado && permiteAcumular)
-                        {
-                            // ✅ NUEVO: Calcular nueva cantidad total
-                            int nuevaCantidadTotal = cantidadActual + cantidadPersonalizada;
-
-                            // ✅ NUEVO: Verificar si hay oferta para la nueva cantidad
-                            var ofertaActualizacion = await BuscarOfertaAplicable(codigoBuscado, nuevaCantidadTotal);
-
-                            decimal precioFinal = precioUnitario; // Usar el precio ya calculado
-
-                            // ✅ NUEVO: Obtener el precio original del producto
-                            decimal precioOriginal = Convert.ToDecimal(producto["precio"]);
-
-                            // ✅ Si hay oferta para la nueva cantidad, aplicarla
-                            if (ofertaActualizacion != null && ofertaActualizacion.PrecioOferta > 0)
-                            {
-                                precioFinal = ofertaActualizacion.PrecioOferta;
-
-                                // Mostrar mensaje informativo
-                                MessageBox.Show(
-                                    $"🎉 ¡OFERTA APLICADA AL ACTUALIZAR!\n\n" +
-                                    $"Producto: {producto["descripcion"]}\n" +
-                                    $"Oferta: {ofertaActualizacion.NombreOferta}\n" +
-                                    $"Cantidad anterior: {cantidadActual}\n" +
-                                    $"Cantidad nueva: {nuevaCantidadTotal}\n" +
-                                    $"Cantidad mínima oferta: {ofertaActualizacion.CantidadMinima}\n" +
-                                    $"Precio normal: {precioOriginal:C2}\n" +
-                                    $"Precio oferta: {ofertaActualizacion.PrecioOferta:C2}\n" +
-                                    $"Ahorro por unidad: {(precioOriginal - ofertaActualizacion.PrecioOferta):C2} ({ofertaActualizacion.PorcentajeDescuento:N2}%)",
-                                    "Oferta Aplicada",
-                                    MessageBoxButtons.OK,
-                                    MessageBoxIcon.Information);
-                            }
-
-                            // ✅✅✅ CRÍTICO: UPDATE COMPLETO con todos los campos de oferta
-                            var query = @"UPDATE Ventas 
+                                var query = @"UPDATE Ventas 
                                   SET cantidad = cantidad + @nuevaCantidad, 
                                       precio = @precioFinal,
                                       total = (cantidad + @nuevaCantidad) * @precioFinal,
@@ -3250,56 +3281,51 @@ namespace Comercio.NET
                                       EsOferta = @EsOferta
                                   WHERE nrofactura = @nrofactura AND codigo = @codigo";
 
-                            using (var cmd = new SqlCommand(query, connection, transaction))
-                            {
-                                var cmdSet = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction);
-                                await cmdSet.ExecuteNonQueryAsync();
-
-                                cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
-                                cmd.Parameters.AddWithValue("@precioFinal", precioFinal);
-                                cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
-                                cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
-                                cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-
-                                // ✅ CRÍTICO: Agregar parámetros de oferta en el UPDATE
-                                if (ofertaActualizacion != null)
+                                using (var cmd = new SqlCommand(query, connection, transaction))
                                 {
-                                    cmd.Parameters.AddWithValue("@IdOferta", ofertaActualizacion.Id);
-                                    cmd.Parameters.AddWithValue("@NombreOferta", ofertaActualizacion.NombreOferta ?? "");
-                                    cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
-                                    cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
-                                    cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioFinal, 2));
-                                    cmd.Parameters.AddWithValue("@EsOferta", 1);
-                                }
-                                else
-                                {
-                                    // ✅✅✅ LIMPIAR campos cuando NO hay oferta
-                                    cmd.Parameters.AddWithValue("@IdOferta", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@NombreOferta", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@EsOferta", 0);
-                                }
+                                    var cmdSet = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction);
+                                    await cmdSet.ExecuteNonQueryAsync();
 
-                                await cmd.ExecuteNonQueryAsync();
+                                    cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
+                                    cmd.Parameters.AddWithValue("@precioFinal", precioFinal);
+                                    cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
+                                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                    cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
 
-                                // ✅ DEBUG
-                                System.Diagnostics.Debug.WriteLine(
-                                    $"✅ UPDATE ejecutado - Código: {producto["codigo"]}\n" +
-                                    $"   Nueva cantidad: {nuevaCantidadTotal}\n" +
-                                    $"   Precio final: {precioFinal:C2}\n" +
-                                    $"   ¿Tiene oferta?: {(ofertaActualizacion != null ? "Sí" : "No")}\n" +
-                                    $"   EsOferta: {(ofertaActualizacion != null ? 1 : 0)}");
+                                    if (ofertaActualizacion != null)
+                                    {
+                                        cmd.Parameters.AddWithValue("@IdOferta", ofertaActualizacion.Id);
+                                        cmd.Parameters.AddWithValue("@NombreOferta", ofertaActualizacion.NombreOferta ?? "");
+                                        cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
+                                        cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
+                                        cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioFinal, 2));
+                                        cmd.Parameters.AddWithValue("@EsOferta", 1);
+                                    }
+                                    else
+                                    {
+                                        cmd.Parameters.AddWithValue("@IdOferta", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@NombreOferta", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@EsOferta", 0);
+                                    }
+
+                                    await cmd.ExecuteNonQueryAsync();
+
+                                    System.Diagnostics.Debug.WriteLine(
+                                        $"✅ UPDATE ejecutado - Código: {producto["codigo"]}\n" +
+                                        $"   Nueva cantidad: {nuevaCantidadTotal}\n" +
+                                        $"   Precio final: {precioFinal:C2}\n" +
+                                        $"   ¿Tiene oferta?: {(ofertaActualizacion != null ? "Sí" : "No")}\n" +
+                                        $"   EsOferta: {(ofertaActualizacion != null ? 1 : 0)}");
+                                }
                             }
-                        }
-                        else
-                        {
-                            // ✅ NUEVO: Obtener el precio original del producto ANTES de insertar
-                            decimal precioOriginal = Convert.ToDecimal(producto["precio"]);
+                            else
+                            {
+                                decimal precioOriginal = Convert.ToDecimal(producto["precio"]);
 
-                            // 4b. Si no existe o no permite acumular, hacer INSERT (nueva línea)
-                            var query = @"INSERT INTO Ventas 
+                                var query = @"INSERT INTO Ventas 
                                     (NroFactura, codigo, descripcion, cantidad, precio, total, 
                                      IvaCalculado, PorcentajeIva,
                                      IdOferta, NombreOferta, PrecioOriginal, PrecioConOferta, DescuentoAplicado, EsOferta,
@@ -3310,145 +3336,159 @@ namespace Comercio.NET
                                      @IdOferta, @NombreOferta, @PrecioOriginal, @PrecioConOferta, @DescuentoAplicado, @EsOferta,
                                      @rubro, @marca, @proveedor, @costo, @fecha, @hora, @EsCtaCte, @NombreCtaCte)";
 
-                            using (var cmd = new SqlCommand(query, connection, transaction))
-                            {
-                                var cmdSet = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction);
-                                await cmdSet.ExecuteNonQueryAsync();
-
-                                // Parámetros básicos del producto
-                                cmd.Parameters.AddWithValue("@NroFactura", nroRemitoActual);
-                                cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                                cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
-                                cmd.Parameters.AddWithValue("@cantidad", cantidadPersonalizada);
-                                cmd.Parameters.AddWithValue("@precio", precioUnitario);
-                                cmd.Parameters.AddWithValue("@total", precioUnitario * cantidadPersonalizada);
-
-                                // ✅✅✅ CRÍTICO: Agregar IVA ANTES de los campos de oferta
-                                cmd.Parameters.AddWithValue("@ivaCalculado", ivaCalculado);
-                                cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
-
-                                // Parámetros adicionales del producto
-                                cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
-                                cmd.Parameters.AddWithValue("@marca", producto["marca"]);
-                                cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
-                                cmd.Parameters.AddWithValue("@costo", producto["costo"]);
-                                cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
-                                cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
-
-                                // Cuenta corriente
-                                cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
-                                cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-
-                                // ✅ NUEVO: Registrar información de oferta
-                                if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
+                                using (var cmd = new SqlCommand(query, connection, transaction))
                                 {
-                                    // ✅ Solo para ofertas NO-Combo
-                                    cmd.Parameters.AddWithValue("@IdOferta", ofertaAplicable.Id);
-                                    cmd.Parameters.AddWithValue("@NombreOferta", ofertaAplicable.NombreOferta ?? "");
-                                    cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
-                                    cmd.Parameters.AddWithValue("@PrecioConOferta", precioUnitario);
-                                    cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioUnitario, 2));
-                                    cmd.Parameters.AddWithValue("@EsOferta", 1);
-                                }
-                                else
-                                {
-                                    // ✅ Para Combos o sin oferta: campos NULL
-                                    cmd.Parameters.AddWithValue("@IdOferta", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@NombreOferta", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@EsOferta", 0);
-                                }
+                                    var cmdSet = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction);
+                                    await cmdSet.ExecuteNonQueryAsync();
 
-                                await cmd.ExecuteNonQueryAsync();
+                                    cmd.Parameters.AddWithValue("@NroFactura", nroRemitoActual);
+                                    cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                                    cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
+                                    cmd.Parameters.AddWithValue("@cantidad", cantidadPersonalizada);
+                                    cmd.Parameters.AddWithValue("@precio", precioUnitario);
+                                    cmd.Parameters.AddWithValue("@total", precioUnitario * cantidadPersonalizada);
+                                    cmd.Parameters.AddWithValue("@ivaCalculado", ivaCalculado);
+                                    cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
+                                    cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
+                                    cmd.Parameters.AddWithValue("@marca", producto["marca"]);
+                                    cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
+                                    cmd.Parameters.AddWithValue("@costo", producto["costo"]);
+                                    cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
+                                    cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
+                                    cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+                                    cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
-                                // ✅ NUEVO: Si es combo y ahora está completo, actualizar precios de todos los productos
-                                if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
-                                {
-                                    // ✅ CRÍTICO: Verificar combo DENTRO de la transacción
-                                    // ✅ CORREGIDO: Pasar 0 como cantidad porque el INSERT ya guardó el producto
-                                    bool comboCompleto = await VerificarComboCompleto(
-                                        ofertaAplicable.Id,
-                                        codigoBuscado,
-                                        0,  // ✅ CAMBIO CRÍTICO: NO sumar cantidad porque ya se hizo INSERT
-                                        connection,
-                                        transaction);
-
-                                    if (comboCompleto)
+                                    if (ofertaAplicable != null && ofertaAplicable.TipoOferta != "Combo")
                                     {
-                                        // ✅ CRÍTICO: Actualizar precios DENTRO de la transacción
-                                        await ActualizarPreciosComboCompleto(
+                                        cmd.Parameters.AddWithValue("@IdOferta", ofertaAplicable.Id);
+                                        cmd.Parameters.AddWithValue("@NombreOferta", ofertaAplicable.NombreOferta ?? "");
+                                        cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
+                                        cmd.Parameters.AddWithValue("@PrecioConOferta", precioUnitario);
+                                        cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioUnitario, 2));
+                                        cmd.Parameters.AddWithValue("@EsOferta", 1);
+                                    }
+                                    else
+                                    {
+                                        cmd.Parameters.AddWithValue("@IdOferta", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@NombreOferta", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@EsOferta", 0);
+                                    }
+
+                                    await cmd.ExecuteNonQueryAsync();
+
+                                    if (ofertaAplicable != null && ofertaAplicable.TipoOferta == "Combo")
+                                    {
+                                        bool comboCompleto = await VerificarComboCompleto(
                                             ofertaAplicable.Id,
+                                            codigoBuscado,
+                                            0,
                                             connection,
                                             transaction);
 
-                                        MessageBox.Show(
-                                            $"🎉 ¡COMBO COMPLETO!\n\n" +
-                                            $"Se aplicó el descuento a todos los productos del combo.\n\n" +
-                                            $"Oferta: {ofertaAplicable.NombreOferta}\n" +
-                                            $"Precio total combo: {ofertaAplicable.PrecioCombo:C2}",
-                                            "Combo Activado",
-                                            MessageBoxButtons.OK,
-                                            MessageBoxIcon.Information);
+                                        if (comboCompleto)
+                                        {
+                                            await ActualizarPreciosComboCompleto(
+                                                ofertaAplicable.Id,
+                                                connection,
+                                                transaction);
+
+                                            MessageBox.Show(
+                                                $"🎉 ¡COMBO COMPLETO!\n\n" +
+                                                $"Se aplicó el descuento a todos los productos del combo.\n\n" +
+                                                $"Oferta: {ofertaAplicable.NombreOferta}\n" +
+                                                $"Precio total combo: {ofertaAplicable.PrecioCombo:C2}",
+                                                "Combo Activado",
+                                                MessageBoxButtons.OK,
+                                                MessageBoxIcon.Information);
+                                        }
                                     }
+
+                                    System.Diagnostics.Debug.WriteLine(
+                                        $"✅ INSERT ejecutado - Código: {producto["codigo"]}\n" +
+                                        $"   Cantidad: {cantidadPersonalizada}\n" +
+                                        $"   Precio: {precioUnitario:C2}\n" +
+                                        $"   Total: {(precioUnitario * cantidadPersonalizada):C2}\n" +
+                                        $"   IVA Calculado: {ivaCalculado:C2}\n" +
+                                        $"   Porcentaje IVA: {porcentajeIva}%\n" +
+                                        $"   ¿Tiene oferta?: {(ofertaAplicable != null ? "Sí" : "No")}");
                                 }
-
-                                // ✅ DEBUG
-                                System.Diagnostics.Debug.WriteLine(
-                                    $"✅ INSERT ejecutado - Código: {producto["codigo"]}\n" +
-                                    $"   Cantidad: {cantidadPersonalizada}\n" +
-                                    $"   Precio: {precioUnitario:C2}\n" +
-                                    $"   Total: {(precioUnitario * cantidadPersonalizada):C2}\n" +
-                                    $"   IVA Calculado: {ivaCalculado:C2}\n" +
-                                    $"   Porcentaje IVA: {porcentajeIva}%\n" +
-                                    $"   ¿Tiene oferta?: {(ofertaAplicable != null ? "Sí" : "No")}");
                             }
-                        }
 
-                        // MODIFICADO: Descontar stock SOLO si el producto permite acumular (manejo de inventario)
-                        if (permiteAcumular)
-                        {
-                            var queryStock = @"UPDATE Productos 
+                            if (permiteAcumular)
+                            {
+                                var queryStock = @"UPDATE Productos 
                                    SET cantidad = cantidad - @cantidadVendida 
                                    WHERE codigo = @codigo";
-                            using (var cmdUpd = new SqlCommand(queryStock, connection, transaction))
-                            {
-                                cmdUpd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
-                                cmdUpd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                                await cmdUpd.ExecuteNonQueryAsync();
+                                using (var cmdUpd = new SqlCommand(queryStock, connection, transaction))
+                                {
+                                    cmdUpd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
+                                    cmdUpd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                                    await cmdUpd.ExecuteNonQueryAsync();
+                                }
                             }
-                        }
 
-                        transaction.Commit();
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        System.Diagnostics.Debug.WriteLine($"❌ Error en transacción: {ex.Message}");
-                        throw;
+                            transaction.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            System.Diagnostics.Debug.WriteLine($"❌ Error en transacción: {ex.Message}");
+                            throw;
+                        }
                     }
                 }
+
+                // ✅ CRÍTICO: ESPERAR a que termine la carga ANTES de continuar
+                await CargarVentasActualesAsync();
+
+                // ✅ CRÍTICO: Forzar actualización del UI
+                dataGridView1.Refresh();
+                Application.DoEvents();
+
+                // ✅ NUEVO: Logging para diagnosticar
+                System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+                System.Diagnostics.Debug.WriteLine($"📦 PRODUCTO AGREGADO - VALIDACIÓN");
+                System.Diagnostics.Debug.WriteLine($"   Código: {codigoBuscado}");
+                System.Diagnostics.Debug.WriteLine($"   Descripción: {producto["descripcion"]}");
+                System.Diagnostics.Debug.WriteLine($"   Cantidad: {cantidadPersonalizada}");
+                System.Diagnostics.Debug.WriteLine($"   Precio: {precioUnitario:C2}");
+                System.Diagnostics.Debug.WriteLine($"   ┌─ Estado DataGridView:");
+                System.Diagnostics.Debug.WriteLine($"   │  Filas visibles: {dataGridView1.Rows.Count}");
+                System.Diagnostics.Debug.WriteLine($"   │  DataSource rows: {remitoActual?.Rows.Count ?? 0}");
+                System.Diagnostics.Debug.WriteLine($"   │  Total calculado: {CalcularTotal():C2}");
+                System.Diagnostics.Debug.WriteLine($"   └─ ¿Coinciden?: {(dataGridView1.Rows.Count == remitoActual?.Rows.Count ? "✅ SÍ" : "❌ NO - INCONSISTENCIA")}");
+                System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+
+                FormatearDataGridView();
+
+                txtBuscarProducto.Text = "";
+                txtBuscarProducto.Focus();
+
+                if (chkCantidad.Checked)
+                {
+                    chkCantidad.Checked = false;
+                    cantidadPersonalizada = 1;
+                }
             }
-
-            // 5. Mostrar todas las ventas del remito actual
-            CargarVentasActuales();
-
-            // Formatear columnas y encabezados (resto del código igual)
-            FormatearDataGridView();
-
-
-            // Dejar el foco en el campo buscar para el próximo producto
-            txtBuscarProducto.Text = "";
-            txtBuscarProducto.Focus();
-
-            // Desmarcar el checkbox de cantidad después de agregar el producto
-            if (chkCantidad.Checked)
+            catch (Exception ex)
             {
-                chkCantidad.Checked = false;
-                cantidadPersonalizada = 1;
+                System.Diagnostics.Debug.WriteLine($"❌ ERROR en btnAgregar_Click: {ex.Message}");
+                MessageBox.Show($"Error: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // ✅ CRÍTICO: SIEMPRE liberar el lock
+                lock (lockOperacion)
+                {
+                    operacionEnCurso = false;
+                }
             }
         }
+
 
         // NUEVO: Calcular el total del remito actual
         private decimal CalcularTotal()
@@ -3761,6 +3801,161 @@ namespace Comercio.NET
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
             rtbTotal.SelectionFont = new Font("Segoe UI", 48F, FontStyle.Bold); // ✅ AUMENTADO: 36F → 48F
+            rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
+        }
+
+        // ✅ NUEVO: Versión asíncrona de CargarVentasActuales
+        private async Task CargarVentasActualesAsync()
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+            string connectionString = config.GetConnectionString("DefaultConnection");
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, 
+                 PorcentajeIva, IvaCalculado, 
+                 ISNULL(EsOferta, 0) AS EsOferta,
+                 NombreOferta
+          FROM Ventas
+          WHERE nrofactura = @nrofactura
+          ORDER BY id DESC";
+
+                using (var adapter = new SqlDataAdapter(query, connection))
+                {
+                    adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+
+                    DataTable dt = new DataTable();
+
+                    // ✅ CRÍTICO: Ejecutar Fill en un hilo separado
+                    await Task.Run(() => adapter.Fill(dt));
+
+                    // ✅ CRÍTICO: Actualizar UI en el hilo principal
+                    if (this.InvokeRequired)
+                    {
+                        this.Invoke(new Action(() =>
+                        {
+                            dataGridView1.DataSource = dt;
+                            remitoActual = dt;
+                        }));
+                    }
+                    else
+                    {
+                        dataGridView1.DataSource = dt;
+                        remitoActual = dt;
+                    }
+                }
+            }
+
+            // ✅ Configurar columnas y totales
+            ConfigurarColumnasYTotales();
+        }
+
+        // ✅ NUEVO: Extraer lógica de configuración
+        private void ConfigurarColumnasYTotales()
+        {
+            // Ocultar columnas internas
+            if (dataGridView1.Columns["EsOferta"] != null)
+                dataGridView1.Columns["EsOferta"].Visible = false;
+            if (dataGridView1.Columns["NombreOferta"] != null)
+                dataGridView1.Columns["NombreOferta"].Visible = false;
+            if (dataGridView1.Columns["id"] != null)
+                dataGridView1.Columns["id"].Visible = false;
+            if (dataGridView1.Columns["IvaCalculado"] != null)
+                dataGridView1.Columns["IvaCalculado"].Visible = false;
+
+            // Configurar encabezados
+            if (dataGridView1.Columns["codigo"] != null)
+            {
+                dataGridView1.Columns["codigo"].HeaderText = "Codigo";
+                dataGridView1.Columns["codigo"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dataGridView1.Columns["codigo"].Width = 170;
+            }
+
+            if (dataGridView1.Columns["descripcion"] != null)
+            {
+                dataGridView1.Columns["descripcion"].HeaderText = "Descripcion";
+                dataGridView1.Columns["descripcion"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dataGridView1.Columns["descripcion"].FillWeight = 250;
+            }
+
+            if (dataGridView1.Columns["precio"] != null)
+            {
+                dataGridView1.Columns["precio"].HeaderText = "Precio";
+                dataGridView1.Columns["precio"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dataGridView1.Columns["precio"].Width = 120;
+                dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
+
+            if (dataGridView1.Columns["total"] != null)
+            {
+                var colTotal = dataGridView1.Columns["total"];
+                colTotal.HeaderText = "Total";
+                colTotal.DefaultCellStyle.Format = "C2";
+                colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                colTotal.DefaultCellStyle.BackColor = dataGridView1.DefaultCellStyle.BackColor;
+                colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
+                colTotal.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                colTotal.Width = 140;
+            }
+
+            if (dataGridView1.Columns["PorcentajeIva"] != null)
+            {
+                var colIvaPct = dataGridView1.Columns["PorcentajeIva"];
+                colIvaPct.HeaderText = "IVA%";
+                colIvaPct.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                colIvaPct.Width = 70;
+                colIvaPct.MinimumWidth = 60;
+                colIvaPct.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+
+            if (dataGridView1.Columns["cantidad"] != null)
+            {
+                dataGridView1.Columns["cantidad"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dataGridView1.Columns["cantidad"].HeaderText = "Cant.";
+                dataGridView1.Columns["cantidad"].Width = 60;
+                dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+
+            FormatearDataGridView();
+
+            if (dataGridView1.Columns["ColOferta"] != null)
+            {
+                dataGridView1.Columns["ColOferta"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dataGridView1.Columns["ColOferta"].Width = 40;
+                dataGridView1.Columns["ColOferta"].MinimumWidth = 40;
+                dataGridView1.Columns["ColOferta"].Resizable = DataGridViewTriState.False;
+                dataGridView1.Columns["ColOferta"].DisplayIndex = 0;
+            }
+
+            ActualizarTotales();
+
+            if (btnAnularFactura != null)
+            {
+                btnAnularFactura.Visible = true;
+                btnAnularFactura.Enabled = (remitoActual != null && remitoActual.Rows.Count > 0);
+                btnAnularFactura.BringToFront();
+            }
+        }
+
+        // ✅ NUEVO: Método separado para actualizar totales
+        private void ActualizarTotales()
+        {
+            lbCantidadProductos.Text = $"Productos: {dataGridView1.Rows.Count}";
+
+            decimal sumaTotal = 0;
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if (row.Cells["total"]?.Value != null &&
+                    decimal.TryParse(row.Cells["total"].Value.ToString(), out decimal valorTotal))
+                    sumaTotal += valorTotal;
+            }
+
+            rtbTotal.Clear();
+            rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
+            rtbTotal.SelectionFont = new Font("Segoe UI", 48F, FontStyle.Bold);
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
         }
 
@@ -4442,7 +4637,11 @@ namespace Comercio.NET
             {
                 // Si no hay remito cargado o está vacío, permitir cierre
                 if (remitoActual == null || remitoActual.Rows.Count == 0)
+                {
+                    // ✅ NUEVO: Decrementar contador al cerrar
+                    DecrementarContadorInstancias();
                     return;
+                }
 
                 // Hay productos cargados -> ofrecer opciones
                 var mensaje =
@@ -4485,6 +4684,9 @@ namespace Comercio.NET
                         // Si quedó vacío, permitir cierre
                         if (remitoActual == null || remitoActual.Rows.Count == 0)
                         {
+                            // ✅ NUEVO: Decrementar contador antes de cerrar
+                            DecrementarContadorInstancias();
+
                             // No cancelar: dejar que el cierre continúe
                             e.Cancel = false;
                             return;
@@ -4525,6 +4727,28 @@ namespace Comercio.NET
                 MessageBox.Show(this,
                     "Error comprobando estado de la venta. No se permite cerrar el formulario.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Método helper para decrementar el contador de forma segura
+        private void DecrementarContadorInstancias()
+        {
+            lock (lockObject)
+            {
+                if (instanciasAbiertas > 0)
+                {
+                    instanciasAbiertas--;
+                    System.Diagnostics.Debug.WriteLine($"✅ Instancia de Ventas cerrada. Total restante: {instanciasAbiertas}/{MAXIMO_INSTANCIAS}");
+                }
+            }
+        }
+
+        // ✅ NUEVO: Método estático para obtener el número de instancias abiertas (útil para debugging)
+        public static int ObtenerInstanciasAbiertas()
+        {
+            lock (lockObject)
+            {
+                return instanciasAbiertas;
             }
         }
 

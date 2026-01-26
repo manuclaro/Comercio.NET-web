@@ -239,45 +239,38 @@ namespace Comercio.NET.Formularios
 
             using (var connection = new SqlConnection(connectionString))
             {
-                // ✅ NUEVA QUERY: Agrupar por alícuota de IVA
+                // ✅ CORREGIDO: Contar productos por alícuota de IVA
                 var query = @"
-            WITH FacturasConIVA AS (
-                SELECT 
-                    f.ImporteFinal,
-                    f.IVA,
-                    CASE 
-                        WHEN f.IVA > 0 AND f.ImporteFinal > 0 
-                        THEN CAST(ROUND((f.IVA / (f.ImporteFinal - f.IVA)) * 100, 2) AS DECIMAL(5,2))
-                        ELSE 0
-                    END AS Alicuota
-                FROM Facturas f
-                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta";
-
-                if (_soloCtaCte)
-                    query += " AND f.TipoFactura = 'CtaCte'";
-
-                query += @"
-            )
             SELECT 
                 CASE 
-                    WHEN Alicuota = 0 THEN 'Sin IVA (0%)'
-                    WHEN Alicuota BETWEEN 10 AND 11 THEN 'IVA (10.5%)'
-                    WHEN Alicuota BETWEEN 20 AND 22 THEN 'IVA (21%)'
-                    WHEN Alicuota BETWEEN 26 AND 28 THEN 'IVA (27%)'
-                    ELSE 'Otros (' + CAST(Alicuota AS VARCHAR) + '%)'
+                    WHEN p.iva = 0 THEN 'Sin IVA (0%)'
+                    WHEN p.iva BETWEEN 6 AND 7 THEN 'IVA (6.63%)'
+                    WHEN p.iva BETWEEN 10 AND 11 THEN 'IVA (10.5%)'
+                    WHEN p.iva BETWEEN 20 AND 22 THEN 'IVA (21%)'
+                    ELSE 'Otros (' + CAST(p.iva AS VARCHAR) + '%)'
                 END AS TipoIVA,
-                COUNT(*) as Cantidad,
-                SUM(CAST(ISNULL(ImporteFinal, 0) AS DECIMAL(18,2))) as Total,
-                SUM(CAST(ISNULL(IVA, 0) AS DECIMAL(18,2))) as TotalIVA,
-                SUM(CAST(ISNULL(ImporteFinal, 0) - ISNULL(IVA, 0) AS DECIMAL(18,2))) as Subtotal
-            FROM FacturasConIVA
+                COUNT(*) as Cantidad, -- ✅ CAMBIO: Contar productos (no DISTINCT facturas)
+                SUM(CAST(v.total AS DECIMAL(18,2))) as TotalVentasProductos,
+                SUM(CAST(v.total / (1 + (p.iva / 100.0)) AS DECIMAL(18,2))) as Subtotal,
+                SUM(CAST(v.total - (v.total / (1 + (p.iva / 100.0))) AS DECIMAL(18,2))) as TotalIVA,
+                SUM(CAST(v.total AS DECIMAL(18,2))) as Total
+            FROM Ventas v
+            INNER JOIN Productos p ON v.codigo = p.codigo
+            INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+            WHERE f.Fecha >= @desde AND f.Fecha <= @hasta
+            AND f.TipoFactura IN ('FacturaA', 'FacturaB')";
+
+                if (_soloCtaCte)
+                    query += " AND f.esCtaCte = 1";
+
+                query += @"
             GROUP BY 
                 CASE 
-                    WHEN Alicuota = 0 THEN 'Sin IVA (0%)'
-                    WHEN Alicuota BETWEEN 10 AND 11 THEN 'IVA (10.5%)'
-                    WHEN Alicuota BETWEEN 20 AND 22 THEN 'IVA (21%)'
-                    WHEN Alicuota BETWEEN 26 AND 28 THEN 'IVA (27%)'
-                    ELSE 'Otros (' + CAST(Alicuota AS VARCHAR) + '%)'
+                    WHEN p.iva = 0 THEN 'Sin IVA (0%)'
+                    WHEN p.iva BETWEEN 6 AND 7 THEN 'IVA (6.63%)'
+                    WHEN p.iva BETWEEN 10 AND 11 THEN 'IVA (10.5%)'
+                    WHEN p.iva BETWEEN 20 AND 22 THEN 'IVA (21%)'
+                    ELSE 'Otros (' + CAST(p.iva AS VARCHAR) + '%)'
                 END
             ORDER BY TotalIVA DESC";
 
@@ -292,7 +285,7 @@ namespace Comercio.NET.Formularios
                     {
                         Name = "dgvIVA",
                         Location = new Point(10, 45),
-                        Size = new Size(920, 120), // ✅ REDUCIDO
+                        Size = new Size(920, 120),
                         ReadOnly = true,
                         AllowUserToAddRows = false,
                         RowHeadersVisible = false,
@@ -309,7 +302,7 @@ namespace Comercio.NET.Formularios
                         adapter.Fill(dtIVA);
                     }
 
-                    _dtIVA = dtIVA; // ✅ GUARDAR para usar en impresión
+                    _dtIVA = dtIVA;
 
                     dgvIVA.DataSource = dtIVA;
                     FormatearGridIVA(dgvIVA);
@@ -341,43 +334,44 @@ namespace Comercio.NET.Formularios
 
             using (var connection = new SqlConnection(connectionString))
             {
+                // ✅ CORREGIDO: Contar productos por rubro
                 var query = @"
-                    WITH VentasConTotal AS (
-                        SELECT 
-                            v.NroFactura,
-                            CASE 
-                                WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
-                                WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
-                                WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
-                                ELSE 'ALMACEN'
-                            END AS Rubro,
-                            CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                            SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                            CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                        FROM Ventas v
-                        INNER JOIN Productos p ON v.codigo = p.codigo
-                        INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                        WHERE f.Fecha >= @desde AND f.Fecha <= @hasta";
+            WITH VentasConTotal AS (
+                SELECT 
+                    v.NroFactura,
+                    CASE 
+                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
+                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
+                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
+                        ELSE 'ALMACEN'
+                    END AS Rubro,
+                    CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                FROM Ventas v
+                INNER JOIN Productos p ON v.codigo = p.codigo
+                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta
+                AND f.TipoFactura IN ('FacturaA', 'FacturaB')";
 
                 if (_soloCtaCte)
-                    query += " AND f.TipoFactura = 'CtaCte'";
+                    query += " AND f.esCtaCte = 1";
 
                 query += @"
-                    )
-                    SELECT 
-                        Rubro,
-                        COUNT(DISTINCT NroFactura) AS CantidadFacturas,
-                        COUNT(*) AS CantidadProductos,
-                        CAST(SUM(
-                            CASE 
-                                WHEN TotalFacturaVentas > 0 
-                                THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
-                                ELSE 0
-                            END
-                        ) AS DECIMAL(18,2)) AS MontoTotal
-                    FROM VentasConTotal
-                    GROUP BY Rubro
-                    ORDER BY MontoTotal DESC";
+            )
+            SELECT 
+                Rubro,
+                COUNT(*) AS CantidadProductos, -- ✅ CAMBIO: Solo contar productos (no facturas)
+                CAST(SUM(
+                    CASE 
+                        WHEN TotalFacturaVentas > 0 
+                        THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                        ELSE 0
+                    END
+                ) AS DECIMAL(18,2)) AS MontoTotal
+            FROM VentasConTotal
+            GROUP BY Rubro
+            ORDER BY MontoTotal DESC";
 
                 using (var cmd = new SqlCommand(query, connection))
                 {
@@ -390,7 +384,7 @@ namespace Comercio.NET.Formularios
                     {
                         Name = "dgvRubros",
                         Location = new Point(10, 45),
-                        Size = new Size(920, 140), // era 245 - CAMBIAR ESTA LÍNEA
+                        Size = new Size(920, 140),
                         ReadOnly = true,
                         AllowUserToAddRows = false,
                         RowHeadersVisible = false,
@@ -398,7 +392,7 @@ namespace Comercio.NET.Formularios
                         BackgroundColor = Color.White,
                         BorderStyle = BorderStyle.None,
                         EnableHeadersVisualStyles = false,
-                        AllowUserToResizeRows = false // ✅ AGREGAR esta línea
+                        AllowUserToResizeRows = false
                     };
 
                     var dtRubros = new DataTable();
@@ -407,7 +401,7 @@ namespace Comercio.NET.Formularios
                         adapter.Fill(dtRubros);
                     }
 
-                    _dtRubros = dtRubros; // ✅ GUARDAR para usar en impresión
+                    _dtRubros = dtRubros;
 
                     dgvRubros.DataSource = dtRubros;
                     FormatearGridRubros(dgvRubros);
@@ -458,7 +452,7 @@ namespace Comercio.NET.Formularios
 
                     g.FillRectangle(new SolidBrush(Color.FromArgb(0, 120, 215)), col1, y, pageWidth, 20);
                     g.DrawString("Condición IVA", fuenteHeader, Brushes.White, col1 + 5, y + 3);
-                    g.DrawString("Facturas", fuenteHeader, Brushes.White, col2 + 5, y + 3);
+                    g.DrawString("Productos", fuenteHeader, Brushes.White, col2 + 5, y + 3); // ✅ CAMBIO
                     g.DrawString("Total", fuenteHeader, Brushes.White, col3 + 5, y + 3);
                     g.DrawString("IVA", fuenteHeader, Brushes.White, col4 + 5, y + 3);
                     g.DrawString("Subtotal", fuenteHeader, Brushes.White, col5 + 5, y + 3);
@@ -499,27 +493,23 @@ namespace Comercio.NET.Formularios
                     float colR1 = x;
                     float colR2 = x + 150;
                     float colR3 = x + 280;
-                    float colR4 = x + 410;
 
                     g.FillRectangle(new SolidBrush(Color.FromArgb(0, 120, 215)), colR1, y, pageWidth, 20);
                     g.DrawString("Rubro", fuenteHeader, Brushes.White, colR1 + 5, y + 3);
-                    g.DrawString("Facturas", fuenteHeader, Brushes.White, colR2 + 5, y + 3);
-                    g.DrawString("Productos", fuenteHeader, Brushes.White, colR3 + 5, y + 3);
-                    g.DrawString("Monto Total", fuenteHeader, Brushes.White, colR4 + 5, y + 3);
+                    g.DrawString("Productos", fuenteHeader, Brushes.White, colR2 + 5, y + 3); // ✅ CAMBIO
+                    g.DrawString("Monto Total", fuenteHeader, Brushes.White, colR3 + 5, y + 3);
                     y += 22;
 
                     // Filas de datos Rubros
                     foreach (DataRow row in _dtRubros.Rows)
                     {
                         string rubro = row["Rubro"]?.ToString() ?? "";
-                        int cantFacturas = Convert.ToInt32(row["CantidadFacturas"]);
                         int cantProductos = Convert.ToInt32(row["CantidadProductos"]);
                         decimal montoTotal = Convert.ToDecimal(row["MontoTotal"]);
 
                         g.DrawString(rubro, fuenteNormal, Brushes.Black, colR1 + 5, y);
-                        g.DrawString(cantFacturas.ToString(), fuenteNormal, Brushes.Black, colR2 + 20, y);
-                        g.DrawString(cantProductos.ToString(), fuenteNormal, Brushes.Black, colR3 + 20, y);
-                        g.DrawString(montoTotal.ToString("C2"), fuenteNormal, Brushes.DarkGreen, colR4 + 5, y);
+                        g.DrawString(cantProductos.ToString(), fuenteNormal, Brushes.Black, colR2 + 20, y);
+                        g.DrawString(montoTotal.ToString("C2"), fuenteNormal, Brushes.DarkGreen, colR3 + 5, y);
                         y += 18;
                     }
                 }
@@ -563,7 +553,6 @@ namespace Comercio.NET.Formularios
 
             try
             {
-                // ✅ MODIFICADO: Nueva columna "TipoIVA"
                 if (dgv.Columns["TipoIVA"] != null)
                 {
                     dgv.Columns["TipoIVA"].HeaderText = "Condición de IVA";
@@ -573,7 +562,7 @@ namespace Comercio.NET.Formularios
 
                 if (dgv.Columns["Cantidad"] != null)
                 {
-                    dgv.Columns["Cantidad"].HeaderText = "Facturas";
+                    dgv.Columns["Cantidad"].HeaderText = "Productos"; // ✅ CAMBIO: de "Facturas" a "Productos"
                     dgv.Columns["Cantidad"].Width = 80;
                     dgv.Columns["Cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
@@ -609,7 +598,7 @@ namespace Comercio.NET.Formularios
                 dgv.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 dgv.ColumnHeadersHeight = 35;
                 dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-                dgv.RowTemplate.Height = 28; // ✅ Filas más compactas
+                dgv.RowTemplate.Height = 28;
             }
             catch (Exception ex)
             {
@@ -633,16 +622,9 @@ namespace Comercio.NET.Formularios
                     dgv.Columns["Rubro"].Width = 150;
                 }
 
-                if (dgv.Columns["CantidadFacturas"] != null)
-                {
-                    dgv.Columns["CantidadFacturas"].HeaderText = "Facturas";
-                    dgv.Columns["CantidadFacturas"].Width = 100;
-                    dgv.Columns["CantidadFacturas"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-
                 if (dgv.Columns["CantidadProductos"] != null)
                 {
-                    dgv.Columns["CantidadProductos"].HeaderText = "Productos";
+                    dgv.Columns["CantidadProductos"].HeaderText = "Productos"; // ✅ CAMBIO: Simplificar nombre
                     dgv.Columns["CantidadProductos"].Width = 100;
                     dgv.Columns["CantidadProductos"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
@@ -662,7 +644,7 @@ namespace Comercio.NET.Formularios
                 dgv.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 dgv.ColumnHeadersHeight = 35;
                 dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-                dgv.RowTemplate.Height = 28; // ✅ AGREGAR esta línea
+                dgv.RowTemplate.Height = 28;
             }
             catch (Exception ex)
             {
@@ -706,23 +688,6 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        //private void ImprimirPagina(object sender, PrintPageEventArgs e)
-        //{
-        //    // Implementar lógica de impresión
-        //    var g = e.Graphics;
-        //    var fuente = new Font("Arial", 10);
-        //    var fuenteTitulo = new Font("Arial", 14, FontStyle.Bold);
-            
-        //    float y = 50;
-            
-        //    g.DrawString("REPORTE CONSOLIDADO DE VENTAS", fuenteTitulo, Brushes.Black, 50, y);
-        //    y += 30;
-        //    g.DrawString($"Período: {_fechaDesde:dd/MM/yyyy} - {_fechaHasta:dd/MM/yyyy}", fuente, Brushes.Black, 50, y);
-        //    y += 40;
-            
-        //    // Agregar contenido de IVA y Rubros...
-        //    g.DrawString($"Total General: {_totalGeneral:C2}", new Font("Arial", 12, FontStyle.Bold), Brushes.Black, 50, e.PageBounds.Height - 100);
-        //}
 
         private void BtnExportar_Click(object sender, EventArgs e)
         {

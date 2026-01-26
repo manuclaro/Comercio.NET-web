@@ -2512,8 +2512,8 @@ namespace Comercio.NET.Formularios
             {
                 int cantidadVentas = dt.Rows.Count;
                 decimal totalVentas = 0;
-                decimal totalIVA = 0;
-                decimal subtotalSinIVA = 0;
+                decimal totalIVA = 0; // ✅ Este será recalculado desde productos
+                decimal subtotalSinIVA = 0; // ✅ Este será recalculado desde productos
                 decimal totalDescuentos = 0;
 
                 // ✅ NUEVO: Totales por rubro
@@ -2528,7 +2528,7 @@ namespace Comercio.NET.Formularios
                 int filasConErrores = 0;
                 var errores = new List<string>();
 
-                // ✅ CORREGIDO: Obtener totales por rubro CON PRORRATEO de ImporteFinal
+                // ✅ NUEVO: Calcular IVA y Subtotal desde productos (NO desde Facturas.IVA)
                 try
                 {
                     var config = new ConfigurationBuilder()
@@ -2552,39 +2552,65 @@ namespace Comercio.NET.Formularios
 
                         if (remitos.Count > 0)
                         {
-                            // ✅ CORREGIDO: Query con PRORRATEO de ImporteFinal
-                            var query = $@"
-                                            WITH VentasConTotal AS (
-                                                SELECT 
-                                                    v.NroFactura,
-                                                    CASE 
-                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
-                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
-                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
-                                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
-                                                        ELSE 'Almacen'
-                                                    END as Rubro,
-                                                    CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                                                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                                                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                                                FROM Ventas v
-                                                INNER JOIN Productos p ON v.codigo = p.codigo
-                                                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                                                WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
-                                            )
-                                            SELECT 
-                                                Rubro,
-                                                CAST(SUM(
-                                                    CASE 
-                                                        WHEN TotalFacturaVentas > 0 
-                                                        THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
-                                                        ELSE 0
-                                                    END
-                                                ) AS DECIMAL(18,2)) AS Total
-                                            FROM VentasConTotal
-                                            GROUP BY Rubro";
+                            // ✅ CORREGIDO: Calcular IVA desde productos, solo Facturas A y B
+                            var queryIVA = $@"
+                        SELECT 
+                            SUM(CAST(v.total AS DECIMAL(18,2))) as TotalVentasProductos,
+                            SUM(CAST(v.total / (1 + (p.iva / 100.0)) AS DECIMAL(18,2))) as Subtotal,
+                            SUM(CAST(v.total - (v.total / (1 + (p.iva / 100.0))) AS DECIMAL(18,2))) as TotalIVA
+                        FROM Ventas v
+                        INNER JOIN Productos p ON v.codigo = p.codigo
+                        INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                        WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                        AND f.TipoFactura IN ('FacturaA', 'FacturaB')"; // ✅ Solo Facturas A y B
 
-                            using (var cmd = new SqlCommand(query, connection))
+                            using (var cmd = new SqlCommand(queryIVA, connection))
+                            {
+                                connection.Open();
+                                using (var reader = cmd.ExecuteReader())
+                                {
+                                    if (reader.Read())
+                                    {
+                                        totalIVA = reader["TotalIVA"] != DBNull.Value ? Convert.ToDecimal(reader["TotalIVA"]) : 0m;
+                                        subtotalSinIVA = reader["Subtotal"] != DBNull.Value ? Convert.ToDecimal(reader["Subtotal"]) : 0m;
+                                    }
+                                }
+                                connection.Close();
+                            }
+
+                            // ✅ Query para totales por rubro (mantener igual)
+                            var queryRubros = $@"
+                        WITH VentasConTotal AS (
+                            SELECT 
+                                v.NroFactura,
+                                CASE 
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
+                                    ELSE 'Almacen'
+                                END as Rubro,
+                                CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                                SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                                CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                            FROM Ventas v
+                            INNER JOIN Productos p ON v.codigo = p.codigo
+                            INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                            WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                        )
+                        SELECT 
+                            Rubro,
+                            CAST(SUM(
+                                CASE 
+                                    WHEN TotalFacturaVentas > 0 
+                                    THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                                    ELSE 0
+                                END
+                            ) AS DECIMAL(18,2)) AS Total
+                        FROM VentasConTotal
+                        GROUP BY Rubro";
+
+                            using (var cmd = new SqlCommand(queryRubros, connection))
                             {
                                 connection.Open();
                                 using (var reader = cmd.ExecuteReader())
@@ -2620,7 +2646,7 @@ namespace Comercio.NET.Formularios
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error obteniendo totales por rubro: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Error obteniendo IVA y totales por rubro: {ex.Message}");
                 }
 
                 foreach (DataRow row in dt.Rows)
@@ -2683,53 +2709,8 @@ namespace Comercio.NET.Formularios
                             }
                         }
 
-                        // Procesar IVA
-                        object ivaObj = row["IVA"];
-                        decimal iva = 0;
-
-                        if (ivaObj != null && ivaObj != DBNull.Value)
-                        {
-                            if (ivaObj is decimal ivaDecimalValue)
-                            {
-                                iva = ivaDecimalValue;
-                                totalIVA += iva;
-                            }
-                            else
-                            {
-                                string ivaStr = ivaObj.ToString().Trim();
-
-                                if (decimal.TryParse(ivaStr, out iva) ||
-                                    decimal.TryParse(ivaStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out iva) ||
-                                    decimal.TryParse(ivaStr, NumberStyles.Number, CultureInfo.InvariantCulture, out iva))
-                                {
-                                    totalIVA += iva;
-                                }
-                            }
-                        }
-
-                        // Procesar Subtotal
-                        object subtotalObj = row["Subtotal"];
-                        decimal subtotal = 0;
-
-                        if (subtotalObj != null && subtotalObj != DBNull.Value)
-                        {
-                            if (subtotalObj is decimal subtotalDecimalValue)
-                            {
-                                subtotal = subtotalDecimalValue;
-                                subtotalSinIVA += subtotal;
-                            }
-                            else
-                            {
-                                string subtotalStr = subtotalObj.ToString().Trim();
-
-                                if (decimal.TryParse(subtotalStr, out subtotal) ||
-                                    decimal.TryParse(subtotalStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out subtotal) ||
-                                    decimal.TryParse(subtotalStr, NumberStyles.Number, CultureInfo.InvariantCulture, out subtotal))
-                                {
-                                    subtotalSinIVA += subtotal;
-                                }
-                            }
-                        }
+                        // ✅ REMOVIDO: Ya no procesar IVA y Subtotal desde DataTable
+                        // Ahora se calculan desde productos arriba
 
                         // Contar tipos de factura
                         string tipoFactura = row["Tipo"]?.ToString()?.Trim() ?? "Sin especificar";
@@ -2752,10 +2733,9 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // ✅ CORREGIDO: Actualizar labels principales - SIEMPRE mostrar descuento si existe
+                // ✅ Actualizar labels principales
                 lblCantidadVentas.Text = $"Ventas: {cantidadVentas}";
 
-                // ✅ CAMBIO: Mostrar descuento en línea separada siempre
                 if (totalDescuentos > 0)
                 {
                     lblTotal.Text = $"Total Final: {totalVentas:C2}\n(Desc: {totalDescuentos:C2})";
@@ -2767,13 +2747,13 @@ namespace Comercio.NET.Formularios
 
                 var lblTotalIVA = this.Controls.Find("lblTotalIVA", true).FirstOrDefault() as Label;
                 if (lblTotalIVA != null)
-                    lblTotalIVA.Text = $"IVA Total: {totalIVA:C2}";
+                    lblTotalIVA.Text = $"IVA Total: {totalIVA:C2}"; // ✅ Ahora usa IVA calculado desde productos
 
                 var lblSubtotalSinIVA = this.Controls.Find("lblSubtotalSinIVA", true).FirstOrDefault() as Label;
                 if (lblSubtotalSinIVA != null)
-                    lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {subtotalSinIVA:C2}";
+                    lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {subtotalSinIVA:C2}"; // ✅ Ahora usa Subtotal calculado desde productos
 
-                // ✅ NUEVO: Actualizar labels de rubros
+                // ✅ Actualizar labels de rubros
                 lblTotalCarniceria.Text = $"🥩 Carnicería: {totalCarniceria:C2}";
                 lblTotalVerduleria.Text = $"🥕 Verdulería: {totalVerduleria:C2}";
                 lblTotalFiambreria.Text = $"🧀 Fiambrería: {totalFiambreria:C2}";
@@ -2820,7 +2800,6 @@ namespace Comercio.NET.Formularios
                 lblDetalleTiposFactura.Text = "Error calculando tipos";
                 lblDetalleFormasPago.Text = "Error calculando formas de pago";
 
-                // ✅ NUEVO: Resetear labels de rubros en caso de error
                 lblTotalCarniceria.Text = "🥩 Carnicería: $0,00";
                 lblTotalVerduleria.Text = "🥕 Verdulería: $0,00";
                 lblTotalFiambreria.Text = "🧀 Fiambrería: $0,00";

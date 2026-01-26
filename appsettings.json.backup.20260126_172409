@@ -65,8 +65,8 @@
   "RestriccionesImpresion": {
     "RestringirRemitoPorPago": false,
     "UsarVistaPrevia": true,
-    "LimitarFacturacion": true,
-    "MontoLimiteFacturacion": 15000.0
+    "LimitarFacturacion": false,
+    "MontoLimiteFacturacion": 0.0
   },
   "Descuentos": {
     "OpcionesDisponibles": [

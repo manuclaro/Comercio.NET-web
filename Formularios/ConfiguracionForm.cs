@@ -16,12 +16,12 @@ namespace Comercio.NET.Formularios
     public partial class ConfiguracionForm : Form
     {
         // Controles del formulario
-        private TextBox txtNombreComercio, txtDomicilioComercio, txtConnectionString;
+        private TextBox txtNombreComercio, txtDomicilioComercio;
         // Nuevos controles para facturación
         private TextBox txtRazonSocial, txtCUIT, txtIngBrutos, txtDomicilioFiscal, txtCodigoPostal;
         private DateTimePicker dtpInicioActividades;
         private ComboBox cmbCondicion;
-        
+
         // NUEVO: Controles para Cuentas Corrientes
         private ListBox lstNombresCtaCte;
         private TextBox txtNuevoNombreCtaCte;
@@ -61,13 +61,13 @@ namespace Comercio.NET.Formularios
         private Panel panelRestriccionesImpresion;
         private CheckBox chkRestringirRemitoPorPago;
         private Button btnColapsarRestriccionesImpresion;
-        
+
         private Button btnGuardar, btnCancelar, btnTestearConexion, btnEditarBaseDatos;
         private Button btnColapsarComercio, btnColapsarFacturacion, btnColapsarInventario, btnColapsarBaseDatos, btnColapsarCuentasCorrientes;
         private CheckBox chkVerificarStock;
         private Label lblMensaje;
         private Panel panelPrincipal, panelComercio, panelFacturacion, panelBaseDatos, panelInventario, panelCuentasCorrientes;
-        
+
         private string _rutaAppsettings;
         private JObject _configuracionOriginal;
 
@@ -98,28 +98,32 @@ namespace Comercio.NET.Formularios
         private RadioButton rbAfipTesting, rbAfipProduccion;
         private Panel panelAfipTesting, panelAfipProduccion;
 
-       
+        // Controles para selección de ambiente de BD
+        private RadioButton rbDbTesting, rbDbProduccion;
+        private Panel panelDbTesting, panelDbProduccion;
+        private TextBox txtConnectionStringTesting, txtConnectionStringProduccion;
+        private Button btnTestearConexionTesting, btnTestearConexionProduccion;
 
         public ConfiguracionForm()
         {
             System.Diagnostics.Debug.WriteLine("[CONFIG] Iniciando ConfiguracionForm");
-            
+
             InitializeComponent();
 
-            
+
             // NUEVO: Inicializar ToolTip
             toolTip = new ToolTip();
             toolTip.AutoPopDelay = 5000;
             toolTip.InitialDelay = 1000;
             toolTip.ReshowDelay = 500;
             toolTip.ShowAlways = true;
-            
+
             ConfigurarFormulario();
-            
+
             // Para producción - usar el archivo donde se ejecuta
             _rutaAppsettings = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
             System.Diagnostics.Debug.WriteLine($"[CONFIG] Ruta appsettings: {_rutaAppsettings}");
-            
+
             if (!VerificarPermisosEscritura())
             {
                 MessageBox.Show(
@@ -130,7 +134,7 @@ namespace Comercio.NET.Formularios
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
-            
+
             CargarConfiguracion();
             System.Diagnostics.Debug.WriteLine("[CONFIG] Constructor completado");
         }
@@ -147,6 +151,138 @@ namespace Comercio.NET.Formularios
                 ForeColor = Color.FromArgb(62, 80, 100),
                 TextAlign = ContentAlignment.MiddleLeft
             };
+        }
+
+        private Panel CrearPanelAmbienteBD(string ambiente, int y, int ancho, bool esTesting)
+        {
+            var panel = new Panel
+            {
+                Location = new Point(15, y),
+                Size = new Size(ancho, 260), // ✅ AUMENTADO de 230 a 260 para más espacio
+                BackColor = Color.FromArgb(245, 248, 252),
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = esTesting // Solo Testing visible por defecto
+            };
+
+            // Título del ambiente
+            var lblTituloAmbiente = new Label
+            {
+                Text = esTesting ? "🧪 AMBIENTE DE TESTING (Desarrollo)" : "🏭 AMBIENTE DE PRODUCCIÓN",
+                Location = new Point(10, 10),
+                Size = new Size(ancho - 20, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = esTesting ? Color.FromArgb(255, 152, 0) : Color.FromArgb(76, 175, 80),
+                BackColor = esTesting ? Color.FromArgb(255, 243, 224) : Color.FromArgb(232, 245, 233),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            panel.Controls.Add(lblTituloAmbiente);
+
+            // Label para cadena de conexión
+            var lblConnectionString = new Label
+            {
+                Text = "Cadena de Conexión:",
+                Location = new Point(15, 45),
+                Size = new Size(130, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panel.Controls.Add(lblConnectionString);
+
+            // TextBox multilinea para la cadena de conexión
+            var txtConnString = new TextBox
+            {
+                Location = new Point(15, 70),
+                Size = new Size(ancho - 100, 80), // ✅ REDUCIDO de 100 a 80 de altura
+                Font = new Font("Consolas", 8F),
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                PlaceholderText = esTesting
+                    ? "Server=localhost;Database=comercio_dev;Trusted_Connection=True;TrustServerCertificate=True;"
+                    : "Server=production-server;Database=comercio;User Id=usuario;Password=****;TrustServerCertificate=True;",
+                ReadOnly = true, // ✅ AGREGADO: Inicialmente bloqueado
+                BackColor = Color.FromArgb(245, 245, 245), // ✅ AGREGADO: Color de fondo bloqueado
+                ForeColor = Color.Gray // ✅ AGREGADO: Texto gris cuando bloqueado
+            };
+
+            if (esTesting)
+                txtConnectionStringTesting = txtConnString;
+            else
+                txtConnectionStringProduccion = txtConnString;
+
+            panel.Controls.Add(txtConnString);
+
+            // Botón testear conexión
+            var btnTest = new Button
+            {
+                Text = "🔧\nTest",
+                Location = new Point(ancho - 75, 70),
+                Size = new Size(60, 50),
+                BackColor = Color.FromArgb(33, 150, 243),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false,
+                Enabled = false // ✅ AGREGADO: Inicialmente deshabilitado
+            };
+            btnTest.FlatAppearance.BorderSize = 0;
+            btnTest.Click += esTesting
+                ? (s, e) => TestearConexionTesting()
+                : (s, e) => TestearConexionProduccion();
+
+            if (esTesting)
+                btnTestearConexionTesting = btnTest;
+            else
+                btnTestearConexionProduccion = btnTest;
+
+            panel.Controls.Add(btnTest);
+
+            // Nota importante (ahora más arriba)
+            var lblNota = new Label
+            {
+                Text = esTesting
+                    ? "⚠️ Base de datos de DESARROLLO - Para pruebas y desarrollo"
+                    : "🔴 Base de datos REAL - Datos de producción en vivo",
+                Location = new Point(15, 160), // ✅ MOVIDO de 130 a 160
+                Size = new Size(ancho - 30, 35),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = esTesting ? Color.DarkOrange : Color.DarkRed,
+                BackColor = esTesting ? Color.FromArgb(255, 249, 235) : Color.FromArgb(255, 235, 238),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            panel.Controls.Add(lblNota);
+
+            // Información de ejemplo (ahora más abajo y visible)
+            var lblEjemplo = new Label
+            {
+                Text = "Ejemplo:\n" + (esTesting
+                    ? "Server=localhost;Database=comercio_dev;Trusted_Connection=True;"
+                    : "Server=192.168.1.100;Database=comercio;User Id=admin;Password=****;"),
+                Location = new Point(15, 205), // ✅ MOVIDO de 175 a 205
+                Size = new Size(ancho - 30, 40),
+                Font = new Font("Consolas", 7F),
+                ForeColor = Color.Gray
+            };
+            panel.Controls.Add(lblEjemplo);
+
+            return panel;
+        }
+
+        private void RbDbAmbiente_CheckedChanged(object sender, EventArgs e)
+        {
+            if (rbDbTesting.Checked)
+            {
+                panelDbTesting.Visible = true;
+                panelDbProduccion.Visible = false;
+                System.Diagnostics.Debug.WriteLine("[CONFIG] Seleccionado ambiente BD TESTING");
+            }
+            else if (rbDbProduccion.Checked)
+            {
+                panelDbTesting.Visible = false;
+                panelDbProduccion.Visible = true;
+                System.Diagnostics.Debug.WriteLine("[CONFIG] Seleccionado ambiente BD PRODUCCIÓN");
+            }
         }
 
         private Panel CrearSeccionFacturacionColapsable(string titulo, int y, int ancho)
@@ -1627,11 +1763,15 @@ namespace Comercio.NET.Formularios
             btnAgregarNombre.TabIndex = 24; // Era 22
             btnEditarNombre.TabIndex = 25; // Era 23
             btnEliminarNombre.TabIndex = 26; // Era 24
-            txtConnectionString.TabIndex = 27; // Era 25
-            btnTestearConexion.TabIndex = 28; // Era 26
-            btnEditarBaseDatos.TabIndex = 29; // Era 27
-            btnGuardar.TabIndex = 30; // Era 28
-            btnCancelar.TabIndex = 31; // Era 29
+            //txtConnectionString.TabIndex = 27; // Era 25
+            //btnTestearConexion.TabIndex = 28; // Era 26
+            txtConnectionStringTesting.TabIndex = 27;
+            txtConnectionStringProduccion.TabIndex = 28;
+            btnTestearConexionTesting.TabIndex = 29;
+            btnTestearConexionProduccion.TabIndex = 30;
+            btnEditarBaseDatos.TabIndex = 31; // Era 29
+            btnGuardar.TabIndex = 32; // Era 30
+            btnCancelar.TabIndex = 33; // Era 31
         }
 
         private void ConfigurarEventos()
@@ -1650,7 +1790,7 @@ namespace Comercio.NET.Formularios
                 this.Close();
             };
 
-            btnTestearConexion.Click += async (s, e) => await TestearConexion();
+            //btnTestearConexion.Click += async (s, e) => await TestearConexion();
             btnColapsarBaseDatos.Click += (s, e) => ToggleColapsarBaseDatos();
             btnEditarBaseDatos.Click += (s, e) => ToggleEdicionBaseDatos();
             btnColapsarComercio.Click += (s, e) => ToggleColapsarComercio();
@@ -1983,7 +2123,27 @@ namespace Comercio.NET.Formularios
                 CargarNombresCuentasCorrientes();
 
                 // Cargar cadena de conexión
-                //txtConnectionString.Text = _configuracionOriginal["ConnectionStrings"]?["DefaultConnection"]?.ToString() ?? "";
+                string ambienteBDSeleccionado = _configuracionOriginal["BaseDatos"]?["AmbienteActivo"]?.ToString() ?? "Testing";
+                if (ambienteBDSeleccionado == "Produccion")
+                {
+                    rbDbProduccion.Checked = true;
+                }
+                else
+                {
+                    rbDbTesting.Checked = true;
+                }
+
+                // Cargar cadena de conexión Testing
+                txtConnectionStringTesting.Text = _configuracionOriginal["ConnectionStrings"]?["Testing"]?.ToString()
+                    ?? "Server=localhost;Database=comercio_dev;Trusted_Connection=True;TrustServerCertificate=True;";
+
+                // Cargar cadena de conexión Producción
+                txtConnectionStringProduccion.Text = _configuracionOriginal["ConnectionStrings"]?["Produccion"]?.ToString()
+                    ?? "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;";
+
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - BD Ambiente: {ambienteBDSeleccionado}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - BD Testing: {txtConnectionStringTesting.Text}");
+                System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - BD Producción: {txtConnectionStringProduccion.Text}");
 
                 // Cargar ambiente seleccionado
                 string ambienteSeleccionado = _configuracionOriginal["AFIP"]?["AmbienteActivo"]?.ToString() ?? "Testing";
@@ -2107,7 +2267,13 @@ namespace Comercio.NET.Formularios
                 {
                     ["ConnectionStrings"] = new JObject
                     {
-                        ["DefaultConnection"] = "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;"
+                        ["Testing"] = "Server=localhost;Database=comercio_dev;Trusted_Connection=True;TrustServerCertificate=True;",
+                        ["Produccion"] = "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
+                        ["DefaultConnection"] = "Server=localhost;Database=comercio_dev;Trusted_Connection=True;TrustServerCertificate=True;"
+                    },
+                    ["BaseDatos"] = new JObject
+                    {
+                        ["AmbienteActivo"] = "Testing"
                     },
                     ["Comercio"] = new JObject
                     {
@@ -2360,14 +2526,33 @@ namespace Comercio.NET.Formularios
                 // Connection string (si está habilitada la edición)
                 if (_edicionBaseDatosHabilitada)
                 {
-                    if (nuevaConfiguracion["ConnectionStrings"] == null)
-                        nuevaConfiguracion["ConnectionStrings"] = new JObject();
+                    if (nuevaConfiguracion["BaseDatos"] == null)
+                        nuevaConfiguracion["BaseDatos"] = new JObject();
 
-                    nuevaConfiguracion["ConnectionStrings"]["DefaultConnection"] = txtConnectionString.Text.Trim();
+                    nuevaConfiguracion["BaseDatos"]["AmbienteActivo"] = rbDbProduccion.Checked ? "Produccion" : "Testing";
+
+                    // Connection strings (si está habilitada la edición)
+                    if (_edicionBaseDatosHabilitada)
+                    {
+                        if (nuevaConfiguracion["ConnectionStrings"] == null)
+                            nuevaConfiguracion["ConnectionStrings"] = new JObject();
+
+                        nuevaConfiguracion["ConnectionStrings"]["Testing"] = txtConnectionStringTesting.Text.Trim();
+                        nuevaConfiguracion["ConnectionStrings"]["Produccion"] = txtConnectionStringProduccion.Text.Trim();
+
+                        // ✅ TAMBIÉN GUARDAR DefaultConnection como la activa
+                        string connectionActiva = rbDbProduccion.Checked
+                            ? txtConnectionStringProduccion.Text.Trim()
+                            : txtConnectionStringTesting.Text.Trim();
+                        nuevaConfiguracion["ConnectionStrings"]["DefaultConnection"] = connectionActiva;
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[SAVE] BD - Ambiente: {(rbDbProduccion.Checked ? "Producción" : "Testing")}");
                 }
-
-                // ✅ CREAR BACKUP DEL ARCHIVO RUNTIME
-                string backupPath = rutaRuntime + $".backup.{DateTime.Now:yyyyMMdd_HHmmss}";
+                    
+                    // ✅ CREAR BACKUP DEL ARCHIVO
+                    // RUNTIME
+                    string backupPath = rutaRuntime + $".backup.{DateTime.Now:yyyyMMdd_HHmmss}";
                 if (File.Exists(rutaRuntime))
                 {
                     File.Copy(rutaRuntime, backupPath);
@@ -2562,36 +2747,103 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private async Task TestearConexion()
+        //private async Task TestearConexion()
+        //{
+        //    if (string.IsNullOrWhiteSpace(txtConnectionString.Text))
+        //    {
+        //        MostrarMensaje("❌ La cadena de conexión no puede estar vacía", Color.Red);
+        //        return;
+        //    }
+
+        //    try
+        //    {
+        //        btnTestearConexion.Enabled = false;
+        //        btnTestearConexion.Text = "🔄\n...";
+        //        MostrarMensaje("Probando conexión...", Color.Blue);
+
+        //        using var connection = new SqlConnection(txtConnectionString.Text);
+        //        await connection.OpenAsync();
+                
+        //        using var cmd = new SqlCommand("SELECT DB_NAME() AS DatabaseName", connection);
+        //        var dbName = await cmd.ExecuteScalarAsync();
+
+        //        MostrarMensaje($"✅ Conexión exitosa a '{dbName}'", Color.Green);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MostrarMensaje($"❌ Error de conexión: {ex.Message}", Color.Red);
+        //    }
+        //    finally
+        //    {
+        //        btnTestearConexion.Enabled = true;
+        //        btnTestearConexion.Text = "🔧\nTest";
+        //    }
+        //}
+
+        private async Task TestearConexionTesting()
         {
-            if (string.IsNullOrWhiteSpace(txtConnectionString.Text))
+            await TestearConexionParaAmbiente(txtConnectionStringTesting.Text, "Testing");
+        }
+
+        private async Task TestearConexionProduccion()
+        {
+            await TestearConexionParaAmbiente(txtConnectionStringProduccion.Text, "Producción");
+        }
+
+        private async Task TestearConexionParaAmbiente(string connectionString, string ambiente)
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
             {
-                MostrarMensaje("❌ La cadena de conexión no puede estar vacía", Color.Red);
+                MostrarMensaje($"❌ La cadena de conexión {ambiente} no puede estar vacía", Color.Red);
                 return;
             }
 
+            var btnActivo = ambiente == "Testing" ? btnTestearConexionTesting : btnTestearConexionProduccion;
+
             try
             {
-                btnTestearConexion.Enabled = false;
-                btnTestearConexion.Text = "🔄\n...";
-                MostrarMensaje("Probando conexión...", Color.Blue);
+                btnActivo.Enabled = false;
+                btnActivo.Text = "🔄\n...";
+                MostrarMensaje($"Probando conexión {ambiente}...", Color.Blue);
 
-                using var connection = new SqlConnection(txtConnectionString.Text);
+                using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
                 
-                using var cmd = new SqlCommand("SELECT 1", connection);
-                await cmd.ExecuteScalarAsync();
+                using var cmd = new SqlCommand("SELECT DB_NAME() AS DatabaseName", connection);
+                var dbName = await cmd.ExecuteScalarAsync();
 
-                MostrarMensaje("✅ Conexión exitosa", Color.Green);
+                MostrarMensaje($"✅ Conexión {ambiente} exitosa a '{dbName}'", Color.Green);
+                
+                MessageBox.Show(
+                    $"CONEXIÓN EXITOSA ({ambiente})\n\n" +
+                    $"Base de datos: {dbName}\n" +
+                    $"Servidor: {connection.DataSource}\n\n" +
+                    $"✅ La conexión está funcionando correctamente.",
+                    $"Test de Conexión - {ambiente}",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MostrarMensaje($"❌ Error de conexión: {ex.Message}", Color.Red);
+                MostrarMensaje($"❌ Error en conexión {ambiente}: {ex.Message}", Color.Red);
+                
+                MessageBox.Show(
+                    $"ERROR DE CONEXIÓN ({ambiente})\n\n" +
+                    $"Mensaje: {ex.Message}\n\n" +
+                    $"Tipo: {ex.GetType().Name}\n\n" +
+                    $"Verifique:\n" +
+                    $"• El servidor esté accesible\n" +
+                    $"• Las credenciales sean correctas\n" +
+                    $"• La base de datos exista\n" +
+                    $"• El firewall permita la conexión",
+                    $"Error de Conexión - {ambiente}",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
             finally
             {
-                btnTestearConexion.Enabled = true;
-                btnTestearConexion.Text = "🔧\nTest";
+                btnActivo.Enabled = true;
+                btnActivo.Text = "🔧\nTest";
             }
         }
 
@@ -2933,9 +3185,9 @@ namespace Comercio.NET.Formularios
         private void ActualizarEstadoBaseDatos()
         {
             var panelContenido = panelBaseDatos.Controls["panelContenidoBaseDatos"];
-            
+
             panelContenido.Visible = !_baseDatosColapsada;
-            
+
             if (_baseDatosColapsada)
             {
                 panelBaseDatos.Size = new Size(panelBaseDatos.Width, 35);
@@ -2943,26 +3195,52 @@ namespace Comercio.NET.Formularios
             }
             else
             {
-                panelBaseDatos.Size = new Size(panelBaseDatos.Width, 115);
+                panelBaseDatos.Size = new Size(panelBaseDatos.Width, 405); // ✅ AUMENTADO de 365 a 405
                 btnColapsarBaseDatos.Text = "▼";
             }
 
-            txtConnectionString.Enabled = _edicionBaseDatosHabilitada;
-            btnTestearConexion.Enabled = _edicionBaseDatosHabilitada;
-
-            if (_edicionBaseDatosHabilitada)
+            // ✅ CORREGIDO: Habilitar/deshabilitar según estado de edición
+            if (txtConnectionStringTesting != null)
             {
-                txtConnectionString.BackColor = Color.White;
-                txtConnectionString.ForeColor = Color.Black;
-                btnEditarBaseDatos.Text = "🔓";
-                btnEditarBaseDatos.BackColor = Color.FromArgb(76, 175, 80);
+                txtConnectionStringTesting.ReadOnly = !_edicionBaseDatosHabilitada;
+                txtConnectionStringTesting.BackColor = _edicionBaseDatosHabilitada
+                    ? Color.White
+                    : Color.FromArgb(245, 245, 245);
+                txtConnectionStringTesting.ForeColor = _edicionBaseDatosHabilitada
+                    ? Color.Black
+                    : Color.Gray;
             }
-            else
+
+            if (txtConnectionStringProduccion != null)
             {
-                txtConnectionString.BackColor = Color.FromArgb(245, 245, 245);
-                txtConnectionString.ForeColor = Color.Gray;
-                btnEditarBaseDatos.Text = "🔒";
-                btnEditarBaseDatos.BackColor = Color.FromArgb(255, 152, 0);
+                txtConnectionStringProduccion.ReadOnly = !_edicionBaseDatosHabilitada;
+                txtConnectionStringProduccion.BackColor = _edicionBaseDatosHabilitada
+                    ? Color.White
+                    : Color.FromArgb(245, 245, 245);
+                txtConnectionStringProduccion.ForeColor = _edicionBaseDatosHabilitada
+                    ? Color.Black
+                    : Color.Gray;
+            }
+
+            if (btnTestearConexionTesting != null)
+                btnTestearConexionTesting.Enabled = _edicionBaseDatosHabilitada;
+
+            if (btnTestearConexionProduccion != null)
+                btnTestearConexionProduccion.Enabled = _edicionBaseDatosHabilitada;
+
+            // Actualizar botón de edición
+            if (btnEditarBaseDatos != null)
+            {
+                if (_edicionBaseDatosHabilitada)
+                {
+                    btnEditarBaseDatos.Text = "🔓";
+                    btnEditarBaseDatos.BackColor = Color.FromArgb(76, 175, 80);
+                }
+                else
+                {
+                    btnEditarBaseDatos.Text = "🔒";
+                    btnEditarBaseDatos.BackColor = Color.FromArgb(255, 152, 0);
+                }
             }
         }
 
@@ -3229,20 +3507,20 @@ namespace Comercio.NET.Formularios
         //    {
         //        // Temporalmente desconectar el evento para evitar recursión
         //        txtAfipCuit.TextChanged -= (s, e) => FormatearCUITAfip();
-                
+
         //        txtAfipCuit.Text = cuitFormateado;
-                
+
         //        // Ajustar posición del cursor
         //        int nuevaPosicion = Math.Min(cursorPosition, cuitFormateado.Length);
-                
+
         //        // Si el cursor estaba después de una posición donde se insertó un guión, ajustar
         //        if (cursorPosition >= 2 && soloNumeros.Length > 2)
         //            nuevaPosicion = Math.Min(cursorPosition + 1, cuitFormateado.Length);
         //        if (cursorPosition >= 10 && soloNumeros.Length > 10)
         //            nuevaPosicion = Math.Min(nuevaPosicion + 1, cuitFormateado.Length);
-                    
+
         //        txtAfipCuit.SelectionStart = nuevaPosicion;
-                
+
         //        // Reconectar el evento
         //        txtAfipCuit.TextChanged += (s, e) => FormatearCUITAfip();
         //    }
@@ -3267,7 +3545,7 @@ namespace Comercio.NET.Formularios
         //        txtAfipCuit.BackColor = Color.FromArgb(255, 235, 238); // Fondo rojo claro
         //        return;
         //    }
-            
+
         //    // Usar el método estático existente para validar
         //    if (ValidarCUITCompleto(txtAfipCuit.Text))
         //    {
@@ -3294,7 +3572,7 @@ namespace Comercio.NET.Formularios
         //        {
         //            txtAfipCertificadoPath.Text = openFileDialog.FileName;
         //            MostrarMensaje($"✅ Certificado seleccionado: {Path.GetFileName(openFileDialog.FileName)}", Color.Green);
-                    
+
         //            // Auto-limpiar el mensaje después de 3 segundos
         //            var timer = new System.Windows.Forms.Timer { Interval = 3000 };
         //            timer.Tick += (s, e) =>
@@ -3338,7 +3616,7 @@ namespace Comercio.NET.Formularios
         //        if (valido)
         //        {
         //            MostrarMensaje($"✅ Certificado válido - {mensaje}", Color.Green);
-                    
+
         //            // Mostrar detalles del certificado
         //            string detalles = $"CERTIFICADO AFIP VERIFICADO\n" +
         //                             $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
@@ -3353,7 +3631,7 @@ namespace Comercio.NET.Formularios
         //        else
         //        {
         //            MostrarMensaje($"❌ Error en certificado: {mensaje}", Color.Red);
-                    
+
         //            string detallesError = $"PROBLEMA CON CERTIFICADO AFIP\n" +
         //                                  $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
         //                                  $"📄 Archivo: {Path.GetFileName(rutaCertificado)}\n" +
@@ -3378,7 +3656,7 @@ namespace Comercio.NET.Formularios
             // Cargar datos de prueba para facilitar las pruebas de la interfaz
             txtNombreComercio.Text = "Comercio de Prueba";
             txtDomicilioComercio.Text = "Av. Siempre Viva 123";
-            
+
             txtRazonSocial.Text = "Prueba S.R.L.";
             txtCUIT.Text = "20-12345678-9";
             txtIngBrutos.Text = "123456789";
@@ -3392,14 +3670,14 @@ namespace Comercio.NET.Formularios
             chkPermitirFacturaB.Checked = true;
 
             chkVerificarStock.Checked = true;
-            
+
             //// Datos de AFIP
             //txtAfipCuit.Text = "20-12345678-9";
             //txtAfipCertificadoPath.Text = @"C:\Certificados\mi_certificado.p12";
             //txtAfipCertificadoPassword.Text = "clave123";
             //txtAfipWSAAUrl.Text = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
             //txtAfipWSFEUrl.Text = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
-            
+
             // Nombres de cuentas corrientes de prueba
             lstNombresCtaCte.Items.Clear();
             lstNombresCtaCte.Items.AddRange(new string[] {
@@ -3407,9 +3685,11 @@ namespace Comercio.NET.Formularios
                 "Cliente 2",
                 "Cliente 3"
             });
-            
+
             // Cadena de conexión de ejemplo (no funcional)
-            txtConnectionString.Text = "Server=localhost;Database=comercio;User Id=miusuario;Password=miclave;";
+            // Cadenas de conexión de ejemplo (no funcionales)
+            txtConnectionStringTesting.Text = "Server=localhost;Database=comercio_dev;Trusted_Connection=True;";
+            txtConnectionStringProduccion.Text = "Server=production-server;Database=comercio;User Id=admin;Password=****;";
         }
 
         // NUEVO: Crear sección de Cuentas Corrientes
@@ -3717,120 +3997,150 @@ namespace Comercio.NET.Formularios
 }
 
 private Panel CrearSeccionBaseDatos(string titulo, int y, int ancho)
-{
-    var panel = new Panel
-    {
-        Location = new Point(10, y),
-        Size = new Size(ancho, 35),
-        BackColor = Color.FromArgb(240, 240, 240),
-        BorderStyle = BorderStyle.FixedSingle
-    };
+        {
+            var panel = new Panel
+            {
+                Location = new Point(10, y),
+                Size = new Size(ancho, 35),
+                BackColor = Color.FromArgb(240, 240, 240),
+                BorderStyle = BorderStyle.FixedSingle
+            };
 
-    // Header con título y botón colapsar
-    var panelHeader = new Panel
-    {
-        Location = new Point(0, 0),
-        Size = new Size(ancho, 30),
-        BackColor = Color.FromArgb(230, 230, 230),
-        Cursor = Cursors.Hand
-    };
-    panel.Controls.Add(panelHeader);
+            // Header con título y botón colapsar
+            var panelHeader = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(ancho, 30),
+                BackColor = Color.FromArgb(230, 230, 230),
+                Cursor = Cursors.Hand
+            };
+            panel.Controls.Add(panelHeader);
 
-    var lblTitulo = new Label
-    {
-        Text = titulo,
-        Location = new Point(10, 6),
-        Size = new Size(200, 20),
-        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-        ForeColor = Color.FromArgb(80, 80, 80),
-        Cursor = Cursors.Hand
-    };
-    panelHeader.Controls.Add(lblTitulo);
+            var lblTitulo = new Label
+            {
+                Text = titulo,
+                Location = new Point(10, 6),
+                Size = new Size(200, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(80, 80, 80),
+                Cursor = Cursors.Hand
+            };
+            panelHeader.Controls.Add(lblTitulo);
 
-    // Botón colapsar/expandir
-    btnColapsarBaseDatos = new Button
-    {
-        Text = "▶", // Iniciar colapsado
-        Location = new Point(ancho - 90, 3),
-        Size = new Size(25, 24),
-        BackColor = Color.FromArgb(200, 200, 200),
-        ForeColor = Color.Black,
-        FlatStyle = FlatStyle.Flat,
-        Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-        TextAlign = ContentAlignment.MiddleCenter,
-        UseVisualStyleBackColor = false
-    };
-    btnColapsarBaseDatos.FlatAppearance.BorderSize = 0;
-    panelHeader.Controls.Add(btnColapsarBaseDatos);
+            // Botón colapsar/expandir
+            btnColapsarBaseDatos = new Button
+            {
+                Text = "▶", // Iniciar colapsado
+                Location = new Point(ancho - 90, 3),
+                Size = new Size(25, 24),
+                BackColor = Color.FromArgb(200, 200, 200),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnColapsarBaseDatos.FlatAppearance.BorderSize = 0;
+            panelHeader.Controls.Add(btnColapsarBaseDatos);
 
-    // Botón habilitar edición
-    btnEditarBaseDatos = new Button
-    {
-        Text = "🔒",
-        Location = new Point(ancho - 60, 3),
-        Size = new Size(25, 24),
-        BackColor = Color.FromArgb(255, 152, 0),
-        ForeColor = Color.White,
-        FlatStyle = FlatStyle.Flat,
-        Font = new Font("Segoe UI", 8F),
-        TextAlign = ContentAlignment.MiddleCenter,
-        UseVisualStyleBackColor = false
-    };
-    btnEditarBaseDatos.FlatAppearance.BorderSize = 0;
-    panelHeader.Controls.Add(btnEditarBaseDatos);
+            // Botón habilitar edición
+            btnEditarBaseDatos = new Button
+            {
+                Text = "🔒",
+                Location = new Point(ancho - 60, 3),
+                Size = new Size(25, 24),
+                BackColor = Color.FromArgb(255, 152, 0),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnEditarBaseDatos.FlatAppearance.BorderSize = 0;
+            panelHeader.Controls.Add(btnEditarBaseDatos);
 
-    // Contenido colapsable
-    var panelContenido = new Panel
-    {
-        Name = "panelContenidoBaseDatos",
-        Location = new Point(0, 30),
-        Size = new Size(ancho, 80),
-        BackColor = Color.FromArgb(248, 248, 248),
-        Visible = false
-    };
-    panel.Controls.Add(panelContenido);
+            // Contenido colapsable - ALTURA AUMENTADA
+            var panelContenido = new Panel
+            {
+                Name = "panelContenidoBaseDatos",
+                Location = new Point(0, 30),
+                Size = new Size(ancho, 370), // ✅ Altura aumentada para dos ambientes
+                BackColor = Color.FromArgb(248, 248, 248),
+                Visible = false
+            };
+            panel.Controls.Add(panelContenido);
 
-    // Connection String
-    panelContenido.Controls.Add(CrearLabelLarga("Cadena de Conexión:", 15, 10));
-    txtConnectionString = new TextBox
-    {
-        Location = new Point(15, 30),
-        Size = new Size(490, 40),
-        Font = new Font("Consolas", 8F),
-        Multiline = true,
-        ScrollBars = ScrollBars.Vertical,
-        Enabled = false,
-        BackColor = Color.FromArgb(245, 245, 245),
-        ForeColor = Color.Gray
-    };
-    panelContenido.Controls.Add(txtConnectionString);
+            // === SELECTOR DE AMBIENTE ===
+            var lblAmbiente = new Label
+            {
+                Text = "🌐 Ambiente de Base de Datos a utilizar:",
+                Location = new Point(15, 10),
+                Size = new Size(250, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181)
+            };
+            panelContenido.Controls.Add(lblAmbiente);
 
-    // Botón testear conexión
-    btnTestearConexion = new Button
-    {
-        Text = "🔧\nTest",
-        Location = new Point(510, 30),
-        Size = new Size(60, 40),
-        BackColor = Color.FromArgb(33, 150, 243),
-        ForeColor = Color.White,
-        FlatStyle = FlatStyle.Flat,
-        Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-        TextAlign = ContentAlignment.MiddleCenter,
-        UseVisualStyleBackColor = false,
-        Enabled = false
-    };
-    btnTestearConexion.FlatAppearance.BorderSize = 0;
-    panelContenido.Controls.Add(btnTestearConexion);
+            rbDbTesting = new RadioButton
+            {
+                Text = "🧪 Testing (Desarrollo)",
+                Location = new Point(270, 12),
+                Size = new Size(150, 22),
+                Font = new Font("Segoe UI", 9F),
+                Checked = true // Por defecto Testing
+            };
+            rbDbTesting.CheckedChanged += RbDbAmbiente_CheckedChanged;
+            panelContenido.Controls.Add(rbDbTesting);
 
-    // Configurar eventos
-    EventHandler clickHandler = (s, e) => ToggleColapsarBaseDatos();
-    panelHeader.Click += clickHandler;
-    lblTitulo.Click += clickHandler;
+            rbDbProduccion = new RadioButton
+            {
+                Text = "🏭 Producción",
+                Location = new Point(430, 12),
+                Size = new Size(130, 22),
+                Font = new Font("Segoe UI", 9F)
+            };
+            rbDbProduccion.CheckedChanged += RbDbAmbiente_CheckedChanged;
+            panelContenido.Controls.Add(rbDbProduccion);
 
-    return panel;
-}
+            // Línea separadora
+            var separador = new Label
+            {
+                BorderStyle = BorderStyle.Fixed3D,
+                Location = new Point(15, 40),
+                Size = new Size(ancho - 30, 2)
+            };
+            panelContenido.Controls.Add(separador);
 
-private Panel CrearSeccionRestriccionesImpresionColapsable(string titulo, int y, int ancho)
+            // === PANEL TESTING ===
+            panelDbTesting = CrearPanelAmbienteBD("TESTING", 50, ancho - 30, true);
+            panelContenido.Controls.Add(panelDbTesting);
+
+            // === PANEL PRODUCCIÓN ===
+            panelDbProduccion = CrearPanelAmbienteBD("PRODUCCION", 50, ancho - 30, false);
+            panelContenido.Controls.Add(panelDbProduccion);
+
+            // Información adicional
+            var lblInfo = new Label
+            {
+                Text = "💡 Configure ambas cadenas de conexión y seleccione cuál desea utilizar. Los cambios se aplicarán al guardar.",
+                Location = new Point(15, 335),
+                Size = new Size(ancho - 30, 30),
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(100, 100, 100),
+                TextAlign = ContentAlignment.TopLeft
+            };
+            panelContenido.Controls.Add(lblInfo);
+
+            // Configurar eventos
+            EventHandler clickHandler = (s, e) => ToggleColapsarBaseDatos();
+            panelHeader.Click += clickHandler;
+            lblTitulo.Click += clickHandler;
+
+            return panel;
+        }
+
+
+        private Panel CrearSeccionRestriccionesImpresionColapsable(string titulo, int y, int ancho)
 {
     var panel = new Panel
     {
