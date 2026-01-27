@@ -230,7 +230,7 @@ namespace Comercio.NET.Servicios
                 
                 TamañoCartelito.Perfumeria => (4, 10, 189, 94),
                 
-                TamañoCartelito.Oferta => (1, 3, 756, 315),
+                TamañoCartelito.Oferta => (1, 4, 756, 270),
                 
                 _ => (3, 7, 252, 135)
             };
@@ -299,9 +299,10 @@ namespace Comercio.NET.Servicios
 
                 // 3. PRECIO (centrado, posicionado más abajo)
                 string precioTexto = producto.Precio.ToString("C2");
-                SizeF precioSize = g.MeasureString(precioTexto, fontPrecio);
+                SizeF precioSize = g.MeasureString(precioTexto, fontPrecio)
+                    ;
                 // ✅ AJUSTADO PARA FORMATO MÁS CORTO (58% del alto)
-                float precioY = y + (alto * 0.58F) - (precioSize.Height / 2);
+                float precioY = y + (alto * 0.65F) - (precioSize.Height / 2);
                 float precioX = x + (ancho - precioSize.Width) / 2;
                 g.DrawString(precioTexto, fontPrecio, Brushes.Black, precioX, precioY);
 

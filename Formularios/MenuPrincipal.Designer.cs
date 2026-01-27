@@ -372,11 +372,11 @@
             // printPreviewToolStripButton
             // 
             printPreviewToolStripButton.BackColor = Color.Snow;
-            printPreviewToolStripButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            printPreviewToolStripButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText; // MODIFICADO: De Image a ImageAndText
             printPreviewToolStripButton.Image = (Image)resources.GetObject("printPreviewToolStripButton.Image");
             printPreviewToolStripButton.ImageTransparentColor = Color.Black;
             printPreviewToolStripButton.Name = "printPreviewToolStripButton";
-            printPreviewToolStripButton.Size = new Size(23, 22);
+            printPreviewToolStripButton.Size = new Size(68, 22); // AJUSTADO: tamaño aumentado para mostrar texto
             printPreviewToolStripButton.Text = "Ventas";
             printPreviewToolStripButton.Click += printPreviewToolStripButton_Click;
             // 
@@ -388,11 +388,11 @@
             // toolStripProductos
             // 
             toolStripProductos.BackColor = SystemColors.Control;
-            toolStripProductos.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolStripProductos.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText; // MODIFICADO: De Image a ImageAndText
             toolStripProductos.Image = (Image)resources.GetObject("toolStripProductos.Image");
             toolStripProductos.ImageTransparentColor = Color.Magenta;
             toolStripProductos.Name = "toolStripProductos";
-            toolStripProductos.Size = new Size(23, 22);
+            toolStripProductos.Size = new Size(86, 22); // AJUSTADO: tamaño aumentado para mostrar texto
             toolStripProductos.Text = "Productos";
             toolStripProductos.Click += toolStripProductos_Click;
             // 
@@ -403,12 +403,12 @@
             // 
             // toolStripButton1
             // 
-            toolStripButton1.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolStripButton1.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText; // MODIFICADO: De Image a ImageAndText
             toolStripButton1.Image = (Image)resources.GetObject("toolStripButton1.Image");
             toolStripButton1.ImageTransparentColor = Color.Magenta;
             toolStripButton1.Name = "toolStripButton1";
-            toolStripButton1.Size = new Size(23, 22);
-            toolStripButton1.Text = "Control de ventas";
+            toolStripButton1.Size = new Size(69, 22); // AJUSTADO: tamaño aumentado para mostrar texto
+            toolStripButton1.Text = "Control";
             toolStripButton1.Click += toolStripButton1_Click;
             // 
             // toolStripSeparator6

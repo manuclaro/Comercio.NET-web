@@ -378,11 +378,11 @@ namespace Comercio.NET.Formularios
             btnReporteConsolidado.FlatAppearance.BorderSize = 0;
             btnReporteConsolidado.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             btnReporteConsolidado.ForeColor = Color.White;
-            btnReporteConsolidado.Size = new Size(140, 28);
-            btnReporteConsolidado.Text = "📊 Reporte IVA";
+            btnReporteConsolidado.Size = new Size(125, 28);
+            btnReporteConsolidado.Text = "📊 ReporteIVA";
             btnReporteConsolidado.UseVisualStyleBackColor = false;
             btnReporteConsolidado.Click += BtnReporteConsolidado_Click;
-            btnReporteConsolidado.Location = new Point(panelFiltros.Width - 550, y1);
+            btnReporteConsolidado.Location = new Point(panelFiltros.Width - 535, y1);
             btnReporteConsolidado.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             panelFiltros.Controls.Add(btnReporteConsolidado);
 
