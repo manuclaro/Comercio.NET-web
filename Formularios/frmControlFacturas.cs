@@ -67,6 +67,10 @@ namespace Comercio.NET.Formularios
 
         private Button btnReportePorRubro;
 
+        // NUEVO: Botones para las nuevas funcionalidades
+        private Button btnEliminarRemito;
+        private Button btnFacturaDirecta;
+
         // AGREGAR: Clase auxiliar para los datos de la factura
         private class DatosFactura
         {
@@ -85,9 +89,11 @@ namespace Comercio.NET.Formularios
             ConfigurarFormulario();
             CrearVentanaDetalle();
             CargarVentasDelDia();
-            
-            // NUEVO: Cargar formas de pago después de cargar los datos iniciales
+            ConfigurarNuevosBotones(); // NUEVO: Configurar los nuevos botones
+
+        // NUEVO: Cargar formas de pago después de cargar los datos iniciales
             CargarFormasDePago();
+
             
             // MAXIMIZAR EL FORMULARIO AL ABRIRSE
             this.WindowState = FormWindowState.Maximized;
@@ -684,6 +690,394 @@ namespace Comercio.NET.Formularios
             panelResumen.ResumeLayout(false);
             panelTotales.ResumeLayout(false);
             ResumeLayout(false);
+        }
+
+        // NUEVO: Método para configurar los nuevos botones
+        private void ConfigurarNuevosBotones()
+        {
+            // Botón para eliminar remito
+            btnEliminarRemito = new Button
+            {
+                Text = "🗑️ Eliminar Remito",
+                Size = new Size(140, 35),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Enabled = false
+            };
+            btnEliminarRemito.FlatAppearance.BorderSize = 0;
+            btnEliminarRemito.Click += BtnEliminarRemito_Click;
+
+            // Botón para factura directa AFIP
+            btnFacturaDirecta = new Button
+            {
+                Text = "📄 Factura Directa AFIP",
+                Size = new Size(160, 35),
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnFacturaDirecta.FlatAppearance.BorderSize = 0;
+            btnFacturaDirecta.Click += BtnFacturaDirecta_Click;
+
+            // ✅ MODIFICADO: Posicionar en la segunda fila (y2) a la derecha
+            if (panelFiltros != null)
+            {
+                int y2 = 46; // Segunda fila del panel de filtros
+
+                // ✅ Posicionar a la derecha del panel (con Anchor para mantener posición)
+                btnFacturaDirecta.Location = new Point(panelFiltros.Width - 450, y2);
+                btnFacturaDirecta.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+                btnEliminarRemito.Location = new Point(panelFiltros.Width - 280, y2);
+                btnEliminarRemito.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+                panelFiltros.Controls.Add(btnEliminarRemito);
+                panelFiltros.Controls.Add(btnFacturaDirecta);
+
+                System.Diagnostics.Debug.WriteLine($"[BOTONES] ✅ Posicionados en segunda fila - FacturaDirecta: {btnFacturaDirecta.Location}, EliminarRemito: {btnEliminarRemito.Location}");
+            }
+
+            // ✅ CORREGIDO: Evento de selección con validación correcta del tipo de factura
+            if (dgvVentas != null)
+            {
+                dgvVentas.SelectionChanged += (s, e) =>
+                {
+                    bool haySeleccion = dgvVentas.SelectedRows.Count > 0;
+
+                    if (haySeleccion)
+                    {
+                        var tipoFactura = dgvVentas.SelectedRows[0].Cells["Tipo"]?.Value?.ToString()?.Trim();
+
+                        // ✅ DEBUG: Ver qué valor viene realmente
+                        System.Diagnostics.Debug.WriteLine($"[SELECCIÓN] Tipo de factura detectado: '{tipoFactura}'");
+
+                        // ✅ CORREGIDO: Validar contra TODOS los posibles formatos de facturas AFIP
+                        bool esFacturaAfip = !string.IsNullOrEmpty(tipoFactura) && (
+                            tipoFactura.Equals("A", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("B", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("C", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("FacturaA", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("FacturaB", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("FacturaC", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("Factura A", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("Factura B", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("Factura C", StringComparison.OrdinalIgnoreCase)
+                        );
+
+                        // Solo habilitar si NO es una factura de AFIP
+                        btnEliminarRemito.Enabled = !esFacturaAfip;
+
+                        System.Diagnostics.Debug.WriteLine($"[SELECCIÓN] Es factura AFIP: {esFacturaAfip}, Botón habilitado: {!esFacturaAfip}");
+                    }
+                    else
+                    {
+                        btnEliminarRemito.Enabled = false;
+                        System.Diagnostics.Debug.WriteLine("[SELECCIÓN] Sin selección - Botón deshabilitado");
+                    }
+                };
+            }
+        }
+
+        // NUEVO: Evento para generar factura directa de AFIP
+        private async void BtnFacturaDirecta_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var formFacturaDirecta = new FacturaDirectaAfipForm())
+                {
+                    if (formFacturaDirecta.ShowDialog() == DialogResult.OK)
+                    {
+                        MessageBox.Show("Factura generada correctamente en AFIP.",
+                            "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Recargar la grilla
+                        CargarVentasPorFecha(dtpDesde.Value, dtpHasta.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al generar la factura:\n\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private string ObtenerUsuarioActual()
+        {
+            // Obtener el usuario actual desde la sesión
+            return Comercio.NET.Services.AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
+        }
+        // NUEVO: Evento para eliminar remito completo
+        private async void BtnEliminarRemito_Click(object sender, EventArgs e)
+        {
+            if (dgvVentas.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Debe seleccionar un remito para eliminar.", "Advertencia",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                var row = dgvVentas.SelectedRows[0];
+                string nroFactura = row.Cells["Remito"]?.Value?.ToString();
+                string tipoFactura = row.Cells["Tipo"]?.Value?.ToString()?.Trim();
+                decimal total = Convert.ToDecimal(row.Cells["Importe Final"]?.Value ?? 0);
+
+                int cantidadProductos = await ObtenerCantidadProductosRemito(nroFactura);
+
+                // Validar que NO sea factura de AFIP
+                bool esFacturaAfip = !string.IsNullOrEmpty(tipoFactura) && (
+                    tipoFactura.Equals("A", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("B", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("C", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("FacturaA", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("FacturaB", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("FacturaC", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("Factura A", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("Factura B", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("Factura C", StringComparison.OrdinalIgnoreCase)
+                );
+
+                if (esFacturaAfip)
+                {
+                    MessageBox.Show("No se pueden eliminar facturas de AFIP (A, B o C).\n\nSolo se permiten eliminar remitos.",
+                        "Operación no permitida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // ✅ NUEVO: Usar el constructor extendido con títulos personalizados
+                var formMotivo = new MotivoEliminacionForm(
+                    $"Remito: {nroFactura} ({cantidadProductos} productos)",
+                    1,                              // Cantidad = 1 (representa 1 remito)
+                    nroFactura,                     // Código
+                    total,                          // Total del remito
+                    "🗑️ Eliminar Remito",          // ✅ Título del formulario
+                    "ELIMINAR REMITO"               // ✅ Título del encabezado
+                );
+
+                if (formMotivo.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                string motivo = formMotivo.Motivo;
+
+                // Confirmación final
+                var resultado = MessageBox.Show(
+                    $"¿Está seguro de eliminar el remito completo?\n\n" +
+                    $"Número: {nroFactura}\n" +
+                    $"Tipo: {tipoFactura}\n" +
+                    $"Productos: {cantidadProductos}\n" +
+                    $"Total: {total:C2}\n\n" +
+                    $"Motivo: {motivo}\n\n" +
+                    "Esta acción:\n" +
+                    "- Eliminará el remito de la base de datos\n" +
+                    "- Devolverá las cantidades al stock\n" +
+                    "- Registrará la eliminación en auditoría\n\n" +
+                    "¿Desea continuar?",
+                    "Confirmar eliminación de remito",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (resultado != DialogResult.Yes)
+                {
+                    return;
+                }
+
+                await EliminarRemitoCompleto(nroFactura, motivo);
+
+                MessageBox.Show($"Remito {nroFactura} eliminado correctamente.\n\n" +
+                                $"Se devolvieron {cantidadProductos} productos al stock y se registró en auditoría.",
+                                "Eliminación exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                CargarVentasPorFecha(dtpDesde.Value, dtpHasta.Value);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al eliminar el remito:\n\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Método para obtener cantidad de productos de un remito
+        private async Task<int> ObtenerCantidadProductosRemito(string nroFactura)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = "SELECT COUNT(*) FROM Ventas WHERE NroFactura = @nroFactura";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        await connection.OpenAsync();
+
+                        int cantidad = (int)await cmd.ExecuteScalarAsync();
+                        return cantidad;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ELIMINAR] Error obteniendo cantidad de productos: {ex.Message}");
+                return 0;
+            }
+        }
+
+        // NUEVO: Método para eliminar remito completo con devolución de stock y auditoría
+        private async Task EliminarRemitoCompleto(string nroFactura, string motivo)
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            string connectionString = config.GetConnectionString("DefaultConnection");
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                // ✅ CRÍTICO: Configurar SET options ANTES de iniciar la transacción
+                using (var setOptionsCmd = new SqlCommand(@"
+            SET ARITHABORT ON;
+            SET ANSI_NULLS ON;
+            SET ANSI_PADDING ON;
+            SET ANSI_WARNINGS ON;
+            SET CONCAT_NULL_YIELDS_NULL ON;
+            SET QUOTED_IDENTIFIER ON;
+            SET NUMERIC_ROUNDABORT OFF;", connection))
+                {
+                    await setOptionsCmd.ExecuteNonQueryAsync();
+                }
+
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Obtener todos los productos del remito
+                        var productosQuery = @"
+                    SELECT codigo, descripcion, cantidad, precio
+                    FROM Ventas
+                    WHERE NroFactura = @nroFactura";
+
+                        var productos = new List<(string codigo, string descripcion, int cantidad, decimal precio)>();
+
+                        using (var cmd = new SqlCommand(productosQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            using (var reader = await cmd.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    productos.Add((
+                                        reader.GetString(0),
+                                        reader.GetString(1),
+                                        reader.GetInt32(2),
+                                        reader.GetDecimal(3)
+                                    ));
+                                }
+                            }
+                        }
+
+                        // 2. Devolver stock para cada producto
+                        foreach (var producto in productos)
+                        {
+                            var updateStockQuery = @"
+                        UPDATE Productos 
+                        SET cantidad = cantidad + @cantidad 
+                        WHERE codigo = @codigo";
+
+                            using (var cmd = new SqlCommand(updateStockQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@cantidad", producto.cantidad);
+                                cmd.Parameters.AddWithValue("@codigo", producto.codigo);
+                                int filasAfectadas = await cmd.ExecuteNonQueryAsync();
+
+                                System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ Stock devuelto para {producto.codigo}: +{producto.cantidad} (filas: {filasAfectadas})");
+                            }
+
+                            // 3. ✅ CORREGIDO: Registrar en auditoría con nombres de columnas correctos
+                            var auditQuery = @"
+                        INSERT INTO AuditoriaProductosEliminados 
+                            (CodigoProducto, DescripcionProducto, Cantidad, PrecioUnitario, 
+                             TotalEliminado, MotivoEliminacion, FechaEliminacion, 
+                             UsuarioEliminacion, NumeroFactura)
+                        VALUES 
+                            (@codigo, @descripcion, @cantidad, @precio, 
+                             @totalEliminado, @motivo, @fecha, @usuario, @nroFactura)";
+
+                            using (var cmd = new SqlCommand(auditQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@codigo", producto.codigo);
+                                cmd.Parameters.AddWithValue("@descripcion", producto.descripcion);
+                                cmd.Parameters.AddWithValue("@cantidad", producto.cantidad);
+                                cmd.Parameters.AddWithValue("@precio", producto.precio);
+                                cmd.Parameters.AddWithValue("@totalEliminado", producto.cantidad * producto.precio);
+                                cmd.Parameters.AddWithValue("@motivo", $"Eliminación remito completo: {motivo}");
+                                cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
+                                cmd.Parameters.AddWithValue("@usuario", ObtenerUsuarioActual());
+                                cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {productos.Count} productos procesados - Stock devuelto y auditoría registrada");
+
+                        // 4. Eliminar de la tabla Ventas
+                        var deleteVentasQuery = "DELETE FROM Ventas WHERE NroFactura = @nroFactura";
+                        using (var cmd = new SqlCommand(deleteVentasQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            int ventasEliminadas = await cmd.ExecuteNonQueryAsync();
+                            System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {ventasEliminadas} registros eliminados de Ventas");
+                        }
+
+                        // 5. Eliminar de la tabla Facturas
+                        var deleteFacturasQuery = "DELETE FROM Facturas WHERE NumeroRemito = @nroFactura";
+                        using (var cmd = new SqlCommand(deleteFacturasQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            int facturasEliminadas = await cmd.ExecuteNonQueryAsync();
+                            System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {facturasEliminadas} registros eliminados de Facturas");
+                        }
+
+                        // 6. Eliminar de DetallesPagoFactura si existen
+                        var deleteDetallesPagoQuery = "DELETE FROM DetallesPagoFactura WHERE NumeroRemito = @nroFactura";
+                        using (var cmd = new SqlCommand(deleteDetallesPagoQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            int pagosEliminados = await cmd.ExecuteNonQueryAsync();
+                            if (pagosEliminados > 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {pagosEliminados} registros eliminados de DetallesPagoFactura");
+                            }
+                        }
+
+                        transaction.Commit();
+                        System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅✅✅ Remito {nroFactura} eliminado COMPLETAMENTE - Transacción confirmada");
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ❌ Error - Transacción revertida: {ex.Message}");
+                        throw;
+                    }
+                }
+            }
         }
 
         private async void BtnReportePorRubro_Click(object sender, EventArgs e)
@@ -2511,6 +2905,7 @@ namespace Comercio.NET.Formularios
             try
             {
                 int cantidadVentas = dt.Rows.Count;
+                int cantidadVentasValidas = 0; // ✅ NUEVO: Contador de ventas con cajero
                 decimal totalVentas = 0;
                 decimal totalIVA = 0; // ✅ Este será recalculado desde productos
                 decimal subtotalSinIVA = 0; // ✅ Este será recalculado desde productos
@@ -2528,7 +2923,7 @@ namespace Comercio.NET.Formularios
                 int filasConErrores = 0;
                 var errores = new List<string>();
 
-                // ✅ NUEVO: Calcular IVA y Subtotal desde productos (NO desde Facturas.IVA)
+                // ✅ MODIFICADO: Filtrar facturas SIN cajero antes de calcular IVA y totales
                 try
                 {
                     var config = new ConfigurationBuilder()
@@ -2539,10 +2934,18 @@ namespace Comercio.NET.Formularios
 
                     using (var connection = new SqlConnection(connectionString))
                     {
-                        // Obtener remitos del DataTable actual
+                        // Obtener remitos del DataTable actual - ✅ EXCLUIR los que no tienen cajero
                         var remitos = new List<string>();
                         foreach (DataRow row in dt.Rows)
                         {
+                            // ✅ CRÍTICO: Solo incluir facturas CON cajero
+                            var cajero = row["Cajero"]?.ToString()?.Trim();
+                            if (string.IsNullOrEmpty(cajero))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[TOTALES] ⚠️ Factura sin cajero EXCLUIDA: {row["Remito"]}");
+                                continue; // ✅ Saltar facturas sin cajero
+                            }
+
                             var remito = row["Remito"]?.ToString();
                             if (!string.IsNullOrEmpty(remito))
                             {
@@ -2550,19 +2953,21 @@ namespace Comercio.NET.Formularios
                             }
                         }
 
+                        cantidadVentasValidas = remitos.Count; // ✅ NUEVO: Contar solo las válidas
+
                         if (remitos.Count > 0)
                         {
-                            // ✅ CORREGIDO: Calcular IVA desde productos, solo Facturas A y B
+                            // ✅ Query para calcular IVA (SIN CAMBIOS, ya filtra por remitos válidos)
                             var queryIVA = $@"
-                        SELECT 
-                            SUM(CAST(v.total AS DECIMAL(18,2))) as TotalVentasProductos,
-                            SUM(CAST(v.total / (1 + (p.iva / 100.0)) AS DECIMAL(18,2))) as Subtotal,
-                            SUM(CAST(v.total - (v.total / (1 + (p.iva / 100.0))) AS DECIMAL(18,2))) as TotalIVA
-                        FROM Ventas v
-                        INNER JOIN Productos p ON v.codigo = p.codigo
-                        INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                        WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
-                        AND f.TipoFactura IN ('FacturaA', 'FacturaB')"; // ✅ Solo Facturas A y B
+                SELECT 
+                    SUM(CAST(v.total AS DECIMAL(18,2))) as TotalVentasProductos,
+                    SUM(CAST(v.total / (1 + (p.iva / 100.0)) AS DECIMAL(18,2))) as Subtotal,
+                    SUM(CAST(v.total - (v.total / (1 + (p.iva / 100.0))) AS DECIMAL(18,2))) as TotalIVA
+                FROM Ventas v
+                INNER JOIN Productos p ON v.codigo = p.codigo
+                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                AND f.TipoFactura IN ('FacturaA', 'FacturaB')";
 
                             using (var cmd = new SqlCommand(queryIVA, connection))
                             {
@@ -2578,37 +2983,37 @@ namespace Comercio.NET.Formularios
                                 connection.Close();
                             }
 
-                            // ✅ Query para totales por rubro (mantener igual)
+                            // ✅ Query para totales por rubro (SIN CAMBIOS)
                             var queryRubros = $@"
-                        WITH VentasConTotal AS (
-                            SELECT 
-                                v.NroFactura,
-                                CASE 
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
-                                    ELSE 'Almacen'
-                                END as Rubro,
-                                CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                                SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                                CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                            FROM Ventas v
-                            INNER JOIN Productos p ON v.codigo = p.codigo
-                            INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                            WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
-                        )
-                        SELECT 
-                            Rubro,
-                            CAST(SUM(
-                                CASE 
-                                    WHEN TotalFacturaVentas > 0 
-                                    THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
-                                    ELSE 0
-                                END
-                            ) AS DECIMAL(18,2)) AS Total
-                        FROM VentasConTotal
-                        GROUP BY Rubro";
+                WITH VentasConTotal AS (
+                    SELECT 
+                        v.NroFactura,
+                        CASE 
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
+                            ELSE 'Almacen'
+                        END as Rubro,
+                        CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                        SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                        CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                    FROM Ventas v
+                    INNER JOIN Productos p ON v.codigo = p.codigo
+                    INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                    WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                )
+                SELECT 
+                    Rubro,
+                    CAST(SUM(
+                        CASE 
+                            WHEN TotalFacturaVentas > 0 
+                            THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                            ELSE 0
+                        END
+                    ) AS DECIMAL(18,2)) AS Total
+                FROM VentasConTotal
+                GROUP BY Rubro";
 
                             using (var cmd = new SqlCommand(queryRubros, connection))
                             {
@@ -2642,6 +3047,10 @@ namespace Comercio.NET.Formularios
                                 }
                             }
                         }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[TOTALES] ⚠️ No hay facturas con cajero para procesar");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -2649,10 +3058,18 @@ namespace Comercio.NET.Formularios
                     System.Diagnostics.Debug.WriteLine($"Error obteniendo IVA y totales por rubro: {ex.Message}");
                 }
 
+                // ✅ MODIFICADO: Procesar solo filas CON cajero para totales
                 foreach (DataRow row in dt.Rows)
                 {
                     try
                     {
+                        // ✅ CRÍTICO: Saltar facturas sin cajero
+                        var cajero = row["Cajero"]?.ToString()?.Trim();
+                        if (string.IsNullOrEmpty(cajero))
+                        {
+                            continue; // No sumar esta factura
+                        }
+
                         // Procesar Importe Total
                         object importeObj = row["Importe Final"];
                         decimal importe = 0;
@@ -2709,9 +3126,6 @@ namespace Comercio.NET.Formularios
                             }
                         }
 
-                        // ✅ REMOVIDO: Ya no procesar IVA y Subtotal desde DataTable
-                        // Ahora se calculan desde productos arriba
-
                         // Contar tipos de factura
                         string tipoFactura = row["Tipo"]?.ToString()?.Trim() ?? "Sin especificar";
                         if (tiposFactura.ContainsKey(tipoFactura))
@@ -2733,8 +3147,17 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // ✅ Actualizar labels principales
-                lblCantidadVentas.Text = $"Ventas: {cantidadVentas}";
+                // ✅ MODIFICADO: Mostrar cantidad de ventas válidas vs. totales
+                if (cantidadVentasValidas < cantidadVentas)
+                {
+                    int facturasExcluidas = cantidadVentas - cantidadVentasValidas;
+                    lblCantidadVentas.Text = $"Ventas: {cantidadVentasValidas} ({facturasExcluidas} excl.)";
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] ℹ️ {facturasExcluidas} facturas sin cajero excluidas de totales");
+                }
+                else
+                {
+                    lblCantidadVentas.Text = $"Ventas: {cantidadVentasValidas}";
+                }
 
                 if (totalDescuentos > 0)
                 {
@@ -2747,11 +3170,11 @@ namespace Comercio.NET.Formularios
 
                 var lblTotalIVA = this.Controls.Find("lblTotalIVA", true).FirstOrDefault() as Label;
                 if (lblTotalIVA != null)
-                    lblTotalIVA.Text = $"IVA Total: {totalIVA:C2}"; // ✅ Ahora usa IVA calculado desde productos
+                    lblTotalIVA.Text = $"IVA Total: {totalIVA:C2}";
 
                 var lblSubtotalSinIVA = this.Controls.Find("lblSubtotalSinIVA", true).FirstOrDefault() as Label;
                 if (lblSubtotalSinIVA != null)
-                    lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {subtotalSinIVA:C2}"; // ✅ Ahora usa Subtotal calculado desde productos
+                    lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {subtotalSinIVA:C2}";
 
                 // ✅ Actualizar labels de rubros
                 lblTotalCarniceria.Text = $"🥩 Carnicería: {totalCarniceria:C2}";
@@ -2779,7 +3202,7 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentas} ventas, Total Final: {totalVentas:C2}, Descuentos: {totalDescuentos:C2}, IVA: {totalIVA:C2}, Subtotal: {subtotalSinIVA:C2}");
+                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentasValidas} ventas, Total Final: {totalVentas:C2}, Descuentos: {totalDescuentos:C2}, IVA: {totalIVA:C2}, Subtotal: {subtotalSinIVA:C2}");
                 System.Diagnostics.Debug.WriteLine($"Totales por Rubro - Carnicería: {totalCarniceria:C2}, Verdulería: {totalVerduleria:C2}, Fiambrería: {totalFiambreria:C2}, Panadería: {totalPanaderia:C2}, Almacén: {totalAlmacen:C2}");
             }
             catch (Exception ex)

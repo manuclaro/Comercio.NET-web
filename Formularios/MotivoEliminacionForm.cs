@@ -6,40 +6,51 @@ namespace Comercio.NET.Formularios
 {
     public partial class MotivoEliminacionForm : Form
     {
-        public string Motivo { get; private set; }
-        public int CantidadAEliminar { get; private set; }
-        
         private string DescripcionProducto;
         private int CantidadProducto;
         private string CodigoProducto;
         private decimal PrecioProducto;
 
-        public MotivoEliminacionForm(string descripcionProducto, int cantidadProducto, string codigoProducto, decimal precioProducto)
+        public string Motivo { get; private set; }
+        public int CantidadAEliminar { get; private set; } // ❌ ESTO QUEDA EN 0
+
+        public string MotivoSeleccionado => Motivo;
+
+        // ✅ NUEVO: Campos para títulos personalizados
+        private string TituloFormulario;
+        private string TituloEncabezado;
+
+        // ✅ Constructor ORIGINAL (mantener compatibilidad con Ventas.cs)
+        public MotivoEliminacionForm(string descripcion, int cantidad, string codigo, decimal precio)
+            : this(descripcion, cantidad, codigo, precio, "Eliminar Producto", "ELIMINAR PRODUCTO")
         {
+            // Llama al constructor extendido con títulos por defecto
+        }
+
+        // ✅ NUEVO: Constructor EXTENDIDO con títulos personalizados
+        public MotivoEliminacionForm(string descripcion, int cantidad, string codigo, decimal precio,
+                                      string tituloFormulario, string tituloEncabezado)
+        {
+            DescripcionProducto = descripcion;
+            CantidadProducto = cantidad;
+            CodigoProducto = codigo;
+            PrecioProducto = precio;
+            TituloFormulario = tituloFormulario;
+            TituloEncabezado = tituloEncabezado;
+
+            // ✅ CRÍTICO: Inicializar CantidadAEliminar con la cantidad total
+            CantidadAEliminar = cantidad;
+
             InitializeComponent();
-            
-            DescripcionProducto = descripcionProducto;
-            CantidadProducto = cantidadProducto;
-            CodigoProducto = codigoProducto;
-            PrecioProducto = precioProducto;
-            CantidadAEliminar = cantidadProducto; // Por defecto eliminar todo
-            
             ConfigurarFormulario();
-        }
-
-        public MotivoEliminacionForm() : this("Producto", 1, "000", 0)
-        {
-        }
-
-        public string MotivoSeleccionado 
-        { 
-            get { return Motivo; }
         }
 
         private void ConfigurarFormulario()
         {
-            // CORREGIDO: Configuración básica del formulario con altura fija adecuada
-            this.Text = "Eliminar Producto";
+            // ✅ USAR los títulos personalizados
+            this.Text = TituloFormulario;
+
+            // Configuración básica del formulario con altura fija adecuada
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -47,27 +58,26 @@ namespace Comercio.NET.Formularios
             this.ShowInTaskbar = false;
             this.KeyPreview = true;
             this.BackColor = Color.White;
-            this.Size = new Size(520, 550); // AUMENTADO: Para asegurar que los botones sean visibles
+            this.Size = new Size(520, 550);
             this.MinimumSize = new Size(520, 550);
 
-            // NUEVO: Panel principal con scroll por si acaso
+            // Panel principal con scroll
             var panelPrincipal = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
                 AutoScroll = true,
-                Padding = new Padding(0, 0, 0, 50) // Espacio en la parte inferior para los botones
+                Padding = new Padding(0, 0, 0, 50)
             };
             this.Controls.Add(panelPrincipal);
 
-            // CORREGIDO: Márgenes más generosos
             int leftMargin = 25;
             int rightMargin = 25;
             int topMargin = 20;
-            int controlWidth = panelPrincipal.ClientSize.Width - leftMargin - rightMargin - 20; // -20 para el scroll
+            int controlWidth = panelPrincipal.ClientSize.Width - leftMargin - rightMargin - 20;
             int yPos = topMargin;
 
-            // CORREGIDO: Panel de encabezado
+            // Panel de encabezado
             var panelHeader = new Panel
             {
                 Location = new Point(0, 0),
@@ -76,9 +86,10 @@ namespace Comercio.NET.Formularios
                 Parent = panelPrincipal
             };
 
+            // ✅ USAR el título de encabezado personalizado
             var lblHeader = new Label
             {
-                Text = "ELIMINAR PRODUCTO",
+                Text = TituloEncabezado,
                 Location = new Point(25, 15),
                 Size = new Size(controlWidth - 25, 30),
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
@@ -87,7 +98,7 @@ namespace Comercio.NET.Formularios
                 Parent = panelHeader
             };
 
-            yPos = 80; // Comenzar después del header
+            yPos = 80;
 
             // Panel de información del producto
             var panelInfo = new Panel

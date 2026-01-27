@@ -639,6 +639,14 @@ namespace Comercio.NET
         // NUEVO: Actualizar cantidad en la base de datos por ID único - REEMPLAZA ActualizarCantidadEnVenta
         private async Task ActualizarCantidadEnVentaPorId(int idVenta, int nuevaCantidad, decimal precio)
         {
+            // ✅ NUEVO: Debug inicial
+            System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+            System.Diagnostics.Debug.WriteLine($"🔍 INICIO ActualizarCantidadEnVentaPorId");
+            System.Diagnostics.Debug.WriteLine($"   ID Venta: {idVenta}");
+            System.Diagnostics.Debug.WriteLine($"   Nueva Cantidad (parámetro): {nuevaCantidad}");
+            System.Diagnostics.Debug.WriteLine($"   Precio (parámetro): {precio:C2}");
+            System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+
             string connectionString = GetConnectionString();
 
             using (var connection = new SqlConnection(connectionString))
@@ -689,23 +697,23 @@ namespace Comercio.NET
                         }
 
                         // ✅✅✅ NUEVO: Si se reduce la cantidad, registrar en auditoría
-                        if (nuevaCantidad < cantidadActual)
+                        if (nuevaCantidad < cantidadActual)  // ✅ AGREGAR ESTA VALIDACIÓN
                         {
                             int cantidadEliminada = cantidadActual - nuevaCantidad;
                             string usuario = ObtenerUsuarioActual();
                             int numeroCajero = obtenerNumeroCajero();
 
                             string queryAuditoria = @"
-                        INSERT INTO AuditoriaProductosEliminados 
-                            (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
-                             TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
-                             MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
-                             NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
-                        VALUES 
-                            (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
-                             @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
-                             @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
-                             @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+INSERT INTO AuditoriaProductosEliminados 
+    (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+     TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+     MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+     NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
+VALUES 
+    (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
+     @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+     @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
+     @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
 
                             using (var cmdAudit = new SqlCommand(queryAuditoria, connection, transaction))
                             {
@@ -723,7 +731,7 @@ namespace Comercio.NET
                                 cmdAudit.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
                                 cmdAudit.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
                                 cmdAudit.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-                                cmdAudit.Parameters.AddWithValue("@EsEliminacionCompleta", false); // ✅ SIEMPRE false porque es reducción
+                                cmdAudit.Parameters.AddWithValue("@EsEliminacionCompleta", false);
                                 cmdAudit.Parameters.AddWithValue("@CantidadOriginal", cantidadActual);
 
                                 await cmdAudit.ExecuteNonQueryAsync();
@@ -959,6 +967,16 @@ namespace Comercio.NET
                 var precio = Convert.ToDecimal(row.Cells["precio"].Value);
                 var total = Convert.ToDecimal(row.Cells["total"].Value);
 
+                // ✅ NUEVO: Debug inicial
+                System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+                System.Diagnostics.Debug.WriteLine($"🔍 INICIO EliminarProductoConAuditoria");
+                System.Diagnostics.Debug.WriteLine($"   ID: {idVenta}");
+                System.Diagnostics.Debug.WriteLine($"   Código: {codigo}");
+                System.Diagnostics.Debug.WriteLine($"   Descripción: {descripcion}");
+                System.Diagnostics.Debug.WriteLine($"   Cantidad ACTUAL: {cantidad}");
+                System.Diagnostics.Debug.WriteLine($"   Precio: {precio:C2}");
+                System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+
                 // Verificar permisos de eliminación si el sistema de login está habilitado
                 if (AuthenticationService.ConfiguracionLogin?.LoginHabilitado == true)
                 {
@@ -995,6 +1013,40 @@ namespace Comercio.NET
                         int cantidadAEliminar = dialog.CantidadAEliminar;
                         bool eliminarCompleto = (cantidadAEliminar >= cantidad);
 
+                        // ✅ NUEVO: Debug de valores del diálogo
+                        System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+                        System.Diagnostics.Debug.WriteLine($"📝 DATOS DEL DIÁLOGO:");
+                        System.Diagnostics.Debug.WriteLine($"   Motivo: {motivo}");
+                        System.Diagnostics.Debug.WriteLine($"   Cantidad A ELIMINAR (dialog): {cantidadAEliminar}");
+                        System.Diagnostics.Debug.WriteLine($"   Cantidad ACTUAL (grid): {cantidad}");
+                        System.Diagnostics.Debug.WriteLine($"   ¿Eliminar completo?: {eliminarCompleto}");
+                        System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
+
+                        // ✅ VALIDACIÓN CRÍTICA
+                        if (cantidadAEliminar <= 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine("❌ ERROR: CantidadAEliminar es 0 o negativo");
+                            MessageBox.Show(
+                                "❌ ERROR: La cantidad a eliminar debe ser mayor a cero.",
+                                "Error de Validación",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        if (cantidadAEliminar > cantidad)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"❌ ERROR: CantidadAEliminar ({cantidadAEliminar}) > Cantidad actual ({cantidad})");
+                            MessageBox.Show(
+                                $"❌ ERROR: No puede eliminar más unidades de las que hay en el carrito.\n\n" +
+                                $"Cantidad actual: {cantidad}\n" +
+                                $"Cantidad a eliminar: {cantidadAEliminar}",
+                                "Error de Validación",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            return;
+                        }
+
                         // MODIFICADO: Registrar auditoría y procesar eliminación usando ID único
                         await ProcesarEliminacionConAuditoriaPorId(idVenta, codigo, descripcion, cantidad,
                             cantidadAEliminar, precio, eliminarCompleto, motivo);
@@ -1005,12 +1057,19 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine($"Producto procesado - ID: {idVenta}, Código: {codigo}, " +
                             $"Eliminado: {cantidadAEliminar}/{cantidad}, Completo: {eliminarCompleto}, Motivo: {motivo}");
                     }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("⚠️ Usuario canceló la eliminación");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                System.Diagnostics.Debug.WriteLine($"❌ ERROR en EliminarProductoConAuditoria: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   Stack: {ex.StackTrace}");
             }
             finally
             {
@@ -1018,7 +1077,7 @@ namespace Comercio.NET
             }
         }
 
-        // NUEVO: Procesar eliminación con auditoría por ID único - REEMPLAZA ProcesarEliminacionConAuditoria
+        // NUEVO: Procesar eliminación con auditoría por ID único - CORREGIDO COMPLETAMENTE
         private async Task ProcesarEliminacionConAuditoriaPorId(int idVenta, string codigo, string descripcion,
             int cantidadTotal, int cantidadAEliminar, decimal precio, bool eliminarCompleto, string motivo)
         {
@@ -1028,9 +1087,9 @@ namespace Comercio.NET
 
             using (var connection = new SqlConnection(connectionString))
             {
-                await connection.OpenAsync(); // ✅ USAR OpenAsync en lugar de Open
+                await connection.OpenAsync();
 
-                // ✅✅✅ CRÍTICO: Configurar ARITHABORT ANTES de la transacción
+                // ✅ CRÍTICO: Configurar ARITHABORT ANTES de la transacción
                 using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
                 {
                     await cmdConfig.ExecuteNonQueryAsync();
@@ -1040,40 +1099,50 @@ namespace Comercio.NET
                 {
                     try
                     {
-                        // 1. Registrar la auditoría en AuditoriaProductosEliminados
-                        var queryAuditoria = @"INSERT INTO AuditoriaProductosEliminados 
-                               (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
-                                TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
-                                MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
-                                NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
-                               VALUES (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
-                                       @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
-                                       @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
-                                       @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+                        // ✅✅✅ PASO 0: PRIMERO obtener los datos REALES de la venta ANTES de hacer cualquier cosa
+                        string codigoReal = codigo;
+                        string descripcionReal = descripcion;
+                        decimal precioReal = precio;
+                        int cantidadReal = cantidadTotal;
 
-                        using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
+                        var queryObtenerDatos = @"
+                    SELECT codigo, descripcion, precio, cantidad, total
+                    FROM Ventas 
+                    WHERE id = @idVenta";
+
+                        using (var cmdDatos = new SqlCommand(queryObtenerDatos, connection, transaction))
                         {
-                            cmd.Parameters.AddWithValue("@CodigoProducto", codigo);
-                            cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion);
-                            cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
-                            cmd.Parameters.AddWithValue("@Cantidad", cantidadAEliminar);
-                            cmd.Parameters.AddWithValue("@TotalEliminado", precio * cantidadAEliminar);
-                            cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
-                            cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
-                            cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
-                            cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
-                            cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
-                            cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
-                            cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
-                            cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
-                            cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-                            cmd.Parameters.AddWithValue("@EsEliminacionCompleta", eliminarCompleto);
-                            cmd.Parameters.AddWithValue("@CantidadOriginal", cantidadTotal);
+                            cmdDatos.Parameters.AddWithValue("@idVenta", idVenta);
 
-                            await cmd.ExecuteNonQueryAsync();
+                            using (var reader = await cmdDatos.ExecuteReaderAsync())
+                            {
+                                if (await reader.ReadAsync())
+                                {
+                                    codigoReal = reader["codigo"]?.ToString() ?? codigo;
+                                    descripcionReal = reader["descripcion"]?.ToString() ?? descripcion;
+                                    precioReal = reader["precio"] != DBNull.Value
+                                        ? Convert.ToDecimal(reader["precio"])
+                                        : precio;
+                                    cantidadReal = reader["cantidad"] != DBNull.Value
+                                        ? Convert.ToInt32(reader["cantidad"])
+                                        : cantidadTotal;
+
+                                    System.Diagnostics.Debug.WriteLine(
+                                        $"[ELIMINAR] 📋 Datos recuperados de BD:\n" +
+                                        $"   ID: {idVenta}\n" +
+                                        $"   Código: {codigoReal}\n" +
+                                        $"   Descripción: {descripcionReal}\n" +
+                                        $"   Precio: {precioReal:C2}\n" +
+                                        $"   Cantidad: {cantidadReal}");
+                                }
+                                else
+                                {
+                                    throw new Exception($"No se encontró la venta con ID {idVenta}");
+                                }
+                            }
                         }
 
-                        // 2. Procesar eliminación en la venta
+                        // ✅ PASO 1: Procesar eliminación en la venta
                         if (eliminarCompleto)
                         {
                             // Eliminar la línea completa
@@ -1082,24 +1151,32 @@ namespace Comercio.NET
                             using (var cmd = new SqlCommand(queryEliminar, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@idVenta", idVenta);
-                                await cmd.ExecuteNonQueryAsync();
+                                int filasEliminadas = await cmd.ExecuteNonQueryAsync();
+
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"[ELIMINAR] ✅ DELETE ejecutado - Filas eliminadas: {filasEliminadas}");
+
+                                if (filasEliminadas == 0)
+                                {
+                                    throw new Exception("No se pudo eliminar el producto de la venta (0 filas afectadas)");
+                                }
                             }
                         }
                         else
                         {
-                            // ✅ NUEVO: Eliminación parcial - Validar ofertas para la cantidad restante
-                            int cantidadRestante = cantidadTotal - cantidadAEliminar;
+                            // ✅ Eliminación parcial
+                            int cantidadRestante = cantidadReal - cantidadAEliminar;
 
-                            // ✅ Obtener precio original del producto
+                            // Obtener precio original del producto
                             decimal precioOriginal = 0m;
                             var queryPrecioOriginal = @"
-        SELECT p.precio 
-        FROM Productos p 
-        WHERE p.codigo = @codigo";
+                        SELECT p.precio 
+                        FROM Productos p 
+                        WHERE p.codigo = @codigo";
 
                             using (var cmd = new SqlCommand(queryPrecioOriginal, connection, transaction))
                             {
-                                cmd.Parameters.AddWithValue("@codigo", codigo);
+                                cmd.Parameters.AddWithValue("@codigo", codigoReal);
                                 var result = await cmd.ExecuteScalarAsync();
                                 if (result != null && result != DBNull.Value)
                                 {
@@ -1107,8 +1184,8 @@ namespace Comercio.NET
                                 }
                             }
 
-                            // ✅ Verificar si hay oferta para la cantidad restante
-                            var ofertaRestante = await BuscarOfertaAplicable(codigo, cantidadRestante);
+                            // Verificar si hay oferta para la cantidad restante
+                            var ofertaRestante = await BuscarOfertaAplicable(codigoReal, cantidadRestante);
 
                             decimal precioFinal;
                             string mensajeOferta = "";
@@ -1116,65 +1193,64 @@ namespace Comercio.NET
 
                             if (ofertaRestante != null && ofertaRestante.PrecioOferta > 0)
                             {
-                                // ✅ AÚN cumple con una oferta
                                 precioFinal = ofertaRestante.PrecioOferta;
 
-                                if (Math.Abs(precio - ofertaRestante.PrecioOferta) > 0.01m)
+                                if (Math.Abs(precioReal - ofertaRestante.PrecioOferta) > 0.01m)
                                 {
                                     cambioDeOferta = true;
 
-                                    if (precio > ofertaRestante.PrecioOferta)
+                                    if (precioReal > ofertaRestante.PrecioOferta)
                                     {
                                         mensajeOferta =
                                             $"🎉 ¡MEJOR OFERTA ACTIVADA!\n\n" +
                                             $"Al reducir la cantidad, ahora califica para una oferta mejor.\n\n" +
                                             $"Oferta: {ofertaRestante.NombreOferta}\n" +
                                             $"Cantidad restante: {cantidadRestante}\n" +
-                                            $"Precio anterior: {precio:C2}\n" +
+                                            $"Precio anterior: {precioReal:C2}\n" +
                                             $"Precio oferta: {ofertaRestante.PrecioOferta:C2}\n" +
-                                            $"Ahorro adicional: {(precio - ofertaRestante.PrecioOferta):C2}";
+                                            $"Ahorro adicional: {(precioReal - ofertaRestante.PrecioOferta):C2}";
                                     }
-                                    else if (precio < ofertaRestante.PrecioOferta)
+                                    else
                                     {
                                         mensajeOferta =
                                             $"⚠️ CAMBIO DE OFERTA\n\n" +
                                             $"La cantidad restante califica para una oferta diferente.\n\n" +
                                             $"Oferta: {ofertaRestante.NombreOferta}\n" +
                                             $"Cantidad restante: {cantidadRestante}\n" +
-                                            $"Precio anterior: {precio:C2}\n" +
+                                            $"Precio anterior: {precioReal:C2}\n" +
                                             $"Nuevo precio: {ofertaRestante.PrecioOferta:C2}";
                                     }
                                 }
                             }
                             else
                             {
-                                // ✅ YA NO cumple con ninguna oferta - usar precio normal
                                 precioFinal = precioOriginal;
 
-                                if (precio < precioOriginal - 0.01m)
+                                if (precioReal < precioOriginal - 0.01m)
                                 {
                                     cambioDeOferta = true;
                                     mensajeOferta =
                                         $"⚠️ OFERTA PERDIDA\n\n" +
                                         $"La cantidad restante ({cantidadRestante}) no cumple el mínimo para ofertas.\n\n" +
-                                        $"Precio anterior (oferta): {precio:C2}\n" +
+                                        $"Precio anterior (oferta): {precioReal:C2}\n" +
                                         $"Precio normal: {precioOriginal:C2}\n" +
-                                        $"Diferencia: +{(precioOriginal - precio):C2}";
+                                        $"Diferencia: +{(precioOriginal - precioReal):C2}";
                                 }
                             }
 
-                            // ✅✅✅ CRÍTICO: UPDATE COMPLETO con campos de oferta
-                            var queryActualizar = @"UPDATE Ventas 
-           SET cantidad = @cantidadRestante,
-               precio = @precioFinal,
-               total = @cantidadRestante * @precioFinal,
-               IdOferta = @IdOferta,
-               NombreOferta = @NombreOferta,
-               PrecioOriginal = @PrecioOriginal,
-               PrecioConOferta = @PrecioConOferta,
-               DescuentoAplicado = @DescuentoAplicado,
-               EsOferta = @EsOferta
-           WHERE id = @idVenta";
+                            // ✅ UPDATE de cantidad
+                            var queryActualizar = @"
+                        UPDATE Ventas 
+                        SET cantidad = @cantidadRestante,
+                            precio = @precioFinal,
+                            total = @cantidadRestante * @precioFinal,
+                            IdOferta = @IdOferta,
+                            NombreOferta = @NombreOferta,
+                            PrecioOriginal = @PrecioOriginal,
+                            PrecioConOferta = @PrecioConOferta,
+                            DescuentoAplicado = @DescuentoAplicado,
+                            EsOferta = @EsOferta
+                        WHERE id = @idVenta";
 
                             using (var cmd = new SqlCommand(queryActualizar, connection, transaction))
                             {
@@ -1182,7 +1258,6 @@ namespace Comercio.NET
                                 cmd.Parameters.AddWithValue("@precioFinal", precioFinal);
                                 cmd.Parameters.AddWithValue("@idVenta", idVenta);
 
-                                // ✅✅✅ CRÍTICO: Agregar parámetros de oferta
                                 if (ofertaRestante != null)
                                 {
                                     cmd.Parameters.AddWithValue("@IdOferta", ofertaRestante.Id);
@@ -1194,7 +1269,6 @@ namespace Comercio.NET
                                 }
                                 else
                                 {
-                                    // ✅✅✅ LIMPIAR campos cuando NO hay oferta
                                     cmd.Parameters.AddWithValue("@IdOferta", DBNull.Value);
                                     cmd.Parameters.AddWithValue("@NombreOferta", DBNull.Value);
                                     cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
@@ -1203,47 +1277,129 @@ namespace Comercio.NET
                                     cmd.Parameters.AddWithValue("@EsOferta", 0);
                                 }
 
-                                await cmd.ExecuteNonQueryAsync();
+                                int filasActualizadas = await cmd.ExecuteNonQueryAsync();
+
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"[ELIMINAR] ✅ UPDATE ejecutado - Filas actualizadas: {filasActualizadas}");
+
+                                if (filasActualizadas == 0)
+                                {
+                                    throw new Exception("No se pudo actualizar la cantidad del producto (0 filas afectadas)");
+                                }
                             }
 
-                            // ✅ Mostrar mensaje SOLO si cambió la oferta
+                            // ✅ Si hubo cambio de oferta, mostrar mensaje
                             if (cambioDeOferta && !string.IsNullOrEmpty(mensajeOferta))
                             {
+                                // Registrar auditoría PRIMERO
+                                await RegistrarAuditoriaEliminacion(
+                                    connection, transaction, codigoReal, descripcionReal,
+                                    precioReal, cantidadAEliminar, usuario, numeroCajero, motivo);
+
+                                // Commit
                                 transaction.Commit();
 
+                                // Mostrar mensaje
                                 MessageBox.Show(
                                     mensajeOferta,
                                     "Actualización de Precio",
                                     MessageBoxButtons.OK,
                                     ofertaRestante != null ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
 
-                                System.Diagnostics.Debug.WriteLine(
-                                    $"✅ Eliminación parcial procesada - ID: {idVenta}, Código: {codigo}\n" +
-                                    $"   Cantidad original: {cantidadTotal}\n" +
-                                    $"   Cantidad eliminada: {cantidadAEliminar}\n" +
-                                    $"   Cantidad restante: {cantidadRestante}\n" +
-                                    $"   Precio anterior: {precio:C2}\n" +
-                                    $"   Precio final: {precioFinal:C2}\n" +
-                                    $"   ¿Tiene oferta?: {(ofertaRestante != null ? "Sí" : "No")}\n" +
-                                    $"   ¿Cambió precio?: {cambioDeOferta}");
-
-                                return;
+                                // Recargar
+                                CargarVentasActuales();
+                                return; // ✅ SALIR del método
                             }
                         }
 
+                        // ✅ PASO 2: Registrar en auditoría (para eliminaciones completas o sin cambio de oferta)
+                        await RegistrarAuditoriaEliminacion(
+                            connection, transaction, codigoReal, descripcionReal,
+                            precioReal, cantidadAEliminar, usuario, numeroCajero, motivo);
+
+                        // ✅ CRÍTICO: Hacer commit
                         transaction.Commit();
 
                         System.Diagnostics.Debug.WriteLine(
-                            $"✅ Eliminación procesada correctamente - ID: {idVenta}, Código: {codigo}, " +
-                            $"Eliminado: {cantidadAEliminar}/{cantidadTotal}, Completo: {eliminarCompleto}");
+                            $"✅ Eliminación procesada - ID: {idVenta}, Código: {codigoReal}, " +
+                            $"Eliminado: {cantidadAEliminar}/{cantidadReal}, Completo: {eliminarCompleto}");
                     }
                     catch (Exception ex)
                     {
                         transaction.Rollback();
                         System.Diagnostics.Debug.WriteLine($"❌ Error en ProcesarEliminacionConAuditoriaPorId: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
                         throw;
                     }
                 }
+            }
+
+            // ✅ CRÍTICO: Recargar la vista DESPUÉS de que la transacción se complete
+            CargarVentasActuales();
+
+            System.Diagnostics.Debug.WriteLine("[ELIMINAR] ✅ Vista actualizada después de eliminación");
+        }
+
+        // ✅ NUEVO: Método helper para registrar auditoría (evita duplicación de código)
+        private async Task RegistrarAuditoriaEliminacion(
+            SqlConnection connection,
+            SqlTransaction transaction,
+            string codigo,
+            string descripcion,
+            decimal precio,
+            int cantidadEliminada,
+            string usuario,
+            int numeroCajero,
+            string motivo)
+        {
+            var queryAuditoria = @"
+        INSERT INTO AuditoriaProductosEliminados 
+            (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+             TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+             MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+             NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
+        VALUES 
+            (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
+             @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+             @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
+             @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+
+            using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
+            {
+                // ✅ CRÍTICO: Calcular el total correctamente
+                decimal totalEliminado = precio * cantidadEliminada;
+
+                cmd.Parameters.AddWithValue("@CodigoProducto", codigo ?? "");
+                cmd.Parameters.AddWithValue("@DescripcionProducto", descripcion ?? "");
+                cmd.Parameters.AddWithValue("@PrecioUnitario", precio);
+                cmd.Parameters.AddWithValue("@Cantidad", cantidadEliminada);
+                cmd.Parameters.AddWithValue("@TotalEliminado", totalEliminado);
+                cmd.Parameters.AddWithValue("@NumeroFactura", nroRemitoActual);
+                cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
+                cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
+                cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
+                cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte?.Checked ?? false);
+                cmd.Parameters.AddWithValue("@NombreCtaCte",
+                    chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
+                cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
+                cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                cmd.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+
+                // ✅ CRÍTICO: Determinar si es eliminación completa comparando con cantidad original
+                // Como no tenemos cantidadOriginal aquí, lo dejamos en NULL
+                cmd.Parameters.AddWithValue("@EsEliminacionCompleta", DBNull.Value);
+                cmd.Parameters.AddWithValue("@CantidadOriginal", DBNull.Value);
+
+                int filasAuditoria = await cmd.ExecuteNonQueryAsync();
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[AUDITORÍA] ✅ Registro insertado:\n" +
+                    $"   Código: {codigo}\n" +
+                    $"   Descripción: {descripcion}\n" +
+                    $"   Precio unitario: {precio:C2}\n" +
+                    $"   Cantidad eliminada: {cantidadEliminada}\n" +
+                    $"   Total eliminado: {totalEliminado:C2}\n" +
+                    $"   Filas insertadas: {filasAuditoria}");
             }
         }
 

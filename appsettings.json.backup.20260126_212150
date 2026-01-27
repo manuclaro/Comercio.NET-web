@@ -15,7 +15,7 @@
     "DomicilioFiscal": "122 N°2838 BERISSO",
     "CodigoPostal": "1923",
     "InicioActividades": "2017-07-01",
-    "Condicion": "Monotributo",
+    "Condicion": "Responsable Inscripto",
     "PermitirFacturaA": true,
     "PermitirFacturaB": true,
     "PermitirFacturaC": true
@@ -35,7 +35,7 @@
     "AmbienteActivo": "Testing",
     "Testing": {
       "CUIT": "20-28069473-9",
-      "CondicionIVA": "Monotributo",
+      "CondicionIVA": "Responsable Inscripto",
       "PuntoVenta": 7,
       "CertificadoPath": "C:\\Users\\Manuel\\source\\repos\\Comercio .NET\\Certificados FE\\FETesting.p12",
       "CertificadoPassword": "Micertificado",
@@ -49,7 +49,7 @@
     },
     "Produccion": {
       "CUIT": "20-12826537-7",
-      "CondicionIVA": "Monotributo",
+      "CondicionIVA": "Responsable Inscripto",
       "PuntoVenta": 7,
       "CertificadoPath": "C:\\Certificados FE\\CertificadoFEPele.p12",
       "CertificadoPassword": "Micertificado",
