@@ -1733,10 +1733,8 @@ namespace Comercio.NET
 
                     if (usuario.PuedeEditarPrecios || usuario.Nivel == Models.NivelUsuario.Administrador)
                     {
-                        using (var form = new Comercio.NET.Formularios.ActualizacionRapidaForm())
-                        {
-                            form.ShowDialog(this);
-                        }
+                        // ✅ CAMBIO: Abrir como MDI Child con instancia única
+                        ActualizacionRapidaForm.MostrarFormulario(this);
                     }
                     else
                     {

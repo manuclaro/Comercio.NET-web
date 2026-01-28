@@ -43,9 +43,9 @@ namespace Comercio.NET.Formularios
             this.StartPosition = FormStartPosition.CenterScreen;
             
             // Configurar timer de búsqueda
-            searchTimer = new System.Windows.Forms.Timer();
-            searchTimer.Interval = 500;
-            searchTimer.Tick += SearchTimer_Tick;
+            //searchTimer = new System.Windows.Forms.Timer();
+            //searchTimer.Interval = 500;
+            //searchTimer.Tick += SearchTimer_Tick;
             
             // Configurar eventos de filtro
             txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
@@ -87,13 +87,15 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                using (var form = new ActualizacionRapidaForm())
-                {
-                    form.ShowDialog(this);
+                // ✅ CAMBIO: Usar el método estático para mostrar como MDI Child con instancia única
+                ActualizacionRapidaForm.MostrarFormulario(this.MdiParent);
 
-                    // Refrescar la grilla después de cerrar el formulario
-                    _ = CargarProductosAsync();
-                }
+                // ✅ NUEVO: Configurar evento para refrescar cuando se cierre
+                // (El formulario ahora es MDI, no modal, así que manejamos esto diferente)
+
+                // Nota: Como ahora es MDI Child (no modal), el refresh se hará cuando
+                // el usuario cierre el formulario. Si quieres auto-refresh periódico,
+                // puedes agregarlo después.
             }
             catch (Exception ex)
             {
@@ -101,6 +103,7 @@ namespace Comercio.NET.Formularios
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         private void CrearBotonActualizacionMasiva()
         {
             // Crear botón para actualización masiva - MOVIDO MÁS A LA DERECHA Y AJUSTADO
@@ -852,10 +855,14 @@ namespace Comercio.NET.Formularios
             try
             {
                 if (!isInitialized) return;
-                
-                // Reiniciar el timer
-                searchTimer?.Stop();
-                searchTimer?.Start();
+
+                // ✅ OPCIÓN 2: Ya no se usa el timer automático
+                // Solo mantener este evento por si se necesita en el futuro
+                // o eliminarlo directamente si usas búsqueda manual
+
+                // ❌ ELIMINAR estas líneas si usas Opción 2:
+                // searchTimer?.Stop();
+                // searchTimer?.Start();
             }
             catch (Exception ex)
             {
@@ -863,30 +870,30 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private async void SearchTimer_Tick(object sender, EventArgs e)
-        {
-            try
-            {
-                searchTimer?.Stop();
-                
-                var textoBuscar = txtFiltroDescripcion.Text.Trim();
-                
-                // Evitar búsquedas idénticas consecutivas
-                if (lastSearchText.Equals(textoBuscar, StringComparison.OrdinalIgnoreCase))
-                    return;
-                
-                lastSearchText = textoBuscar;
-                
-                System.Diagnostics.Debug.WriteLine($"🔍 Aplicando filtro: '{textoBuscar}'");
-                
-                // Aplicar filtro de búsqueda (ahora con manejo mejorado de texto vacío)
-                await AplicarFiltro(textoBuscar);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error en SearchTimer_Tick: {ex.Message}");
-            }
-        }
+        //private async void SearchTimer_Tick(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        searchTimer?.Stop();
+
+        //        var textoBuscar = txtFiltroDescripcion.Text.Trim();
+
+        //        // Evitar búsquedas idénticas consecutivas
+        //        if (lastSearchText.Equals(textoBuscar, StringComparison.OrdinalIgnoreCase))
+        //            return;
+
+        //        lastSearchText = textoBuscar;
+
+        //        System.Diagnostics.Debug.WriteLine($"🔍 Aplicando filtro: '{textoBuscar}'");
+
+        //        // Aplicar filtro de búsqueda (ahora con manejo mejorado de texto vacío)
+        //        await AplicarFiltro(textoBuscar);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"Error en SearchTimer_Tick: {ex.Message}");
+        //    }
+        //}
 
         private async void BtnAgregarProducto_Click(object sender, EventArgs e)
         {
@@ -1193,6 +1200,27 @@ namespace Comercio.NET.Formularios
                 ActualizarContador();
             }
         }
+
+        //private async void TxtFiltroDescripcion_KeyDown(object sender, KeyEventArgs e)
+        //{
+        //    if (e.KeyCode == Keys.Enter)
+        //    {
+        //        e.SuppressKeyPress = true;
+        //        await RealizarBusqueda(); // ✅ Buscar al presionar ENTER
+        //    }
+        //    else if (e.KeyCode == Keys.Escape)
+        //    {
+        //        txtFiltroDescripcion.Clear();
+        //        await AplicarFiltro("");
+        //        System.Diagnostics.Debug.WriteLine("🧹 Filtro limpiado con ESC");
+        //    }
+        //    else if (e.KeyCode == Keys.Down && GrillaProductos?.Rows?.Count > 0)
+        //    {
+        //        GrillaProductos.Focus();
+        //        if (GrillaProductos.Rows.Count > 0)
+        //            GrillaProductos.Rows[0].Selected = true;
+        //    }
+        //}
 
         private void TxtFiltroDescripcion_KeyDown(object sender, KeyEventArgs e)
         {
