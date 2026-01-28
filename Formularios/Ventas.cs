@@ -362,6 +362,60 @@ namespace Comercio.NET
             }
         }
 
+        // ✅ NUEVO: Método para Vista Previa del remito
+        private async void BtnVistaPrevia_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Validar que haya productos en la venta
+                if (remitoActual == null || remitoActual.Rows.Count == 0)
+                {
+                    MessageBox.Show(
+                        "No hay productos en la venta para mostrar vista previa.",
+                        "Vista Previa",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine("[VISTA PREVIA] Generando vista previa del remito...");
+
+                // Crear configuración temporal para vista previa
+                var config = new Servicios.TicketConfig
+                {
+                    NombreComercio = GetNombreComercio(),
+                    DomicilioComercio = GetDomicilioComercio(),
+                    FormaPago = "Vista Previa",
+                    TipoComprobante = "VISTA PREVIA",
+                    NumeroComprobante = $"Remito N° {nroRemitoActual}",
+                    MensajePie = "VISTA PREVIA - NO ES UN COMPROBANTE VÁLIDO",
+                    // Sin CAE ni datos fiscales en vista previa
+                    CAE = null,
+                    CAEVencimiento = null,
+                    PorcentajeDescuento = 0,
+                    ImporteDescuento = 0,
+                    ImporteFinal = CalcularTotal()
+                };
+
+                // Usar el servicio de impresión existente para mostrar la vista previa
+                using (var ticketService = new Servicios.TicketPrintingService())
+                {
+                    await ticketService.ImprimirTicket(remitoActual, config);
+                }
+
+                System.Diagnostics.Debug.WriteLine("[VISTA PREVIA] ✅ Vista previa mostrada exitosamente");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[VISTA PREVIA] ❌ Error: {ex.Message}");
+                MessageBox.Show(
+                    $"Error al generar vista previa:\n\n{ex.Message}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
         // ✅ NUEVO: Event handler para pago a proveedor
         private async void BtnPagoProveedor_Click(object sender, EventArgs e)
         {
@@ -2295,7 +2349,7 @@ VALUES
             {
                 rtbTotal.Clear();
                 rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
-                rtbTotal.SelectionFont = new Font("Segoe UI", 24F, FontStyle.Bold);
+                rtbTotal.SelectionFont = new Font("Segoe UI", 30F, FontStyle.Bold);
                 rtbTotal.AppendText("TOTAL: $0,00");
             }
 
@@ -2584,15 +2638,15 @@ VALUES
             // Mantener el footer como antes
             ConfigurarPanelFooter();
 
-            // ✅ MODIFICADO: Botón "Anular" MÁS PEQUEÑO
+            // ✅ Botón "Anular"
             btnAnularFactura = new Button
             {
                 Text = "Anular",
-                Size = new Size(60, 25), // ✅ REDUCIDO: de (75, 35) a (60, 25)
+                Size = new Size(60, 25),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold), // ✅ REDUCIDO: de 9F a 8F
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 Enabled = false,
                 Visible = true,
                 TabStop = false
@@ -2604,21 +2658,37 @@ VALUES
             this.Controls.Add(btnAnularFactura);
             btnAnularFactura.BringToFront();
 
-            // ✅ NUEVO: Posicionar DEBAJO de btnPagoProveedor
+            // ✅✅✅ CRÍTICO: Configurar btnVistaPrevia con EXACTAMENTE los mismos estilos que Anular
+            if (btnVistaPrevia != null)
+            {
+                btnVistaPrevia.Size = new Size(100, 25); // ✅ Misma altura
+                btnVistaPrevia.FlatStyle = FlatStyle.Flat; // ✅ Mismo estilo
+                btnVistaPrevia.Font = new Font("Segoe UI", 8F, FontStyle.Bold); // ✅ Misma fuente
+                btnVistaPrevia.FlatAppearance.BorderSize = 0; // ✅ Sin bordes como Anular
+                btnVistaPrevia.Padding = new Padding(0); // ✅ Sin padding
+                btnVistaPrevia.Margin = new Padding(0); // ✅ Sin margen
+                btnVistaPrevia.AutoSize = false; // ✅ Tamaño fijo
+                btnVistaPrevia.UseVisualStyleBackColor = false; // ✅ Color personalizado
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[CONFIGURACIÓN] Estilos Vista Previa:\n" +
+                    $"   Size: {btnVistaPrevia.Size}\n" +
+                    $"   FlatStyle: {btnVistaPrevia.FlatStyle}\n" +
+                    $"   BorderSize: {btnVistaPrevia.FlatAppearance.BorderSize}");
+            }
+
+            // ✅ Posicionar DEBAJO de btnPagoProveedor
             void ReposicionarAnular()
             {
                 try
                 {
-                    // ✅ POSICIONAR DEBAJO del botón "Pago Proveedor"
                     if (btnPagoProveedor != null && btnPagoProveedor.Visible)
                     {
-                        // ✅ MANTENER su tamaño pequeño independiente del botón de referencia
-                        btnAnularFactura.Left = btnPagoProveedor.Left;   // Misma posición horizontal
-                        btnAnularFactura.Top = btnPagoProveedor.Bottom + 10; // 10px debajo
+                        btnAnularFactura.Left = btnPagoProveedor.Left;
+                        btnAnularFactura.Top = btnPagoProveedor.Bottom + 10;
                         return;
                     }
 
-                    // ✅ FALLBACK 1: Si no existe btnPagoProveedor, posicionar junto a btnRetirarEfectivo
                     if (btnRetirarEfectivo != null && btnRetirarEfectivo.Visible)
                     {
                         btnAnularFactura.Left = btnRetirarEfectivo.Right + 15;
@@ -2626,7 +2696,6 @@ VALUES
                         return;
                     }
 
-                    // ✅ FALLBACK 2: Posición junto a btnFinalizarVenta
                     if (btnFinalizarVenta != null && btnFinalizarVenta.Visible)
                     {
                         btnAnularFactura.Left = btnFinalizarVenta.Right + 15;
@@ -2634,9 +2703,8 @@ VALUES
                         return;
                     }
 
-                    // ✅ FALLBACK 3: Posición fija
                     btnAnularFactura.Left = 950;
-                    btnAnularFactura.Top = 160; // Más abajo que antes
+                    btnAnularFactura.Top = 160;
                 }
                 catch (Exception ex)
                 {
@@ -2644,16 +2712,7 @@ VALUES
                 }
             }
 
-            // ✅ Ejecutar posicionamiento en diferentes eventos
-            this.Load += (s, e) =>
-            {
-                ReposicionarAnular();
-                btnAnularFactura.BringToFront();
-            };
-
-            this.Resize += (s, e) => ReposicionarAnular();
-
-            // ✅ CRÍTICO: Reposicionar cuando cambien los botones de referencia
+            // ✅ Reposicionar cuando cambien los botones de referencia
             if (btnPagoProveedor != null)
             {
                 btnPagoProveedor.VisibleChanged += (s, e) => ReposicionarAnular();
@@ -2668,6 +2727,105 @@ VALUES
             if (btnFinalizarVenta != null)
             {
                 btnFinalizarVenta.VisibleChanged += (s, e) => ReposicionarAnular();
+            }
+
+            // ✅✅✅ CORREGIDO: Sincronizar COMPLETAMENTE con Anular
+            void ReposicionarVistaPrevia()
+            {
+                try
+                {
+                    // ✅ CASO 1: A la derecha de Anular (si está visible)
+                    if (btnAnularFactura != null && btnAnularFactura.Visible)
+                    {
+                        // ✅✅✅ CRÍTICO: Copiar TODO de Anular (tamaño completo, no solo altura)
+                        btnVistaPrevia.Size = new Size(100, btnAnularFactura.Height); // ✅ Usar EXACTAMENTE la altura de Anular
+                        btnVistaPrevia.Top = btnAnularFactura.Top;
+                        btnVistaPrevia.Left = btnAnularFactura.Right + 10;
+
+                        // ✅ NUEVO: Copiar también los estilos de apariencia
+                        btnVistaPrevia.FlatAppearance.BorderSize = btnAnularFactura.FlatAppearance.BorderSize;
+                        btnVistaPrevia.Padding = btnAnularFactura.Padding;
+                        btnVistaPrevia.Margin = btnAnularFactura.Margin;
+
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[VISTA PREVIA] Sincronizado con Anular:\n" +
+                            $"   Anular - Size: {btnAnularFactura.Size}, Top: {btnAnularFactura.Top}\n" +
+                            $"   Vista  - Size: {btnVistaPrevia.Size}, Top: {btnVistaPrevia.Top}\n" +
+                            $"   Anular BorderSize: {btnAnularFactura.FlatAppearance.BorderSize}\n" +
+                            $"   Vista BorderSize: {btnVistaPrevia.FlatAppearance.BorderSize}");
+                        return;
+                    }
+
+                    // ✅ FALLBACK: Debajo de "Pagar Prov."
+                    if (btnPagoProveedor != null && btnPagoProveedor.Visible)
+                    {
+                        btnVistaPrevia.Size = new Size(90, 25);
+                        btnVistaPrevia.Top = btnPagoProveedor.Bottom + 10;
+                        btnVistaPrevia.Left = btnPagoProveedor.Left;
+
+                        System.Diagnostics.Debug.WriteLine("[VISTA PREVIA] Posicionado debajo de Pagar Prov.");
+                        return;
+                    }
+
+                    // ✅ FALLBACK 2: Junto a Retirar
+                    if (btnRetirarEfectivo != null && btnRetirarEfectivo.Visible)
+                    {
+                        btnVistaPrevia.Size = new Size(90, 25);
+                        btnVistaPrevia.Top = btnRetirarEfectivo.Bottom + 10;
+                        btnVistaPrevia.Left = btnRetirarEfectivo.Left;
+                        return;
+                    }
+
+                    // ✅ FALLBACK 3: Junto a Finalizar
+                    if (btnFinalizarVenta != null && btnFinalizarVenta.Visible)
+                    {
+                        btnVistaPrevia.Size = new Size(90, 25);
+                        btnVistaPrevia.Top = btnFinalizarVenta.Bottom + 10;
+                        btnVistaPrevia.Left = btnFinalizarVenta.Left;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error posicionando Vista Previa: {ex.Message}");
+                }
+            }
+
+            // ✅ Ejecutar posicionamiento en eventos
+            this.Load += (s, e) =>
+            {
+                ReposicionarAnular();
+                btnAnularFactura.BringToFront();
+                ReposicionarVistaPrevia();
+                btnVistaPrevia.BringToFront();
+
+                // ✅ VERIFICACIÓN FINAL después de todos los reposicionamientos
+                System.Diagnostics.Debug.WriteLine(
+                    $"[CARGA FINAL] Verificación completa:\n" +
+                    $"   btnAnularFactura.Size = {btnAnularFactura?.Size}\n" +
+                    $"   btnVistaPrevia.Size = {btnVistaPrevia?.Size}\n" +
+                    $"   Anular FlatStyle: {btnAnularFactura?.FlatStyle}\n" +
+                    $"   Vista FlatStyle: {btnVistaPrevia?.FlatStyle}");
+            };
+
+            this.Resize += (s, e) =>
+            {
+                ReposicionarAnular();
+                ReposicionarVistaPrevia();
+            };
+
+            // ✅ Reposicionar Vista Previa cuando cambie Anular
+            if (btnAnularFactura != null)
+            {
+                btnAnularFactura.VisibleChanged += (s, e) => ReposicionarVistaPrevia();
+                btnAnularFactura.Move += (s, e) => ReposicionarVistaPrevia();
+                btnAnularFactura.SizeChanged += (s, e) => ReposicionarVistaPrevia(); // ✅ NUEVO: Sincronizar cuando cambia tamaño
+            }
+
+            // ✅ Reposicionar Vista Previa cuando cambie Pagar Proveedor
+            if (btnPagoProveedor != null)
+            {
+                btnPagoProveedor.VisibleChanged += (s, e) => ReposicionarVistaPrevia();
+                btnPagoProveedor.Move += (s, e) => ReposicionarVistaPrevia();
             }
 
             // Asegurar que el título no tape controles
@@ -2692,9 +2850,9 @@ VALUES
             dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White;
 
-            // ✅ Fuente para encabezados - MÁS GRANDE
+            // ✅ REDUCIDO: Fuente de encabezados más pequeña
             var headerStyle = dataGridView1.ColumnHeadersDefaultCellStyle;
-            headerStyle.Font = new Font("Segoe UI", 17F, FontStyle.Bold); // ✅ AUMENTADO: 13F → 17F
+            headerStyle.Font = new Font("Segoe UI", 11F, FontStyle.Bold); // ✅ REDUCIDO: 17F → 11F (más compacto)
             headerStyle.BackColor = Color.FromArgb(248, 249, 250);
             headerStyle.ForeColor = Color.Black;
 
@@ -2704,7 +2862,7 @@ VALUES
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
             dataGridView1.AlternatingRowsDefaultCellStyle.SelectionForeColor = Color.White;
 
-            dataGridView1.RowTemplate.Height = 48; // ✅ AUMENTADO: 36 → 48 (más alto para fuentes grandes)
+            dataGridView1.RowTemplate.Height = 48; // ✅ Mantener altura de fila para contenido
             dataGridView1.GridColor = Color.FromArgb(220, 220, 220);
 
             dataGridView1.AutoGenerateColumns = true;
@@ -3133,7 +3291,7 @@ VALUES
                 using (var connection = new SqlConnection(connectionString))
                 {
                     var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo, PermiteAcumular, cantidad, EditarPrecio, iva 
-                  FROM Productos WHERE codigo = @codigo";
+              FROM Productos WHERE codigo = @codigo";
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
                         adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
@@ -3374,25 +3532,43 @@ VALUES
 
                 bool productoYaAgregado = false;
                 int cantidadActual = 0;
+                int idVentaExistente = 0;
+
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = @"SELECT cantidad FROM Ventas WHERE nrofactura = @nrofactura AND codigo = @codigo";
+                    var query = @"SELECT TOP 1 id, cantidad FROM Ventas 
+                         WHERE nrofactura = @nrofactura AND codigo = @codigo
+                         ORDER BY id DESC";
                     using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
                         connection.Open();
-                        var result = cmd.ExecuteScalar();
-                        if (result != null && int.TryParse(result.ToString(), out cantidadActual))
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            productoYaAgregado = true;
+                            if (reader.Read())
+                            {
+                                productoYaAgregado = true;
+                                cantidadActual = Convert.ToInt32(reader["cantidad"]);
+                                idVentaExistente = Convert.ToInt32(reader["id"]);
+
+                                System.Diagnostics.Debug.WriteLine(
+                                    $"📌 Producto YA EXISTE - ID: {idVentaExistente}, Cantidad actual: {cantidadActual}");
+                            }
                         }
                     }
                 }
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    connection.Open();
+                    await connection.OpenAsync();
+
+                    // ✅✅✅ CRÍTICO: Configurar ARITHABORT ANTES de abrir la transacción
+                    using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                    {
+                        await cmdConfig.ExecuteNonQueryAsync();
+                    }
+
                     using (var transaction = connection.BeginTransaction())
                     {
                         try
@@ -3423,30 +3599,47 @@ VALUES
                                         MessageBoxIcon.Information);
                                 }
 
-                                var query = @"UPDATE Ventas 
-                                  SET cantidad = cantidad + @nuevaCantidad, 
-                                      precio = @precioFinal,
-                                      total = (cantidad + @nuevaCantidad) * @precioFinal,
-                                      IvaCalculado = (@precioFinal * (cantidad + @nuevaCantidad)) * @porcentajeIva / (100 + @porcentajeIva),
-                                      PorcentajeIva = @porcentajeIva,
-                                      IdOferta = @IdOferta,
-                                      NombreOferta = @NombreOferta,
-                                      PrecioOriginal = @PrecioOriginal,
-                                      PrecioConOferta = @PrecioConOferta,
-                                      DescuentoAplicado = @DescuentoAplicado,
-                                      EsOferta = @EsOferta
-                                  WHERE nrofactura = @nrofactura AND codigo = @codigo";
-
-                                using (var cmd = new SqlCommand(query, connection, transaction))
+                                // ✅ MODIFICADO: Primero ELIMINAR la fila existente
+                                var queryEliminar = @"DELETE FROM Ventas WHERE id = @idVenta";
+                                using (var cmdEliminar = new SqlCommand(queryEliminar, connection, transaction))
                                 {
-                                    var cmdSet = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction);
-                                    await cmdSet.ExecuteNonQueryAsync();
+                                    cmdEliminar.Parameters.AddWithValue("@idVenta", idVentaExistente);
+                                    await cmdEliminar.ExecuteNonQueryAsync();
 
-                                    cmd.Parameters.AddWithValue("@nuevaCantidad", cantidadPersonalizada);
-                                    cmd.Parameters.AddWithValue("@precioFinal", precioFinal);
-                                    cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
-                                    cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
+                                    System.Diagnostics.Debug.WriteLine(
+                                        $"🗑️ Fila existente ELIMINADA - ID: {idVentaExistente}");
+                                }
+
+                                // ✅ NUEVO: Ahora INSERT como nuevo (quedará al principio por ORDER BY id DESC)
+                                var queryInsert = @"INSERT INTO Ventas 
+                            (NroFactura, codigo, descripcion, cantidad, precio, total, 
+                             IvaCalculado, PorcentajeIva,
+                             IdOferta, NombreOferta, PrecioOriginal, PrecioConOferta, DescuentoAplicado, EsOferta,
+                             rubro, marca, proveedor, costo, fecha, hora, EsCtaCte, NombreCtaCte)
+                        VALUES 
+                            (@NroFactura, @codigo, @descripcion, @cantidad, @precio, @total, 
+                             @ivaCalculado, @porcentajeIva,
+                             @IdOferta, @NombreOferta, @PrecioOriginal, @PrecioConOferta, @DescuentoAplicado, @EsOferta,
+                             @rubro, @marca, @proveedor, @costo, @fecha, @hora, @EsCtaCte, @NombreCtaCte)";
+
+                                using (var cmd = new SqlCommand(queryInsert, connection, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@NroFactura", nroRemitoActual);
                                     cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                                    cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
+                                    cmd.Parameters.AddWithValue("@cantidad", nuevaCantidadTotal);
+                                    cmd.Parameters.AddWithValue("@precio", precioFinal);
+                                    cmd.Parameters.AddWithValue("@total", precioFinal * nuevaCantidadTotal);
+                                    cmd.Parameters.AddWithValue("@ivaCalculado", CalcularIvaDesdeTotal(precioFinal * nuevaCantidadTotal, porcentajeIva));
+                                    cmd.Parameters.AddWithValue("@porcentajeIva", porcentajeIva);
+                                    cmd.Parameters.AddWithValue("@rubro", producto["rubro"]);
+                                    cmd.Parameters.AddWithValue("@marca", producto["marca"]);
+                                    cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
+                                    cmd.Parameters.AddWithValue("@costo", producto["costo"]);
+                                    cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
+                                    cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
+                                    cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
+                                    cmd.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
                                     if (ofertaActualizacion != null)
                                     {
@@ -3470,11 +3663,10 @@ VALUES
                                     await cmd.ExecuteNonQueryAsync();
 
                                     System.Diagnostics.Debug.WriteLine(
-                                        $"✅ UPDATE ejecutado - Código: {producto["codigo"]}\n" +
-                                        $"   Nueva cantidad: {nuevaCantidadTotal}\n" +
+                                        $"✅ INSERT RE-EJECUTADO - Código: {producto["codigo"]}\n" +
+                                        $"   Cantidad ACTUALIZADA: {nuevaCantidadTotal}\n" +
                                         $"   Precio final: {precioFinal:C2}\n" +
-                                        $"   ¿Tiene oferta?: {(ofertaActualizacion != null ? "Sí" : "No")}\n" +
-                                        $"   EsOferta: {(ofertaActualizacion != null ? 1 : 0)}");
+                                        $"   🔝 APARECERÁ AL PRINCIPIO de la grilla");
                                 }
                             }
                             else
@@ -3482,21 +3674,18 @@ VALUES
                                 decimal precioOriginal = Convert.ToDecimal(producto["precio"]);
 
                                 var query = @"INSERT INTO Ventas 
-                                    (NroFactura, codigo, descripcion, cantidad, precio, total, 
-                                     IvaCalculado, PorcentajeIva,
-                                     IdOferta, NombreOferta, PrecioOriginal, PrecioConOferta, DescuentoAplicado, EsOferta,
-                                     rubro, marca, proveedor, costo, fecha, hora, EsCtaCte, NombreCtaCte)
-                                VALUES 
-                                    (@NroFactura, @codigo, @descripcion, @cantidad, @precio, @total, 
-                                     @ivaCalculado, @porcentajeIva,
-                                     @IdOferta, @NombreOferta, @PrecioOriginal, @PrecioConOferta, @DescuentoAplicado, @EsOferta,
-                                     @rubro, @marca, @proveedor, @costo, @fecha, @hora, @EsCtaCte, @NombreCtaCte)";
+                            (NroFactura, codigo, descripcion, cantidad, precio, total, 
+                             IvaCalculado, PorcentajeIva,
+                             IdOferta, NombreOferta, PrecioOriginal, PrecioConOferta, DescuentoAplicado, EsOferta,
+                             rubro, marca, proveedor, costo, fecha, hora, EsCtaCte, NombreCtaCte)
+                        VALUES 
+                            (@NroFactura, @codigo, @descripcion, @cantidad, @precio, @total, 
+                             @ivaCalculado, @porcentajeIva,
+                             @IdOferta, @NombreOferta, @PrecioOriginal, @PrecioConOferta, @DescuentoAplicado, @EsOferta,
+                             @rubro, @marca, @proveedor, @costo, @fecha, @hora, @EsCtaCte, @NombreCtaCte)";
 
                                 using (var cmd = new SqlCommand(query, connection, transaction))
                                 {
-                                    var cmdSet = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction);
-                                    await cmdSet.ExecuteNonQueryAsync();
-
                                     cmd.Parameters.AddWithValue("@NroFactura", nroRemitoActual);
                                     cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
                                     cmd.Parameters.AddWithValue("@descripcion", producto["descripcion"]);
@@ -3576,8 +3765,8 @@ VALUES
                             if (permiteAcumular)
                             {
                                 var queryStock = @"UPDATE Productos 
-                                   SET cantidad = cantidad - @cantidadVendida 
-                                   WHERE codigo = @codigo";
+                           SET cantidad = cantidad - @cantidadVendida 
+                           WHERE codigo = @codigo";
                                 using (var cmdUpd = new SqlCommand(queryStock, connection, transaction))
                                 {
                                     cmdUpd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
@@ -3600,6 +3789,20 @@ VALUES
                 // ✅ CRÍTICO: ESPERAR a que termine la carga ANTES de continuar
                 await CargarVentasActualesAsync();
 
+                // ✅ NUEVO: Si hubo actualización de producto existente, hacer scroll al principio
+                if (productoYaAgregado && permiteAcumular)
+                {
+                    // ✅ Asegurar que la primera fila sea visible
+                    if (dataGridView1.Rows.Count > 0)
+                    {
+                        dataGridView1.FirstDisplayedScrollingRowIndex = 0;
+                        dataGridView1.Rows[0].Selected = true;
+
+                        System.Diagnostics.Debug.WriteLine(
+                            $"🔝 SCROLL AL PRINCIPIO - Producto actualizado ahora VISIBLE en primera posición");
+                    }
+                }
+
                 // ✅ CRÍTICO: Forzar actualización del UI
                 dataGridView1.Refresh();
                 Application.DoEvents();
@@ -3611,6 +3814,7 @@ VALUES
                 System.Diagnostics.Debug.WriteLine($"   Descripción: {producto["descripcion"]}");
                 System.Diagnostics.Debug.WriteLine($"   Cantidad: {cantidadPersonalizada}");
                 System.Diagnostics.Debug.WriteLine($"   Precio: {precioUnitario:C2}");
+                System.Diagnostics.Debug.WriteLine($"   ¿Producto existente?: {(productoYaAgregado ? "SÍ - REPOSICIONADO ARRIBA" : "NO - NUEVO")}");
                 System.Diagnostics.Debug.WriteLine($"   ┌─ Estado DataGridView:");
                 System.Diagnostics.Debug.WriteLine($"   │  Filas visibles: {dataGridView1.Rows.Count}");
                 System.Diagnostics.Debug.WriteLine($"   │  DataSource rows: {remitoActual?.Rows.Count ?? 0}");
@@ -3644,7 +3848,6 @@ VALUES
                 }
             }
         }
-
 
         // NUEVO: Calcular el total del remito actual
         private decimal CalcularTotal()
@@ -3733,9 +3936,9 @@ VALUES
             dataGridView1.ReadOnly = true;
             dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-            // MEJORADO: Personalizar estilo de DataGridView con mejor contraste de selección
+            // ✅ REDUCIDO: Fuente de encabezados más compacta
             dataGridView1.EnableHeadersVisualStyles = false;
-            dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 17F, FontStyle.Bold); // ✅ Mantener fuente grande
+            dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 11F, FontStyle.Bold); // ✅ REDUCIDO: 17F → 11F
             dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
             dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(248, 249, 250);
@@ -3762,7 +3965,7 @@ VALUES
             // Crear el panel footer programáticamente
             Panel panelFooter = new Panel();
             panelFooter.Dock = DockStyle.Bottom;
-            panelFooter.Height = 120; // ✅ AUMENTADO: 95 → 110 píxeles (más espacio para total)
+            panelFooter.Height = 75; // ✅ REDUCIDO: 120 → 75 píxeles (más compacto)
             panelFooter.BackColor = Color.FromArgb(0, 120, 215);
 
             // Configurar lbCantidadProductos (dock left)
@@ -3774,13 +3977,13 @@ VALUES
             lbCantidadProductos.ForeColor = Color.White;
             lbCantidadProductos.Text = "Productos: 0";
 
-            // ✅ Panel contenedor MÁS ANCHO para el total
+            // ✅ Panel contenedor AJUSTADO para el total
             Panel panelTotalContainer = new Panel
             {
                 Dock = DockStyle.Right,
-                Width = 700, // ✅ AUMENTADO: 600 → 700px (más espacio para texto)
+                Width = 700,
                 BackColor = Color.FromArgb(0, 120, 215),
-                Padding = new Padding(0, 20, 20, 20)
+                Padding = new Padding(0, 10, 20, 10) // ✅ REDUCIDO: 20,20 → 10,10 (menos padding vertical)
             };
 
             // RichTextBox para totales
@@ -3807,7 +4010,7 @@ VALUES
             this.Controls.Add(panelFooter);
             panelFooter.BringToFront();
 
-            // Ajustar el DataGridView para dejar espacio al footer
+            // ✅ AJUSTADO: Reducir el espacio reservado para el footer
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dataGridView1.Dock = DockStyle.None;
             dataGridView1.Location = new Point(0, 171);
@@ -3882,7 +4085,7 @@ VALUES
             {
                 dataGridView1.Columns["precio"].HeaderText = "Precio";
                 dataGridView1.Columns["precio"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["precio"].Width = 120; // ✅ AUMENTADO: 100 → 120
+                dataGridView1.Columns["precio"].Width = 140; // ✅ AUMENTADO: 120 → 140 píxeles
                 dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             }
 
@@ -3894,9 +4097,9 @@ VALUES
                 colTotal.DefaultCellStyle.Format = "C2";
                 colTotal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                 colTotal.DefaultCellStyle.BackColor = dataGridView1.DefaultCellStyle.BackColor;
-                colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Bold); // ✅ AUMENTADO: 12F → 16F
+                colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
                 colTotal.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                colTotal.Width = 140; // ✅ AUMENTADO: 120 → 140
+                colTotal.Width = 140;
             }
 
             // IVA%: ancho fijo
@@ -3905,7 +4108,7 @@ VALUES
                 var colIvaPct = dataGridView1.Columns["PorcentajeIva"];
                 colIvaPct.HeaderText = "IVA%";
                 colIvaPct.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                colIvaPct.Width = 70; // ✅ AUMENTADO: 60 → 70
+                colIvaPct.Width = 70;
                 colIvaPct.MinimumWidth = 60;
                 colIvaPct.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
@@ -3915,7 +4118,7 @@ VALUES
             {
                 dataGridView1.Columns["cantidad"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 dataGridView1.Columns["cantidad"].HeaderText = "Cant.";
-                dataGridView1.Columns["cantidad"].Width = 60; // ✅ AUMENTADO: 50 → 60
+                dataGridView1.Columns["cantidad"].Width = 60;
                 dataGridView1.Columns["cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
 
@@ -3926,7 +4129,7 @@ VALUES
             if (dataGridView1.Columns["ColOferta"] != null)
             {
                 dataGridView1.Columns["ColOferta"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["ColOferta"].Width = 40; // ✅ AUMENTADO: 35 → 40
+                dataGridView1.Columns["ColOferta"].Width = 40;
                 dataGridView1.Columns["ColOferta"].MinimumWidth = 40;
                 dataGridView1.Columns["ColOferta"].Resizable = DataGridViewTriState.False;
                 dataGridView1.Columns["ColOferta"].DisplayIndex = 0;
@@ -3953,10 +4156,10 @@ VALUES
                 btnAnularFactura.BringToFront();
             }
 
-            // ✅✅✅ MODIFICADO: Fuente del TOTAL MUY GRANDE (de 36F a 48F)
+            // ✅ REDUCIDO: Fuente del total más pequeña para caber
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
-            rtbTotal.SelectionFont = new Font("Segoe UI", 48F, FontStyle.Bold); // ✅ AUMENTADO: 36F → 48F
+            rtbTotal.SelectionFont = new Font("Segoe UI", 30F, FontStyle.Bold);
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
         }
 
@@ -4041,7 +4244,7 @@ VALUES
             {
                 dataGridView1.Columns["precio"].HeaderText = "Precio";
                 dataGridView1.Columns["precio"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                dataGridView1.Columns["precio"].Width = 120;
+                dataGridView1.Columns["precio"].Width = 140; // ✅ AUMENTADO: 120 → 140 píxeles
                 dataGridView1.Columns["precio"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             }
 
@@ -4111,7 +4314,7 @@ VALUES
 
             rtbTotal.Clear();
             rtbTotal.SelectionAlignment = HorizontalAlignment.Right;
-            rtbTotal.SelectionFont = new Font("Segoe UI", 48F, FontStyle.Bold);
+            rtbTotal.SelectionFont = new Font("Segoe UI", 30F, FontStyle.Bold); // ✅ REDUCIDO: 48F → 36F (más pequeño para caber)
             rtbTotal.AppendText($"TOTAL: {sumaTotal:C2}\n");
         }
 
