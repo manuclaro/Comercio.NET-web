@@ -7,16 +7,33 @@ using Comercio.NET.Services;
 using Comercio.NET.Servicios;
 using System.Linq;
 using Microsoft.Extensions.Configuration;
-using System.IO;
+using System.Diagnostics;
 
 namespace Comercio.NET
 {
-    internal static class Program
+    static class Program
     {
+        // ✅ CONFIGURACIÓN DE VERSIÓN - ACTUALIZAR CON CADA RELEASE
+        private const string CURRENT_VERSION = "1.2.0";
+        
+        // ✅ URL del servidor de actualizaciones - CONFIGURAR SEGÚN TU SERVIDOR
+        private const string UPDATE_SERVER = "https://tu-servidor.com/updates/comercio-net";
+        
+        // ✅ Verificar actualizaciones al iniciar (true) o solo manualmente (false)
+        private const bool AUTO_CHECK_UPDATES = true;
+
         [STAThread]
         static void Main()
         {
             ApplicationConfiguration.Initialize();
+
+            Debug.WriteLine($"[APP] Iniciando Comercio .NET v{CURRENT_VERSION}");
+
+            // ✅ Verificar actualizaciones al iniciar
+            if (AUTO_CHECK_UPDATES)
+            {
+                _ = CheckForUpdatesAsync();
+            }
 
             try
             {
@@ -405,6 +422,46 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 return (false, $"Error verificando certificados: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Verifica si hay actualizaciones disponibles
+        /// </summary>
+        public static async Task CheckForUpdatesAsync()
+        {
+            try
+            {
+                Debug.WriteLine("[APP] Verificando actualizaciones...");
+
+                using (var updater = new AutoUpdaterService(UPDATE_SERVER, CURRENT_VERSION))
+                {
+                    var versionInfo = await updater.CheckForUpdatesAsync();
+
+                    if (versionInfo != null)
+                    {
+                        Debug.WriteLine($"[APP] ✅ Nueva versión disponible: {versionInfo.Version}");
+
+                        // Mostrar formulario de actualización
+                        using (var frmUpdate = new frmActualizacion(versionInfo, CURRENT_VERSION, UPDATE_SERVER))
+                        {
+                            frmUpdate.ShowDialog();
+                        }
+                    }
+                    else
+                    {
+                        Debug.WriteLine("[APP] ℹ️ No hay actualizaciones disponibles");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // No interrumpir la aplicación si falla la verificación
+                Debug.WriteLine($"[APP] ⚠️ Error verificando actualizaciones: {ex.Message}");
+                
+                // Opcionalmente, puedes mostrar un mensaje al usuario
+                // MessageBox.Show("No se pudo verificar si hay actualizaciones disponibles.", 
+                //     "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
     }

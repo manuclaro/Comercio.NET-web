@@ -27,7 +27,9 @@ namespace Comercio.NET
         private ToolStripStatusLabel lblUsuarioActual;
         private ToolStripSplitButton btnCambiarUsuario;
 
-
+        // ✅ NUEVO: Constantes para actualización automática
+        private const string CURRENT_VERSION = "1.2.0"; // ⚠️ Actualizar con cada release
+        private const string UPDATE_SERVER = "https://tu-servidor.com/updates/comercio-net";
         public MenuPrincipal()
         {
             InitializeComponent();
@@ -43,7 +45,10 @@ namespace Comercio.NET
             AgregarBotonCierreTurnoToolbar();
             AgregarActualizacionRapidaAlMenu();
             AgregarOpcionGestionOfertas();
-            AgregarMenuConfiguracionPermisos(); // ✅ AGREGAR ESTA LÍNEA
+            AgregarMenuConfiguracionPermisos();
+
+            // ✅ NUEVO: Configurar menú de ayuda con actualización
+            ConfigurarMenuAyuda();
         }
 
         // ✅✅✅ NUEVO MÉTODO: Configurar tamaño del formulario MDI
@@ -2680,6 +2685,165 @@ namespace Comercio.NET
         private void MenuPrincipal_Load(object sender, EventArgs e)
         {
 
+        }
+
+        /// <summary>
+        /// Configura el menú de Ayuda con opción de actualización manual
+        /// </summary>
+        private void ConfigurarMenuAyuda()
+        {
+            try
+            {
+                // Buscar o crear el menú "Ayuda"
+                var menuAyuda = this.menuStrip?.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Text == "Ayuda" || i.Text == "&Ayuda");
+
+                if (menuAyuda == null)
+                {
+                    // Crear menú Ayuda si no existe
+                    menuAyuda = new ToolStripMenuItem("&Ayuda")
+                    {
+                        Name = "menuAyuda"
+                    };
+                    this.menuStrip.Items.Add(menuAyuda);
+                }
+
+                // Verificar si ya existe el item de actualización
+                var itemActualizacionExistente = menuAyuda.DropDownItems
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "menuBuscarActualizaciones");
+
+                if (itemActualizacionExistente != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("ℹ️ Menú 'Buscar Actualizaciones' ya existe");
+                    return; // Ya existe, no duplicar
+                }
+
+                // ✅ Agregar opción "Buscar Actualizaciones"
+                var menuBuscarActualizaciones = new ToolStripMenuItem
+                {
+                    Name = "menuBuscarActualizaciones",
+                    Text = "🔄 Buscar Actualizaciones...",
+                    ShortcutKeys = Keys.Control | Keys.U,
+                    ShowShortcutKeys = true,
+                    ToolTipText = "Verificar si hay actualizaciones disponibles (Ctrl+U)"
+                };
+                menuBuscarActualizaciones.Click += MenuBuscarActualizaciones_Click;
+
+                // Si hay items existentes, agregar separador
+                if (menuAyuda.DropDownItems.Count > 0)
+                {
+                    menuAyuda.DropDownItems.Add(new ToolStripSeparator());
+                }
+
+                menuAyuda.DropDownItems.Add(menuBuscarActualizaciones);
+
+                // ✅ Agregar opción "Acerca de"
+                var menuAcercaDe = new ToolStripMenuItem
+                {
+                    Name = "menuAcercaDe",
+                    Text = "ℹ️ Acerca de Comercio .NET",
+                    ToolTipText = "Información sobre la versión y el sistema"
+                };
+                menuAcercaDe.Click += MenuAcercaDe_Click;
+
+                menuAyuda.DropDownItems.Add(new ToolStripSeparator());
+                menuAyuda.DropDownItems.Add(menuAcercaDe);
+
+                System.Diagnostics.Debug.WriteLine("✅ Menú 'Ayuda' configurado con actualización manual");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error configurando menú Ayuda: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Event handler para buscar actualizaciones manualmente
+        /// </summary>
+        private async void MenuBuscarActualizaciones_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Mostrar mensaje de "verificando..."
+                var originalCursor = this.Cursor;
+                this.Cursor = Cursors.WaitCursor;
+
+                using (var updater = new AutoUpdaterService(UPDATE_SERVER, CURRENT_VERSION))
+                {
+                    var versionInfo = await updater.CheckForUpdatesAsync();
+
+                    this.Cursor = originalCursor;
+
+                    if (versionInfo != null)
+                    {
+                        // Hay actualización disponible
+                        using (var frmUpdate = new frmActualizacion(versionInfo, CURRENT_VERSION, UPDATE_SERVER))
+                        {
+                            frmUpdate.ShowDialog(this);
+                        }
+                    }
+                    else
+                    {
+                        // No hay actualizaciones
+                        MessageBox.Show(
+                            $"✅ Estás usando la última versión disponible.\n\n" +
+                            $"Versión actual: {CURRENT_VERSION}\n\n" +
+                            $"No hay actualizaciones en este momento.",
+                            "Sistema Actualizado",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.Cursor = Cursors.Default;
+                MessageBox.Show(
+                    $"No se pudo verificar si hay actualizaciones.\n\n" +
+                    $"Error: {ex.Message}\n\n" +
+                    $"Verifica tu conexión a Internet e intenta nuevamente.",
+                    "Error de Conexión",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                System.Diagnostics.Debug.WriteLine($"[AUTO-UPDATE] Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Event handler para mostrar información "Acerca de"
+        /// </summary>
+        private void MenuAcercaDe_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var usuario = AuthenticationService.SesionActual?.Usuario;
+                string nombreUsuario = usuario != null ? $"{usuario.Nombre} {usuario.Apellido}" : "Sin sesión";
+
+                string mensaje = $"╔════════════════════════════════════════╗\n" +
+                                $"║                                        ║\n" +
+                                $"║      COMERCIO .NET                     ║\n" +
+                                $"║      Sistema de Gestión Comercial      ║\n" +
+                                $"║                                        ║\n" +
+                                $"╚════════════════════════════════════════╝\n\n" +
+                                $"📌 Versión: {CURRENT_VERSION}\n" +
+                                $"👤 Usuario: {nombreUsuario}\n" +
+                                $"📅 Fecha: {DateTime.Now:dd/MM/yyyy HH:mm}\n\n" +
+                                $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                                $"Desarrollado con .NET 8 y WinForms\n" +
+                                $"© 2024-2026 Todos los derechos reservados\n\n" +
+                                $"Para soporte técnico o consultas,\n" +
+                                $"contacte a su administrador del sistema.";
+
+                MessageBox.Show(mensaje, "Acerca de Comercio .NET",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error mostrando 'Acerca de': {ex.Message}");
+            }
         }
     }
 }

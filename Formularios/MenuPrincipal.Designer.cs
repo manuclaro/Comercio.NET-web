@@ -51,9 +51,6 @@
             gestionUsuariosToolStripMenuItem = new ToolStripMenuItem();
             InformesToolStripMenuItem = new ToolStripMenuItem();
             compraProveedoresToolStripMenuItem = new ToolStripMenuItem();
-            viewMenu = new ToolStripMenuItem();
-            toolBarToolStripMenuItem = new ToolStripMenuItem();
-            statusBarToolStripMenuItem = new ToolStripMenuItem();
             windowsMenu = new ToolStripMenuItem();
             newWindowToolStripMenuItem = new ToolStripMenuItem();
             cascadeToolStripMenuItem = new ToolStripMenuItem();
@@ -61,10 +58,6 @@
             tileHorizontalToolStripMenuItem = new ToolStripMenuItem();
             closeAllToolStripMenuItem = new ToolStripMenuItem();
             arrangeIconsToolStripMenuItem = new ToolStripMenuItem();
-            helpMenu = new ToolStripMenuItem();
-            indexToolStripMenuItem = new ToolStripMenuItem();
-            searchToolStripMenuItem = new ToolStripMenuItem();
-            aboutToolStripMenuItem = new ToolStripMenuItem();
             productosToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator8 = new ToolStripSeparator();
             toolStrip = new ToolStrip();
@@ -91,7 +84,7 @@
             // 
             // menuStrip
             // 
-            menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, modulosToolStripMenuItem, viewMenu, windowsMenu, helpMenu });
+            menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, modulosToolStripMenuItem, windowsMenu });
             menuStrip.Location = new Point(0, 0);
             menuStrip.MdiWindowListItem = windowsMenu;
             menuStrip.Name = "menuStrip";
@@ -243,33 +236,6 @@
             compraProveedoresToolStripMenuItem.Text = "Compra Proveedores";
             compraProveedoresToolStripMenuItem.Click += compraProveedoresToolStripMenuItem_Click;
             // 
-            // viewMenu
-            // 
-            viewMenu.DropDownItems.AddRange(new ToolStripItem[] { toolBarToolStripMenuItem, statusBarToolStripMenuItem });
-            viewMenu.Name = "viewMenu";
-            viewMenu.Size = new Size(35, 20);
-            viewMenu.Text = "&Ver";
-            // 
-            // toolBarToolStripMenuItem
-            // 
-            toolBarToolStripMenuItem.Checked = true;
-            toolBarToolStripMenuItem.CheckOnClick = true;
-            toolBarToolStripMenuItem.CheckState = CheckState.Checked;
-            toolBarToolStripMenuItem.Name = "toolBarToolStripMenuItem";
-            toolBarToolStripMenuItem.Size = new Size(189, 22);
-            toolBarToolStripMenuItem.Text = "&Barra de herramientas";
-            toolBarToolStripMenuItem.Click += ToolBarToolStripMenuItem_Click;
-            // 
-            // statusBarToolStripMenuItem
-            // 
-            statusBarToolStripMenuItem.Checked = true;
-            statusBarToolStripMenuItem.CheckOnClick = true;
-            statusBarToolStripMenuItem.CheckState = CheckState.Checked;
-            statusBarToolStripMenuItem.Name = "statusBarToolStripMenuItem";
-            statusBarToolStripMenuItem.Size = new Size(189, 22);
-            statusBarToolStripMenuItem.Text = "&Barra de estado";
-            statusBarToolStripMenuItem.Click += StatusBarToolStripMenuItem_Click;
-            // 
             // windowsMenu
             // 
             windowsMenu.DropDownItems.AddRange(new ToolStripItem[] { newWindowToolStripMenuItem, cascadeToolStripMenuItem, tileVerticalToolStripMenuItem, tileHorizontalToolStripMenuItem, closeAllToolStripMenuItem, arrangeIconsToolStripMenuItem });
@@ -280,73 +246,44 @@
             // newWindowToolStripMenuItem
             // 
             newWindowToolStripMenuItem.Name = "newWindowToolStripMenuItem";
-            newWindowToolStripMenuItem.Size = new Size(175, 22);
+            newWindowToolStripMenuItem.Size = new Size(180, 22);
             newWindowToolStripMenuItem.Text = "&Nueva ventana";
             newWindowToolStripMenuItem.Click += ShowNewForm;
             // 
             // cascadeToolStripMenuItem
             // 
             cascadeToolStripMenuItem.Name = "cascadeToolStripMenuItem";
-            cascadeToolStripMenuItem.Size = new Size(175, 22);
+            cascadeToolStripMenuItem.Size = new Size(180, 22);
             cascadeToolStripMenuItem.Text = "&Cascada";
             cascadeToolStripMenuItem.Click += CascadeToolStripMenuItem_Click;
             // 
             // tileVerticalToolStripMenuItem
             // 
             tileVerticalToolStripMenuItem.Name = "tileVerticalToolStripMenuItem";
-            tileVerticalToolStripMenuItem.Size = new Size(175, 22);
+            tileVerticalToolStripMenuItem.Size = new Size(180, 22);
             tileVerticalToolStripMenuItem.Text = "Mosaico &vertical";
             tileVerticalToolStripMenuItem.Click += TileVerticalToolStripMenuItem_Click;
             // 
             // tileHorizontalToolStripMenuItem
             // 
             tileHorizontalToolStripMenuItem.Name = "tileHorizontalToolStripMenuItem";
-            tileHorizontalToolStripMenuItem.Size = new Size(175, 22);
+            tileHorizontalToolStripMenuItem.Size = new Size(180, 22);
             tileHorizontalToolStripMenuItem.Text = "Mosaico &horizontal";
             tileHorizontalToolStripMenuItem.Click += TileHorizontalToolStripMenuItem_Click;
             // 
             // closeAllToolStripMenuItem
             // 
             closeAllToolStripMenuItem.Name = "closeAllToolStripMenuItem";
-            closeAllToolStripMenuItem.Size = new Size(175, 22);
+            closeAllToolStripMenuItem.Size = new Size(180, 22);
             closeAllToolStripMenuItem.Text = "C&errar todo";
             closeAllToolStripMenuItem.Click += CloseAllToolStripMenuItem_Click;
             // 
             // arrangeIconsToolStripMenuItem
             // 
             arrangeIconsToolStripMenuItem.Name = "arrangeIconsToolStripMenuItem";
-            arrangeIconsToolStripMenuItem.Size = new Size(175, 22);
+            arrangeIconsToolStripMenuItem.Size = new Size(180, 22);
             arrangeIconsToolStripMenuItem.Text = "&Organizar iconos";
             arrangeIconsToolStripMenuItem.Click += ArrangeIconsToolStripMenuItem_Click;
-            // 
-            // helpMenu
-            // 
-            helpMenu.DropDownItems.AddRange(new ToolStripItem[] { indexToolStripMenuItem, searchToolStripMenuItem, aboutToolStripMenuItem });
-            helpMenu.Name = "helpMenu";
-            helpMenu.Size = new Size(53, 20);
-            helpMenu.Text = "Ay&uda";
-            // 
-            // indexToolStripMenuItem
-            // 
-            indexToolStripMenuItem.Image = (Image)resources.GetObject("indexToolStripMenuItem.Image");
-            indexToolStripMenuItem.ImageTransparentColor = Color.Black;
-            indexToolStripMenuItem.Name = "indexToolStripMenuItem";
-            indexToolStripMenuItem.Size = new Size(147, 22);
-            indexToolStripMenuItem.Text = "&Índice";
-            // 
-            // searchToolStripMenuItem
-            // 
-            searchToolStripMenuItem.Image = (Image)resources.GetObject("searchToolStripMenuItem.Image");
-            searchToolStripMenuItem.ImageTransparentColor = Color.Black;
-            searchToolStripMenuItem.Name = "searchToolStripMenuItem";
-            searchToolStripMenuItem.Size = new Size(147, 22);
-            searchToolStripMenuItem.Text = "&Buscar";
-            // 
-            // aboutToolStripMenuItem
-            // 
-            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.Size = new Size(147, 22);
-            aboutToolStripMenuItem.Text = "&Acerca de... ...";
             // 
             // productosToolStripMenuItem
             // 
@@ -372,11 +309,10 @@
             // printPreviewToolStripButton
             // 
             printPreviewToolStripButton.BackColor = Color.Snow;
-            printPreviewToolStripButton.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText; // MODIFICADO: De Image a ImageAndText
             printPreviewToolStripButton.Image = (Image)resources.GetObject("printPreviewToolStripButton.Image");
             printPreviewToolStripButton.ImageTransparentColor = Color.Black;
             printPreviewToolStripButton.Name = "printPreviewToolStripButton";
-            printPreviewToolStripButton.Size = new Size(68, 22); // AJUSTADO: tamaño aumentado para mostrar texto
+            printPreviewToolStripButton.Size = new Size(61, 22);
             printPreviewToolStripButton.Text = "Ventas";
             printPreviewToolStripButton.Click += printPreviewToolStripButton_Click;
             // 
@@ -388,11 +324,10 @@
             // toolStripProductos
             // 
             toolStripProductos.BackColor = SystemColors.Control;
-            toolStripProductos.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText; // MODIFICADO: De Image a ImageAndText
             toolStripProductos.Image = (Image)resources.GetObject("toolStripProductos.Image");
             toolStripProductos.ImageTransparentColor = Color.Magenta;
             toolStripProductos.Name = "toolStripProductos";
-            toolStripProductos.Size = new Size(86, 22); // AJUSTADO: tamaño aumentado para mostrar texto
+            toolStripProductos.Size = new Size(81, 22);
             toolStripProductos.Text = "Productos";
             toolStripProductos.Click += toolStripProductos_Click;
             // 
@@ -403,11 +338,10 @@
             // 
             // toolStripButton1
             // 
-            toolStripButton1.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText; // MODIFICADO: De Image a ImageAndText
             toolStripButton1.Image = (Image)resources.GetObject("toolStripButton1.Image");
             toolStripButton1.ImageTransparentColor = Color.Magenta;
             toolStripButton1.Name = "toolStripButton1";
-            toolStripButton1.Size = new Size(69, 22); // AJUSTADO: tamaño aumentado para mostrar texto
+            toolStripButton1.Size = new Size(67, 22);
             toolStripButton1.Text = "Control";
             toolStripButton1.Click += toolStripButton1_Click;
             // 
@@ -532,7 +466,6 @@
         private System.Windows.Forms.ToolStripMenuItem printSetupToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
         private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel;
-        private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem tileHorizontalToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem fileMenu;
         private System.Windows.Forms.ToolStripMenuItem newToolStripMenuItem;
@@ -542,18 +475,12 @@
         private System.Windows.Forms.ToolStripMenuItem printToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem printPreviewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem viewMenu;
-        private System.Windows.Forms.ToolStripMenuItem toolBarToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem statusBarToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem windowsMenu;
         private System.Windows.Forms.ToolStripMenuItem newWindowToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem cascadeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem tileVerticalToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem closeAllToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem arrangeIconsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem helpMenu;
-        private System.Windows.Forms.ToolStripMenuItem indexToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem searchToolStripMenuItem;
         private System.Windows.Forms.ToolStripButton printPreviewToolStripButton;
         private System.Windows.Forms.ToolTip toolTip;
         private ToolStripMenuItem modulosToolStripMenuItem;
