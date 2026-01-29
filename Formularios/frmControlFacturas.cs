@@ -35,7 +35,7 @@ namespace Comercio.NET.Formularios
         private Panel panelTotales;
         private Label lblDetalleTiposFactura;
         private Label lblDetalleFormasPago;
-        private TextBox txtFiltroCtaCte; // AGREGAR: TextBox para filtrar por nombre Cta Cte
+        private ComboBox cboFiltroCtaCte; // ✅ CAMBIO: de TextBox a ComboBox
         private Button btnAuditoriaEliminados; // Botón para Auditoría de Eliminados
         // AGREGAR: TextBox para filtrar por cajero
         private TextBox txtFiltroCajero; // TextBox para filtrar por número de cajero
@@ -117,7 +117,6 @@ namespace Comercio.NET.Formularios
             lblCantidadVentas = new Label();
             lblTitulo = new Label();
             panelFiltros = new Panel();
-            txtFiltroCtaCte = new TextBox();
             chkCtaCte = new CheckBox();
             panelResumen = new Panel();
             panelTotales = new Panel();
@@ -240,34 +239,6 @@ namespace Comercio.NET.Formularios
             cboFiltroFormaPago.Size = new Size(160, 25);
             cboFiltroFormaPago.SelectedIndexChanged += CboFiltroFormaPago_SelectedIndexChanged;
 
-            // NUEVO: Label y ComboBox para filtro por Rubro
-            //lblFiltroRubro = new Label();
-            //lblFiltroRubro.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            //lblFiltroRubro.ForeColor = Color.FromArgb(0, 120, 215);
-            //lblFiltroRubro.Text = "Rubro:";
-            //lblFiltroRubro.AutoSize = true;
-
-            //cboFiltroRubro = new ComboBox();
-            //cboFiltroRubro.Name = "cboFiltroRubro";
-            //cboFiltroRubro.DropDownStyle = ComboBoxStyle.DropDownList;
-            //cboFiltroRubro.Font = new Font("Segoe UI", 10F);
-            //cboFiltroRubro.Size = new Size(150, 25);
-            //cboFiltroRubro.SelectedIndexChanged += CboFiltroRubro_SelectedIndexChanged;
-
-            //// NUEVO: Label y ComboBox para filtro por Proveedor
-            //lblFiltroProveedor = new Label();
-            //lblFiltroProveedor.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            //lblFiltroProveedor.ForeColor = Color.FromArgb(0, 120, 215);
-            //lblFiltroProveedor.Text = "Proveedor:";
-            //lblFiltroProveedor.AutoSize = true;
-
-            //cboFiltroProveedor = new ComboBox();
-            //cboFiltroProveedor.Name = "cboFiltroProveedor";
-            //cboFiltroProveedor.DropDownStyle = ComboBoxStyle.DropDownList;
-            //cboFiltroProveedor.Font = new Font("Segoe UI", 10F);
-            //cboFiltroProveedor.Size = new Size(150, 25);
-            //cboFiltroProveedor.SelectedIndexChanged += CboFiltroProveedor_SelectedIndexChanged;
-
             // Label y CheckedListBox para filtro por Tipo de Factura (multi-selección)
             lblFiltroTipoFactura = new Label();
             lblFiltroTipoFactura.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
@@ -341,35 +312,6 @@ namespace Comercio.NET.Formularios
             chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
             panelFiltros.Controls.Add(chkCtaCte);
 
-            //// Botones "Auditoría" y "IVA" más a la derecha y juntos
-            //var btnIvaTop = new Button();
-            //btnIvaTop.BackColor = Color.FromArgb(76, 175, 80);
-            //btnIvaTop.FlatStyle = FlatStyle.Flat;
-            //btnIvaTop.FlatAppearance.BorderSize = 0;
-            //btnIvaTop.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            //btnIvaTop.ForeColor = Color.White;
-            //btnIvaTop.Size = new Size(50, 28);
-            //btnIvaTop.Text = "IVA";
-            //btnIvaTop.UseVisualStyleBackColor = false;
-            //btnIvaTop.Click += BtnResumenIva_Click;
-            //btnIvaTop.Location = new Point(panelFiltros.Width - 60, y1);
-            //btnIvaTop.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            //panelFiltros.Controls.Add(btnIvaTop);
-
-            //btnReportePorRubro = new Button
-            //{
-            //    Text = "📊 Reporte por Rubro",
-            //    Location = new Point(panelFiltros.Width - 560, y1), // ✅ CAMBIO: Mover a la izquierda de Exportar
-            //    Size = new Size(150, 28), // ✅ CAMBIO: Reducir ancho de 150 a 130
-            //    BackColor = Color.FromArgb(156, 39, 176), // Color morado
-            //    ForeColor = Color.White,
-            //    FlatStyle = FlatStyle.Flat,
-            //    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-            //    Anchor = AnchorStyles.Top | AnchorStyles.Right // ✅ NUEVO: Agregar anchor
-            //};
-            //btnReportePorRubro.FlatAppearance.BorderSize = 0;
-            //btnReportePorRubro.Click += BtnReportePorRubro_Click;
-            //panelFiltros.Controls.Add(btnReportePorRubro);
 
             // ✅ REEMPLAZAR los botones individuales por uno consolidado
             var btnReporteConsolidado = new Button();
@@ -458,20 +400,6 @@ namespace Comercio.NET.Formularios
             cboFiltroFormaPago.Location = new Point(lblFiltroFormaPago.Right + 8, y2 + 2);
             panelFiltros.Controls.Add(cboFiltroFormaPago);
 
-            //// Label y combo "Rubro"
-            //lblFiltroRubro.Location = new Point(cboFiltroFormaPago.Right + 12, y2 + 2);
-            //panelFiltros.Controls.Add(lblFiltroRubro);
-
-            //cboFiltroRubro.Location = new Point(lblFiltroRubro.Right + 8, y2 + 2);
-            //panelFiltros.Controls.Add(cboFiltroRubro);
-
-            //// Label y combo "Proveedor"
-            //lblFiltroProveedor.Location = new Point(cboFiltroRubro.Right + 12, y2 + 2);
-            //panelFiltros.Controls.Add(lblFiltroProveedor);
-
-            //cboFiltroProveedor.Location = new Point(lblFiltroProveedor.Right + 8, y2 + 2);
-            //panelFiltros.Controls.Add(cboFiltroProveedor);
-
             // Label para Tipo
             lblFiltroTipoFactura.Location = new Point(cboFiltroFormaPago.Right + 12, y2 + 2);
             panelFiltros.Controls.Add(lblFiltroTipoFactura);
@@ -509,14 +437,15 @@ namespace Comercio.NET.Formularios
 
             clbFiltroTipoFactura.Size = new Size(txtCheckedComboTipo.Width, clbFiltroTipoFactura.ItemHeight * 4 + 8);
 
-            // TextBox para filtrar por nombre CtaCte - SE POSICIONA ENCIMA DEL LABEL "Tipo Comprobante"
-            // Inicialmente oculto
-            txtFiltroCtaCte.Location = new Point(chkCtaCte.Left, y2 + 2); // ✅ Ahora se alinea con el checkbox
-            txtFiltroCtaCte.Size = new Size(140, 25);
-            txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
-            txtFiltroCtaCte.Visible = false; // OCULTO POR DEFECTO
-            txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
-            panelFiltros.Controls.Add(txtFiltroCtaCte); // Traer al frente para que esté sobre otros controles
+            // ✅ REEMPLAZAR: Crear ComboBox en lugar de TextBox
+            cboFiltroCtaCte = new ComboBox();
+            cboFiltroCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
+            cboFiltroCtaCte.Font = new Font("Segoe UI", 10F);
+            cboFiltroCtaCte.Location = new Point(chkCtaCte.Left, y2 + 2);
+            cboFiltroCtaCte.Size = new Size(140, 25);
+            cboFiltroCtaCte.Visible = false; // OCULTO POR DEFECTO
+            cboFiltroCtaCte.SelectedIndexChanged += CboFiltroCtaCte_SelectedIndexChanged;
+            panelFiltros.Controls.Add(cboFiltroCtaCte);
 
             // Crear el host y el dropdown
             var host = new ToolStripControlHost(clbFiltroTipoFactura) { AutoSize = false, Margin = Padding.Empty, Padding = Padding.Empty };
@@ -1720,50 +1649,50 @@ namespace Comercio.NET.Formularios
                     // ✅ MODIFICADO: Remover columnas CUITCliente y Rubro
                     var query = chkCtaCte.Checked
                        ? @"SELECT 
-                            f.NumeroRemito as 'Remito',
-                            f.NroFactura as 'N° Factura',
-                            CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
-                            CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
-                            CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
-                            CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
-                            CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
-                            ISNULL(f.Cajero, '') as 'Cajero',
-                            f.Fecha as 'Fecha',
-                            f.Hora as 'Hora',
-                            ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
-                            ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
-                            f.CAENumero as 'CAE',
-                            f.CtaCteNombre as 'Cta. Cte. Nombre',
-                            (SELECT TOP 1 p.proveedor 
-                             FROM Ventas v 
-                             INNER JOIN Productos p ON v.codigo = p.codigo 
-                             WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
-                        FROM Facturas f
-                        WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                        AND f.esCtaCte = @esCtaCte
-                        ORDER BY f.NumeroRemito DESC"
+                    f.NumeroRemito as 'Remito',
+                    f.NroFactura as 'N° Factura',
+                    CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
+                    CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
+                    CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
+                    CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
+                    CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
+                    ISNULL(f.Cajero, '') as 'Cajero',
+                    f.Fecha as 'Fecha',
+                    f.Hora as 'Hora',
+                    ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
+                    ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
+                    f.CAENumero as 'CAE',
+                    f.CtaCteNombre as 'Cta. Cte. Nombre',
+                    (SELECT TOP 1 p.proveedor 
+                     FROM Ventas v 
+                     INNER JOIN Productos p ON v.codigo = p.codigo 
+                     WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
+                FROM Facturas f
+                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
+                AND f.esCtaCte = @esCtaCte
+                ORDER BY f.NumeroRemito DESC"
                             : @"SELECT 
-                            f.NumeroRemito as 'Remito',
-                            f.NroFactura as 'N° Factura',
-                            CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
-                            CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
-                            CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
-                            CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
-                            CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
-                            ISNULL(f.Cajero, '') as 'Cajero',
-                            f.Fecha as 'Fecha',
-                            f.Hora as 'Hora',
-                            ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
-                            ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
-                            f.CAENumero as 'CAE',
-                            (SELECT TOP 1 p.proveedor 
-                             FROM Ventas v 
-                             INNER JOIN Productos p ON v.codigo = p.codigo 
-                             WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
-                        FROM Facturas f
-                        WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                        AND f.esCtaCte = @esCtaCte
-                        ORDER BY f.NumeroRemito DESC";
+                    f.NumeroRemito as 'Remito',
+                    f.NroFactura as 'N° Factura',
+                    CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
+                    CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
+                    CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
+                    CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
+                    CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
+                    ISNULL(f.Cajero, '') as 'Cajero',
+                    f.Fecha as 'Fecha',
+                    f.Hora as 'Hora',
+                    ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
+                    ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
+                    f.CAENumero as 'CAE',
+                    (SELECT TOP 1 p.proveedor 
+                     FROM Ventas v 
+                     INNER JOIN Productos p ON v.codigo = p.codigo 
+                     WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
+                FROM Facturas f
+                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
+                AND f.esCtaCte = @esCtaCte
+                ORDER BY f.NumeroRemito DESC";
 
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
@@ -1795,11 +1724,10 @@ namespace Comercio.NET.Formularios
 
                         CargarFormasDePago();
                         CargarTiposFactura();
-                        //CargarRubros();
-                        //CargarProveedores(); // ✅ NUEVO
 
+                        // ✅ CORREGIDO: Cambiar txtFiltroCtaCte por cboFiltroCtaCte
                         if (!string.IsNullOrEmpty(txtFiltroCajero.Text) ||
-                            (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text)) ||
+                            (chkCtaCte.Checked && cboFiltroCtaCte.SelectedItem != null && cboFiltroCtaCte.SelectedItem.ToString() != "Todos los clientes") ||
                             (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas"))
                         {
                             AplicarFiltros();
@@ -1822,26 +1750,66 @@ namespace Comercio.NET.Formularios
         // MODIFICAR: Event handler para el checkbox
         private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
         {
-            // Mostrar/ocultar el textbox según el estado del checkbox
-            txtFiltroCtaCte.Visible = chkCtaCte.Checked;
+            // Mostrar/ocultar el combobox según el estado del checkbox
+            cboFiltroCtaCte.Visible = chkCtaCte.Checked;
 
+            if (!chkCtaCte.Checked)
+            {
+                // Al destildar, ocultar el combobox y limpiar selección
+                cboFiltroCtaCte.SelectedIndex = -1;
+            }
+
+            // ✅ CAMBIO: Recargar primero, y DESPUÉS cargar el combo
+            CargarVentasPorFecha(dtpDesde.Value.Date, dtpHasta.Value.Date);
+
+            // ✅ NUEVO: Si está tildado, cargar nombres DESPUÉS de que se recargó la grilla
             if (chkCtaCte.Checked)
             {
-                txtFiltroCtaCte.Text = "";
-                txtFiltroCtaCte.Focus();
+                CargarNombresCtaCteDesdeGrilla();
+                cboFiltroCtaCte.Focus();
             }
-            else
+        }
+
+        // ✅ NUEVO: Método para cargar nombres únicos desde la grilla
+        private void CargarNombresCtaCteDesdeGrilla()
+        {
+            try
             {
-                // Al destildar, ocultar el textbox y limpiar el texto
-                txtFiltroCtaCte.Text = "";
+                cboFiltroCtaCte.Items.Clear();
+                cboFiltroCtaCte.Items.Add("Todos los clientes"); // Opción para mostrar todos
+
+                if (dgvVentas.DataSource is DataTable dt)
+                {
+                    // Obtener nombres únicos de la columna "Cta. Cte. Nombre"
+                    var nombresUnicos = dt.AsEnumerable()
+                        .Select(row => row.Field<string>("Cta. Cte. Nombre"))
+                        .Where(nombre => !string.IsNullOrWhiteSpace(nombre))
+                        .Distinct()
+                        .OrderBy(nombre => nombre)
+                        .ToList();
+
+                    foreach (var nombre in nombresUnicos)
+                    {
+                        cboFiltroCtaCte.Items.Add(nombre);
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[FILTRO CTA CTE] Se cargaron {nombresUnicos.Count} clientes únicos desde la grilla");
+                }
+
+                // Seleccionar "Todos los clientes" por defecto
+                cboFiltroCtaCte.SelectedIndex = 0;
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error cargando nombres de Cta Cte: {ex.Message}");
+                cboFiltroCtaCte.Items.Clear();
+                cboFiltroCtaCte.Items.Add("Todos los clientes");
+                cboFiltroCtaCte.SelectedIndex = 0;
+            }
+        }
 
-            // Recargar con el rango seleccionado
-            CargarVentasPorFecha(dtpDesde.Value.Date, dtpHasta.Value.Date);
-        }       
-
-        // AGREGAR: Event handler para el TextBox de filtro
-        private void TxtFiltroCtaCte_TextChanged(object sender, EventArgs e)
+        // ✅ NUEVO: Event handler para el ComboBox de Cta Cte
+        private void CboFiltroCtaCte_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (chkCtaCte.Checked)
             {
@@ -1861,21 +1829,21 @@ namespace Comercio.NET.Formularios
             if (dgvVentas.DataSource is DataTable dt)
             {
                 var filtros = new List<string>();
-                
+
                 // Filtro por cajero
                 string filtroCajero = txtFiltroCajero.Text.Trim();
                 if (!string.IsNullOrEmpty(filtroCajero))
                 {
                     filtros.Add($"[Cajero] LIKE '%{filtroCajero.Replace("'", "''")}%'");
                 }
-                
-                // Filtro por cuenta corriente (solo si está habilitado)
-                if (chkCtaCte.Checked)
+
+                // ✅ MODIFICAR: Filtro por cuenta corriente usando ComboBox
+                if (chkCtaCte.Checked && cboFiltroCtaCte.SelectedItem != null)
                 {
-                    string filtroCtaCte = txtFiltroCtaCte.Text.Trim();
-                    if (!string.IsNullOrEmpty(filtroCtaCte))
+                    string clienteSeleccionado = cboFiltroCtaCte.SelectedItem.ToString();
+                    if (clienteSeleccionado != "Todos los clientes")
                     {
-                        filtros.Add($"[Cta. Cte. Nombre] LIKE '%{filtroCtaCte.Replace("'", "''")}%'");
+                        filtros.Add($"[Cta. Cte. Nombre] = '{clienteSeleccionado.Replace("'", "''")}'");
                     }
                 }
 
@@ -1889,27 +1857,7 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                //// NUEVO: Filtro por rubro
-                //if (cboFiltroRubro.SelectedItem != null)
-                //{
-                //    string rubroSeleccionado = cboFiltroRubro.SelectedItem.ToString();
-                //    if (rubroSeleccionado != "Todos los rubros")
-                //    {
-                //        filtros.Add($"[Rubro] = '{rubroSeleccionado.Replace("'", "''")}'");
-                //    }
-                //}
-
-                //// NUEVO: Filtro por proveedor
-                //if (cboFiltroProveedor.SelectedItem != null)
-                //{
-                //    string proveedorSeleccionado = cboFiltroProveedor.SelectedItem.ToString();
-                //    if (proveedorSeleccionado != "Todos los proveedores")
-                //    {
-                //        // Necesitamos filtrar por productos que pertenezcan al proveedor seleccionado
-                //        // Esto requiere verificar si algún producto de la venta pertenece al proveedor
-                //        filtros.Add($"[Proveedor] = '{proveedorSeleccionado.Replace("'", "''")}'");
-                //    }
-                //}
+                
                 var query = chkCtaCte.Checked;
 
                 // Filtro por tipo de factura (multi-selección)
@@ -1925,11 +1873,11 @@ namespace Comercio.NET.Formularios
                         filtros.Add($"[Tipo] IN ('{string.Join("','", tipos)}')");
                     }
                 }
-                
+
                 // Aplicar filtros combinados
                 string filtroCompleto = filtros.Count > 0 ? string.Join(" AND ", filtros) : "";
                 dt.DefaultView.RowFilter = filtroCompleto;
-                
+
                 // Actualizar el resumen con los datos filtrados
                 ActualizarResumenFiltrado();
                 
@@ -2004,19 +1952,18 @@ namespace Comercio.NET.Formularios
                     if (!string.IsNullOrEmpty(txtFiltroCajero.Text.Trim()))
                         filtrosActivos.Add($"Cajero: '{txtFiltroCajero.Text.Trim()}'");
 
-                    if (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text.Trim()))
-                        filtrosActivos.Add($"Cliente: '{txtFiltroCtaCte.Text.Trim()}'");
+                    // ✅ MODIFICAR: Usar ComboBox en lugar de TextBox
+                    if (chkCtaCte.Checked && cboFiltroCtaCte.SelectedItem != null)
+                    {
+                        string clienteSeleccionado = cboFiltroCtaCte.SelectedItem.ToString();
+                        if (clienteSeleccionado != "Todos los clientes")
+                        {
+                            filtrosActivos.Add($"Cliente: '{clienteSeleccionado}'");
+                        }
+                    }
 
                     if (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas")
                         filtrosActivos.Add($"Forma Pago: '{cboFiltroFormaPago.SelectedItem}'");
-
-                    //// NUEVO: Agregar rubro a los filtros activos
-                    //if (cboFiltroRubro.SelectedItem != null && cboFiltroRubro.SelectedItem.ToString() != "Todos los rubros")
-                    //    filtrosActivos.Add($"Rubro: '{cboFiltroRubro.SelectedItem}'");
-
-                    //// NUEVO: Agregar proveedor a los filtros activos
-                    //if (cboFiltroProveedor.SelectedItem != null && cboFiltroProveedor.SelectedItem.ToString() != "Todos los proveedores")
-                    //    filtrosActivos.Add($"Proveedor: '{cboFiltroProveedor.SelectedItem}'");
 
                     string infoFiltros = string.Join(" | ", filtrosActivos);
                     lblTitulo.Text = $"{tituloBase} - Filtrado: {registrosFiltrados}/{totalRegistros} ({infoFiltros})";
