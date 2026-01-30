@@ -24,6 +24,9 @@ namespace Comercio.NET.Formularios
         private ComboBox cmbFiltroProveedor;
         private Label lblFiltroProveedor;
 
+        // ✅ NUEVO: Checkbox para filtrar solo con saldo
+        private CheckBox chkSoloConSaldo;
+
         private readonly int contentPadding = 12;
 
         private bool isLoadingData = false;
@@ -95,7 +98,7 @@ namespace Comercio.NET.Formularios
 
             var lblSubtitle = new Label
             {
-                Text = "Resumen de deudas y pagos pendientes por proveedor",
+                Text = "Historial completo de compras y pagos por proveedor", // ✅ MODIFICADO
                 ForeColor = Color.FromArgb(230, 230, 255),
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular),
                 Left = lblIcon.Right + 8,
@@ -136,6 +139,18 @@ namespace Comercio.NET.Formularios
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cmbFiltroProveedor.SelectedIndexChanged += CmbFiltroProveedor_SelectedIndexChanged;
+
+            // ✅ NUEVO: Checkbox para filtrar solo con saldo
+            chkSoloConSaldo = new CheckBox
+            {
+                Text = "Solo con saldo pendiente",
+                Left = cmbFiltroProveedor.Right + 15,
+                Top = 14,
+                AutoSize = true,
+                Checked = false, // ✅ Por defecto muestra TODOS
+                Font = new Font("Segoe UI", 9F)
+            };
+            chkSoloConSaldo.CheckedChanged += async (s, e) => await RefrescarSafeAsync();
 
             btnRefrescar = new Button
             {
@@ -210,7 +225,7 @@ namespace Comercio.NET.Formularios
 
             pnlContent.Controls.AddRange(new Control[]
             {
-                lblFiltroProveedor, cmbFiltroProveedor,
+                lblFiltroProveedor, cmbFiltroProveedor, chkSoloConSaldo, // ✅ AGREGADO
                 btnRefrescar, btnPagoGeneral, btnExportar,
                 dgvResumen, lblTotalDeuda
             });
@@ -276,16 +291,15 @@ namespace Comercio.NET.Formularios
                 {
                     await conn.OpenAsync();
 
+                    // ✅ CORREGIDO: Query simplificada para cargar proveedores
                     var sqlProveedores = @"
-                        SELECT DISTINCT 
-                            COALESCE(p.Id, 0) AS Id,
-                            COALESCE(p.Nombre, cp.Proveedor, '(Sin proveedor)') AS Nombre
-                        FROM ProveedoresCtaCte cta
-                        LEFT JOIN Proveedores p ON cta.ProveedorId = p.Id
-                        LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
-                        WHERE cta.Saldo > 0
-                        ORDER BY Nombre;
-                    ";
+                SELECT DISTINCT 
+                    p.Id,
+                    p.Nombre
+                FROM Proveedores p
+                WHERE p.Id IS NOT NULL
+                ORDER BY p.Nombre;
+            ";
 
                     using (var cmdProv = new SqlCommand(sqlProveedores, conn))
                     using (var daProv = new SqlDataAdapter(cmdProv))
@@ -316,28 +330,45 @@ namespace Comercio.NET.Formularios
                         ? Convert.ToInt32(cmbFiltroProveedor.SelectedValue)
                         : 0;
 
+                    // ✅ CORREGIDO: Query con GROUP BY completo
                     var sqlResumen = @"
-                        SELECT 
-                            COALESCE(p.Id, 0) AS ProveedorId,
-                            COALESCE(p.Nombre, cp.Proveedor, '(Sin proveedor)') AS Proveedor,
-                            SUM(cta.Saldo) AS TotalAdeudado,
-                            COUNT(DISTINCT cta.Id) AS FacturasPendientes,
-                            MAX(cta.Fecha) AS UltimaCompra
-                        FROM ProveedoresCtaCte cta
-                        LEFT JOIN Proveedores p ON cta.ProveedorId = p.Id
-                        LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
-                        WHERE cta.Saldo > 0
-                    ";
+                SELECT 
+                    p.Id AS ProveedorId,
+                    p.Nombre AS Proveedor,
+                    COALESCE(SUM(cta.Saldo), 0) AS TotalAdeudado,
+                    COUNT(DISTINCT CASE WHEN cta.Saldo > 0 THEN cta.Id END) AS FacturasPendientes,
+                    MAX(cta.Fecha) AS UltimaCompra,
+                    COALESCE((
+                        SELECT SUM(pp.Monto)
+                        FROM PagosProveedores pp
+                        WHERE pp.IdProveedor = p.Id
+                    ), 0) AS TotalPagado
+                FROM Proveedores p
+                LEFT JOIN ProveedoresCtaCte cta ON p.Id = cta.ProveedorId
+                WHERE 1=1
+            ";
+
+                    // ✅ Aplicar filtro solo si checkbox está marcado
+                    if (chkSoloConSaldo.Checked)
+                    {
+                        sqlResumen += " AND cta.Saldo > 0";
+                    }
 
                     if (proveedorIdFiltro > 0)
                     {
-                        sqlResumen += " AND COALESCE(p.Id, 0) = @proveedorId";
+                        sqlResumen += " AND p.Id = @proveedorId";
                     }
 
+                    // ✅ CORREGIDO: GROUP BY con p.Id y p.Nombre
                     sqlResumen += @"
-                        GROUP BY COALESCE(p.Id, 0), COALESCE(p.Nombre, cp.Proveedor, '(Sin proveedor)')
-                        ORDER BY TotalAdeudado DESC;
-                    ";
+                GROUP BY p.Id, p.Nombre
+                HAVING (
+                    COALESCE(SUM(cta.Saldo), 0) > 0 
+                    OR 
+                    EXISTS (SELECT 1 FROM PagosProveedores pp WHERE pp.IdProveedor = p.Id)
+                )
+                ORDER BY TotalAdeudado DESC, Proveedor;
+            ";
 
                     using (var cmd = new SqlCommand(sqlResumen, conn))
                     {
@@ -387,26 +418,37 @@ namespace Comercio.NET.Formularios
 
             if (dgvResumen.Columns.Contains("TotalAdeudado"))
             {
-                dgvResumen.Columns["TotalAdeudado"].HeaderText = "Total Adeudado";
+                dgvResumen.Columns["TotalAdeudado"].HeaderText = "Saldo Pendiente";
                 dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.Format = "C2";
                 dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvResumen.Columns["TotalAdeudado"].Width = 150;
+                dgvResumen.Columns["TotalAdeudado"].Width = 130;
                 dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
                 dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
 
+            // ✅ NUEVO: Columna de Total Pagado
+            if (dgvResumen.Columns.Contains("TotalPagado"))
+            {
+                dgvResumen.Columns["TotalPagado"].HeaderText = "Total Pagado";
+                dgvResumen.Columns["TotalPagado"].DefaultCellStyle.Format = "C2";
+                dgvResumen.Columns["TotalPagado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvResumen.Columns["TotalPagado"].Width = 120;
+                dgvResumen.Columns["TotalPagado"].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
+                dgvResumen.Columns["TotalPagado"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
+
             if (dgvResumen.Columns.Contains("FacturasPendientes"))
             {
-                dgvResumen.Columns["FacturasPendientes"].HeaderText = "Facturas Pendientes";
+                dgvResumen.Columns["FacturasPendientes"].HeaderText = "Fact. Pendientes";
                 dgvResumen.Columns["FacturasPendientes"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                dgvResumen.Columns["FacturasPendientes"].Width = 120;
+                dgvResumen.Columns["FacturasPendientes"].Width = 100;
             }
 
             if (dgvResumen.Columns.Contains("UltimaCompra"))
             {
                 dgvResumen.Columns["UltimaCompra"].HeaderText = "Última Compra";
                 dgvResumen.Columns["UltimaCompra"].DefaultCellStyle.Format = "dd/MM/yyyy";
-                dgvResumen.Columns["UltimaCompra"].Width = 120;
+                dgvResumen.Columns["UltimaCompra"].Width = 110;
             }
         }
 
@@ -420,7 +462,8 @@ namespace Comercio.NET.Formularios
             int proveedorId = Convert.ToInt32(row.Cells["ProveedorId"].Value);
             string proveedorNombre = row.Cells["Proveedor"].Value?.ToString() ?? "";
 
-            using (var detalle = new DetalleCtaCteProveedorForm(proveedorId, proveedorNombre))
+            // ✅ MODIFICADO: Abrir ventana de historial completo
+            using (var detalle = new HistorialCompletoProveedorForm(proveedorId, proveedorNombre))
             {
                 detalle.StartPosition = FormStartPosition.CenterParent;
                 var resultado = detalle.ShowDialog(this.FindForm());
@@ -478,20 +521,21 @@ namespace Comercio.NET.Formularios
                     {
                         var lines = new List<string>();
 
-                        lines.Add("Proveedor,Total Adeudado,Facturas Pendientes,Última Compra");
+                        lines.Add("Proveedor,Saldo Pendiente,Total Pagado,Facturas Pendientes,Última Compra");
 
                         foreach (DataGridViewRow row in dgvResumen.Rows)
                         {
                             if (row.IsNewRow) continue;
 
                             var proveedor = row.Cells["Proveedor"].Value?.ToString() ?? "";
-                            var total = row.Cells["TotalAdeudado"].Value?.ToString() ?? "0";
+                            var saldo = row.Cells["TotalAdeudado"].Value?.ToString() ?? "0";
+                            var pagado = row.Cells["TotalPagado"].Value?.ToString() ?? "0";
                             var facturas = row.Cells["FacturasPendientes"].Value?.ToString() ?? "0";
                             var fecha = row.Cells["UltimaCompra"].Value != null
                                 ? Convert.ToDateTime(row.Cells["UltimaCompra"].Value).ToString("dd/MM/yyyy")
                                 : "";
 
-                            lines.Add($"\"{proveedor}\",{total},{facturas},{fecha}");
+                            lines.Add($"\"{proveedor}\",{saldo},{pagado},{facturas},{fecha}");
                         }
 
                         System.IO.File.WriteAllLines(sfd.FileName, lines);
@@ -504,6 +548,345 @@ namespace Comercio.NET.Formularios
             {
                 MessageBox.Show($"Error exportando: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+
+    // ✅ NUEVO: Formulario de historial completo (compras + pagos)
+    public class HistorialCompletoProveedorForm : Form
+    {
+        private readonly int proveedorId;
+        private readonly string proveedorNombre;
+        private DataGridView dgvHistorial;
+        private Label lblResumen;
+        private DateTimePicker dtpDesde;
+        private DateTimePicker dtpHasta;
+        private Button btnFiltrar;
+        private Button btnCerrar;
+        private ComboBox cmbTipoMovimiento;
+
+        public HistorialCompletoProveedorForm(int proveedorId, string proveedorNombre)
+        {
+            this.proveedorId = proveedorId;
+            this.proveedorNombre = proveedorNombre;
+            InitializeComponent();
+            this.Load += async (s, e) => await CargarHistorialAsync();
+        }
+
+        private void InitializeComponent()
+        {
+            this.Text = $"Historial Completo - {proveedorNombre}";
+            this.ClientSize = new Size(1000, 600);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.Font = new Font("Segoe UI", 9F);
+            this.MinimizeBox = false;
+            this.MaximizeBox = true;
+
+            // Panel de filtros
+            var pnlFiltros = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                Padding = new Padding(12, 10, 12, 10),
+                BackColor = Color.FromArgb(156, 39, 176)
+            };
+
+            var lblDesde = new Label
+            {
+                Text = "Desde:",
+                ForeColor = Color.White,
+                Left = 0,
+                Top = 12,
+                AutoSize = true
+            };
+
+            dtpDesde = new DateTimePicker
+            {
+                Left = lblDesde.Right + 6,
+                Top = 10,
+                Width = 110,
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today.AddMonths(-3)
+            };
+
+            var lblHasta = new Label
+            {
+                Text = "Hasta:",
+                ForeColor = Color.White,
+                Left = dtpDesde.Right + 10,
+                Top = 12,
+                AutoSize = true
+            };
+
+            dtpHasta = new DateTimePicker
+            {
+                Left = lblHasta.Right + 6,
+                Top = 10,
+                Width = 110,
+                Format = DateTimePickerFormat.Short
+            };
+
+            var lblTipo = new Label
+            {
+                Text = "Tipo:",
+                ForeColor = Color.White,
+                Left = dtpHasta.Right + 15,
+                Top = 12,
+                AutoSize = true
+            };
+
+            cmbTipoMovimiento = new ComboBox
+            {
+                Left = lblTipo.Right + 6,
+                Top = 10,
+                Width = 120,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbTipoMovimiento.Items.AddRange(new object[] { "Todos", "Compras", "Pagos" });
+            cmbTipoMovimiento.SelectedIndex = 0;
+
+            btnFiltrar = new Button
+            {
+                Text = "Filtrar",
+                Left = cmbTipoMovimiento.Right + 10,
+                Top = 9,
+                Width = 80,
+                Height = 28,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(156, 39, 176),
+                FlatStyle = FlatStyle.Flat
+            };
+            btnFiltrar.FlatAppearance.BorderSize = 0;
+            btnFiltrar.Click += async (s, e) => await CargarHistorialAsync();
+
+            pnlFiltros.Controls.AddRange(new Control[]
+            {
+                lblDesde, dtpDesde, lblHasta, dtpHasta, lblTipo, cmbTipoMovimiento, btnFiltrar
+            });
+
+            // Grilla
+            dgvHistorial = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.White,
+                RowHeadersVisible = false,
+                AllowUserToAddRows = false,
+                BorderStyle = BorderStyle.None
+            };
+
+            // Panel resumen
+            var pnlResumen = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 70,
+                BackColor = Color.FromArgb(245, 245, 245),
+                Padding = new Padding(15, 10, 15, 10)
+            };
+
+            lblResumen = new Label
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Text = "Cargando...",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            btnCerrar = new Button
+            {
+                Text = "Cerrar",
+                Dock = DockStyle.Right,
+                Width = 100,
+                Height = 32,
+                BackColor = Color.FromArgb(96, 125, 139),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnCerrar.FlatAppearance.BorderSize = 0;
+            btnCerrar.Click += (s, e) => this.DialogResult = DialogResult.OK;
+
+            pnlResumen.Controls.Add(lblResumen);
+            pnlResumen.Controls.Add(btnCerrar);
+
+            this.Controls.Add(dgvHistorial);
+            this.Controls.Add(pnlResumen);
+            this.Controls.Add(pnlFiltros);
+        }
+
+        private string GetConnectionString()
+        {
+            var cfg = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+            return cfg.GetConnectionString("DefaultConnection");
+        }
+
+        private async Task CargarHistorialAsync()
+        {
+            try
+            {
+                string cs = GetConnectionString();
+                var dt = new DataTable();
+
+                using (var conn = new SqlConnection(cs))
+                {
+                    await conn.OpenAsync();
+
+                    string tipoFiltro = cmbTipoMovimiento.SelectedItem?.ToString() ?? "Todos";
+
+                    // ✅ UNION de Compras y Pagos
+                    var sql = @"
+                        -- Compras (DÉBITOS)
+                        SELECT 
+                            cta.Fecha AS Fecha,
+                            'COMPRA' AS Tipo,
+                            COALESCE(cp.NumeroFactura, 'Sin Nro.') AS NumeroFactura,
+                            cta.MontoTotal AS Debe,
+                            0 AS Haber,
+                            cta.Saldo AS Saldo,
+                            cta.Observaciones AS Detalle
+                        FROM ProveedoresCtaCte cta
+                        LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
+                        WHERE (cta.ProveedorId = @proveedorId OR (@proveedorId = 0 AND cta.ProveedorId IS NULL))
+                            AND cta.Fecha BETWEEN @desde AND @hasta
+                            AND (@tipoFiltro = 'Todos' OR @tipoFiltro = 'Compras')
+                        
+                        UNION ALL
+                        
+                        -- Pagos (CRÉDITOS)
+                        SELECT 
+                            p.FechaPago AS Fecha,
+                            'PAGO' AS Tipo,
+                            CASE 
+                                WHEN p.Observaciones LIKE 'Compra #%' 
+                                THEN SUBSTRING(p.Observaciones, CHARINDEX('#', p.Observaciones) + 1, 
+                                     CHARINDEX(' |', p.Observaciones) - CHARINDEX('#', p.Observaciones) - 1)
+                                ELSE ''
+                            END AS NumeroFactura,
+                            0 AS Debe,
+                            p.Monto AS Haber,
+                            NULL AS Saldo,
+                            p.Observaciones AS Detalle
+                        FROM PagosProveedores p
+                        WHERE p.Proveedor = @proveedorNombre
+                            AND p.FechaPago BETWEEN @desde AND @hasta
+                            AND (@tipoFiltro = 'Todos' OR @tipoFiltro = 'Pagos')
+                        
+                        ORDER BY Fecha DESC, Tipo DESC;
+                    ";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@proveedorId", proveedorId);
+                        cmd.Parameters.AddWithValue("@proveedorNombre", proveedorNombre);
+                        cmd.Parameters.AddWithValue("@desde", dtpDesde.Value.Date);
+                        cmd.Parameters.AddWithValue("@hasta", dtpHasta.Value.Date.AddDays(1).AddTicks(-1));
+                        cmd.Parameters.AddWithValue("@tipoFiltro", tipoFiltro);
+
+                        using (var da = new SqlDataAdapter(cmd))
+                        {
+                            await Task.Run(() => da.Fill(dt));
+                        }
+                    }
+                }
+
+                dgvHistorial.DataSource = dt;
+                FormatearGrilla();
+
+                // Calcular totales
+                decimal totalCompras = 0m;
+                decimal totalPagos = 0m;
+
+                foreach (DataRow row in dt.Rows)
+                {
+                    if (row["Debe"] != DBNull.Value)
+                        totalCompras += Convert.ToDecimal(row["Debe"]);
+                    if (row["Haber"] != DBNull.Value)
+                        totalPagos += Convert.ToDecimal(row["Haber"]);
+                }
+
+                decimal saldoFinal = totalCompras - totalPagos;
+
+                lblResumen.Text = $"📥 Compras: {totalCompras:C2}  |  💰 Pagos: {totalPagos:C2}  |  " +
+                                  $"💵 Saldo: {saldoFinal:C2}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error cargando historial: {ex.Message}\n\n{ex.StackTrace}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void FormatearGrilla()
+        {
+            if (dgvHistorial.Columns.Contains("Fecha"))
+            {
+                dgvHistorial.Columns["Fecha"].HeaderText = "Fecha";
+                dgvHistorial.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
+                dgvHistorial.Columns["Fecha"].Width = 130;
+            }
+
+            if (dgvHistorial.Columns.Contains("Tipo"))
+            {
+                dgvHistorial.Columns["Tipo"].HeaderText = "Tipo";
+                dgvHistorial.Columns["Tipo"].Width = 80;
+                dgvHistorial.Columns["Tipo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                dgvHistorial.Columns["Tipo"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
+
+            if (dgvHistorial.Columns.Contains("NumeroFactura"))
+            {
+                dgvHistorial.Columns["NumeroFactura"].HeaderText = "Factura";
+                dgvHistorial.Columns["NumeroFactura"].Width = 100;
+            }
+
+            if (dgvHistorial.Columns.Contains("Debe"))
+            {
+                dgvHistorial.Columns["Debe"].HeaderText = "Debe";
+                dgvHistorial.Columns["Debe"].DefaultCellStyle.Format = "C2";
+                dgvHistorial.Columns["Debe"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvHistorial.Columns["Debe"].Width = 110;
+                dgvHistorial.Columns["Debe"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
+            }
+
+            if (dgvHistorial.Columns.Contains("Haber"))
+            {
+                dgvHistorial.Columns["Haber"].HeaderText = "Haber";
+                dgvHistorial.Columns["Haber"].DefaultCellStyle.Format = "C2";
+                dgvHistorial.Columns["Haber"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvHistorial.Columns["Haber"].Width = 110;
+                dgvHistorial.Columns["Haber"].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
+            }
+
+            if (dgvHistorial.Columns.Contains("Saldo"))
+            {
+                dgvHistorial.Columns["Saldo"].HeaderText = "Saldo";
+                dgvHistorial.Columns["Saldo"].DefaultCellStyle.Format = "C2";
+                dgvHistorial.Columns["Saldo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvHistorial.Columns["Saldo"].Width = 110;
+                dgvHistorial.Columns["Saldo"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
+
+            if (dgvHistorial.Columns.Contains("Detalle"))
+            {
+                dgvHistorial.Columns["Detalle"].HeaderText = "Detalle";
+                dgvHistorial.Columns["Detalle"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            }
+
+            // ✅ Colorear filas según tipo
+            foreach (DataGridViewRow row in dgvHistorial.Rows)
+            {
+                if (row.Cells["Tipo"].Value?.ToString() == "COMPRA")
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 245, 245);
+                }
+                else if (row.Cells["Tipo"].Value?.ToString() == "PAGO")
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(245, 255, 245);
+                }
             }
         }
     }
