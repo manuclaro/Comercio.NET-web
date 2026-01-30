@@ -818,26 +818,29 @@ namespace Comercio.NET.Formularios
 
                             if (Modo == ModoOperacion.Agregar)
                             {
-                                // ✅ MODIFICADO: Incluir campo Activo en INSERT
+                                // ✅ MODIFICADO: Incluir campo modificado en INSERT con fecha actual
                                 cmd = new SqlCommand(@"
-                                    INSERT INTO Productos (codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, 
-                                                         precio, cantidad, iva, PermiteAcumular, EditarPrecio, Activo)
-                                    VALUES (@codigo, @descripcion, @marca, @rubro, @proveedor, @costo, @porcentaje, 
-                                           @precio, @cantidad, @iva, @permiteAcumular, @editarPrecio, @activo)", connection, transaction);
+                            INSERT INTO Productos (codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, 
+                                                 precio, cantidad, iva, PermiteAcumular, EditarPrecio, Activo, modificado)
+                            VALUES (@codigo, @descripcion, @marca, @rubro, @proveedor, @costo, @porcentaje, 
+                                   @precio, @cantidad, @iva, @permiteAcumular, @editarPrecio, @activo, @modificado)", connection, transaction);
                             }
                             else
                             {
-                                // ✅ MODIFICADO: Incluir campo Activo en UPDATE
+                                // ✅ MODIFICADO: Incluir campo modificado en UPDATE con fecha actual
                                 cmd = new SqlCommand(@"
-                                    UPDATE Productos SET 
-                                        descripcion = @descripcion, marca = @marca, rubro = @rubro, proveedor = @proveedor,
-                                        costo = @costo, porcentaje = @porcentaje, precio = @precio, cantidad = @cantidad,
-                                        iva = @iva, PermiteAcumular = @permiteAcumular, EditarPrecio = @editarPrecio,
-                                        Activo = @activo
-                                    WHERE codigo = @codigo", connection, transaction);
+                            UPDATE Productos SET 
+                                descripcion = @descripcion, marca = @marca, rubro = @rubro, proveedor = @proveedor,
+                                costo = @costo, porcentaje = @porcentaje, precio = @precio, cantidad = @cantidad,
+                                iva = @iva, PermiteAcumular = @permiteAcumular, EditarPrecio = @editarPrecio,
+                                Activo = @activo, modificado = @modificado
+                            WHERE codigo = @codigo", connection, transaction);
                             }
 
                             AgregarParametros(cmd);
+
+                            // ✅ NUEVO: Agregar parámetro de fecha de modificación
+                            cmd.Parameters.AddWithValue("@modificado", DateTime.Now.Date);
 
                             int filasAfectadas = await cmd.ExecuteNonQueryAsync();
 

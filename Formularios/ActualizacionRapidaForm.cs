@@ -830,7 +830,7 @@ namespace Comercio.NET.Formularios
                 nuevoCosto = costoActual;
             }
 
-            // ✅ MODIFICADO: Validar y calcular stock
+            // Validar y calcular stock
             if (!int.TryParse(txtNuevoStock.Text, out int valorStock))
             {
                 MessageBox.Show("Ingrese un stock válido (solo números enteros).", "Validación",
@@ -840,7 +840,7 @@ namespace Comercio.NET.Formularios
                 return;
             }
 
-            // ✅ NUEVO: Calcular stock final según checkbox
+            // Calcular stock final según checkbox
             if (chkSumarStock.Checked)
             {
                 stockFinal = stockActual + valorStock;
@@ -902,38 +902,24 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
 
+                // ✅ NUEVO: Actualizar también el campo 'modificado' con la fecha actual
                 var query = @"UPDATE Productos 
-                             SET precio = @precio, costo = @costo, cantidad = @cantidad 
-                             WHERE codigo = @codigo";
+                     SET precio = @precio, 
+                         costo = @costo, 
+                         cantidad = @cantidad,
+                         modificado = @modificado
+                     WHERE codigo = @codigo";
 
                 using var cmd = new SqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
                 cmd.Parameters.AddWithValue("@costo", nuevoCosto);
-                cmd.Parameters.AddWithValue("@cantidad", stockFinal); // ✅ Usar stock final calculado
+                cmd.Parameters.AddWithValue("@cantidad", stockFinal);
+                cmd.Parameters.AddWithValue("@modificado", DateTime.Now.Date); // ✅ NUEVO: Guardar fecha actual
                 cmd.Parameters.AddWithValue("@codigo", codigoActual);
 
                 await cmd.ExecuteNonQueryAsync();
 
                 ProductosOptimizado.LimpiarCache();
-
-                // ✅ MODIFICADO: Mensaje detallado según operación
-                //string mensajeStock = chkSumarStock.Checked
-                //    ? $"Stock: {stockActual} + {valorStock} = {stockFinal}"
-                //    : $"Stock: {stockFinal}";
-
-                //string mensajeExito = rbActualizarCosto.Checked
-                //    ? $"✅ Producto actualizado correctamente.\n\n" +
-                //      $"Costo: {nuevoCosto:C2}\n" +
-                //      $"Precio calculado: {nuevoPrecio:C2} (con {porcentajeActual:F2}% de ganancia)\n" +
-                //      $"{mensajeStock}"
-                //    : $"✅ Producto actualizado correctamente.\n\n" +
-                //      $"Precio: {nuevoPrecio:C2}\n" +
-                //      $"{mensajeStock}";
-
-                //MessageBox.Show(mensajeExito,
-                //    "Éxito",
-                //    MessageBoxButtons.OK,
-                //    MessageBoxIcon.Information);
 
                 LimpiarFormulario();
             }

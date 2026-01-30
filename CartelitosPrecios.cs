@@ -203,21 +203,590 @@ namespace Comercio.NET.Formularios
             };
             btnAgregarProducto.FlatAppearance.BorderSize = 0;
 
+            // ✅ NUEVO: Botón con menú desplegable para importar modificados
+            var btnImportarModificados = new Button
+            {
+                Text = "📅 Modificados ▼",
+                Location = new Point(260, 34),
+                Size = new Size(140, 27),
+                BackColor = Color.FromArgb(255, 152, 0),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnImportarModificados.FlatAppearance.BorderSize = 0;
+
+            // ✅ NUEVO: Crear menú contextual con opciones
+            var menuImportar = new ContextMenuStrip();
+            menuImportar.Font = new Font("Segoe UI", 9F);
+
+            // Opción: Hoy
+            var menuHoy = new ToolStripMenuItem
+            {
+                Text = "📅 Modificados Hoy",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            menuHoy.Click += async (s, e) => await ImportarProductosModificados(DateTime.Today);
+
+            // Opción: Ayer
+            var menuAyer = new ToolStripMenuItem
+            {
+                Text = "📅 Modificados Ayer"
+            };
+            menuAyer.Click += async (s, e) => await ImportarProductosModificados(DateTime.Today.AddDays(-1));
+
+            // Opción: Esta semana
+            var menuSemana = new ToolStripMenuItem
+            {
+                Text = "📅 Modificados esta Semana"
+            };
+            menuSemana.Click += async (s, e) => await ImportarProductosSemana();
+
+            // Separador
+            var separador = new ToolStripSeparator();
+
+            // Opción: Seleccionar fecha personalizada
+            var menuFechaPersonalizada = new ToolStripMenuItem
+            {
+                Text = "📆 Seleccionar Fecha...",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(33, 150, 243)
+            };
+            menuFechaPersonalizada.Click += async (s, e) => await SeleccionarFechaPersonalizada();
+
+            // Agregar opciones al menú
+            menuImportar.Items.AddRange(new ToolStripItem[]
+            {
+        menuHoy,
+        menuAyer,
+        menuSemana,
+        separador,
+        menuFechaPersonalizada
+            });
+
+            // Evento del botón para mostrar el menú
+            btnImportarModificados.Click += (s, e) =>
+            {
+                menuImportar.Show(btnImportarModificados, new Point(0, btnImportarModificados.Height));
+            };
+
             // Label contador
             lblTotalProductos = new Label
             {
                 Text = "Productos en lista: 0",
-                Location = new Point(270, 38),
+                Location = new Point(410, 38),
                 Size = new Size(200, 20),
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(108, 117, 125)
             };
 
-            panel.Controls.AddRange(new Control[] { 
-                lblInstrucciones, txtCodigoProducto, btnAgregarProducto, lblTotalProductos 
-            });
+            panel.Controls.AddRange(new Control[] {
+        lblInstrucciones, txtCodigoProducto, btnAgregarProducto, btnImportarModificados, lblTotalProductos
+    });
 
             return panel;
+        }
+
+        // ✅ NUEVO: Método para importar productos de una fecha específica
+        private async Task ImportarProductosModificados(DateTime fecha)
+        {
+            try
+            {
+                this.Cursor = Cursors.WaitCursor;
+
+                // Obtener productos modificados en la fecha especificada
+                var productos = await ObtenerProductosModificadosPorFechaAsync(fecha);
+
+                if (productos == null || productos.Count == 0)
+                {
+                    string fechaTexto = fecha.Date == DateTime.Today ? "hoy" : fecha.ToString("dd/MM/yyyy");
+                    MessageBox.Show(
+                        $"No se encontraron productos modificados {fechaTexto}.\n\n" +
+                        "Los productos se marcan como modificados cuando se actualiza su precio o stock.",
+                        "Sin productos modificados",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                string fechaMostrar = fecha.Date == DateTime.Today ? "hoy" :
+                                     fecha.Date == DateTime.Today.AddDays(-1) ? "ayer" :
+                                     $"el {fecha:dd/MM/yyyy}";
+
+                // Confirmar antes de importar
+                var resultado = MessageBox.Show(
+                    $"Se encontraron {productos.Count} producto(s) modificados {fechaMostrar}.\n\n" +
+                    "¿Desea agregarlos a la lista de cartelitos?",
+                    "Confirmar importación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Agregar productos a la lista (evitando duplicados)
+                    int agregados = 0;
+                    int duplicados = 0;
+
+                    foreach (var producto in productos)
+                    {
+                        // Verificar si ya está en la lista
+                        if (!productosSeleccionados.Any(p => p.Codigo == producto.Codigo))
+                        {
+                            productosSeleccionados.Add(producto);
+                            agregados++;
+                        }
+                        else
+                        {
+                            duplicados++;
+                        }
+                    }
+
+                    // Actualizar vista
+                    ActualizarDataGridView();
+                    ActualizarContador();
+                    GuardarProductos();
+
+                    // Mostrar resultado
+                    string mensaje = $"✅ Se agregaron {agregados} producto(s) modificados {fechaMostrar}.";
+                    if (duplicados > 0)
+                    {
+                        mensaje += $"\n\n({duplicados} ya estaban en la lista)";
+                    }
+
+                    MessageBox.Show(mensaje, "Importación exitosa",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    System.Diagnostics.Debug.WriteLine($"✅ Importados {agregados} productos modificados {fechaMostrar}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al importar productos: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"❌ Error importando productos: {ex.Message}");
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+            }
+        }
+
+        // ✅ NUEVO: Método para importar productos de la semana actual
+        private async Task ImportarProductosSemana()
+        {
+            try
+            {
+                this.Cursor = Cursors.WaitCursor;
+
+                // Calcular inicio de la semana (lunes)
+                DateTime hoy = DateTime.Today;
+                int diasDesdeInicio = ((int)hoy.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+                DateTime inicioSemana = hoy.AddDays(-diasDesdeInicio);
+
+                // Obtener productos modificados en la semana
+                var productos = await ObtenerProductosModificadosRangoAsync(inicioSemana, hoy);
+
+                if (productos == null || productos.Count == 0)
+                {
+                    MessageBox.Show(
+                        $"No se encontraron productos modificados esta semana.\n\n" +
+                        $"Rango: {inicioSemana:dd/MM/yyyy} - {hoy:dd/MM/yyyy}",
+                        "Sin productos modificados",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Confirmar antes de importar
+                var resultado = MessageBox.Show(
+                    $"Se encontraron {productos.Count} producto(s) modificados esta semana.\n\n" +
+                    $"Período: {inicioSemana:dd/MM/yyyy} al {hoy:dd/MM/yyyy}\n\n" +
+                    "¿Desea agregarlos a la lista de cartelitos?",
+                    "Confirmar importación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Agregar productos a la lista (evitando duplicados)
+                    int agregados = 0;
+                    int duplicados = 0;
+
+                    foreach (var producto in productos)
+                    {
+                        if (!productosSeleccionados.Any(p => p.Codigo == producto.Codigo))
+                        {
+                            productosSeleccionados.Add(producto);
+                            agregados++;
+                        }
+                        else
+                        {
+                            duplicados++;
+                        }
+                    }
+
+                    // Actualizar vista
+                    ActualizarDataGridView();
+                    ActualizarContador();
+                    GuardarProductos();
+
+                    // Mostrar resultado
+                    string mensaje = $"✅ Se agregaron {agregados} producto(s) de esta semana.";
+                    if (duplicados > 0)
+                    {
+                        mensaje += $"\n\n({duplicados} ya estaban en la lista)";
+                    }
+
+                    MessageBox.Show(mensaje, "Importación exitosa",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    System.Diagnostics.Debug.WriteLine($"✅ Importados {agregados} productos de la semana");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al importar productos: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+            }
+        }
+
+        // ✅ NUEVO: Método para seleccionar fecha personalizada
+        private async Task SeleccionarFechaPersonalizada()
+        {
+            // Crear formulario personalizado para selección de fecha
+            using (var formFecha = new Form())
+            {
+                formFecha.Text = "Seleccionar Fecha";
+                formFecha.Size = new Size(420, 375);
+                formFecha.StartPosition = FormStartPosition.CenterParent;
+                formFecha.FormBorderStyle = FormBorderStyle.FixedDialog;
+                formFecha.MaximizeBox = false;
+                formFecha.MinimizeBox = false;
+
+                var lblTitulo = new Label
+                {
+                    Text = "Seleccione la fecha de modificación:",
+                    Location = new Point(20, 20),
+                    Size = new Size(350, 20),
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                };
+
+                var dtpFecha = new MonthCalendar
+                {
+                    Location = new Point(70, 50),
+                    MaxDate = DateTime.Today,
+                    MaxSelectionCount = 1
+                };
+
+                var btnAceptar = new Button
+                {
+                    Text = "Importar",
+                    Location = new Point(180, 270),
+                    Size = new Size(100, 30),
+                    BackColor = Color.FromArgb(76, 175, 80),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+                btnAceptar.FlatAppearance.BorderSize = 0;
+
+                var btnCancelar = new Button
+                {
+                    Text = "Cancelar",
+                    Location = new Point(290, 270),
+                    Size = new Size(90, 30),
+                    BackColor = Color.FromArgb(158, 158, 158),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+                btnCancelar.FlatAppearance.BorderSize = 0;
+
+                btnAceptar.Click += async (s, e) =>
+                {
+                    formFecha.DialogResult = DialogResult.OK;
+                    formFecha.Close();
+                };
+
+                btnCancelar.Click += (s, e) =>
+                {
+                    formFecha.DialogResult = DialogResult.Cancel;
+                    formFecha.Close();
+                };
+
+                formFecha.Controls.AddRange(new Control[]
+                {
+            lblTitulo,
+            dtpFecha,
+            btnAceptar,
+            btnCancelar
+                });
+
+                if (formFecha.ShowDialog() == DialogResult.OK)
+                {
+                    await ImportarProductosModificados(dtpFecha.SelectionStart);
+                }
+            }
+        }
+
+        // ✅ NUEVO: Manejador del botón Importar Modificados Hoy
+        private async void BtnImportarModificadosHoy_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                this.Cursor = Cursors.WaitCursor;
+                var btn = sender as Button;
+                if (btn != null)
+                {
+                    btn.Enabled = false;
+                    btn.Text = "⏳ Cargando...";
+                }
+
+                // Obtener productos modificados hoy
+                var productosHoy = await ObtenerProductosModificadosHoyAsync();
+
+                if (productosHoy == null || productosHoy.Count == 0)
+                {
+                    MessageBox.Show(
+                        "No se encontraron productos modificados hoy.\n\n" +
+                        "Los productos se marcan como modificados cuando se actualiza su precio o stock desde 'Actualización Rápida'.",
+                        "Sin productos modificados",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Confirmar antes de importar
+                var resultado = MessageBox.Show(
+                    $"Se encontraron {productosHoy.Count} producto(s) modificados hoy.\n\n" +
+                    "¿Desea agregarlos a la lista de cartelitos?",
+                    "Confirmar importación",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Agregar productos a la lista (evitando duplicados)
+                    int agregados = 0;
+                    int duplicados = 0;
+
+                    foreach (var producto in productosHoy)
+                    {
+                        // Verificar si ya está en la lista
+                        if (!productosSeleccionados.Any(p => p.Codigo == producto.Codigo))
+                        {
+                            productosSeleccionados.Add(producto);
+                            agregados++;
+                        }
+                        else
+                        {
+                            duplicados++;
+                        }
+                    }
+
+                    // Actualizar vista
+                    ActualizarDataGridView();
+                    ActualizarContador();
+                    GuardarProductos();
+
+                    // Mostrar resultado
+                    string mensaje = $"✅ Se agregaron {agregados} producto(s) modificados hoy.";
+                    if (duplicados > 0)
+                    {
+                        mensaje += $"\n\n({duplicados} ya estaban en la lista)";
+                    }
+
+                    MessageBox.Show(mensaje, "Importación exitosa",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    System.Diagnostics.Debug.WriteLine($"✅ Importados {agregados} productos modificados hoy");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al importar productos: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"❌ Error importando productos: {ex.Message}");
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+                var btn = sender as Button;
+                if (btn != null)
+                {
+                    btn.Enabled = true;
+                    btn.Text = "📅 Modificados Hoy";
+                }
+            }
+        }
+
+        // ✅ NUEVO: Método para obtener productos modificados hoy desde la BD
+        private async Task<List<ProductoCartelito>> ObtenerProductosModificadosHoyAsync()
+        {
+            var productos = new List<ProductoCartelito>();
+
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    // Query para obtener productos modificados hoy
+                    var query = @"SELECT codigo, descripcion, precio, marca, rubro 
+                          FROM Productos 
+                          WHERE CAST(modificado AS DATE) = CAST(GETDATE() AS DATE)
+                          ORDER BY descripcion";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        await connection.OpenAsync();
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                productos.Add(new ProductoCartelito
+                                {
+                                    Codigo = reader["codigo"].ToString(),
+                                    Descripcion = reader["descripcion"].ToString(),
+                                    Precio = Convert.ToDecimal(reader["precio"]),
+                                    Marca = reader["marca"].ToString(),
+                                    Rubro = reader["rubro"].ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"📅 Encontrados {productos.Count} productos modificados hoy");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error obteniendo productos modificados: {ex.Message}");
+                throw;
+            }
+
+            return productos;
+        }
+
+        // ✅ NUEVO: Método para obtener productos modificados en una fecha específica
+        private async Task<List<ProductoCartelito>> ObtenerProductosModificadosPorFechaAsync(DateTime fecha)
+        {
+            var productos = new List<ProductoCartelito>();
+
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    // Query para obtener productos modificados en una fecha específica
+                    var query = @"SELECT codigo, descripcion, precio, marca, rubro 
+                          FROM Productos 
+                          WHERE CAST(modificado AS DATE) = @fecha
+                          ORDER BY descripcion";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@fecha", fecha.Date);
+                        await connection.OpenAsync();
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                productos.Add(new ProductoCartelito
+                                {
+                                    Codigo = reader["codigo"].ToString(),
+                                    Descripcion = reader["descripcion"].ToString(),
+                                    Precio = Convert.ToDecimal(reader["precio"]),
+                                    Marca = reader["marca"].ToString(),
+                                    Rubro = reader["rubro"].ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"📅 Encontrados {productos.Count} productos modificados el {fecha:dd/MM/yyyy}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error obteniendo productos modificados: {ex.Message}");
+                throw;
+            }
+
+            return productos;
+        }
+        // ✅ NUEVO: Método para obtener productos modificados en un rango de fechas
+        private async Task<List<ProductoCartelito>> ObtenerProductosModificadosRangoAsync(DateTime desde, DateTime hasta)
+        {
+            var productos = new List<ProductoCartelito>();
+
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    // Query para obtener productos modificados en un rango de fechas
+                    var query = @"SELECT codigo, descripcion, precio, marca, rubro, modificado
+                          FROM Productos 
+                          WHERE CAST(modificado AS DATE) BETWEEN @desde AND @hasta
+                          ORDER BY modificado DESC, descripcion";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@desde", desde.Date);
+                        cmd.Parameters.AddWithValue("@hasta", hasta.Date);
+                        await connection.OpenAsync();
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                productos.Add(new ProductoCartelito
+                                {
+                                    Codigo = reader["codigo"].ToString(),
+                                    Descripcion = reader["descripcion"].ToString(),
+                                    Precio = Convert.ToDecimal(reader["precio"]),
+                                    Marca = reader["marca"].ToString(),
+                                    Rubro = reader["rubro"].ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"📅 Encontrados {productos.Count} productos modificados entre {desde:dd/MM/yyyy} y {hasta:dd/MM/yyyy}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error obteniendo productos modificados: {ex.Message}");
+                throw;
+            }
+
+            return productos;
         }
 
         private DataGridView CrearDataGridView()

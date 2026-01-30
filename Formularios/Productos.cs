@@ -41,25 +41,26 @@ namespace Comercio.NET.Formularios
             // Configuración básica del formulario
             this.WindowState = FormWindowState.Maximized;
             this.StartPosition = FormStartPosition.CenterScreen;
-            
-            // Configurar timer de búsqueda
-            //searchTimer = new System.Windows.Forms.Timer();
-            //searchTimer.Interval = 500;
-            //searchTimer.Tick += SearchTimer_Tick;
-            
+
+            // ✅ RESTAURAR: Configurar timer de búsqueda
+            searchTimer = new System.Windows.Forms.Timer();
+            searchTimer.Interval = 500; // Esperar 500ms antes de buscar
+            searchTimer.Tick += SearchTimer_Tick;
+
             // Configurar eventos de filtro
             txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
             txtFiltroDescripcion.KeyDown += TxtFiltroDescripcion_KeyDown;
-            
+
             // Configurar eventos de botones
             btnAgregarProducto.Click += BtnAgregarProducto_Click;
             btnModificarProducto.Click += BtnModificarProducto_Click;
-            
+
             // Configurar textos de los controles (sin emojis)
             ConfigurarTextos();
-            
+
             isInitialized = true;
         }
+
 
         private void CrearBotonActualizacionRapida()
         {
@@ -856,13 +857,9 @@ namespace Comercio.NET.Formularios
             {
                 if (!isInitialized) return;
 
-                // ✅ OPCIÓN 2: Ya no se usa el timer automático
-                // Solo mantener este evento por si se necesita en el futuro
-                // o eliminarlo directamente si usas búsqueda manual
-
-                // ❌ ELIMINAR estas líneas si usas Opción 2:
-                // searchTimer?.Stop();
-                // searchTimer?.Start();
+                // ✅ RESTAURAR: Reiniciar timer en cada cambio de texto
+                searchTimer?.Stop();
+                searchTimer?.Start();
             }
             catch (Exception ex)
             {
@@ -870,30 +867,30 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        //private async void SearchTimer_Tick(object sender, EventArgs e)
-        //{
-        //    try
-        //    {
-        //        searchTimer?.Stop();
+        private async void SearchTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                searchTimer?.Stop();
 
-        //        var textoBuscar = txtFiltroDescripcion.Text.Trim();
+                var textoBuscar = txtFiltroDescripcion.Text.Trim();
 
-        //        // Evitar búsquedas idénticas consecutivas
-        //        if (lastSearchText.Equals(textoBuscar, StringComparison.OrdinalIgnoreCase))
-        //            return;
+                // Evitar búsquedas idénticas consecutivas
+                if (lastSearchText.Equals(textoBuscar, StringComparison.OrdinalIgnoreCase))
+                    return;
 
-        //        lastSearchText = textoBuscar;
+                lastSearchText = textoBuscar;
 
-        //        System.Diagnostics.Debug.WriteLine($"🔍 Aplicando filtro: '{textoBuscar}'");
+                System.Diagnostics.Debug.WriteLine($"🔍 Aplicando filtro: '{textoBuscar}'");
 
-        //        // Aplicar filtro de búsqueda (ahora con manejo mejorado de texto vacío)
-        //        await AplicarFiltro(textoBuscar);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        System.Diagnostics.Debug.WriteLine($"Error en SearchTimer_Tick: {ex.Message}");
-        //    }
-        //}
+                // Aplicar filtro de búsqueda
+                await AplicarFiltro(textoBuscar);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error en SearchTimer_Tick: {ex.Message}");
+            }
+        }
 
         private async void BtnAgregarProducto_Click(object sender, EventArgs e)
         {

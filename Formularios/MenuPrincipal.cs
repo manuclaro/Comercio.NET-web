@@ -27,9 +27,10 @@ namespace Comercio.NET
         private ToolStripStatusLabel lblUsuarioActual;
         private ToolStripSplitButton btnCambiarUsuario;
 
-        // ✅ NUEVO: Constantes para actualización automática
-        private const string CURRENT_VERSION = "1.2.0"; // ⚠️ Actualizar con cada release
-        private const string UPDATE_SERVER = "https://tu-servidor.com/updates/comercio-net";
+        // ✅ CORREGIDO: Constantes para actualización automática
+        private const string CURRENT_VERSION = "1.3.0"; // ✅ ACTUALIZADO a versión actual
+        private const string UPDATE_SERVER = "https://github.com/manuclaro/Comercio.NET-web/releases/download/v1.3.0"; // ✅ SIN version.json al final
+      
         public MenuPrincipal()
         {
             InitializeComponent();
@@ -649,15 +650,15 @@ namespace Comercio.NET
         {
         }
 
-        private void ToolBarToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            toolStrip.Visible = toolBarToolStripMenuItem.Checked;
-        }
+        //private void ToolBarToolStripMenuItem_Click(object sender, EventArgs e)
+        //{
+        //    toolStrip.Visible = toolBarToolStripMenuItem.Checked;
+        //}
 
-        private void StatusBarToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            statusStrip.Visible = statusBarToolStripMenuItem.Checked;
-        }
+        //private void StatusBarToolStripMenuItem_Click(object sender, EventArgs e)
+        //{
+        //    statusStrip.Visible = statusBarToolStripMenuItem.Checked;
+        //}
 
         private void CascadeToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -1321,10 +1322,32 @@ namespace Comercio.NET
                         menu.DropDownItems.Add(new ToolStripSeparator());
                         menu.DropDownItems.Add(submenuCtaCte);
 
+                        menu.DropDownItems.Add(new ToolStripSeparator());
+                        menu.DropDownItems.Add(submenuCtaCte);
+
+                        // ✅ DESCOMENTADO Y CORREGIDO: Insertar menú en posición correcta
                         int insertIndex = -1;
-                        if (menuStrip.Items.Contains(viewMenu))
+
+                        // Buscar el menú "Ver" o "View" para insertar antes
+                        var viewMenu = this.menuStrip.Items
+                            .OfType<ToolStripMenuItem>()
+                            .FirstOrDefault(i => i.Text.Contains("Ver") || i.Text.Contains("View") || i.Name == "viewMenu");
+
+                        if (viewMenu != null)
                         {
-                            insertIndex = menuStrip.Items.IndexOf(viewMenu);
+                            insertIndex = this.menuStrip.Items.IndexOf(viewMenu);
+                        }
+                        else
+                        {
+                            // Si no existe "Ver", buscar "Ventanas" o "Window"
+                            var windowMenu = this.menuStrip.Items
+                                .OfType<ToolStripMenuItem>()
+                                .FirstOrDefault(i => i.Text.Contains("Ventana") || i.Text.Contains("Window"));
+
+                            if (windowMenu != null)
+                            {
+                                insertIndex = this.menuStrip.Items.IndexOf(windowMenu);
+                            }
                         }
 
                         if (insertIndex >= 0)

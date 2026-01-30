@@ -1,9 +1,9 @@
 ﻿{
   "Version": "1.3.0",
-  "DownloadUrl": "https://tu-servidor.com/updates/comercio-net/ComercioNET_v1.3.0.zip",
+  "DownloadUrl": "https://github.com/manuclaro/Comercio.NET-web/releases/download/v1.3.0/ComercioNET_v1.3.0.zip",
   "ReleaseDate": "2026-01-29T10:00:00",
   "IsRequired": false,
-  "FileSize": 15728640,
+  "FileSize": 0,
   "ChangeLog": [
     "✅ NUEVO: Sistema de auto-actualización integrado",
     "✅ NUEVO: Eliminación de remitos completos",
