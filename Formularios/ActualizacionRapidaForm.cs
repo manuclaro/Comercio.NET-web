@@ -47,6 +47,10 @@ namespace Comercio.NET.Formularios
         private decimal precioActual = 0;
         private int stockActual = 0; // ✅ NUEVO: Variable para guardar stock actual
 
+        // ✅ NUEVO: Controles para precio calculado cuando se actualiza por costo
+        private Label lblPrecioCalculado;
+        private TextBox txtPrecioCalculado;
+
         // ✅ NUEVO: Método estático para mostrar el formulario
         public static void MostrarFormulario(Form mdiParent)
         {
@@ -393,14 +397,36 @@ namespace Comercio.NET.Formularios
             };
             panelEdicion.Controls.Add(txtNuevoStock);
 
-           
+            // Campo Precio Calculado (visible solo al actualizar por costo)
+            lblPrecioCalculado = new Label
+            {
+                Text = "💰 Precio Calculado:",
+                Location = new Point(15, 80),
+                Size = new Size(110, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Visible = false
+            };
+            panelEdicion.Controls.Add(lblPrecioCalculado);
+
+            txtPrecioCalculado = new TextBox
+            {
+                Location = new Point(130, 78),
+                Size = new Size(150, 28),
+                Font = new Font("Segoe UI", 11F),
+                BorderStyle = BorderStyle.FixedSingle,
+                PlaceholderText = "0.00",
+                BackColor = Color.FromArgb(255, 253, 231), // Color amarillo claro
+                Visible = false
+            };
+            panelEdicion.Controls.Add(txtPrecioCalculado);
 
             // Label informativo para precio calculado
             var lblInfoCalculo = new Label
             {
                 Name = "lblInfoCalculo",
-                Text = "ℹ️ El precio se calculará automáticamente al guardar",
-                Location = new Point(15, 80),
+                Text = "ℹ️ El precio se calcula automáticamente, pero puede editarlo para redondear",
+                Location = new Point(15, 115),
                 Size = new Size(panelEdicion.Width - 30, 20),
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.FromArgb(33, 150, 243),
@@ -412,21 +438,22 @@ namespace Comercio.NET.Formularios
             btnGuardar = new Button
             {
                 Text = "💾 Guardar",
-                Location = new Point(15, 95),
+                Location = new Point(310, 78), // ✅ CAMBIO: Movido a la derecha
                 Size = new Size(120, 38),
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 Cursor = Cursors.Hand
-            };
+            }
+            ;
             btnGuardar.FlatAppearance.BorderSize = 0;
             panelEdicion.Controls.Add(btnGuardar);
 
             btnLimpiar = new Button
             {
                 Text = "🔄 Limpiar",
-                Location = new Point(145, 95),
+                Location = new Point(440, 78), // ✅ CAMBIO: Movido a la derecha
                 Size = new Size(100, 38),
                 BackColor = Color.FromArgb(255, 152, 0),
                 ForeColor = Color.White,
@@ -458,6 +485,18 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(btnCerrar);
         }
 
+        private void LimpiarFormulario()
+        {
+            txtCodigo.Clear();
+            txtNuevoPrecio.Clear();
+            txtNuevoCosto.Clear();
+            txtNuevoStock.Clear();
+            txtPrecioCalculado.Clear(); // ✅ NUEVO: Limpiar también el precio calculado
+            txtNuevoStock.BackColor = Color.White;
+            OcultarInformacionProducto();
+            txtCodigo.Focus();
+        }
+
         private void ConfigurarEventos()
         {
             // Eventos de texto
@@ -465,6 +504,9 @@ namespace Comercio.NET.Formularios
             txtNuevoPrecio.KeyDown += Control_KeyDown;
             txtNuevoCosto.KeyPress += TxtPrecio_KeyPress;
             txtNuevoCosto.KeyDown += Control_KeyDown;
+            txtPrecioCalculado.KeyPress += TxtPrecio_KeyPress; // ✅ NUEVO
+            txtPrecioCalculado.KeyDown += Control_KeyDown; // ✅ NUEVO
+            txtNuevoCosto.TextChanged += TxtNuevoCosto_TextChanged; // ✅ NUEVO: Calcular precio al cambiar costo
             txtCodigo.KeyDown += Control_KeyDown;
             txtNuevoStock.KeyPress += TxtStock_KeyPress;
             txtNuevoStock.KeyDown += Control_KeyDown;
@@ -488,6 +530,22 @@ namespace Comercio.NET.Formularios
             this.KeyDown += Form_KeyDown;
         }
 
+        // ✅ NUEVO: Calcular precio automáticamente al cambiar el costo
+        private void TxtNuevoCosto_TextChanged(object sender, EventArgs e)
+        {
+            if (!rbActualizarCosto.Checked || !txtPrecioCalculado.Visible)
+                return;
+
+            if (decimal.TryParse(txtNuevoCosto.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out decimal nuevoCosto))
+            {
+                if (porcentajeActual > 0)
+                {
+                    decimal precioCalculado = nuevoCosto + ((nuevoCosto * porcentajeActual) / 100);
+                    precioCalculado = Math.Round(precioCalculado, 2);
+                    txtPrecioCalculado.Text = precioCalculado.ToString("F2");
+                }
+            }
+        }
         // ✅ NUEVO: Manejador del Checkbox
         private void ChkSumarStock_CheckedChanged(object sender, EventArgs e)
         {
@@ -523,17 +581,22 @@ namespace Comercio.NET.Formularios
             {
                 txtNuevoCosto.Visible = true;
                 txtNuevoPrecio.Visible = false;
+                lblPrecioCalculado.Visible = true;
+                txtPrecioCalculado.Visible = true;
 
                 var lblInfo = panelEdicion.Controls.Find("lblInfoCalculo", false).FirstOrDefault();
                 if (lblInfo != null)
                     lblInfo.Visible = true;
 
-                // ✅ NUEVO: Restaurar fondo blanco del textbox stock
                 txtNuevoStock.BackColor = Color.White;
 
                 if (!string.IsNullOrEmpty(codigoActual))
                 {
                     txtNuevoCosto.Text = costoActual.ToString("F2");
+
+                    // ✅ CAMBIO: Mostrar precio ACTUAL, no el calculado
+                    txtPrecioCalculado.Text = precioActual.ToString("F2");
+
                     txtNuevoCosto.Focus();
                     txtNuevoCosto.SelectAll();
                 }
@@ -542,16 +605,16 @@ namespace Comercio.NET.Formularios
             {
                 txtNuevoCosto.Visible = false;
                 txtNuevoPrecio.Visible = true;
+                lblPrecioCalculado.Visible = false;
+                txtPrecioCalculado.Visible = false;
 
                 var lblInfo = panelEdicion.Controls.Find("lblInfoCalculo", false).FirstOrDefault();
                 if (lblInfo != null)
                     lblInfo.Visible = false;
 
-                // ✅ CAMBIO: Mostrar checkbox y label
                 chkSumarStock.Visible = true;
                 lblInfoStock.Visible = true;
 
-                // ✅ NUEVO: Aplicar estado del checkbox al fondo
                 txtNuevoStock.BackColor = chkSumarStock.Checked
                     ? Color.FromArgb(232, 245, 233)
                     : Color.White;
@@ -668,7 +731,7 @@ namespace Comercio.NET.Formularios
             codigoActual = reader["codigo"].ToString();
             string descripcion = reader["descripcion"].ToString();
             precioActual = Convert.ToDecimal(reader["precio"]);
-            stockActual = Convert.ToInt32(reader["cantidad"]); // ✅ Guardar en variable
+            stockActual = Convert.ToInt32(reader["cantidad"]);
             string marca = reader["marca"]?.ToString() ?? "";
             string rubro = reader["rubro"]?.ToString() ?? "";
 
@@ -686,6 +749,10 @@ namespace Comercio.NET.Formularios
             if (rbActualizarCosto.Checked)
             {
                 txtNuevoCosto.Text = costoActual.ToString("F2");
+
+                // ✅ CAMBIO: Mostrar precio ACTUAL, no el calculado
+                txtPrecioCalculado.Text = precioActual.ToString("F2");
+
                 txtNuevoStock.Text = stockActual.ToString();
                 txtNuevoCosto.Focus();
                 txtNuevoCosto.SelectAll();
@@ -697,9 +764,6 @@ namespace Comercio.NET.Formularios
                 txtNuevoPrecio.Focus();
                 txtNuevoPrecio.SelectAll();
             }
-
-            // ✅ NUEVO: Resetear checkbox
-            //chkSumarStock.Checked = false;
 
             // ✅ NUEVO: Aplicar el estado del checkbox al stock
             if (rbActualizarPrecio.Checked)
@@ -783,29 +847,21 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
-                // Calcular precio automáticamente
-                if (porcentajeActual > 0)
+                // ✅ MODIFICADO: Usar el precio editado por el usuario
+                if (!decimal.TryParse(txtPrecioCalculado.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out nuevoPrecio))
                 {
-                    nuevoPrecio = nuevoCosto + ((nuevoCosto * porcentajeActual) / 100);
-                    nuevoPrecio = Math.Round(nuevoPrecio, 2);
+                    MessageBox.Show("El precio calculado no es válido.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtPrecioCalculado.Focus();
+                    return;
                 }
-                else
+
+                if (nuevoPrecio <= 0)
                 {
-                    var resultado = MessageBox.Show(
-                        "⚠️ El producto no tiene un porcentaje de ganancia configurado.\n\n" +
-                        $"Costo nuevo: {nuevoCosto:C2}\n\n" +
-                        "¿Desea usar el precio actual como precio de venta?\n" +
-                        "(O cancele para configurar el porcentaje primero)",
-                        "Porcentaje de Ganancia No Configurado",
-                        MessageBoxButtons.OKCancel,
-                        MessageBoxIcon.Warning);
-
-                    if (resultado != DialogResult.OK)
-                    {
-                        return;
-                    }
-
-                    nuevoPrecio = precioActual;
+                    MessageBox.Show("El precio debe ser mayor a cero.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtPrecioCalculado.Focus();
+                    return;
                 }
             }
             else
@@ -902,7 +958,6 @@ namespace Comercio.NET.Formularios
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
 
-                // ✅ NUEVO: Actualizar también el campo 'modificado' con la fecha actual
                 var query = @"UPDATE Productos 
                      SET precio = @precio, 
                          costo = @costo, 
@@ -914,13 +969,14 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
                 cmd.Parameters.AddWithValue("@costo", nuevoCosto);
                 cmd.Parameters.AddWithValue("@cantidad", stockFinal);
-                cmd.Parameters.AddWithValue("@modificado", DateTime.Now.Date); // ✅ NUEVO: Guardar fecha actual
+                cmd.Parameters.AddWithValue("@modificado", DateTime.Now.Date);
                 cmd.Parameters.AddWithValue("@codigo", codigoActual);
 
                 await cmd.ExecuteNonQueryAsync();
 
                 ProductosOptimizado.LimpiarCache();
 
+                // ✅ CAMBIO: Limpiar SOLO después de guardar exitosamente
                 LimpiarFormulario();
             }
             catch (Exception ex)
@@ -934,18 +990,6 @@ namespace Comercio.NET.Formularios
                 btnGuardar.Enabled = true;
                 btnGuardar.Text = "💾 Guardar";
             }
-        }
-
-        private void LimpiarFormulario()
-        {
-            txtCodigo.Clear();
-            txtNuevoPrecio.Clear();
-            txtNuevoCosto.Clear();
-            txtNuevoStock.Clear();
-            // ✅ NO resetear: chkSumarStock.Checked = false;
-            txtNuevoStock.BackColor = Color.White; // ✅ Resetear color
-            OcultarInformacionProducto();
-            txtCodigo.Focus();
         }
 
         private void TxtPrecio_KeyPress(object sender, KeyPressEventArgs e)
@@ -1004,8 +1048,22 @@ namespace Comercio.NET.Formularios
                 {
                     await BuscarProductoAsync(txtCodigo.Text.Trim());
                 }
-                else if (sender == txtNuevoPrecio || sender == txtNuevoCosto || sender == txtNuevoStock)
+                // ✅ CAMBIO: Orden de tabulación para modo COSTO
+                else if (sender == txtNuevoCosto)
                 {
+                    // Al presionar Enter en Costo, ir al precio calculado
+                    txtPrecioCalculado.Focus();
+                    txtPrecioCalculado.SelectAll();
+                }
+                else if (sender == txtPrecioCalculado)
+                {
+                    // Al presionar Enter en Precio Calculado, ir al stock
+                    txtNuevoStock.Focus();
+                    txtNuevoStock.SelectAll();
+                }
+                else if (sender == txtNuevoPrecio || sender == txtNuevoStock)
+                {
+                    // Solo guardar desde estos campos
                     await GuardarCambios();
                 }
             }
