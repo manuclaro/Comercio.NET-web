@@ -799,7 +799,8 @@ namespace Comercio.NET.Formularios
                         COUNT(*) AS CantidadEgresos
                     FROM PagosProveedores
                     WHERE NumeroCajero = @numeroCajero
-                    AND FechaPago BETWEEN @fechaInicio AND @fechaFin";
+                    AND FechaPago BETWEEN @fechaInicio AND @fechaFin
+                    AND (Origen IS NULL OR Origen <> 'PagoGeneral')";
 
                 using (var cmd = new SqlCommand(queryPagosProveedores, connection))
                 {

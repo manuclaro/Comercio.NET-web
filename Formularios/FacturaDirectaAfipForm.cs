@@ -812,11 +812,10 @@ namespace Comercio.NET.Formularios
 
                 // ✅ INSERTAR PRODUCTO FICTICIO EN VENTAS
                 var queryVenta = @"
-                                    INSERT INTO Ventas 
-                                        (codigo, descripcion, cantidad, precio, total, NroFactura, PorcentajeIva)
-                                    VALUES 
-                                        (@codigo, @descripcion, @cantidad, @precio, @total, @nroFactura, @porcentajeIva)";
-
+                            INSERT INTO Ventas 
+                                (codigo, descripcion, cantidad, precio, total, NroFactura, PorcentajeIva)
+                            VALUES 
+                                (@codigo, @descripcion, @cantidad, @precio, @total, @nroFactura, @porcentajeIva)";
                 decimal precioUnitario = tipoFactura == "C" ? total : Math.Round(total / 1.21m, 2);
 
                 using (var cmd = new SqlCommand(queryVenta, connection))

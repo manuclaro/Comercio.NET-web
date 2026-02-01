@@ -408,15 +408,19 @@ namespace Comercio.NET.Formularios
                 // Validar que el monto no exceda el saldo restante
                 if (monto > saldoRestante)
                 {
-                    MessageBox.Show(
-                        $"El monto ingresado ({monto:C2}) excede el saldo pendiente ({saldoRestante:C2}).\n\n" +
-                        "No se puede ingresar un monto mayor al saldo de la factura.",
-                        "Monto excedido",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    txtMonto.Text = saldoRestante.ToString("N2");
-                    txtMonto.SelectAll();
-                    return;
+                    var result = MessageBox.Show(
+                        $"El monto ingresado ({monto:C2}) es mayor al saldo pendiente ({saldoRestante:C2}).\n\n" +
+                        "¿Desea continuar y registrar un saldo a favor del proveedor?",
+                        "Monto mayor al saldo",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result == DialogResult.No)
+                    {
+                        txtMonto.Text = saldoRestante.ToString("N2");
+                        txtMonto.SelectAll();
+                        return;
+                    }
                 }
 
                 // Agregar el pago a la lista
@@ -489,13 +493,16 @@ namespace Comercio.NET.Formularios
                 decimal totalPagado = ObtenerTotalPagado();
                 if (totalPagado > saldoTotal)
                 {
-                    MessageBox.Show(
-                        $"El total de pagos ({totalPagado:C2}) excede el saldo de la factura ({saldoTotal:C2}).\n\n" +
-                        "Elimine o modifique algunos pagos para continuar.",
-                        "Monto excedido",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    return;
+                    var result = MessageBox.Show(
+                        $"El total de pagos ({totalPagado:C2}) es mayor al saldo de la factura ({saldoTotal:C2}).\n\n" +
+                        $"Se registrará un saldo a favor del proveedor por {(totalPagado - saldoTotal):C2}.\n\n" +
+                        "¿Desea continuar?",
+                        "Pago mayor al saldo",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result == DialogResult.No)
+                        return;
                 }
 
                 // Validar que el pago cubra el total

@@ -791,12 +791,13 @@ namespace Comercio.NET.Formularios
                 // QUERY DE EGRESOS (PAGOS A PROVEEDORES)
                 // ========================================
                 var queryPagosRapidos = @"
-    SELECT 
-        SUM(Monto) AS TotalEgresos,
-        COUNT(*) AS CantidadEgresos
-    FROM PagosProveedores
-    WHERE NumeroCajero = @numeroCajero
-    AND FechaPago BETWEEN @fechaInicio AND @fechaFin";
+                                        SELECT 
+                                            SUM(Monto) AS TotalEgresos,
+                                            COUNT(*) AS CantidadEgresos
+                                        FROM PagosProveedores
+                                        WHERE NumeroCajero = @numeroCajero
+                                        AND FechaPago BETWEEN @fechaInicio AND @fechaFin
+                                        AND (Origen IS NULL OR Origen <> 'PagoGeneral')";
 
                 using (var cmd = new SqlCommand(queryPagosRapidos, connection))
                 {

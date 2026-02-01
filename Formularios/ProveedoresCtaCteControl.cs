@@ -278,9 +278,7 @@ namespace Comercio.NET.Formularios
         private async Task CargarResumenAsync()
         {
             if (isLoadingData) return;
-
             isLoadingData = true;
-
             try
             {
                 string cs = GetConnectionString();
@@ -291,21 +289,11 @@ namespace Comercio.NET.Formularios
                 {
                     await conn.OpenAsync();
 
-                    // ✅ CORREGIDO: Query simplificada para cargar proveedores
-                    var sqlProveedores = @"
-                SELECT DISTINCT 
-                    p.Id,
-                    p.Nombre
-                FROM Proveedores p
-                WHERE p.Id IS NOT NULL
-                ORDER BY p.Nombre;
-            ";
-
+                    // Cargar proveedores
+                    var sqlProveedores = @"SELECT Id, Nombre FROM Proveedores WHERE Id IS NOT NULL ORDER BY Nombre;";
                     using (var cmdProv = new SqlCommand(sqlProveedores, conn))
                     using (var daProv = new SqlDataAdapter(cmdProv))
-                    {
-                        await Task.Run(() => daProv.Fill(dtProveedores));
-                    }
+                        daProv.Fill(dtProveedores);
 
                     var rowTodos = dtProveedores.NewRow();
                     rowTodos["Id"] = 0;
@@ -313,62 +301,41 @@ namespace Comercio.NET.Formularios
                     dtProveedores.Rows.InsertAt(rowTodos, 0);
 
                     var proveedorAnterior = cmbFiltroProveedor.SelectedValue;
-
                     cmbFiltroProveedor.SelectedIndexChanged -= CmbFiltroProveedor_SelectedIndexChanged;
                     cmbFiltroProveedor.DataSource = dtProveedores;
                     cmbFiltroProveedor.DisplayMember = "Nombre";
                     cmbFiltroProveedor.ValueMember = "Id";
-
                     if (proveedorAnterior != null)
                         cmbFiltroProveedor.SelectedValue = proveedorAnterior;
                     else
                         cmbFiltroProveedor.SelectedIndex = 0;
-
                     cmbFiltroProveedor.SelectedIndexChanged += CmbFiltroProveedor_SelectedIndexChanged;
 
                     var proveedorIdFiltro = cmbFiltroProveedor.SelectedValue != null
                         ? Convert.ToInt32(cmbFiltroProveedor.SelectedValue)
                         : 0;
 
-                    // ✅ CORREGIDO: Query con GROUP BY completo
+                    // Resumen desde CtaCteProveedores
                     var sqlResumen = @"
-                SELECT 
-                    p.Id AS ProveedorId,
-                    p.Nombre AS Proveedor,
-                    COALESCE(SUM(cta.Saldo), 0) AS TotalAdeudado,
-                    COUNT(DISTINCT CASE WHEN cta.Saldo > 0 THEN cta.Id END) AS FacturasPendientes,
-                    MAX(cta.Fecha) AS UltimaCompra,
-                    COALESCE((
-                        SELECT SUM(pp.Monto)
-                        FROM PagosProveedores pp
-                        WHERE pp.IdProveedor = p.Id
-                    ), 0) AS TotalPagado
-                FROM Proveedores p
-                LEFT JOIN ProveedoresCtaCte cta ON p.Id = cta.ProveedorId
-                WHERE 1=1
-            ";
-
-                    // ✅ Aplicar filtro solo si checkbox está marcado
-                    if (chkSoloConSaldo.Checked)
-                    {
-                        sqlResumen += " AND cta.Saldo > 0";
-                    }
-
+SELECT 
+    p.Id AS ProveedorId,
+    p.Nombre AS Proveedor,
+    COALESCE(SUM(cta.Debe), 0) AS TotalCompras,
+    COALESCE(SUM(cta.Haber), 0) AS TotalPagado,
+    COALESCE(SUM(cta.Debe - cta.Haber), 0) AS SaldoPendiente,
+    MAX(cta.Fecha) AS UltimaOperacion
+FROM Proveedores p
+LEFT JOIN CtaCteProveedores cta ON cta.Proveedor = p.Nombre
+WHERE 1=1
+";
                     if (proveedorIdFiltro > 0)
-                    {
-                        sqlResumen += " AND p.Id = @proveedorId";
-                    }
+                        sqlResumen += " AND p.Id = @proveedorId ";
 
-                    // ✅ CORREGIDO: GROUP BY con p.Id y p.Nombre
                     sqlResumen += @"
-                GROUP BY p.Id, p.Nombre
-                HAVING (
-                    COALESCE(SUM(cta.Saldo), 0) > 0 
-                    OR 
-                    EXISTS (SELECT 1 FROM PagosProveedores pp WHERE pp.IdProveedor = p.Id)
-                )
-                ORDER BY TotalAdeudado DESC, Proveedor;
-            ";
+GROUP BY p.Id, p.Nombre
+HAVING (COALESCE(SUM(cta.Debe - cta.Haber), 0) <> 0 OR COALESCE(SUM(cta.Haber), 0) > 0)
+ORDER BY SaldoPendiente DESC, Proveedor;
+";
 
                     using (var cmd = new SqlCommand(sqlResumen, conn))
                     {
@@ -376,22 +343,20 @@ namespace Comercio.NET.Formularios
                             cmd.Parameters.AddWithValue("@proveedorId", proveedorIdFiltro);
 
                         using (var da = new SqlDataAdapter(cmd))
-                        {
-                            await Task.Run(() => da.Fill(dtResumen));
-                        }
+                            da.Fill(dtResumen);
                     }
                 }
 
                 dgvResumen.DataSource = dtResumen;
+                // Ajusta FormatearGrilla para las nuevas columnas
                 FormatearGrilla();
 
                 decimal totalDeuda = 0m;
                 foreach (DataRow row in dtResumen.Rows)
                 {
-                    if (row["TotalAdeudado"] != DBNull.Value)
-                        totalDeuda += Convert.ToDecimal(row["TotalAdeudado"]);
+                    if (row["SaldoPendiente"] != DBNull.Value)
+                        totalDeuda += Convert.ToDecimal(row["SaldoPendiente"]);
                 }
-
                 lblTotalDeuda.Text = $"Deuda Total: {totalDeuda:C2}";
             }
             catch (Exception ex)
@@ -410,20 +375,30 @@ namespace Comercio.NET.Formularios
             if (dgvResumen.Columns.Contains("ProveedorId"))
                 dgvResumen.Columns["ProveedorId"].Visible = false;
 
+            if (dgvResumen.Columns.Contains("TotalCompras"))
+            {
+                dgvResumen.Columns["TotalCompras"].HeaderText = "Total Compras";
+                dgvResumen.Columns["TotalCompras"].DefaultCellStyle.Format = "C2";
+                dgvResumen.Columns["TotalCompras"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvResumen.Columns["TotalCompras"].Width = 120;
+                dgvResumen.Columns["TotalCompras"].DefaultCellStyle.ForeColor = Color.FromArgb(33, 150, 243);
+                dgvResumen.Columns["TotalCompras"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
+
             if (dgvResumen.Columns.Contains("Proveedor"))
             {
                 dgvResumen.Columns["Proveedor"].HeaderText = "Proveedor";
                 dgvResumen.Columns["Proveedor"].Width = 200;
             }
 
-            if (dgvResumen.Columns.Contains("TotalAdeudado"))
+            if (dgvResumen.Columns.Contains("SaldoPendiente"))
             {
-                dgvResumen.Columns["TotalAdeudado"].HeaderText = "Saldo Pendiente";
-                dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.Format = "C2";
-                dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvResumen.Columns["TotalAdeudado"].Width = 130;
-                dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
-                dgvResumen.Columns["TotalAdeudado"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvResumen.Columns["SaldoPendiente"].HeaderText = "Saldo Pendiente";
+                dgvResumen.Columns["SaldoPendiente"].DefaultCellStyle.Format = "C2";
+                dgvResumen.Columns["SaldoPendiente"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvResumen.Columns["SaldoPendiente"].Width = 130;
+                dgvResumen.Columns["SaldoPendiente"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
+                dgvResumen.Columns["SaldoPendiente"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
 
             // ✅ NUEVO: Columna de Total Pagado
@@ -487,9 +462,9 @@ namespace Comercio.NET.Formularios
             var row = dgvResumen.SelectedRows[0];
             int proveedorId = Convert.ToInt32(row.Cells["ProveedorId"].Value);
             string proveedorNombre = row.Cells["Proveedor"].Value?.ToString() ?? "";
-            decimal totalAdeudado = Convert.ToDecimal(row.Cells["TotalAdeudado"].Value);
+            decimal SaldoPendiente = Convert.ToDecimal(row.Cells["SaldoPendiente"].Value);
 
-            using (var frmPago = new PagoGeneralProveedorForm(proveedorId, proveedorNombre, totalAdeudado))
+            using (var frmPago = new PagoGeneralProveedorForm(proveedorId, proveedorNombre, SaldoPendiente))
             {
                 frmPago.StartPosition = FormStartPosition.CenterParent;
                 var resultado = frmPago.ShowDialog(this.FindForm());
@@ -528,7 +503,7 @@ namespace Comercio.NET.Formularios
                             if (row.IsNewRow) continue;
 
                             var proveedor = row.Cells["Proveedor"].Value?.ToString() ?? "";
-                            var saldo = row.Cells["TotalAdeudado"].Value?.ToString() ?? "0";
+                            var saldo = row.Cells["SaldoPendiente"].Value?.ToString() ?? "0";
                             var pagado = row.Cells["TotalPagado"].Value?.ToString() ?? "0";
                             var facturas = row.Cells["FacturasPendientes"].Value?.ToString() ?? "0";
                             var fecha = row.Cells["UltimaCompra"].Value != null
@@ -557,7 +532,7 @@ namespace Comercio.NET.Formularios
     {
         private readonly int proveedorId;
         private readonly string proveedorNombre;
-        private DataGridView dgvHistorial;
+        private DataGridView dgvDetalle;
         private Label lblResumen;
         private DateTimePicker dtpDesde;
         private DateTimePicker dtpHasta;
@@ -665,7 +640,7 @@ namespace Comercio.NET.Formularios
             });
 
             // Grilla
-            dgvHistorial = new DataGridView
+            dgvDetalle = new DataGridView
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
@@ -710,7 +685,7 @@ namespace Comercio.NET.Formularios
             pnlResumen.Controls.Add(lblResumen);
             pnlResumen.Controls.Add(btnCerrar);
 
-            this.Controls.Add(dgvHistorial);
+            this.Controls.Add(dgvDetalle);
             this.Controls.Add(pnlResumen);
             this.Controls.Add(pnlFiltros);
         }
@@ -739,44 +714,18 @@ namespace Comercio.NET.Formularios
 
                     // ✅ UNION de Compras y Pagos
                     var sql = @"
-                        -- Compras (DÉBITOS)
-                        SELECT 
-                            cta.Fecha AS Fecha,
-                            'COMPRA' AS Tipo,
-                            COALESCE(cp.NumeroFactura, 'Sin Nro.') AS NumeroFactura,
-                            cta.MontoTotal AS Debe,
-                            0 AS Haber,
-                            cta.Saldo AS Saldo,
-                            cta.Observaciones AS Detalle
-                        FROM ProveedoresCtaCte cta
-                        LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
-                        WHERE (cta.ProveedorId = @proveedorId OR (@proveedorId = 0 AND cta.ProveedorId IS NULL))
-                            AND cta.Fecha BETWEEN @desde AND @hasta
-                            AND (@tipoFiltro = 'Todos' OR @tipoFiltro = 'Compras')
-                        
-                        UNION ALL
-                        
-                        -- Pagos (CRÉDITOS)
-                        SELECT 
-                            p.FechaPago AS Fecha,
-                            'PAGO' AS Tipo,
-                            CASE 
-                                WHEN p.Observaciones LIKE 'Compra #%' 
-                                THEN SUBSTRING(p.Observaciones, CHARINDEX('#', p.Observaciones) + 1, 
-                                     CHARINDEX(' |', p.Observaciones) - CHARINDEX('#', p.Observaciones) - 1)
-                                ELSE ''
-                            END AS NumeroFactura,
-                            0 AS Debe,
-                            p.Monto AS Haber,
-                            NULL AS Saldo,
-                            p.Observaciones AS Detalle
-                        FROM PagosProveedores p
-                        WHERE p.Proveedor = @proveedorNombre
-                            AND p.FechaPago BETWEEN @desde AND @hasta
-                            AND (@tipoFiltro = 'Todos' OR @tipoFiltro = 'Pagos')
-                        
-                        ORDER BY Fecha DESC, Tipo DESC;
-                    ";
+                                SELECT 
+                                    Id,
+                                    Fecha,
+                                    Concepto AS Detalle,
+                                    Debe,
+                                    Haber,
+                                    (Debe - Haber) AS Saldo
+                                FROM CtaCteProveedores
+                                WHERE Proveedor = @proveedorNombre
+                                    AND Fecha BETWEEN @desde AND @hasta
+                                ORDER BY Fecha DESC, Id DESC
+                                ";
 
                     using (var cmd = new SqlCommand(sql, conn))
                     {
@@ -793,7 +742,7 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                dgvHistorial.DataSource = dt;
+                dgvDetalle.DataSource = dt;
                 FormatearGrilla();
 
                 // Calcular totales
@@ -822,72 +771,75 @@ namespace Comercio.NET.Formularios
 
         private void FormatearGrilla()
         {
-            if (dgvHistorial.Columns.Contains("Fecha"))
+            if (dgvDetalle.Columns.Contains("Id"))
+                dgvDetalle.Columns["Id"].Visible = false;
+
+            if (dgvDetalle.Columns.Contains("Fecha"))
             {
-                dgvHistorial.Columns["Fecha"].HeaderText = "Fecha";
-                dgvHistorial.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
-                dgvHistorial.Columns["Fecha"].Width = 130;
+                dgvDetalle.Columns["Fecha"].HeaderText = "Fecha";
+                dgvDetalle.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
+                dgvDetalle.Columns["Fecha"].Width = 130;
             }
 
-            if (dgvHistorial.Columns.Contains("Tipo"))
+            //if (dgvDetalle.Columns.Contains("Tipo"))
+            //{
+            //    dgvDetalle.Columns["Tipo"].HeaderText = "Tipo";
+            //    dgvDetalle.Columns["Tipo"].Width = 80;
+            //    dgvDetalle.Columns["Tipo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            //    dgvDetalle.Columns["Tipo"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            //}
+
+            if (dgvDetalle.Columns.Contains("NumeroFactura"))
             {
-                dgvHistorial.Columns["Tipo"].HeaderText = "Tipo";
-                dgvHistorial.Columns["Tipo"].Width = 80;
-                dgvHistorial.Columns["Tipo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                dgvHistorial.Columns["Tipo"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvDetalle.Columns["NumeroFactura"].HeaderText = "Factura";
+                dgvDetalle.Columns["NumeroFactura"].Width = 100;
             }
 
-            if (dgvHistorial.Columns.Contains("NumeroFactura"))
+            if (dgvDetalle.Columns.Contains("Debe"))
             {
-                dgvHistorial.Columns["NumeroFactura"].HeaderText = "Factura";
-                dgvHistorial.Columns["NumeroFactura"].Width = 100;
+                dgvDetalle.Columns["Debe"].HeaderText = "Debe";
+                dgvDetalle.Columns["Debe"].DefaultCellStyle.Format = "C2";
+                dgvDetalle.Columns["Debe"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvDetalle.Columns["Debe"].Width = 110;
+                dgvDetalle.Columns["Debe"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
             }
 
-            if (dgvHistorial.Columns.Contains("Debe"))
+            if (dgvDetalle.Columns.Contains("Haber"))
             {
-                dgvHistorial.Columns["Debe"].HeaderText = "Debe";
-                dgvHistorial.Columns["Debe"].DefaultCellStyle.Format = "C2";
-                dgvHistorial.Columns["Debe"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvHistorial.Columns["Debe"].Width = 110;
-                dgvHistorial.Columns["Debe"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
+                dgvDetalle.Columns["Haber"].HeaderText = "Haber";
+                dgvDetalle.Columns["Haber"].DefaultCellStyle.Format = "C2";
+                dgvDetalle.Columns["Haber"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvDetalle.Columns["Haber"].Width = 110;
+                dgvDetalle.Columns["Haber"].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
             }
 
-            if (dgvHistorial.Columns.Contains("Haber"))
+            if (dgvDetalle.Columns.Contains("Saldo"))
             {
-                dgvHistorial.Columns["Haber"].HeaderText = "Haber";
-                dgvHistorial.Columns["Haber"].DefaultCellStyle.Format = "C2";
-                dgvHistorial.Columns["Haber"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvHistorial.Columns["Haber"].Width = 110;
-                dgvHistorial.Columns["Haber"].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
+                dgvDetalle.Columns["Saldo"].HeaderText = "Saldo";
+                dgvDetalle.Columns["Saldo"].DefaultCellStyle.Format = "C2";
+                dgvDetalle.Columns["Saldo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvDetalle.Columns["Saldo"].Width = 110;
+                dgvDetalle.Columns["Saldo"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
 
-            if (dgvHistorial.Columns.Contains("Saldo"))
+            if (dgvDetalle.Columns.Contains("Detalle"))
             {
-                dgvHistorial.Columns["Saldo"].HeaderText = "Saldo";
-                dgvHistorial.Columns["Saldo"].DefaultCellStyle.Format = "C2";
-                dgvHistorial.Columns["Saldo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvHistorial.Columns["Saldo"].Width = 110;
-                dgvHistorial.Columns["Saldo"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            }
-
-            if (dgvHistorial.Columns.Contains("Detalle"))
-            {
-                dgvHistorial.Columns["Detalle"].HeaderText = "Detalle";
-                dgvHistorial.Columns["Detalle"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvDetalle.Columns["Detalle"].HeaderText = "Detalle";
+                dgvDetalle.Columns["Detalle"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             }
 
             // ✅ Colorear filas según tipo
-            foreach (DataGridViewRow row in dgvHistorial.Rows)
-            {
-                if (row.Cells["Tipo"].Value?.ToString() == "COMPRA")
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 245, 245);
-                }
-                else if (row.Cells["Tipo"].Value?.ToString() == "PAGO")
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(245, 255, 245);
-                }
-            }
+            //foreach (DataGridViewRow row in dgvDetalle.Rows)
+            //{
+            //    if (row.Cells["Tipo"].Value?.ToString() == "COMPRA")
+            //    {
+            //        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 245, 245);
+            //    }
+            //    else if (row.Cells["Tipo"].Value?.ToString() == "PAGO")
+            //    {
+            //        row.DefaultCellStyle.BackColor = Color.FromArgb(245, 255, 245);
+            //    }
+            //}
         }
     }
 
@@ -1109,56 +1061,44 @@ namespace Comercio.NET.Formularios
 
         private void FormatearGrilla()
         {
-            if (dgvDetalle.Columns.Contains("Id"))
-                dgvDetalle.Columns["Id"].Visible = false;
-
-            if (dgvDetalle.Columns.Contains("CompraId"))
-                dgvDetalle.Columns["CompraId"].Visible = false;
-
-            if (dgvDetalle.Columns.Contains("NumeroFactura"))
-            {
-                dgvDetalle.Columns["NumeroFactura"].HeaderText = "Nro. Factura";
-                dgvDetalle.Columns["NumeroFactura"].Width = 120;
-            }
-
             if (dgvDetalle.Columns.Contains("Fecha"))
             {
                 dgvDetalle.Columns["Fecha"].HeaderText = "Fecha";
-                dgvDetalle.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy";
-                dgvDetalle.Columns["Fecha"].Width = 100;
+                dgvDetalle.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
+                dgvDetalle.Columns["Fecha"].Width = 130;
             }
 
-            if (dgvDetalle.Columns.Contains("MontoTotal"))
+            if (dgvDetalle.Columns.Contains("Debe"))
             {
-                dgvDetalle.Columns["MontoTotal"].HeaderText = "Total";
-                dgvDetalle.Columns["MontoTotal"].DefaultCellStyle.Format = "C2";
-                dgvDetalle.Columns["MontoTotal"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvDetalle.Columns["MontoTotal"].Width = 120;
+                dgvDetalle.Columns["Debe"].HeaderText = "Debe";
+                dgvDetalle.Columns["Debe"].DefaultCellStyle.Format = "C2";
+                dgvDetalle.Columns["Debe"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvDetalle.Columns["Debe"].Width = 110;
+                dgvDetalle.Columns["Debe"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
             }
 
-            if (dgvDetalle.Columns.Contains("Pagado"))
+            if (dgvDetalle.Columns.Contains("Haber"))
             {
-                dgvDetalle.Columns["Pagado"].HeaderText = "Pagado";
-                dgvDetalle.Columns["Pagado"].DefaultCellStyle.Format = "C2";
-                dgvDetalle.Columns["Pagado"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvDetalle.Columns["Pagado"].Width = 120;
-                dgvDetalle.Columns["Pagado"].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
+                dgvDetalle.Columns["Haber"].HeaderText = "Haber";
+                dgvDetalle.Columns["Haber"].DefaultCellStyle.Format = "C2";
+                dgvDetalle.Columns["Haber"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvDetalle.Columns["Haber"].Width = 110;
+                dgvDetalle.Columns["Haber"].DefaultCellStyle.ForeColor = Color.FromArgb(76, 175, 80);
             }
 
             if (dgvDetalle.Columns.Contains("Saldo"))
             {
-                dgvDetalle.Columns["Saldo"].HeaderText = "Saldo Pendiente";
+                dgvDetalle.Columns["Saldo"].HeaderText = "Saldo";
                 dgvDetalle.Columns["Saldo"].DefaultCellStyle.Format = "C2";
                 dgvDetalle.Columns["Saldo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvDetalle.Columns["Saldo"].Width = 120;
-                dgvDetalle.Columns["Saldo"].DefaultCellStyle.ForeColor = Color.FromArgb(211, 47, 47);
+                dgvDetalle.Columns["Saldo"].Width = 110;
                 dgvDetalle.Columns["Saldo"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
 
-            if (dgvDetalle.Columns.Contains("Observaciones"))
+            if (dgvDetalle.Columns.Contains("Detalle"))
             {
-                dgvDetalle.Columns["Observaciones"].HeaderText = "Observaciones";
-                dgvDetalle.Columns["Observaciones"].Width = 200;
+                dgvDetalle.Columns["Detalle"].HeaderText = "Detalle";
+                dgvDetalle.Columns["Detalle"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             }
         }
 
@@ -1524,14 +1464,16 @@ namespace Comercio.NET.Formularios
 
                                 decimal montoPagar = Math.Min(montoRestante, factura.Saldo);
 
-                                // ✅ Construir Observaciones IGUAL que PagoProveedorRapidoForm
+                                // Observaciones para ambos inserts
                                 string observaciones = $"Compra #{factura.CompraId ?? 0} | Método: {medioPago} | " +
                                     $"Ref: {referencia} - {factura.Fecha:dd/MM/yyyy} - Saldo: {factura.Saldo:C2}";
 
-                                // ✅ INSERT usando SOLO las columnas que existen
+                                // Insertar en PagosProveedores
                                 var insertPago = @"
-                                INSERT INTO PagosProveedores (FechaPago, Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, NombreEquipo, FechaRegistro, IdProveedor)
-                                VALUES (@FechaPago, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @Usuario, @NombreEquipo, @FechaRegistro, @IdProveedor);
+                                INSERT INTO PagosProveedores 
+                                    (FechaPago, Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, NombreEquipo, FechaRegistro, IdProveedor, Origen)
+                                VALUES 
+                                    (@FechaPago, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @Usuario, @NombreEquipo, @FechaRegistro, @IdProveedor, @Origen);
 ";
 
                                 using (var cmdPago = new SqlCommand(insertPago, conn, tx))
@@ -1540,13 +1482,12 @@ namespace Comercio.NET.Formularios
                                     cmdPago.Parameters.AddWithValue("@Proveedor", proveedorNombre);
                                     cmdPago.Parameters.AddWithValue("@Monto", montoPagar);
                                     cmdPago.Parameters.AddWithValue("@Observaciones", observaciones);
-                                    cmdPago.Parameters.AddWithValue("@NumeroCajero",
-                                        AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1);
+                                    cmdPago.Parameters.AddWithValue("@NumeroCajero", AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1);
                                     cmdPago.Parameters.AddWithValue("@Usuario", usuario);
                                     cmdPago.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
                                     cmdPago.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
                                     cmdPago.Parameters.AddWithValue("@IdProveedor", proveedorId > 0 ? (object)proveedorId : DBNull.Value);
-
+                                    cmdPago.Parameters.AddWithValue("@Origen", "PagoGeneral"); // <--- MARCA EL PAGO COMO GENERAL
                                     await cmdPago.ExecuteNonQueryAsync();
                                 }
 
@@ -1573,7 +1514,63 @@ namespace Comercio.NET.Formularios
                                     await updateCompra.ExecuteNonQueryAsync();
                                 }
 
+                                // Insertar movimiento en la cuenta corriente (CtaCteProveedores)
+                                var insertCtaCte = @"
+                            INSERT INTO CtaCteProveedores (Proveedor, Fecha, Concepto, Debe, Haber)
+                            VALUES (@Proveedor, @Fecha, @Concepto, @Debe, @Haber);
+                        ";
+                                using (var cmdCtaCte = new SqlCommand(insertCtaCte, conn, tx))
+                                {
+                                    cmdCtaCte.Parameters.AddWithValue("@Proveedor", proveedorNombre);
+                                    cmdCtaCte.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    cmdCtaCte.Parameters.AddWithValue("@Concepto", "Pago general");
+                                    cmdCtaCte.Parameters.AddWithValue("@Debe", 0);
+                                    cmdCtaCte.Parameters.AddWithValue("@Haber", montoPagar);
+                                    await cmdCtaCte.ExecuteNonQueryAsync();
+                                }
+
                                 montoRestante -= montoPagar;
+                            }
+                            // Si queda monto sin aplicar (no hay facturas pendientes), registrar como pago a cuenta
+                            if (montoRestante > 0)
+                            {
+                                // Insertar en PagosProveedores como pago a cuenta
+                                var insertPago = @"
+        INSERT INTO PagosProveedores 
+            (FechaPago, Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, NombreEquipo, FechaRegistro, IdProveedor, Origen)
+        VALUES 
+            (@FechaPago, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @Usuario, @NombreEquipo, @FechaRegistro, @IdProveedor, @Origen);
+    ";
+
+                                using (var cmdPago = new SqlCommand(insertPago, conn, tx))
+                                {
+                                    cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
+                                    cmdPago.Parameters.AddWithValue("@Proveedor", proveedorNombre);
+                                    cmdPago.Parameters.AddWithValue("@Monto", montoRestante);
+                                    cmdPago.Parameters.AddWithValue("@Observaciones", "Pago a cuenta (sin facturas pendientes)");
+                                    cmdPago.Parameters.AddWithValue("@NumeroCajero", AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1);
+                                    cmdPago.Parameters.AddWithValue("@Usuario", usuario);
+                                    cmdPago.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+                                    cmdPago.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
+                                    cmdPago.Parameters.AddWithValue("@IdProveedor", proveedorId > 0 ? (object)proveedorId : DBNull.Value);
+                                    cmdPago.Parameters.AddWithValue("@Origen", "PagoGeneral");
+                                    await cmdPago.ExecuteNonQueryAsync();
+                                }
+
+                                // Insertar movimiento en la cuenta corriente (CtaCteProveedores)
+                                var insertCtaCte = @"
+                                                INSERT INTO CtaCteProveedores (Proveedor, Fecha, Concepto, Debe, Haber)
+                                                VALUES (@Proveedor, @Fecha, @Concepto, @Debe, @Haber);
+                                            ";
+                                using (var cmdCtaCte = new SqlCommand(insertCtaCte, conn, tx))
+                                {
+                                    cmdCtaCte.Parameters.AddWithValue("@Proveedor", proveedorNombre);
+                                    cmdCtaCte.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    cmdCtaCte.Parameters.AddWithValue("@Concepto", "Pago a cuenta");
+                                    cmdCtaCte.Parameters.AddWithValue("@Debe", 0);
+                                    cmdCtaCte.Parameters.AddWithValue("@Haber", montoRestante);
+                                    await cmdCtaCte.ExecuteNonQueryAsync();
+                                }
                             }
 
                             tx.Commit();
@@ -1602,7 +1599,7 @@ namespace Comercio.NET.Formularios
     {
         private readonly int proveedorId;
         private readonly string proveedorNombre;
-        private DataGridView dgvHistorial;
+        private DataGridView dgvDetalle;
         private Label lblTotal;
         private DateTimePicker dtpDesde;
         private DateTimePicker dtpHasta;
@@ -1630,7 +1627,7 @@ namespace Comercio.NET.Formularios
                 Dock = DockStyle.Top,
                 Height = 45, // ✅ Más compacto
                 Padding = new Padding(12, 8, 12, 8),
-                BackColor = Color.FromArgb(245, 245, 245)
+                BackColor = Color.FromArgb(156, 39, 176)
             };
 
             var lblDesde = new Label
@@ -1685,10 +1682,10 @@ namespace Comercio.NET.Formularios
             lblDesde, dtpDesde, lblHasta, dtpHasta, btnFiltrar
             });
 
-            // ✅ MODIFICADO: Grilla más grande (ocupa más espacio)
-            dgvHistorial = new DataGridView
+            // Grilla
+            dgvDetalle = new DataGridView
             {
-                Dock = DockStyle.Fill, // ✅ Ocupa todo el espacio disponible
+                Dock = DockStyle.Fill,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
@@ -1698,7 +1695,7 @@ namespace Comercio.NET.Formularios
                 BorderStyle = BorderStyle.None // ✅ Sin borde para ganar espacio
             };
 
-            // ✅ MODIFICADO: Footer más compacto
+            // Panel resumen
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -1719,7 +1716,7 @@ namespace Comercio.NET.Formularios
             pnlFooter.Controls.Add(lblTotal);
 
             // ✅ Agregar controles en orden de apilamiento
-            this.Controls.Add(dgvHistorial);
+            this.Controls.Add(dgvDetalle);
             this.Controls.Add(pnlFooter);
             this.Controls.Add(pnlFiltros);
         }
@@ -1780,7 +1777,7 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                dgvHistorial.DataSource = dt;
+                dgvDetalle.DataSource = dt;
                 FormatearGrilla();
 
                 decimal totalPagado = 0m;
@@ -1801,41 +1798,41 @@ namespace Comercio.NET.Formularios
 
         private void FormatearGrilla()
         {
-            if (dgvHistorial.Columns.Contains("Id"))
-                dgvHistorial.Columns["Id"].Visible = false;
+            if (dgvDetalle.Columns.Contains("Id"))
+                dgvDetalle.Columns["Id"].Visible = false;
 
-            if (dgvHistorial.Columns.Contains("Fecha"))
+            if (dgvDetalle.Columns.Contains("Fecha"))
             {
-                dgvHistorial.Columns["Fecha"].HeaderText = "Fecha";
-                dgvHistorial.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
-                dgvHistorial.Columns["Fecha"].Width = 130; // ✅ Más compacto
+                dgvDetalle.Columns["Fecha"].HeaderText = "Fecha";
+                dgvDetalle.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
+                dgvDetalle.Columns["Fecha"].Width = 130; // ✅ Más compacto
             }
 
-            if (dgvHistorial.Columns.Contains("NumeroFactura"))
+            if (dgvDetalle.Columns.Contains("NumeroFactura"))
             {
-                dgvHistorial.Columns["NumeroFactura"].HeaderText = "Factura";
-                dgvHistorial.Columns["NumeroFactura"].Width = 100; // ✅ Más estrecho
+                dgvDetalle.Columns["NumeroFactura"].HeaderText = "Factura";
+                dgvDetalle.Columns["NumeroFactura"].Width = 100; // ✅ Más estrecho
             }
 
-            if (dgvHistorial.Columns.Contains("Metodo"))
+            if (dgvDetalle.Columns.Contains("Metodo"))
             {
-                dgvHistorial.Columns["Metodo"].HeaderText = "Método";
-                dgvHistorial.Columns["Metodo"].Width = 90; // ✅ Más estrecho
+                dgvDetalle.Columns["Metodo"].HeaderText = "Método";
+                dgvDetalle.Columns["Metodo"].Width = 90; // ✅ Más estrecho
             }
 
-            if (dgvHistorial.Columns.Contains("Monto"))
+            if (dgvDetalle.Columns.Contains("Monto"))
             {
-                dgvHistorial.Columns["Monto"].HeaderText = "Monto";
-                dgvHistorial.Columns["Monto"].DefaultCellStyle.Format = "C2";
-                dgvHistorial.Columns["Monto"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvHistorial.Columns["Monto"].Width = 110; // ✅ Más estrecho
-                dgvHistorial.Columns["Monto"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvDetalle.Columns["Monto"].HeaderText = "Monto";
+                dgvDetalle.Columns["Monto"].DefaultCellStyle.Format = "C2";
+                dgvDetalle.Columns["Monto"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvDetalle.Columns["Monto"].Width = 110; // ✅ Más estrecho
+                dgvDetalle.Columns["Monto"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
 
-            if (dgvHistorial.Columns.Contains("Referencia"))
+            if (dgvDetalle.Columns.Contains("Referencia"))
             {
-                dgvHistorial.Columns["Referencia"].HeaderText = "Referencia";
-                dgvHistorial.Columns["Referencia"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // ✅ Usa espacio restante
+                dgvDetalle.Columns["Referencia"].HeaderText = "Referencia";
+                dgvDetalle.Columns["Referencia"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill; // ✅ Usa espacio restante
             }
 
             // ✅ ELIMINADA: Columna "Usuario" para ahorrar espacio

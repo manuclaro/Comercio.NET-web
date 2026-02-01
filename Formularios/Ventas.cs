@@ -442,6 +442,40 @@ namespace Comercio.NET
                             "Pago a Proveedor",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
+
+                        try
+                        {
+                            string connectionString = GetConnectionString();
+                            using (var connection = new SqlConnection(connectionString))
+                            {
+                                await connection.OpenAsync();
+
+                                var query = @"
+                                            INSERT INTO CtaCteProveedores
+                                                (Fecha, Proveedor, Debe, Haber, Concepto, Usuario)
+                                            VALUES
+                                                (@Fecha, @Proveedor, @Debe, @Haber, @Concepto, @Usuario)";
+                                using (var cmd = new SqlCommand(query, connection))
+                                {
+                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@Proveedor", dialogoPago.ProveedorSeleccionado ?? "");
+                                    cmd.Parameters.AddWithValue("@Debe", 0); // Si es un pago, Debe=0
+                                    cmd.Parameters.AddWithValue("@Haber", dialogoPago.Monto); // Haber=importe pagado
+                                    cmd.Parameters.AddWithValue("@Concepto", $"Pago proveedor - {dialogoPago.MetodoPago} - {dialogoPago.Referencia}");
+                                    cmd.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error registrando en CtaCteProveedores: {ex.Message}");
+                            MessageBox.Show(
+                                $"El pago fue registrado, pero no se pudo actualizar la cuenta corriente del proveedor.\n\n{ex.Message}",
+                                "Advertencia",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                        }
                     }
                 }
             }
@@ -2169,6 +2203,12 @@ VALUES
         private void cbnombreCtaCte_SelectedIndexChanged(object sender, EventArgs e)
         {
             // Lógica para manejar cambio de cuenta corriente
+            // Hacer foco en el campo de búsqueda de producto
+            if (txtBuscarProducto != null && !txtBuscarProducto.IsDisposed)
+            {
+                txtBuscarProducto.Focus();
+                txtBuscarProducto.SelectAll();
+            }
         }
 
         // NUEVO: Implementar método FormatearDataGridView

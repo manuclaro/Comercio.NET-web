@@ -643,7 +643,7 @@ namespace Comercio.NET.Formularios
                                 MessageBox.Show($"La compra fue guardada pero ocurrió un error al procesar los pagos: {exModal.Message}", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             }
 
-                            MessageBox.Show("Compra guardada correctamente.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            //MessageBox.Show("Compra guardada correctamente.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             this.Close();
                         }
                         catch (Exception exTx)
@@ -665,10 +665,7 @@ namespace Comercio.NET.Formularios
         private async Task GuardarPagosYDeudaAsync(int compraId, int? proveedorId, List<PagoInfo> pagos, decimal totalCompra)
         {
             if ((pagos == null || pagos.Count == 0) && (proveedorId == null))
-            {
-                // nada que hacer, no hay pagos ni proveedor asociado
                 return;
-            }
 
             var cs = GetConnectionString();
             try
@@ -680,82 +677,73 @@ namespace Comercio.NET.Formularios
                     {
                         try
                         {
-                            decimal totalPagado = 0m;
+                            decimal totalPagado = pagos.Sum(p => p.Monto);
+                            var fechaMovimiento = DateTime.Now;
 
-                            // ✅ CORREGIDO: Cambiar a la tabla correcta PagosProveedores
+                            // Insertar movimiento en CtaCteProveedores
+                            string concepto = pagos.Count > 0
+                                ? $"Compra y pago inmediato. Métodos: {string.Join(" + ", pagos.Select(p => p.Metodo))}. Referencias: {string.Join(" | ", pagos.Select(p => p.Referencia))}"
+                                : $"Compra registrada el {fechaMovimiento:G}";
+
+                            var insertCtaCteSql = @"
+INSERT INTO CtaCteProveedores
+    (Proveedor, Fecha, Concepto, Debe, Haber, IdPago, IdCompra, Usuario, FechaRegistro)
+VALUES
+    (@Proveedor, @Fecha, @Concepto, @Debe, @Haber, @IdPago, @IdCompra, @Usuario, @FechaRegistro);";
+
+                            using (var cmd = new SqlCommand(insertCtaCteSql, conn, tx))
+                            {
+                                cmd.Parameters.AddWithValue("@Proveedor", cmbProveedor.Text.Trim());
+                                cmd.Parameters.AddWithValue("@Fecha", fechaMovimiento);
+                                cmd.Parameters.AddWithValue("@Concepto", concepto);
+                                cmd.Parameters.AddWithValue("@Debe", totalCompra);
+                                cmd.Parameters.AddWithValue("@Haber", totalPagado);
+                                cmd.Parameters.AddWithValue("@IdPago", DBNull.Value); // Puedes asociar el pago si lo deseas
+                                cmd.Parameters.AddWithValue("@IdCompra", compraId);
+                                cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
+                                cmd.Parameters.AddWithValue("@FechaRegistro", fechaMovimiento);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            // Registrar los pagos en la tabla de pagos (para trazabilidad/auditoría)
                             var insertPagoSql = @"INSERT INTO PagosProveedores
                         (Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, FechaPago, FechaRegistro, IdProveedor, CtaCteId)
                         VALUES (@Proveedor, @Monto, @Observaciones, @NumeroCajero, @UsuarioRegistro, @FechaPago, @FechaRegistro, @IdProveedor, @CtaCteId);";
 
+                            int pagoIndex = 1;
                             foreach (var p in pagos)
                             {
                                 using (var cmd = new SqlCommand(insertPagoSql, conn, tx))
                                 {
                                     cmd.Parameters.AddWithValue("@Proveedor", cmbProveedor.Text.Trim());
                                     cmd.Parameters.AddWithValue("@Monto", p.Monto);
-
-                                    // Observaciones con método, referencia y CompraId
                                     string observaciones = $"{p.Metodo} - {p.Referencia ?? "Sin referencia"} - Compra ID: {compraId}";
                                     cmd.Parameters.AddWithValue("@Observaciones", observaciones);
-
-                                    // Número de cajero del usuario logueado
                                     int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
                                     cmd.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
-
-                                    // Usuario que registra
                                     string usuario = AuthenticationService.SesionActual?.Usuario?.NombreCompleto ?? Environment.UserName;
                                     cmd.Parameters.AddWithValue("@UsuarioRegistro", usuario);
-
-                                    cmd.Parameters.AddWithValue("@FechaPago", DateTime.Now);
-                                    cmd.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
+                                    cmd.Parameters.AddWithValue("@FechaPago", fechaMovimiento.AddMilliseconds(pagoIndex));
+                                    cmd.Parameters.AddWithValue("@FechaRegistro", fechaMovimiento.AddMilliseconds(pagoIndex));
                                     cmd.Parameters.AddWithValue("@IdProveedor", proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@CtaCteId", DBNull.Value); // Ajustar según tu lógica
-
+                                    cmd.Parameters.AddWithValue("@CtaCteId", DBNull.Value);
                                     await cmd.ExecuteNonQueryAsync();
                                 }
-                                totalPagado += p.Monto;
+                                pagoIndex++;
                             }
 
-                            decimal saldo = totalCompra - totalPagado;
-                            if (saldo > 0)
+                            // Marcar compra como cuenta corriente si corresponde
+                            var updCompra = @"UPDATE ComprasProveedores SET EsCtaCte = 1, NombreCtaCte = @Nombre WHERE Id = @Id;";
+                            using (var cmd = new SqlCommand(updCompra, conn, tx))
                             {
-                                // Insertar registro de deuda (ajusta la tabla/columnas según tu BD)
-                                var insertDeudaSql = @"INSERT INTO ProveedoresCtaCte
-                            (ProveedorId, CompraId, Fecha, MontoTotal, MontoAdeudado, Saldo, Observaciones, Usuario)
-                            VALUES (@ProveedorId, @CompraId, @Fecha, @MontoTotal, @MontoAdeudado, @Saldo, @Observaciones, @Usuario);";
-
-                                using (var cmd = new SqlCommand(insertDeudaSql, conn, tx))
-                                {
-                                    cmd.Parameters.AddWithValue("@ProveedorId", proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@CompraId", compraId);
-                                    cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
-                                    cmd.Parameters.AddWithValue("@MontoTotal", totalCompra);
-                                    cmd.Parameters.AddWithValue("@MontoAdeudado", saldo);
-                                    cmd.Parameters.AddWithValue("@Saldo", saldo);
-                                    cmd.Parameters.AddWithValue("@Observaciones", "Deuda generada por compra parcialmente pagada");
-                                    cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
-                                    await cmd.ExecuteNonQueryAsync();
-                                }
-
-                                // Marcar compra como cuenta corriente
-                                var updCompra = @"UPDATE ComprasProveedores SET EsCtaCte = 1, NombreCtaCte = @Nombre WHERE Id = @Id;";
-                                using (var cmd = new SqlCommand(updCompra, conn, tx))
-                                {
-                                    cmd.Parameters.AddWithValue("@Nombre", cmbProveedor.Text.Trim());
-                                    cmd.Parameters.AddWithValue("@Id", compraId);
-                                    await cmd.ExecuteNonQueryAsync();
-                                }
+                                cmd.Parameters.AddWithValue("@Nombre", cmbProveedor.Text.Trim());
+                                cmd.Parameters.AddWithValue("@Id", compraId);
+                                await cmd.ExecuteNonQueryAsync();
                             }
 
                             tx.Commit();
 
-                            // ✅ Mensaje informativo con detalles
-                            string mensaje = $"Pagos registrados correctamente.\n" +
-                                           $"Total compra: {totalCompra:C2}\n" +
-                                           $"Total pagado: {totalPagado:C2}\n" +
-                                           $"Saldo pendiente: {saldo:C2}";
-
-                            MessageBox.Show(mensaje, "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("Compra y pagos registrados correctamente en la cuenta corriente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         catch (Exception ex)
                         {
