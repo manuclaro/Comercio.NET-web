@@ -539,6 +539,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
         private Button btnFiltrar;
         private Button btnCerrar;
         private ComboBox cmbTipoMovimiento;
+        private Button btnEliminar;
 
         public HistorialCompletoProveedorForm(int proveedorId, string proveedorNombre)
         {
@@ -682,12 +683,107 @@ ORDER BY SaldoPendiente DESC, Proveedor;
             btnCerrar.FlatAppearance.BorderSize = 0;
             btnCerrar.Click += (s, e) => this.DialogResult = DialogResult.OK;
 
+            btnEliminar = new Button
+            {
+                Text = "Eliminar",
+                Dock = DockStyle.Right,
+                Width = 120,
+                Height = 32,
+                BackColor = Color.FromArgb(211, 47, 47),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnEliminar.FlatAppearance.BorderSize = 0;
+            btnEliminar.Click += async (s, e) => await BtnEliminar_Click(s, e);
+
+            // Panel espaciador
+            var spacer = new Panel
+            {
+                Dock = DockStyle.Right,
+                Width = 24 // Puedes ajustar el ancho para más o menos separación
+            };
+
+            // Agregar controles en orden: primero el espaciador, luego Eliminar, luego Cerrar
             pnlResumen.Controls.Add(lblResumen);
+            pnlResumen.Controls.Add(btnEliminar);
+            pnlResumen.Controls.Add(spacer);
             pnlResumen.Controls.Add(btnCerrar);
 
             this.Controls.Add(dgvDetalle);
             this.Controls.Add(pnlResumen);
             this.Controls.Add(pnlFiltros);
+        }
+
+        // Nuevo método para eliminar
+        private async Task BtnEliminar_Click(object sender, EventArgs e)
+        {
+            if (dgvDetalle.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Seleccione un registro para eliminar.", "Información",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var row = dgvDetalle.SelectedRows[0];
+            var dataRowView = row.DataBoundItem as DataRowView;
+            if (dataRowView == null)
+            {
+                MessageBox.Show("No se pudo obtener el registro de datos.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            var dataRow = dataRowView.Row;
+
+            int id = dataRow.Table.Columns.Contains("Id") && dataRow["Id"] != DBNull.Value
+                ? Convert.ToInt32(dataRow["Id"])
+                : 0;
+
+            // Confirmar eliminación
+            var confirm = MessageBox.Show("¿Está seguro que desea eliminar este registro? Esta acción no se puede deshacer.",
+                "Confirmar eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            try
+            {
+                string cs = GetConnectionString();
+                using (var conn = new SqlConnection(cs))
+                {
+                    await conn.OpenAsync();
+                    using (var tx = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Eliminar de CtaCteProveedores
+                            var deleteCtaCte = new SqlCommand("DELETE FROM CtaCteProveedores WHERE Id = @id", conn, tx);
+                            deleteCtaCte.Parameters.AddWithValue("@id", id);
+                            await deleteCtaCte.ExecuteNonQueryAsync();
+
+                            // Si es un pago, también eliminar de PagosProveedores (opcional, según tu modelo)
+                            // var deletePago = new SqlCommand("DELETE FROM PagosProveedores WHERE CtaCteId = @id", conn, tx);
+                            // deletePago.Parameters.AddWithValue("@id", id);
+                            // await deletePago.ExecuteNonQueryAsync();
+
+                            tx.Commit();
+                            MessageBox.Show("Registro eliminado correctamente.", "Éxito",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            await CargarHistorialAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            tx.Rollback();
+                            MessageBox.Show($"Error eliminando registro: {ex.Message}", "Error",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error de conexión: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private string GetConnectionString()
@@ -851,6 +947,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
         private Button btnPagar;
         private Button btnHistorial;
         private Button btnCerrar;
+        private Button btnEliminar;
 
         private readonly int proveedorId;
         private readonly string proveedorNombre;
@@ -966,6 +1063,21 @@ ORDER BY SaldoPendiente DESC, Proveedor;
             btnPagar.FlatAppearance.BorderSize = 0;
             btnPagar.Click += async (s, e) => await BtnPagar_Click(s, e);
 
+            btnEliminar = new Button
+            {
+                Text = "Eliminar",
+                Width = 100,
+                Height = 32,
+                BackColor = Color.FromArgb(211, 47, 47),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock = DockStyle.Right
+            };
+            btnEliminar.FlatAppearance.BorderSize = 0;
+            btnEliminar.Click += async (s, e) => await BtnEliminar_Click(s, e);
+
+            pnlBotones.Controls.Add(btnEliminar); // Agregar antes de btnCerrar para el orden visual
+
             pnlBotones.Controls.Add(btnCerrar);
             pnlBotones.Controls.Add(btnHistorial);
             pnlBotones.Controls.Add(btnPagar);
@@ -973,6 +1085,91 @@ ORDER BY SaldoPendiente DESC, Proveedor;
             this.Controls.Add(dgvDetalle);
             this.Controls.Add(pnlBotones);
             this.Controls.Add(pnlHeader);
+        }
+
+        private async Task BtnEliminar_Click(object sender, EventArgs e)
+        {
+            if (dgvDetalle.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Seleccione un registro para eliminar.", "Información",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var row = dgvDetalle.SelectedRows[0];
+
+            // Acceso correcto al DataRow
+            var dataRowView = row.DataBoundItem as DataRowView;
+            if (dataRowView == null)
+            {
+                MessageBox.Show("No se pudo obtener el registro de datos.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            var dataRow = dataRowView.Row;
+
+            int ctaCteId = dataRow.Table.Columns.Contains("Id") && dataRow["Id"] != DBNull.Value
+                ? Convert.ToInt32(dataRow["Id"])
+                : 0;
+            int? compraId = dataRow.Table.Columns.Contains("CompraId") && dataRow["CompraId"] != DBNull.Value
+                ? Convert.ToInt32(dataRow["CompraId"])
+                : (int?)null;
+
+            // Confirmar eliminación
+            var confirm = MessageBox.Show("¿Está seguro que desea eliminar este registro? Esta acción no se puede deshacer.",
+                "Confirmar eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            try
+            {
+                string cs = GetConnectionString();
+                using (var conn = new SqlConnection(cs))
+                {
+                    await conn.OpenAsync();
+                    using (var tx = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Determinar si es compra o pago según las columnas presentes
+                            bool esPago = dataRow.Table.Columns.Contains("Pagado") && dataRow["Pagado"] != DBNull.Value && Convert.ToDecimal(dataRow["Pagado"]) > 0;
+                            bool esCompra = dataRow.Table.Columns.Contains("MontoTotal") && dataRow["MontoTotal"] != DBNull.Value;
+
+                            if (esPago)
+                            {
+                                // Eliminar de PagosProveedores
+                                var deletePago = new SqlCommand("DELETE FROM PagosProveedores WHERE CtaCteId = @id", conn, tx);
+                                deletePago.Parameters.AddWithValue("@id", ctaCteId);
+                                await deletePago.ExecuteNonQueryAsync();
+                            }
+                            if (esCompra)
+                            {
+                                // Eliminar de ProveedoresCtaCte
+                                var deleteCompra = new SqlCommand("DELETE FROM ProveedoresCtaCte WHERE Id = @id", conn, tx);
+                                deleteCompra.Parameters.AddWithValue("@id", ctaCteId);
+                                await deleteCompra.ExecuteNonQueryAsync();
+                            }
+
+                            tx.Commit();
+                            MessageBox.Show("Registro eliminado correctamente.", "Éxito",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            await CargarDetalleAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            tx.Rollback();
+                            MessageBox.Show($"Error eliminando registro: {ex.Message}", "Error",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error de conexión: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private string GetConnectionString()
