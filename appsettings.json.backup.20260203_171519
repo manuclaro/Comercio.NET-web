@@ -1,8 +1,8 @@
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
+    "DefaultConnection": "Server=10.140.57.204,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;",
     "Testing": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
-    "Produccion": "Server=10.198.179.155,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
+    "Produccion": "Server=10.140.57.204,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
   },
   "Comercio": {
     "Nombre": "Comercio",
@@ -82,6 +82,6 @@
     ]
   },
   "BaseDatos": {
-    "AmbienteActivo": "Testing"
+    "AmbienteActivo": "Produccion"
   }
 }

@@ -510,10 +510,10 @@ namespace Comercio.NET
 
             rbEfectivo = new RadioButton
             {
-                Text = "Efectivo",
+                Text = "Efectivo (F1)",
                 Left = 10,
                 Top = 30,
-                Width = 100,
+                Width = 120,
                 Height = 25,
                 Font = fontRadio,
                 Checked = true
@@ -521,8 +521,8 @@ namespace Comercio.NET
 
             rbDNI = new RadioButton
             {
-                Text = "DNI",
-                Left = 120,
+                Text = "DNI (F2)",
+                Left = 140,
                 Top = 30,
                 Width = 100,
                 Height = 25,
@@ -531,10 +531,10 @@ namespace Comercio.NET
 
             rbMercadoPago = new RadioButton
             {
-                Text = "MercadoPago",
-                Left = 230,
+                Text = "MercadoPago (F3)",
+                Left = 250,
                 Top = 30,
-                Width = 140,
+                Width = 160,
                 Height = 25,
                 Font = fontRadio
             };
@@ -542,8 +542,8 @@ namespace Comercio.NET
             // NUEVO: RadioButton para "Otro"
             rbOtro = new RadioButton
             {
-                Text = "Otro",
-                Left = 380,
+                Text = "Otro (F4)",
+                Left = 420,
                 Top = 30,
                 Width = 100,
                 Height = 25,
@@ -697,7 +697,7 @@ namespace Comercio.NET
 
             btnRemito = new Button
             {
-                Text = "Remito",
+                Text = "Remito (F5)",
                 Width = 130,
                 Top = topBotones,
                 Height = 45,
@@ -709,7 +709,7 @@ namespace Comercio.NET
 
             btnFacturaC = new Button
             {
-                Text = "Factura C",
+                Text = "Factura C (F6)",
                 Width = 130,
                 Top = topBotones,
                 Height = 45,
@@ -721,7 +721,7 @@ namespace Comercio.NET
 
             btnFacturaB = new Button
             {
-                Text = "Factura B",
+                Text = "Factura B (F6)",
                 Width = 130,
                 Top = topBotones,
                 Height = 45,
@@ -745,7 +745,7 @@ namespace Comercio.NET
 
             btnFinalizarSinImpresion = new Button
             {
-                Text = "Finalizar (Sin impresión)",
+                Text = "Sin impresión (F7)",
                 Width = 130,
                 Top = topBotones,
                 Height = 45,
@@ -786,6 +786,15 @@ namespace Comercio.NET
 
             // ✅ Agregar tooltip explicativo
             var toolTip = new ToolTip();
+            toolTip.SetToolTip(rbEfectivo, "Atajo: F1\nSelecciona pago en efectivo.");
+            toolTip.SetToolTip(rbDNI, "Atajo: F2\nSelecciona pago con DNI.");
+            toolTip.SetToolTip(rbMercadoPago, "Atajo: F3\nSelecciona pago con MercadoPago.");
+            toolTip.SetToolTip(rbOtro, "Atajo: F4\nSelecciona otro método de pago.");
+
+            toolTip.SetToolTip(btnRemito, "Atajo: F5\nGenera un remito.");
+            toolTip.SetToolTip(btnFacturaC, "Atajo: F6\nGenera Factura C.");
+            toolTip.SetToolTip(btnFacturaB, "Atajo: F6\nGenera Factura B.");
+            toolTip.SetToolTip(btnFinalizarSinImpresion, "Atajo: F7\nFinaliza la venta sin imprimir.");
             toolTip.SetToolTip(btnLimpiarCacheAfip,
                 "Elimina tokens AFIP en cache.\n" +
                 "Usar solo si hay problemas de autenticación.\n\n" +
@@ -814,6 +823,19 @@ namespace Comercio.NET
             // Posicionar botones de forma centrada
             PosicionarBotones();
         }
+
+        private void MostrarTooltipPago(Control control)
+        {
+            var toolTip = new ToolTip();
+            toolTip.Show("Atajo activado", control, 0, control.Height, 1200);
+        }
+
+        private void MostrarTooltipBoton(Control control)
+        {
+            var toolTip = new ToolTip();
+            toolTip.Show("Atajo activado", control, 0, control.Height, 1200);
+        }
+
 
         // Método que posiciona secuencialmente los botones pero CENTRADOS en el ancho del formulario.
         private void PosicionarBotones()
@@ -865,11 +887,60 @@ namespace Comercio.NET
             this.KeyPreview = true;
             this.KeyDown += (s, e) =>
             {
-                if (e.KeyCode == Keys.Escape)
+                switch (e.KeyCode)
                 {
-                    e.SuppressKeyPress = true;
-                    this.DialogResult = DialogResult.Cancel;
-                    this.Close();
+                    case Keys.F1:
+                        rbEfectivo.Checked = true;
+                        //rbEfectivo.Focus();
+                        MostrarTooltipPago(rbEfectivo);
+                        break;
+                    case Keys.F2:
+                        rbDNI.Checked = true;
+                        //rbDNI.Focus();
+                        MostrarTooltipPago(rbDNI);
+                        break;
+                    case Keys.F3:
+                        rbMercadoPago.Checked = true;
+                        //rbMercadoPago.Focus();
+                        MostrarTooltipPago(rbMercadoPago);
+                        break;
+                    case Keys.F4:
+                        rbOtro.Checked = true;
+                        //rbOtro.Focus();
+                        MostrarTooltipPago(rbOtro);
+                        break;
+                    case Keys.F5:
+                        if (btnRemito.Enabled && btnRemito.Visible)
+                        {
+                            btnRemito.PerformClick();
+                            MostrarTooltipBoton(btnRemito);
+                        }
+                        break;
+                    case Keys.F6:
+                        // Prioridad: Factura C si está visible, sino Factura B
+                        if (btnFacturaC.Visible && btnFacturaC.Enabled)
+                        {
+                            btnFacturaC.PerformClick();
+                            MostrarTooltipBoton(btnFacturaC);
+                        }
+                        else if (btnFacturaB.Visible && btnFacturaB.Enabled)
+                        {
+                            btnFacturaB.PerformClick();
+                            MostrarTooltipBoton(btnFacturaB);
+                        }
+                        break;
+                    case Keys.F7:
+                        if (btnFinalizarSinImpresion.Enabled && btnFinalizarSinImpresion.Visible)
+                        {
+                            btnFinalizarSinImpresion.PerformClick();
+                            MostrarTooltipBoton(btnFinalizarSinImpresion);
+                        }
+                        break;
+                    case Keys.Escape:
+                        e.SuppressKeyPress = true;
+                        this.DialogResult = DialogResult.Cancel;
+                        this.Close();
+                        break;
                 }
             };
 

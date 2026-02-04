@@ -15,7 +15,7 @@
     "DomicilioFiscal": "122 N°1543 LA PLATA",
     "CodigoPostal": "1900",
     "InicioActividades": "2016-06-01",
-    "Condicion": "Monotributo",
+    "Condicion": "Responsable Inscripto",
     "PermitirFacturaA": true,
     "PermitirFacturaB": true,
     "PermitirFacturaC": false
@@ -32,10 +32,10 @@
     ]
   },
   "AFIP": {
-    "AmbienteActivo": "Testing",
+    "AmbienteActivo": "Produccion",
     "Testing": {
       "CUIT": "20-28069473-9",
-      "CondicionIVA": "Monotributo",
+      "CondicionIVA": "Responsable Inscripto",
       "PuntoVenta": 7,
       "CertificadoPath": "C:\\Certificados FE\\Testing\\FETesting.p12",
       "CertificadoPassword": "Micertificado",
@@ -48,8 +48,8 @@
       }
     },
     "Produccion": {
-      "CUIT": "27-26946022-4",
-      "CondicionIVA": "Monotributo",
+      "CUIT": "20-12826537-7",
+      "CondicionIVA": "Responsable Inscripto",
       "PuntoVenta": 5,
       "CertificadoPath": "C:\\Certificados FE\\Marcelo\\CertificadoFEMariaCeciliaMartinez.p12",
       "CertificadoPassword": "Micertificado",

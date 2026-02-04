@@ -5,20 +5,20 @@
     "Produccion": "Server=10.198.179.155,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
   },
   "Comercio": {
-    "Nombre": "Comercio",
-    "Domicilio": "Calle 122"
+    "Nombre": "Pistola",
+    "Domicilio": "Calle 66"
   },
   "Facturacion": {
-    "RazonSocial": "Maria Cecilia Martinez",
-    "CUIT": "27-26946022-4",
-    "IngBrutos": "27-26946022-4",
-    "DomicilioFiscal": "122 N°1543 LA PLATA",
-    "CodigoPostal": "1900",
-    "InicioActividades": "2016-06-01",
+    "RazonSocial": "DEL ZOTTO CARLOS",
+    "CUIT": "20-12826537-7",
+    "IngBrutos": "20128265377",
+    "DomicilioFiscal": "122 N°2838 BERISSO",
+    "CodigoPostal": "1923",
+    "InicioActividades": "2017-07-01",
     "Condicion": "Monotributo",
     "PermitirFacturaA": true,
     "PermitirFacturaB": true,
-    "PermitirFacturaC": false
+    "PermitirFacturaC": true
   },
   "Validaciones": {
     "ValidarStockDisponible": false
@@ -37,7 +37,7 @@
       "CUIT": "20-28069473-9",
       "CondicionIVA": "Monotributo",
       "PuntoVenta": 7,
-      "CertificadoPath": "C:\\Certificados FE\\Testing\\FETesting.p12",
+      "CertificadoPath": "C:\\Users\\Manuel\\source\\repos\\Comercio .NET\\Certificados FE\\FETesting.p12",
       "CertificadoPassword": "Micertificado",
       "WSAAUrl": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
       "WSFEUrl": "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
@@ -48,10 +48,10 @@
       }
     },
     "Produccion": {
-      "CUIT": "27-26946022-4",
+      "CUIT": "20-12826537-7",
       "CondicionIVA": "Monotributo",
-      "PuntoVenta": 5,
-      "CertificadoPath": "C:\\Certificados FE\\Marcelo\\CertificadoFEMariaCeciliaMartinez.p12",
+      "PuntoVenta": 7,
+      "CertificadoPath": "C:\\Certificados FE\\CertificadoFEPele.p12",
       "CertificadoPassword": "Micertificado",
       "WSAAUrl": "https://wsaa.afip.gov.ar/ws/services/LoginCms",
       "WSFEUrl": "https://servicios1.afip.gov.ar/wsfev1/service.asmx",
