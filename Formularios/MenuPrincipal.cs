@@ -27,6 +27,9 @@ namespace Comercio.NET
         private ToolStripStatusLabel lblUsuarioActual;
         private ToolStripSplitButton btnCambiarUsuario;
 
+        private ToolStripMenuItem controlVentasProductosToolStripMenuItem;
+        private ToolStripButton toolStripControlVentasProductos;
+
         // ✅ CORREGIDO: Constantes para actualización automática
         private const string CURRENT_VERSION = "1.3.0"; // ✅ ACTUALIZADO a versión actual
         private const string UPDATE_SERVER = "https://github.com/manuclaro/Comercio.NET-web/releases/download/v1.3.0"; // ✅ SIN version.json al final
@@ -47,7 +50,7 @@ namespace Comercio.NET
             AgregarActualizacionRapidaAlMenu();
             AgregarOpcionGestionOfertas();
             AgregarMenuConfiguracionPermisos();
-
+            AgregarMenuControlVentasProductos();
             // ✅ NUEVO: Configurar menú de ayuda con actualización
             ConfigurarMenuAyuda();
         }
@@ -786,6 +789,61 @@ namespace Comercio.NET
             }
         }
 
+        // NUEVO: Control de Ventas por Productos
+        private void ControlVentasProductosToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Verificar permisos (similar a control de facturas)
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+
+                    // Solo permitir acceso si puede ver reportes o es administrador
+                    if (usuario.PuedeVerReportes || usuario.Nivel == Models.NivelUsuario.Administrador)
+                    {
+                        // Verificar si ya está abierto
+                        foreach (Form form in this.MdiChildren)
+                        {
+                            if (form is FRMControlVentasProductos)
+                            {
+                                form.Activate();
+                                return;
+                            }
+                        }
+
+                        // Abrir nuevo formulario
+                        var controlVentasProductosForm = new FRMControlVentasProductos
+                        {
+                            MdiParent = this
+                        };
+                        controlVentasProductosForm.Show();
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para acceder al control de ventas por productos.\n\n" +
+                            "Este módulo requiere el permiso 'Ver Reportes'.\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesión activa.", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir control de ventas por productos: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         // NUEVO: Método para abrir cartelitos de precios desde el menú
         private void cartelitosToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -1478,6 +1536,86 @@ namespace Comercio.NET
                 System.Diagnostics.Debug.WriteLine($"⚠️ Error creando menú Productos: {ex.Message}");
             }
         }
+        private void AgregarMenuControlVentasProductos()
+        {
+            try
+            {
+                if (this.menuStrip == null) return;
+
+                // Buscar el menú "Ventas" o "Reportes"
+                var menuVentas = this.menuStrip.Items
+                    .OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Text.Contains("Ventas") || i.Text.Contains("Facturación"));
+
+                if (menuVentas == null)
+                {
+                    // Si no existe, buscar el menú donde está "Control Facturas"
+                    foreach (ToolStripMenuItem menu in this.menuStrip.Items.OfType<ToolStripMenuItem>())
+                    {
+                        var controlFacturas = menu.DropDownItems
+                            .OfType<ToolStripMenuItem>()
+                            .FirstOrDefault(i => i.Name == "controlFacturasToolStripMenuItem");
+
+                        if (controlFacturas != null)
+                        {
+                            menuVentas = menu;
+                            break;
+                        }
+                    }
+                }
+
+                if (menuVentas != null)
+                {
+                    // Verificar si ya existe
+                    var existeItem = menuVentas.DropDownItems
+                        .OfType<ToolStripMenuItem>()
+                        .Any(i => i.Name == "controlVentasProductosToolStripMenuItem");
+
+                    if (!existeItem)
+                    {
+                        // Crear el item
+                        controlVentasProductosToolStripMenuItem = new ToolStripMenuItem
+                        {
+                            Name = "controlVentasProductosToolStripMenuItem",
+                            Text = "📦 Control Ventas por Productos",
+                            ToolTipText = "Control y análisis de ventas por productos"
+                        };
+                        controlVentasProductosToolStripMenuItem.Click += ControlVentasProductosToolStripMenuItem_Click;
+
+                        // Buscar posición después de "Control Facturas"
+                        int insertIndex = -1;
+                        var controlFacturas = menuVentas.DropDownItems
+                            .OfType<ToolStripMenuItem>()
+                            .FirstOrDefault(i => i.Name == "controlFacturasToolStripMenuItem");
+
+                        if (controlFacturas != null)
+                        {
+                            insertIndex = menuVentas.DropDownItems.IndexOf(controlFacturas) + 1;
+                        }
+
+                        if (insertIndex >= 0)
+                        {
+                            menuVentas.DropDownItems.Insert(insertIndex, controlVentasProductosToolStripMenuItem);
+                        }
+                        else
+                        {
+                            menuVentas.DropDownItems.Add(controlVentasProductosToolStripMenuItem);
+                        }
+
+                        System.Diagnostics.Debug.WriteLine("✅ 'Control Ventas por Productos' agregado al menú");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ No se encontró el menú Ventas/Reportes");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error agregando control ventas productos: {ex.Message}");
+            }
+        }
+
 
         // ✅ NUEVO: Handler para abrir Actualización desde Excel
         private void ActualizacionExcel_Click(object sender, EventArgs e)
