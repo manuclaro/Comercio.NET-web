@@ -25,6 +25,10 @@ namespace Comercio.NET.Servicios
         // NUEVO: Datos de facturación desde appsettings.json
         private DatosFacturacion datosFacturacion;
 
+        // ✅ MODIFICADO: Variables para el cálculo de altura
+        private float alturaContenidoCalculada = 0f;
+        private bool modoCalculoAltura = true; // Indica si estamos calculando o imprimiendo
+
         public TicketPrintingService()
         {
             printDocument = new PrintDocument();
@@ -67,12 +71,15 @@ namespace Comercio.NET.Servicios
 
         private void ConfigurarTamañoTicket()
         {
-            int anchoTicket = (int)(70 / 25.4 * 100);
-            int altoTicket = (int)(200 / 25.4 * 100);
+            // ✅ MODIFICADO: Tamaño inicial para cálculo
+            int anchoTicket = (int)(70 / 25.4 * 100); // 70mm de ancho
+            int altoTicket = (int)(297 / 25.4 * 100); // Tamaño A4 inicial para cálculo
 
             PaperSize ticketSize = new PaperSize("Ticket", anchoTicket, altoTicket);
             printDocument.DefaultPageSettings.PaperSize = ticketSize;
             printDocument.DefaultPageSettings.Margins = new Margins(2, 2, 5, 5);
+
+            System.Diagnostics.Debug.WriteLine($"[PAPEL] ✅ Configurado papel inicial - Ancho: {anchoTicket / 100.0 * 25.4:F1}mm, Alto: {altoTicket / 100.0 * 25.4:F1}mm");
         }
 
         public async Task ImprimirTicket(DataTable datos, TicketConfig config)
@@ -82,6 +89,9 @@ namespace Comercio.NET.Servicios
 
             datosTicket = datos;
             configuracion = config;
+
+            // ✅ NUEVO: Resetear estado antes de imprimir
+            ResetearEstadoImpresion();
 
             // ✅ NO cargar IVA para Factura C
             if (config.TipoComprobante.Contains("Factura") || config.TipoComprobante.Contains("FACTURA"))
@@ -103,6 +113,29 @@ namespace Comercio.NET.Servicios
                 System.Diagnostics.Debug.WriteLine("📄 Detectado remito, usando formato estándar");
             }
 
+            // ✅ CRÍTICO: Primera pasada - calcular altura
+            System.Diagnostics.Debug.WriteLine("📐 PASO 1: Calculando altura del contenido...");
+            modoCalculoAltura = true;
+
+            using (Bitmap bmp = new Bitmap(1, 1))
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                PrintPageEventArgs args = new PrintPageEventArgs(
+                    g,
+                    printDocument.DefaultPageSettings.Bounds,
+                    printDocument.DefaultPageSettings.Bounds,
+                    printDocument.DefaultPageSettings
+                );
+                PrintDocument_PrintPage(printDocument, args);
+            }
+
+            // ✅ CRÍTICO: Ajustar tamaño del papel con la altura calculada
+            AjustarTamanoPapelAlContenido();
+
+            // ✅ CRÍTICO: Segunda pasada - imprimir con tamaño correcto
+            System.Diagnostics.Debug.WriteLine("🖨️ PASO 2: Imprimiendo con tamaño ajustado...");
+            modoCalculoAltura = false;
+
             using (PrintPreviewDialog previewDialog = new PrintPreviewDialog())
             {
                 previewDialog.Document = printDocument;
@@ -119,6 +152,9 @@ namespace Comercio.NET.Servicios
             datosTicket = datos;
             configuracion = config;
 
+            // ✅ NUEVO: Resetear estado antes de imprimir
+            ResetearEstadoImpresion();
+
             if (config.TipoComprobante.Contains("Factura") || config.TipoComprobante.Contains("FACTURA"))
             {
                 if (!config.TipoComprobante.Contains("FacturaC") && !config.TipoComprobante.Contains("FACTURA C"))
@@ -130,6 +166,29 @@ namespace Comercio.NET.Servicios
                     System.Diagnostics.Debug.WriteLine("🔵 Factura C - Impresión directa sin IVA");
                 }
             }
+
+            // ✅ CRÍTICO: Primera pasada - calcular altura
+            System.Diagnostics.Debug.WriteLine("📐 PASO 1: Calculando altura del contenido (impresión directa)...");
+            modoCalculoAltura = true;
+
+            using (Bitmap bmp = new Bitmap(1, 1))
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                PrintPageEventArgs args = new PrintPageEventArgs(
+                    g,
+                    printDocument.DefaultPageSettings.Bounds,
+                    printDocument.DefaultPageSettings.Bounds,
+                    printDocument.DefaultPageSettings
+                );
+                PrintDocument_PrintPage(printDocument, args);
+            }
+
+            // ✅ CRÍTICO: Ajustar tamaño del papel
+            AjustarTamanoPapelAlContenido();
+
+            // ✅ CRÍTICO: Segunda pasada - imprimir
+            System.Diagnostics.Debug.WriteLine("🖨️ PASO 2: Imprimiendo directamente con tamaño ajustado...");
+            modoCalculoAltura = false;
 
             printDocument.Print();
         }
@@ -218,8 +277,14 @@ namespace Comercio.NET.Servicios
         {
             if (datosTicket == null || configuracion == null) return;
 
-            System.Diagnostics.Debug.WriteLine("🖨️ Iniciando impresión...");
-            System.Diagnostics.Debug.WriteLine($"📄 Tipo comprobante: {configuracion.TipoComprobante}");
+            if (modoCalculoAltura)
+            {
+                System.Diagnostics.Debug.WriteLine("📐 Modo CÁLCULO - Midiendo altura del contenido...");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("🖨️ Modo IMPRESIÓN - Renderizando contenido...");
+            }
 
             Font fontNormal = new Font("Arial", 8);
             Font fontBold = new Font("Arial", 8, FontStyle.Bold);
@@ -233,27 +298,22 @@ namespace Comercio.NET.Servicios
             float y = topMargin;
             float anchoTotal = rightMargin - leftMargin;
 
+            // ✅ CRÍTICO: Asegurar una sola página
+            e.HasMorePages = false;
+
             y = ImprimirFechaHora(e.Graphics, fontNormal, leftMargin, rightMargin, y);
 
-            // ✅ CORREGIDO: Validación estricta del tipo de comprobante
-            // Un REMITO nunca debe mostrar datos fiscales, incluso si tiene CAE
             bool esFactura = (configuracion.TipoComprobante.Contains("Factura") ||
                              configuracion.TipoComprobante.Contains("FACTURA")) &&
                              !configuracion.TipoComprobante.Contains("REMITO") &&
                              !configuracion.TipoComprobante.ToUpper().Contains("REMITO");
 
-            System.Diagnostics.Debug.WriteLine($"🔍 Validación: esFactura = {esFactura}");
-            System.Diagnostics.Debug.WriteLine($"   - TipoComprobante: '{configuracion.TipoComprobante}'");
-            System.Diagnostics.Debug.WriteLine($"   - CAE: '{configuracion.CAE}'");
-
             if (esFactura)
             {
-                System.Diagnostics.Debug.WriteLine("📄 Imprimiendo como FACTURA con datos fiscales");
                 y = ImprimirDatosFacturacion(e.Graphics, fontTitulo, fontSubtitulo, leftMargin, rightMargin, y);
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("📄 Imprimiendo como REMITO sin datos fiscales");
                 y = ImprimirInfoComercio(e.Graphics, fontTitulo, fontSubtitulo, leftMargin, rightMargin, y);
             }
 
@@ -266,23 +326,19 @@ namespace Comercio.NET.Servicios
             {
                 if (esFacturaC)
                 {
-                    System.Diagnostics.Debug.WriteLine("🎯 Usando formato FACTURA C sin discriminar IVA");
                     y = ImprimirFacturaCSimple(e.Graphics, fontNormal, fontBold, leftMargin, rightMargin, anchoTotal, y);
                 }
                 else if (productosConIva != null && productosConIva.Count > 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("🎯 Usando formato FACTURA A/B con IVA");
                     y = ImprimirFacturaConIvaFormatoControlFacturas(e.Graphics, fontNormal, fontBold, leftMargin, rightMargin, anchoTotal, y);
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ Sin datos IVA, usando formato REMITO");
                     y = ImprimirRemitoSinIva(e.Graphics, fontNormal, fontBold, leftMargin, rightMargin, anchoTotal, y, linePen);
                 }
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("📄 Usando formato REMITO sin IVA");
                 y = ImprimirRemitoSinIva(e.Graphics, fontNormal, fontBold, leftMargin, rightMargin, anchoTotal, y, linePen);
             }
 
@@ -291,16 +347,65 @@ namespace Comercio.NET.Servicios
                 y = ImprimirPieTicket(e.Graphics, fontSubtitulo, leftMargin, rightMargin, y);
             }
 
-            // ✅ CORREGIDO: Solo imprimir información CAE para FACTURAS
             if (esFactura && !string.IsNullOrEmpty(configuracion.CAE))
             {
-                System.Diagnostics.Debug.WriteLine("📋 Imprimiendo información CAE");
                 y = ImprimirInformacionCAE(e.Graphics, fontSubtitulo, leftMargin, rightMargin, y);
             }
-            else if (!string.IsNullOrEmpty(configuracion.CAE))
+
+            // ✅ MODIFICADO: Guardar altura solo en modo cálculo
+            if (modoCalculoAltura)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ CAE presente pero NO se imprime (es REMITO)");
+                alturaContenidoCalculada = y - topMargin + 20; // +20 para margen inferior
+                System.Diagnostics.Debug.WriteLine($"📏 Altura calculada: {alturaContenidoCalculada:F2} unidades ({alturaContenidoCalculada / 100 * 25.4:F1}mm)");
             }
+
+            fontNormal.Dispose();
+            fontBold.Dispose();
+            fontTitulo.Dispose();
+            fontSubtitulo.Dispose();
+            linePen.Dispose();
+        }
+
+        // ✅ MODIFICADO: Método para ajustar el tamaño del papel al contenido real
+        private void AjustarTamanoPapelAlContenido()
+        {
+            try
+            {
+                if (alturaContenidoCalculada <= 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ No se calculó altura, usando tamaño por defecto");
+                    return;
+                }
+
+                // Convertir unidades de impresión (1/100 inch) a milímetros
+                float alturaEnMm = (alturaContenidoCalculada / 100f) * 25.4f;
+
+                // Redondear hacia arriba y agregar margen de seguridad
+                int altoTicketAjustado = (int)Math.Ceiling((alturaEnMm + 5) / 25.4 * 100); // +5mm margen
+
+                // Mantener el ancho existente
+                int anchoTicket = printDocument.DefaultPageSettings.PaperSize.Width;
+
+                // Crear nuevo tamaño de papel con altura ajustada
+                PaperSize ticketSizeAjustado = new PaperSize("TicketDinamico", anchoTicket, altoTicketAjustado);
+                printDocument.DefaultPageSettings.PaperSize = ticketSizeAjustado;
+
+                System.Diagnostics.Debug.WriteLine($"[PAPEL] ✅ Papel ajustado dinámicamente:");
+                System.Diagnostics.Debug.WriteLine($"   - Ancho: {anchoTicket / 100.0 * 25.4:F1}mm");
+                System.Diagnostics.Debug.WriteLine($"   - Alto calculado: {alturaEnMm:F1}mm");
+                System.Diagnostics.Debug.WriteLine($"   - Alto ajustado: {altoTicketAjustado / 100.0 * 25.4:F1}mm");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error ajustando tamaño de papel: {ex.Message}");
+            }
+        }
+
+        // ✅ MODIFICADO: Resetear estado antes de cada impresión
+        private void ResetearEstadoImpresion()
+        {
+            alturaContenidoCalculada = 0f;
+            modoCalculoAltura = true;
         }
 
         private float ImprimirDatosFacturacion(Graphics graphics, Font fontTitulo, Font fontSubtitulo, float leftMargin, float rightMargin, float y)
@@ -497,11 +602,6 @@ namespace Comercio.NET.Servicios
             graphics.DrawString(subtotalStr, fontBold, Brushes.Black, subtotalX, y);
             y += subtotalSize.Height + 4;
 
-            // ✅ DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔍 ImprimirTotalesFacturaC:");
-            System.Diagnostics.Debug.WriteLine($"   - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
-            System.Diagnostics.Debug.WriteLine($"   - ImporteDescuento: {configuracion?.ImporteDescuento ?? 0}");
-
             // ✅ MODIFICADO: Mostrar descuento si existe
             if (configuracion != null && configuracion.PorcentajeDescuento > 0)
             {
@@ -509,7 +609,6 @@ namespace Comercio.NET.Servicios
                 SizeF descuentoSize = graphics.MeasureString(descuentoStr, fontBold);
                 float descuentoX = rightMargin - descuentoSize.Width;
 
-                // ✅ CAMBIO: Color negro en lugar de rojo
                 graphics.DrawString(descuentoStr, fontBold, Brushes.Black, descuentoX, y);
                 y += descuentoSize.Height + 4;
             }
@@ -535,7 +634,6 @@ namespace Comercio.NET.Servicios
             SizeF totalSize = graphics.MeasureString(totalStr, fontTotal);
             float totalX = rightMargin - totalSize.Width;
 
-            // ✅ CAMBIO: Color negro en lugar de verde
             graphics.DrawString(totalStr, fontTotal, Brushes.Black, totalX, y);
             fontTotal.Dispose();
             y += totalSize.Height + 6;
@@ -696,12 +794,6 @@ namespace Comercio.NET.Servicios
             graphics.DrawString(subtotalStr, fontBold, Brushes.Black, subtotalX, y);
             y += subtotalSize.Height + 4;
 
-            // ✅ DEBUG
-            System.Diagnostics.Debug.WriteLine($"🔍 ImprimirTotalesBasicosFormatoFactura:");
-            System.Diagnostics.Debug.WriteLine($"   - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
-            System.Diagnostics.Debug.WriteLine($"   - ImporteDescuento: {configuracion?.ImporteDescuento ?? 0}");
-            System.Diagnostics.Debug.WriteLine($"   - ImporteFinal: {configuracion?.ImporteFinal ?? 0}");
-
             // ✅ MODIFICADO: Mostrar descuento si existe
             if (configuracion != null && configuracion.PorcentajeDescuento > 0)
             {
@@ -709,7 +801,6 @@ namespace Comercio.NET.Servicios
                 SizeF descuentoSize = graphics.MeasureString(descuentoStr, fontBold);
                 float descuentoX = rightMargin - descuentoSize.Width;
 
-                // ✅ CAMBIO: Color negro en lugar de rojo
                 graphics.DrawString(descuentoStr, fontBold, Brushes.Black, descuentoX, y);
                 y += descuentoSize.Height + 4;
             }
@@ -735,7 +826,6 @@ namespace Comercio.NET.Servicios
             SizeF totalSize = graphics.MeasureString(totalFinalStr, fontTotal);
             float totalX = rightMargin - totalSize.Width;
 
-            // ✅ CAMBIO: Color negro en lugar de verde
             graphics.DrawString(totalFinalStr, fontTotal, Brushes.Black, totalX, y);
             fontTotal.Dispose();
 
@@ -865,7 +955,6 @@ namespace Comercio.NET.Servicios
                 List<string> lineasDescripcion = DividirTextoEnLineasMejorado(graphics, descripcion, font, maxDescripcionWidth);
 
                 decimal precio = Convert.ToDecimal(row["precio"]);
-                // ✅ CORREGIDO: Siempre mostrar con 2 decimales
                 string precioStr = precio.ToString("C2");
                 SizeF precioSize = graphics.MeasureString(precioStr, font);
                 float precioX = colX[1] + colWidths[1] - precioSize.Width - 2;
@@ -879,7 +968,6 @@ namespace Comercio.NET.Servicios
 
                 decimal total = Convert.ToDecimal(row["total"]);
                 sumaTotal += total;
-                // ✅ CORREGIDO: Siempre mostrar con 2 decimales
                 string totalStr = total.ToString("C2");
                 SizeF totalSize = graphics.MeasureString(totalStr, font);
                 float totalX = colX[3] + colWidths[3] - totalSize.Width - 2;
@@ -1133,13 +1221,6 @@ namespace Comercio.NET.Servicios
             graphics.DrawString(subtotalStr, fontBold, Brushes.Black, subtotalX, y);
             y += subtotalSize.Height + 4;
 
-            // ✅ DEBUG: Verificar valores de configuración
-            System.Diagnostics.Debug.WriteLine($"🔍 ImprimirTotalesBasicos - Configuración:");
-            System.Diagnostics.Debug.WriteLine($"   - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
-            System.Diagnostics.Debug.WriteLine($"   - ImporteDescuento: {configuracion?.ImporteDescuento ?? 0}");
-            System.Diagnostics.Debug.WriteLine($"   - ImporteFinal: {configuracion?.ImporteFinal ?? 0}");
-            System.Diagnostics.Debug.WriteLine($"   - SumaTotal recibido: {sumaTotal}");
-
             // ✅ MODIFICADO: Mostrar descuento si existe
             if (configuracion != null && configuracion.PorcentajeDescuento > 0)
             {
@@ -1147,15 +1228,8 @@ namespace Comercio.NET.Servicios
                 SizeF descuentoSize = graphics.MeasureString(descuentoStr, fontBold);
                 float descuentoX = rightMargin - descuentoSize.Width;
 
-                // ✅ CAMBIO: Color negro en lugar de rojo
                 graphics.DrawString(descuentoStr, fontBold, Brushes.Black, descuentoX, y);
                 y += descuentoSize.Height + 4;
-
-                System.Diagnostics.Debug.WriteLine($"✅ Descuento mostrado en ticket: {descuentoStr}");
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"⚠️ NO se muestra descuento - PorcentajeDescuento: {configuracion?.PorcentajeDescuento ?? 0}");
             }
 
             // ✅ MODIFICADO: TOTAL FINAL con validación mejorada
@@ -1163,31 +1237,22 @@ namespace Comercio.NET.Servicios
 
             if (configuracion != null && configuracion.ImporteFinal > 0)
             {
-                // Si ImporteFinal tiene valor, usarlo directamente
                 totalFinal = configuracion.ImporteFinal;
-                System.Diagnostics.Debug.WriteLine($"✅ Usando ImporteFinal: {totalFinal:C2}");
             }
             else if (configuracion != null && configuracion.PorcentajeDescuento > 0 && configuracion.ImporteDescuento > 0)
             {
-                // Si no hay ImporteFinal pero hay descuento, calcularlo
                 totalFinal = sumaTotal - configuracion.ImporteDescuento;
-                System.Diagnostics.Debug.WriteLine($"✅ Calculando: {sumaTotal:C2} - {configuracion.ImporteDescuento:C2} = {totalFinal:C2}");
             }
             else
             {
-                // Si no hay descuento, usar el total sin descuento
                 totalFinal = sumaTotal;
-                System.Diagnostics.Debug.WriteLine($"✅ Sin descuento, usando sumaTotal: {totalFinal:C2}");
             }
-
-            System.Diagnostics.Debug.WriteLine($"💰 Total Final a imprimir: {totalFinal:C2}");
 
             string totalGeneralStr = $"TOTAL: {totalFinal:C2}";
             Font fontTotal = new Font(fontBold.FontFamily, fontBold.Size + 2, FontStyle.Bold);
             SizeF totalGeneralSize = graphics.MeasureString(totalGeneralStr, fontTotal);
             float totalGeneralX = rightMargin - totalGeneralSize.Width;
 
-            // ✅ CAMBIO: Color negro en lugar de verde
             graphics.DrawString(totalGeneralStr, fontTotal, Brushes.Black, totalGeneralX, y);
             fontTotal.Dispose();
 
