@@ -6,6 +6,10 @@ using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configurar puerto para Railway
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 // Configurar Kestrel para escuchar en localhost Y en la IP de red
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
