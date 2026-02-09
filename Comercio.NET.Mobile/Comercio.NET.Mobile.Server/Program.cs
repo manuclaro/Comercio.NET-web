@@ -6,16 +6,23 @@ using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar puerto para Railway
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+// Configurar puerto según el entorno
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 
-// Configurar Kestrel para escuchar en localhost Y en la IP de red
-builder.WebHost.ConfigureKestrel(serverOptions =>
+// Solo configurar IPs específicas en desarrollo local
+if (builder.Environment.IsDevelopment())
 {
-    serverOptions.Listen(IPAddress.Parse("127.0.0.1"), 5000); // Localhost
-    serverOptions.Listen(IPAddress.Parse("192.168.1.108"), 5000); // Tu IP específica
-});
+    builder.WebHost.ConfigureKestrel(serverOptions =>
+    {
+        serverOptions.Listen(IPAddress.Parse("127.0.0.1"), 5000);
+        serverOptions.Listen(IPAddress.Parse("192.168.1.108"), 5000);
+    });
+}
+else
+{
+    // En producción (Railway), escuchar en todas las interfaces
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 // Agregar servicios
 builder.Services.AddControllers();
