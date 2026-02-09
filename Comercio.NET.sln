@@ -1,9 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36414.22 d17.14
+VisualStudioVersion = 17.14.36414.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Comercio .NET", "Comercio .NET.csproj", "{A285646A-11E1-449B-A379-D39A076B01DE}"
+EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "comercio.net.mobile.client", "Comercio.NET.Mobile\comercio.net.mobile.client\comercio.net.mobile.client.esproj", "{F6DEA4DF-D30D-E0FF-99A1-93274E8929DA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Comercio.NET.Mobile.Server", "Comercio.NET.Mobile\Comercio.NET.Mobile.Server\Comercio.NET.Mobile.Server.csproj", "{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,16 @@ Global
 		{A285646A-11E1-449B-A379-D39A076B01DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A285646A-11E1-449B-A379-D39A076B01DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A285646A-11E1-449B-A379-D39A076B01DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6DEA4DF-D30D-E0FF-99A1-93274E8929DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6DEA4DF-D30D-E0FF-99A1-93274E8929DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6DEA4DF-D30D-E0FF-99A1-93274E8929DA}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{F6DEA4DF-D30D-E0FF-99A1-93274E8929DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6DEA4DF-D30D-E0FF-99A1-93274E8929DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6DEA4DF-D30D-E0FF-99A1-93274E8929DA}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

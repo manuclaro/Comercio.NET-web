@@ -9,6 +9,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Imagenes\Icon\ico\icons8-shop-40.ico</ApplicationIcon>
   </PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="Comercio.NET.Mobile\**" />
+		<EmbeddedResource Remove="Comercio.NET.Mobile\**" />
+		<None Remove="Comercio.NET.Mobile\**" />
+	</ItemGroup>
   <ItemGroup>
     <Content Include="Imagenes\Icon\ico\icons8-shop-40.ico" />
   </ItemGroup>
@@ -35,7 +40,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="System.Data.OleDb" Version="10.0.1" />
-    <PackageReference Include="System.Data.OleDb" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Formularios\LoginForm.cs">

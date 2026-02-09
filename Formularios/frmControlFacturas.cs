@@ -1636,6 +1636,35 @@ namespace Comercio.NET.Formularios
         // CORREGIR: Método de carga con conversión de datos numéricos
         private void CargarVentasPorFecha(DateTime desde, DateTime hasta)
         {
+            // ✅ Delegar toda la lógica a la versión asíncrona
+            _ = CargarVentasPorFechaAsync(desde, hasta);
+        }
+
+        // MODIFICAR: Event handler para el checkbox
+        private async void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
+        {
+            // Mostrar/ocultar el combobox según el estado del checkbox
+            cboFiltroCtaCte.Visible = chkCtaCte.Checked;
+
+            if (!chkCtaCte.Checked)
+            {
+                // Al destildar, ocultar el combobox y limpiar selección
+                cboFiltroCtaCte.SelectedIndex = -1;
+            }
+
+            // ✅ CAMBIO: Hacer la llamada async
+            await CargarVentasPorFechaAsync(dtpDesde.Value.Date, dtpHasta.Value.Date);
+
+            // ✅ NUEVO: Si está tildado, cargar nombres DESPUÉS de que se recargó la grilla
+            if (chkCtaCte.Checked)
+            {
+                CargarNombresCtaCteDesdeGrilla();
+                cboFiltroCtaCte.Focus();
+            }
+        }
+
+        private async Task CargarVentasPorFechaAsync(DateTime desde, DateTime hasta)
+        {
             try
             {
                 var config = new ConfigurationBuilder()
@@ -1646,7 +1675,6 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    // ✅ MODIFICADO: Remover columnas CUITCliente y Rubro
                     var query = chkCtaCte.Checked
                        ? @"SELECT 
                     f.NumeroRemito as 'Remito',
@@ -1699,8 +1727,11 @@ namespace Comercio.NET.Formularios
                         adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
                         adapter.SelectCommand.Parameters.AddWithValue("@hasta", hasta.Date);
                         adapter.SelectCommand.Parameters.AddWithValue("@esCtaCte", chkCtaCte.Checked);
+
                         DataTable dt = new DataTable();
-                        adapter.Fill(dt);
+
+                        // ✅ CRÍTICO: Ejecutar de forma asíncrona
+                        await Task.Run(() => adapter.Fill(dt));
 
                         // Eliminar filas completamente vacías
                         for (int i = dt.Rows.Count - 1; i >= 0; i--)
@@ -1719,24 +1750,32 @@ namespace Comercio.NET.Formularios
                                 dt.Rows.RemoveAt(i);
                         }
 
+                        // ✅ Asignar a la grilla
                         dgvVentas.DataSource = dt;
                         FormatearColumnas();
 
+                        // ✅ IMPORTANTE: Cargar formas y tipos ANTES de aplicar filtros
                         CargarFormasDePago();
                         CargarTiposFactura();
 
-                        // ✅ CORREGIDO: Cambiar txtFiltroCtaCte por cboFiltroCtaCte
-                        if (!string.IsNullOrEmpty(txtFiltroCajero.Text) ||
+                        // ✅ CRÍTICO: Decidir si aplicar filtros o actualizar resumen
+                        bool hayFiltrosActivos =
+                            !string.IsNullOrEmpty(txtFiltroCajero.Text) ||
                             (chkCtaCte.Checked && cboFiltroCtaCte.SelectedItem != null && cboFiltroCtaCte.SelectedItem.ToString() != "Todos los clientes") ||
-                            (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas"))
+                            (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas");
+
+                        if (hayFiltrosActivos)
                         {
-                            AplicarFiltros();
+                            AplicarFiltros(); // ✅ AplicarFiltros llama internamente a ActualizarResumenFiltrado
                         }
                         else
                         {
+                            // ✅ SOLUCIÓN: Actualizar resumen DESPUÉS de cargar los datos
                             ActualizarResumen(dt);
                             ActualizarTituloConFiltros(0, dt.Rows.Count, dt.Rows.Count);
                         }
+
+                        System.Diagnostics.Debug.WriteLine($"[CARGA ASYNC] ✅ Datos cargados: {dt.Rows.Count} facturas, Resumen actualizado");
                     }
                 }
             }
@@ -1744,29 +1783,6 @@ namespace Comercio.NET.Formularios
             {
                 MessageBox.Show($"Error al cargar las ventas: {ex.Message}\n\nDetalles: {ex.ToString()}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // MODIFICAR: Event handler para el checkbox
-        private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
-        {
-            // Mostrar/ocultar el combobox según el estado del checkbox
-            cboFiltroCtaCte.Visible = chkCtaCte.Checked;
-
-            if (!chkCtaCte.Checked)
-            {
-                // Al destildar, ocultar el combobox y limpiar selección
-                cboFiltroCtaCte.SelectedIndex = -1;
-            }
-
-            // ✅ CAMBIO: Recargar primero, y DESPUÉS cargar el combo
-            CargarVentasPorFecha(dtpDesde.Value.Date, dtpHasta.Value.Date);
-
-            // ✅ NUEVO: Si está tildado, cargar nombres DESPUÉS de que se recargó la grilla
-            if (chkCtaCte.Checked)
-            {
-                CargarNombresCtaCteDesdeGrilla();
-                cboFiltroCtaCte.Focus();
             }
         }
 
