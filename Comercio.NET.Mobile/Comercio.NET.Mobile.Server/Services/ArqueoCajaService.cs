@@ -77,10 +77,10 @@ namespace Comercio.NET.Mobile.Server.Services
                     AND (@cajero IS NULL OR Cajero = @cajero)
                     AND ISNULL(Cajero, '') <> ''";
 
-                var parameters = new Dictionary<string, object>
+                var parameters = new Dictionary<string, object?>
                 {
                     { "@fecha", fecha.ToString("yyyy-MM-dd") },
-                    { "@cajero", string.IsNullOrEmpty(cajero) ? DBNull.Value : cajero }
+                    { "@cajero", string.IsNullOrEmpty(cajero) ? null : cajero }
                 };
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
