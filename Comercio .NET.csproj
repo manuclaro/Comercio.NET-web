@@ -18,6 +18,7 @@
     <Content Include="Imagenes\Icon\ico\icons8-shop-40.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".dockerignore Comercio.NET.Mobile\Comercio.NET.Mobile.Server\.dockerignore" />
     <None Include="DebugAfip.csproj" />
   </ItemGroup>
   <ItemGroup>
