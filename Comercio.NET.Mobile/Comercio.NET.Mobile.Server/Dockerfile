@@ -3,26 +3,22 @@ WORKDIR /app
 EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copiar solo el .csproj primero (mejor caché)
-COPY ["Comercio.NET.Mobile.Server.csproj", "./"]
-RUN dotnet restore "Comercio.NET.Mobile.Server.csproj"
+# Copiar el .csproj (Railway/Render copian todo el directorio automáticamente)
+COPY ["*.csproj", "./"]
+RUN dotnet restore
 
 # Copiar el resto de archivos
 COPY . .
-
-# Build especificando el .csproj
-RUN dotnet build "Comercio.NET.Mobile.Server.csproj" -c Release -o /app/build
+RUN dotnet build -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
-# Publish especificando el .csproj
-RUN dotnet publish "Comercio.NET.Mobile.Server.csproj" -c Release -o /app/publish /p:UseAppHost=false
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
-EXPOSE 8080
 COPY --from=publish /app/publish .
-
-# wwwroot ya está incluido en /app/publish, no necesita copia adicional
 ENTRYPOINT ["dotnet", "Comercio.NET.Mobile.Server.dll"]
