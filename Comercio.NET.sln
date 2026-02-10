@@ -9,6 +9,8 @@ Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "comercio.net.mobile.client"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Comercio.NET.Mobile.Server", "Comercio.NET.Mobile\Comercio.NET.Mobile.Server\Comercio.NET.Mobile.Server.csproj", "{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Comercio.NET.SqlBridge.Server", "..\Comercio.NET.SqlBridge\Comercio.NET.SqlBridge.Server\Comercio.NET.SqlBridge.Server.csproj", "{BF3100F6-D4FF-AD1B-198D-DC4EB27BF16F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,6 +31,10 @@ Global
 		{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B58DFE9-282D-4B38-BF07-AB1E11F2A670}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF3100F6-D4FF-AD1B-198D-DC4EB27BF16F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF3100F6-D4FF-AD1B-198D-DC4EB27BF16F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF3100F6-D4FF-AD1B-198D-DC4EB27BF16F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF3100F6-D4FF-AD1B-198D-DC4EB27BF16F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
