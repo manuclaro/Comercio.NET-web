@@ -8,6 +8,9 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 // En producción (Railway), escuchar en todas las interfaces
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
+// Agregar HttpClient factory
+builder.Services.AddHttpClient();
+
 // Agregar servicios
 builder.Services.AddControllers();
 
@@ -24,6 +27,9 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
+// Agregar logging
+builder.Logging.AddConsole();
+
 var app = builder.Build();
 
 // Servir archivos estáticos (wwwroot)
@@ -37,23 +43,17 @@ app.MapControllers();
 // Fallback a index.html para SPA
 app.MapFallbackToFile("/index.html");
 
-// Endpoint adicional si lo necesitas
-app.MapGet("/misdatos", async () =>
+// Endpoint de salud
+app.MapGet("/api/health", () =>
 {
-    var baseUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL");
+    var sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL");
 
-    try
+    return Results.Ok(new
     {
-        var http = new HttpClient();
-        var resp = await http.GetAsync($"{baseUrl}/datos");
-        var txt = await resp.Content.ReadAsStringAsync();
-
-        return Results.Content(txt, "application/json");
-    }
-    catch (Exception ex)
-    {
-        return Results.Content("ERROR: " + ex.ToString());
-    }
+        status = "OK",
+        hasSqlBridgeUrl = !string.IsNullOrEmpty(sqlBridgeUrl),
+        sqlBridgeUrl = sqlBridgeUrl
+    });
 });
 
 app.Run();
