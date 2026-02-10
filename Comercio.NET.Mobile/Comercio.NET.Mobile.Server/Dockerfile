@@ -6,17 +6,17 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copiar el .csproj (Railway/Render copian todo el directorio automáticamente)
-COPY ["*.csproj", "./"]
-RUN dotnet restore
+# Copiar solo el .csproj específico del proyecto
+COPY ["Comercio.NET.Mobile.Server.csproj", "./"]
+RUN dotnet restore "Comercio.NET.Mobile.Server.csproj"
 
 # Copiar el resto de archivos
 COPY . .
-RUN dotnet build -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "Comercio.NET.Mobile.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Comercio.NET.Mobile.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
