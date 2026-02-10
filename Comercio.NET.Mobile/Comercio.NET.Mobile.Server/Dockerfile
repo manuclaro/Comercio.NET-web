@@ -6,12 +6,13 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copiar solo el .csproj específico del proyecto
-COPY ["Comercio.NET.Mobile.Server.csproj", "./"]
-RUN dotnet restore "Comercio.NET.Mobile.Server.csproj"
+# Copiar el .csproj desde la ruta correcta (contexto desde raíz del repo)
+COPY ["Comercio.NET.Mobile/Comercio.NET.Mobile.Server/Comercio.NET.Mobile.Server.csproj", "Comercio.NET.Mobile/Comercio.NET.Mobile.Server/"]
+RUN dotnet restore "Comercio.NET.Mobile/Comercio.NET.Mobile.Server/Comercio.NET.Mobile.Server.csproj"
 
-# Copiar el resto de archivos
-COPY . .
+# Copiar el resto de archivos del proyecto
+COPY ["Comercio.NET.Mobile/Comercio.NET.Mobile.Server/", "Comercio.NET.Mobile/Comercio.NET.Mobile.Server/"]
+WORKDIR "/src/Comercio.NET.Mobile/Comercio.NET.Mobile.Server"
 RUN dotnet build "Comercio.NET.Mobile.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
