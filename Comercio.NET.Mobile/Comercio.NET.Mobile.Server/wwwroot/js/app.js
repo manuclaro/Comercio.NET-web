@@ -107,6 +107,7 @@ function mostrarDatos(datos) {
     document.getElementById('efectivo').textContent = formatearMoneda(datos.efectivo);
     document.getElementById('mercadoPago').textContent = formatearMoneda(datos.mercadoPago);
     document.getElementById('otro').textContent = formatearMoneda(datos.otro);
+    document.getElementById('facturaC').textContent = formatearMoneda(datos.facturaC || 0);
     document.getElementById('cantidadVentas').textContent = datos.cantidadVentas;
     document.getElementById('fechaConsulta').textContent = formatearFecha(datos.fecha);
 
