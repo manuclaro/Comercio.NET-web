@@ -10,7 +10,7 @@ namespace Comercio.NET.Mobile.Server.Services
         // ✅ CREDENCIALES HARDCODEADAS (temporal)
         private readonly Dictionary<string, (string Password, string NombreCompleto, string Rol)> _usuariosHardcoded = new()
         {
-            { "admin", ("123", "Administrador del Sistema", "Admin") },
+            { "admin", ("2201", "Administrador del Sistema", "Admin") },
             //{ "cajero", ("cajero123", "Cajero Principal", "Cajero") },
             //{ "demo", ("demo", "Usuario Demo", "Consulta") }
         };
