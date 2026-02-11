@@ -1,22 +1,22 @@
-using Comercio.NET.Mobile.Server.Models;
-using System.Security.Cryptography;
+ï»¿using Comercio.NET.Mobile.Server.Models;
 using System.Text;
 
 namespace Comercio.NET.Mobile.Server.Services
 {
     public class AuthService
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(
-            IHttpClientFactory httpClientFactory,
-            IConfiguration configuration,
-            ILogger<AuthService> logger)
+        // âœ… CREDENCIALES HARDCODEADAS (temporal)
+        private readonly Dictionary<string, (string Password, string NombreCompleto, string Rol)> _usuariosHardcoded = new()
         {
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
+            { "admin", ("123", "Administrador del Sistema", "Admin") },
+            //{ "cajero", ("cajero123", "Cajero Principal", "Cajero") },
+            //{ "demo", ("demo", "Usuario Demo", "Consulta") }
+        };
+
+        public AuthService(ILogger<AuthService> logger)
+        {
             _logger = logger;
         }
 
@@ -24,73 +24,43 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             try
             {
-                var sqlBridgeUrl = _configuration["SQL_BRIDGE_URL"] 
-                    ?? Environment.GetEnvironmentVariable("SQL_BRIDGE_URL");
+                _logger.LogInformation("Intento de login para usuario: {Usuario}", usuario);
 
-                if (string.IsNullOrEmpty(sqlBridgeUrl))
+                // Simular delay de red (opcional, para que se vea mÃ¡s real)
+                await Task.Delay(500);
+
+                // Buscar usuario en el diccionario hardcoded
+                if (_usuariosHardcoded.TryGetValue(usuario.ToLower(), out var datosUsuario))
                 {
-                    return new LoginResponse
+                    // Validar contraseÃ±a
+                    if (datosUsuario.Password == clave)
                     {
-                        Exito = false,
-                        Mensaje = "Servicio de autenticación no disponible"
-                    };
+                        var token = GenerarToken(usuario);
+
+                        _logger.LogInformation("Login exitoso para usuario: {Usuario}", usuario);
+
+                        return new LoginResponse
+                        {
+                            Exito = true,
+                            Mensaje = "Login exitoso",
+                            Token = token,
+                            Usuario = new Usuario
+                            {
+                                Id = GetUserId(usuario),
+                                NombreUsuario = usuario,
+                                NombreCompleto = datosUsuario.NombreCompleto,
+                                Rol = datosUsuario.Rol
+                            }
+                        };
+                    }
                 }
 
-                var client = _httpClientFactory.CreateClient();
-                client.BaseAddress = new Uri(sqlBridgeUrl);
-
-                // Consultar usuario en la base de datos
-                var query = $"SELECT Id, Usuario, Clave, Nombre, Rol FROM Usuarios WHERE Usuario = '{usuario.Replace("'", "''")}'";
-                var response = await client.GetAsync($"/api/query?sql={Uri.EscapeDataString(query)}");
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    return new LoginResponse
-                    {
-                        Exito = false,
-                        Mensaje = "Error al validar credenciales"
-                    };
-                }
-
-                var data = await response.Content.ReadFromJsonAsync<List<Dictionary<string, object>>>();
-
-                if (data == null || data.Count == 0)
-                {
-                    return new LoginResponse
-                    {
-                        Exito = false,
-                        Mensaje = "Usuario o contraseña incorrectos"
-                    };
-                }
-
-                var usuarioData = data[0];
-                var claveAlmacenada = usuarioData["Clave"]?.ToString() ?? string.Empty;
-
-                // Validar contraseña (puedes usar hash si lo prefieres)
-                if (!ValidarClave(clave, claveAlmacenada))
-                {
-                    return new LoginResponse
-                    {
-                        Exito = false,
-                        Mensaje = "Usuario o contraseña incorrectos"
-                    };
-                }
-
-                // Crear token simple (en producción usa JWT)
-                var token = GenerarToken(usuario);
+                _logger.LogWarning("Login fallido para usuario: {Usuario}", usuario);
 
                 return new LoginResponse
                 {
-                    Exito = true,
-                    Mensaje = "Login exitoso",
-                    Token = token,
-                    Usuario = new Usuario
-                    {
-                        Id = Convert.ToInt32(usuarioData["Id"]),
-                        NombreUsuario = usuarioData["Usuario"]?.ToString() ?? string.Empty,
-                        NombreCompleto = usuarioData["Nombre"]?.ToString(),
-                        Rol = usuarioData["Rol"]?.ToString()
-                    }
+                    Exito = false,
+                    Mensaje = "Usuario o contraseÃ±a incorrectos"
                 };
             }
             catch (Exception ex)
@@ -104,17 +74,10 @@ namespace Comercio.NET.Mobile.Server.Services
             }
         }
 
-        private bool ValidarClave(string claveIngresada, string claveAlmacenada)
-        {
-            // Si la clave almacenada está hasheada, usar hash
-            // Por ahora comparación directa
-            return claveIngresada == claveAlmacenada;
-        }
-
         private string GenerarToken(string usuario)
         {
             // Token simple: Base64(usuario:timestamp:random)
-            // En producción, usar JWT
+            // En producciÃ³n, usar JWT
             var data = $"{usuario}:{DateTime.UtcNow.Ticks}:{Guid.NewGuid()}";
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(data));
         }
@@ -128,7 +91,7 @@ namespace Comercio.NET.Mobile.Server.Services
             {
                 var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(token));
                 var parts = decoded.Split(':');
-                
+
                 if (parts.Length != 3)
                     return false;
 
@@ -143,6 +106,18 @@ namespace Comercio.NET.Mobile.Server.Services
             {
                 return false;
             }
+        }
+
+        // Helper para generar IDs Ãºnicos basados en el nombre de usuario
+        private int GetUserId(string usuario)
+        {
+            return usuario.ToLower() switch
+            {
+                "admin" => 1,
+                "cajero" => 2,
+                "demo" => 3,
+                _ => 999
+            };
         }
     }
 }
