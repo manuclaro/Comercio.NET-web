@@ -74,6 +74,7 @@ namespace Comercio.NET.Mobile.Server.Services
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Otro
                     FROM Facturas
                     WHERE CAST(Fecha AS DATE) = @fecha
+                    AND esctacte = 0
                     AND (@cajero IS NULL OR Cajero = @cajero)
                     AND ISNULL(Cajero, '') <> ''";
 
