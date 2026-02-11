@@ -1,5 +1,12 @@
-﻿// Configuración de la API
+﻿// Constantes
+const API_BASE = '/api';
+
+// Configuración de la API
 const API_URL = window.location.origin + '/api/ArqueoCaja';
+
+// Estado global
+let token = null;
+let usuarioActual = null;
 
 // Elementos del DOM
 const fecha = document.getElementById('fecha');
@@ -10,131 +17,185 @@ const loading = document.getElementById('loading');
 const error = document.getElementById('error');
 const resultado = document.getElementById('resultado');
 
-// Inicializar
-document.addEventListener('DOMContentLoaded', () => {
-    // Establecer fecha de hoy
-    fecha.valueAsDate = new Date();
+// Verificar autenticación al cargar
+document.addEventListener('DOMContentLoaded', async function() {
+    token = localStorage.getItem('auth_token');
+    
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
 
-    // Cargar lista de cajeros
+    // Validar token
+    const tokenValido = await validarToken();
+    if (!tokenValido) {
+        cerrarSesion();
+        return;
+    }
+
+    // Cargar datos de usuario
+    usuarioActual = {
+        nombre: localStorage.getItem('usuario_nombre'),
+        nombreCompleto: localStorage.getItem('usuario_completo'),
+        rol: localStorage.getItem('usuario_rol')
+    };
+
+    // Mostrar info de usuario
+    mostrarInfoUsuario();
+
+    // Inicializar aplicación
+    inicializarApp();
+});
+
+async function validarToken() {
+    try {
+        const response = await fetch(`${API_BASE}/auth/validar`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        return data.valido;
+    } catch (error) {
+        console.error('Error validando token:', error);
+        return false;
+    }
+}
+
+function mostrarInfoUsuario() {
+    const header = document.querySelector('header');
+    const userInfo = document.createElement('div');
+    userInfo.className = 'user-info';
+    userInfo.innerHTML = `
+        <span>👤 ${usuarioActual.nombreCompleto || usuarioActual.nombre}</span>
+        <button id="btnCerrarSesion" class="btn btn-secondary">Cerrar Sesión</button>
+    `;
+    header.appendChild(userInfo);
+
+    document.getElementById('btnCerrarSesion').addEventListener('click', cerrarSesion);
+}
+
+function cerrarSesion() {
+    localStorage.clear();
+    window.location.href = '/login.html';
+}
+
+function inicializarApp() {
+    const fechaInput = document.getElementById('fecha');
+    const cajeroSelect = document.getElementById('cajero');
+    const btnHoy = document.getElementById('btnHoy');
+    const btnActualizar = document.getElementById('btnActualizar');
+
+    // Establecer fecha actual
+    fechaInput.valueAsDate = new Date();
+
+    // Cargar cajeros
     cargarCajeros();
-
-    // Cargar datos iniciales
-    cargarArqueo();
 
     // Event listeners
     btnHoy.addEventListener('click', () => {
-        fecha.valueAsDate = new Date();
+        fechaInput.valueAsDate = new Date();
         cargarArqueo();
     });
 
     btnActualizar.addEventListener('click', cargarArqueo);
+    fechaInput.addEventListener('change', cargarArqueo);
+    cajeroSelect.addEventListener('change', cargarArqueo);
 
-    // Recargar cuando cambie el cajero
-    cajero.addEventListener('change', cargarArqueo);
-});
+    // Cargar datos iniciales
+    cargarArqueo();
+}
 
 // Función para cargar lista de cajeros
 async function cargarCajeros() {
     try {
-        const response = await fetch(`${API_URL}/cajeros`);
-
-        if (!response.ok) {
-            console.error('Error al cargar cajeros');
+        const response = await fetch(`${API_BASE}/arqueocaja/cajeros`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.status === 401) {
+            cerrarSesion();
             return;
         }
 
         const cajeros = await response.json();
-
+        const select = document.getElementById('cajero');
+        
         // Limpiar opciones existentes (excepto "Todos")
-        cajero.innerHTML = '<option value="">Todos los cajeros</option>';
+        select.innerHTML = '<option value="">Todos los cajeros</option>';
 
         // Agregar cajeros al select
-        cajeros.forEach(c => {
+        cajeros.forEach(cajero => {
             const option = document.createElement('option');
-            option.value = c;
-            option.textContent = c;
-            cajero.appendChild(option);
+            option.value = cajero;
+            option.textContent = cajero;
+            select.appendChild(option);
         });
-
-    } catch (err) {
-        console.error('Error al cargar cajeros:', err);
+    } catch (error) {
+        console.error('Error cargando cajeros:', error);
     }
 }
 
 // Función para cargar arqueo de caja
 async function cargarArqueo() {
+    const loading = document.getElementById('loading');
+    const error = document.getElementById('error');
+    const resultado = document.getElementById('resultado');
+    
+    loading.style.display = 'block';
+    error.style.display = 'none';
+    resultado.style.display = 'none';
+
     try {
-        mostrarLoading(true);
-        ocultarError();
+        const fecha = document.getElementById('fecha').value;
+        const cajero = document.getElementById('cajero').value;
+        
+        const params = new URLSearchParams();
+        if (cajero) params.append('cajero', cajero);
 
-        const fechaSeleccionada = fecha.value;
-        const cajeroSeleccionado = cajero.value;
+        const response = await fetch(
+            `${API_BASE}/arqueocaja/fecha/${fecha}?${params}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
 
-        let url = `${API_URL}/fecha/${fechaSeleccionada}`;
-
-        // Agregar parámetro de cajero si hay uno seleccionado
-        if (cajeroSeleccionado) {
-            url += `?cajero=${encodeURIComponent(cajeroSeleccionado)}`;
+        if (response.status === 401) {
+            cerrarSesion();
+            return;
         }
 
-        console.log('Consultando:', url);
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-
-        const datos = await response.json();
-
-        console.log('Datos recibidos:', datos);
-
-        mostrarDatos(datos);
-        actualizarUltimaActualizacion();
-
+        const data = await response.json();
+        
+        mostrarResultado(data);
     } catch (err) {
-        console.error('Error:', err);
-        mostrarError('Error al cargar los datos: ' + err.message);
+        error.textContent = `Error: ${err.message}`;
+        error.style.display = 'block';
     } finally {
-        mostrarLoading(false);
+        loading.style.display = 'none';
     }
 }
 
 // Mostrar datos en la interfaz
-function mostrarDatos(datos) {
-    document.getElementById('totalIngresos').textContent = formatearMoneda(datos.totalIngresos);
-    document.getElementById('dni').textContent = formatearMoneda(datos.dni);
-    document.getElementById('efectivo').textContent = formatearMoneda(datos.efectivo);
-    document.getElementById('mercadoPago').textContent = formatearMoneda(datos.mercadoPago);
-    document.getElementById('otro').textContent = formatearMoneda(datos.otro);
-    document.getElementById('facturaC').textContent = formatearMoneda(datos.facturaC || 0);
-
-    // ✅ NUEVO: Mostrar pagos a proveedores y efectivo neto
-    document.getElementById('pagosProveedores').textContent = formatearMoneda(datos.pagosProveedores || 0);
-    document.getElementById('efectivoNeto').textContent = formatearMoneda(datos.efectivoNeto || 0);
-
-    // ✅ Aplicar color según si el efectivo neto es positivo o negativo
-    const efectivoNetoElement = document.getElementById('efectivoNeto');
-    if (datos.efectivoNeto < 0) {
-        efectivoNetoElement.classList.add('negativo');
-    } else {
-        efectivoNetoElement.classList.remove('negativo');
-    }
-
-    document.getElementById('cantidadVentas').textContent = datos.cantidadVentas;
-    document.getElementById('fechaConsulta').textContent = formatearFecha(datos.fecha);
-
-    // Mostrar información del cajero
-    const cajeroInfo = document.getElementById('cajeroInfo');
-    if (datos.cajero) {
-        cajeroInfo.textContent = `Cajero: ${datos.cajero}`;
-        cajeroInfo.style.display = 'block';
-    } else {
-        cajeroInfo.textContent = 'Todos los cajeros';
-        cajeroInfo.style.display = 'block';
-    }
-
-    resultado.style.display = 'block';
+function mostrarResultado(data) {
+    document.getElementById('totalIngresos').textContent = formatearMoneda(data.totalIngresos);
+    document.getElementById('cajeroInfo').textContent = data.cajero || 'Todos los cajeros';
+    document.getElementById('dni').textContent = formatearMoneda(data.dni);
+    document.getElementById('efectivo').textContent = formatearMoneda(data.efectivo);
+    document.getElementById('mercadoPago').textContent = formatearMoneda(data.mercadoPago);
+    document.getElementById('otro').textContent = formatearMoneda(data.otro);
+    document.getElementById('facturaC').textContent = formatearMoneda(data.facturaC);
+    document.getElementById('pagosProveedores').textContent = formatearMoneda(data.pagosProveedores);
+    document.getElementById('efectivoNeto').textContent = formatearMoneda(data.efectivoNeto);
+    document.getElementById('cantidadVentas').textContent = data.cantidadVentas;
+    document.getElementById('fechaConsulta').textContent = new Date(data.fecha).toLocaleDateString('es-AR');
+    document.getElementById('ultimaActualizacion').textContent = new Date().toLocaleString('es-AR');
+    
+    document.getElementById('resultado').style.display = 'block';
 }
 
 // Formatear moneda
@@ -143,40 +204,4 @@ function formatearMoneda(valor) {
         style: 'currency',
         currency: 'ARS'
     }).format(valor);
-}
-
-// Formatear fecha
-function formatearFecha(fechaStr) {
-    const fecha = new Date(fechaStr);
-    return fecha.toLocaleDateString('es-AR', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-}
-
-// Mostrar/ocultar loading
-function mostrarLoading(mostrar) {
-    loading.style.display = mostrar ? 'block' : 'none';
-    resultado.style.display = mostrar ? 'none' : resultado.style.display;
-}
-
-// Mostrar error
-function mostrarError(mensaje) {
-    error.textContent = mensaje;
-    error.style.display = 'block';
-    resultado.style.display = 'none';
-}
-
-// Ocultar error
-function ocultarError() {
-    error.style.display = 'none';
-}
-
-// Actualizar timestamp
-function actualizarUltimaActualizacion() {
-    const ahora = new Date();
-    document.getElementById('ultimaActualizacion').textContent =
-        ahora.toLocaleTimeString('es-AR');
 }

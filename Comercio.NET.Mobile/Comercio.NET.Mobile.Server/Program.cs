@@ -14,8 +14,9 @@ builder.Services.AddHttpClient();
 // Agregar servicios
 builder.Services.AddControllers();
 
-// Registrar servicio de arqueo
+// Registrar servicios
 builder.Services.AddScoped<ArqueoCajaService>();
+builder.Services.AddScoped<AuthService>();
 
 // CORS permisivo
 builder.Services.AddCors(options =>

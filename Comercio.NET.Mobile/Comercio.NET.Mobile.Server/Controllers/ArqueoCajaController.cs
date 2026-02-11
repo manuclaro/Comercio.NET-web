@@ -8,15 +8,27 @@ namespace Comercio.NET.Mobile.Server.Controllers
     public class ArqueoCajaController : ControllerBase
     {
         private readonly ArqueoCajaService _service;
+        private readonly AuthService _authService;
 
-        public ArqueoCajaController(ArqueoCajaService service)
+        public ArqueoCajaController(ArqueoCajaService service, AuthService authService)
         {
             _service = service;
+            _authService = authService;
+        }
+
+        private bool ValidarAutorizacion()
+        {
+            var authorization = Request.Headers["Authorization"].FirstOrDefault();
+            var token = authorization?.Replace("Bearer ", "");
+            return _authService.ValidarToken(token);
         }
 
         [HttpGet("cajeros")]
         public async Task<IActionResult> ObtenerCajeros()
         {
+            if (!ValidarAutorizacion())
+                return Unauthorized(new { error = "No autorizado" });
+
             try
             {
                 var cajeros = await _service.ObtenerCajerosAsync();
@@ -31,6 +43,9 @@ namespace Comercio.NET.Mobile.Server.Controllers
         [HttpGet("hoy")]
         public async Task<IActionResult> ObtenerArqueoHoy([FromQuery] string? cajero = null)
         {
+            if (!ValidarAutorizacion())
+                return Unauthorized(new { error = "No autorizado" });
+
             try
             {
                 var resultado = await _service.ObtenerArqueoAsync(DateTime.Today, cajero);
@@ -45,6 +60,9 @@ namespace Comercio.NET.Mobile.Server.Controllers
         [HttpGet("fecha/{fecha}")]
         public async Task<IActionResult> ObtenerArqueoPorFecha(DateTime fecha, [FromQuery] string? cajero = null)
         {
+            if (!ValidarAutorizacion())
+                return Unauthorized(new { error = "No autorizado" });
+
             try
             {
                 var resultado = await _service.ObtenerArqueoAsync(fecha, cajero);
