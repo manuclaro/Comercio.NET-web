@@ -1,4 +1,4 @@
-// Configuración de la API
+ï»¿// ConfiguraciÃ³n de la API
 const API_URL = window.location.origin + '/api/ArqueoCaja';
 
 // Elementos del DOM
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cajero.addEventListener('change', cargarArqueo);
 });
 
-// Función para cargar lista de cajeros
+// FunciÃ³n para cargar lista de cajeros
 async function cargarCajeros() {
     try {
         const response = await fetch(`${API_URL}/cajeros`);
@@ -61,7 +61,7 @@ async function cargarCajeros() {
     }
 }
 
-// Función para cargar arqueo de caja
+// FunciÃ³n para cargar arqueo de caja
 async function cargarArqueo() {
     try {
         mostrarLoading(true);
@@ -72,7 +72,7 @@ async function cargarArqueo() {
 
         let url = `${API_URL}/fecha/${fechaSeleccionada}`;
 
-        // Agregar parámetro de cajero si hay uno seleccionado
+        // Agregar parÃ¡metro de cajero si hay uno seleccionado
         if (cajeroSeleccionado) {
             url += `?cajero=${encodeURIComponent(cajeroSeleccionado)}`;
         }
@@ -108,10 +108,23 @@ function mostrarDatos(datos) {
     document.getElementById('mercadoPago').textContent = formatearMoneda(datos.mercadoPago);
     document.getElementById('otro').textContent = formatearMoneda(datos.otro);
     document.getElementById('facturaC').textContent = formatearMoneda(datos.facturaC || 0);
+
+    // âœ… NUEVO: Mostrar pagos a proveedores y efectivo neto
+    document.getElementById('pagosProveedores').textContent = formatearMoneda(datos.pagosProveedores || 0);
+    document.getElementById('efectivoNeto').textContent = formatearMoneda(datos.efectivoNeto || 0);
+
+    // âœ… Aplicar color segÃºn si el efectivo neto es positivo o negativo
+    const efectivoNetoElement = document.getElementById('efectivoNeto');
+    if (datos.efectivoNeto < 0) {
+        efectivoNetoElement.classList.add('negativo');
+    } else {
+        efectivoNetoElement.classList.remove('negativo');
+    }
+
     document.getElementById('cantidadVentas').textContent = datos.cantidadVentas;
     document.getElementById('fechaConsulta').textContent = formatearFecha(datos.fecha);
 
-    // Mostrar información del cajero
+    // Mostrar informaciÃ³n del cajero
     const cajeroInfo = document.getElementById('cajeroInfo');
     if (datos.cajero) {
         cajeroInfo.textContent = `Cajero: ${datos.cajero}`;

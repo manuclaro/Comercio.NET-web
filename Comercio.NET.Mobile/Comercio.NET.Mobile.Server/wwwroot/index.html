@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0078d7">
     <title>Arqueo de Caja - Comercio.NET</title>
-    <!-- Comentar manifest temporalmente hasta tener los iconos -->
-    <!-- <link rel="manifest" href="/manifest.json"> -->
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
@@ -48,7 +46,7 @@
             </div>
 
             <div class="card">
-                <h3>📊 Desglose</h3>
+                <h3>📊 Desglose de Ingresos</h3>
                 <div class="detalle">
                     <div class="detalle-item">
                         <span class="label">🪪 DNI:</span>
@@ -70,6 +68,24 @@
                         <span class="label">🧾 Factura C:</span>
                         <span class="value" id="facturaC">$0.00</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- ✅ NUEVA SECCIÓN: Pagos y Efectivo Neto -->
+            <div class="card">
+                <h3>💸 Egresos y Efectivo Neto</h3>
+                <div class="detalle">
+                    <div class="detalle-item egreso">
+                        <span class="label">📤 Pagos a Proveedores:</span>
+                        <span class="value egreso-value" id="pagosProveedores">$0.00</span>
+                    </div>
+                    <div class="detalle-item destacado">
+                        <span class="label">💰 Efectivo Neto a Rendir:</span>
+                        <span class="value efectivo-neto" id="efectivoNeto">$0.00</span>
+                    </div>
+                </div>
+                <div class="info-box">
+                    <p>ℹ️ El <strong>Efectivo Neto</strong> es el monto real que debe tener el cajero (Efectivo - Pagos Proveedores)</p>
                 </div>
             </div>
 

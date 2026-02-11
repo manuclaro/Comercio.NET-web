@@ -12,9 +12,11 @@
         public decimal Efectivo { get; set; }
         public decimal MercadoPago { get; set; }
         public decimal Otro { get; set; }
-
-        // ✅ NUEVO: Total de facturas tipo C
         public decimal FacturaC { get; set; }
+
+        // ✅ NUEVO: Pagos a proveedores y cálculo neto
+        public decimal PagosProveedores { get; set; }
+        public decimal EfectivoNeto => Efectivo - PagosProveedores;
 
         public List<FormaPagoDetalle> DetalleFormasPago { get; set; } = new();
     }

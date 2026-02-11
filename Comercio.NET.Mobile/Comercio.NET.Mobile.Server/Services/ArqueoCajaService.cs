@@ -60,6 +60,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
+                // ✅ QUERY ACTUALIZADA: Incluye pagos a proveedores
                 var query = @"
                     SELECT 
                         COUNT(DISTINCT NumeroRemito) as TotalVentas,
@@ -73,7 +74,14 @@ namespace Comercio.NET.Mobile.Server.Services
                         SUM(CASE WHEN FormadePago = 'Otro' 
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Otro,
                         SUM(CASE WHEN TipoFactura = 'FacturaC' OR TipoFactura = 'Factura C' OR TipoFactura = 'C'
-                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as FacturaC
+                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as FacturaC,
+                        -- ✅ NUEVO: Total de pagos a proveedores del día
+                        ISNULL((
+                            SELECT SUM(CAST(Monto AS DECIMAL(18,2)))
+                            FROM PagosProveedores
+                            WHERE CAST(FechaPago AS DATE) = @fecha
+                            AND (@cajero IS NULL OR UsuarioRegistro = @cajero)
+                        ), 0) as PagosProveedores
                     FROM Facturas
                     WHERE CAST(Fecha AS DATE) = @fecha
                     AND esctacte = 0
@@ -101,7 +109,8 @@ namespace Comercio.NET.Mobile.Server.Services
                     resultado.Efectivo = ConvertToDecimal(row[3]);
                     resultado.MercadoPago = ConvertToDecimal(row[4]);
                     resultado.Otro = ConvertToDecimal(row[5]);
-                    resultado.FacturaC = ConvertToDecimal(row[6]);  // ✅ NUEVO: Total facturas C
+                    resultado.FacturaC = ConvertToDecimal(row[6]);
+                    resultado.PagosProveedores = ConvertToDecimal(row[7]);  // ✅ NUEVO
                 }
 
                 return resultado;
