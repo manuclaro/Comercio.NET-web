@@ -40,7 +40,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     {
                         if (row.Count > 0 && row[0] != null)
                         {
-                            cajeros.Add(row[0].ToString()!);
+                            cajeros.Add(ConvertToString(row[0]));
                         }
                     }
                 }
@@ -91,12 +91,14 @@ namespace Comercio.NET.Mobile.Server.Services
                 if (result?.Data != null && result.Data.Count > 0)
                 {
                     var row = result.Data[0];
-                    resultado.CantidadVentas = Convert.ToInt32(row[0]);
-                    resultado.TotalIngresos = Convert.ToDecimal(row[1]);
-                    resultado.DNI = Convert.ToDecimal(row[2]);
-                    resultado.Efectivo = Convert.ToDecimal(row[3]);
-                    resultado.MercadoPago = Convert.ToDecimal(row[4]);
-                    resultado.Otro = Convert.ToDecimal(row[5]);
+
+                    // CORRECCIÓN: Manejar JsonElement correctamente
+                    resultado.CantidadVentas = ConvertToInt32(row[0]);
+                    resultado.TotalIngresos = ConvertToDecimal(row[1]);
+                    resultado.DNI = ConvertToDecimal(row[2]);
+                    resultado.Efectivo = ConvertToDecimal(row[3]);
+                    resultado.MercadoPago = ConvertToDecimal(row[4]);
+                    resultado.Otro = ConvertToDecimal(row[5]);
                 }
 
                 return resultado;
@@ -106,6 +108,59 @@ namespace Comercio.NET.Mobile.Server.Services
                 _logger.LogError(ex, "Error obteniendo arqueo");
                 throw;
             }
+        }
+
+        // Métodos auxiliares para convertir JsonElement
+        private static int ConvertToInt32(object? value)
+        {
+            if (value == null) return 0;
+
+            if (value is JsonElement jsonElement)
+            {
+                return jsonElement.ValueKind switch
+                {
+                    JsonValueKind.Number => jsonElement.GetInt32(),
+                    JsonValueKind.String => int.TryParse(jsonElement.GetString(), out int result) ? result : 0,
+                    _ => 0
+                };
+            }
+
+            return Convert.ToInt32(value);
+        }
+
+        private static decimal ConvertToDecimal(object? value)
+        {
+            if (value == null) return 0;
+
+            if (value is JsonElement jsonElement)
+            {
+                return jsonElement.ValueKind switch
+                {
+                    JsonValueKind.Number => jsonElement.GetDecimal(),
+                    JsonValueKind.String => decimal.TryParse(jsonElement.GetString(), out decimal result) ? result : 0,
+                    _ => 0
+                };
+            }
+
+            return Convert.ToDecimal(value);
+        }
+
+        private static string ConvertToString(object? value)
+        {
+            if (value == null) return string.Empty;
+
+            if (value is JsonElement jsonElement)
+            {
+                return jsonElement.ValueKind switch
+                {
+                    JsonValueKind.String => jsonElement.GetString() ?? string.Empty,
+                    JsonValueKind.Number => jsonElement.ToString(),
+                    JsonValueKind.Null => string.Empty,
+                    _ => jsonElement.ToString()
+                };
+            }
+
+            return value.ToString() ?? string.Empty;
         }
     }
 
