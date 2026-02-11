@@ -1,4 +1,4 @@
-using System.Text.Json;
+ï»¿using System.Text.Json;
 using Comercio.NET.Mobile.Server.Models;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -13,7 +13,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no estÃ¡ configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -71,7 +71,9 @@ namespace Comercio.NET.Mobile.Server.Services
                         SUM(CASE WHEN FormadePago LIKE '%Mercado%Pago%' OR FormadePago = 'MercadoPago'
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as MercadoPago,
                         SUM(CASE WHEN FormadePago = 'Otro' 
-                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Otro
+                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Otro,
+                        SUM(CASE WHEN TipoFactura = 'FacturaC' OR TipoFactura = 'Factura C' OR TipoFactura = 'C'
+                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as FacturaC
                     FROM Facturas
                     WHERE CAST(Fecha AS DATE) = @fecha
                     AND esctacte = 0
@@ -93,13 +95,13 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     var row = result.Data[0];
 
-                    // CORRECCIÓN: Manejar JsonElement correctamente
                     resultado.CantidadVentas = ConvertToInt32(row[0]);
                     resultado.TotalIngresos = ConvertToDecimal(row[1]);
                     resultado.DNI = ConvertToDecimal(row[2]);
                     resultado.Efectivo = ConvertToDecimal(row[3]);
                     resultado.MercadoPago = ConvertToDecimal(row[4]);
                     resultado.Otro = ConvertToDecimal(row[5]);
+                    resultado.FacturaC = ConvertToDecimal(row[6]);  // âœ… NUEVO: Total facturas C
                 }
 
                 return resultado;
@@ -111,7 +113,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
         }
 
-        // Métodos auxiliares para convertir JsonElement
+        // MÃ©todos auxiliares para convertir JsonElement
         private static int ConvertToInt32(object? value)
         {
             if (value == null) return 0;

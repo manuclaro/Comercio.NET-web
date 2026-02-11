@@ -1,4 +1,4 @@
-namespace Comercio.NET.Mobile.Server.Models
+﻿namespace Comercio.NET.Mobile.Server.Models
 {
     public class ArqueoCajaDto
     {
@@ -7,11 +7,14 @@ namespace Comercio.NET.Mobile.Server.Models
         public int CantidadVentas { get; set; }
         public decimal TotalIngresos { get; set; }
 
-        // Medios de pago seg�n el sistema real
+        // Medios de pago según el sistema real
         public decimal DNI { get; set; }
         public decimal Efectivo { get; set; }
         public decimal MercadoPago { get; set; }
         public decimal Otro { get; set; }
+
+        // ✅ NUEVO: Total de facturas tipo C
+        public decimal FacturaC { get; set; }
 
         public List<FormaPagoDetalle> DetalleFormasPago { get; set; } = new();
     }
