@@ -66,9 +66,9 @@
     <None Update="OpenAPIs\service1.asmx" ClassName="ArcaWS" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.ServiceModel.Http" Version="8.*" />
-    <PackageReference Include="System.ServiceModel.NetTcp" Version="8.*" />
-    <PackageReference Include="System.ServiceModel.Primitives" Version="8.*" />
+	  <PackageReference Include="System.ServiceModel.Http" Version="6.*" />
+	  <PackageReference Include="System.ServiceModel.NetTcp" Version="6.*" />
+	  <PackageReference Include="System.ServiceModel.Primitives" Version="6.*" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\" />
