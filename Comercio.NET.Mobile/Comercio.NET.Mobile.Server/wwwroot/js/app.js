@@ -347,7 +347,7 @@ function crearModal() {
     return modal;
 }
 
-// ✅ FUNCIÓN ACTUALIZADA: Mostrar detalles en el modal
+// ✅ FUNCIÓN ACTUALIZADA: Mostrar detalles en el modal (SIN observaciones, cajero y origen)
 function mostrarDetallesEnModal(container, detalles) {
     if (!detalles || detalles.length === 0) {
         container.innerHTML = '<div class="no-data">No hay pagos a proveedores en esta fecha</div>';
@@ -357,16 +357,13 @@ function mostrarDetallesEnModal(container, detalles) {
     // Calcular total
     const total = detalles.reduce((sum, p) => sum + p.monto, 0);
 
-    // Crear tabla con columnas adaptadas a la estructura real
+    // Crear tabla simplificada (solo Hora, Proveedor y Monto)
     const tabla = `
         <table class="tabla-detalle">
             <thead>
                 <tr>
                     <th>Hora</th>
                     <th>Proveedor</th>
-                    <th>Observaciones</th>
-                    <th>Cajero</th>
-                    <th>Origen</th>
                     <th class="text-right">Monto</th>
                 </tr>
             </thead>
@@ -375,16 +372,13 @@ function mostrarDetallesEnModal(container, detalles) {
                     <tr>
                         <td>${new Date(pago.fechaPago).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
                         <td><strong>${pago.proveedor}</strong></td>
-                        <td>${pago.observaciones || '-'}</td>
-                        <td><span class="badge-forma-pago">${pago.usuarioRegistro || 'N/A'}</span></td>
-                        <td>${pago.origen || '-'}</td>
                         <td class="text-right"><strong>${formatearMoneda(pago.monto)}</strong></td>
                     </tr>
                 `).join('')}
             </tbody>
             <tfoot>
                 <tr class="total-row">
-                    <td colspan="5" class="text-right"><strong>TOTAL:</strong></td>
+                    <td colspan="2" class="text-right"><strong>TOTAL:</strong></td>
                     <td class="text-right"><strong>${formatearMoneda(total)}</strong></td>
                 </tr>
             </tfoot>
@@ -401,15 +395,15 @@ function mostrarDetallesEnModal(container, detalles) {
     }
 }
 
-// ✅ FUNCIÓN ACTUALIZADA: Exportar a CSV
+// ✅ FUNCIÓN ACTUALIZADA: Exportar a CSV (simplificado)
 function exportarDetallesCSV(detalles) {
     const fecha = document.getElementById('fecha').value;
 
-    // Crear contenido CSV con columnas actualizadas
-    let csv = 'Hora,Proveedor,Observaciones,Cajero,Origen,Monto\n';
+    // Crear contenido CSV simplificado
+    let csv = 'Hora,Proveedor,Monto\n';
     detalles.forEach(pago => {
         const hora = new Date(pago.fechaPago).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-        csv += `${hora},"${pago.proveedor}","${pago.observaciones || '-'}","${pago.usuarioRegistro || 'N/A'}","${pago.origen || '-'}",${pago.monto}\n`;
+        csv += `${hora},"${pago.proveedor}",${pago.monto}\n`;
     });
 
     // Descargar archivo
