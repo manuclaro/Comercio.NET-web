@@ -151,3 +151,227 @@
             width: 100%;
         }
 }
+
+/* ========================================
+   ✅ ESTILOS PARA MODAL DE DETALLE
+   ======================================== */
+
+/* Overlay del modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Contenido del modal */
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Header del modal */
+.modal-header {
+    padding: 20px 25px;
+    border-bottom: 2px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.3rem;
+    }
+
+.btn-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+    .btn-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+/* Body del modal */
+.modal-body {
+    padding: 25px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Tabla de detalles */
+.tabla-detalle {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+    .tabla-detalle th,
+    .tabla-detalle td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tabla-detalle thead {
+        background: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+        .tabla-detalle thead th {
+            font-weight: 600;
+            color: #495057;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+    .tabla-detalle tbody tr {
+        transition: background-color 0.2s;
+    }
+
+        .tabla-detalle tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+    .tabla-detalle tfoot {
+        font-weight: bold;
+        background: #f8f9fa;
+        border-top: 2px solid #dee2e6;
+    }
+
+.badge-forma-pago {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    background: #e3f2fd;
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.total-row {
+    font-size: 1.1rem;
+}
+
+    .total-row td {
+        padding: 15px;
+    }
+
+.text-right {
+    text-align: right !important;
+}
+
+/* Footer del modal */
+.modal-footer {
+    padding: 15px 25px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Sin datos */
+.no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+    font-size: 1.1rem;
+}
+
+/* ========================================
+   ✅ INDICADOR CLICKEABLE
+   ======================================== */
+
+#pagosProveedores:hover {
+    color: #0078d7;
+    transform: scale(1.05);
+    transition: all 0.2s;
+}
+
+/* ========================================
+   ✅ RESPONSIVE MODAL
+   ======================================== */
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        max-height: 95vh;
+    }
+
+    .modal-header h3 {
+        font-size: 1.1rem;
+    }
+
+    .tabla-detalle {
+        font-size: 0.85rem;
+    }
+
+        .tabla-detalle th,
+        .tabla-detalle td {
+            padding: 8px 10px;
+        }
+
+    .modal-footer {
+        flex-direction: column;
+    }
+
+        .modal-footer button {
+            width: 100%;
+        }
+}

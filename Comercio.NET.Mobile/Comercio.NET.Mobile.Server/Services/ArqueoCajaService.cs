@@ -122,6 +122,64 @@ namespace Comercio.NET.Mobile.Server.Services
             }
         }
 
+        public async Task<List<DetallePagoProveedorDto>> ObtenerDetallePagosProveedoresAsync(DateTime fecha, string? cajero = null)
+        {
+            try
+            {
+                var query = @"
+                    SELECT 
+                        pp.Id,
+                        pp.NombreProveedor,
+                        pp.Monto,
+                        pp.FormaPago,
+                        pp.FechaPago,
+                        pp.Concepto,
+                        pp.NumeroComprobante,
+                        pp.UsuarioRegistro
+                    FROM PagosProveedores pp
+                    WHERE CAST(pp.FechaPago AS DATE) = @fecha
+                    AND (@cajero IS NULL OR pp.UsuarioRegistro = @cajero)
+                    ORDER BY pp.FechaPago DESC";
+
+                var parameters = new Dictionary<string, object?>
+                {
+                    { "@fecha", fecha.ToString("yyyy-MM-dd") },
+                    { "@cajero", string.IsNullOrEmpty(cajero) ? null : cajero }
+                };
+
+                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<QueryResult>();
+
+                var pagos = new List<DetallePagoProveedorDto>();
+                if (result?.Data != null)
+                {
+                    foreach (var row in result.Data)
+                    {
+                        pagos.Add(new DetallePagoProveedorDto
+                        {
+                            Id = ConvertToInt32(row[0]),
+                            NombreProveedor = ConvertToString(row[1]),
+                            Monto = ConvertToDecimal(row[2]),
+                            FormaPago = ConvertToString(row[3]),
+                            FechaPago = Convert.ToDateTime(row[4]),
+                            Concepto = ConvertToString(row[5]),
+                            NumeroComprobante = ConvertToString(row[6]),
+                            UsuarioRegistro = ConvertToString(row[7])
+                        });
+                    }
+                }
+
+                return pagos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo detalle de pagos a proveedores");
+                throw;
+            }
+        }
+
         // Métodos auxiliares para convertir JsonElement
         private static int ConvertToInt32(object? value)
         {
