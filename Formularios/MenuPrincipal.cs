@@ -1304,7 +1304,7 @@ namespace Comercio.NET
                     {
                         var menu = new ToolStripMenuItem("Proveedores") { Name = "proveedoresToolStripMenuItem" };
 
-                        // ✅ MODIFICAR: Agregar verificación de permisos al ABM Proveedores
+                        // ✅ ABM Proveedores con verificación de permisos
                         var submenuAbm = new ToolStripMenuItem("ABM Proveedores", null, (s, e) =>
                         {
                             // ✅ VERIFICAR PERMISOS
@@ -1335,7 +1335,7 @@ namespace Comercio.NET
                         })
                         { Name = "abmProveedoresToolStripMenuItem" };
 
-                        // ... resto del código existente (sin cambios)
+                        // Buscar item existente de Compra Proveedores
                         ToolStripItem existingCompraItem = this.menuStrip.Items
                             .Cast<ToolStripItem>()
                             .FirstOrDefault(i =>
@@ -1351,10 +1351,17 @@ namespace Comercio.NET
                             Name = "controlComprasToolStripMenuItem"
                         };
 
-                        // ✅ MODIFICAR: Item para CtaCte Proveedores con verificación
+                        // ✅ Item para CtaCte Proveedores con verificación
                         var submenuCtaCte = new ToolStripMenuItem("Cuenta Corriente Proveedores", null, CtaCteProveedoresToolStripMenuItem_Click)
                         {
                             Name = "ctaCteProveedoresToolStripMenuItem"
+                        };
+
+                        // ✅✅ NUEVO: Item para Pagos a Proveedores
+                        var submenuPagosProveedores = new ToolStripMenuItem("💳 Pagos a Proveedores", null, PagosProveedoresToolStripMenuItem_Click)
+                        {
+                            Name = "pagosProveedoresToolStripMenuItem",
+                            ToolTipText = "Consultar pagos realizados a proveedores"
                         };
 
                         if (existingCompraItem != null)
@@ -1380,10 +1387,11 @@ namespace Comercio.NET
                         menu.DropDownItems.Add(new ToolStripSeparator());
                         menu.DropDownItems.Add(submenuCtaCte);
 
+                        // ✅✅ AGREGAR: Pagos a Proveedores
                         menu.DropDownItems.Add(new ToolStripSeparator());
-                        menu.DropDownItems.Add(submenuCtaCte);
+                        menu.DropDownItems.Add(submenuPagosProveedores);
 
-                        // ✅ DESCOMENTADO Y CORREGIDO: Insertar menú en posición correcta
+                        // ✅ Insertar menú en posición correcta
                         int insertIndex = -1;
 
                         // Buscar el menú "Ver" o "View" para insertar antes
@@ -1418,6 +1426,54 @@ namespace Comercio.NET
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error agregando menu Proveedores: {ex.Message}");
+            }
+        }
+
+        // ✅ NUEVO: Event handler para abrir Pagos a Proveedores
+        private void PagosProveedoresToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // ✅ VERIFICAR PERMISOS
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    var permisos = ObtenerPermisosUsuario(usuario.Nivel);
+
+                    if (!permisos.ContainsKey("pagos_proveedores") || !permisos["pagos_proveedores"])
+                    {
+                        MessageBox.Show(
+                            "⚠️ ACCESO DENEGADO\n\n" +
+                            "No tienes permisos para acceder a Pagos a Proveedores.\n\n" +
+                            "Contacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
+                // Verificar si ya está abierto
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is Comercio.NET.Formularios.frmPagosProveedores)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                // Abrir nuevo formulario
+                var formPagos = new Comercio.NET.Formularios.frmPagosProveedores
+                {
+                    MdiParent = this
+                };
+                formPagos.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir Pagos a Proveedores: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
