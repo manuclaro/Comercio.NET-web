@@ -281,28 +281,29 @@ namespace Comercio.NET.Formularios
             panelFiltros.Controls.Add(dtpHasta);
             x += dtpHasta.Width + 10;
 
+            // ✅ MODIFICADO: Reducir espacios entre botones de la primera fila
             btnBuscar.Location = new Point(x, y1);
             panelFiltros.Controls.Add(btnBuscar);
-            x += btnBuscar.Width + 6;
+            x += btnBuscar.Width + 4; // ✅ CAMBIO: de 6 a 4
 
             btnHoy.Location = new Point(x, y1);
             panelFiltros.Controls.Add(btnHoy);
-            x += btnHoy.Width + 6; // ✅ CAMBIO: Reducir espacio de 8 a 6
+            x += btnHoy.Width + 4; // ✅ CAMBIO: de 6 a 4
 
-            // ✅ NUEVO: Agregar botón Ayer
+            // ✅ Botón Ayer
             btnAyer.Location = new Point(x, y1);
             panelFiltros.Controls.Add(btnAyer);
-            x += btnAyer.Width + 8;
+            x += btnAyer.Width + 4; // ✅ CAMBIO: de 8 a 4
 
             btnSemana.Location = new Point(x, y1);
             panelFiltros.Controls.Add(btnSemana);
-            x += btnSemana.Width + 6;
+            x += btnSemana.Width + 4; // ✅ CAMBIO: de 6 a 4
 
             btnMes.Location = new Point(x, y1);
             panelFiltros.Controls.Add(btnMes);
-            x += btnMes.Width + 20;
+            x += btnMes.Width + 12; // ✅ CAMBIO: de 20 a 12 (antes del checkbox)
 
-            // CheckBox Cta.Cte. en la primera fila (entre Mes y Auditoría)
+            // CheckBox Cta.Cte. 
             chkCtaCte.Location = new Point(x, y1);
             chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
@@ -338,7 +339,7 @@ namespace Comercio.NET.Formularios
             btnEstadisticasOfertas.Size = new Size(90, 28);
             btnEstadisticasOfertas.Text = "🎁 Ofertas";
             btnEstadisticasOfertas.UseVisualStyleBackColor = false;
-            btnEstadisticasOfertas.Location = new Point(panelFiltros.Width - 158, y1);
+            btnEstadisticasOfertas.Location = new Point(panelFiltros.Width - 164, y1);
             btnEstadisticasOfertas.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnEstadisticasOfertas.Click += (s, e) =>
             {
@@ -367,7 +368,7 @@ namespace Comercio.NET.Formularios
             btnExportarListado.Size = new Size(110, 28);
             btnExportarListado.Text = "📋 Exportar";
             btnExportarListado.UseVisualStyleBackColor = false;
-            btnExportarListado.Location = new Point(panelFiltros.Width - 398, y1); // ✅ A LA IZQUIERDA de Auditoría
+            btnExportarListado.Location = new Point(panelFiltros.Width - 400, y1); // ✅ A LA IZQUIERDA de Auditoría
             btnExportarListado.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnExportarListado.Click += BtnExportarListado_Click;
             panelFiltros.Controls.Add(btnExportarListado);
@@ -382,7 +383,7 @@ namespace Comercio.NET.Formularios
             btnAuditoriaEliminados.Text = "🗑️ Auditoría";
             btnAuditoriaEliminados.UseVisualStyleBackColor = false;
             btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click;
-            btnAuditoriaEliminados.Location = new Point(panelFiltros.Width - 278, y1);
+            btnAuditoriaEliminados.Location = new Point(panelFiltros.Width - 282, y1);
             btnAuditoriaEliminados.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             panelFiltros.Controls.Add(btnAuditoriaEliminados);
 
