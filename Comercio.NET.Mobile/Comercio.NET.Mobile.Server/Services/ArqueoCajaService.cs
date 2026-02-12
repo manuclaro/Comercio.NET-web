@@ -166,17 +166,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError("❌ SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
-                    
-                    // Si la tabla no existe o hay error, retornar lista vacía
-                    if (responseContent.Contains("Invalid object name") || 
-                        responseContent.Contains("PagosProveedores") ||
-                        response.StatusCode == System.Net.HttpStatusCode.InternalServerError)
-                    {
-                        _logger.LogWarning("⚠️ Error en base de datos, retornando lista vacía");
-                        return new List<DetallePagoProveedorDto>();
-                    }
-                    
-                    throw new Exception($"Error en SQL Bridge: {responseContent}");
+                    return new List<DetallePagoProveedorDto>();
                 }
 
                 var result = await response.Content.ReadFromJsonAsync<QueryResult>();
@@ -196,22 +186,26 @@ namespace Comercio.NET.Mobile.Server.Services
                                 Id = ConvertToInt32(row[0]),
                                 Proveedor = ConvertToString(row[1]),
                                 Monto = ConvertToDecimal(row[2]),
-                                FechaPago = Convert.ToDateTime(row[3]),
+                                FechaPago = ConvertToDateTime(row[3]),  // ✅ CORREGIDO
                                 Observaciones = ConvertToString(row[4]),
                                 UsuarioRegistro = ConvertToString(row[5]),
                                 NumeroCajero = ConvertToInt32(row[6]),
                                 NumeroRemito = row[7] != null ? ConvertToInt32(row[7]) : null,
                                 NombreEquipo = ConvertToString(row[8]),
-                                FechaRegistro = Convert.ToDateTime(row[9]),
+                                FechaRegistro = ConvertToDateTime(row[9]),  // ✅ CORREGIDO
                                 IdProveedor = row[10] != null ? ConvertToInt32(row[10]) : null,
                                 CompraId = row[11] != null ? ConvertToInt32(row[11]) : null,
                                 CtaCteId = row[12] != null ? ConvertToInt32(row[12]) : null,
                                 Origen = ConvertToString(row[13])
                             });
+                            
+                            _logger.LogDebug("✅ Pago procesado: {Proveedor} - {Monto}", 
+                                ConvertToString(row[1]), ConvertToDecimal(row[2]));
                         }
                         catch (Exception exRow)
                         {
-                            _logger.LogError(exRow, "❌ Error procesando fila");
+                            _logger.LogError(exRow, "❌ Error procesando fila: {Row}", 
+                                System.Text.Json.JsonSerializer.Serialize(row));
                         }
                     }
                 }
@@ -222,10 +216,33 @@ namespace Comercio.NET.Mobile.Server.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error obteniendo detalle de pagos a proveedores");
-                
-                // Retornar lista vacía en lugar de error para no romper la UI
                 return new List<DetallePagoProveedorDto>();
             }
+        }
+
+        // ✅ NUEVO MÉTODO HELPER: Convertir a DateTime
+        private static DateTime ConvertToDateTime(object? value)
+        {
+            if (value == null) return DateTime.MinValue;
+
+            if (value is JsonElement jsonElement)
+            {
+                return jsonElement.ValueKind switch
+                {
+                    JsonValueKind.String => DateTime.TryParse(jsonElement.GetString(), out DateTime result) 
+                        ? result 
+                        : DateTime.MinValue,
+                    _ => DateTime.MinValue
+                };
+            }
+
+            if (value is DateTime dt)
+                return dt;
+
+            if (value is string str)
+                return DateTime.TryParse(str, out DateTime result) ? result : DateTime.MinValue;
+
+            return DateTime.MinValue;
         }
 
         // Métodos auxiliares para convertir JsonElement
@@ -239,6 +256,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     JsonValueKind.Number => jsonElement.GetInt32(),
                     JsonValueKind.String => int.TryParse(jsonElement.GetString(), out int result) ? result : 0,
+                    JsonValueKind.Null => 0,
                     _ => 0
                 };
             }
@@ -256,6 +274,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     JsonValueKind.Number => jsonElement.GetDecimal(),
                     JsonValueKind.String => decimal.TryParse(jsonElement.GetString(), out decimal result) ? result : 0,
+                    JsonValueKind.Null => 0,
                     _ => 0
                 };
             }
