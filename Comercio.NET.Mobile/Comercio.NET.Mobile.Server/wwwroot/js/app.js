@@ -347,7 +347,7 @@ function crearModal() {
     return modal;
 }
 
-// ✅ NUEVA FUNCIÓN: Mostrar detalles en el modal
+// ✅ FUNCIÓN ACTUALIZADA: Mostrar detalles en el modal
 function mostrarDetallesEnModal(container, detalles) {
     if (!detalles || detalles.length === 0) {
         container.innerHTML = '<div class="no-data">No hay pagos a proveedores en esta fecha</div>';
@@ -357,15 +357,16 @@ function mostrarDetallesEnModal(container, detalles) {
     // Calcular total
     const total = detalles.reduce((sum, p) => sum + p.monto, 0);
 
-    // Crear tabla
+    // Crear tabla con columnas adaptadas a la estructura real
     const tabla = `
         <table class="tabla-detalle">
             <thead>
                 <tr>
                     <th>Hora</th>
                     <th>Proveedor</th>
-                    <th>Concepto</th>
-                    <th>Forma de Pago</th>
+                    <th>Observaciones</th>
+                    <th>Cajero</th>
+                    <th>Origen</th>
                     <th class="text-right">Monto</th>
                 </tr>
             </thead>
@@ -373,16 +374,17 @@ function mostrarDetallesEnModal(container, detalles) {
                 ${detalles.map(pago => `
                     <tr>
                         <td>${new Date(pago.fechaPago).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td><strong>${pago.nombreProveedor}</strong></td>
-                        <td>${pago.concepto || '-'}</td>
-                        <td><span class="badge-forma-pago">${pago.formaPago}</span></td>
+                        <td><strong>${pago.proveedor}</strong></td>
+                        <td>${pago.observaciones || '-'}</td>
+                        <td><span class="badge-forma-pago">${pago.usuarioRegistro || 'N/A'}</span></td>
+                        <td>${pago.origen || '-'}</td>
                         <td class="text-right"><strong>${formatearMoneda(pago.monto)}</strong></td>
                     </tr>
                 `).join('')}
             </tbody>
             <tfoot>
                 <tr class="total-row">
-                    <td colspan="4" class="text-right"><strong>TOTAL:</strong></td>
+                    <td colspan="5" class="text-right"><strong>TOTAL:</strong></td>
                     <td class="text-right"><strong>${formatearMoneda(total)}</strong></td>
                 </tr>
             </tfoot>
@@ -393,19 +395,21 @@ function mostrarDetallesEnModal(container, detalles) {
 
     // Mostrar botón de exportar
     const btnExportar = document.querySelector('.btn-exportar');
-    btnExportar.style.display = 'inline-block';
-    btnExportar.onclick = () => exportarDetallesCSV(detalles);
+    if (btnExportar) {
+        btnExportar.style.display = 'inline-block';
+        btnExportar.onclick = () => exportarDetallesCSV(detalles);
+    }
 }
 
-// ✅ NUEVA FUNCIÓN: Exportar a CSV
+// ✅ FUNCIÓN ACTUALIZADA: Exportar a CSV
 function exportarDetallesCSV(detalles) {
     const fecha = document.getElementById('fecha').value;
 
-    // Crear contenido CSV
-    let csv = 'Hora,Proveedor,Concepto,Forma de Pago,Monto\n';
+    // Crear contenido CSV con columnas actualizadas
+    let csv = 'Hora,Proveedor,Observaciones,Cajero,Origen,Monto\n';
     detalles.forEach(pago => {
         const hora = new Date(pago.fechaPago).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-        csv += `${hora},"${pago.nombreProveedor}","${pago.concepto || '-'}","${pago.formaPago}",${pago.monto}\n`;
+        csv += `${hora},"${pago.proveedor}","${pago.observaciones || '-'}","${pago.usuarioRegistro || 'N/A'}","${pago.origen || '-'}",${pago.monto}\n`;
     });
 
     // Descargar archivo

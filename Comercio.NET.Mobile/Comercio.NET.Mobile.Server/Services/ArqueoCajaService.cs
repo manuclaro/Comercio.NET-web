@@ -124,18 +124,28 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<List<DetallePagoProveedorDto>> ObtenerDetallePagosProveedoresAsync(DateTime fecha, string? cajero = null)
         {
+            _logger.LogInformation("🔍 Iniciando consulta de pagos a proveedores - Fecha: {Fecha}, Cajero: {Cajero}", 
+                fecha.ToString("yyyy-MM-dd"), cajero ?? "NULL");
+
             try
             {
+                // ✅ Query actualizada con los nombres correctos de columnas
                 var query = @"
                     SELECT 
                         pp.Id,
-                        pp.NombreProveedor,
+                        pp.Proveedor,
                         pp.Monto,
-                        pp.FormaPago,
                         pp.FechaPago,
-                        pp.Concepto,
-                        pp.NumeroComprobante,
-                        pp.UsuarioRegistro
+                        ISNULL(pp.Observaciones, '') as Observaciones,
+                        ISNULL(pp.UsuarioRegistro, '') as UsuarioRegistro,
+                        pp.NumeroCajero,
+                        pp.NumeroRemito,
+                        ISNULL(pp.NombreEquipo, '') as NombreEquipo,
+                        pp.FechaRegistro,
+                        pp.IdProveedor,
+                        pp.CompraId,
+                        pp.CtaCteId,
+                        ISNULL(pp.Origen, '') as Origen
                     FROM PagosProveedores pp
                     WHERE CAST(pp.FechaPago AS DATE) = @fecha
                     AND (@cajero IS NULL OR pp.UsuarioRegistro = @cajero)
@@ -147,36 +157,74 @@ namespace Comercio.NET.Mobile.Server.Services
                     { "@cajero", string.IsNullOrEmpty(cajero) ? null : cajero }
                 };
 
+                _logger.LogInformation("📤 Ejecutando query");
+
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
-                response.EnsureSuccessStatusCode();
+                
+                var responseContent = await response.Content.ReadAsStringAsync();
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("❌ SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
+                    
+                    // Si la tabla no existe o hay error, retornar lista vacía
+                    if (responseContent.Contains("Invalid object name") || 
+                        responseContent.Contains("PagosProveedores") ||
+                        response.StatusCode == System.Net.HttpStatusCode.InternalServerError)
+                    {
+                        _logger.LogWarning("⚠️ Error en base de datos, retornando lista vacía");
+                        return new List<DetallePagoProveedorDto>();
+                    }
+                    
+                    throw new Exception($"Error en SQL Bridge: {responseContent}");
+                }
 
                 var result = await response.Content.ReadFromJsonAsync<QueryResult>();
 
                 var pagos = new List<DetallePagoProveedorDto>();
-                if (result?.Data != null)
+                
+                if (result?.Data != null && result.Data.Count > 0)
                 {
+                    _logger.LogInformation("📊 Procesando {Count} filas", result.Data.Count);
+
                     foreach (var row in result.Data)
                     {
-                        pagos.Add(new DetallePagoProveedorDto
+                        try
                         {
-                            Id = ConvertToInt32(row[0]),
-                            NombreProveedor = ConvertToString(row[1]),
-                            Monto = ConvertToDecimal(row[2]),
-                            FormaPago = ConvertToString(row[3]),
-                            FechaPago = Convert.ToDateTime(row[4]),
-                            Concepto = ConvertToString(row[5]),
-                            NumeroComprobante = ConvertToString(row[6]),
-                            UsuarioRegistro = ConvertToString(row[7])
-                        });
+                            pagos.Add(new DetallePagoProveedorDto
+                            {
+                                Id = ConvertToInt32(row[0]),
+                                Proveedor = ConvertToString(row[1]),
+                                Monto = ConvertToDecimal(row[2]),
+                                FechaPago = Convert.ToDateTime(row[3]),
+                                Observaciones = ConvertToString(row[4]),
+                                UsuarioRegistro = ConvertToString(row[5]),
+                                NumeroCajero = ConvertToInt32(row[6]),
+                                NumeroRemito = row[7] != null ? ConvertToInt32(row[7]) : null,
+                                NombreEquipo = ConvertToString(row[8]),
+                                FechaRegistro = Convert.ToDateTime(row[9]),
+                                IdProveedor = row[10] != null ? ConvertToInt32(row[10]) : null,
+                                CompraId = row[11] != null ? ConvertToInt32(row[11]) : null,
+                                CtaCteId = row[12] != null ? ConvertToInt32(row[12]) : null,
+                                Origen = ConvertToString(row[13])
+                            });
+                        }
+                        catch (Exception exRow)
+                        {
+                            _logger.LogError(exRow, "❌ Error procesando fila");
+                        }
                     }
                 }
 
+                _logger.LogInformation("✅ Consulta finalizada - Total pagos: {Count}", pagos.Count);
                 return pagos;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo detalle de pagos a proveedores");
-                throw;
+                _logger.LogError(ex, "❌ Error obteniendo detalle de pagos a proveedores");
+                
+                // Retornar lista vacía en lugar de error para no romper la UI
+                return new List<DetallePagoProveedorDto>();
             }
         }
 
