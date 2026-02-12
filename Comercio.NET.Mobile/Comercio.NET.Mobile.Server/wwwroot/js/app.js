@@ -244,6 +244,10 @@ async function abrirModalDetalleProveedores() {
     const fecha = document.getElementById('fecha').value;
     const cajero = document.getElementById('cajero').value;
 
+    console.log('📊 Abriendo modal de detalles...');
+    console.log('Fecha:', fecha);
+    console.log('Cajero:', cajero);
+
     // Crear modal
     const modal = crearModal();
     document.body.appendChild(modal);
@@ -256,22 +260,48 @@ async function abrirModalDetalleProveedores() {
         const params = new URLSearchParams({ fecha });
         if (cajero) params.append('cajero', cajero);
 
-        const response = await fetch(
-            `${API_BASE}/arqueocaja/pagos-proveedores?${params}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
-        );
+        const url = `${API_BASE}/arqueocaja/pagos-proveedores?${params}`;
+        console.log('🌐 Llamando a:', url);
 
-        if (!response.ok) throw new Error('Error cargando detalles');
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response headers:', response.headers);
+
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('❌ Respuesta no es JSON:', text);
+            throw new Error('El servidor devolvió una respuesta inválida (no JSON)');
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Error ${response.status}`);
+        }
 
         const detalles = await response.json();
+        console.log('✅ Detalles recibidos:', detalles);
 
         mostrarDetallesEnModal(modalBody, detalles);
     } catch (error) {
-        modalBody.innerHTML = `<div class="error">Error cargando detalles: ${error.message}</div>`;
+        console.error('💥 Error completo:', error);
+        modalBody.innerHTML = `
+            <div class="error" style="padding: 20px; text-align: center;">
+                <h3>❌ Error cargando detalles</h3>
+                <p style="margin: 10px 0; color: #666;">${error.message}</p>
+                <details style="margin-top: 15px; text-align: left;">
+                    <summary style="cursor: pointer; color: #0078d7;">Ver detalles técnicos</summary>
+                    <pre style="background: #f5f5f5; padding: 10px; margin-top: 10px; overflow: auto;">${error.stack || error}</pre>
+                </details>
+            </div>
+        `;
     }
 }
 
