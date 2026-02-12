@@ -239,66 +239,80 @@ function mostrarResultado(data) {
     document.getElementById('resultado').style.display = 'block';
 }
 
-// ✅ NUEVA FUNCIÓN: Abrir modal con detalle de proveedores
+// ✅ FUNCIÓN MEJORADA: Abrir modal con detalle de proveedores
 async function abrirModalDetalleProveedores() {
-    const fecha = document.getElementById('fecha').value;
-    const cajero = document.getElementById('cajero').value;
-
+    const fechaInput = document.getElementById('fecha').value;
+    const cajeroInput = document.getElementById('cajero').value;
+    
     console.log('📊 Abriendo modal de detalles...');
-    console.log('Fecha:', fecha);
-    console.log('Cajero:', cajero);
-
+    console.log('Fecha (input):', fechaInput);
+    console.log('Cajero:', cajeroInput);
+    
     // Crear modal
     const modal = crearModal();
     document.body.appendChild(modal);
-
+    
     // Mostrar loading en el modal
     const modalBody = modal.querySelector('.modal-body');
     modalBody.innerHTML = '<div class="loading"><div class="spinner"></div><p>Cargando detalles...</p></div>';
-
+    
     try {
-        const params = new URLSearchParams({ fecha });
-        if (cajero) params.append('cajero', cajero);
-
+        // ✅ CORREGIDO: Enviar fecha como string en formato ISO
+        const params = new URLSearchParams({ 
+            fecha: fechaInput  // Enviar directamente el valor del input (YYYY-MM-DD)
+        });
+        
+        if (cajeroInput) {
+            params.append('cajero', cajeroInput);
+        }
+        
         const url = `${API_BASE}/arqueocaja/pagos-proveedores?${params}`;
         console.log('🌐 Llamando a:', url);
-
+        
         const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             }
         });
-
+        
         console.log('📡 Response status:', response.status);
-        console.log('📡 Response headers:', response.headers);
-
-        // Verificar si la respuesta es JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('❌ Respuesta no es JSON:', text);
-            throw new Error('El servidor devolvió una respuesta inválida (no JSON)');
+        console.log('📡 Response headers:', [...response.headers.entries()]);
+        
+        // Leer el contenido como texto primero para debugging
+        const responseText = await response.text();
+        console.log('📄 Response body (raw):', responseText);
+        
+        // Intentar parsear como JSON
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('❌ Error parseando JSON:', parseError);
+            console.error('Contenido recibido:', responseText.substring(0, 500));
+            throw new Error(`El servidor devolvió contenido inválido: ${responseText.substring(0, 100)}...`);
         }
-
+        
+        // Verificar si hubo error en el servidor
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Error ${response.status}`);
+            console.error('❌ Error del servidor:', data);
+            throw new Error(data.error || `Error ${response.status}: ${JSON.stringify(data)}`);
         }
-
-        const detalles = await response.json();
-        console.log('✅ Detalles recibidos:', detalles);
-
-        mostrarDetallesEnModal(modalBody, detalles);
+        
+        console.log('✅ Detalles recibidos:', data);
+        
+        mostrarDetallesEnModal(modalBody, data);
     } catch (error) {
         console.error('💥 Error completo:', error);
         modalBody.innerHTML = `
             <div class="error" style="padding: 20px; text-align: center;">
-                <h3>❌ Error cargando detalles</h3>
-                <p style="margin: 10px 0; color: #666;">${error.message}</p>
+                <h3 style="color: #d63031; margin-bottom: 15px;">❌ Error cargando detalles</h3>
+                <p style="margin: 10px 0; color: #666; font-size: 1.1em;">${error.message}</p>
                 <details style="margin-top: 15px; text-align: left;">
-                    <summary style="cursor: pointer; color: #0078d7;">Ver detalles técnicos</summary>
-                    <pre style="background: #f5f5f5; padding: 10px; margin-top: 10px; overflow: auto;">${error.stack || error}</pre>
+                    <summary style="cursor: pointer; color: #0078d7; font-weight: bold;">
+                        Ver detalles técnicos 🔍
+                    </summary>
+                    <pre style="background: #f5f5f5; padding: 15px; margin-top: 10px; overflow: auto; border-radius: 4px; font-size: 0.85em;">${error.stack || error}</pre>
                 </details>
             </div>
         `;
