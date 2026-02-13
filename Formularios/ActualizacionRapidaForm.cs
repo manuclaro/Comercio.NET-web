@@ -82,11 +82,11 @@ namespace Comercio.NET.Formularios
         private void ConfigurarFormulario()
         {
             this.Text = "⚡ Actualización Rápida de Precios y Stock";
-            this.Size = new Size(620, 640); // ✅ CAMBIO: Reducir altura
-            this.StartPosition = FormStartPosition.CenterScreen; // ✅ CAMBIO
-            this.FormBorderStyle = FormBorderStyle.Sizable; // ✅ CAMBIO: Permitir redimensionar
-            this.MaximizeBox = true; // ✅ CAMBIO
-            this.MinimizeBox = true; // ✅ CAMBIO
+            this.Size = new Size(620, 640);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+            this.MaximizeBox = true;
+            this.MinimizeBox = true;
             this.BackColor = Color.FromArgb(245, 248, 250);
             this.Font = new Font("Segoe UI", 10F);
             this.KeyPreview = true;
@@ -94,7 +94,17 @@ namespace Comercio.NET.Formularios
             CrearControles();
             ConfigurarEventos();
             ConfigurarBusquedaTiempoReal();
+
+            // ✅ NUEVO: Aplicar configuración inicial del RadioButton
+            AplicarConfiguracionInicial();
         }
+        // ✅ NUEVO: Método para aplicar la configuración inicial
+        private void AplicarConfiguracionInicial()
+        {
+            // Simular el cambio del RadioButton para aplicar toda la configuración
+            RadioButton_CheckedChanged(rbActualizarCosto, EventArgs.Empty);
+        }
+
 
         // ✅ NUEVO: Limpiar instancia al cerrar
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -262,7 +272,7 @@ namespace Comercio.NET.Formularios
                 Size = new Size(330, 25),
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(62, 80, 100),
-                Checked = false
+                Checked = true // ✅ CAMBIO: Ahora está marcado por defecto
             };
             grpTipoActualizacion.Controls.Add(rbActualizarCosto);
 
@@ -273,7 +283,7 @@ namespace Comercio.NET.Formularios
                 Size = new Size(200, 25),
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(62, 80, 100),
-                Checked = true
+                Checked = false // ✅ CAMBIO: Ya no está marcado por defecto
             };
             grpTipoActualizacion.Controls.Add(rbActualizarPrecio);
 
@@ -335,6 +345,7 @@ namespace Comercio.NET.Formularios
             // Campo Costo
             var lblNuevoCosto = new Label
             {
+                Name = "lblNuevoCosto", // ✅ NUEVO: Agregar Name para poder modificarlo
                 Text = "💵 Nuevo Costo:",
                 Location = new Point(15, 45),
                 Size = new Size(110, 25),
@@ -579,6 +590,11 @@ namespace Comercio.NET.Formularios
         {
             if (rbActualizarCosto.Checked)
             {
+                // ✅ NUEVO: Cambiar el texto del label
+                var lblNuevoCosto = panelEdicion.Controls.Find("lblNuevoCosto", false).FirstOrDefault() as Label;
+                if (lblNuevoCosto != null)
+                    lblNuevoCosto.Text = "💵 Nuevo Costo:";
+
                 txtNuevoCosto.Visible = true;
                 txtNuevoPrecio.Visible = false;
                 lblPrecioCalculado.Visible = true;
@@ -588,21 +604,26 @@ namespace Comercio.NET.Formularios
                 if (lblInfo != null)
                     lblInfo.Visible = true;
 
-                txtNuevoStock.BackColor = Color.White;
+                // ✅ NUEVO: Marcar automáticamente el checkbox de sumar stock
+                chkSumarStock.Checked = true;
+
+                txtNuevoStock.BackColor = Color.FromArgb(232, 245, 233);
 
                 if (!string.IsNullOrEmpty(codigoActual))
                 {
                     txtNuevoCosto.Text = costoActual.ToString("F2");
-
-                    // ✅ CAMBIO: Mostrar precio ACTUAL, no el calculado
                     txtPrecioCalculado.Text = precioActual.ToString("F2");
-
                     txtNuevoCosto.Focus();
                     txtNuevoCosto.SelectAll();
                 }
             }
             else if (rbActualizarPrecio.Checked)
             {
+                // ✅ NUEVO: Cambiar el texto del label
+                var lblNuevoCosto = panelEdicion.Controls.Find("lblNuevoCosto", false).FirstOrDefault() as Label;
+                if (lblNuevoCosto != null)
+                    lblNuevoCosto.Text = "💰 Nuevo Precio:";
+
                 txtNuevoCosto.Visible = false;
                 txtNuevoPrecio.Visible = true;
                 lblPrecioCalculado.Visible = false;
@@ -630,11 +651,53 @@ namespace Comercio.NET.Formularios
 
         private void ConfigurarBusquedaTiempoReal()
         {
-            // ✅ Búsqueda solo al perder el foco o presionar ENTER
+            System.Windows.Forms.Timer searchTimer = null;
 
-            // Buscar cuando pierde el foco
+            txtCodigo.TextChanged += (s, e) =>
+            {
+                // Detener el timer anterior si existe
+                searchTimer?.Stop();
+                searchTimer?.Dispose();
+
+                // Crear nuevo timer que se dispara después de 100ms sin escribir
+                searchTimer = new System.Windows.Forms.Timer { Interval = 100 };
+                searchTimer.Tick += async (sender, args) =>
+                {
+                    searchTimer.Stop();
+                    searchTimer.Dispose();
+
+                    string currentText = txtCodigo.Text.Trim();
+
+                    if (!string.IsNullOrEmpty(currentText) && currentText != lastSearchText)
+                    {
+                        lastSearchText = currentText;
+                        await BuscarProductoAsync(currentText);
+
+                        // ✅ NUEVO: Simular Enter para continuar al primer campo editable
+                        if (!string.IsNullOrEmpty(codigoActual))
+                        {
+                            if (rbActualizarCosto.Checked)
+                            {
+                                txtNuevoCosto.Focus();
+                                txtNuevoCosto.SelectAll();
+                            }
+                            else
+                            {
+                                txtNuevoPrecio.Focus();
+                                txtNuevoPrecio.SelectAll();
+                            }
+                        }
+                    }
+                };
+                searchTimer.Start();
+            };
+
+            // También buscar cuando pierde el foco (por si escribe manualmente)
             txtCodigo.Leave += async (s, e) =>
             {
+                searchTimer?.Stop();
+                searchTimer?.Dispose();
+
                 string currentText = txtCodigo.Text.Trim();
 
                 if (!string.IsNullOrEmpty(currentText) && currentText != lastSearchText)
@@ -643,21 +706,7 @@ namespace Comercio.NET.Formularios
                     await BuscarProductoAsync(currentText);
                 }
             };
-
-            // También buscar con ENTER (ya está manejado en Control_KeyDown)
         }
-
-        //private async void SearchTimer_Tick(object sender, EventArgs e)
-        //{
-        //    searchTimer?.Stop();
-        //    string currentText = txtCodigo.Text.Trim();
-
-        //    if (currentText != lastSearchText && !string.IsNullOrEmpty(currentText))
-        //    {
-        //        lastSearchText = currentText;
-        //        await BuscarProductoAsync(currentText);
-        //    }
-        //}
 
         private async Task BuscarProductoAsync(string codigo)
         {
@@ -749,25 +798,20 @@ namespace Comercio.NET.Formularios
             if (rbActualizarCosto.Checked)
             {
                 txtNuevoCosto.Text = costoActual.ToString("F2");
-
-                // ✅ CAMBIO: Mostrar precio ACTUAL, no el calculado
                 txtPrecioCalculado.Text = precioActual.ToString("F2");
 
-                txtNuevoStock.Text = stockActual.ToString();
+                // ✅ CAMBIO: Iniciar en 0 cuando está en modo COSTO (sumar stock)
+                txtNuevoStock.Text = "0";
+                txtNuevoStock.BackColor = Color.FromArgb(232, 245, 233);
+
                 txtNuevoCosto.Focus();
                 txtNuevoCosto.SelectAll();
             }
             else
             {
                 txtNuevoPrecio.Text = precioActual.ToString("F2");
-                txtNuevoStock.Text = stockActual.ToString();
-                txtNuevoPrecio.Focus();
-                txtNuevoPrecio.SelectAll();
-            }
 
-            // ✅ NUEVO: Aplicar el estado del checkbox al stock
-            if (rbActualizarPrecio.Checked)
-            {
+                // Aplicar el estado del checkbox al stock
                 if (chkSumarStock.Checked)
                 {
                     txtNuevoStock.Text = "0";
@@ -778,11 +822,9 @@ namespace Comercio.NET.Formularios
                     txtNuevoStock.Text = stockActual.ToString();
                     txtNuevoStock.BackColor = Color.White;
                 }
-            }
-            else
-            {
-                txtNuevoStock.Text = stockActual.ToString();
-                txtNuevoStock.BackColor = Color.White;
+
+                txtNuevoPrecio.Focus();
+                txtNuevoPrecio.SelectAll();
             }
 
             // Mostrar paneles
