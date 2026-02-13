@@ -79,6 +79,7 @@ namespace Comercio.NET.Formularios
             currentY += 35;
 
             // Panel de Filtros - Más ancho para acomodar DateTimePicker con hora
+
             var panelFiltros = new Panel
             {
                 Location = new Point(margin, currentY),
@@ -204,18 +205,18 @@ namespace Comercio.NET.Formularios
             {
                 Text = "$0.00",
                 Location = new Point(55, valueY),
-                Size = new Size(80, 20),
+                Size = new Size(90, 20),  // ✅ Aumentado de 80 a 90
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(96, 125, 139),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             panelFiltros.Controls.Add(lblMontoInicial);
 
-            // Esperado
+            // ✅ Esperado - AJUSTADO
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Esperado:",
-                Location = new Point(145, labelY),
+                Location = new Point(160, labelY),  // ✅ Movido de 145 a 160
                 Size = new Size(60, 18),
                 Font = new Font("Segoe UI", 8F),
                 TextAlign = ContentAlignment.MiddleLeft
@@ -224,19 +225,19 @@ namespace Comercio.NET.Formularios
             lblTotalEsperado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(205, valueY),
-                Size = new Size(80, 20),
+                Location = new Point(220, valueY),  // ✅ Movido de 205 a 220
+                Size = new Size(90, 20),  // ✅ Aumentado de 80 a 90
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 150, 243),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             panelFiltros.Controls.Add(lblTotalEsperado);
 
-            // Declarado
+            // ✅ Declarado - AJUSTADO
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Declarado:",
-                Location = new Point(295, labelY),
+                Location = new Point(325, labelY),  // ✅ Movido de 295 a 325
                 Size = new Size(65, 18),
                 Font = new Font("Segoe UI", 8F),
                 TextAlign = ContentAlignment.MiddleLeft
@@ -245,19 +246,19 @@ namespace Comercio.NET.Formularios
             lblTotalDeclarado = new Label
             {
                 Text = "$0.00",
-                Location = new Point(360, valueY),
-                Size = new Size(80, 20),
+                Location = new Point(390, valueY),  // ✅ Movido de 360 a 390
+                Size = new Size(90, 20),  // ✅ Aumentado de 80 a 90
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 152, 0),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             panelFiltros.Controls.Add(lblTotalDeclarado);
 
-            // Diferencia
+            // ✅ Diferencia - AJUSTADO
             panelFiltros.Controls.Add(new Label
             {
                 Text = "Diferencia:",
-                Location = new Point(450, labelY),
+                Location = new Point(495, labelY),  // ✅ Movido de 450 a 495
                 Size = new Size(65, 18),
                 Font = new Font("Segoe UI", 8F),
                 TextAlign = ContentAlignment.MiddleLeft
@@ -266,8 +267,8 @@ namespace Comercio.NET.Formularios
             lblDiferencia = new Label
             {
                 Text = "$0.00",
-                Location = new Point(515, valueY),
-                Size = new Size(120, 20),
+                Location = new Point(560, valueY),  // ✅ Movido de 515 a 560
+                Size = new Size(120, 20),  // Mantener 120 (ya era grande)
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(244, 67, 54),
                 TextAlign = ContentAlignment.MiddleLeft

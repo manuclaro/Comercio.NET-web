@@ -212,12 +212,12 @@ namespace Comercio.NET.Formularios
             };
             this.Controls.Add(panelResumenFinanciero);
 
-            // Monto Inicial
+            // ✅ Monto Inicial - AJUSTADO
             panelResumenFinanciero.Controls.Add(new Label
             {
                 Text = "💰 Inicial:",
                 Location = new Point(15, 12),
-                Size = new Size(65, 18),
+                Size = new Size(70, 18),
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
 
@@ -225,17 +225,17 @@ namespace Comercio.NET.Formularios
             {
                 Text = "$0.00",
                 Location = new Point(15, 32),
-                Size = new Size(100, 20),
+                Size = new Size(120, 20),  // ✅ Aumentado de 100 a 120
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             };
             panelResumenFinanciero.Controls.Add(lblMontoInicial);
 
-            // Total Ingresos
+            // ✅ Total Ingresos - AJUSTADO
             panelResumenFinanciero.Controls.Add(new Label
             {
                 Text = "📈 Ingresos:",
-                Location = new Point(135, 12),
+                Location = new Point(155, 12),  // ✅ Movido de 135 a 155
                 Size = new Size(75, 18),
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
@@ -243,18 +243,18 @@ namespace Comercio.NET.Formularios
             lblTotalIngresos = new Label
             {
                 Text = "$0.00",
-                Location = new Point(135, 32),
-                Size = new Size(100, 20),
+                Location = new Point(155, 32),  // ✅ Movido de 135 a 155
+                Size = new Size(120, 20),  // ✅ Aumentado de 100 a 120
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(76, 175, 80)
             };
             panelResumenFinanciero.Controls.Add(lblTotalIngresos);
 
-            // Total Egresos
+            // ✅ Total Egresos - AJUSTADO
             panelResumenFinanciero.Controls.Add(new Label
             {
                 Text = "📉 Egresos:",
-                Location = new Point(255, 12),
+                Location = new Point(295, 12),  // ✅ Movido de 255 a 295
                 Size = new Size(70, 18),
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
@@ -262,18 +262,18 @@ namespace Comercio.NET.Formularios
             lblTotalEgresos = new Label
             {
                 Text = "$0.00",
-                Location = new Point(255, 32),
-                Size = new Size(100, 20),
+                Location = new Point(295, 32),  // ✅ Movido de 255 a 295
+                Size = new Size(120, 20),  // ✅ Aumentado de 100 a 120
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(244, 67, 54)
             };
             panelResumenFinanciero.Controls.Add(lblTotalEgresos);
 
-            // Saldo Actual
+            // ✅ Saldo Actual - AJUSTADO
             panelResumenFinanciero.Controls.Add(new Label
             {
                 Text = "💵 Saldo:",
-                Location = new Point(375, 12),
+                Location = new Point(435, 12),  // ✅ Movido de 375 a 435
                 Size = new Size(60, 18),
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold)
             });
@@ -281,19 +281,19 @@ namespace Comercio.NET.Formularios
             lblSaldoActual = new Label
             {
                 Text = "$0.00",
-                Location = new Point(375, 32),
-                Size = new Size(110, 20),
+                Location = new Point(435, 32),  // ✅ Movido de 375 a 435
+                Size = new Size(130, 20),  // ✅ Aumentado de 110 a 130
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 152, 0)
             };
             panelResumenFinanciero.Controls.Add(lblSaldoActual);
 
-            // Nota informativa
+            // ✅ Nota informativa - AJUSTADA
             var lblInfo = new Label
             {
                 Text = "ℹ️ El arqueo NO cierra el turno",
-                Location = new Point(520, 20),
-                Size = new Size(340, 30),
+                Location = new Point(590, 20),  // ✅ Movido de 520 a 590
+                Size = new Size(270, 30),  // ✅ Ajustado de 340 a 270
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.Gray
             };
