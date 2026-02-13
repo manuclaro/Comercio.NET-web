@@ -58,9 +58,12 @@ namespace Comercio.NET.Formularios
         private Button btnCancelar;
         private Button? btnBuscar; // Solo para modo Modificar
         private Button? btnEliminar; // ✅ NUEVO: Botón para eliminar producto
+        private Button? btnActualizar; // ✅ NUEVO: Botón para refrescar datos
 
         public ProductoFormUnificado()
         {
+            System.Diagnostics.Debug.WriteLine($"🚀 [CONSTRUCTOR BASE] ProductoFormUnificado() llamado");
+
             InitializeComponent();
             ConfigurarFormulario();
             CrearControles();
@@ -69,11 +72,65 @@ namespace Comercio.NET.Formularios
 
         public ProductoFormUnificado(ModoOperacion modo, string codigo = "", OrigenLlamada origen = OrigenLlamada.Productos) : this()
         {
+            System.Diagnostics.Debug.WriteLine($"🚀 [CONSTRUCTOR] ProductoFormUnificado iniciado - Modo: {modo}, Código: {codigo}, Origen: {origen}");
+
             Modo = modo;
             CodigoProducto = codigo?.Trim() ?? "";
             Origen = origen;
 
             AjustarFormularioSegunModo();
+
+            // ✅ DIAGNÓSTICO: Verificar botones en modo Modificar
+            if (Modo == ModoOperacion.Modificar)
+            {
+                this.Load += (s, e) =>
+                {
+                    System.Diagnostics.Debug.WriteLine($"\n[DIAGNÓSTICO LOAD] ========================================");
+                    System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] Modo: {Modo}");
+                    System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] panelBotones existe: {panelBotones != null}");
+                    System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] panelBotones controles: {panelBotones?.Controls.Count ?? 0}");
+
+                    if (btnActualizar != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] btnActualizar existe: TRUE");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Visible: {btnActualizar.Visible}");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Enabled: {btnActualizar.Enabled}");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Posición: ({btnActualizar.Left}, {btnActualizar.Top})");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Tamaño: {btnActualizar.Width}x{btnActualizar.Height}");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Parent: {btnActualizar.Parent?.Name ?? "NULL"}");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - BackColor: {btnActualizar.BackColor}");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Text: '{btnActualizar.Text}'");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - TabIndex: {btnActualizar.TabIndex}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] ❌ btnActualizar es NULL");
+                    }
+
+                    if (btnEliminar != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] btnEliminar existe: TRUE");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Visible: {btnEliminar.Visible}");
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] - Posición: ({btnEliminar.Left}, {btnEliminar.Top})");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO] ❌ btnEliminar es NULL");
+                    }
+
+                    // Listar TODOS los controles del panelBotones
+                    if (panelBotones != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"\n[DIAGNÓSTICO] Controles en panelBotones:");
+                        foreach (Control ctrl in panelBotones.Controls)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"  - {ctrl.GetType().Name}: '{ctrl.Text}' en ({ctrl.Left},{ctrl.Top}) Visible:{ctrl.Visible}");
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[DIAGNÓSTICO LOAD] ========================================\n");
+                };
+            }
 
             if (modo == ModoOperacion.Modificar && !string.IsNullOrEmpty(codigo))
             {
@@ -91,9 +148,9 @@ namespace Comercio.NET.Formularios
             this.StartPosition = FormStartPosition.CenterParent;
             this.KeyPreview = true;
             this.BackColor = Color.FromArgb(248, 250, 252);
-            this.Size = new Size(650, 650); // ✅ AUMENTADO para acomodar nuevo checkbox
+            this.Size = new Size(650, 650);
 
-            this.KeyDown += (s, e) =>
+            this.KeyDown += async (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape)
                 {
@@ -101,7 +158,11 @@ namespace Comercio.NET.Formularios
                 }
                 else if (e.KeyCode == Keys.F5 && Modo == ModoOperacion.Modificar)
                 {
-                    RecalcularPrecio();
+                    // ✅ MODIFICADO: F5 ahora actualiza datos en lugar de recalcular precio
+                    if (btnActualizar != null)
+                    {
+                        await ActualizarDatosProducto();
+                    }
                 }
             };
         }
@@ -399,52 +460,200 @@ namespace Comercio.NET.Formularios
 
         private void CrearBotones()
         {
+            // Calcular posiciones desde el inicio
+            int margenIzquierdo = 30;
+            int margenDerecho = 30;
+            int espacioEntreBotones = 10;
+            int anchoBtnEliminar = 120;
+            int anchoBtnActualizar = 130;
+            int anchoBtnGuardar = 140;
+            int anchoBtnCancelar = 120;
+
+            // ✅ CREAR TODOS LOS BOTONES PRIMERO (antes de agregarlos)
+
+            // Botón Guardar
             btnGuardar = new Button
             {
-                Text = Modo == ModoOperacion.Agregar ? "Guardar" : "Actualizar",
-                Size = new Size(120, 40),
-                Location = new Point(panelBotones.Width - 280, 15),
-                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Text = Modo == ModoOperacion.Agregar ? "Guardar" : "Actualizar Producto",
+                Size = new Size(anchoBtnGuardar, 40),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
             btnGuardar.FlatAppearance.BorderSize = 0;
 
+            // Botón Cancelar
             btnCancelar = new Button
             {
                 Text = "Cancelar",
-                Size = new Size(120, 40),
-                Location = new Point(panelBotones.Width - 150, 15),
-                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Size = new Size(anchoBtnCancelar, 40),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(158, 158, 158),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
             btnCancelar.FlatAppearance.BorderSize = 0;
 
-            // ✅ NUEVO: Botón Eliminar (solo en modo Modificar)
+            // ✅ BOTONES PARA MODO MODIFICAR
             if (Modo == ModoOperacion.Modificar)
             {
                 btnEliminar = new Button
                 {
                     Text = "🗑️ Eliminar",
-                    Size = new Size(120, 40),
-                    Location = new Point(30, 15),
-                    Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                    Size = new Size(anchoBtnEliminar, 40),
+                    Location = new Point(margenIzquierdo, 15),
                     FlatStyle = FlatStyle.Flat,
                     BackColor = Color.FromArgb(220, 53, 69),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                    TabIndex = 100,
+                    Visible = true,
+                    Enabled = true
                 };
                 btnEliminar.FlatAppearance.BorderSize = 0;
                 btnEliminar.Click += async (s, e) => await EliminarProducto();
-                panelBotones.Controls.Add(btnEliminar);
+
+                btnActualizar = new Button
+                {
+                    Text = "🔄 Actualizar",
+                    Size = new Size(anchoBtnActualizar, 40),
+                    Location = new Point(margenIzquierdo + anchoBtnEliminar + espacioEntreBotones, 15),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(0, 123, 255),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                    TabIndex = 101,
+                    Visible = true,
+                    Enabled = true
+                };
+                btnActualizar.FlatAppearance.BorderSize = 0;
+                btnActualizar.Click += async (s, e) => await ActualizarDatosProducto();
+
+                // Tooltip
+                var toolTip = new ToolTip();
+                toolTip.SetToolTip(btnActualizar,
+                    "Presione F5 o haga clic aquí para recargar\n" +
+                    "los datos desde la base de datos.\n\n" +
+                    "Útil para ver cambios de stock actualizados.");
             }
 
-            panelBotones.Controls.AddRange(new Control[] { btnGuardar, btnCancelar });
+            // ✅ AGREGAR TODOS LOS BOTONES AL PANEL EN EL ORDEN CORRECTO
+            // Primero los de la izquierda (modo Modificar), luego los de la derecha
+            if (Modo == ModoOperacion.Modificar && btnEliminar != null && btnActualizar != null)
+            {
+                panelBotones.Controls.Add(btnEliminar);
+                panelBotones.Controls.Add(btnActualizar);
+
+                System.Diagnostics.Debug.WriteLine($"[BOTONES] ✅ Agregados botones izquierda:");
+                System.Diagnostics.Debug.WriteLine($"  - btnEliminar: ({btnEliminar.Left}, {btnEliminar.Top}) Size:{btnEliminar.Width}x{btnEliminar.Height}");
+                System.Diagnostics.Debug.WriteLine($"  - btnActualizar: ({btnActualizar.Left}, {btnActualizar.Top}) Size:{btnActualizar.Width}x{btnActualizar.Height}");
+            }
+
+            panelBotones.Controls.Add(btnGuardar);
+            panelBotones.Controls.Add(btnCancelar);
+
+            // ✅ POSICIONAR BOTONES DE LA DERECHA (con evento Resize para adaptarse)
+            EventHandler posicionarBotonesDerecha = (s, e) =>
+            {
+                btnCancelar.Location = new Point(panelBotones.Width - margenDerecho - anchoBtnCancelar, 15);
+                btnGuardar.Location = new Point(btnCancelar.Left - espacioEntreBotones - anchoBtnGuardar, 15);
+            };
+
+            // Ejecutar inmediatamente
+            posicionarBotonesDerecha(null, null);
+
+            // Y también en Resize
+            panelBotones.Resize += posicionarBotonesDerecha;
+
+            // ✅ FORZAR REFRESH DEL PANEL
+            panelBotones.PerformLayout();
+            panelBotones.Refresh();
+
+            // Log final
+            System.Diagnostics.Debug.WriteLine($"[BOTONES] Total controles en panelBotones: {panelBotones.Controls.Count}");
+            System.Diagnostics.Debug.WriteLine($"[BOTONES] Modo: {Modo}");
+
+            if (Modo == ModoOperacion.Modificar)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BOTONES] btnActualizar null: {btnActualizar == null}");
+                if (btnActualizar != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[BOTONES] btnActualizar.Visible: {btnActualizar.Visible}");
+                    System.Diagnostics.Debug.WriteLine($"[BOTONES] btnActualizar.Parent: {btnActualizar.Parent?.Name ?? "NULL"}");
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Actualiza/Refresca los datos del producto desde la base de datos
+        /// </summary>
+        private async Task ActualizarDatosProducto()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(CodigoProducto))
+                {
+                    MessageBox.Show(
+                        "No hay un producto cargado para actualizar.",
+                        "Actualizar Datos",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Confirmación opcional
+                var resultado = MessageBox.Show(
+                    $"¿Desea recargar los datos del producto '{CodigoProducto}' desde la base de datos?\n\n" +
+                    "Esto sobrescribirá cualquier cambio no guardado en el formulario.",
+                    "Actualizar Datos",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button1);
+
+                if (resultado != DialogResult.Yes)
+                    return;
+
+                this.Cursor = Cursors.WaitCursor;
+                btnActualizar.Enabled = false;
+                btnActualizar.Text = "🔄 Actualizando...";
+
+                // ✅ Recargar desde la base de datos
+                await CargarProductoAsync(CodigoProducto);
+
+                MessageBox.Show(
+                    "✅ Datos actualizados exitosamente desde la base de datos.",
+                    "Actualización Completa",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                System.Diagnostics.Debug.WriteLine($"[PRODUCTO] ✅ Datos actualizados para código: {CodigoProducto}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error al actualizar los datos:\n\n{ex.Message}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                System.Diagnostics.Debug.WriteLine($"[PRODUCTO] ❌ Error actualizando: {ex.Message}");
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+                btnActualizar.Enabled = true;
+                btnActualizar.Text = "🔄 Actualizar";
+            }
         }
 
         private void AjustarFormularioSegunModo()
@@ -460,7 +669,7 @@ namespace Comercio.NET.Formularios
             else
             {
                 lblTitulo.Text = "Modificar Producto";
-                lblSubtitulo.Text = "Edite los campos que desea actualizar - F5 para recalcular precio";
+                lblSubtitulo.Text = "F5 para actualizar datos desde BD"; // ✅ MEJORADO
                 iconoFormulario.Image = CrearIcono("E", Color.White);
             }
 
@@ -469,7 +678,6 @@ namespace Comercio.NET.Formularios
                 this.Size = new Size(650, 320);
             }
         }
-
         private Bitmap CrearIcono(string texto, Color color)
         {
             var bitmap = new Bitmap(40, 40);

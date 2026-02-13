@@ -41,6 +41,10 @@ namespace Comercio.NET.Formularios
             // Configuración básica del formulario
             this.WindowState = FormWindowState.Maximized;
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.KeyPreview = true; // ✅ Habilitar captura de teclas
+
+            // ✅ NUEVO: Configurar atajo F5 para actualizar
+            this.KeyDown += Productos_KeyDown;
 
             // ✅ RESTAURAR: Configurar timer de búsqueda
             searchTimer = new System.Windows.Forms.Timer();
@@ -61,21 +65,34 @@ namespace Comercio.NET.Formularios
             isInitialized = true;
         }
 
+        // ✅ NUEVO: Manejador de teclas del formulario
+        private void Productos_KeyDown(object sender, KeyEventArgs e)
+        {
+            // F5: Actualizar datos
+            if (e.KeyCode == Keys.F5)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+
+                // Buscar el botón actualizar y hacer clic en él
+                var btnActualizar = this.Controls.Find("btnActualizar", false).FirstOrDefault() as Button;
+                btnActualizar?.PerformClick();
+            }
+        }
 
         private void CrearBotonActualizacionRapida()
         {
-            // Crear botón para actualización rápida - MOVIDO MÁS A LA DERECHA Y MÁS ABAJO
             var btnActualizacionRapida = new Button
             {
                 Text = "⚡ Actualización Rápida",
-                Location = new Point(820, 15), // ✅ Movido más a la derecha (de 790 a 820) y un poco más abajo (de 8 a 15)
-                Size = new Size(180, 25),
+                Location = new Point(555, 8), // ✅ Encima del botón "Agregar" (misma X)
+                Size = new Size(180, 27),
                 BackColor = Color.FromArgb(255, 152, 0),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Left // ✅ FIJO en la izquierda
             };
             btnActualizacionRapida.FlatAppearance.BorderSize = 0;
             btnActualizacionRapida.Click += BtnActualizacionRapida_Click;
@@ -107,18 +124,17 @@ namespace Comercio.NET.Formularios
 
         private void CrearBotonActualizacionMasiva()
         {
-            // Crear botón para actualización masiva - MOVIDO MÁS A LA DERECHA Y AJUSTADO
             var btnActualizacionMasiva = new Button
             {
                 Text = "⚡⚡ Actualización Masiva",
-                Location = new Point(820, 45), // ✅ Movido más a la derecha (de 790 a 820) y más abajo (de 35 a 45)
-                Size = new Size(180, 25),
+                Location = new Point(745, 8), // ✅ Al lado de Act. Rápida (555 + 180 + 10)
+                Size = new Size(180, 27),
                 BackColor = Color.FromArgb(156, 39, 176),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Left // ✅ FIJO en la izquierda
             };
             btnActualizacionMasiva.FlatAppearance.BorderSize = 0;
             btnActualizacionMasiva.Click += BtnActualizacionMasiva_Click;
@@ -185,7 +201,8 @@ namespace Comercio.NET.Formularios
 
                 CrearBotonActualizacionRapida();
                 CrearBotonActualizacionMasiva();
-                CrearBotonEliminar(); // ✅ AGREGAR ESTA LÍNEA
+                CrearBotonEliminar();
+                CrearBotonActualizar(); // ✅ NUEVO: Agregar botón Actualizar
 
                 // Cargar productos
                 await CargarProductosAsync();
@@ -201,6 +218,118 @@ namespace Comercio.NET.Formularios
                 System.Diagnostics.Debug.WriteLine($"❌ Error cargando formulario: {ex.Message}");
                 MessageBox.Show($"Error al cargar productos: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Crear botón Actualizar
+        private void CrearBotonActualizar()
+        {
+            var btnActualizar = new Button
+            {
+                Text = "🔄 Actualizar",
+                Location = new Point(425, 8), // ✅ Encima del botón "Modificar" (misma X)
+                Size = new Size(120, 27),
+                BackColor = Color.FromArgb(33, 150, 243), // Azul
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left, // ✅ FIJO en la izquierda
+                Name = "btnActualizar"
+            };
+            btnActualizar.FlatAppearance.BorderSize = 0;
+            btnActualizar.Click += BtnActualizar_Click;
+
+            // Tooltip explicativo
+            var toolTip = new ToolTip();
+            toolTip.SetToolTip(btnActualizar,
+                "Recargar datos desde la base de datos\n" +
+                "Útil para ver cambios realizados desde otros usuarios\n" +
+                "o para actualizar el stock en tiempo real.\n\n" +
+                "Atajo: F5");
+
+            this.Controls.Add(btnActualizar);
+            btnActualizar.BringToFront();
+        }
+
+        // ✅ NUEVO: Manejador del botón Actualizar
+        private async void BtnActualizar_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🔄 Actualizando datos de productos desde BD");
+
+                // Guardar el filtro actual
+                string filtroActual = txtFiltroDescripcion?.Text?.Trim() ?? "";
+
+                // Guardar la selección actual (si existe)
+                string codigoSeleccionado = "";
+                if (GrillaProductos?.SelectedRows?.Count > 0)
+                {
+                    var filaSeleccionada = GrillaProductos.SelectedRows[0];
+                    codigoSeleccionado = filaSeleccionada.Cells["codigo"]?.Value?.ToString() ?? "";
+                }
+
+                // Deshabilitar el botón temporalmente
+                if (sender is Button btn)
+                {
+                    btn.Enabled = false;
+                    btn.Text = "🔄 Actualizando...";
+                }
+
+                this.Cursor = Cursors.WaitCursor;
+                lblContador.Text = "🔄 Actualizando datos desde la base de datos...";
+                lblContador.ForeColor = Color.FromArgb(33, 150, 243);
+
+                // Limpiar caché para forzar recarga desde BD
+                LimpiarCache();
+
+                // Recargar productos
+                await CargarProductosAsync();
+
+                // Reaplicar filtro si existía
+                if (!string.IsNullOrEmpty(filtroActual))
+                {
+                    txtFiltroDescripcion.TextChanged -= TxtFiltroDescripcion_TextChanged;
+                    txtFiltroDescripcion.Text = filtroActual;
+                    await AplicarFiltro(filtroActual);
+                    txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
+                    lastSearchText = filtroActual;
+                }
+
+                // Restaurar selección si existía
+                if (!string.IsNullOrEmpty(codigoSeleccionado))
+                {
+                    await SeleccionarProductoEnGrilla(codigoSeleccionado);
+                }
+
+                System.Diagnostics.Debug.WriteLine("✅ Datos actualizados exitosamente");
+
+                // Feedback visual temporal
+                lblContador.ForeColor = Color.FromArgb(76, 175, 80); // Verde
+                await Task.Delay(2000); // Mostrar mensaje 2 segundos
+                ActualizarContador(); // Restaurar contador normal
+
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error actualizando datos: {ex.Message}");
+                MessageBox.Show($"Error al actualizar datos:\n\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                lblContador.Text = "❌ Error al actualizar";
+                lblContador.ForeColor = Color.FromArgb(220, 53, 69);
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+
+                // Restaurar el botón
+                if (sender is Button btn)
+                {
+                    btn.Enabled = true;
+                    btn.Text = "🔄 Actualizar";
+                }
             }
         }
 
@@ -1413,15 +1542,15 @@ namespace Comercio.NET.Formularios
 
         private void CrearBotonEliminar()
         {
-            // Crear botón Eliminar - CON EL MISMO DISEÑO que Modificar y Agregar
             var btnEliminar = new Button
             {
                 Text = "🗑️ Eliminar",
-                Location = new Point(685, 40), // ✅ Alineado a la derecha de "Agregar"
-                Size = new Size(120, 27), // ✅ MISMO tamaño (27 de alto, no 28)
-                Font = new Font("Segoe UI", 9F), // ✅ MISMA fuente (sin Bold)
-                UseVisualStyleBackColor = true, // ✅ MISMO estilo visual que los otros
+                Location = new Point(685, 40), // ✅ Fila inferior
+                Size = new Size(120, 27),
+                Font = new Font("Segoe UI", 9F),
+                UseVisualStyleBackColor = true,
                 Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left, // ✅ FIJO en la izquierda
                 Name = "btnEliminar",
                 TabIndex = 5
             };

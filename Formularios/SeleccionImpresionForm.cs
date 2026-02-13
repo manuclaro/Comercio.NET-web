@@ -1555,8 +1555,6 @@ namespace Comercio.NET
                     return;
                 }
 
-                // ... resto de validaciones (líneas ~1510-1550) ...
-
                 // ✅ CRÍTICO: CAPTURAR DESCUENTOS ANTES DE INICIAR EL PROCESO
                 decimal porcentajeDescuentoCapturado = porcentajeDescuentoSeleccionado;
                 decimal importeDescuentoCapturado = importeDescuento;
@@ -1764,12 +1762,14 @@ namespace Comercio.NET
                                 CAEVencimiento,
                                 NumeroFacturaAfip,
                                 numeroFormateado,
-                                porcentajeDescuentoCapturado,     // ✅ PARÁMETRO 8: Porcentaje descuento
-                                importeDescuentoCapturado         // ✅ PARÁMETRO 9: Importe descuento
-);
+                                porcentajeDescuentoCapturado,
+                                importeDescuentoCapturado);
 
                         System.Diagnostics.Debug.WriteLine("✅ Callback OnProcesarVenta completado exitosamente");
                     }
+
+                    // ✅ AGREGAR AQUÍ: Descontar stock DESPUÉS de guardar la factura
+                    await DescontarStockProductos();
 
                     progressForm.Close();
 
@@ -1810,6 +1810,203 @@ namespace Comercio.NET
 
                 MessageBox.Show($"Error procesando factura electrónica:\n\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Descuenta el stock de los productos vendidos en la base de datos
+        /// </summary>
+        private async Task DescontarStockProductos()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("📦 === INICIANDO DESCUENTO DE STOCK ===");
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                // Obtener el remito actual desde el formulario padre
+                var remito = formularioPadre?.GetRemitoActual();
+
+                if (remito == null || remito.Rows.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ No hay productos para descontar stock");
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"📋 Productos en remito: {remito.Rows.Count}");
+
+                // ✅ NUEVO: Mostrar columnas disponibles en el DataTable
+                System.Diagnostics.Debug.WriteLine("📋 Columnas disponibles en remito:");
+                foreach (DataColumn col in remito.Columns)
+                {
+                    System.Diagnostics.Debug.WriteLine($"   - {col.ColumnName} ({col.DataType.Name})");
+                }
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+                    System.Diagnostics.Debug.WriteLine("✅ Conexión a base de datos abierta");
+
+                    // ✅ NUEVO: Verificar estructura de tabla Productos
+                    string checkTableQuery = @"
+                SELECT COLUMN_NAME, DATA_TYPE 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'Productos' 
+                AND COLUMN_NAME IN ('cantidad', 'stock', 'Stock', 'Cantidad', 'existencia')";
+
+                    using (var checkCmd = new SqlCommand(checkTableQuery, connection))
+                    using (var reader = await checkCmd.ExecuteReaderAsync())
+                    {
+                        System.Diagnostics.Debug.WriteLine("📊 Columnas de stock encontradas en tabla Productos:");
+                        bool hayColumnaStock = false;
+                        while (await reader.ReadAsync())
+                        {
+                            string columnName = reader.GetString(0);
+                            string dataType = reader.GetString(1);
+                            System.Diagnostics.Debug.WriteLine($"   - {columnName} ({dataType})");
+                            hayColumnaStock = true;
+                        }
+
+                        if (!hayColumnaStock)
+                        {
+                            System.Diagnostics.Debug.WriteLine("❌ ERROR CRÍTICO: No se encontró columna de stock en tabla Productos");
+                            MessageBox.Show(
+                                "⚠️ CONFIGURACIÓN INCORRECTA\n\n" +
+                                "No se encontró una columna de stock en la tabla Productos.\n\n" +
+                                "Verifique que exista alguna de estas columnas:\n" +
+                                "• cantidad\n" +
+                                "• stock\n" +
+                                "• Stock\n" +
+                                "• existencia",
+                                "Error de Base de Datos",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            return;
+                        }
+                    }
+
+                    int productosDescontados = 0;
+                    int productosNoEncontrados = 0;
+                    int productosError = 0;
+
+                    foreach (DataRow row in remito.Rows)
+                    {
+                        string codigo = row["codigo"]?.ToString()?.Trim();
+                        int cantidad = row["cantidad"] != DBNull.Value ? Convert.ToInt32(row["cantidad"]) : 0;
+                        string descripcion = row["descripcion"]?.ToString() ?? "";
+
+                        System.Diagnostics.Debug.WriteLine($"\n🔍 Procesando producto:");
+                        System.Diagnostics.Debug.WriteLine($"   - Código: '{codigo}'");
+                        System.Diagnostics.Debug.WriteLine($"   - Cantidad a descontar: {cantidad}");
+                        System.Diagnostics.Debug.WriteLine($"   - Descripción: {descripcion}");
+
+                        if (string.IsNullOrEmpty(codigo))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ Código vacío o null - SALTANDO");
+                            productosError++;
+                            continue;
+                        }
+
+                        if (cantidad <= 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⚠️ Cantidad inválida ({cantidad}) - SALTANDO");
+                            productosError++;
+                            continue;
+                        }
+
+                        // ✅ PRIMERO: Verificar si el producto existe y obtener stock actual
+                        string checkQuery = "SELECT cantidad FROM Productos WHERE codigo = @codigo";
+                        using (var checkCmd = new SqlCommand(checkQuery, connection))
+                        {
+                            checkCmd.Parameters.AddWithValue("@codigo", codigo);
+                            var stockActual = await checkCmd.ExecuteScalarAsync();
+
+                            if (stockActual == null || stockActual == DBNull.Value)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"❌ Producto NO encontrado en BD con código: '{codigo}'");
+                                productosNoEncontrados++;
+                                continue;
+                            }
+
+                            int stockActualInt = Convert.ToInt32(stockActual);
+                            System.Diagnostics.Debug.WriteLine($"   📊 Stock actual en BD: {stockActualInt}");
+                            System.Diagnostics.Debug.WriteLine($"   📉 Stock después de descuento: {stockActualInt - cantidad}");
+                        }
+
+                        // ✅ SEGUNDO: Descontar stock en la base de datos
+                        string updateQuery = @"
+                    UPDATE Productos 
+                    SET cantidad = cantidad - @cantidad 
+                    WHERE codigo = @codigo";
+
+                        using (var cmd = new SqlCommand(updateQuery, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@cantidad", cantidad);
+                            cmd.Parameters.AddWithValue("@codigo", codigo);
+
+                            int rowsAffected = await cmd.ExecuteNonQueryAsync();
+
+                            if (rowsAffected > 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"✅ Stock DESCONTADO exitosamente");
+                                productosDescontados++;
+
+                                // ✅ VERIFICAR el stock después del update
+                                using (var verifyCmd = new SqlCommand("SELECT cantidad FROM Productos WHERE codigo = @codigo", connection))
+                                {
+                                    verifyCmd.Parameters.AddWithValue("@codigo", codigo);
+                                    var nuevoStock = await verifyCmd.ExecuteScalarAsync();
+                                    int nuevoStockInt = nuevoStock != null && nuevoStock != DBNull.Value ? Convert.ToInt32(nuevoStock) : -1;
+                                    System.Diagnostics.Debug.WriteLine($"   ✅ VERIFICACIÓN: Nuevo stock en BD: {nuevoStockInt}");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"⚠️ UPDATE no afectó ninguna fila (código: '{codigo}')");
+                                productosNoEncontrados++;
+                            }
+                        }
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("\n📊 === RESUMEN DESCUENTO DE STOCK ===");
+                    System.Diagnostics.Debug.WriteLine($"   ✅ Productos descontados: {productosDescontados}");
+                    System.Diagnostics.Debug.WriteLine($"   ⚠️ Productos no encontrados: {productosNoEncontrados}");
+                    System.Diagnostics.Debug.WriteLine($"   ❌ Productos con errores: {productosError}");
+                    System.Diagnostics.Debug.WriteLine("=====================================");
+
+                    if (productosNoEncontrados > 0 || productosError > 0)
+                    {
+                        MessageBox.Show(
+                            $"⚠️ ADVERTENCIA: Descuento de stock incompleto\n\n" +
+                            $"Productos descontados: {productosDescontados}\n" +
+                            $"Productos no encontrados: {productosNoEncontrados}\n" +
+                            $"Productos con errores: {productosError}\n\n" +
+                            $"Revise el inventario manualmente.",
+                            "Advertencia de Stock",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine("✅ Descuento de stock completado");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ ERROR CRÍTICO descontando stock: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+
+                MessageBox.Show(
+                    $"⚠️ ERROR AL ACTUALIZAR STOCK\n\n" +
+                    $"La venta se registró correctamente, pero hubo un error al descontar el stock:\n\n" +
+                    $"{ex.Message}\n\n" +
+                    $"Por favor, verifique manualmente el inventario.",
+                    "Error de Stock",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
@@ -3085,6 +3282,8 @@ namespace Comercio.NET
                         System.Diagnostics.Debug.WriteLine("⚠️ OnProcesarVenta es null");
                     }
 
+                    await DescontarStockProductos();
+
                     System.Diagnostics.Debug.WriteLine("✅ Procesamiento de remito completado exitosamente");
 
                     // ✅ NUEVO: Aplicar configuración de vista previa (IGUAL QUE EN FACTURAS)
@@ -3103,7 +3302,7 @@ namespace Comercio.NET
                     this.DialogResult = DialogResult.OK;
                     this.Close();
 
-                    System.Diagnostics.Debug.WriteLine("✅ Modal cerrado - Remito completado");
+                    System.Diagnostics.Debug.WriteLine("✅ Finalizar sin impresión completado y modal cerrado");
                 }
                 catch (Exception ex)
                 {
@@ -3116,7 +3315,6 @@ namespace Comercio.NET
                     btnFacturaB.Enabled = true;
                     btnFinalizarSinImpresion.Enabled = true;
                     ActualizarOpcionesImpresion();
-
                     throw;
                 }
             }
@@ -3131,7 +3329,6 @@ namespace Comercio.NET
                 btnFacturaB.Enabled = true;
                 btnFinalizarSinImpresion.Enabled = true;
                 ActualizarOpcionesImpresion();
-
                 MessageBox.Show($"Error procesando remito: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -3202,6 +3399,8 @@ namespace Comercio.NET
                     {
                         System.Diagnostics.Debug.WriteLine("⚠️ OnProcesarVenta es null para SinImpresion");
                     }
+
+                    await DescontarStockProductos();
 
                     // Cerrar modal indicando OK
                     this.DialogResult = DialogResult.OK;

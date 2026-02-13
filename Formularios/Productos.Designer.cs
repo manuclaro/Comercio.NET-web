@@ -28,8 +28,8 @@
             // 
             this.GrillaProductos.AllowUserToAddRows = false;
             this.GrillaProductos.AllowUserToDeleteRows = false;
-            this.GrillaProductos.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.GrillaProductos.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.GrillaProductos.ColumnHeadersHeight = 40;
             this.GrillaProductos.Location = new System.Drawing.Point(15, 90);
@@ -88,16 +88,13 @@
             // lblContador
             // 
             this.lblContador.AutoSize = true;
-            this.lblContador.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(227)))), ((int)(((byte)(242)))), ((int)(((byte)(253)))));
-            this.lblContador.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.lblContador.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.lblContador.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(62)))), ((int)(((byte)(80)))), ((int)(((byte)(100)))));
-            this.lblContador.Location = new System.Drawing.Point(425, 15);
+            this.lblContador.Location = new System.Drawing.Point(15, 70); // ✅ MODIFICADO: Debajo del TextBox, alineado a la izquierda
             this.lblContador.Name = "lblContador";
-            this.lblContador.Padding = new System.Windows.Forms.Padding(8, 4, 8, 4);
-            this.lblContador.Size = new System.Drawing.Size(124, 23);
-            this.lblContador.TabIndex = 5;
-            this.lblContador.Text = "📊 Registros: 0 de 0";
-            this.lblContador.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.lblContador.Size = new System.Drawing.Size(108, 15);
+            this.lblContador.TabIndex = 4;
+            this.lblContador.Text = "Registros: 0 de 0";
             // 
             // ProductosOptimizado
             // 
