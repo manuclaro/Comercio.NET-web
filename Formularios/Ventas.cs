@@ -3802,18 +3802,18 @@ VALUES
                                 }
                             }
 
-                            if (permiteAcumular)
-                            {
-                                var queryStock = @"UPDATE Productos 
-                           SET cantidad = cantidad - @cantidadVendida 
-                           WHERE codigo = @codigo";
-                                using (var cmdUpd = new SqlCommand(queryStock, connection, transaction))
-                                {
-                                    cmdUpd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
-                                    cmdUpd.Parameters.AddWithValue("@codigo", producto["codigo"]);
-                                    await cmdUpd.ExecuteNonQueryAsync();
-                                }
-                            }
+                            //if (permiteAcumular)
+                            //{
+                            //    var queryStock = @"UPDATE Productos 
+                            //       SET cantidad = cantidad - @cantidadVendida 
+                            //       WHERE codigo = @codigo";
+                            //    using (var cmdUpd = new SqlCommand(queryStock, connection, transaction))
+                            //    {
+                            //        cmdUpd.Parameters.AddWithValue("@cantidadVendida", cantidadPersonalizada);
+                            //        cmdUpd.Parameters.AddWithValue("@codigo", producto["codigo"]);
+                            //        await cmdUpd.ExecuteNonQueryAsync();
+                            //    }
+                            //}
 
                             transaction.Commit();
                         }
