@@ -743,6 +743,7 @@ namespace Comercio.NET.Formularios
                 WHERE u.NumeroCajero = @numeroCajero
                 AND f.Hora BETWEEN @fechaInicio AND @fechaFin
                 AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+                AND COALESCE(f.esCtaCte, 0) = 0
             ),
             TransaccionesMultiples AS (
                 SELECT 
@@ -755,6 +756,7 @@ namespace Comercio.NET.Formularios
                 WHERE u.NumeroCajero = @numeroCajero
                 AND f.Hora BETWEEN @fechaInicio AND @fechaFin
                 AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+                AND COALESCE(f.esCtaCte, 0) = 0
             )
             SELECT 
                 MedioPago,
@@ -1017,6 +1019,7 @@ namespace Comercio.NET.Formularios
                 FROM Ventas v
                 LEFT JOIN Facturas f ON v.NroFactura = f.NumeroRemito
                 WHERE v.fecha BETWEEN @fechaInicio AND @fechaFin
+                AND ISNULL(v.EsCtaCte, 0) = 0
                 GROUP BY v.fecha, v.NroFactura, f.FormadePago, f.ImporteTotal, f.TipoFactura
             ),
             
@@ -1328,8 +1331,9 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // ✅ NUEVO MÉTODO: Obtener observaciones actuales sin bloqueos
-        private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnection connection, SqlTransaction transaction)
+
+// ✅ NUEVO MÉTODO: Obtener observaciones actuales sin bloqueos
+private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnection connection, SqlTransaction transaction)
         {
             try
             {

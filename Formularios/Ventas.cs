@@ -4772,16 +4772,16 @@ VALUES
         // GuardarFacturaEnBD: implementación mínima que compila y puede ampliarse.
         // Actualmente registra en debug y retorna; si necesitas persistir realmente, lo integro con la lógica completa.
         private async Task GuardarFacturaEnBD(
-                        string tipoFactura,
-                        string formaPago,
-                        string cuitCliente = "",
-                        string caeNumero = "",
-                        DateTime? caeVencimiento = null,
-                        int numeroFacturaAfip = 0,
-                        string numeroFormateado = "",
-                        List<MultiplePagosControl.DetallePago> pagosMultiples = null,
-                        decimal porcentajeDescuento = 0m,
-                        decimal importeDescuento = 0m)
+                    string tipoFactura,
+                    string formaPago,
+                    string cuitCliente = "",
+                    string caeNumero = "",
+                    DateTime? caeVencimiento = null,
+                    int numeroFacturaAfip = 0,
+                    string numeroFormateado = "",
+                    List<MultiplePagosControl.DetallePago> pagosMultiples = null,
+                    decimal porcentajeDescuento = 0m,
+                    decimal importeDescuento = 0m)
         {
             if (remitoActual == null || remitoActual.Rows.Count == 0)
             {
@@ -4833,19 +4833,19 @@ VALUES
 
                             // ✅ CORREGIDO: INSERT con nombres de columnas exactos de la base de datos
                             string queryFactura = @"
-                        INSERT INTO Facturas 
-                            ([NumeroRemito], [Fecha], [Hora], [ImporteTotal], 
-                             [FormadePago], [esCtaCte], [CtaCteNombre], [Cajero],
-                             [TipoFactura], [CAENumero], [CAEVencimiento], [CUITCliente],
-                             [NroFactura], [UsuarioVenta], [IVA],
-                             [PorcentajeDescuento], [ImporteDescuento], [ImporteFinal])
-                        VALUES 
-                            (@NumeroRemito, @Fecha, @Hora, @ImporteTotal,
-                             @FormadePago, @esCtaCte, @CtaCteNombre, @Cajero,
-                             @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente,
-                             @NroFactura, @UsuarioVenta, @IVA,
-                             @PorcentajeDescuento, @ImporteDescuento, @ImporteFinal);
-                        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                INSERT INTO Facturas 
+                    ([NumeroRemito], [Fecha], [Hora], [ImporteTotal], 
+                     [FormadePago], [esCtaCte], [CtaCteNombre], [Cajero],
+                     [TipoFactura], [CAENumero], [CAEVencimiento], [CUITCliente],
+                     [NroFactura], [UsuarioVenta], [IVA],
+                     [PorcentajeDescuento], [ImporteDescuento], [ImporteFinal])
+                VALUES 
+                    (@NumeroRemito, @Fecha, @Hora, @ImporteTotal,
+                     @FormadePago, @esCtaCte, @CtaCteNombre, @Cajero,
+                     @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente,
+                     @NroFactura, @UsuarioVenta, @IVA,
+                     @PorcentajeDescuento, @ImporteDescuento, @ImporteFinal);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                             using (var cmdFactura = new SqlCommand(queryFactura, connection, transaction))
                             {
@@ -4874,12 +4874,97 @@ VALUES
                                 System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ✅ Factura guardada con ID: {idFactura}");
                             }
 
+                            // --- NUEVO: detectar código 600 (efectivo empleado) y registrar en RetirosEfectivo ---
+                            try
+                            {
+                                decimal sumaRetiros = 0m;
+                                string nombrePersonaCtaCte = nombreCtaCte; // valor por defecto desde el checkbox/combobox
+
+                                // recorrer las filas y sumar totales de código 600
+                                foreach (DataRow r in remitoActual.Rows)
+                                {
+                                    string codigoFila = null;
+                                    if (r.Table.Columns.Contains("codigo"))
+                                        codigoFila = r["codigo"]?.ToString();
+                                    else if (r.Table.Columns.Contains("Codigo"))
+                                        codigoFila = r["Codigo"]?.ToString();
+
+                                    if (string.Equals(codigoFila, "600", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        // intentar obtener total, si no total calcular precio*cantidad
+                                        decimal montoLinea = 0m;
+                                        if (r.Table.Columns.Contains("total") && decimal.TryParse(r["total"]?.ToString(), out decimal t))
+                                        {
+                                            // <-- CAMBIO: conservar el signo tal como viene en la venta (no usar Math.Abs)
+                                            montoLinea = t;
+                                        }
+                                        else if (r.Table.Columns.Contains("precio") && r.Table.Columns.Contains("cantidad"))
+                                        {
+                                            if (decimal.TryParse(r["precio"]?.ToString(), out decimal p) &&
+                                                int.TryParse(r["cantidad"]?.ToString(), out int c))
+                                            {
+                                                // conservar signo del precio * cantidad
+                                                montoLinea = p * c;
+                                            }
+                                        }
+
+                                        if (montoLinea != 0)
+                                            sumaRetiros += montoLinea;
+
+                                        // intentar tomar nombre de la fila si existe NombreCtaCte
+                                        if (string.IsNullOrWhiteSpace(nombrePersonaCtaCte))
+                                        {
+                                            if (r.Table.Columns.Contains("NombreCtaCte") && r["NombreCtaCte"] != DBNull.Value)
+                                                nombrePersonaCtaCte = r["NombreCtaCte"]?.ToString();
+                                            else if (r.Table.Columns.Contains("NombreCta") && r["NombreCta"] != DBNull.Value)
+                                                nombrePersonaCtaCte = r["NombreCta"]?.ToString();
+                                        }
+                                    }
+                                }
+
+                                if (sumaRetiros != 0m)
+                                {
+                                    string motivoRetiro = "Efectivo empleado";
+                                    if (!string.IsNullOrWhiteSpace(nombrePersonaCtaCte))
+                                        motivoRetiro = $"Efectivo empleado - {nombrePersonaCtaCte}";
+
+                                    var insertRetirosSql = @"
+                        INSERT INTO RetirosEfectivo 
+                            (Monto, Motivo, Responsable, NumeroCajero, UsuarioRegistro, 
+                             FechaRetiro, NumeroRemito, NombreEquipo)
+                        VALUES 
+                            (@Monto, @Motivo, @Responsable, @NumeroCajero, @UsuarioRegistro, 
+                             @FechaRetiro, @NumeroRemito, @NombreEquipo);";
+
+                                    using (var cmdRet = new SqlCommand(insertRetirosSql, connection, transaction))
+                                    {
+                                        cmdRet.Parameters.AddWithValue("@Monto", sumaRetiros);
+                                        cmdRet.Parameters.AddWithValue("@Motivo", motivoRetiro ?? "");
+                                        cmdRet.Parameters.AddWithValue("@Responsable", string.IsNullOrWhiteSpace(nombrePersonaCtaCte) ? (object)DBNull.Value : nombrePersonaCtaCte);
+                                        cmdRet.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                                        cmdRet.Parameters.AddWithValue("@UsuarioRegistro", usuarioVenta ?? "");
+                                        cmdRet.Parameters.AddWithValue("@FechaRetiro", DateTime.Now);
+                                        cmdRet.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                                        cmdRet.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
+
+                                        await cmdRet.ExecuteNonQueryAsync();
+                                        System.Diagnostics.Debug.WriteLine($"[RETIRO] ✅ RetirosEfectivo insertado. Monto: {sumaRetiros:C2}, Motivo: {motivoRetiro}");
+                                    }
+                                }
+                            }
+                            catch (Exception exRet)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[RETIRO] ⚠️ Error registrando RetirosEfectivo: {exRet.Message}");
+                                throw;
+                            }
+                            // --- fin nuevo bloque RetirosEfectivo ---
+
                             // ✅ Insertar registros en DetallesPagoFactura (si existe esa tabla)
                             var insertDetalleSql = @"
-                        INSERT INTO DetallesPagoFactura
-                            (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario, NumeroRemito)
-                        VALUES
-                            (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario, @NumeroRemito);";
+                INSERT INTO DetallesPagoFactura
+                    (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario, NumeroRemito)
+                VALUES
+                    (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario, @NumeroRemito);";
 
                             if (pagosMultiples != null && pagosMultiples.Any())
                             {

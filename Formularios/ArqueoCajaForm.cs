@@ -745,6 +745,7 @@ namespace Comercio.NET.Formularios
                         WHERE u.NumeroCajero = @numeroCajero
                         AND f.Hora BETWEEN @fechaInicio AND @fechaFin
                         AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+                        AND COALESCE(f.esCtaCte, 0) = 0
                     ),
                     TransaccionesMultiples AS (
                         SELECT 
@@ -757,6 +758,7 @@ namespace Comercio.NET.Formularios
                         WHERE u.NumeroCajero = @numeroCajero
                         AND f.Hora BETWEEN @fechaInicio AND @fechaFin
                         AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+                        AND COALESCE(f.esCtaCte, 0) = 0
                     )
                     SELECT 
                         MedioPago,
@@ -769,26 +771,26 @@ namespace Comercio.NET.Formularios
                     ) TodasTransacciones
                     GROUP BY MedioPago";
 
-            using (var cmd = new SqlCommand(queryIngresos, connection))
-            {
-                cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
-                cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
-                cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (reader.Read())
+                using (var cmd = new SqlCommand(queryIngresos, connection))
                 {
-                    string medioPago = reader.GetString(0);
-                    decimal ingresos = reader.GetDecimal(1);
-                    int cantidad = reader.GetInt32(2);
+                    cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
+                    cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
+                    cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);
 
-                    if (!resumen.ContainsKey(medioPago))
-                        resumen[medioPago] = (0m, 0m, 0, 0);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    while (reader.Read())
+                    {
+                        string medioPago = reader.GetString(0);
+                        decimal ingresos = reader.GetDecimal(1);
+                        int cantidad = reader.GetInt32(2);
 
-                    var actual = resumen[medioPago];
-                    resumen[medioPago] = (ingresos, actual.Egresos, cantidad, actual.CantEgresos);
+                        if (!resumen.ContainsKey(medioPago))
+                            resumen[medioPago] = (0m, 0m, 0, 0);
+
+                        var actual = resumen[medioPago];
+                        resumen[medioPago] = (ingresos, actual.Egresos, cantidad, actual.CantEgresos);
+                    }
                 }
-            }
 
                 // ========================================
                 // ✅ QUERY DE EGRESOS (PAGOS A PROVEEDORES)
@@ -891,7 +893,7 @@ namespace Comercio.NET.Formularios
                 }
 
                 return resumen;
-            
+
             }
             catch (Exception ex)
             {
@@ -919,6 +921,7 @@ namespace Comercio.NET.Formularios
             WHERE u.NumeroCajero = @numeroCajero
             AND f.Hora BETWEEN @fechaInicio AND @fechaFin
             AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+            AND COALESCE(f.esCtaCte, 0) = 0
         ),
         TransaccionesVentasMultiples AS (
             SELECT 
@@ -933,6 +936,7 @@ namespace Comercio.NET.Formularios
             WHERE u.NumeroCajero = @numeroCajero
             AND f.Hora BETWEEN @fechaInicio AND @fechaFin
             AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+            AND COALESCE(f.esCtaCte, 0) = 0
         ),
         -- ✅ CORREGIDO: Pagos a Proveedores
         TransaccionesPagosProveedores AS (
