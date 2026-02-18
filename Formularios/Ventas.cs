@@ -2946,6 +2946,20 @@ VALUES
                             "Retiro de Efectivo",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
+
+                        // Enfocar el campo de búsqueda después de registrar el retiro
+                        if (this.IsHandleCreated && !this.IsDisposed && txtBuscarProducto != null && !txtBuscarProducto.IsDisposed)
+                        {
+                            this.BeginInvoke(new Action(() =>
+                            {
+                                try
+                                {
+                                    txtBuscarProducto.Focus();
+                                    txtBuscarProducto.SelectAll();
+                                }
+                                catch { /* evitar excepciones por estado del control */ }
+                            }));
+                        }
                     }
                 }
             }
