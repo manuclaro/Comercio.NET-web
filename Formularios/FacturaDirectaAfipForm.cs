@@ -27,6 +27,7 @@ namespace Comercio.NET.Formularios
         private Button btnCancelar;
         private Label lblEstado;
         private Panel panelInfo;
+        private string _numeroRemitoExistente;
 
         // ✅ NUEVO: Variables para tokens AFIP (igual que en SeleccionImpresionForm)
         private string TokenAfip { get; set; }
@@ -38,6 +39,39 @@ namespace Comercio.NET.Formularios
             ConfigurarFormulario();
         }
 
+        //public FacturaDirectaAfipForm(decimal montoInicial = 0m, string numeroRemitoExistente = null)
+        //{
+        //    _numeroRemitoExistente = numeroRemitoExistente; // ✅ Guardar referencia
+
+        //    InitializeComponent();
+        //    ConfigurarFormulario();
+
+        //    if (montoInicial > 0)
+        //    {
+        //        numMontoTotal.Value = montoInicial;
+        //    }
+        //}
+
+        public FacturaDirectaAfipForm(decimal montoInicial = 0m, string numeroRemitoExistente = null)
+        {
+            _numeroRemitoExistente = numeroRemitoExistente;
+
+            InitializeComponent();
+            ConfigurarFormulario();
+
+            if (montoInicial > 0)
+            {
+                this.Load += (s, e) =>
+                {
+                    numMonto.Value = montoInicial; // ✅ Nombre correcto
+                    if (!string.IsNullOrEmpty(numeroRemitoExistente))
+                    {
+                        txtConcepto.Text = $"Facturación de remito {numeroRemitoExistente}";
+                    }
+                    System.Diagnostics.Debug.WriteLine($"[FACTURA DIRECTA] ✅ Pre-cargado: {montoInicial:C2}, Remito: {numeroRemitoExistente ?? "N/A"}");
+                };
+            }
+        }
         private void InitializeComponent()
         {
             this.SuspendLayout();
@@ -309,18 +343,16 @@ namespace Comercio.NET.Formularios
                     return;
                 }
 
-                // ✅ MODIFICADO: Concepto opcional (sin validación de longitud mínima)
                 string concepto = txtConcepto.Text.Trim();
                 if (string.IsNullOrWhiteSpace(concepto))
                 {
-                    concepto = "Factura directa AFIP"; // Valor por defecto
+                    concepto = "Factura directa AFIP";
                     System.Diagnostics.Debug.WriteLine("[FACTURA DIRECTA] Concepto vacío - usando valor por defecto");
                 }
 
                 string tipoFactura = ObtenerTipoFactura();
                 string cuitCliente = txtCuit.Text.Trim();
 
-                // ✅ MODIFICADO: Validar CUIT SOLO para Factura A
                 if (tipoFactura == "A" && string.IsNullOrWhiteSpace(cuitCliente))
                 {
                     MessageBox.Show("Debe ingresar el CUIT del cliente para Factura A.",
@@ -334,7 +366,7 @@ namespace Comercio.NET.Formularios
                     $"¿Confirma la generación de la siguiente factura en AFIP?\n\n" +
                     $"Tipo: Factura {tipoFactura}\n" +
                     $"Monto: {numMonto.Value:C2}\n" +
-                    $"Concepto: {concepto}\n" + // ✅ Usar variable concepto
+                    $"Concepto: {concepto}\n" +
                     (string.IsNullOrEmpty(cuitCliente) ? "" : $"CUIT: {cuitCliente}\n") +
                     "\n¿Desea continuar?",
                     "Confirmar generación",
@@ -352,8 +384,46 @@ namespace Comercio.NET.Formularios
                 lblEstado.Text = "⏳ Generando factura en AFIP...";
                 lblEstado.ForeColor = Color.Blue;
 
-                // ✅ MODIFICADO: Pasar concepto (no txtConcepto.Text.Trim())
-                await GenerarFacturaDirectaAfip(tipoFactura, numMonto.Value, concepto, cuitCliente);
+                // ✅ PASO 1: Autenticar con AFIP
+                string cuitEmisor = ObtenerCuitEmisor();
+                await AutenticarConAfipReal(cuitEmisor);
+
+                // ✅ PASO 2: Determinar tipo de comprobante
+                int tipoComprobante = tipoFactura switch
+                {
+                    "A" => 1,
+                    "B" => 6,
+                    "C" => 11,
+                    _ => 11
+                };
+
+                // ✅ PASO 3: Obtener siguiente número
+                int puntoVenta = ObtenerPuntoVentaActivo();
+                int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVenta);
+                int numeroComprobante = ultimoNumero + 1;
+
+                System.Diagnostics.Debug.WriteLine($"[FACTURA DIRECTA] PV: {puntoVenta}, Último: {ultimoNumero}, Nuevo: {numeroComprobante}");
+
+                // ✅ PASO 4: Solicitar CAE
+                var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVenta, numeroComprobante, numMonto.Value, tipoFactura, cuitCliente);
+
+                if (!resultadoCAE.exito)
+                {
+                    throw new Exception($"Error obteniendo CAE: {resultadoCAE.error}");
+                }
+
+                // ✅ PASO 5: Formatear número de factura
+                string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVenta, numeroComprobante);
+
+                // ✅ PASO 6: Guardar factura con parámetros correctos (7 argumentos)
+                await GuardarFacturaEnBD(
+                    numeroFormateado,           // 1. numeroFactura
+                    $"Factura{tipoFactura}",   // 2. tipoFactura (ej: "FacturaA", "FacturaB")
+                    numMonto.Value,            // 3. montoTotal
+                    resultadoCAE.cae,          // 4. cae
+                    resultadoCAE.vencimiento ?? DateTime.Now, // 5. vencimientoCae
+                    cuitCliente,               // 6. cuitCliente
+                    _numeroRemitoExistente);   // 7. numeroRemitoExistente (opcional)
 
                 lblEstado.Text = "✅ Factura generada correctamente";
                 lblEstado.ForeColor = Color.Green;
@@ -392,7 +462,7 @@ namespace Comercio.NET.Formularios
                 System.Diagnostics.Debug.WriteLine($"🔄 === FACTURA DIRECTA AFIP - INICIO ===");
                 System.Diagnostics.Debug.WriteLine($"[FACTURA DIRECTA] Tipo: {tipoFactura}, Monto: {monto:C2}");
 
-                // ✅ PASO 1: Autenticar con AFIP (MISMO CÓDIGO QUE SeleccionImpresionForm)
+                // ✅ PASO 1: Autenticar con AFIP
                 string cuitEmisor = ObtenerCuitEmisor();
                 await AutenticarConAfipReal(cuitEmisor);
 
@@ -405,14 +475,14 @@ namespace Comercio.NET.Formularios
                     _ => 11
                 };
 
-                // ✅ PASO 3: Obtener siguiente número (MISMO CÓDIGO QUE SeleccionImpresionForm)
+                // ✅ PASO 3: Obtener siguiente número
                 int puntoVenta = ObtenerPuntoVentaActivo();
                 int ultimoNumero = await ObtenerUltimoNumeroComprobanteReal(tipoComprobante, puntoVenta);
                 int numeroComprobante = ultimoNumero + 1;
 
                 System.Diagnostics.Debug.WriteLine($"[FACTURA DIRECTA] PV: {puntoVenta}, Último: {ultimoNumero}, Nuevo: {numeroComprobante}");
 
-                // ✅ PASO 4: Solicitar CAE (MISMO CÓDIGO QUE SeleccionImpresionForm)
+                // ✅ PASO 4: Solicitar CAE
                 var resultadoCAE = await SolicitarCAEReal(tipoComprobante, puntoVenta, numeroComprobante, monto, tipoFactura, cuitCliente);
 
                 if (!resultadoCAE.exito)
@@ -420,18 +490,18 @@ namespace Comercio.NET.Formularios
                     throw new Exception($"Error obteniendo CAE: {resultadoCAE.error}");
                 }
 
-                // ✅ PASO 5: Guardar en base de datos
+                // ✅ PASO 5: Formatear número y guardar
                 string numeroFormateado = FormatearNumeroFactura(tipoComprobante, puntoVenta, numeroComprobante);
+
+                // ✅ CORREGIDO: Llamada con 7 parámetros
                 await GuardarFacturaEnBD(
-                    tipoFactura,
-                    numeroComprobante,
-                    puntoVenta,
-                    monto,
-                    concepto,
-                    resultadoCAE.cae,
-                    resultadoCAE.vencimiento ?? DateTime.Now,
-                    cuitCliente,
-                    numeroFormateado);
+                    numeroFormateado,              // 1. numeroFactura
+                    $"Factura{tipoFactura}",      // 2. tipoFactura
+                    monto,                         // 3. montoTotal
+                    resultadoCAE.cae,             // 4. cae
+                    resultadoCAE.vencimiento ?? DateTime.Now, // 5. vencimientoCae
+                    cuitCliente,                  // 6. cuitCliente
+                    null);                        // 7. numeroRemitoExistente (null = INSERT)
 
                 System.Diagnostics.Debug.WriteLine($"✅ Factura directa guardada: {numeroFormateado}");
                 System.Diagnostics.Debug.WriteLine($"✅ CAE: {resultadoCAE.cae}, Venc: {resultadoCAE.vencimiento:dd/MM/yyyy}");
@@ -739,100 +809,114 @@ namespace Comercio.NET.Formularios
 
         // ✅ MODIFICADO: Guardar con SET ARITHABORT ON
         private async Task GuardarFacturaEnBD(
+    string numeroFactura,
     string tipoFactura,
-    int numeroComprobante,
-    int puntoVenta,
-    decimal total,
-    string concepto,
+    decimal montoTotal,
     string cae,
     DateTime vencimientoCae,
     string cuitCliente,
-    string numeroFormateado)
+    string numeroRemitoExistente = null)
         {
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json")
                 .Build();
-
             string connectionString = config.GetConnectionString("DefaultConnection");
-
-            // ✅ CRÍTICO: Usar el nuevo método que INCREMENTA el contador
-            int numeroRemito = await ObtenerYReservarNumeroRemito(connectionString);
-
-            System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
-            System.Diagnostics.Debug.WriteLine($"💾 GUARDANDO FACTURA DIRECTA:");
-            System.Diagnostics.Debug.WriteLine($"   Número Remito: {numeroRemito}");
-            System.Diagnostics.Debug.WriteLine($"   Número Factura: {numeroFormateado}");
-            System.Diagnostics.Debug.WriteLine($"   Tipo: Factura{tipoFactura}");
-            System.Diagnostics.Debug.WriteLine($"   Total: {total:C2}");
-            System.Diagnostics.Debug.WriteLine($"   CAE: {cae}");
-            System.Diagnostics.Debug.WriteLine($"═══════════════════════════════════");
 
             using (var connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
-                // ✅ CRÍTICO: Establecer opciones de conexión ANTES de cualquier operación
-                using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON;", connection))
+                // ========================================
+                // ✅ ESCENARIO 1: ACTUALIZAR REMITO EXISTENTE
+                // ========================================
+                if (!string.IsNullOrEmpty(numeroRemitoExistente))
                 {
-                    await cmdConfig.ExecuteNonQueryAsync();
+                    System.Diagnostics.Debug.WriteLine($"[FACTURA AFIP] 📝 Modo UPDATE - Actualizando remito existente: {numeroRemitoExistente}");
+
+                    var queryUpdate = @"
+                UPDATE Facturas 
+                SET 
+                    NroFactura = @numeroFactura,
+                    TipoFactura = @tipoFactura,
+                    CAENumero = @cae,
+                    CAEVencimiento = @vencimiento,
+                    CUITCliente = @cuit
+                WHERE NumeroRemito = @numeroRemito";
+
+                    using (var cmd = new SqlCommand(queryUpdate, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroFactura", numeroFactura);
+                        cmd.Parameters.AddWithValue("@tipoFactura", tipoFactura);
+                        cmd.Parameters.AddWithValue("@cae", cae);
+                        cmd.Parameters.AddWithValue("@vencimiento", vencimientoCae);
+                        cmd.Parameters.AddWithValue("@cuit", (object)cuitCliente ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemitoExistente);
+
+                        int filasAfectadas = await cmd.ExecuteNonQueryAsync();
+
+                        if (filasAfectadas > 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[FACTURA AFIP] ✅ Remito {numeroRemitoExistente} actualizado con factura {numeroFactura}");
+                        }
+                        else
+                        {
+                            throw new Exception($"No se encontró el remito {numeroRemitoExistente} para actualizar");
+                        }
+                    }
+
+                    return; // ✅ Salir después del UPDATE
                 }
 
-                System.Diagnostics.Debug.WriteLine($"✅ Opciones SQL configuradas correctamente");
+                // ========================================
+                // ✅ ESCENARIO 2: FACTURA DIRECTA (SIN REMITO PREVIO)
+                // ========================================
+                System.Diagnostics.Debug.WriteLine($"[FACTURA AFIP] 🆕 Modo INSERT - Generando factura directa nueva");
 
-                // ✅ INSERTAR EN FACTURAS CON ESTRUCTURA CORRECTA
-                var queryFactura = @"
-    INSERT INTO Facturas 
-        (NumeroRemito, NroFactura, TipoFactura, ImporteTotal, ImporteFinal, IVA, 
-         Fecha, Hora, FormadePago, CAENumero, CAEVencimiento, CUITCliente, esCtaCte)
-    VALUES 
-        (@numeroRemito, @nroFactura, @tipoFactura, @importeTotal, @importeFinal, @iva,
-         @fecha, @hora, @formaPago, @cae, @caeVencimiento, @cuit, 0)";
+                // ✅ PASO 1: Obtener nuevo número de remito
+                int nuevoNumeroRemito = await ObtenerYReservarNumeroRemito(connectionString);
 
-                decimal importeIVA = tipoFactura == "C" ? 0 : Math.Round(total - (total / 1.21m), 2);
+                System.Diagnostics.Debug.WriteLine($"[FACTURA AFIP] 📋 Número de remito asignado: {nuevoNumeroRemito}");
 
-                using (var cmd = new SqlCommand(queryFactura, connection))
+                // ✅ PASO 2: Insertar nueva factura
+                var queryInsert = @"
+            INSERT INTO Facturas 
+                (NumeroRemito, NroFactura, TipoFactura, ImporteFinal, CAENumero, CAEVencimiento, CUITCliente, Fecha, Hora, FormadePago, Cajero, esCtaCte)
+            VALUES 
+                (@numeroRemito, @numeroFactura, @tipoFactura, @montoTotal, @cae, @vencimiento, @cuit, @fecha, @hora, @formaPago, @cajero, @esCtaCte)";
+
+                using (var cmd = new SqlCommand(queryInsert, connection))
                 {
-                    cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
-                    cmd.Parameters.AddWithValue("@nroFactura", numeroFormateado);
-                    cmd.Parameters.AddWithValue("@tipoFactura", $"Factura{tipoFactura}"); // ej: "FacturaA"
-                    cmd.Parameters.AddWithValue("@importeTotal", total);
-                    cmd.Parameters.AddWithValue("@importeFinal", total);
-                    cmd.Parameters.AddWithValue("@iva", importeIVA);
+                    cmd.Parameters.AddWithValue("@numeroRemito", nuevoNumeroRemito); // ✅ INT
+                    cmd.Parameters.AddWithValue("@numeroFactura", numeroFactura);    // ✅ STRING formateado
+                    cmd.Parameters.AddWithValue("@tipoFactura", tipoFactura);
+                    cmd.Parameters.AddWithValue("@montoTotal", montoTotal);
+                    cmd.Parameters.AddWithValue("@cae", cae);
+                    cmd.Parameters.AddWithValue("@vencimiento", vencimientoCae);
+                    cmd.Parameters.AddWithValue("@cuit", (object)cuitCliente ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
                     cmd.Parameters.AddWithValue("@hora", DateTime.Now.TimeOfDay);
-                    cmd.Parameters.AddWithValue("@formaPago", "Efectivo");
-                    cmd.Parameters.AddWithValue("@cae", cae);
-                    cmd.Parameters.AddWithValue("@caeVencimiento", vencimientoCae);
-                    cmd.Parameters.AddWithValue("@cuit", (object)cuitCliente ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@formaPago", "Efectivo"); // Valor por defecto
+                    cmd.Parameters.AddWithValue("@cajero", ObtenerUsuarioActual());
+                    cmd.Parameters.AddWithValue("@esCtaCte", false); // No es cuenta corriente
 
-                    int filasAfectadas = await cmd.ExecuteNonQueryAsync();
-                    System.Diagnostics.Debug.WriteLine($"[BD] ✅ Factura insertada - Filas afectadas: {filasAfectadas}");
+                    await cmd.ExecuteNonQueryAsync();
+
+                    System.Diagnostics.Debug.WriteLine($"[FACTURA AFIP] ✅ Factura directa creada: {numeroFactura} (Remito #{nuevoNumeroRemito})");
                 }
+            }
+        }
 
-                // ✅ INSERTAR PRODUCTO FICTICIO EN VENTAS
-                var queryVenta = @"
-                            INSERT INTO Ventas 
-                                (codigo, descripcion, cantidad, precio, total, NroFactura, PorcentajeIva)
-                            VALUES 
-                                (@codigo, @descripcion, @cantidad, @precio, @total, @nroFactura, @porcentajeIva)";
-                decimal precioUnitario = tipoFactura == "C" ? total : Math.Round(total / 1.21m, 2);
-
-                using (var cmd = new SqlCommand(queryVenta, connection))
-                {
-                    cmd.Parameters.AddWithValue("@codigo", "FDIRECTA");
-                    cmd.Parameters.AddWithValue("@descripcion", concepto);
-                    cmd.Parameters.AddWithValue("@cantidad", 1);
-                    cmd.Parameters.AddWithValue("@precio", precioUnitario);
-                    cmd.Parameters.AddWithValue("@total", total);
-                    cmd.Parameters.AddWithValue("@nroFactura", numeroRemito); // ✅ USAR numeroRemito, no numeroRemito.ToString()
-                    cmd.Parameters.AddWithValue("@porcentajeIva", tipoFactura == "C" ? 0 : 21);
-
-                    int filasVenta = await cmd.ExecuteNonQueryAsync();
-                    System.Diagnostics.Debug.WriteLine($"[BD] ✅ Venta insertada - Filas afectadas: {filasVenta}");
-                }
-
-                System.Diagnostics.Debug.WriteLine($"✅ Factura guardada completamente - Remito: {numeroRemito}, Factura: {numeroFormateado}");
+        // ✅ NUEVO: Método para obtener el usuario actual
+        private string ObtenerUsuarioActual()
+        {
+            try
+            {
+                return Comercio.NET.Services.AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
+            }
+            catch
+            {
+                return "Sistema";
             }
         }
 

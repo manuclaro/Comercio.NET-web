@@ -315,7 +315,7 @@ namespace Comercio.NET.Formularios
             {
                 Text = "💳 RESUMEN POR MEDIO",
                 Location = new Point(10, 10),
-                Size = new Size(400, 20),
+                Size = new Size(500, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(63, 81, 181)
             });
@@ -645,6 +645,11 @@ namespace Comercio.NET.Formularios
                 foreach (var kvp in resumenPorMedio.OrderBy(x => x.Key))
                 {
                     string medioPago = kvp.Key;
+                    // Ignorar medios de pago "Multiple" o "Múltiples Medios"
+                    if (medioPago.Equals("Multiple", StringComparison.OrdinalIgnoreCase) ||
+                        medioPago.Equals("Múltiples Medios", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
                     decimal ingresos = kvp.Value.Ingresos;
                     decimal egresos = kvp.Value.Egresos;
                     int cantTotal = kvp.Value.CantIngresos + kvp.Value.CantEgresos;
@@ -735,41 +740,18 @@ namespace Comercio.NET.Formularios
                 // QUERY DE INGRESOS (VENTAS) - ✅ USANDO CAMPO HORA
                 // ========================================
                 var queryIngresos = @"
-                    WITH TransaccionesSimples AS (
-                        SELECT 
-                            COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                            f.ImporteTotal as Importe,
-                            'Ingreso' as TipoMovimiento
-                        FROM Facturas f
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-                        AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
-                        AND COALESCE(f.esCtaCte, 0) = 0
-                    ),
-                    TransaccionesMultiples AS (
-                        SELECT 
-                            dp.MedioPago,
-                            dp.Importe,
-                            'Ingreso' as TipoMovimiento
-                        FROM DetallesPagoFactura dp
-                        INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-                        INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                        WHERE u.NumeroCajero = @numeroCajero
-                        AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-                        AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-                        AND COALESCE(f.esCtaCte, 0) = 0
-                    )
-                    SELECT 
-                        MedioPago,
-                        SUM(Importe) as TotalIngresos,
-                        COUNT(*) as CantidadIngresos
-                    FROM (
-                        SELECT * FROM TransaccionesSimples
-                        UNION ALL
-                        SELECT * FROM TransaccionesMultiples
-                    ) TodasTransacciones
-                    GROUP BY MedioPago";
+    SELECT 
+        dp.MedioPago,
+        SUM(dp.Importe) AS TotalIngresos,
+        COUNT(*) AS CantidadIngresos
+    FROM DetallesPagoFactura dp
+    INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
+    INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+    WHERE u.NumeroCajero = @numeroCajero
+      AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+      AND COALESCE(f.esCtaCte, 0) = 0
+      AND dp.MedioPago NOT IN ('Multiple', 'Múltiples Medios')
+    GROUP BY dp.MedioPago";
 
                 using (var cmd = new SqlCommand(queryIngresos, connection))
                 {

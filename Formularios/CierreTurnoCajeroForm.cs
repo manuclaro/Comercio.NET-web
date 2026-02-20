@@ -733,41 +733,18 @@ namespace Comercio.NET.Formularios
                 // QUERY DE INGRESOS (VENTAS)
                 // ========================================
                 var queryIngresos = @"
-            WITH TransaccionesSimples AS (
-                SELECT 
-                    COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                    f.ImporteTotal as Importe,
-                    'Ingreso' as TipoMovimiento
-                FROM Facturas f
-                INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                WHERE u.NumeroCajero = @numeroCajero
-                AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-                AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
-                AND COALESCE(f.esCtaCte, 0) = 0
-            ),
-            TransaccionesMultiples AS (
-                SELECT 
-                    dp.MedioPago,
-                    dp.Importe,
-                    'Ingreso' as TipoMovimiento
-                FROM DetallesPagoFactura dp
-                INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-                INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                WHERE u.NumeroCajero = @numeroCajero
-                AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-                AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-                AND COALESCE(f.esCtaCte, 0) = 0
-            )
-            SELECT 
-                MedioPago,
-                SUM(Importe) as TotalIngresos,
-                COUNT(*) as CantidadIngresos
-            FROM (
-                SELECT * FROM TransaccionesSimples
-                UNION ALL
-                SELECT * FROM TransaccionesMultiples
-            ) TodasTransacciones
-            GROUP BY MedioPago";
+                            SELECT 
+                        dp.MedioPago,
+                        SUM(dp.Importe) AS TotalIngresos,
+                        COUNT(*) AS CantidadIngresos
+                    FROM DetallesPagoFactura dp
+                    INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
+                    INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
+                    WHERE u.NumeroCajero = @numeroCajero
+                      AND f.Hora BETWEEN @fechaInicio AND @fechaFin
+                      AND COALESCE(f.esCtaCte, 0) = 0
+                      AND dp.MedioPago NOT IN ('Multiple', 'Múltiples Medios')
+                    GROUP BY dp.MedioPago";
 
                 using (var cmd = new SqlCommand(queryIngresos, connection))
                 {
