@@ -51,6 +51,10 @@ namespace Comercio.NET.Formularios
         private Label lblPrecioCalculado;
         private TextBox txtPrecioCalculado;
 
+        private DateTime lastKeyPressTime = DateTime.MinValue;
+        private bool ingresoManual = false;
+
+
         // ✅ NUEVO: Método estático para mostrar el formulario
         public static void MostrarFormulario(Form mdiParent)
         {
@@ -655,25 +659,38 @@ namespace Comercio.NET.Formularios
 
             txtCodigo.TextChanged += (s, e) =>
             {
-                // Detener el timer anterior si existe
+                DateTime now = DateTime.Now;
+                if (lastKeyPressTime == DateTime.MinValue)
+                {
+                    lastKeyPressTime = now;
+                    ingresoManual = false;
+                }
+                else
+                {
+                    ingresoManual = (now - lastKeyPressTime).TotalMilliseconds > 150;
+                    lastKeyPressTime = now;
+                }
+
+                string currentText = txtCodigo.Text.Trim();
+
+                // Evitar búsqueda automática si el texto tiene menos de 4 caracteres
+                if (ingresoManual || currentText.Length < 4)
+                    return;
+
                 searchTimer?.Stop();
                 searchTimer?.Dispose();
 
-                // Crear nuevo timer que se dispara después de 100ms sin escribir
                 searchTimer = new System.Windows.Forms.Timer { Interval = 100 };
                 searchTimer.Tick += async (sender, args) =>
                 {
                     searchTimer.Stop();
                     searchTimer.Dispose();
 
-                    string currentText = txtCodigo.Text.Trim();
-
                     if (!string.IsNullOrEmpty(currentText) && currentText != lastSearchText)
                     {
                         lastSearchText = currentText;
                         await BuscarProductoAsync(currentText);
 
-                        // ✅ NUEVO: Simular Enter para continuar al primer campo editable
                         if (!string.IsNullOrEmpty(codigoActual))
                         {
                             if (rbActualizarCosto.Checked)
@@ -692,7 +709,35 @@ namespace Comercio.NET.Formularios
                 searchTimer.Start();
             };
 
-            // También buscar cuando pierde el foco (por si escribe manualmente)
+            txtCodigo.KeyDown += async (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    string currentText = txtCodigo.Text.Trim();
+
+                    if (!string.IsNullOrEmpty(currentText) && (ingresoManual || currentText != lastSearchText))
+                    {
+                        lastSearchText = currentText;
+                        await BuscarProductoAsync(currentText);
+
+                        if (!string.IsNullOrEmpty(codigoActual))
+                        {
+                            if (rbActualizarCosto.Checked)
+                            {
+                                txtNuevoCosto.Focus();
+                                txtNuevoCosto.SelectAll();
+                            }
+                            else
+                            {
+                                txtNuevoPrecio.Focus();
+                                txtNuevoPrecio.SelectAll();
+                            }
+                        }
+                    }
+                }
+            };
+
             txtCodigo.Leave += async (s, e) =>
             {
                 searchTimer?.Stop();
