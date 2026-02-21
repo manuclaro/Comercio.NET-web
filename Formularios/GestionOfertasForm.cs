@@ -44,6 +44,12 @@ namespace Comercio.NET.Formularios
         private TextBox txtSumaProductos;
         private Label lblSumaProductos;
 
+        // ✅ NUEVO: Controles para tipo PorGrupo — agregar junto a las otras declaraciones de controles
+        private NumericUpDown nudCantidadGrupo;
+        private Label lblCantidadGrupo;
+        private TextBox txtPrecioGrupo;     // ✅ NUEVO: precio fijo del grupo
+        private Label lblPrecioGrupo;       // ✅ NUEVO
+
         public GestionOfertasForm()
         {
             InitializeComponent();
@@ -195,7 +201,7 @@ namespace Comercio.NET.Formularios
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F)
             };
-            cboTipoOferta.Items.AddRange(new[] { "PorCantidad", "Combo", "Descuento" });
+            cboTipoOferta.Items.AddRange(new[] { "PorCantidad", "Combo", "Descuento", "PorGrupo" });
             cboTipoOferta.SelectedIndex = 0;
 
             chkActivo = new CheckBox
@@ -314,6 +320,44 @@ namespace Comercio.NET.Formularios
                 Value = 0
             };
 
+            // ✅ NUEVO: Controles específicos para tipo PorGrupo
+            lblCantidadGrupo = new Label
+            {
+                Text = "Cant. mín. grupo:",
+                Location = new Point(750, 44),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Visible = false
+            };
+            nudCantidadGrupo = new NumericUpDown
+            {
+                Location = new Point(750, 64),
+                Width = 120,
+                Font = new Font("Segoe UI", 9F),
+                Visible = false,
+                Minimum = 1,
+                Maximum = 9999,
+                DecimalPlaces = 0,
+                Value = 3
+            };
+            lblPrecioGrupo = new Label
+            {
+                Text = "Precio grupo:",
+                Location = new Point(750, 95),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Visible = false
+            };
+            txtPrecioGrupo = new TextBox
+            {
+                Location = new Point(750, 115),
+                Width = 120,
+                Font = new Font("Segoe UI", 9F),
+                Visible = false,
+                Text = "0,00",
+                TextAlign = HorizontalAlignment.Right
+            };
+
             // Separador
             var separador = new Label
             {
@@ -418,6 +462,8 @@ namespace Comercio.NET.Formularios
             panelEdicion.Controls.Add(txtPrecioCombo);
             panelEdicion.Controls.Add(lblPorcentajeDescuento);
             panelEdicion.Controls.Add(nudPorcentajeDescuento);
+            panelEdicion.Controls.Add(lblCantidadGrupo);
+            panelEdicion.Controls.Add(nudCantidadGrupo);
             panelEdicion.Controls.Add(separador);
             panelEdicion.Controls.Add(lblProductos);
             panelEdicion.Controls.Add(dgvDetalleOferta);
@@ -427,6 +473,10 @@ namespace Comercio.NET.Formularios
             panelEdicion.Controls.Add(btnCancelar);
             panelEdicion.Controls.Add(lblSumaProductos);
             panelEdicion.Controls.Add(txtSumaProductos);
+            panelEdicion.Controls.Add(lblCantidadGrupo);
+            panelEdicion.Controls.Add(nudCantidadGrupo);
+            panelEdicion.Controls.Add(lblPrecioGrupo);
+            panelEdicion.Controls.Add(txtPrecioGrupo);
 
             // Agregar los paneles principales al formulario
             this.Controls.Add(panelEdicion);
@@ -541,6 +591,8 @@ namespace Comercio.NET.Formularios
                     txtPrecioCombo.Visible = false;
                     lblPorcentajeDescuento.Visible = false;
                     nudPorcentajeDescuento.Visible = false;
+                    lblCantidadGrupo.Visible = false;
+                    nudCantidadGrupo.Visible = false;
                     break;
 
                 case "Combo":
@@ -556,6 +608,8 @@ namespace Comercio.NET.Formularios
                     txtPrecioCombo.Visible = true;
                     lblPorcentajeDescuento.Visible = false;
                     nudPorcentajeDescuento.Visible = false;
+                    lblCantidadGrupo.Visible = false;
+                    nudCantidadGrupo.Visible = false;
 
                     // ✅ Calcular suma inicial
                     CalcularSumaProductosCombo();
@@ -573,6 +627,26 @@ namespace Comercio.NET.Formularios
                     txtPrecioCombo.Visible = false;
                     lblPorcentajeDescuento.Visible = true;
                     nudPorcentajeDescuento.Visible = true;
+                    break;
+
+                case "PorGrupo":
+                    dgvDetalleOferta.Columns["CantidadMinima"].Visible = false;
+                    dgvDetalleOferta.Columns["PrecioOferta"].Visible = false;
+                    dgvDetalleOferta.Columns["PorcentajeDescuento"].Visible = false;
+                    dgvDetalleOferta.Columns["CantidadCombo"].Visible = false;
+
+                    lblSumaProductos.Visible = false;
+                    txtSumaProductos.Visible = false;
+                    lblPrecioCombo.Visible = false;
+                    txtPrecioCombo.Visible = false;
+                    // ✅ Ocultar controles de otros tipos
+                    lblPorcentajeDescuento.Visible = false;
+                    nudPorcentajeDescuento.Visible = false;
+                    // ✅ Mostrar controles de PorGrupo
+                    lblCantidadGrupo.Visible = true;
+                    nudCantidadGrupo.Visible = true;
+                    lblPrecioGrupo.Visible = true;
+                    txtPrecioGrupo.Visible = true;
                     break;
             }
         }
@@ -792,10 +866,10 @@ namespace Comercio.NET.Formularios
 
                     // Cargar datos de la oferta
                     var queryOferta = @"
-                SELECT Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta,
-                       PrecioCombo, PorcentajeDescuentoGlobal
-                FROM OfertasProductos
-                WHERE Id = @Id";
+                        SELECT Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta,
+                               PrecioCombo, PorcentajeDescuentoGlobal, CantidadMinimaGrupo, PrecioGrupo
+                        FROM OfertasProductos
+                        WHERE Id = @Id";
 
                     using (var cmd = new SqlCommand(queryOferta, connection))
                     {
@@ -823,6 +897,15 @@ namespace Comercio.NET.Formularios
 
                                 if (tipoOferta == "Descuento" && reader["PorcentajeDescuentoGlobal"] != DBNull.Value)
                                     nudPorcentajeDescuento.Value = Convert.ToDecimal(reader["PorcentajeDescuentoGlobal"]);
+
+                                if (tipoOferta == "PorGrupo")
+                                {
+                                    if (reader["CantidadMinimaGrupo"] != DBNull.Value)
+                                        nudCantidadGrupo.Value = Convert.ToDecimal(reader["CantidadMinimaGrupo"]);
+
+                                    if (reader["PrecioGrupo"] != DBNull.Value)
+                                        txtPrecioGrupo.Text = Convert.ToDecimal(reader["PrecioGrupo"]).ToString("N2");
+                                }
                             }
                         }
                     }
@@ -1051,13 +1134,13 @@ namespace Comercio.NET.Formularios
                             {
                                 // Insertar nueva oferta
                                 var queryInsert = @"
-                                    INSERT INTO OfertasProductos 
-                                        (Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta, 
-                                         PrecioCombo, PorcentajeDescuentoGlobal, UsuarioCreacion)
-                                    VALUES 
-                                        (@Nombre, @Descripcion, @FechaInicio, @FechaFin, @Activo, @TipoOferta,
-                                         @PrecioCombo, @PorcentajeDescuentoGlobal, @Usuario);
-                                    SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                                INSERT INTO OfertasProductos 
+                                    (Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta, 
+                                     PrecioCombo, PorcentajeDescuentoGlobal, UsuarioCreacion, CantidadMinimaGrupo, PrecioGrupo)
+                                VALUES 
+                                    (@Nombre, @Descripcion, @FechaInicio, @FechaFin, @Activo, @TipoOferta,
+                                     @PrecioCombo, @PorcentajeDescuentoGlobal, @Usuario, @CantidadMinimaGrupo, @PrecioGrupo);
+                                SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                                 using (var cmd = new SqlCommand(queryInsert, connection, transaction))
                                 {
@@ -1082,6 +1165,17 @@ namespace Comercio.NET.Formularios
                                             ? (object)nudPorcentajeDescuento.Value 
                                             : DBNull.Value);
                                     
+                                    cmd.Parameters.AddWithValue("@CantidadMinimaGrupo",
+                                        tipoOferta == "PorGrupo"
+                                            ? (object)(int)nudCantidadGrupo.Value
+                                            : DBNull.Value);
+
+                                    // ✅ NUEVO: guardar PrecioGrupo
+                                    cmd.Parameters.AddWithValue("@PrecioGrupo",
+                                        tipoOferta == "PorGrupo" && decimal.TryParse(txtPrecioGrupo.Text, out decimal pgInsert)
+                                            ? (object)pgInsert
+                                            : DBNull.Value);
+
                                     cmd.Parameters.AddWithValue("@Usuario", 
                                         AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName);
 
@@ -1100,7 +1194,9 @@ namespace Comercio.NET.Formularios
                                         Activo = @Activo,
                                         TipoOferta = @TipoOferta,
                                         PrecioCombo = @PrecioCombo,
-                                        PorcentajeDescuentoGlobal = @PorcentajeDescuentoGlobal
+                                        PorcentajeDescuentoGlobal = @PorcentajeDescuentoGlobal,
+                                        CantidadMinimaGrupo = @CantidadMinimaGrupo,
+                                        PrecioGrupo = @PrecioGrupo
                                     WHERE Id = @Id";
 
                                 using (var cmd = new SqlCommand(queryUpdate, connection, transaction))
@@ -1124,6 +1220,17 @@ namespace Comercio.NET.Formularios
                                     cmd.Parameters.AddWithValue("@PorcentajeDescuentoGlobal", 
                                         tipoOferta == "Descuento" 
                                             ? (object)nudPorcentajeDescuento.Value 
+                                            : DBNull.Value);
+
+                                    cmd.Parameters.AddWithValue("@CantidadMinimaGrupo",
+                                        tipoOferta == "PorGrupo"
+                                            ? (object)(int)nudCantidadGrupo.Value
+                                            : DBNull.Value);
+
+                                    // ✅ NUEVO: guardar PrecioGrupo
+                                    cmd.Parameters.AddWithValue("@PrecioGrupo",
+                                        tipoOferta == "PorGrupo" && decimal.TryParse(txtPrecioGrupo.Text, out decimal pgUpdate)
+                                            ? (object)pgUpdate
                                             : DBNull.Value);
 
                                     cmd.ExecuteNonQuery();
@@ -1178,6 +1285,10 @@ namespace Comercio.NET.Formularios
                                             porcentajeDescuento = nudPorcentajeDescuento.Value;
                                             decimal precioOriginal = Convert.ToDecimal(row.Cells["PrecioOriginal"].Value ?? 0);
                                             precioOferta = precioOriginal * (1 - (porcentajeDescuento / 100));
+                                            break;
+                                        case "PorGrupo":
+                                            // Los productos son intercambiables; solo se guardan como participantes del grupo.
+                                            // El descuento y cantidad mínima global se guardan en la cabecera (OfertasProductos).
                                             break;
                                     }
 
@@ -1256,6 +1367,26 @@ namespace Comercio.NET.Formularios
                 }
             }
 
+            // ✅ CORREGIDO: Validación específica para PorGrupo
+            if (tipoOferta == "PorGrupo")
+            {
+                if (nudCantidadGrupo.Value < 1)
+                {
+                    MessageBox.Show("La cantidad mínima del grupo debe ser al menos 1.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    nudCantidadGrupo.Focus();
+                    return false;
+                }
+
+                if (!decimal.TryParse(txtPrecioGrupo.Text, out decimal precioGrupo) || precioGrupo <= 0)
+                {
+                    MessageBox.Show("El precio del grupo debe ser un valor mayor a cero.", "Validación",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtPrecioGrupo.Focus();
+                    return false;
+                }
+            }
+
             // Validar que todos los productos tengan datos completos
             foreach (DataGridViewRow row in dgvDetalleOferta.Rows)
             {
@@ -1316,6 +1447,8 @@ namespace Comercio.NET.Formularios
             nudPorcentajeDescuento.Value = 0;
             dgvDetalleOferta.Rows.Clear();
             ofertaSeleccionadaId = 0;
+            nudCantidadGrupo.Value = 3;
+            txtPrecioGrupo.Text = "0,00";
         }
 
         private void DgvOfertas_SelectionChanged(object sender, EventArgs e)
