@@ -39,6 +39,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         window.location.href = '/login.html';
     });
 
+    // Checkbox "Mostrar Costo": muestra/oculta la columna en tiempo real
+    document.getElementById('chkMostrarCosto').addEventListener('change', actualizarVisibilidadCosto);
+
     // Eventos de búsqueda
     const txtBuscar = document.getElementById('txtBuscar');
     const btnBuscar = document.getElementById('btnBuscar');
@@ -60,7 +63,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
         searchTimer = setTimeout(() => buscarProductos(termino), 500);
     });
+
+    // Aplicar estado inicial del checkbox (oculto por defecto)
+    actualizarVisibilidadCosto();
 });
+
+function actualizarVisibilidadCosto() {
+    const mostrar = document.getElementById('chkMostrarCosto').checked;
+    // Mostrar/ocultar tanto el <th> como todas las <td> de la columna costo
+    document.querySelectorAll('.col-costo').forEach(el => {
+        el.style.display = mostrar ? '' : 'none';
+    });
+}
 
 async function buscarProductos(termino) {
     if (!termino) {
@@ -112,15 +126,16 @@ function renderizarProductos(productos) {
 
     tbody.innerHTML = productos.map(p => {
         const stockClass = p.stock <= 0 ? 'stock-cero'
-            : p.stock <= 5  ? 'stock-bajo'
-            : p.stock <= 10 ? 'stock-medio'
-            : 'stock-ok';
+            : p.stock <= 5 ? 'stock-bajo'
+                : p.stock <= 10 ? 'stock-medio'
+                    : 'stock-ok';
 
         return `
             <tr>
                 <td class="col-landscape"><code>${p.codigo}</code></td>
                 <td>${p.descripcion}</td>
                 <td class="col-landscape"><span class="badge-rubro">${p.rubro || '-'}</span></td>
+                <td class="col-costo text-right costo">${formatearMoneda(p.costo)}</td>
                 <td class="text-right precio">${formatearMoneda(p.precio)}</td>
                 <td class="text-center"><span class="badge-stock ${stockClass}">${p.stock}</span></td>
             </tr>
@@ -128,6 +143,9 @@ function renderizarProductos(productos) {
     }).join('');
 
     divResultados.style.display = 'block';
+
+    // Aplicar visibilidad del costo a las filas recién renderizadas
+    actualizarVisibilidadCosto();
 }
 
 function formatearMoneda(valor) {

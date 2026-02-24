@@ -71,7 +71,7 @@ body {
 .search-box {
     display: flex;
     gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .search-box input {
@@ -101,6 +101,40 @@ body {
     white-space: nowrap;
 }
 .btn-search:hover { opacity: 0.88; }
+
+/* ── OPCIONES DE TABLA (checkbox Costo) ── */
+.opciones-tabla {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+    padding: 0.6rem 0.8rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e8ecf0;
+    width: fit-content;
+}
+
+.opcion-check {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #555;
+    user-select: none;
+}
+
+.opcion-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #00897b;
+    cursor: pointer;
+}
+
+.opcion-check span {
+    font-weight: 500;
+}
 
 /* ── ESTADOS ── */
 .loading {
@@ -202,6 +236,13 @@ td code {
     font-size: 1rem;
 }
 
+/* ── COLUMNA COSTO ── */
+.costo {
+    font-weight: 600;
+    color: #6a1b9a;
+    font-size: 0.95rem;
+}
+
 .badge-rubro {
     background: #e3f2fd;
     color: #1565c0;
@@ -241,14 +282,10 @@ td code {
     .header-user { display: none; }
     .search-box { flex-direction: column; }
     .btn-search { width: 100%; }
+    .opciones-tabla { width: 100%; }
 }
 
-/* ── COLUMNAS SOLO EN LANDSCAPE ──
-   En portrait (vertical): ocultar Código y Rubro.
-   En landscape (horizontal): mostrar todas las columnas.
-   Se usa orientation: portrait para ocultar, que aplica tanto
-   en móviles como en tablets giradas.
-------------------------------------------------- */
+/* ── COLUMNAS SOLO EN LANDSCAPE ── */
 @media (orientation: portrait) {
     .col-landscape {
         display: none;

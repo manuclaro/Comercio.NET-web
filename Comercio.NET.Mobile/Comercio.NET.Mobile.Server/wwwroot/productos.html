@@ -36,6 +36,13 @@
                 <button id="btnBuscar" class="btn-search">Buscar</button>
             </div>
 
+            <div class="opciones-tabla">
+                <label class="opcion-check">
+                    <input type="checkbox" id="chkMostrarCosto" />
+                    <span>Mostrar Costo</span>
+                </label>
+            </div>
+
             <div id="loading" class="loading" style="display: none;">
                 <div class="spinner"></div>
                 <p>Buscando productos...</p>
@@ -56,6 +63,7 @@
                                 <th class="col-landscape">Código</th>
                                 <th>Descripción</th>
                                 <th class="col-landscape">Rubro</th>
+                                <th class="col-costo text-right">Costo</th>
                                 <th class="text-right">Precio</th>
                                 <th class="text-center">Stock</th>
                             </tr>

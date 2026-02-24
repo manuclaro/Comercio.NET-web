@@ -27,9 +27,9 @@ namespace Comercio.NET.Mobile.Server.Services
             var productos = new List<ProductoDto>();
 
             var query = @"
-                SELECT codigo, descripcion, precio, cantidad, rubro, marca
+                SELECT codigo, descripcion, costo, precio, cantidad, rubro, marca
                 FROM Productos
-                WHERE ISNULL(Activo, 1) = 1
+                WHERE Activo = 1
                   AND (
                         codigo      LIKE @termino
                      OR descripcion LIKE @termino
@@ -68,15 +68,16 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     foreach (var row in resultado.Data)
                     {
-                        // Orden de columnas: codigo, descripcion, precio, cantidad, rubro, marca
+                        // Orden de columnas: codigo, descripcion, costo, precio, cantidad, rubro, marca
                         productos.Add(new ProductoDto
                         {
                             Codigo = ConvertToString(row.Count > 0 ? row[0] : null),
                             Descripcion = ConvertToString(row.Count > 1 ? row[1] : null),
-                            Precio = ConvertToDecimal(row.Count > 2 ? row[2] : null),
-                            Stock = ConvertToInt32(row.Count > 3 ? row[3] : null),
-                            Rubro = ConvertToString(row.Count > 4 ? row[4] : null),
-                            Marca = ConvertToString(row.Count > 5 ? row[5] : null),
+                            Costo = ConvertToDecimal(row.Count > 2 ? row[2] : null),
+                            Precio = ConvertToDecimal(row.Count > 3 ? row[3] : null),
+                            Stock = ConvertToInt32(row.Count > 4 ? row[4] : null),
+                            Rubro = ConvertToString(row.Count > 5 ? row[5] : null),
+                            Marca = ConvertToString(row.Count > 6 ? row[6] : null),
                         });
                     }
                 }
