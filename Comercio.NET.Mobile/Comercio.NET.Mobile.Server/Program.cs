@@ -1,3 +1,4 @@
+using Comercio.NET.Mobile.Server.Controllers;
 using Comercio.NET.Mobile.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,9 @@ builder.Services.AddControllers();
 // Registrar servicios
 builder.Services.AddScoped<ArqueoCajaService>();
 builder.Services.AddScoped<AuthService>();
+
+// Después de los otros services registrados:
+builder.Services.AddScoped<IProductosService, ProductosService>();
 
 // CORS permisivo
 builder.Services.AddCors(options =>

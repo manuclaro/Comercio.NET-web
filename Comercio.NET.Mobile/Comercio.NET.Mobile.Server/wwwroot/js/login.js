@@ -1,5 +1,5 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Verificar si ya hay sesión activa
+ï»¿document.addEventListener('DOMContentLoaded', function () {
+    // Verificar si ya hay sesiÃ³n activa
     const token = localStorage.getItem('auth_token');
     if (token) {
         validarTokenYRedirigir(token);
@@ -9,9 +9,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnLogin = document.getElementById('btnLogin');
     const errorDiv = document.getElementById('error');
 
-    form.addEventListener('submit', async function(e) {
+    form.addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         const usuario = document.getElementById('usuario').value.trim();
         const clave = document.getElementById('clave').value;
 
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         btnLogin.disabled = true;
-        btnLogin.textContent = 'Iniciando sesión...';
+        btnLogin.textContent = 'Iniciando sesiÃ³n...';
         errorDiv.style.display = 'none';
 
         try {
@@ -36,23 +36,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.exito && data.token) {
-                // Guardar token y datos de usuario
                 localStorage.setItem('auth_token', data.token);
                 localStorage.setItem('usuario_nombre', data.usuario.nombreUsuario);
                 localStorage.setItem('usuario_completo', data.usuario.nombreCompleto || '');
                 localStorage.setItem('usuario_rol', data.usuario.rol || '');
 
-                // Redirigir a la aplicación
-                window.location.href = '/index.html';
+                // âœ… Redirigir al dashboard en lugar de index.html
+                window.location.href = '/dashboard.html';
             } else {
-                mostrarError(data.mensaje || 'Usuario o contraseña incorrectos');
+                mostrarError(data.mensaje || 'Usuario o contraseÃ±a incorrectos');
             }
         } catch (error) {
             console.error('Error:', error);
-            mostrarError('Error de conexión. Intente nuevamente.');
+            mostrarError('Error de conexiÃ³n. Intente nuevamente.');
         } finally {
             btnLogin.disabled = false;
-            btnLogin.textContent = 'Iniciar Sesión';
+            btnLogin.textContent = 'Iniciar SesiÃ³n';
         }
     });
 
@@ -71,7 +70,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await response.json();
             if (data.valido) {
-                window.location.href = '/index.html';
+                // âœ… Redirigir al dashboard en lugar de index.html
+                window.location.href = '/dashboard.html';
             } else {
                 localStorage.clear();
             }

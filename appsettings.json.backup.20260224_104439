@@ -16,9 +16,9 @@
     "CodigoPostal": "1900",
     "InicioActividades": "2016-06-01",
     "Condicion": "Monotributo",
-    "PermitirFacturaA": false,
-    "PermitirFacturaB": false,
-    "PermitirFacturaC": true
+    "PermitirFacturaA": true,
+    "PermitirFacturaB": true,
+    "PermitirFacturaC": false
   },
   "Validaciones": {
     "ValidarStockDisponible": false

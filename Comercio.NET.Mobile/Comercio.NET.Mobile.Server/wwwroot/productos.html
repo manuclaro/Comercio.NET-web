@@ -1,0 +1,77 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#00897b">
+    <title>Consulta de Productos - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/productos.css">
+</head>
+<body>
+    <div class="page-wrapper">
+
+        <header class="page-header">
+            <a href="/dashboard.html" class="btn-back">← Volver</a>
+            <div class="header-title">
+                <span>📦</span>
+                <div>
+                    <h1>Consulta de Productos</h1>
+                    <p>Comercio.NET Mobile</p>
+                </div>
+            </div>
+            <div class="header-user">
+                <span id="nombreUsuario"></span>
+                <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <main class="page-main">
+
+            <div class="search-box">
+                <input type="text"
+                       id="txtBuscar"
+                       placeholder="🔍 Buscar por código, descripción o rubro..."
+                       autocomplete="off"
+                       autofocus />
+                <button id="btnBuscar" class="btn-search">Buscar</button>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Buscando productos...</p>
+            </div>
+
+            <div id="error" class="error-msg" style="display: none;"></div>
+
+            <div id="estadoMensaje" class="estado-mensaje">
+                Ingresá un término para buscar productos.
+            </div>
+
+            <div id="resultados" style="display: none;">
+                <p id="contadorResultados" class="contador"></p>
+                <div class="table-wrapper">
+                    <table id="tablaProductos">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th>Rubro</th>
+                                <th class="text-right">Precio</th>
+                                <th class="text-center">Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyProductos"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="page-footer">
+            <p>Comercio.NET Mobile · v1.4.0 · 2026</p>
+        </footer>
+    </div>
+
+    <script src="/js/productos.js"></script>
+</body>
+</html>
