@@ -86,9 +86,7 @@ async function buscarProductos(termino) {
             return;
         }
 
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Error ${response.status}`);
 
         const productos = await response.json();
         renderizarProductos(productos);
@@ -114,15 +112,15 @@ function renderizarProductos(productos) {
 
     tbody.innerHTML = productos.map(p => {
         const stockClass = p.stock <= 0 ? 'stock-cero'
-            : p.stock <= 5 ? 'stock-bajo'
+            : p.stock <= 5  ? 'stock-bajo'
             : p.stock <= 10 ? 'stock-medio'
             : 'stock-ok';
 
         return `
             <tr>
-                <td><code>${p.codigo}</code></td>
+                <td class="col-landscape"><code>${p.codigo}</code></td>
                 <td>${p.descripcion}</td>
-                <td><span class="badge-rubro">${p.rubro || '-'}</span></td>
+                <td class="col-landscape"><span class="badge-rubro">${p.rubro || '-'}</span></td>
                 <td class="text-right precio">${formatearMoneda(p.precio)}</td>
                 <td class="text-center"><span class="badge-stock ${stockClass}">${p.stock}</span></td>
             </tr>

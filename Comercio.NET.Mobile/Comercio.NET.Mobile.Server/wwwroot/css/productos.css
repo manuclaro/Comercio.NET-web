@@ -234,11 +234,29 @@ td code {
     font-size: 0.85rem;
 }
 
-/* ── RESPONSIVE ── */
+/* ── RESPONSIVE GENERAL ── */
 @media (max-width: 640px) {
     .page-header { flex-wrap: wrap; }
     .header-title h1 { font-size: 1.1rem; }
     .header-user { display: none; }
     .search-box { flex-direction: column; }
     .btn-search { width: 100%; }
+}
+
+/* ── COLUMNAS SOLO EN LANDSCAPE ──
+   En portrait (vertical): ocultar Código y Rubro.
+   En landscape (horizontal): mostrar todas las columnas.
+   Se usa orientation: portrait para ocultar, que aplica tanto
+   en móviles como en tablets giradas.
+------------------------------------------------- */
+@media (orientation: portrait) {
+    .col-landscape {
+        display: none;
+    }
+}
+
+@media (orientation: landscape) {
+    .col-landscape {
+        display: table-cell;
+    }
 }
