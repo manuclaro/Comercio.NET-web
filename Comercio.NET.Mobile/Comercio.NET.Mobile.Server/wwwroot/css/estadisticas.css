@@ -1,0 +1,329 @@
+﻿*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    color: #333;
+}
+
+/* ── HEADER ── */
+.page-header {
+    background: linear-gradient(135deg, #6a1b9a, #4a148c);
+    color: white;
+    padding: 1.2rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.btn-back {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 6px;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+    .btn-back:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex: 1;
+}
+
+    .header-title span {
+        font-size: 2rem;
+    }
+
+    .header-title h1 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .header-title p {
+        font-size: 0.8rem;
+        opacity: 0.85;
+    }
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+    .header-user span {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+.btn-logout {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    padding: 0.4rem 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+}
+
+    .btn-logout:hover {
+        background: rgba(255, 255, 255, 0.28);
+    }
+
+/* ── MAIN ── */
+.page-main {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+/* ── FILTRO ── */
+.filtro-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 1rem 1.2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+    flex-wrap: wrap;
+}
+
+.filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+    .filtro-grupo label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    .filtro-grupo input[type="date"] {
+        padding: 0.65rem 0.9rem;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+        .filtro-grupo input[type="date"]:focus {
+            border-color: #6a1b9a;
+            box-shadow: 0 0 0 3px rgba(106, 27, 154, 0.1);
+        }
+
+.btn-consultar {
+    padding: 0.65rem 1.6rem;
+    background: linear-gradient(135deg, #6a1b9a, #4a148c);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
+    .btn-consultar:hover {
+        opacity: 0.88;
+    }
+
+/* ── ESTADOS ── */
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    color: #555;
+}
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #ddd;
+    border-top-color: #6a1b9a;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.error-msg {
+    background: #fff0f0;
+    border-left: 4px solid #e53935;
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    color: #c62828;
+    margin-bottom: 1rem;
+}
+
+.estado-mensaje {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #888;
+    font-size: 1rem;
+}
+
+/* ── RESUMEN ── */
+.resumen-total {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 1.5rem;
+}
+
+    .resumen-total strong {
+        color: #4a148c;
+        font-size: 1.3rem;
+    }
+
+/* ── GRID DE GRÁFICOS ── */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+    .chart-card h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #4a148c;
+        margin-bottom: 1.2rem;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+.chart-container {
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+/* ── TABLA DETALLE ── */
+.tabla-detalle {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.93rem;
+}
+
+    .tabla-detalle thead th {
+        padding: 0.6rem 0.8rem;
+        font-weight: 700;
+        color: #4a148c;
+        text-align: left;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        border-bottom: 2px solid #ede7f6;
+    }
+
+    .tabla-detalle tbody tr {
+        border-bottom: 1px solid #f3f3f3;
+        transition: background 0.15s;
+    }
+
+        .tabla-detalle tbody tr:hover {
+            background: #faf5ff;
+        }
+
+    .tabla-detalle td {
+        padding: 0.75rem 0.8rem;
+    }
+
+    .tabla-detalle tfoot .fila-total td {
+        padding: 0.8rem;
+        border-top: 2px solid #ede7f6;
+        font-size: 0.95rem;
+    }
+
+.punto-color {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.text-right {
+    text-align: right !important;
+}
+
+/* ── FOOTER ── */
+.page-footer {
+    text-align: center;
+    padding: 2rem;
+    color: #aaa;
+    font-size: 0.85rem;
+}
+
+.footer-brand {
+    font-weight: 600;
+    color: #6a1b9a;
+    opacity: 1;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 720px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .page-header {
+        flex-wrap: wrap;
+    }
+
+    .header-title h1 {
+        font-size: 1.1rem;
+    }
+
+    .header-user {
+        display: none;
+    }
+
+    .filtro-box {
+        flex-direction: column;
+    }
+
+    .btn-consultar {
+        width: 100%;
+    }
+}
