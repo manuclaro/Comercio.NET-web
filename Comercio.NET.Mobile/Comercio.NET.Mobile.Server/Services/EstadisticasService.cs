@@ -24,18 +24,43 @@ namespace Comercio.NET.Mobile.Server.Services
         public async Task<IEnumerable<EstadisticaVentaDto>> ObtenerVentasPorRubroAsync(DateTime desde, DateTime hasta)
         {
             var query = @"
+                WITH VentasConTotal AS (
+                    SELECT
+                        v.NroFactura,
+                        CASE
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%'                                 THEN 'CARNICERIA'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%'                              THEN 'VERDULERIA'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%'
+                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%PASTEL%'                               THEN 'PANADERIA'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%'
+                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%QUESO%'
+                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%EMBUT%'                               THEN 'FIAMBRERIA'
+                            ELSE NULL
+                        END AS Rubro,
+                        CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                        SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                        CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                    FROM Ventas v
+                    INNER JOIN Productos p ON v.codigo = p.codigo
+                    INNER JOIN Facturas f  ON v.NroFactura = f.NumeroRemito
+                    WHERE f.Fecha >= @desde
+                      AND f.Fecha <= @hasta
+                )
                 SELECT
-                    p.rubro,
-                    SUM(r.precio * r.cantidad) AS totalVentas,
-                    COUNT(DISTINCT p.codigo)   AS cantidadProductos
-                FROM Renglones r
-                INNER JOIN Productos p ON p.codigo = r.codigo
-                INNER JOIN Ventas v    ON v.numero  = r.numero
-                WHERE v.fecha >= @desde
-                  AND v.fecha <= @hasta
-                  AND p.rubro IN ('VERDULERIA', 'PANADERIA', 'FIAMBRERIA', 'CARNICERIA')
-                GROUP BY p.rubro
-                ORDER BY totalVentas DESC";
+                    Rubro,
+                    COUNT(DISTINCT NroFactura)  AS CantidadFacturas,
+                    COUNT(*)                    AS CantidadProductos,
+                    CAST(SUM(
+                        CASE
+                            WHEN TotalFacturaVentas > 0
+                            THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                            ELSE 0
+                        END
+                    ) AS DECIMAL(18,2))         AS TotalVentas
+                FROM VentasConTotal
+                WHERE Rubro IS NOT NULL
+                GROUP BY Rubro
+                ORDER BY TotalVentas DESC";
 
             var payload = new
             {
@@ -71,8 +96,8 @@ namespace Comercio.NET.Mobile.Server.Services
                         resultados.Add(new EstadisticaVentaDto
                         {
                             Rubro = ConvertToString(row.Count > 0 ? row[0] : null),
-                            TotalVentas = ConvertToDecimal(row.Count > 1 ? row[1] : null),
-                            CantidadProductos = ConvertToInt32(row.Count > 2 ? row[2] : null)
+                            CantidadProductos = ConvertToInt32(row.Count > 2 ? row[2] : null),
+                            TotalVentas = ConvertToDecimal(row.Count > 3 ? row[3] : null)
                         });
                     }
                 }
