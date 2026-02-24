@@ -28,13 +28,13 @@ namespace Comercio.NET.Mobile.Server.Services
                     SELECT
                         v.NroFactura,
                         CASE
-                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%'                                 THEN 'CARNICERIA'
-                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%'                              THEN 'VERDULERIA'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%'   THEN 'CARNICERIA'
+                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
                             WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%'
-                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%PASTEL%'                               THEN 'PANADERIA'
+                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%PASTEL%'  THEN 'PANADERIA'
                             WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%'
                               OR UPPER(ISNULL(p.rubro, '')) LIKE '%QUESO%'
-                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%EMBUT%'                               THEN 'FIAMBRERIA'
+                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%EMBUT%'   THEN 'FIAMBRERIA'
                             ELSE NULL
                         END AS Rubro,
                         CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
@@ -43,8 +43,8 @@ namespace Comercio.NET.Mobile.Server.Services
                     FROM Ventas v
                     INNER JOIN Productos p ON v.codigo = p.codigo
                     INNER JOIN Facturas f  ON v.NroFactura = f.NumeroRemito
-                    WHERE f.Fecha >= @desde
-                      AND f.Fecha <= @hasta
+                    WHERE f.Fecha >= CONVERT(datetime, @desde, 112)
+                      AND f.Fecha <  DATEADD(day, 1, CONVERT(datetime, @hasta, 112))
                 )
                 SELECT
                     Rubro,
@@ -67,8 +67,9 @@ namespace Comercio.NET.Mobile.Server.Services
                 query,
                 parameters = new Dictionary<string, object?>
                 {
-                    { "@desde", desde.ToString("yyyy-MM-dd") },
-                    { "@hasta", hasta.ToString("yyyy-MM-dd 23:59:59") }
+                    // Formato yyyyMMdd: SQL Server lo interpreta sin ambigüedad con CONVERT(..., 112)
+                    { "@desde", desde.ToString("yyyyMMdd") },
+                    { "@hasta", hasta.ToString("yyyyMMdd") }
                 }
             };
 
