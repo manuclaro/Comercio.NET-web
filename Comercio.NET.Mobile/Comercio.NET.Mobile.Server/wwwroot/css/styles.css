@@ -1,377 +1,547 @@
-﻿.cajero-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+﻿*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-    .cajero-selector label {
-        font-weight: 600;
-        color: #333;
-        font-size: 0.95rem;
-    }
-
-    .cajero-selector select {
-        padding: 0.75rem;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        font-size: 1rem;
-        background-color: white;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-        .cajero-selector select:hover {
-            border-color: #0078d7;
-        }
-
-        .cajero-selector select:focus {
-            outline: none;
-            border-color: #0078d7;
-            box-shadow: 0 0 0 3px rgba(0, 120, 215, 0.1);
-        }
-
-.cajero-info {
-    font-size: 0.9rem;
-    color: #666;
-    margin-top: 0.5rem;
-    font-style: italic;
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f4f8;
+  min-height: 100vh;
+  color: #333;
 }
 
-/* Ajustar filters para que todo quepa bien */
-.filters {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 2rem;
+/* ── HEADER ── */
+.page-header {
+  background: linear-gradient(135deg, #0078d7, #005fa3);
+  color: white;
+  padding: 1.2rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-    .filters button {
-        grid-column: span 1;
-    }
-
-@media (max-width: 768px) {
-    .filters {
-        grid-template-columns: 1fr;
-    }
-
-        .filters button {
-            grid-column: 1;
-        }
+.btn-back {
+  color: white;
+  text-decoration: none;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  transition: background 0.2s;
+  white-space: nowrap;
 }
 
-/* ✅ Estilos para egresos */
-.detalle-item.egreso {
-    background-color: #fff3cd;
-    border-left: 4px solid #ffc107;
-    padding-left: 12px;
+.btn-back:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex: 1;
+}
+
+.header-title span {
+  font-size: 2rem;
+}
+
+.header-title h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.header-title p {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.header-user span {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.btn-logout {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* ── MAIN ── */
+.page-main {
+  max-width: 860px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+/* ── FILTRO ── */
+.filtro-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  background: white;
+  padding: 1rem 1.2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  flex-wrap: wrap;
+}
+
+.filtro-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filtro-grupo label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.filtro-grupo input[type="date"],
+.filtro-grupo select {
+  padding: 0.65rem 0.9rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filtro-grupo input[type="date"]:focus,
+.filtro-grupo select:focus {
+  border-color: #0078d7;
+  box-shadow: 0 0 0 3px rgba(0, 120, 215, 0.1);
+}
+
+.btn-hoy {
+  padding: 0.65rem 1.1rem;
+  background: white;
+  color: #0078d7;
+  border: 2px solid #0078d7;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.btn-hoy:hover {
+  background: #0078d7;
+  color: white;
+}
+
+.btn-consultar {
+  padding: 0.65rem 1.4rem;
+  background: linear-gradient(135deg, #0078d7, #005fa3);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.btn-consultar:hover {
+  opacity: 0.88;
+}
+
+/* ── ESTADOS ── */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  color: #555;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #ddd;
+  border-top-color: #0078d7;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-msg {
+  background: #fff0f0;
+  border-left: 4px solid #e53935;
+  padding: 1rem 1.2rem;
+  border-radius: 6px;
+  color: #c62828;
+  margin-bottom: 1rem;
+}
+
+/* ── CARDS ARQUEO ── */
+.cards-arqueo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+
+.arqueo-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.4rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.arqueo-card-header {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0078d7;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid #e8f0fe;
+}
+
+/* Card total destacada */
+.card-total {
+  grid-column: span 2;
+  text-align: center;
+  background: linear-gradient(135deg, #0078d7, #005fa3);
+}
+
+.card-total .arqueo-card-header {
+  color: rgba(255, 255, 255, 0.85);
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.arqueo-total-amount {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: white;
+  margin: 0.4rem 0;
+}
+
+.arqueo-cajero-info {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+}
+
+/* Items de detalle */
+.arqueo-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.arqueo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.arqueo-label {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.arqueo-value {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0078d7;
+}
+
+/* Egreso */
+.arqueo-egreso {
+  background: #fff8e1;
+  border-left: 3px solid #ffc107;
 }
 
 .egreso-value {
-    color: #d63031 !important;
-    font-weight: bold;
+  color: #d63031 !important;
 }
 
-/* ✅ Estilos para efectivo neto destacado */
-.detalle-item.destacado {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 16px;
-    border-radius: 8px;
-    margin-top: 8px;
+/* Efectivo neto */
+.arqueo-neto {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 8px;
+  padding: 0.75rem 0.8rem;
 }
 
-    .detalle-item.destacado .label,
-    .detalle-item.destacado .value {
-        color: white !important;
-    }
+.arqueo-neto .arqueo-label,
+.arqueo-neto .arqueo-value {
+  color: white !important;
+}
 
 .efectivo-neto {
-    font-size: 1.4em;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+  font-size: 1.15rem !important;
 }
 
-    .efectivo-neto.negativo {
-        color: #ff6b6b !important;
-        animation: pulse 1.5s infinite;
-    }
+.efectivo-neto.negativo {
+  color: #ffcdd2 !important;
+  animation: pulse 1.5s infinite;
+}
 
 @keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.7;
-    }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
-/* ✅ Caja de información */
+/* Info box */
 .info-box {
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
-    padding: 12px;
-    margin-top: 12px;
-    border-radius: 4px;
-    font-size: 0.9em;
-    color: #1565c0;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  padding: 0.75rem 1rem;
+  margin-top: 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #1565c0;
 }
 
-    .info-box p {
-        margin: 0;
-    }
+.info-box p { margin: 0; }
+.info-box strong { color: #0d47a1; }
 
-    .info-box strong {
-        color: #0d47a1;
-    }
-
-.user-info {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 16px;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+/* ── FOOTER ── */
+.page-footer {
+  text-align: center;
+  padding: 2rem;
+  color: #aaa;
+  font-size: 0.85rem;
 }
 
-    .user-info span {
-        font-size: 0.95rem;
-        color: white;
-    }
-
-@media (max-width: 768px) {
-    .user-info {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-        .user-info button {
-            width: 100%;
-        }
+.footer-brand {
+  font-weight: 600;
+  color: #0078d7;
 }
 
-/* ========================================
-   ✅ ESTILOS PARA MODAL DE DETALLE
-   ======================================== */
-
-/* Overlay del modal */
+/* ── MODAL ── */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    animation: fadeIn 0.2s ease;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* Contenido del modal */
 .modal-content {
-    background: white;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 900px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    animation: slideUp 0.3s ease;
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
 }
 
 @keyframes slideUp {
-    from {
-        transform: translateY(20px);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-/* Header del modal */
 .modal-header {
-    padding: 20px 25px;
-    border-bottom: 2px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 12px 12px 0 0;
+  padding: 1.2rem 1.5rem;
+  border-bottom: 2px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #0078d7, #005fa3);
+  color: white;
+  border-radius: 12px 12px 0 0;
 }
 
-    .modal-header h3 {
-        margin: 0;
-        font-size: 1.3rem;
-    }
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
 
 .btn-close {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.2s;
 }
 
-    .btn-close:hover {
-        background: rgba(255, 255, 255, 0.3);
-        transform: rotate(90deg);
-    }
+.btn-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
 
-/* Body del modal */
 .modal-body {
-    padding: 25px;
-    overflow-y: auto;
-    flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
-/* Tabla de detalles */
-.tabla-detalle {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.95rem;
-}
-
-    .tabla-detalle th,
-    .tabla-detalle td {
-        padding: 12px 15px;
-        text-align: left;
-        border-bottom: 1px solid #e0e0e0;
-    }
-
-    .tabla-detalle thead {
-        background: #f8f9fa;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-        .tabla-detalle thead th {
-            font-weight: 600;
-            color: #495057;
-            text-transform: uppercase;
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
-        }
-
-    .tabla-detalle tbody tr {
-        transition: background-color 0.2s;
-    }
-
-        .tabla-detalle tbody tr:hover {
-            background: #f8f9fa;
-        }
-
-    .tabla-detalle tfoot {
-        font-weight: bold;
-        background: #f8f9fa;
-        border-top: 2px solid #dee2e6;
-    }
-
-.badge-forma-pago {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    background: #e3f2fd;
-    color: #1976d2;
-    font-weight: 500;
-}
-
-.total-row {
-    font-size: 1.1rem;
-}
-
-    .total-row td {
-        padding: 15px;
-    }
-
-.text-right {
-    text-align: right !important;
-}
-
-/* Footer del modal */
 .modal-footer {
-    padding: 15px 25px;
-    border-top: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    background: #f8f9fa;
-    border-radius: 0 0 12px 12px;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
 }
 
-/* Sin datos */
+/* Tabla modal */
+.tabla-detalle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+
+.tabla-detalle th,
+.tabla-detalle td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tabla-detalle thead {
+  background: #f8f9fa;
+}
+
+.tabla-detalle thead th {
+  font-weight: 700;
+  color: #0078d7;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.4px;
+}
+
+.tabla-detalle tbody tr:hover {
+  background: #f0f7ff;
+}
+
+.tabla-detalle tfoot {
+  font-weight: bold;
+  background: #f8f9fa;
+  border-top: 2px solid #dee2e6;
+}
+
+.text-right { text-align: right !important; }
+
+.total-row td { padding: 1rem; }
+
 .no-data {
-    text-align: center;
-    padding: 40px 20px;
-    color: #6c757d;
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: #888;
+  font-size: 1rem;
+}
+
+/* Botones del modal */
+.btn {
+  padding: 0.55rem 1.2rem;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0078d7, #005fa3);
+  color: white;
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #444;
+}
+
+.btn:hover { opacity: 0.88; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+  .page-header {
+    flex-wrap: wrap;
+  }
+
+  .header-title h1 {
     font-size: 1.1rem;
-}
+  }
 
-/* ========================================
-   ✅ INDICADOR CLICKEABLE
-   ======================================== */
+  .header-user {
+    display: none;
+  }
 
-#pagosProveedores:hover {
-    color: #0078d7;
-    transform: scale(1.05);
-    transition: all 0.2s;
-}
+  .filtro-box {
+    flex-direction: column;
+  }
 
-/* ========================================
-   ✅ RESPONSIVE MODAL
-   ======================================== */
+  .btn-hoy,
+  .btn-consultar {
+    width: 100%;
+  }
 
-@media (max-width: 768px) {
-    .modal-content {
-        width: 95%;
-        max-height: 95vh;
-    }
+  .cards-arqueo {
+    grid-template-columns: 1fr;
+  }
 
-    .modal-header h3 {
-        font-size: 1.1rem;
-    }
+  .card-total {
+    grid-column: span 1;
+  }
 
-    .tabla-detalle {
-        font-size: 0.85rem;
-    }
+  .arqueo-total-amount {
+    font-size: 1.8rem;
+  }
 
-        .tabla-detalle th,
-        .tabla-detalle td {
-            padding: 8px 10px;
-        }
+  .modal-footer {
+    flex-direction: column;
+  }
 
-    .modal-footer {
-        flex-direction: column;
-    }
-
-        .modal-footer button {
-            width: 100%;
-        }
+  .modal-footer button {
+    width: 100%;
+  }
 }
