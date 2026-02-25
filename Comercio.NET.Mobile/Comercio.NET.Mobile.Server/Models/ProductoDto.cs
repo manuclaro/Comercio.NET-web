@@ -9,6 +9,13 @@ namespace Comercio.NET.Mobile.Server.Models
         public int Stock { get; set; }
         public string Rubro { get; set; }
         public string Marca { get; set; }
+    }
 
+    public class ActualizarProductoDto
+    {
+        public decimal Costo { get; set; }
+        public decimal Porcentaje { get; set; }
+        public decimal Precio { get; set; }
+        public int Stock { get; set; }
     }
 }

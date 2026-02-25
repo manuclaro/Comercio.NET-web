@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Comercio.NET.Mobile.Server.Controllers;
+using Comercio.NET.Mobile.Server.Models;
 using Comercio.NET.Mobile.Server.Services;
 
 namespace Comercio.NET.Mobile.Server.Controllers
@@ -49,6 +50,33 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error buscando productos con término '{Termino}'", termino);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Actualiza costo, precio y stock de un producto.
+        /// </summary>
+        [HttpPut("{codigo}")]
+        public async Task<IActionResult> Actualizar(string codigo, [FromBody] ActualizarProductoDto datos)
+        {
+            if (!ValidarAutorizacion())
+                return Unauthorized(new { error = "No autorizado" });
+
+            if (string.IsNullOrWhiteSpace(codigo))
+                return BadRequest(new { error = "El código del producto es requerido." });
+
+            if (datos.Costo < 0 || datos.Precio < 0 || datos.Stock < 0)
+                return BadRequest(new { error = "Los valores no pueden ser negativos." });
+
+            try
+            {
+                await _productosService.ActualizarProductoAsync(codigo, datos);
+                return Ok(new { ok = true, mensaje = "Producto actualizado correctamente." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error actualizando producto '{Codigo}'", codigo);
                 return StatusCode(500, new { error = ex.Message });
             }
         }

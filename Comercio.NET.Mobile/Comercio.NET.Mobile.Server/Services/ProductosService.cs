@@ -50,7 +50,6 @@ namespace Comercio.NET.Mobile.Server.Services
             try
             {
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
@@ -59,7 +58,6 @@ namespace Comercio.NET.Mobile.Server.Services
                     throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
                 }
 
-                // El SQL Bridge devuelve { "data": [[col0, col1, ...], ...] }
                 var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(
                     new MemoryStream(System.Text.Encoding.UTF8.GetBytes(responseContent)),
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -68,16 +66,15 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     foreach (var row in resultado.Data)
                     {
-                        // Orden de columnas: codigo, descripcion, costo, precio, cantidad, rubro, marca
                         productos.Add(new ProductoDto
                         {
-                            Codigo = ConvertToString(row.Count > 0 ? row[0] : null),
+                            Codigo      = ConvertToString(row.Count > 0 ? row[0] : null),
                             Descripcion = ConvertToString(row.Count > 1 ? row[1] : null),
-                            Costo = ConvertToDecimal(row.Count > 2 ? row[2] : null),
-                            Precio = ConvertToDecimal(row.Count > 3 ? row[3] : null),
-                            Stock = ConvertToInt32(row.Count > 4 ? row[4] : null),
-                            Rubro = ConvertToString(row.Count > 5 ? row[5] : null),
-                            Marca = ConvertToString(row.Count > 6 ? row[6] : null),
+                            Costo       = ConvertToDecimal(row.Count > 2 ? row[2] : null),
+                            Precio      = ConvertToDecimal(row.Count > 3 ? row[3] : null),
+                            Stock       = ConvertToInt32(row.Count > 4 ? row[4] : null),
+                            Rubro       = ConvertToString(row.Count > 5 ? row[5] : null),
+                            Marca       = ConvertToString(row.Count > 6 ? row[6] : null),
                         });
                     }
                 }
@@ -91,6 +88,48 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             return productos;
+        }
+
+        public async Task ActualizarProductoAsync(string codigo, ActualizarProductoDto datos)
+        {
+            var query = @"
+                UPDATE Productos
+                SET costo    = @costo,
+                    precio   = @precio,
+                    cantidad = @cantidad
+                WHERE codigo = @codigo";
+
+            var payload = new
+            {
+                query,
+                parameters = new Dictionary<string, object?>
+                {
+                    { "@costo",    datos.Costo },
+                    { "@precio",   datos.Precio },
+                    { "@cantidad", datos.Stock },
+                    { "@codigo",   codigo }
+                }
+            };
+
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/execute", payload);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("SQL Bridge error al actualizar: {StatusCode} - {Content}", response.StatusCode, responseContent);
+                    throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
+                }
+
+                _logger.LogInformation("Producto '{Codigo}' actualizado — Costo: {Costo}, Precio: {Precio}, Stock: {Stock}",
+                    codigo, datos.Costo, datos.Precio, datos.Stock);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error actualizando producto '{Codigo}'", codigo);
+                throw;
+            }
         }
 
         private static int ConvertToInt32(object? value)
@@ -126,8 +165,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 return j.ValueKind switch
                 {
                     JsonValueKind.String => j.GetString() ?? string.Empty,
-                    JsonValueKind.Null => string.Empty,
-                    _ => j.ToString()
+                    JsonValueKind.Null   => string.Empty,
+                    _                   => j.ToString()
                 };
             return value.ToString() ?? string.Empty;
         }

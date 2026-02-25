@@ -56,6 +56,7 @@
 
             <div id="resultados" style="display: none;">
                 <p id="contadorResultados" class="contador"></p>
+                <p class="hint-edicion">💡 Tocá una fila para editar costo, precio y stock.</p>
                 <div class="table-wrapper">
                     <table id="tablaProductos">
                         <thead>
@@ -78,6 +79,62 @@
         <footer class="page-footer">
             <p>Comercio.NET Mobile · v1.4.0 · 2026 · <span class="footer-brand">TPQ Solutions</span></p>
         </footer>
+    </div>
+
+    <!-- ── MODAL EDICIÓN DE PRODUCTO ── -->
+    <div id="modalEdicion" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modalEdicionTitulo">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modalEdicionTitulo">✏️ Editar Producto</h3>
+                    <p id="modalEdicionDesc" class="modal-subtitulo"></p>
+                </div>
+                <button class="btn-close" id="btnCerrarModal" title="Cerrar">✕</button>
+            </div>
+            <div class="modal-body">
+
+                <div id="modalError" class="error-msg" style="display: none;"></div>
+                <div id="modalExito" class="exito-msg" style="display: none;"></div>
+
+                <!-- Costo y Porcentaje -->
+                <div class="edit-row">
+                    <div class="edit-grupo">
+                        <label for="editCosto">💲 Costo</label>
+                        <input type="number" id="editCosto" min="0" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="edit-grupo">
+                        <label for="editPorcentaje">📊 Porcentaje (%)</label>
+                        <input type="number" id="editPorcentaje" min="0" step="0.1" placeholder="0.0" />
+                    </div>
+                </div>
+
+                <!-- Precio de venta calculado / editable -->
+                <div class="edit-grupo edit-grupo-precio">
+                    <label for="editPrecio">🏷️ Precio de Venta <span class="label-hint">(editable para redondear)</span></label>
+                    <input type="number" id="editPrecio" min="0" step="0.01" placeholder="0.00" class="input-precio" />
+                    <p class="precio-calculado-info" id="precioCalculadoInfo"></p>
+                </div>
+
+                <hr class="separador" />
+
+                <!-- Stock -->
+                <div class="edit-grupo">
+                    <label for="editStock">📦 Stock (cantidad)</label>
+                    <div class="stock-controles">
+                        <button class="btn-stock-adj" id="btnStockMenos" type="button">−</button>
+                        <input type="number" id="editStock" min="0" step="1" placeholder="0" class="input-stock" />
+                        <button class="btn-stock-adj" id="btnStockMas" type="button">+</button>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelarModal">Cancelar</button>
+                <button class="btn btn-primary" id="btnGuardarCambios">
+                    <span id="btnGuardarTexto">💾 Guardar</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <script src="/js/productos.js"></script>
