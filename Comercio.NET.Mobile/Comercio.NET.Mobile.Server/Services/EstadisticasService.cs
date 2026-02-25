@@ -35,7 +35,7 @@ namespace Comercio.NET.Mobile.Server.Services
                             WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%'
                               OR UPPER(ISNULL(p.rubro, '')) LIKE '%QUESO%'
                               OR UPPER(ISNULL(p.rubro, '')) LIKE '%EMBUT%'   THEN 'FIAMBRERIA'
-                            ELSE NULL
+                            ELSE 'ALMACEN'
                         END AS Rubro,
                         CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
                         SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
@@ -58,7 +58,6 @@ namespace Comercio.NET.Mobile.Server.Services
                         END
                     ) AS DECIMAL(18,2))         AS TotalVentas
                 FROM VentasConTotal
-                WHERE Rubro IS NOT NULL
                 GROUP BY Rubro
                 ORDER BY TotalVentas DESC";
 

@@ -3,10 +3,11 @@ let token = null;
 let graficoPie = null;
 
 const COLORES_RUBRO = {
-    'VERDULERIA': { bg: 'rgba(76, 175, 80, 0.85)', border: '#388e3c' },
-    'PANADERIA': { bg: 'rgba(255, 193, 7, 0.85)', border: '#f57f17' },
-    'FIAMBRERIA': { bg: 'rgba(244, 67, 54, 0.85)', border: '#c62828' },
+    'VERDULERIA': { bg: 'rgba(76, 175, 80, 0.85)',  border: '#388e3c' },
+    'PANADERIA':  { bg: 'rgba(255, 193, 7, 0.85)',  border: '#f57f17' },
+    'FIAMBRERIA': { bg: 'rgba(244, 67, 54, 0.85)',  border: '#c62828' },
     'CARNICERIA': { bg: 'rgba(156, 39, 176, 0.85)', border: '#6a1b9a' },
+    'ALMACEN':    { bg: 'rgba(33, 150, 243, 0.85)', border: '#1565c0' },
 };
 
 const COLOR_DEFAULT = { bg: 'rgba(158, 158, 158, 0.8)', border: '#616161' };
@@ -143,8 +144,8 @@ function renderizarEstadisticas(datos) {
     `;
 
     // Gráfico de torta
-    const labels = datos.map(d => capitalizarRubro(d.rubro));
-    const valores = datos.map(d => d.totalVentas);
+    const labels   = datos.map(d => capitalizarRubro(d.rubro));
+    const valores  = datos.map(d => d.totalVentas);
     const bgColors = datos.map(d => (COLORES_RUBRO[d.rubro] || COLOR_DEFAULT).bg);
     const bdColors = datos.map(d => (COLORES_RUBRO[d.rubro] || COLOR_DEFAULT).border);
 
