@@ -13,31 +13,42 @@ function formatCurrency(value) {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
 }
 
+function formatHora(valor) {
+    if (!valor) return '-';
+    const t = String(valor);
+    const match = t.match(/T(\d{2}:\d{2})/);
+    if (match) return match[1];
+    if (t.includes(':')) return t.substring(0, 5);
+    return t;
+}
+
 function badgePago(formaPago, esCtaCte) {
     if (esCtaCte) return `<span class="badge badge-ctacte">Cta. Cte.</span>`;
 
     const fp = (formaPago || '').toLowerCase().trim();
 
-    if (fp === 'efectivo')    return `<span class="badge badge-efectivo">💵 Efectivo</span>`;
+    if (fp === 'efectivo') return `<span class="badge badge-efectivo">💵 Efectivo</span>`;
     if (fp === 'mercado pago') return `<span class="badge badge-mercadopago">📱 Mercado Pago</span>`;
-    if (fp === 'dni')         return `<span class="badge badge-dni">🪪 DNI</span>`;
+    if (fp === 'dni') return `<span class="badge badge-dni">🪪 DNI</span>`;
 
     return `<span class="badge badge-otro">📝 ${formaPago || 'Otro'}</span>`;
 }
 
 async function cargarVentas() {
-    const fecha     = document.getElementById('fechaVentas').value || hoy();
-    const cajero    = document.getElementById('cajeroVentas').value.trim();
+    const fecha = document.getElementById('fechaVentas').value || hoy();
+    const cajero = document.getElementById('cajeroVentas').value.trim();
     const formaPago = document.getElementById('formaPagoVentas').value;
+    const tipoFactura = document.getElementById('tipoFacturaVentas').value;
 
-    let urlVentas  = `/api/ventas?fecha=${fecha}`;
+    let urlVentas = `/api/ventas?fecha=${fecha}`;
     let urlResumen = `/api/ventas/resumen?fecha=${fecha}`;
 
     if (cajero) {
-        urlVentas  += `&numeroCajero=${cajero}`;
+        urlVentas += `&numeroCajero=${cajero}`;
         urlResumen += `&numeroCajero=${cajero}`;
     }
     if (formaPago) urlVentas += `&formaPago=${encodeURIComponent(formaPago)}`;
+    if (tipoFactura) urlVentas += `&tipoFactura=${encodeURIComponent(tipoFactura)}`;
 
     try {
         const [ventasRes, resumenRes] = await Promise.all([
@@ -98,7 +109,7 @@ function renderResumen(r) {
             <div class="valor">${formatCurrency(r.totalOtros ?? 0)}</div>
             <div class="etiqueta">📝 Otros</div>
         </div>
-         <div class="resumen-card">
+        <div class="resumen-card">
             <div class="valor">${formatCurrency(r.totalCtaCte ?? 0)}</div>
             <div class="etiqueta">📋 Cta. Cte.</div>
         </div>
@@ -106,7 +117,7 @@ function renderResumen(r) {
 }
 
 function renderTabla(ventas) {
-    const body    = document.getElementById('bodyVentas');
+    const body = document.getElementById('bodyVentas');
     const mensaje = document.getElementById('mensajeVentas');
 
     if (!ventas || ventas.length === 0) {
@@ -130,7 +141,7 @@ function renderTabla(ventas) {
             <td>${badgePago(v.formaPago, v.esCtaCte)}${v.esCtaCte ? ` <small>${v.nombreCtaCte}</small>` : ''}</td>
             <td>${v.tipoFactura || '-'}</td>
             <td>${v.usuarioVenta || '-'}</td>
-            <td>${v.hora || '-'}</td>
+            <td>${formatHora(v.hora)}</td>
         </tr>
     `).join('');
 }

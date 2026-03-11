@@ -20,13 +20,14 @@ namespace Comercio.NET.Mobile.Server.Controllers
         public async Task<IActionResult> GetVentas(
             [FromQuery] string? fecha,
             [FromQuery] int? numeroCajero,
-            [FromQuery] string? formaPago)
+            [FromQuery] string? formaPago,
+            [FromQuery] string? tipoFactura)
         {
             var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;
 
             try
             {
-                var ventas = await _ventasService.GetVentasDelDiaAsync(fechaConsulta, numeroCajero, formaPago);
+                var ventas = await _ventasService.GetVentasDelDiaAsync(fechaConsulta, numeroCajero, formaPago, tipoFactura);
                 return Ok(ventas);
             }
             catch (Exception ex)
