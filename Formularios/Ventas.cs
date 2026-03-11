@@ -1516,34 +1516,100 @@ VALUES
             this.FormClosing += Ventas_FormClosing;
         }
 
+        // Método helper reutilizable para validar si el combo CtaCte tiene un nombre válido
+        private bool ValidarNombreCtaCteSeleccionado()
+        {
+            if (!chkEsCtaCte.Checked)
+                return true;
+
+            string nombre = cbnombreCtaCte.Text?.Trim() ?? "";
+            bool esValido = !string.IsNullOrWhiteSpace(nombre)
+                            && nombre != "(No hay nombres configurados)"
+                            && nombre != "(Error cargando configuración)";
+
+            if (!esValido)
+            {
+                MessageBox.Show(
+                    "⚠️ CUENTA CORRIENTE REQUERIDA\n\n" +
+                    "Debe seleccionar o ingresar un nombre de cuenta corriente para continuar.\n\n" +
+                    "Utilice el combo desplegable para elegir un nombre de la lista.",
+                    "Nombre de Cuenta Corriente Obligatorio",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                cbnombreCtaCte.Focus();
+                cbnombreCtaCte.SelectAll();
+            }
+
+            return esValido;
+        }
+
         // NUEVO: Método para manejar el evento del checkbox de cuenta corriente
         private void chkEsCtaCte_CheckedChanged(object sender, EventArgs e)
         {
             if (chkEsCtaCte.Checked)
             {
-                // Activar y cargar el ComboBox con los nombres de cuenta corriente
                 cbnombreCtaCte.Enabled = true;
                 CargarNombresCuentasCorrientes();
-
-                // Hacer visible si estaba oculto
                 cbnombreCtaCte.Visible = true;
-
-                // Opcional: Dar foco al ComboBox para facilitar la selección
                 cbnombreCtaCte.Focus();
+
+                // Suscribir validación al perder el foco del combo (solo una vez)
+                cbnombreCtaCte.Leave -= CbnombreCtaCte_Leave;
+                cbnombreCtaCte.Leave += CbnombreCtaCte_Leave;
             }
             else
             {
-                // Desactivar el ComboBox y limpiar la selección
+                // Desuscribir el evento Leave al desmarcar
+                cbnombreCtaCte.Leave -= CbnombreCtaCte_Leave;
+
                 cbnombreCtaCte.Enabled = false;
                 cbnombreCtaCte.SelectedIndex = -1;
                 cbnombreCtaCte.Text = "";
 
-                // Opcional: Ocultar el ComboBox
-                // cbnombreCtaCte.Visible = false;
-
-                // Devolver el foco al campo de búsqueda de productos
                 txtBuscarProducto.Focus();
+                txtBuscarProducto.SelectAll();
             }
+        }
+
+        // Evento Leave del combo: bloquea el foco hasta que haya un nombre válido
+        private void CbnombreCtaCte_Leave(object sender, EventArgs e)
+        {
+            // Si el checkbox ya no está tildado, no validar (el usuario lo está destildando)
+            if (!chkEsCtaCte.Checked)
+                return;
+
+            // Tampoco validar si el foco va hacia el propio checkbox (para permitir destildarlo)
+            if (this.ActiveControl == chkEsCtaCte)
+                return;
+
+            if (!ValidarNombreCtaCteSeleccionado())
+            {
+                this.BeginInvoke(new Action(() =>
+                {
+                    // Verificar nuevamente: el usuario pudo haber destildado el checkbox
+                    // mientras el BeginInvoke estaba pendiente
+                    if (!chkEsCtaCte.Checked)
+                        return;
+
+                    if (!this.IsDisposed && cbnombreCtaCte != null && !cbnombreCtaCte.IsDisposed)
+                    {
+                        cbnombreCtaCte.Focus();
+                        cbnombreCtaCte.SelectAll();
+                    }
+                }));
+                return;
+            }
+
+            // Nombre válido: dar foco al campo de búsqueda
+            this.BeginInvoke(new Action(() =>
+            {
+                if (!this.IsDisposed && txtBuscarProducto != null && !txtBuscarProducto.IsDisposed)
+                {
+                    txtBuscarProducto.Focus();
+                    txtBuscarProducto.SelectAll();
+                }
+            }));
         }
 
         // NUEVO: Método para cargar los nombres de cuentas corrientes desde la configuración
@@ -4570,6 +4636,10 @@ VALUES
                     return;
                 }
 
+                // NUEVO: Validar nombre de CtaCte antes de continuar
+                if (!ValidarNombreCtaCteSeleccionado())
+                    return;
+
                 decimal importeTotal = CalcularTotal();
                 System.Diagnostics.Debug.WriteLine($"[VENTAS] Iniciando finalización de venta con total: {importeTotal:C2}");
 
@@ -4581,16 +4651,13 @@ VALUES
 
                         try
                         {
-                            // ✅ CRÍTICO: Ahora recibimos los descuentos como parámetros
                             System.Diagnostics.Debug.WriteLine($"[DESCUENTO CALLBACK] Porcentaje: {porcentajeDescuento}%");
                             System.Diagnostics.Debug.WriteLine($"[DESCUENTO CALLBACK] Importe: {importeDescuento:C2}");
 
-                            // Obtener pagos múltiples si existen
                             var pagosMultiples = seleccion.EsPagoMultiple
                                 ? seleccion.PagosMultiples
                                 : null;
 
-                            // ✅ Pasar datos de descuento al método GuardarFacturaEnBD
                             await GuardarFacturaEnBD(
                                 tipoFactura,
                                 formaPago,
@@ -4600,8 +4667,8 @@ VALUES
                                 numeroFacturaAfip,
                                 numeroFormateado,
                                 pagosMultiples,
-                                porcentajeDescuento,    // ✅ Ahora viene del parámetro
-                                importeDescuento        // ✅ Ahora viene del parámetro
+                                porcentajeDescuento,
+                                importeDescuento
                             );
 
                             System.Diagnostics.Debug.WriteLine("[CALLBACK] Factura guardada exitosamente");
