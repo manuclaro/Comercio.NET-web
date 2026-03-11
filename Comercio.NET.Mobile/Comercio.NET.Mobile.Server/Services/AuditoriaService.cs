@@ -26,14 +26,26 @@ namespace Comercio.NET.Mobile.Server.Services
             var registros = new List<AuditoriaDto>();
 
             var sql = @"
-                SELECT 
-                    Id, CodigoProducto, DescripcionProducto, PrecioUnitario,
-                    Cantidad, TotalEliminado, NumeroFactura, FechaEliminacion,
-                    MotivoEliminacion, UsuarioEliminacion, NumeroCajero,
-                    NombreEquipo,
-                    ISNULL(EsCtaCte, 0)          AS EsCtaCte,
-                    ISNULL(NombreCtaCte, '')      AS NombreCtaCte,
-                    EsEliminacionCompleta, CantidadOriginal
+                SELECT
+                    IdAuditoriaProductosEliminados,
+                    CodigoProducto,
+                    DescripcionProducto,
+                    PrecioUnitario,
+                    Cantidad,
+                    TotalEliminado,
+                    NumeroFactura,
+                    FechaEliminacion,
+                    ISNULL(UsuarioEliminacion, '')       AS UsuarioEliminacion,
+                    ISNULL(MotivoEliminacion, '')        AS MotivoEliminacion,
+                    ISNULL(EsCtaCte, 0)                 AS EsCtaCte,
+                    ISNULL(NombreCtaCte, '')             AS NombreCtaCte,
+                    ISNULL(IPUsuario, '')                AS IPUsuario,
+                    ISNULL(NombreEquipo, '')             AS NombreEquipo,
+                    FechaHoraVentaOriginal,
+                    ISNULL(NumeroCajero, 0)             AS NumeroCajero,
+                    IvaEliminado,
+                    CantidadOriginal,
+                    EsEliminacionCompleta   
                 FROM AuditoriaProductosEliminados
                 WHERE CAST(FechaEliminacion AS DATE) BETWEEN @desde AND @hasta";
 

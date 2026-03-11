@@ -1,4 +1,4 @@
-using Comercio.NET.Mobile.Server.Models;
+ï»¿using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -16,7 +16,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no estÃ¡ configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -105,7 +105,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo ventas del día {Fecha}", fecha);
+                _logger.LogError(ex, "Error obteniendo ventas del dÃ­a {Fecha}", fecha);
                 throw;
             }
 
@@ -114,23 +114,27 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<ResumenVentasDto> GetResumenAsync(DateTime fecha, int? numeroCajero = null)
         {
+            // âœ… El resumen se calcula directamente desde Facturas (una fila por remito),
+            //    igual que Arqueo de Caja, para evitar multiplicar ImporteFinal por cada
+            //    producto de la tabla Ventas.
             var sql = @"
                 SELECT
-                    ISNULL(SUM(f.ImporteFinal), 0) AS TotalVendido,
-                    COUNT(DISTINCT f.NumeroRemito)  AS CantidadTransacciones,
-                    ISNULL(SUM(v.cantidad), 0)      AS CantidadProductos,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'efectivo'     THEN f.ImporteFinal ELSE 0 END), 0) AS TotalEfectivo,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'mercado pago' THEN f.ImporteFinal ELSE 0 END), 0) AS TotalMercadoPago,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'dni'          THEN f.ImporteFinal ELSE 0 END), 0) AS TotalDni,
-                    ISNULL(SUM(CASE WHEN f.esCtaCte = 1                        THEN f.ImporteFinal ELSE 0 END), 0) AS TotalCtaCte,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) NOT IN ('efectivo', 'mercado pago', 'dni')
-                                     AND f.esCtaCte = 0                        THEN f.ImporteFinal ELSE 0 END), 0) AS TotalOtros
-                FROM Facturas f
-                INNER JOIN Ventas v ON v.nrofactura = f.NumeroRemito
-                WHERE CAST(f.Fecha AS DATE) = @fecha";
+                    ISNULL(SUM(ImporteFinal), 0)                                                                      AS TotalVendido,
+                    COUNT(DISTINCT NumeroRemito)                                                                       AS CantidadTransacciones,
+                    ISNULL((SELECT SUM(cantidad) FROM Ventas WHERE CAST(fecha AS DATE) = @fecha), 0)                   AS CantidadProductos,
+                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'efectivo'     AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalEfectivo,
+                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) LIKE '%mercado%pago%' AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalMercadoPago,
+                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'dni'          AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalDni,
+                    ISNULL(SUM(CASE WHEN ISNULL(esCtaCte,0) = 1                                         THEN ImporteFinal ELSE 0 END), 0) AS TotalCtaCte,
+                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) NOT IN ('efectivo','dni')
+                                     AND LOWER(FormadePago) NOT LIKE '%mercado%pago%'
+                                     AND ISNULL(esCtaCte,0) = 0                                         THEN ImporteFinal ELSE 0 END), 0) AS TotalOtros
+                FROM Facturas
+                WHERE CAST(Fecha AS DATE) = @fecha
+                  AND ISNULL(Cajero, '') <> ''";
 
             if (numeroCajero.HasValue)
-                sql += " AND CAST(f.Cajero AS INT) = @numeroCajero";
+                sql += " AND CAST(Cajero AS INT) = @numeroCajero";
 
             var parameters = new Dictionary<string, object?> { { "@fecha", fecha.Date.ToString("yyyy-MM-dd") } };
 
@@ -171,7 +175,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo resumen del día {Fecha}", fecha);
+                _logger.LogError(ex, "Error obteniendo resumen del dÃ­a {Fecha}", fecha);
                 throw;
             }
 
