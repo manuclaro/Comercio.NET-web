@@ -51,7 +51,6 @@ namespace Comercio.NET.Mobile.Server.Services
 
             if (!string.IsNullOrWhiteSpace(tipoFactura))
             {
-                // "Factura" abarca FacturaA, FacturaB, FacturaC, etc.
                 sql += string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase)
                     ? " AND f.TipoFactura LIKE 'Factura%'"
                     : " AND f.TipoFactura = @tipoFactura";
@@ -67,7 +66,6 @@ namespace Comercio.NET.Mobile.Server.Services
             if (!string.IsNullOrWhiteSpace(formaPago))
                 parameters["@formaPago"] = formaPago;
 
-            // Solo agregar el parámetro cuando NO es el caso del LIKE
             if (!string.IsNullOrWhiteSpace(tipoFactura) &&
                 !string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase))
                 parameters["@tipoFactura"] = tipoFactura;
@@ -125,7 +123,7 @@ namespace Comercio.NET.Mobile.Server.Services
             return ventas;
         }
 
-        public async Task<ResumenVentasDto> GetResumenAsync(DateTime fecha, int? numeroCajero = null)
+        public async Task<ResumenVentasDto> GetResumenAsync(DateTime fecha, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
             // ✅ El resumen se calcula directamente desde Facturas (una fila por remito),
             //    igual que Arqueo de Caja, para evitar multiplicar ImporteFinal por cada
@@ -149,10 +147,27 @@ namespace Comercio.NET.Mobile.Server.Services
             if (numeroCajero.HasValue)
                 sql += " AND CAST(Cajero AS INT) = @numeroCajero";
 
+            if (!string.IsNullOrWhiteSpace(formaPago))
+                sql += " AND FormadePago = @formaPago";
+
+            if (!string.IsNullOrWhiteSpace(tipoFactura))
+            {
+                sql += string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase)
+                    ? " AND TipoFactura LIKE 'Factura%'"
+                    : " AND TipoFactura = @tipoFactura";
+            }
+
             var parameters = new Dictionary<string, object?> { { "@fecha", fecha.Date.ToString("yyyy-MM-dd") } };
 
             if (numeroCajero.HasValue)
                 parameters["@numeroCajero"] = numeroCajero.Value;
+
+            if (!string.IsNullOrWhiteSpace(formaPago))
+                parameters["@formaPago"] = formaPago;
+
+            if (!string.IsNullOrWhiteSpace(tipoFactura) &&
+                !string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase))
+                parameters["@tipoFactura"] = tipoFactura;
 
             var payload = new { query = sql, parameters };
 

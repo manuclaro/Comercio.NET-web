@@ -27,28 +27,34 @@ function badgePago(formaPago, esCtaCte) {
 
     const fp = (formaPago || '').toLowerCase().trim();
 
-    if (fp === 'efectivo') return `<span class="badge badge-efectivo">💵 Efectivo</span>`;
+    if (fp === 'efectivo')     return `<span class="badge badge-efectivo">💵 Efectivo</span>`;
     if (fp === 'mercado pago') return `<span class="badge badge-mercadopago">📱 Mercado Pago</span>`;
-    if (fp === 'dni') return `<span class="badge badge-dni">🪪 DNI</span>`;
+    if (fp === 'dni')          return `<span class="badge badge-dni">🪪 DNI</span>`;
 
     return `<span class="badge badge-otro">📝 ${formaPago || 'Otro'}</span>`;
 }
 
 async function cargarVentas() {
-    const fecha = document.getElementById('fechaVentas').value || hoy();
-    const cajero = document.getElementById('cajeroVentas').value.trim();
-    const formaPago = document.getElementById('formaPagoVentas').value;
+    const fecha       = document.getElementById('fechaVentas').value || hoy();
+    const cajero      = document.getElementById('cajeroVentas').value.trim();
+    const formaPago   = document.getElementById('formaPagoVentas').value;
     const tipoFactura = document.getElementById('tipoFacturaVentas').value;
 
-    let urlVentas = `/api/ventas?fecha=${fecha}`;
+    let urlVentas  = `/api/ventas?fecha=${fecha}`;
     let urlResumen = `/api/ventas/resumen?fecha=${fecha}`;
 
     if (cajero) {
-        urlVentas += `&numeroCajero=${cajero}`;
+        urlVentas  += `&numeroCajero=${cajero}`;
         urlResumen += `&numeroCajero=${cajero}`;
     }
-    if (formaPago) urlVentas += `&formaPago=${encodeURIComponent(formaPago)}`;
-    if (tipoFactura) urlVentas += `&tipoFactura=${encodeURIComponent(tipoFactura)}`;
+    if (formaPago) {
+        urlVentas  += `&formaPago=${encodeURIComponent(formaPago)}`;
+        urlResumen += `&formaPago=${encodeURIComponent(formaPago)}`;
+    }
+    if (tipoFactura) {
+        urlVentas  += `&tipoFactura=${encodeURIComponent(tipoFactura)}`;
+        urlResumen += `&tipoFactura=${encodeURIComponent(tipoFactura)}`;
+    }
 
     try {
         const [ventasRes, resumenRes] = await Promise.all([
@@ -117,7 +123,7 @@ function renderResumen(r) {
 }
 
 function renderTabla(ventas) {
-    const body = document.getElementById('bodyVentas');
+    const body    = document.getElementById('bodyVentas');
     const mensaje = document.getElementById('mensajeVentas');
 
     if (!ventas || ventas.length === 0) {

@@ -40,13 +40,15 @@ namespace Comercio.NET.Mobile.Server.Controllers
         [HttpGet("resumen")]
         public async Task<IActionResult> GetResumen(
             [FromQuery] string? fecha,
-            [FromQuery] int? numeroCajero)
+            [FromQuery] int? numeroCajero,
+            [FromQuery] string? formaPago,
+            [FromQuery] string? tipoFactura)
         {
             var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;
 
             try
             {
-                var resumen = await _ventasService.GetResumenAsync(fechaConsulta, numeroCajero);
+                var resumen = await _ventasService.GetResumenAsync(fechaConsulta, numeroCajero, formaPago, tipoFactura);
                 return Ok(resumen);
             }
             catch (Exception ex)
