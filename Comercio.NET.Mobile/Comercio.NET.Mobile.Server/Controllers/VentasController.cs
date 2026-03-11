@@ -18,9 +18,9 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetVentas(
-            [FromQuery] string fecha,
+            [FromQuery] string? fecha,
             [FromQuery] int? numeroCajero,
-            [FromQuery] string formaPago)
+            [FromQuery] string? formaPago)
         {
             var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;
 
@@ -38,7 +38,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet("resumen")]
         public async Task<IActionResult> GetResumen(
-            [FromQuery] string fecha,
+            [FromQuery] string? fecha,
             [FromQuery] int? numeroCajero)
         {
             var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;

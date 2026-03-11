@@ -18,9 +18,9 @@ function badgePago(formaPago, esCtaCte) {
 
     const fp = (formaPago || '').toLowerCase().trim();
 
-    if (fp === 'efectivo')             return `<span class="badge badge-efectivo">💵 Efectivo</span>`;
-    if (fp === 'mercado pago')         return `<span class="badge badge-mercadopago">📱 Mercado Pago</span>`;
-    if (fp === 'dni')                  return `<span class="badge badge-dni">🪪 DNI</span>`;
+    if (fp === 'efectivo')    return `<span class="badge badge-efectivo">💵 Efectivo</span>`;
+    if (fp === 'mercado pago') return `<span class="badge badge-mercadopago">📱 Mercado Pago</span>`;
+    if (fp === 'dni')         return `<span class="badge badge-dni">🪪 DNI</span>`;
 
     return `<span class="badge badge-otro">📝 ${formaPago || 'Otro'}</span>`;
 }
@@ -97,6 +97,10 @@ function renderResumen(r) {
         <div class="resumen-card">
             <div class="valor">${formatCurrency(r.totalOtros ?? 0)}</div>
             <div class="etiqueta">📝 Otros</div>
+        </div>
+         <div class="resumen-card">
+            <div class="valor">${formatCurrency(r.totalCtaCte ?? 0)}</div>
+            <div class="etiqueta">📋 Cta. Cte.</div>
         </div>
     `;
 }

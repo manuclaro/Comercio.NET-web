@@ -18,9 +18,9 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetAuditoria(
-            [FromQuery] string desde,
-            [FromQuery] string hasta,
-            [FromQuery] string usuario,
+            [FromQuery] string? desde,
+            [FromQuery] string? hasta,
+            [FromQuery] string? usuario,
             [FromQuery] int? numeroCajero)
         {
             var fechaDesde = DateTime.TryParse(desde, out var d) ? d : DateTime.Today;
