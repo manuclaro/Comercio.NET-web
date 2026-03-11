@@ -1,0 +1,61 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Consulta de Ventas</title>
+    <link rel="stylesheet" href="/css/ventas.css" />
+</head>
+<body>
+    <div class="page-header">
+        <h1>📊 Consulta de Ventas</h1>
+        <a href="/" class="btn-volver">← Volver</a>
+    </div>
+
+    <div class="filtros-card">
+        <div class="filtro-grupo">
+            <label for="fechaVentas">Fecha</label>
+            <input type="date" id="fechaVentas" />
+        </div>
+        <div class="filtro-grupo">
+            <label for="cajeroVentas">Cajero</label>
+            <input type="number" id="cajeroVentas" placeholder="Todos" min="1" />
+        </div>
+        <div class="filtro-grupo">
+            <label for="formaPagoVentas">Forma de pago</label>
+            <select id="formaPagoVentas">
+                <option value="">Todas</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="Transferencia">Transferencia</option>
+            </select>
+        </div>
+        <button class="btn-buscar" onclick="cargarVentas()">🔍 Buscar</button>
+    </div>
+
+    <div class="resumen-cards" id="resumenCards"></div>
+
+    <div class="tabla-container">
+        <table id="tablaVentas">
+            <thead>
+                <tr>
+                    <th>Remito</th>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                    <th>Precio</th>
+                    <th>Total</th>
+                    <th>Pago</th>
+                    <th>Tipo</th>
+                    <th>Usuario</th>
+                    <th>Hora</th>
+                </tr>
+            </thead>
+            <tbody id="bodyVentas"></tbody>
+        </table>
+        <p id="mensajeVentas" class="mensaje-vacio" style="display:none">No hay ventas para los filtros seleccionados.</p>
+    </div>
+
+    <script src="/js/ventas.js"></script>
+</body>
+</html>

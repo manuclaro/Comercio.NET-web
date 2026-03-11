@@ -21,6 +21,8 @@ builder.Services.AddScoped<ArqueoCajaService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IProductosService, ProductosService>();
 builder.Services.AddScoped<EstadisticasService>();
+builder.Services.AddScoped<IVentasService, VentasService>();
+builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 
 // CORS permisivo
 builder.Services.AddCors(options =>
