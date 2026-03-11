@@ -39,13 +39,25 @@ async function cargarAuditoria() {
     if (cajero)  url += `&numeroCajero=${cajero}`;
 
     try {
-        const res      = await fetch(url);
-        const registros = await res.json();
+        const res = await fetch(url);
 
-        renderTotales(registros);
-        renderTabla(registros);
+        if (!res.ok) {
+            const errorData = await res.text();
+            console.error('Error del servidor:', res.status, errorData);
+            renderTotales([]);
+            renderTabla([]);
+            return;
+        }
+
+        const registros = await res.json();
+        const lista = Array.isArray(registros) ? registros : [];
+
+        renderTotales(lista);
+        renderTabla(lista);
     } catch (err) {
         console.error('Error cargando auditoría:', err);
+        renderTotales([]);
+        renderTabla([]);
     }
 }
 
@@ -57,7 +69,7 @@ function renderTotales(registros) {
         return;
     }
 
-    const totalImporte = registros.reduce((acc, r) => acc + r.totalEliminado, 0);
+    const totalImporte = registros.reduce((acc, r) => acc + (r.totalEliminado ?? 0), 0);
 
     document.getElementById('totalRegistros').textContent = `📋 ${registros.length} registros`;
     document.getElementById('totalImporte').textContent   = `💸 Total eliminado: ${formatCurrency(totalImporte)}`;

@@ -15,62 +15,88 @@ function formatCurrency(value) {
 
 function badgePago(formaPago, esCtaCte) {
     if (esCtaCte) return `<span class="badge badge-ctacte">Cta. Cte.</span>`;
-    const fp = (formaPago || '').toLowerCase();
-    if (fp === 'efectivo') return `<span class="badge badge-efectivo">Efectivo</span>`;
-    if (fp.includes('tarjeta')) return `<span class="badge badge-tarjeta">Tarjeta</span>`;
-    return `<span class="badge badge-otro">${formaPago || '-'}</span>`;
+
+    const fp = (formaPago || '').toLowerCase().trim();
+
+    if (fp === 'efectivo')             return `<span class="badge badge-efectivo">💵 Efectivo</span>`;
+    if (fp === 'mercado pago')         return `<span class="badge badge-mercadopago">📱 Mercado Pago</span>`;
+    if (fp === 'dni')                  return `<span class="badge badge-dni">🪪 DNI</span>`;
+
+    return `<span class="badge badge-otro">📝 ${formaPago || 'Otro'}</span>`;
 }
 
 async function cargarVentas() {
-    const fecha       = document.getElementById('fechaVentas').value || hoy();
-    const cajero      = document.getElementById('cajeroVentas').value.trim();
-    const formaPago   = document.getElementById('formaPagoVentas').value;
+    const fecha     = document.getElementById('fechaVentas').value || hoy();
+    const cajero    = document.getElementById('cajeroVentas').value.trim();
+    const formaPago = document.getElementById('formaPagoVentas').value;
 
-    let url = `/api/ventas?fecha=${fecha}`;
-    if (cajero)    url += `&numeroCajero=${cajero}`;
-    if (formaPago) url += `&formaPago=${encodeURIComponent(formaPago)}`;
+    let urlVentas  = `/api/ventas?fecha=${fecha}`;
+    let urlResumen = `/api/ventas/resumen?fecha=${fecha}`;
+
+    if (cajero) {
+        urlVentas  += `&numeroCajero=${cajero}`;
+        urlResumen += `&numeroCajero=${cajero}`;
+    }
+    if (formaPago) urlVentas += `&formaPago=${encodeURIComponent(formaPago)}`;
 
     try {
         const [ventasRes, resumenRes] = await Promise.all([
-            fetch(url),
-            fetch(`/api/ventas/resumen?fecha=${fecha}${cajero ? `&numeroCajero=${cajero}` : ''}`)
+            fetch(urlVentas),
+            fetch(urlResumen)
         ]);
 
-        const ventas  = await ventasRes.json();
-        const resumen = await resumenRes.json();
+        if (!ventasRes.ok) {
+            console.error('Error en /api/ventas:', ventasRes.status, await ventasRes.text());
+            renderTabla([]);
+        } else {
+            const data = await ventasRes.json();
+            renderTabla(Array.isArray(data) ? data : []);
+        }
 
-        renderResumen(resumen);
-        renderTabla(ventas);
+        if (!resumenRes.ok) {
+            console.error('Error en /api/ventas/resumen:', resumenRes.status, await resumenRes.text());
+            renderResumen({});
+        } else {
+            const resumen = await resumenRes.json();
+            renderResumen(resumen && typeof resumen === 'object' ? resumen : {});
+        }
+
     } catch (err) {
         console.error('Error cargando ventas:', err);
+        renderTabla([]);
+        renderResumen({});
     }
 }
 
 function renderResumen(r) {
     document.getElementById('resumenCards').innerHTML = `
         <div class="resumen-card">
-            <div class="valor">${formatCurrency(r.totalVendido)}</div>
+            <div class="valor">${formatCurrency(r.totalVendido ?? 0)}</div>
             <div class="etiqueta">Total vendido</div>
         </div>
         <div class="resumen-card">
-            <div class="valor">${r.cantidadTransacciones}</div>
+            <div class="valor">${r.cantidadTransacciones ?? 0}</div>
             <div class="etiqueta">Transacciones</div>
         </div>
         <div class="resumen-card">
-            <div class="valor">${r.cantidadProductos}</div>
+            <div class="valor">${r.cantidadProductos ?? 0}</div>
             <div class="etiqueta">Productos</div>
         </div>
         <div class="resumen-card">
-            <div class="valor">${formatCurrency(r.totalEfectivo)}</div>
-            <div class="etiqueta">Efectivo</div>
+            <div class="valor">${formatCurrency(r.totalEfectivo ?? 0)}</div>
+            <div class="etiqueta">💵 Efectivo</div>
         </div>
         <div class="resumen-card">
-            <div class="valor">${formatCurrency(r.totalTarjeta)}</div>
-            <div class="etiqueta">Tarjeta</div>
+            <div class="valor">${formatCurrency(r.totalMercadoPago ?? 0)}</div>
+            <div class="etiqueta">📱 Mercado Pago</div>
         </div>
         <div class="resumen-card">
-            <div class="valor">${formatCurrency(r.totalCtaCte)}</div>
-            <div class="etiqueta">Cta. Cte.</div>
+            <div class="valor">${formatCurrency(r.totalDni ?? 0)}</div>
+            <div class="etiqueta">🪪 DNI</div>
+        </div>
+        <div class="resumen-card">
+            <div class="valor">${formatCurrency(r.totalOtros ?? 0)}</div>
+            <div class="etiqueta">📝 Otros</div>
         </div>
     `;
 }

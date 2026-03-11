@@ -3,61 +3,81 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Panel de Auditoría</title>
+    <meta name="theme-color" content="#0078d7">
+    <title>Panel de Auditoría - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/styles.css" />
     <link rel="stylesheet" href="/css/auditoria.css" />
 </head>
 <body>
-    <div class="page-header">
-        <h1>🔍 Panel de Auditoría</h1>
-        <a href="/" class="btn-volver">← Volver</a>
-    </div>
 
-    <div class="filtros-card">
-        <div class="filtro-grupo">
-            <label for="desdeAudit">Desde</label>
-            <input type="date" id="desdeAudit" />
+    <header class="page-header">
+        <a href="/dashboard.html" class="btn-back">← Volver</a>
+        <div class="header-title">
+            <span>🔍</span>
+            <div>
+                <h1>Panel de Auditoría</h1>
+                <p>Productos eliminados y anulados</p>
+            </div>
         </div>
-        <div class="filtro-grupo">
-            <label for="hastaAudit">Hasta</label>
-            <input type="date" id="hastaAudit" />
+        <div class="header-user">
+            <span id="nombreUsuario"></span>
         </div>
-        <div class="filtro-grupo">
-            <label for="usuarioAudit">Usuario</label>
-            <input type="text" id="usuarioAudit" placeholder="Todos" />
-        </div>
-        <div class="filtro-grupo">
-            <label for="cajeroAudit">Cajero</label>
-            <input type="number" id="cajeroAudit" placeholder="Todos" min="1" />
-        </div>
-        <button class="btn-buscar" onclick="cargarAuditoria()">🔍 Buscar</button>
-    </div>
+    </header>
 
-    <div class="totales-banner" id="totalesBanner" style="display:none">
-        <span id="totalRegistros"></span>
-        <span id="totalImporte"></span>
-    </div>
+    <main class="page-main" style="max-width: 1200px;">
 
-    <div class="tabla-container">
-        <table id="tablaAuditoria">
-            <thead>
-                <tr>
-                    <th>Fecha / Hora</th>
-                    <th>Remito</th>
-                    <th>Código</th>
-                    <th>Descripción</th>
-                    <th>Cant.</th>
-                    <th>Precio u.</th>
-                    <th>Total elim.</th>
-                    <th>Motivo</th>
-                    <th>Usuario</th>
-                    <th>Cajero</th>
-                    <th>Tipo</th>
-                </tr>
-            </thead>
-            <tbody id="bodyAuditoria"></tbody>
-        </table>
-        <p id="mensajeAuditoria" class="mensaje-vacio" style="display:none">No hay registros para los filtros seleccionados.</p>
-    </div>
+        <div class="filtro-box">
+            <div class="filtro-grupo">
+                <label for="desdeAudit">Desde</label>
+                <input type="date" id="desdeAudit" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="hastaAudit">Hasta</label>
+                <input type="date" id="hastaAudit" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="usuarioAudit">Usuario</label>
+                <input type="text" id="usuarioAudit" placeholder="Todos" style="width:130px;" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="cajeroAudit">Cajero</label>
+                <input type="number" id="cajeroAudit" placeholder="Todos" min="1" style="width:100px;" />
+            </div>
+            <button class="btn-consultar" onclick="cargarAuditoria()">🔍 Buscar</button>
+        </div>
+
+        <div class="totales-banner" id="totalesBanner" style="display:none">
+            <span id="totalRegistros"></span>
+            <span id="totalImporte"></span>
+        </div>
+
+        <div class="tabla-ventas-container">
+            <table id="tablaAuditoria">
+                <thead>
+                    <tr>
+                        <th>Fecha / Hora</th>
+                        <th>Remito</th>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Cant.</th>
+                        <th>Precio u.</th>
+                        <th>Total elim.</th>
+                        <th>Motivo</th>
+                        <th>Usuario</th>
+                        <th>Cajero</th>
+                        <th>Tipo</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyAuditoria"></tbody>
+            </table>
+            <p id="mensajeAuditoria" class="no-data" style="display:none">No hay registros para los filtros seleccionados.</p>
+        </div>
+
+    </main>
+
+    <footer class="page-footer">
+        <p>Comercio.NET Mobile · v1.4.0 · 2026 · <span class="footer-brand">TPQ Solutions</span></p>
+    </footer>
 
     <script src="/js/auditoria.js"></script>
 </body>

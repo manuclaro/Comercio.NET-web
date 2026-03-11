@@ -28,7 +28,8 @@ namespace Comercio.NET.Mobile.Server.Models
         public int CantidadTransacciones { get; set; }
         public int CantidadProductos { get; set; }
         public decimal TotalEfectivo { get; set; }
-        public decimal TotalTarjeta { get; set; }
+        public decimal TotalMercadoPago { get; set; }
+        public decimal TotalDni { get; set; }
         public decimal TotalCtaCte { get; set; }
         public decimal TotalOtros { get; set; }
     }

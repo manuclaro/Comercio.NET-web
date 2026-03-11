@@ -8,31 +8,51 @@ namespace Comercio.NET.Mobile.Server.Controllers
     public class VentasController : ControllerBase
     {
         private readonly IVentasService _ventasService;
+        private readonly ILogger<VentasController> _logger;
 
-        public VentasController(IVentasService ventasService)
+        public VentasController(IVentasService ventasService, ILogger<VentasController> logger)
         {
             _ventasService = ventasService;
+            _logger = logger;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetVentas(
-            [FromQuery] DateTime? fecha,
+            [FromQuery] string fecha,
             [FromQuery] int? numeroCajero,
             [FromQuery] string formaPago)
         {
-            var fechaConsulta = fecha ?? DateTime.Today;
-            var ventas = await _ventasService.GetVentasDelDiaAsync(fechaConsulta, numeroCajero, formaPago);
-            return Ok(ventas);
+            var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;
+
+            try
+            {
+                var ventas = await _ventasService.GetVentasDelDiaAsync(fechaConsulta, numeroCajero, formaPago);
+                return Ok(ventas);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetVentas");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         [HttpGet("resumen")]
         public async Task<IActionResult> GetResumen(
-            [FromQuery] DateTime? fecha,
+            [FromQuery] string fecha,
             [FromQuery] int? numeroCajero)
         {
-            var fechaConsulta = fecha ?? DateTime.Today;
-            var resumen = await _ventasService.GetResumenAsync(fechaConsulta, numeroCajero);
-            return Ok(resumen);
+            var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;
+
+            try
+            {
+                var resumen = await _ventasService.GetResumenAsync(fechaConsulta, numeroCajero);
+                return Ok(resumen);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetResumen");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
     }
 }

@@ -29,16 +29,16 @@ namespace Comercio.NET.Mobile.Server.Services
                 SELECT 
                     v.id, v.nrofactura, v.codigo, v.descripcion,
                     v.precio, v.cantidad, v.total, v.PorcentajeIva,
-                    ISNULL(v.EsOferta, 0)          AS EsOferta,
-                    ISNULL(v.NombreOferta, '')      AS NombreOferta,
-                    ISNULL(f.FormadePago, '')       AS FormaPago,
-                    ISNULL(f.TipoFactura, '')       AS TipoFactura,
+                    ISNULL(v.EsOferta, 0)            AS EsOferta,
+                    ISNULL(v.NombreOferta, '')        AS NombreOferta,
+                    ISNULL(f.FormadePago, '')         AS FormaPago,
+                    ISNULL(f.TipoFactura, '')         AS TipoFactura,
                     ISNULL(CAST(v.fecha AS DATE), CAST(GETDATE() AS DATE)) AS Fecha,
-                    ISNULL(v.hora, '')              AS Hora,
-                    ISNULL(v.EsCtaCte, 0)           AS EsCtaCte,
-                    ISNULL(v.NombreCtaCte, '')      AS NombreCtaCte,
-                    ISNULL(f.UsuarioVenta, '')      AS UsuarioVenta,
-                    ISNULL(CAST(f.Cajero AS INT), 0) AS NumeroCajero
+                    ISNULL(v.hora, '')                AS Hora,
+                    ISNULL(v.EsCtaCte, 0)             AS EsCtaCte,
+                    ISNULL(v.NombreCtaCte, '')        AS NombreCtaCte,
+                    ISNULL(f.UsuarioVenta, '')        AS UsuarioVenta,
+                    ISNULL(CAST(f.Cajero AS INT), 0)  AS NumeroCajero
                 FROM Ventas v
                 LEFT JOIN Facturas f ON f.NumeroRemito = v.nrofactura
                 WHERE CAST(v.fecha AS DATE) = @fecha";
@@ -119,12 +119,12 @@ namespace Comercio.NET.Mobile.Server.Services
                     ISNULL(SUM(f.ImporteFinal), 0) AS TotalVendido,
                     COUNT(DISTINCT f.NumeroRemito)  AS CantidadTransacciones,
                     ISNULL(SUM(v.cantidad), 0)      AS CantidadProductos,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'efectivo' THEN f.ImporteFinal ELSE 0 END), 0)      AS TotalEfectivo,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) LIKE '%tarjeta%' THEN f.ImporteFinal ELSE 0 END), 0)  AS TotalTarjeta,
-                    ISNULL(SUM(CASE WHEN f.esCtaCte = 1 THEN f.ImporteFinal ELSE 0 END), 0)                         AS TotalCtaCte,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) NOT IN ('efectivo')
-                                     AND LOWER(f.FormadePago) NOT LIKE '%tarjeta%'
-                                     AND f.esCtaCte = 0 THEN f.ImporteFinal ELSE 0 END), 0) AS TotalOtros
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'efectivo'     THEN f.ImporteFinal ELSE 0 END), 0) AS TotalEfectivo,
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'mercado pago' THEN f.ImporteFinal ELSE 0 END), 0) AS TotalMercadoPago,
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'dni'          THEN f.ImporteFinal ELSE 0 END), 0) AS TotalDni,
+                    ISNULL(SUM(CASE WHEN f.esCtaCte = 1                        THEN f.ImporteFinal ELSE 0 END), 0) AS TotalCtaCte,
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) NOT IN ('efectivo', 'mercado pago', 'dni')
+                                     AND f.esCtaCte = 0                        THEN f.ImporteFinal ELSE 0 END), 0) AS TotalOtros
                 FROM Facturas f
                 INNER JOIN Ventas v ON v.nrofactura = f.NumeroRemito
                 WHERE CAST(f.Fecha AS DATE) = @fecha";
@@ -162,9 +162,10 @@ namespace Comercio.NET.Mobile.Server.Services
                         CantidadTransacciones = ConvertToInt32(row.Count > 1  ? row[1] : null),
                         CantidadProductos     = ConvertToInt32(row.Count > 2  ? row[2] : null),
                         TotalEfectivo         = ConvertToDecimal(row.Count > 3 ? row[3] : null),
-                        TotalTarjeta          = ConvertToDecimal(row.Count > 4 ? row[4] : null),
-                        TotalCtaCte           = ConvertToDecimal(row.Count > 5 ? row[5] : null),
-                        TotalOtros            = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        TotalMercadoPago      = ConvertToDecimal(row.Count > 4 ? row[4] : null),
+                        TotalDni              = ConvertToDecimal(row.Count > 5 ? row[5] : null),
+                        TotalCtaCte           = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        TotalOtros            = ConvertToDecimal(row.Count > 7 ? row[7] : null),
                     };
                 }
             }
