@@ -29,10 +29,10 @@
         || 'Usuario';
     document.getElementById('nombreUsuario').textContent = `👤 ${nombreCompleto}`;
 
-    // Mostrar card de mesas solo para Admin
+    // La card de mesas SOLO es visible para el rol Pizzeria
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
     const cardMesas = document.getElementById('cardMesas');
-    if (cardMesas && rol !== 'admin') {
+    if (cardMesas && rol !== 'pizzeria') {
         cardMesas.style.display = 'none';
     }
 
