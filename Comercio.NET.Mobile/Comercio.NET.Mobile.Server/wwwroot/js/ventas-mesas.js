@@ -46,6 +46,12 @@ async function cargarVentas() {
         const res = await fetch('/api/mesas/ventas-dia');
         const ventas = res.ok ? await res.json() : [];
         _todasLasVentas = Array.isArray(ventas) ? ventas : [];
+
+        // Debug: verificar estructura del primer registro
+        if (_todasLasVentas.length > 0) {
+            console.log('[ventas-mesas] primer registro:', _todasLasVentas[0]);
+        }
+
         poblarFiltros(_todasLasVentas);
         renderVentas(_todasLasVentas);
     } catch (err) {
@@ -55,9 +61,14 @@ async function cargarVentas() {
 }
 
 function poblarFiltros(ventas) {
-    // Mozos únicos
-    const mozos = [...new Set(ventas.map(v => v.mozo).filter(Boolean))].sort();
-    const selMozo = document.getElementById('filtroMozo');
+    // Normalizar y filtrar valores válidos (no nulos, no vacíos tras trim)
+    const mozos = [...new Set(
+        ventas
+            .map(v => (v.mozo ?? v.Mozo ?? '').toString().trim())
+            .filter(m => m !== '')
+    )].sort();
+
+    const selMozo    = document.getElementById('filtroMozo');
     const mozoActual = selMozo.value;
     selMozo.innerHTML = '<option value="">Todos los mozos</option>';
     mozos.forEach(m => {
@@ -68,9 +79,13 @@ function poblarFiltros(ventas) {
         selMozo.appendChild(opt);
     });
 
-    // Formas de pago únicas
-    const formas = [...new Set(ventas.map(v => v.formaPago).filter(Boolean))].sort();
-    const selFP = document.getElementById('filtroFormaPago');
+    const formas = [...new Set(
+        ventas
+            .map(v => (v.formaPago ?? v.FormaPago ?? '').toString().trim())
+            .filter(f => f !== '')
+    )].sort();
+
+    const selFP    = document.getElementById('filtroFormaPago');
     const fpActual = selFP.value;
     selFP.innerHTML = '<option value="">Todas las formas de pago</option>';
     formas.forEach(f => {
@@ -88,9 +103,13 @@ function aplicarFiltros() {
     const estado    = document.getElementById('filtroEstado').value;
 
     const filtradas = _todasLasVentas.filter(v => {
-        if (mozo      && v.mozo      !== mozo)      return false;
-        if (formaPago && v.formaPago !== formaPago)  return false;
-        if (estado    && v.estado    !== estado)     return false;
+        const vMozo  = (v.mozo ?? v.Mozo ?? '').toString().trim();
+        const vFP    = (v.formaPago ?? v.FormaPago ?? '').toString().trim();
+        const vEst   = (v.estado ?? v.Estado ?? '').toString().trim();
+
+        if (mozo      && vMozo !== mozo)      return false;
+        if (formaPago && vFP   !== formaPago)  return false;
+        if (estado    && vEst  !== estado)     return false;
         return true;
     });
 
@@ -108,9 +127,9 @@ function renderVentas(ventas) {
     const body  = document.getElementById('bodyVentas');
     const vacio = document.getElementById('mensajeVacioVentas');
 
-    const totalDia = ventas.reduce((acc, v) => acc + (v.total ?? 0), 0);
+    const totalDia = ventas.reduce((acc, v) => acc + (v.total ?? v.Total ?? 0), 0);
     document.getElementById('resumenDia').textContent =
-        `Total filtrado: ${formatCurrency(totalDia)} · ${ventas.length} mesa(s)`;
+        `Total del día: ${formatCurrency(totalDia)} · ${ventas.length} mesa(s)`;
 
     if (ventas.length === 0) {
         body.innerHTML = '';
@@ -119,26 +138,33 @@ function renderVentas(ventas) {
     }
 
     vacio.style.display = 'none';
-    body.innerHTML = ventas.map(v => `
-        <tr style="cursor:pointer" onclick="verDetalle(${v.mesaId}, 'Mesa #${v.numeroMesa}', ${JSON.stringify(v.mozo)}, ${JSON.stringify(v.estado)}, ${JSON.stringify(v.formaPago)})">
-            <td>#${v.numeroMesa}</td>
-            <td>${v.mozo || '-'}</td>
-            <td>${formatFecha(v.fechaApertura)}</td>
-            <td>${v.fechaCierre ? formatFecha(v.fechaCierre) : '-'}</td>
+    body.innerHTML = ventas.map(v => {
+        const mozo      = (v.mozo      ?? v.Mozo      ?? '').toString().trim();
+        const estado    = (v.estado    ?? v.Estado    ?? '').toString().trim();
+        const formaPago = (v.formaPago ?? v.FormaPago ?? '').toString().trim();
+        const mesaId    =  v.mesaId    ?? v.MesaId;
+        const nroMesa   =  v.numeroMesa ?? v.NumeroMesa;
+
+        return `
+        <tr style="cursor:pointer" onclick="verDetalle(${mesaId}, 'Mesa #${nroMesa}', ${JSON.stringify(mozo)}, ${JSON.stringify(estado)}, ${JSON.stringify(formaPago)})">
+            <td>#${nroMesa}</td>
+            <td>${mozo || '-'}</td>
+            <td>${formatFecha(v.fechaApertura ?? v.FechaApertura)}</td>
+            <td>${(v.fechaCierre ?? v.FechaCierre) ? formatFecha(v.fechaCierre ?? v.FechaCierre) : '-'}</td>
             <td>
-                <span style="color:${v.estado === 'Abierta' ? '#2e7d32' : '#c62828'};font-weight:600">
-                    ${v.estado}
+                <span style="color:${estado === 'Abierta' ? '#2e7d32' : '#c62828'};font-weight:600">
+                    ${estado}
                 </span>
             </td>
-            <td style="text-align:right;font-weight:600">${formatCurrency(v.total)}</td>
-            <td>${v.formaPago || '-'}</td>
-        </tr>
-    `).join('');
+            <td style="text-align:right;font-weight:600">${formatCurrency(v.total ?? v.Total ?? 0)}</td>
+            <td>${formaPago || '-'}</td>
+        </tr>`;
+    }).join('');
 }
 
 async function verDetalle(mesaId, titulo, mozo, estado, formaPago) {
     try {
-        const res = await fetch(`/api/mesas/${mesaId}/items`);
+        const res   = await fetch(`/api/mesas/${mesaId}/items`);
         const items = res.ok ? await res.json() : [];
 
         const estadoLabel = estado === 'Abierta'
@@ -176,6 +202,6 @@ async function verDetalle(mesaId, titulo, mozo, estado, formaPago) {
 }
 
 function volverAListado() {
-    document.getElementById('vistaDetalle').style.display  = 'none';
-    document.getElementById('vistaListado').style.display  = 'block';
+    document.getElementById('vistaDetalle').style.display = 'none';
+    document.getElementById('vistaListado').style.display = 'block';
 }

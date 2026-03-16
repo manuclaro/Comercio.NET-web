@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Delegación de eventos para botones generados dinámicamente
     document.getElementById('bodyMozos').addEventListener('click', (e) => {
-        const btnEditar = e.target.closest('[data-accion="editar"]');
+        const btnEditar   = e.target.closest('[data-accion="editar"]');
         const btnEliminar = e.target.closest('[data-accion="eliminar"]');
 
         if (btnEditar) {
@@ -71,14 +71,15 @@ function renderMozos(mozos) {
         <tr>
             <td>${i + 1}</td>
             <td>${m.nombre}</td>
-            <td style="text-align:center">
-                <button class="btn-secondary"
-                    style="margin-right:4px"
+            <td style="text-align:center;white-space:nowrap">
+                <button class="btn-del"
+                    style="color:#1565c0;font-size:1.1rem;margin-right:6px"
                     data-accion="editar"
                     data-id="${m.id}"
                     data-nombre="${m.nombre.replace(/"/g, '&quot;')}"
                     title="Editar">✏️</button>
                 <button class="btn-del"
+                    style="font-size:1.1rem"
                     data-accion="eliminar"
                     data-id="${m.id}"
                     title="Eliminar">🗑️</button>
