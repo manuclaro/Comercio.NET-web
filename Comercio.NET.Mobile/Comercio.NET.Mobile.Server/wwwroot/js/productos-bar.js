@@ -35,7 +35,13 @@ function formatCurrency(value) {
 async function cargarProductos() {
     try {
         const res = await fetch('/api/mesas/productos-bar');
-        const productos = res.ok ? await res.json() : [];
+        if (!res.ok) {
+            console.error('Error GET /api/mesas/productos-bar:', res.status, await res.text());
+            renderProductos([]);
+            return;
+        }
+        const productos = await res.json();
+        console.log('Productos recibidos:', productos);
         renderProductos(Array.isArray(productos) ? productos : []);
     } catch (err) {
         console.error('Error cargando productos:', err);
@@ -71,19 +77,19 @@ function renderProductos(productos) {
 
 function abrirModalNuevo() {
     document.getElementById('tituloModalProducto').textContent = 'Agregar producto';
-    document.getElementById('inputIdProd').value = '';
-    document.getElementById('inputCodigoProd').value = '';
+    document.getElementById('inputIdProd').value       = '';
+    document.getElementById('inputCodigoProd').value   = '';
     document.getElementById('inputDescripcionProd').value = '';
-    document.getElementById('inputPrecioProd').value = '';
+    document.getElementById('inputPrecioProd').value   = '';
     abrirModal('modalProducto');
 }
 
 function abrirModalEditar(id, codigo, descripcion, precio) {
     document.getElementById('tituloModalProducto').textContent = 'Editar producto';
-    document.getElementById('inputIdProd').value = id;
-    document.getElementById('inputCodigoProd').value = codigo ?? '';
+    document.getElementById('inputIdProd').value       = id;
+    document.getElementById('inputCodigoProd').value   = codigo ?? '';
     document.getElementById('inputDescripcionProd').value = descripcion ?? '';
-    document.getElementById('inputPrecioProd').value = precio ?? '';
+    document.getElementById('inputPrecioProd').value   = precio ?? '';
     abrirModal('modalProducto');
 }
 
