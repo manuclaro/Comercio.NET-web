@@ -1,4 +1,4 @@
-using Comercio.NET.Mobile.Server.Models;
+﻿using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -16,7 +16,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -25,6 +25,26 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var registros = new List<AuditoriaDto>();
 
+            // Columnas en orden:
+            //  0  IdAuditoriaProductosEliminados
+            //  1  CodigoProducto
+            //  2  DescripcionProducto
+            //  3  PrecioUnitario
+            //  4  Cantidad
+            //  5  TotalEliminado
+            //  6  NumeroFactura
+            //  7  FechaEliminacion
+            //  8  UsuarioEliminacion
+            //  9  MotivoEliminacion
+            // 10  EsCtaCte
+            // 11  NombreCtaCte
+            // 12  IPUsuario
+            // 13  NombreEquipo
+            // 14  FechaHoraVentaOriginal
+            // 15  NumeroCajero
+            // 16  IvaEliminado
+            // 17  CantidadOriginal
+            // 18  EsEliminacionCompleta
             var sql = @"
                 SELECT
                     IdAuditoriaProductosEliminados,
@@ -91,29 +111,32 @@ namespace Comercio.NET.Mobile.Server.Services
                     {
                         registros.Add(new AuditoriaDto
                         {
-                            Id                    = ConvertToInt32(row.Count > 0  ? row[0]  : null),
-                            CodigoProducto        = ConvertToString(row.Count > 1  ? row[1]  : null),
-                            DescripcionProducto   = ConvertToString(row.Count > 2  ? row[2]  : null),
-                            PrecioUnitario        = ConvertToDecimal(row.Count > 3  ? row[3]  : null),
-                            Cantidad              = ConvertToInt32(row.Count > 4  ? row[4]  : null),
-                            TotalEliminado        = ConvertToDecimal(row.Count > 5  ? row[5]  : null),
-                            NumeroFactura         = ConvertToInt32(row.Count > 6  ? row[6]  : null),
-                            FechaEliminacion      = ConvertToDateTime(row.Count > 7  ? row[7]  : null),
-                            MotivoEliminacion     = ConvertToString(row.Count > 8  ? row[8]  : null),
-                            UsuarioEliminacion    = ConvertToString(row.Count > 9  ? row[9]  : null),
-                            NumeroCajero          = ConvertToInt32(row.Count > 10 ? row[10] : null),
-                            NombreEquipo          = ConvertToString(row.Count > 11 ? row[11] : null),
-                            EsCtaCte              = ConvertToBoolean(row.Count > 12 ? row[12] : null),
-                            NombreCtaCte          = ConvertToString(row.Count > 13 ? row[13] : null),
-                            EsEliminacionCompleta = ConvertToNullableBoolean(row.Count > 14 ? row[14] : null),
-                            CantidadOriginal      = ConvertToNullableInt32(row.Count > 15 ? row[15] : null),
+                            Id                     = ConvertToInt32(row.Count > 0  ? row[0]  : null),  // IdAuditoriaProductosEliminados
+                            CodigoProducto         = ConvertToString(row.Count > 1  ? row[1]  : null),  // CodigoProducto
+                            DescripcionProducto    = ConvertToString(row.Count > 2  ? row[2]  : null),  // DescripcionProducto
+                            PrecioUnitario         = ConvertToDecimal(row.Count > 3  ? row[3]  : null),  // PrecioUnitario
+                            Cantidad               = ConvertToInt32(row.Count > 4  ? row[4]  : null),   // Cantidad
+                            TotalEliminado         = ConvertToDecimal(row.Count > 5  ? row[5]  : null),  // TotalEliminado
+                            NumeroFactura          = ConvertToInt32(row.Count > 6  ? row[6]  : null),   // NumeroFactura
+                            FechaEliminacion       = ConvertToDateTime(row.Count > 7  ? row[7]  : null), // FechaEliminacion
+                            UsuarioEliminacion     = ConvertToString(row.Count > 8  ? row[8]  : null),  // UsuarioEliminacion  ← corregido
+                            MotivoEliminacion      = ConvertToString(row.Count > 9  ? row[9]  : null),  // MotivoEliminacion   ← corregido
+                            EsCtaCte               = ConvertToBoolean(row.Count > 10 ? row[10] : null), // EsCtaCte            ← corregido
+                            NombreCtaCte           = ConvertToString(row.Count > 11 ? row[11] : null),  // NombreCtaCte        ← corregido
+                            IPUsuario              = ConvertToString(row.Count > 12 ? row[12] : null),  // IPUsuario           ← corregido
+                            NombreEquipo           = ConvertToString(row.Count > 13 ? row[13] : null),  // NombreEquipo        ← corregido
+                            FechaHoraVentaOriginal = ConvertToNullableDateTime(row.Count > 14 ? row[14] : null), // FechaHoraVentaOriginal ← corregido
+                            NumeroCajero           = ConvertToInt32(row.Count > 15 ? row[15] : null),   // NumeroCajero        ← corregido
+                            IvaEliminado           = ConvertToNullableDecimal(row.Count > 16 ? row[16] : null),  // IvaEliminado
+                            CantidadOriginal       = ConvertToNullableInt32(row.Count > 17 ? row[17] : null),    // CantidadOriginal
+                            EsEliminacionCompleta  = ConvertToNullableBoolean(row.Count > 18 ? row[18] : null),  // EsEliminacionCompleta
                         });
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo auditor�a desde {Desde} hasta {Hasta}", desde, hasta);
+                _logger.LogError(ex, "Error obteniendo auditoría desde {Desde} hasta {Hasta}", desde, hasta);
                 throw;
             }
 
@@ -151,6 +174,13 @@ namespace Comercio.NET.Mobile.Server.Services
                     _ => 0m
                 };
             return Convert.ToDecimal(value);
+        }
+
+        private static decimal? ConvertToNullableDecimal(object? value)
+        {
+            if (value is null) return null;
+            if (value is JsonElement j && j.ValueKind == JsonValueKind.Null) return null;
+            return ConvertToDecimal(value);
         }
 
         private static bool ConvertToBoolean(object? value)
@@ -194,6 +224,13 @@ namespace Comercio.NET.Mobile.Server.Services
             if (value is JsonElement j && j.ValueKind == JsonValueKind.String)
                 return DateTime.TryParse(j.GetString(), out var d) ? d : DateTime.MinValue;
             return Convert.ToDateTime(value);
+        }
+
+        private static DateTime? ConvertToNullableDateTime(object? value)
+        {
+            if (value is null) return null;
+            if (value is JsonElement j && j.ValueKind == JsonValueKind.Null) return null;
+            return ConvertToDateTime(value);
         }
     }
 }

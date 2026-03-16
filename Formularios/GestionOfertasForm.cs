@@ -28,15 +28,15 @@ namespace Comercio.NET.Formularios
         private ComboBox cboTipoOferta;
         private Panel panelEdicion;
         private Label lblOfertaActual;
-        
+
         // ✅ NUEVO: Controles adicionales para Combo
         private TextBox txtPrecioCombo;
         private Label lblPrecioCombo;
-        
+
         // ✅ NUEVO: Controles adicionales para Descuento
         private NumericUpDown nudPorcentajeDescuento;
         private Label lblPorcentajeDescuento;
-        
+
         private int ofertaSeleccionadaId = 0;
         private bool modoEdicion = false;
 
@@ -44,11 +44,16 @@ namespace Comercio.NET.Formularios
         private TextBox txtSumaProductos;
         private Label lblSumaProductos;
 
-        // ✅ NUEVO: Controles para tipo PorGrupo — agregar junto a las otras declaraciones de controles
+        // ✅ NUEVO: Controles para tipo PorGrupo
         private NumericUpDown nudCantidadGrupo;
         private Label lblCantidadGrupo;
-        private TextBox txtPrecioGrupo;     // ✅ NUEVO: precio fijo del grupo
-        private Label lblPrecioGrupo;       // ✅ NUEVO
+        private TextBox txtPrecioGrupo;
+        private Label lblPrecioGrupo;
+
+        // ✅ NUEVO: Controles para búsqueda de ofertas
+        private TextBox txtBuscarOferta;
+        private Label lblBuscarOferta;
+        private DataTable dtOfertasCompleto; // Copia completa para filtrar
 
         public GestionOfertasForm()
         {
@@ -62,7 +67,7 @@ namespace Comercio.NET.Formularios
         private void InitializeComponent()
         {
             this.Text = "Gestión de Ofertas y Combos";
-            this.Size = new Size(1000, 520);
+            this.Size = new Size(1000, 620); // ✅ MODIFICADO: formulario más alto
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -73,11 +78,11 @@ namespace Comercio.NET.Formularios
             this.BackColor = Color.WhiteSmoke;
             this.Font = new Font("Segoe UI", 10F);
 
-            // Panel superior (sin cambios)
+            // ✅ MODIFICADO: Panel superior más alto para acomodar buscador + grilla más grande
             var panelSuperior = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 155,
+                Height = 255,
                 BackColor = Color.White,
                 Padding = new Padding(10)
             };
@@ -90,11 +95,29 @@ namespace Comercio.NET.Formularios
                 AutoSize = true
             };
 
+            // ✅ NUEVO: Buscador de ofertas
+            lblBuscarOferta = new Label
+            {
+                Text = "🔍 Buscar:",
+                Location = new Point(10, 40),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+
+            txtBuscarOferta = new TextBox
+            {
+                Location = new Point(80, 37),
+                Width = 300,
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "Filtrar por nombre de oferta..."
+            };
+
+            // ✅ MODIFICADO: Grilla más grande (más filas visibles)
             dgvOfertas = new DataGridView
             {
-                Location = new Point(10, 40),
+                Location = new Point(10, 65),
                 Width = 780,
-                Height = 100,
+                Height = 175,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -106,7 +129,7 @@ namespace Comercio.NET.Formularios
             };
 
             int botonX = 800;
-            int botonY = 40;
+            int botonY = 65; // ✅ MODIFICADO: alineado con la nueva posición de la grilla
             int espacioVertical = 34;
 
             btnNuevaOferta = new Button
@@ -146,6 +169,8 @@ namespace Comercio.NET.Formularios
             };
 
             panelSuperior.Controls.Add(lblTituloOfertas);
+            panelSuperior.Controls.Add(lblBuscarOferta);
+            panelSuperior.Controls.Add(txtBuscarOferta);
             panelSuperior.Controls.Add(dgvOfertas);
             panelSuperior.Controls.Add(btnNuevaOferta);
             panelSuperior.Controls.Add(btnEditarOferta);
@@ -259,7 +284,7 @@ namespace Comercio.NET.Formularios
                 Format = DateTimePickerFormat.Short
             };
 
-            // ✅ NUEVO: Controles específicos para tipo Combo
+            // ✅ Controles específicos para tipo Combo
             lblSumaProductos = new Label
             {
                 Text = "Suma Productos:",
@@ -275,8 +300,8 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Visible = false,
                 ReadOnly = true,
-                BackColor = Color.FromArgb(255, 255, 200), // Fondo amarillo claro
-                ForeColor = Color.FromArgb(0, 100, 0), // Texto verde oscuro
+                BackColor = Color.FromArgb(255, 255, 200),
+                ForeColor = Color.FromArgb(0, 100, 0),
                 Text = "$0.00",
                 TextAlign = HorizontalAlignment.Right
             };
@@ -299,7 +324,7 @@ namespace Comercio.NET.Formularios
                 TextAlign = HorizontalAlignment.Right
             };
 
-            // ✅ NUEVO: Controles específicos para tipo Descuento
+            // ✅ Controles específicos para tipo Descuento
             lblPorcentajeDescuento = new Label
             {
                 Text = "% Descuento:",
@@ -320,7 +345,7 @@ namespace Comercio.NET.Formularios
                 Value = 0
             };
 
-            // ✅ NUEVO: Controles específicos para tipo PorGrupo
+            // ✅ Controles específicos para tipo PorGrupo
             lblCantidadGrupo = new Label
             {
                 Text = "Cant. mín. grupo:",
@@ -473,8 +498,6 @@ namespace Comercio.NET.Formularios
             panelEdicion.Controls.Add(btnCancelar);
             panelEdicion.Controls.Add(lblSumaProductos);
             panelEdicion.Controls.Add(txtSumaProductos);
-            panelEdicion.Controls.Add(lblCantidadGrupo);
-            panelEdicion.Controls.Add(nudCantidadGrupo);
             panelEdicion.Controls.Add(lblPrecioGrupo);
             panelEdicion.Controls.Add(txtPrecioGrupo);
 
@@ -488,7 +511,6 @@ namespace Comercio.NET.Formularios
         {
             dgvDetalleOferta.Columns.Clear();
 
-            // Columnas comunes (siempre visibles)
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "IdProducto",
@@ -528,7 +550,6 @@ namespace Comercio.NET.Formularios
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" }
             });
 
-            // ✅ Columnas específicas según tipo
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "CantidadMinima",
@@ -560,7 +581,6 @@ namespace Comercio.NET.Formularios
                 }
             });
 
-            // ✅ NUEVO: Columna para cantidad (Combos)
             dgvDetalleOferta.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "CantidadCombo",
@@ -572,7 +592,6 @@ namespace Comercio.NET.Formularios
             });
         }
 
-        // ✅ NUEVO: Ajustar visibilidad de columnas según tipo de oferta
         private void AjustarColumnasSegunTipo(string tipoOferta)
         {
             switch (tipoOferta)
@@ -593,6 +612,8 @@ namespace Comercio.NET.Formularios
                     nudPorcentajeDescuento.Visible = false;
                     lblCantidadGrupo.Visible = false;
                     nudCantidadGrupo.Visible = false;
+                    lblPrecioGrupo.Visible = false;
+                    txtPrecioGrupo.Visible = false;
                     break;
 
                 case "Combo":
@@ -610,8 +631,9 @@ namespace Comercio.NET.Formularios
                     nudPorcentajeDescuento.Visible = false;
                     lblCantidadGrupo.Visible = false;
                     nudCantidadGrupo.Visible = false;
+                    lblPrecioGrupo.Visible = false;
+                    txtPrecioGrupo.Visible = false;
 
-                    // ✅ Calcular suma inicial
                     CalcularSumaProductosCombo();
                     break;
 
@@ -627,6 +649,10 @@ namespace Comercio.NET.Formularios
                     txtPrecioCombo.Visible = false;
                     lblPorcentajeDescuento.Visible = true;
                     nudPorcentajeDescuento.Visible = true;
+                    lblCantidadGrupo.Visible = false;
+                    nudCantidadGrupo.Visible = false;
+                    lblPrecioGrupo.Visible = false;
+                    txtPrecioGrupo.Visible = false;
                     break;
 
                 case "PorGrupo":
@@ -639,10 +665,8 @@ namespace Comercio.NET.Formularios
                     txtSumaProductos.Visible = false;
                     lblPrecioCombo.Visible = false;
                     txtPrecioCombo.Visible = false;
-                    // ✅ Ocultar controles de otros tipos
                     lblPorcentajeDescuento.Visible = false;
                     nudPorcentajeDescuento.Visible = false;
-                    // ✅ Mostrar controles de PorGrupo
                     lblCantidadGrupo.Visible = true;
                     nudCantidadGrupo.Visible = true;
                     lblPrecioGrupo.Visible = true;
@@ -651,7 +675,6 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // ✅ NUEVO: Calcular suma total de productos en el combo
         private void CalcularSumaProductosCombo()
         {
             if (cboTipoOferta.SelectedItem?.ToString() != "Combo")
@@ -664,25 +687,17 @@ namespace Comercio.NET.Formularios
                 if (row.IsNewRow)
                     continue;
 
-                // Obtener precio original del producto
                 if (decimal.TryParse(row.Cells["PrecioOriginal"].Value?.ToString(), out decimal precioOriginal))
                 {
-                    // Obtener cantidad (por defecto 1)
                     int cantidad = 1;
                     if (int.TryParse(row.Cells["CantidadMinima"].Value?.ToString(), out int cant) && cant > 0)
-                    {
                         cantidad = cant;
-                    }
 
                     sumaTotal += precioOriginal * cantidad;
                 }
             }
 
-            // Actualizar el TextBox con formato de moneda (solo la suma)
             txtSumaProductos.Text = sumaTotal.ToString("C2");
-
-            // ✅ ELIMINADO: Ya no sugerimos precio automáticamente
-            // El usuario ingresa libremente el precio que desee
         }
 
         private Button CrearBoton(string texto, int left, Color backColor)
@@ -720,30 +735,48 @@ namespace Comercio.NET.Formularios
             dgvDetalleOferta.CellValueChanged += DgvDetalleOferta_CellValueChanged;
             dgvDetalleOferta.CellEndEdit += DgvDetalleOferta_CellEndEdit;
 
-            // ✅ Recalcular suma cuando se agregan/quitan filas
             dgvDetalleOferta.RowsAdded += (s, e) => CalcularSumaProductosCombo();
             dgvDetalleOferta.RowsRemoved += (s, e) => CalcularSumaProductosCombo();
 
-            // ✅ Evento para cambiar columnas según tipo
             cboTipoOferta.SelectedIndexChanged += CboTipoOferta_SelectedIndexChanged;
-
-            // ✅ NUEVO: Doble click en la grilla de ofertas para editar
             dgvOfertas.CellDoubleClick += DgvOfertas_CellDoubleClick;
+
+            // ✅ NUEVO: Evento de búsqueda en tiempo real
+            txtBuscarOferta.TextChanged += TxtBuscarOferta_TextChanged;
         }
 
-        // ✅ NUEVO: Método para manejar doble click en la grilla
+        // ✅ NUEVO: Filtrar la grilla según el texto ingresado
+        private void TxtBuscarOferta_TextChanged(object sender, EventArgs e)
+        {
+            if (dtOfertasCompleto == null)
+                return;
+
+            string filtro = txtBuscarOferta.Text.Trim();
+
+            if (string.IsNullOrEmpty(filtro))
+            {
+                dgvOfertas.DataSource = dtOfertasCompleto;
+            }
+            else
+            {
+                var dvFiltrado = new DataView(dtOfertasCompleto)
+                {
+                    RowFilter = $"Nombre LIKE '%{filtro.Replace("'", "''")}%'"
+                };
+                dgvOfertas.DataSource = dvFiltrado;
+            }
+
+            // Restaurar visibilidad de columna Id
+            if (dgvOfertas.Columns["Id"] != null)
+                dgvOfertas.Columns["Id"].Visible = false;
+        }
+
         private void DgvOfertas_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            // Verificar que se hizo click en una fila válida (no en el encabezado)
             if (e.RowIndex >= 0)
-            {
-                // Llamar al mismo método que el botón Editar
                 BtnEditarOferta_Click(sender, e);
-            }
         }
 
-
-        // ✅ NUEVO: Evento para cambio de tipo de oferta
         private void CboTipoOferta_SelectedIndexChanged(object sender, EventArgs e)
         {
             AjustarColumnasSegunTipo(cboTipoOferta.SelectedItem.ToString());
@@ -772,6 +805,9 @@ namespace Comercio.NET.Formularios
                     var adapter = new SqlDataAdapter(query, connection);
                     var dt = new DataTable();
                     adapter.Fill(dt);
+
+                    // ✅ NUEVO: Guardar copia completa para el filtrado
+                    dtOfertasCompleto = dt;
 
                     dgvOfertas.DataSource = dt;
 
@@ -853,7 +889,6 @@ namespace Comercio.NET.Formularios
             panelEdicion.Visible = true;
         }
 
-        // ✅ MODIFICADO: Cargar oferta con soporte para todos los tipos
         private void CargarOfertaParaEdicion(int idOferta)
         {
             try
@@ -864,7 +899,6 @@ namespace Comercio.NET.Formularios
                 {
                     connection.Open();
 
-                    // Cargar datos de la oferta
                     var queryOferta = @"
                         SELECT Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta,
                                PrecioCombo, PorcentajeDescuentoGlobal, CantidadMinimaGrupo, PrecioGrupo
@@ -889,11 +923,8 @@ namespace Comercio.NET.Formularios
                                 string tipoOferta = reader["TipoOferta"].ToString();
                                 cboTipoOferta.SelectedItem = tipoOferta;
 
-                                // ✅ Cargar campos específicos
                                 if (tipoOferta == "Combo" && reader["PrecioCombo"] != DBNull.Value)
-                                {
                                     txtPrecioCombo.Text = reader["PrecioCombo"].ToString();
-                                }
 
                                 if (tipoOferta == "Descuento" && reader["PorcentajeDescuentoGlobal"] != DBNull.Value)
                                     nudPorcentajeDescuento.Value = Convert.ToDecimal(reader["PorcentajeDescuentoGlobal"]);
@@ -910,7 +941,6 @@ namespace Comercio.NET.Formularios
                         }
                     }
 
-                    // Cargar productos de la oferta
                     var queryDetalle = @"
                         SELECT 
                             d.Id,
@@ -943,13 +973,12 @@ namespace Comercio.NET.Formularios
                                     reader["CantidadMinima"],
                                     reader["PrecioOferta"],
                                     reader["PorcentajeDescuento"],
-                                    reader["CantidadMinima"] // ✅ Para combos
+                                    reader["CantidadMinima"]
                                 );
                             }
                         }
                     }
 
-                    // ✅ Ajustar columnas según el tipo cargado
                     AjustarColumnasSegunTipo(cboTipoOferta.SelectedItem.ToString());
                 }
             }
@@ -1029,7 +1058,6 @@ namespace Comercio.NET.Formularios
             dgvDetalleOferta.Rows.RemoveAt(dgvDetalleOferta.SelectedRows[0].Index);
         }
 
-
         private void DgvDetalleOferta_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             if (e.ColumnIndex == dgvDetalleOferta.Columns["CodigoProducto"].Index)
@@ -1065,7 +1093,6 @@ namespace Comercio.NET.Formularios
                                     row.Cells["PorcentajeDescuento"].Value = 0;
                                     row.Cells["CantidadCombo"].Value = 1;
 
-                                    // ✅ NUEVO: Recalcular suma después de agregar producto
                                     CalcularSumaProductosCombo();
                                 }
                                 else
@@ -1086,11 +1113,8 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // ✅ NUEVO: Si se edita la cantidad en un combo, recalcular suma
             if (e.ColumnIndex == dgvDetalleOferta.Columns["CantidadMinima"].Index)
-            {
                 CalcularSumaProductosCombo();
-            }
         }
 
         private void DgvDetalleOferta_CellValueChanged(object sender, DataGridViewCellEventArgs e)
@@ -1099,7 +1123,6 @@ namespace Comercio.NET.Formularios
 
             var row = dgvDetalleOferta.Rows[e.RowIndex];
 
-            // Si cambió el precio de oferta, recalcular el % de descuento
             if (e.ColumnIndex == dgvDetalleOferta.Columns["PrecioOferta"].Index)
             {
                 if (decimal.TryParse(row.Cells["PrecioOriginal"].Value?.ToString(), out decimal precioOriginal) &&
@@ -1112,7 +1135,6 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // ✅ MODIFICADO: Guardar con soporte para todos los tipos
         private async void BtnGuardar_Click(object sender, EventArgs e)
         {
             if (!ValidarFormulario())
@@ -1132,7 +1154,6 @@ namespace Comercio.NET.Formularios
                         {
                             if (ofertaSeleccionadaId == 0)
                             {
-                                // Insertar nueva oferta
                                 var queryInsert = @"
                                 INSERT INTO OfertasProductos 
                                     (Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta, 
@@ -1147,36 +1168,34 @@ namespace Comercio.NET.Formularios
                                     cmd.Parameters.AddWithValue("@Nombre", txtNombreOferta.Text.Trim());
                                     cmd.Parameters.AddWithValue("@Descripcion", txtDescripcion.Text.Trim());
                                     cmd.Parameters.AddWithValue("@FechaInicio", dtpFechaInicio.Value.Date);
-                                    cmd.Parameters.AddWithValue("@FechaFin", 
-                                        dtpFechaFin.Value.Date > dtpFechaInicio.Value.Date 
-                                            ? (object)dtpFechaFin.Value.Date 
+                                    cmd.Parameters.AddWithValue("@FechaFin",
+                                        dtpFechaFin.Value.Date > dtpFechaInicio.Value.Date
+                                            ? (object)dtpFechaFin.Value.Date
                                             : DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
                                     cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
-                                    
-                                    // ✅ Campos específicos
-                                    cmd.Parameters.AddWithValue("@PrecioCombo", 
-                                        tipoOferta == "Combo" && decimal.TryParse(txtPrecioCombo.Text, out decimal precio) 
-                                            ? (object)precio 
+
+                                    cmd.Parameters.AddWithValue("@PrecioCombo",
+                                        tipoOferta == "Combo" && decimal.TryParse(txtPrecioCombo.Text, out decimal precio)
+                                            ? (object)precio
                                             : DBNull.Value);
-                                    
-                                    cmd.Parameters.AddWithValue("@PorcentajeDescuentoGlobal", 
-                                        tipoOferta == "Descuento" 
-                                            ? (object)nudPorcentajeDescuento.Value 
+
+                                    cmd.Parameters.AddWithValue("@PorcentajeDescuentoGlobal",
+                                        tipoOferta == "Descuento"
+                                            ? (object)nudPorcentajeDescuento.Value
                                             : DBNull.Value);
-                                    
+
                                     cmd.Parameters.AddWithValue("@CantidadMinimaGrupo",
                                         tipoOferta == "PorGrupo"
                                             ? (object)(int)nudCantidadGrupo.Value
                                             : DBNull.Value);
 
-                                    // ✅ NUEVO: guardar PrecioGrupo
                                     cmd.Parameters.AddWithValue("@PrecioGrupo",
                                         tipoOferta == "PorGrupo" && decimal.TryParse(txtPrecioGrupo.Text, out decimal pgInsert)
                                             ? (object)pgInsert
                                             : DBNull.Value);
 
-                                    cmd.Parameters.AddWithValue("@Usuario", 
+                                    cmd.Parameters.AddWithValue("@Usuario",
                                         AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName);
 
                                     ofertaSeleccionadaId = (int)cmd.ExecuteScalar();
@@ -1184,7 +1203,6 @@ namespace Comercio.NET.Formularios
                             }
                             else
                             {
-                                // Actualizar oferta existente
                                 var queryUpdate = @"
                                     UPDATE OfertasProductos
                                     SET Nombre = @Nombre,
@@ -1211,15 +1229,15 @@ namespace Comercio.NET.Formularios
                                             : DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
                                     cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
-                                    
-                                    cmd.Parameters.AddWithValue("@PrecioCombo", 
-                                        tipoOferta == "Combo" && decimal.TryParse(txtPrecioCombo.Text, out decimal precio) 
-                                            ? (object)precio 
+
+                                    cmd.Parameters.AddWithValue("@PrecioCombo",
+                                        tipoOferta == "Combo" && decimal.TryParse(txtPrecioCombo.Text, out decimal precio)
+                                            ? (object)precio
                                             : DBNull.Value);
-                                    
-                                    cmd.Parameters.AddWithValue("@PorcentajeDescuentoGlobal", 
-                                        tipoOferta == "Descuento" 
-                                            ? (object)nudPorcentajeDescuento.Value 
+
+                                    cmd.Parameters.AddWithValue("@PorcentajeDescuentoGlobal",
+                                        tipoOferta == "Descuento"
+                                            ? (object)nudPorcentajeDescuento.Value
                                             : DBNull.Value);
 
                                     cmd.Parameters.AddWithValue("@CantidadMinimaGrupo",
@@ -1227,7 +1245,6 @@ namespace Comercio.NET.Formularios
                                             ? (object)(int)nudCantidadGrupo.Value
                                             : DBNull.Value);
 
-                                    // ✅ NUEVO: guardar PrecioGrupo
                                     cmd.Parameters.AddWithValue("@PrecioGrupo",
                                         tipoOferta == "PorGrupo" && decimal.TryParse(txtPrecioGrupo.Text, out decimal pgUpdate)
                                             ? (object)pgUpdate
@@ -1236,7 +1253,6 @@ namespace Comercio.NET.Formularios
                                     cmd.ExecuteNonQuery();
                                 }
 
-                                // Eliminar detalles existentes
                                 var queryDeleteDetalle = "DELETE FROM DetalleOfertasProductos WHERE IdOferta = @IdOferta";
                                 using (var cmd = new SqlCommand(queryDeleteDetalle, connection, transaction))
                                 {
@@ -1245,7 +1261,6 @@ namespace Comercio.NET.Formularios
                                 }
                             }
 
-                            // Insertar detalles
                             foreach (DataGridViewRow row in dgvDetalleOferta.Rows)
                             {
                                 if (string.IsNullOrEmpty(row.Cells["CodigoProducto"].Value?.ToString()))
@@ -1260,10 +1275,9 @@ namespace Comercio.NET.Formularios
                                 using (var cmd = new SqlCommand(queryDetalle, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@IdOferta", ofertaSeleccionadaId);
-                                    cmd.Parameters.AddWithValue("@IdProducto", 
+                                    cmd.Parameters.AddWithValue("@IdProducto",
                                         Convert.ToInt32(row.Cells["IdProducto"].Value));
-                                    
-                                    // ✅ Ajustar valores según tipo
+
                                     int cantidadMinima = 1;
                                     decimal precioOferta = 0;
                                     decimal porcentajeDescuento = 0;
@@ -1278,7 +1292,6 @@ namespace Comercio.NET.Formularios
 
                                         case "Combo":
                                             cantidadMinima = Convert.ToInt32(row.Cells["CantidadMinima"].Value ?? 1);
-                                            // El precio del combo está en txtPrecioCombo (se divide entre productos al aplicar)
                                             break;
 
                                         case "Descuento":
@@ -1286,9 +1299,8 @@ namespace Comercio.NET.Formularios
                                             decimal precioOriginal = Convert.ToDecimal(row.Cells["PrecioOriginal"].Value ?? 0);
                                             precioOferta = precioOriginal * (1 - (porcentajeDescuento / 100));
                                             break;
+
                                         case "PorGrupo":
-                                            // Los productos son intercambiables; solo se guardan como participantes del grupo.
-                                            // El descuento y cantidad mínima global se guardan en la cabecera (OfertasProductos).
                                             break;
                                     }
 
@@ -1323,7 +1335,6 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // ✅ MODIFICADO: Validación según tipo de oferta
         private bool ValidarFormulario()
         {
             if (string.IsNullOrWhiteSpace(txtNombreOferta.Text))
@@ -1343,7 +1354,6 @@ namespace Comercio.NET.Formularios
 
             string tipoOferta = cboTipoOferta.SelectedItem.ToString();
 
-            // Validación específica para Combo
             if (tipoOferta == "Combo")
             {
                 if (!decimal.TryParse(txtPrecioCombo.Text, out decimal precioCombo) || precioCombo <= 0)
@@ -1355,7 +1365,6 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // Validación específica para Descuento
             if (tipoOferta == "Descuento")
             {
                 if (nudPorcentajeDescuento.Value <= 0 || nudPorcentajeDescuento.Value > 100)
@@ -1367,7 +1376,6 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // ✅ CORREGIDO: Validación específica para PorGrupo
             if (tipoOferta == "PorGrupo")
             {
                 if (nudCantidadGrupo.Value < 1)
@@ -1387,7 +1395,6 @@ namespace Comercio.NET.Formularios
                 }
             }
 
-            // Validar que todos los productos tengan datos completos
             foreach (DataGridViewRow row in dgvDetalleOferta.Rows)
             {
                 if (string.IsNullOrEmpty(row.Cells["CodigoProducto"].Value?.ToString()))
@@ -1397,7 +1404,6 @@ namespace Comercio.NET.Formularios
                     return false;
                 }
 
-                // Validación específica para PorCantidad
                 if (tipoOferta == "PorCantidad")
                 {
                     if (!int.TryParse(row.Cells["CantidadMinima"].Value?.ToString(), out int cantidad) || cantidad < 1)

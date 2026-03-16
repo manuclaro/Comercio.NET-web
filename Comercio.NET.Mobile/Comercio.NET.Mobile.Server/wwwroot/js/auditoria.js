@@ -12,7 +12,11 @@ function formatCurrency(value) {
 }
 
 function formatFecha(isoString) {
-    const d = new Date(isoString);
+    if (!isoString) return '-';
+    // Eliminar sufijo 'Z' o offset (+HH:MM / -HH:MM) para forzar
+    // interpretación como hora local y evitar la conversión UTC→local (+3 hs)
+    const localStr = isoString.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const d = new Date(localStr);
     return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 

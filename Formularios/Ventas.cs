@@ -97,6 +97,10 @@ namespace Comercio.NET
         private bool operacionEnCurso = false;
         private readonly object lockOperacion = new object();
 
+        // Agregar junto a los otros campos de control de operaciones
+        private bool finalizandoVenta = false;
+        private readonly object lockFinalizacion = new object();
+
         public Ventas()
         {
             // ✅ CRÍTICO: Validar límite de instancias ANTES de InitializeComponent
@@ -4627,6 +4631,19 @@ VALUES
         // Handler del botón Finalizar Venta (construido para usar el modal SeleccionImpresionForm)
         private async void btnFinalizarVenta_Click(object sender, EventArgs e)
         {
+            // ✅ CRÍTICO: Evitar doble ejecución
+            lock (lockFinalizacion)
+            {
+                if (finalizandoVenta)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ BLOQUEADO: Finalización ya en curso");
+                    return;
+                }
+                finalizandoVenta = true;
+            }
+
+            btnFinalizarVenta.Enabled = false; // ✅ Deshabilitar botón visualmente
+
             try
             {
                 if (remitoActual == null || remitoActual.Rows.Count == 0)
@@ -4695,14 +4712,18 @@ VALUES
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[VENTAS] ❌ Error crítico en btnFinalizarVenta_Click: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[VENTAS] Stack trace: {ex.StackTrace}");
-
-                MessageBox.Show(
-                    $"Error al finalizar la venta:\n\n{ex.Message}",
-                    "Error Crítico",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"[VENTAS] ❌ Error crítico: {ex.Message}");
+                MessageBox.Show($"Error al finalizar la venta:\n\n{ex.Message}", "Error Crítico",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // ✅ CRÍTICO: Siempre liberar el lock y rehabilitar el botón
+                lock (lockFinalizacion)
+                {
+                    finalizandoVenta = false;
+                }
+                btnFinalizarVenta.Enabled = true;
             }
         }
 
@@ -4899,16 +4920,16 @@ VALUES
         // GuardarFacturaEnBD: implementación mínima que compila y puede ampliarse.
         // Actualmente registra en debug y retorna; si necesitas persistir realmente, lo integro con la lógica completa.
         private async Task GuardarFacturaEnBD(
-                    string tipoFactura,
-                    string formaPago,
-                    string cuitCliente = "",
-                    string caeNumero = "",
-                    DateTime? caeVencimiento = null,
-                    int numeroFacturaAfip = 0,
-                    string numeroFormateado = "",
-                    List<MultiplePagosControl.DetallePago> pagosMultiples = null,
-                    decimal porcentajeDescuento = 0m,
-                    decimal importeDescuento = 0m)
+    string tipoFactura,
+    string formaPago,
+    string cuitCliente = "",
+    string caeNumero = "",
+    DateTime? caeVencimiento = null,
+    int numeroFacturaAfip = 0,
+    string numeroFormateado = "",
+    List<MultiplePagosControl.DetallePago> pagosMultiples = null,
+    decimal porcentajeDescuento = 0m,
+    decimal importeDescuento = 0m)
         {
             if (remitoActual == null || remitoActual.Rows.Count == 0)
             {
@@ -4916,7 +4937,6 @@ VALUES
                 return;
             }
 
-            // Calcular totales desde remitoActual
             decimal totalFactura = 0m;
             decimal ivaTotal = 0m;
             foreach (DataRow r in remitoActual.Rows)
@@ -4938,27 +4958,32 @@ VALUES
                     {
                         try
                         {
-                            // ✅ CALCULAR importes con descuento
+                            // ✅ CRÍTICO: Verificar si ya existe una factura con este NumeroRemito
+                            // Esto previene duplicados incluso si el código falla en bloquear la doble llamada
+                            using (var cmdCheck = new SqlCommand(
+                                "SELECT COUNT(*) FROM Facturas WHERE NumeroRemito = @NumeroRemito",
+                                connection, transaction))
+                            {
+                                cmdCheck.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
+                                int existentes = (int)await cmdCheck.ExecuteScalarAsync();
+
+                                if (existentes > 0)
+                                {
+                                    System.Diagnostics.Debug.WriteLine(
+                                        $"⚠️ DUPLICADO PREVENIDO: Ya existe factura para NumeroRemito {nroRemitoActual}");
+                                    transaction.Rollback();
+                                    return; // ✅ Salir sin insertar
+                                }
+                            }
+
                             decimal importeTotal = totalFactura;
                             decimal importeFinal = importeTotal - importeDescuento;
 
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ===================================");
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Importe Total Original: {importeTotal:C2}");
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Porcentaje Descuento: {porcentajeDescuento}%");
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Importe Descuento: {importeDescuento:C2}");
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Importe Final: {importeFinal:C2}");
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] IVA Total: {ivaTotal:C2}");
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ===================================");
-
-                            // ✅ DECLARAR la variable idFactura
                             int idFactura = 0;
-
-                            // Obtener datos adicionales
                             string nombreCtaCte = chkEsCtaCte?.Checked == true ? cbnombreCtaCte?.Text : null;
                             string usuarioVenta = ObtenerUsuarioActual();
                             int numeroCajero = obtenerNumeroCajero();
 
-                            // ✅ CORREGIDO: INSERT con nombres de columnas exactos de la base de datos
                             string queryFactura = @"
                 INSERT INTO Facturas 
                     ([NumeroRemito], [Fecha], [Hora], [ImporteTotal], 
@@ -4976,7 +5001,6 @@ VALUES
 
                             using (var cmdFactura = new SqlCommand(queryFactura, connection, transaction))
                             {
-                                // ✅ PARÁMETROS CORREGIDOS según la estructura de la tabla
                                 cmdFactura.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
                                 cmdFactura.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
                                 cmdFactura.Parameters.AddWithValue("@Hora", DateTime.Now);
@@ -4996,18 +5020,16 @@ VALUES
                                 cmdFactura.Parameters.AddWithValue("@ImporteDescuento", importeDescuento);
                                 cmdFactura.Parameters.AddWithValue("@ImporteFinal", importeFinal);
 
-                                // ✅ ASIGNAR el resultado a idFactura
                                 idFactura = (int)await cmdFactura.ExecuteScalarAsync();
                                 System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ✅ Factura guardada con ID: {idFactura}");
                             }
 
-                            // --- NUEVO: detectar código 600 (efectivo empleado) y registrar en RetirosEfectivo ---
+                            // --- Bloque RetirosEfectivo (código 600) ---
                             try
                             {
                                 decimal sumaRetiros = 0m;
-                                string nombrePersonaCtaCte = nombreCtaCte; // valor por defecto desde el checkbox/combobox
+                                string nombrePersonaCtaCte = nombreCtaCte;
 
-                                // recorrer las filas y sumar totales de código 600
                                 foreach (DataRow r in remitoActual.Rows)
                                 {
                                     string codigoFila = null;
@@ -5018,33 +5040,22 @@ VALUES
 
                                     if (string.Equals(codigoFila, "600", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        // intentar obtener total, si no total calcular precio*cantidad
                                         decimal montoLinea = 0m;
                                         if (r.Table.Columns.Contains("total") && decimal.TryParse(r["total"]?.ToString(), out decimal t))
-                                        {
-                                            // <-- CAMBIO: conservar el signo tal como viene en la venta (no usar Math.Abs)
                                             montoLinea = t;
-                                        }
                                         else if (r.Table.Columns.Contains("precio") && r.Table.Columns.Contains("cantidad"))
                                         {
                                             if (decimal.TryParse(r["precio"]?.ToString(), out decimal p) &&
                                                 int.TryParse(r["cantidad"]?.ToString(), out int c))
-                                            {
-                                                // conservar signo del precio * cantidad
                                                 montoLinea = p * c;
-                                            }
                                         }
-
                                         if (montoLinea != 0)
                                             sumaRetiros += montoLinea;
 
-                                        // intentar tomar nombre de la fila si existe NombreCtaCte
                                         if (string.IsNullOrWhiteSpace(nombrePersonaCtaCte))
                                         {
                                             if (r.Table.Columns.Contains("NombreCtaCte") && r["NombreCtaCte"] != DBNull.Value)
                                                 nombrePersonaCtaCte = r["NombreCtaCte"]?.ToString();
-                                            else if (r.Table.Columns.Contains("NombreCta") && r["NombreCta"] != DBNull.Value)
-                                                nombrePersonaCtaCte = r["NombreCta"]?.ToString();
                                         }
                                     }
                                 }
@@ -5073,9 +5084,7 @@ VALUES
                                         cmdRet.Parameters.AddWithValue("@FechaRetiro", DateTime.Now);
                                         cmdRet.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
                                         cmdRet.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-
                                         await cmdRet.ExecuteNonQueryAsync();
-                                        System.Diagnostics.Debug.WriteLine($"[RETIRO] ✅ RetirosEfectivo insertado. Monto: {sumaRetiros:C2}, Motivo: {motivoRetiro}");
                                     }
                                 }
                             }
@@ -5084,9 +5093,8 @@ VALUES
                                 System.Diagnostics.Debug.WriteLine($"[RETIRO] ⚠️ Error registrando RetirosEfectivo: {exRet.Message}");
                                 throw;
                             }
-                            // --- fin nuevo bloque RetirosEfectivo ---
 
-                            // ✅ Insertar registros en DetallesPagoFactura (si existe esa tabla)
+                            // --- DetallesPagoFactura ---
                             var insertDetalleSql = @"
                 INSERT INTO DetallesPagoFactura
                     (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario, NumeroRemito)
@@ -5112,12 +5120,11 @@ VALUES
                             }
                             else
                             {
-                                // Pago simple
                                 using (var cmdPago = new SqlCommand(insertDetalleSql, connection, transaction))
                                 {
                                     cmdPago.Parameters.AddWithValue("@IdFactura", idFactura);
                                     cmdPago.Parameters.AddWithValue("@MedioPago", string.IsNullOrEmpty(formaPago) ? "Desconocido" : formaPago);
-                                    cmdPago.Parameters.AddWithValue("@Importe", importeFinal); // ✅ Usar importeFinal con descuento
+                                    cmdPago.Parameters.AddWithValue("@Importe", importeFinal);
                                     cmdPago.Parameters.AddWithValue("@Observaciones", DBNull.Value);
                                     cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
                                     cmdPago.Parameters.AddWithValue("@Usuario", usuarioVenta);
@@ -5133,7 +5140,6 @@ VALUES
                         {
                             transaction.Rollback();
                             System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ❌ Error en transacción: {exTx.Message}");
-                            System.Diagnostics.Debug.WriteLine($"[FACTURA BD] Stack trace: {exTx.StackTrace}");
                             throw;
                         }
                     }
