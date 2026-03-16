@@ -1,0 +1,329 @@
+﻿'use strict';
+
+let mesaActivaId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // ── Verificar sesión y rol ────────────────────────────────────────────────
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/auth/validar', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (!data.valido) {
+            localStorage.clear();
+            window.location.href = '/login.html';
+            return;
+        }
+    } catch {
+        localStorage.clear();
+        window.location.href = '/login.html';
+        return;
+    }
+
+    const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
+    if (rol !== 'admin' && rol !== 'pizzeria') {
+        window.location.href = '/dashboard.html';
+        return;
+    }
+
+    // Mostrar nombre de usuario
+    const nombre = localStorage.getItem('usuario_completo') || localStorage.getItem('usuario_nombre') || 'Usuario';
+    const spanNombre = document.getElementById('nombreUsuarioMesas');
+    if (spanNombre) spanNombre.textContent = `👤 ${nombre}`;
+
+    // ── Eventos ───────────────────────────────────────────────────────────────
+    cargarMesas();
+
+    document.getElementById('btnSalir').addEventListener('click', () => {
+        localStorage.clear();
+        window.location.href = '/login.html';
+    });
+
+    document.getElementById('btnNuevaMesa').addEventListener('click', () => abrirModal('modalNuevaMesa'));
+    document.getElementById('btnCerrarNuevaMesa').addEventListener('click', () => cerrarModal('modalNuevaMesa'));
+    document.getElementById('formNuevaMesa').addEventListener('submit', onAbrirMesa);
+
+    document.getElementById('btnVolverMesas').addEventListener('click', volverALista);
+    document.getElementById('btnAgregarItem').addEventListener('click', onAgregarItem);
+    document.getElementById('btnCerrarMesa').addEventListener('click', () => abrirModal('modalCerrarMesa'));
+    document.getElementById('btnCancelarCierre').addEventListener('click', () => cerrarModal('modalCerrarMesa'));
+    document.getElementById('formCerrarMesa').addEventListener('submit', onCerrarMesa);
+});
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
+}
+
+function formatFecha(isoString) {
+    if (!isoString) return '-';
+    const local = isoString.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const d = new Date(local);
+    return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+// ─── Carga lista de mesas ──────────────────────────────────────────────────────
+
+async function cargarMesas() {
+    try {
+        const res = await fetch('/api/mesas');
+        const mesas = res.ok ? await res.json() : [];
+        renderMesas(Array.isArray(mesas) ? mesas : []);
+    } catch (err) {
+        console.error('Error cargando mesas:', err);
+        renderMesas([]);
+    }
+}
+
+function renderMesas(mesas) {
+    const grid = document.getElementById('gridMesas');
+    const vacio = document.getElementById('mensajeVacio');
+    const panel = document.getElementById('panelDetalle');
+    const listado = document.getElementById('listadoMesas');
+
+    panel.style.display = 'none';
+    listado.style.display = 'block';
+
+    if (mesas.length === 0) {
+        grid.innerHTML = '';
+        vacio.style.display = 'block';
+        return;
+    }
+
+    vacio.style.display = 'none';
+    grid.innerHTML = mesas.map(m => `
+        <div class="card-mesa" onclick="abrirDetalleMesa(${m.id})">
+            <h2>Mesa #${m.numeroMesa}</h2>
+            <p class="mozo">🧑‍🍳 ${m.mozo || '-'}</p>
+            <p class="mozo">🕐 ${formatFecha(m.fechaApertura)}</p>
+            <p class="total">${formatCurrency(m.total)}</p>
+        </div>
+    `).join('');
+}
+
+// ─── Detalle de mesa ──────────────────────────────────────────────────────────
+
+async function abrirDetalleMesa(mesaId) {
+    mesaActivaId = mesaId;
+
+    try {
+        const [mesaRes, itemsRes] = await Promise.all([
+            fetch(`/api/mesas/${mesaId}`),
+            fetch(`/api/mesas/${mesaId}/items`)
+        ]);
+
+        const mesa = mesaRes.ok ? await mesaRes.json() : null;
+        const items = itemsRes.ok ? await itemsRes.json() : [];
+
+        if (!mesa) return;
+
+        document.getElementById('tituloDetalle').textContent =
+            `Mesa #${mesa.numeroMesa} — ${mesa.mozo || 'Sin mozo'}`;
+
+        renderItems(Array.isArray(items) ? items : []);
+        actualizarTotalDetalle(mesa.total);
+
+        document.getElementById('listadoMesas').style.display = 'none';
+        document.getElementById('panelDetalle').style.display = 'block';
+    } catch (err) {
+        console.error('Error abriendo detalle:', err);
+    }
+}
+
+function renderItems(items) {
+    const body = document.getElementById('bodyItems');
+
+    if (items.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:1rem">Sin consumos cargados</td></tr>';
+        return;
+    }
+
+    body.innerHTML = items.map(i => `
+        <tr>
+            <td>${i.codigo ?? '-'}</td>
+            <td>${i.descripcion ?? '-'}</td>
+            <td style="text-align:center">${i.cantidad}</td>
+            <td style="text-align:right">${formatCurrency(i.precioUnitario)}</td>
+            <td style="text-align:right"><strong>${formatCurrency(i.subtotal)}</strong></td>
+            <td style="text-align:center">
+                <button class="btn-del" title="Eliminar" onclick="eliminarItem(${i.id})">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function actualizarTotalDetalle(total) {
+    document.getElementById('totalDetalle').textContent = `Total: ${formatCurrency(total)}`;
+}
+
+function volverALista() {
+    mesaActivaId = null;
+    document.getElementById('panelDetalle').style.display = 'none';
+    document.getElementById('listadoMesas').style.display = 'block';
+    cargarMesas();
+}
+
+// ─── Abrir mesa ───────────────────────────────────────────────────────────────
+
+async function onAbrirMesa(e) {
+    e.preventDefault();
+    const numeroMesa = parseInt(document.getElementById('inputNumeroMesa').value, 10);
+    const mozo = document.getElementById('inputMozo').value.trim();
+
+    try {
+        const res = await fetch('/api/mesas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numeroMesa, mozo })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        cerrarModal('modalNuevaMesa');
+        document.getElementById('formNuevaMesa').reset();
+        cargarMesas();
+    } catch (err) {
+        console.error('Error abriendo mesa:', err);
+        alert('No se pudo abrir la mesa.');
+    }
+}
+
+// ─── Agregar ítem ─────────────────────────────────────────────────────────────
+
+async function onAgregarItem() {
+    if (!mesaActivaId) return;
+
+    const codigo = document.getElementById('itemCodigo').value.trim();
+    const descripcion = document.getElementById('itemDescripcion').value.trim();
+    const precio = parseFloat(document.getElementById('itemPrecio').value);
+    const cantidad = parseInt(document.getElementById('itemCantidad').value, 10);
+
+    if (!descripcion || isNaN(precio) || isNaN(cantidad) || cantidad < 1) {
+        alert('Completá descripción, precio y cantidad.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/mesas/${mesaActivaId}/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo, descripcion, precioUnitario: precio, cantidad })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        document.getElementById('itemCodigo').value = '';
+        document.getElementById('itemDescripcion').value = '';
+        document.getElementById('itemPrecio').value = '';
+        document.getElementById('itemCantidad').value = '1';
+
+        await abrirDetalleMesa(mesaActivaId);
+    } catch (err) {
+        console.error('Error agregando ítem:', err);
+        alert('No se pudo agregar el ítem.');
+    }
+}
+
+// ─── Eliminar ítem ────────────────────────────────────────────────────────────
+
+async function eliminarItem(itemId) {
+    if (!confirm('¿Eliminar este consumo?')) return;
+
+    try {
+        const res = await fetch(`/api/mesas/items/${itemId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        await abrirDetalleMesa(mesaActivaId);
+    } catch (err) {
+        console.error('Error eliminando ítem:', err);
+        alert('No se pudo eliminar el ítem.');
+    }
+}
+
+// ─── Cerrar mesa e imprimir ticket ────────────────────────────────────────────
+
+async function onCerrarMesa(e) {
+    e.preventDefault();
+    if (!mesaActivaId) return;
+
+    const formaPago = document.getElementById('selectFormaPago').value;
+
+    try {
+        const [mesaRes, itemsRes] = await Promise.all([
+            fetch(`/api/mesas/${mesaActivaId}`),
+            fetch(`/api/mesas/${mesaActivaId}/items`)
+        ]);
+
+        const mesa = mesaRes.ok ? await mesaRes.json() : null;
+        const items = itemsRes.ok ? await itemsRes.json() : [];
+
+        const res = await fetch(`/api/mesas/${mesaActivaId}/cerrar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ formaPago })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        cerrarModal('modalCerrarMesa');
+        generarTicket(mesa, items, formaPago);
+        window.print();
+        volverALista();
+    } catch (err) {
+        console.error('Error cerrando mesa:', err);
+        alert('No se pudo cerrar la mesa.');
+    }
+}
+
+function generarTicket(mesa, items, formaPago) {
+    const total = items.reduce((acc, i) => acc + (i.subtotal ?? 0), 0);
+    const linea = '─'.repeat(32);
+
+    document.getElementById('ticketPrint').innerHTML = `
+        <div style="width:300px;margin:0 auto;padding:8px">
+            <h2 style="text-align:center;margin-bottom:4px">🍺 BAR</h2>
+            <p style="text-align:center;font-size:11px">${new Date().toLocaleString('es-AR')}</p>
+            <p>${linea}</p>
+            <p><strong>Mesa:</strong> #${mesa?.numeroMesa ?? '-'}</p>
+            <p><strong>Mozo:</strong> ${mesa?.mozo ?? '-'}</p>
+            <p>${linea}</p>
+            <table style="width:100%;font-size:12px;border-collapse:collapse">
+                <thead>
+                    <tr>
+                        <th style="text-align:left">Descripción</th>
+                        <th>Cant</th>
+                        <th style="text-align:right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(i => `
+                        <tr>
+                            <td>${i.descripcion}</td>
+                            <td style="text-align:center">${i.cantidad}</td>
+                            <td style="text-align:right">${formatCurrency(i.subtotal)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <p>${linea}</p>
+            <p style="text-align:right;font-size:14px"><strong>TOTAL: ${formatCurrency(total)}</strong></p>
+            <p><strong>Forma de pago:</strong> ${formaPago}</p>
+            <p style="text-align:center;margin-top:8px">¡Gracias por su visita!</p>
+        </div>
+    `;
+}
+
+// ─── Utilidades modal ─────────────────────────────────────────────────────────
+
+function abrirModal(id) {
+    document.getElementById(id).classList.add('activo');
+}
+
+function cerrarModal(id) {
+    document.getElementById(id).classList.remove('activo');
+}

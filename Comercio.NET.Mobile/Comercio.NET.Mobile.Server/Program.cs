@@ -1,13 +1,13 @@
-using Comercio.NET.Mobile.Server.Controllers;
+ï»¿using Comercio.NET.Mobile.Server.Controllers;
 using Comercio.NET.Mobile.Server.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar puerto según el entorno
+// Configurar puerto segÃºn el entorno
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
-// En producción (Railway), escuchar en todas las interfaces
+// En producciÃ³n (Railway), escuchar en todas las interfaces
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 // Agregar HttpClient factory
@@ -23,6 +23,7 @@ builder.Services.AddScoped<IProductosService, ProductosService>();
 builder.Services.AddScoped<EstadisticasService>();
 builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
+builder.Services.AddScoped<IMesasService, MesasService>(); // â† nuevo
 
 // CORS permisivo
 builder.Services.AddCors(options =>
@@ -39,7 +40,7 @@ builder.Logging.AddConsole();
 
 var app = builder.Build();
 
-// Servir archivos estáticos (wwwroot)
+// Servir archivos estÃ¡ticos (wwwroot)
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

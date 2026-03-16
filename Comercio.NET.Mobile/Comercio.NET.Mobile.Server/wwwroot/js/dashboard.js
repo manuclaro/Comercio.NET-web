@@ -29,6 +29,13 @@
         || 'Usuario';
     document.getElementById('nombreUsuario').textContent = `👤 ${nombreCompleto}`;
 
+    // Mostrar card de mesas solo para Admin
+    const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
+    const cardMesas = document.getElementById('cardMesas');
+    if (cardMesas && rol !== 'admin') {
+        cardMesas.style.display = 'none';
+    }
+
     // Cerrar sesión
     document.getElementById('btnCerrarSesion').addEventListener('click', function () {
         localStorage.clear();
