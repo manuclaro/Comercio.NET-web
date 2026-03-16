@@ -3,28 +3,15 @@
 let mesaActivaId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // ── Verificar sesión y rol ────────────────────────────────────────────────
     const token = localStorage.getItem('auth_token');
-    if (!token) {
-        window.location.href = '/login.html';
-        return;
-    }
+    if (!token) { window.location.href = '/login.html'; return; }
 
     try {
-        const res = await fetch('/api/auth/validar', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetch('/api/auth/validar', { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
-
-        if (!data.valido) {
-            localStorage.clear();
-            window.location.href = '/login.html';
-            return;
-        }
+        if (!data.valido) { localStorage.clear(); window.location.href = '/login.html'; return; }
     } catch {
-        localStorage.clear();
-        window.location.href = '/login.html';
-        return;
+        localStorage.clear(); window.location.href = '/login.html'; return;
     }
 
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
@@ -33,13 +20,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Mostrar nombre de usuario
     const nombre = localStorage.getItem('usuario_completo') || localStorage.getItem('usuario_nombre') || 'Usuario';
     const spanNombre = document.getElementById('nombreUsuarioMesas');
     if (spanNombre) spanNombre.textContent = `👤 ${nombre}`;
 
-    // ── Eventos ───────────────────────────────────────────────────────────────
-    cargarMesas();
+    await Promise.all([cargarMozos(), cargarProductosBar(), cargarMesas()]);
 
     document.getElementById('btnSalir').addEventListener('click', () => {
         localStorage.clear();
@@ -68,7 +53,43 @@ function formatFecha(isoString) {
     return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-// ─── Carga lista de mesas ──────────────────────────────────────────────────────
+// ─── Carga selects de mozos y productos ──────────────────────────────────────
+
+async function cargarMozos() {
+    try {
+        const res = await fetch('/api/mesas/mozos');
+        const mozos = res.ok ? await res.json() : [];
+        const select = document.getElementById('selectMozo');
+        select.innerHTML = '<option value="">-- Seleccioná un mozo --</option>';
+        mozos.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.nombre;
+            opt.textContent = m.nombre;
+            select.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Error cargando mozos:', err);
+    }
+}
+
+async function cargarProductosBar() {
+    try {
+        const res = await fetch('/api/mesas/productos-bar');
+        const productos = res.ok ? await res.json() : [];
+        const select = document.getElementById('selectProductoItem');
+        select.innerHTML = '<option value="">-- Seleccioná un producto --</option>';
+        productos.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = JSON.stringify({ codigo: p.codigo, descripcion: p.descripcion, precio: p.precio });
+            opt.textContent = `${p.descripcion} — ${formatCurrency(p.precio)}`;
+            select.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Error cargando productos bar:', err);
+    }
+}
+
+// ─── Carga lista de mesas ─────────────────────────────────────────────────────
 
 async function cargarMesas() {
     try {
@@ -82,12 +103,12 @@ async function cargarMesas() {
 }
 
 function renderMesas(mesas) {
-    const grid = document.getElementById('gridMesas');
-    const vacio = document.getElementById('mensajeVacio');
-    const panel = document.getElementById('panelDetalle');
+    const grid    = document.getElementById('gridMesas');
+    const vacio   = document.getElementById('mensajeVacio');
+    const panel   = document.getElementById('panelDetalle');
     const listado = document.getElementById('listadoMesas');
 
-    panel.style.display = 'none';
+    panel.style.display   = 'none';
     listado.style.display = 'block';
 
     if (mesas.length === 0) {
@@ -118,7 +139,7 @@ async function abrirDetalleMesa(mesaId) {
             fetch(`/api/mesas/${mesaId}/items`)
         ]);
 
-        const mesa = mesaRes.ok ? await mesaRes.json() : null;
+        const mesa  = mesaRes.ok  ? await mesaRes.json()  : null;
         const items = itemsRes.ok ? await itemsRes.json() : [];
 
         if (!mesa) return;
@@ -164,8 +185,8 @@ function actualizarTotalDetalle(total) {
 
 function volverALista() {
     mesaActivaId = null;
-    document.getElementById('panelDetalle').style.display = 'none';
-    document.getElementById('listadoMesas').style.display = 'block';
+    document.getElementById('panelDetalle').style.display  = 'none';
+    document.getElementById('listadoMesas').style.display  = 'block';
     cargarMesas();
 }
 
@@ -174,7 +195,9 @@ function volverALista() {
 async function onAbrirMesa(e) {
     e.preventDefault();
     const numeroMesa = parseInt(document.getElementById('inputNumeroMesa').value, 10);
-    const mozo = document.getElementById('inputMozo').value.trim();
+    const mozo = document.getElementById('selectMozo').value.trim();
+
+    if (!mozo) { alert('Seleccioná un mozo.'); return; }
 
     try {
         const res = await fetch('/api/mesas', {
@@ -199,28 +222,29 @@ async function onAbrirMesa(e) {
 async function onAgregarItem() {
     if (!mesaActivaId) return;
 
-    const codigo = document.getElementById('itemCodigo').value.trim();
-    const descripcion = document.getElementById('itemDescripcion').value.trim();
-    const precio = parseFloat(document.getElementById('itemPrecio').value);
+    const selectProducto = document.getElementById('selectProductoItem');
+    if (!selectProducto.value) { alert('Seleccioná un producto.'); return; }
+
+    const producto = JSON.parse(selectProducto.value);
     const cantidad = parseInt(document.getElementById('itemCantidad').value, 10);
 
-    if (!descripcion || isNaN(precio) || isNaN(cantidad) || cantidad < 1) {
-        alert('Completá descripción, precio y cantidad.');
-        return;
-    }
+    if (isNaN(cantidad) || cantidad < 1) { alert('Ingresá una cantidad válida.'); return; }
 
     try {
         const res = await fetch(`/api/mesas/${mesaActivaId}/items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codigo, descripcion, precioUnitario: precio, cantidad })
+            body: JSON.stringify({
+                codigo:         producto.codigo,
+                descripcion:    producto.descripcion,
+                precioUnitario: producto.precio,
+                cantidad
+            })
         });
 
         if (!res.ok) throw new Error(await res.text());
 
-        document.getElementById('itemCodigo').value = '';
-        document.getElementById('itemDescripcion').value = '';
-        document.getElementById('itemPrecio').value = '';
+        selectProducto.value = '';
         document.getElementById('itemCantidad').value = '1';
 
         await abrirDetalleMesa(mesaActivaId);
@@ -259,7 +283,7 @@ async function onCerrarMesa(e) {
             fetch(`/api/mesas/${mesaActivaId}/items`)
         ]);
 
-        const mesa = mesaRes.ok ? await mesaRes.json() : null;
+        const mesa  = mesaRes.ok  ? await mesaRes.json()  : null;
         const items = itemsRes.ok ? await itemsRes.json() : [];
 
         const res = await fetch(`/api/mesas/${mesaActivaId}/cerrar`, {
@@ -320,10 +344,5 @@ function generarTicket(mesa, items, formaPago) {
 
 // ─── Utilidades modal ─────────────────────────────────────────────────────────
 
-function abrirModal(id) {
-    document.getElementById(id).classList.add('activo');
-}
-
-function cerrarModal(id) {
-    document.getElementById(id).classList.remove('activo');
-}
+function abrirModal(id) { document.getElementById(id).classList.add('activo'); }
+function cerrarModal(id) { document.getElementById(id).classList.remove('activo'); }

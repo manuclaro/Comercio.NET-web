@@ -9,7 +9,7 @@
 <body>
 
     <header>
-        <button class="btn-back" onclick="location.href='/dashboard.html'">← Panel</button>
+        <button class="btn-back" onclick="location.href='/dashboard-pizzeria.html'">← Panel</button>
         <h1>🍽️ Control de Mesas</h1>
         <div class="header-user">
             <span id="nombreUsuarioMesas"></span>
@@ -31,7 +31,7 @@
         </div>
 
         <!-- ── Detalle de mesa ────────────────────────────────────────── -->
-        <div id="panelDetalle">
+        <div id="panelDetalle" style="display:none">
             <div class="detalle-header">
                 <button id="btnVolverMesas" class="btn-secondary">← Volver</button>
                 <h2 id="tituloDetalle"></h2>
@@ -40,17 +40,11 @@
 
             <!-- Agregar ítem -->
             <div class="form-item">
-                <div class="field field-sm">
-                    <label>Código</label>
-                    <input type="text" id="itemCodigo" placeholder="Opcional" />
-                </div>
                 <div class="field">
-                    <label>Descripción *</label>
-                    <input type="text" id="itemDescripcion" placeholder="Ej: Cerveza" />
-                </div>
-                <div class="field field-sm">
-                    <label>Precio *</label>
-                    <input type="number" id="itemPrecio" min="0" step="0.01" placeholder="0.00" />
+                    <label>Producto *</label>
+                    <select id="selectProductoItem">
+                        <option value="">-- Seleccioná --</option>
+                    </select>
                 </div>
                 <div class="field field-sm">
                     <label>Cantidad *</label>
@@ -97,7 +91,9 @@
                 </div>
                 <div class="campo">
                     <label>Mozo *</label>
-                    <input type="text" id="inputMozo" placeholder="Nombre del mozo" required />
+                    <select id="selectMozo" required>
+                        <option value="">-- Seleccioná un mozo --</option>
+                    </select>
                 </div>
                 <div class="modal-acciones">
                     <button type="button" id="btnCerrarNuevaMesa" class="btn-secondary">Cancelar</button>

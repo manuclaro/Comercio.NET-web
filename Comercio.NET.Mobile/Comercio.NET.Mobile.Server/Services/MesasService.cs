@@ -1,4 +1,4 @@
-using Comercio.NET.Mobile.Server.Models;
+﻿using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -16,10 +16,12 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
+
+        // ── Mesas ─────────────────────────────────────────────────────────────
 
         public async Task<IEnumerable<MesaDto>> GetMesasAbiertasAsync()
         {
@@ -58,7 +60,7 @@ namespace Comercio.NET.Mobile.Server.Services
             var payload = new { query = sql, parameters };
 
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
+            var content = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -76,13 +78,13 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     items.Add(new MesaItemDto
                     {
-                        Id             = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                        MesaId         = ConvertToInt32(row.Count > 1 ? row[1] : null),
-                        Codigo         = ConvertToString(row.Count > 2 ? row[2] : null),
-                        Descripcion    = ConvertToString(row.Count > 3 ? row[3] : null),
+                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        MesaId = ConvertToInt32(row.Count > 1 ? row[1] : null),
+                        Codigo = ConvertToString(row.Count > 2 ? row[2] : null),
+                        Descripcion = ConvertToString(row.Count > 3 ? row[3] : null),
                         PrecioUnitario = ConvertToDecimal(row.Count > 4 ? row[4] : null),
-                        Cantidad       = ConvertToInt32(row.Count > 5 ? row[5] : null),
-                        Subtotal       = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        Cantidad = ConvertToInt32(row.Count > 5 ? row[5] : null),
+                        Subtotal = ConvertToDecimal(row.Count > 6 ? row[6] : null),
                     });
                 }
             }
@@ -139,7 +141,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var sql = @"
                 UPDATE Mesas
-                SET Estado = 'Cerrada', FechaCierre = GETDATE()
+                SET Estado = 'Cerrada', FechaCierre = GETDATE(), FormaPago = @formaPago
                 WHERE Id = @mesaId;
 
                 SELECT m.Id, m.NumeroMesa, m.Mozo, m.Estado, m.FechaApertura, m.FechaCierre,
@@ -147,19 +149,128 @@ namespace Comercio.NET.Mobile.Server.Services
                 FROM Mesas m
                 WHERE m.Id = @mesaId";
 
-            var parameters = new Dictionary<string, object?> { { "@mesaId", mesaId } };
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@mesaId",    mesaId },
+                { "@formaPago", request.FormaPago }
+            };
             var lista = await EjecutarListaMesasAsync(sql, parameters);
             return lista.FirstOrDefault();
         }
 
-        // ??? Helpers ?????????????????????????????????????????????????????????????
+        // ── Mozos ─────────────────────────────────────────────────────────────
+
+        public async Task<IEnumerable<MozoDto>> GetMozosAsync()
+        {
+            var sql = "SELECT Id, Nombre, Activo FROM Mozos WHERE Activo = 1 ORDER BY Nombre";
+            return await EjecutarListaMozosAsync(sql, new Dictionary<string, object?>());
+        }
+
+        public async Task<MozoDto> CrearMozoAsync(string nombre)
+        {
+            var sql = @"
+                INSERT INTO Mozos (Nombre, Activo)
+                OUTPUT INSERTED.Id, INSERTED.Nombre, INSERTED.Activo
+                VALUES (@nombre, 1)";
+
+            var parameters = new Dictionary<string, object?> { { "@nombre", nombre } };
+            var lista = await EjecutarListaMozosAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
+        public async Task EliminarMozoAsync(int id)
+        {
+            var sql = "UPDATE Mozos SET Activo = 0 WHERE Id = @id";
+            var parameters = new Dictionary<string, object?> { { "@id", id } };
+            await EjecutarComandoAsync(sql, parameters);
+        }
+
+        // ── Productos Bar ─────────────────────────────────────────────────────
+
+        public async Task<IEnumerable<ProductoBarDto>> GetProductosBarAsync()
+        {
+            var sql = "SELECT Id, Codigo, Descripcion, Precio, Activo FROM ProductosBar WHERE Activo = 1 ORDER BY Descripcion";
+            return await EjecutarListaProductosBarAsync(sql, new Dictionary<string, object?>());
+        }
+
+        public async Task<ProductoBarDto> CrearProductoBarAsync(ProductoBarDto dto)
+        {
+            var sql = @"
+                INSERT INTO ProductosBar (Codigo, Descripcion, Precio, Activo)
+                OUTPUT INSERTED.Id, INSERTED.Codigo, INSERTED.Descripcion, INSERTED.Precio, INSERTED.Activo
+                VALUES (@codigo, @descripcion, @precio, 1)";
+
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@codigo",      dto.Codigo },
+                { "@descripcion", dto.Descripcion },
+                { "@precio",      dto.Precio }
+            };
+            var lista = await EjecutarListaProductosBarAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
+        public async Task EliminarProductoBarAsync(int id)
+        {
+            var sql = "UPDATE ProductosBar SET Activo = 0 WHERE Id = @id";
+            var parameters = new Dictionary<string, object?> { { "@id", id } };
+            await EjecutarComandoAsync(sql, parameters);
+        }
+
+        // ── Ventas del Día ────────────────────────────────────────────────────
+
+        public async Task<IEnumerable<VentaMesaResumenDto>> GetVentasDelDiaAsync()
+        {
+            var sql = @"
+                SELECT m.Id, m.NumeroMesa, m.Mozo, m.Estado, m.FechaApertura, m.FechaCierre,
+                       ISNULL((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total,
+                       ISNULL(m.FormaPago, '') AS FormaPago
+                FROM Mesas m
+                WHERE CAST(m.FechaApertura AS DATE) = CAST(GETDATE() AS DATE)
+                ORDER BY m.FechaApertura DESC";
+
+            var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
+            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
+            }
+
+            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            var lista = new List<VentaMesaResumenDto>();
+            if (resultado?.Data != null)
+            {
+                foreach (var row in resultado.Data)
+                {
+                    lista.Add(new VentaMesaResumenDto
+                    {
+                        MesaId = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        NumeroMesa = ConvertToInt32(row.Count > 1 ? row[1] : null),
+                        Mozo = ConvertToString(row.Count > 2 ? row[2] : null),
+                        Estado = ConvertToString(row.Count > 3 ? row[3] : null),
+                        FechaApertura = ConvertToDateTime(row.Count > 4 ? row[4] : null),
+                        FechaCierre = ConvertToNullableDateTime(row.Count > 5 ? row[5] : null),
+                        Total = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        FormaPago = ConvertToString(row.Count > 7 ? row[7] : null),
+                    });
+                }
+            }
+            return lista;
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────────
 
         private async Task<IEnumerable<MesaDto>> EjecutarListaMesasAsync(
             string sql, Dictionary<string, object?> parameters)
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
+            var content = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -177,24 +288,90 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     mesas.Add(new MesaDto
                     {
-                        Id            = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                        NumeroMesa    = ConvertToInt32(row.Count > 1 ? row[1] : null),
-                        Mozo          = ConvertToString(row.Count > 2 ? row[2] : null),
-                        Estado        = ConvertToString(row.Count > 3 ? row[3] : null),
+                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        NumeroMesa = ConvertToInt32(row.Count > 1 ? row[1] : null),
+                        Mozo = ConvertToString(row.Count > 2 ? row[2] : null),
+                        Estado = ConvertToString(row.Count > 3 ? row[3] : null),
                         FechaApertura = ConvertToDateTime(row.Count > 4 ? row[4] : null),
-                        FechaCierre   = ConvertToNullableDateTime(row.Count > 5 ? row[5] : null),
-                        Total         = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        FechaCierre = ConvertToNullableDateTime(row.Count > 5 ? row[5] : null),
+                        Total = ConvertToDecimal(row.Count > 6 ? row[6] : null),
                     });
                 }
             }
             return mesas;
         }
 
+        private async Task<IEnumerable<MozoDto>> EjecutarListaMozosAsync(
+            string sql, Dictionary<string, object?> parameters)
+        {
+            var payload = new { query = sql, parameters };
+            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
+            }
+
+            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            var lista = new List<MozoDto>();
+            if (resultado?.Data != null)
+            {
+                foreach (var row in resultado.Data)
+                {
+                    lista.Add(new MozoDto
+                    {
+                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        Nombre = ConvertToString(row.Count > 1 ? row[1] : null),
+                        Activo = ConvertToInt32(row.Count > 2 ? row[2] : null) == 1,
+                    });
+                }
+            }
+            return lista;
+        }
+
+        private async Task<IEnumerable<ProductoBarDto>> EjecutarListaProductosBarAsync(
+            string sql, Dictionary<string, object?> parameters)
+        {
+            var payload = new { query = sql, parameters };
+            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
+            }
+
+            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            var lista = new List<ProductoBarDto>();
+            if (resultado?.Data != null)
+            {
+                foreach (var row in resultado.Data)
+                {
+                    lista.Add(new ProductoBarDto
+                    {
+                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        Codigo = ConvertToString(row.Count > 1 ? row[1] : null),
+                        Descripcion = ConvertToString(row.Count > 2 ? row[2] : null),
+                        Precio = ConvertToDecimal(row.Count > 3 ? row[3] : null),
+                        Activo = ConvertToInt32(row.Count > 4 ? row[4] : null) == 1,
+                    });
+                }
+            }
+            return lista;
+        }
+
         private async Task EjecutarComandoAsync(string sql, Dictionary<string, object?> parameters)
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
+            var content = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -236,8 +413,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 return j.ValueKind switch
                 {
                     JsonValueKind.String => j.GetString() ?? string.Empty,
-                    JsonValueKind.Null   => string.Empty,
-                    _                   => j.ToString()
+                    JsonValueKind.Null => string.Empty,
+                    _ => j.ToString()
                 };
             return value.ToString() ?? string.Empty;
         }
