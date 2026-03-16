@@ -15,8 +15,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
-    if (rol !== 'admin' && rol !== 'pizzeria') {
-        window.location.href = '/dashboard.html';
+
+    // Solo pizzeria puede acceder a mesas
+    if (rol !== 'pizzeria') {
+        window.location.href = rol === 'admin' ? '/dashboard.html' : '/login.html';
         return;
     }
 
@@ -24,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const spanNombre = document.getElementById('nombreUsuarioMesas');
     if (spanNombre) spanNombre.textContent = `👤 ${nombre}`;
 
-    await Promise.all([cargarMozos(), cargarProductosBar(), cargarMesas()]);
+    await Promise.all([cargarMozos(), cargarProductosBar(), cargarFormasPago(), cargarMesas()]);
 
     document.getElementById('btnSalir').addEventListener('click', () => {
         localStorage.clear();
@@ -58,9 +60,21 @@ function formatFecha(isoString) {
 async function cargarMozos() {
     try {
         const res = await fetch('/api/mesas/mozos');
-        const mozos = res.ok ? await res.json() : [];
+        if (!res.ok) {
+            const txt = await res.text();
+            console.error('Error GET /api/mesas/mozos:', res.status, txt);
+            return;
+        }
+        const mozos = await res.json();
         const select = document.getElementById('selectMozo');
         select.innerHTML = '<option value="">-- Seleccioná un mozo --</option>';
+        if (!Array.isArray(mozos) || mozos.length === 0) {
+            const opt = document.createElement('option');
+            opt.disabled = true;
+            opt.textContent = '(Sin mozos cargados)';
+            select.appendChild(opt);
+            return;
+        }
         mozos.forEach(m => {
             const opt = document.createElement('option');
             opt.value = m.nombre;
@@ -75,9 +89,21 @@ async function cargarMozos() {
 async function cargarProductosBar() {
     try {
         const res = await fetch('/api/mesas/productos-bar');
-        const productos = res.ok ? await res.json() : [];
+        if (!res.ok) {
+            const txt = await res.text();
+            console.error('Error GET /api/mesas/productos-bar:', res.status, txt);
+            return;
+        }
+        const productos = await res.json();
         const select = document.getElementById('selectProductoItem');
         select.innerHTML = '<option value="">-- Seleccioná un producto --</option>';
+        if (!Array.isArray(productos) || productos.length === 0) {
+            const opt = document.createElement('option');
+            opt.disabled = true;
+            opt.textContent = '(Sin productos cargados)';
+            select.appendChild(opt);
+            return;
+        }
         productos.forEach(p => {
             const opt = document.createElement('option');
             opt.value = JSON.stringify({ codigo: p.codigo, descripcion: p.descripcion, precio: p.precio });
@@ -86,6 +112,26 @@ async function cargarProductosBar() {
         });
     } catch (err) {
         console.error('Error cargando productos bar:', err);
+    }
+}
+
+async function cargarFormasPago() {
+    try {
+        const res = await fetch('/api/mesas/formas-pago');
+        if (!res.ok) { console.error('Error GET /api/mesas/formas-pago:', res.status); return; }
+        const formas = await res.json();
+        const select = document.getElementById('selectFormaPago');
+        select.innerHTML = '<option value="">-- Seleccioná --</option>';
+        if (Array.isArray(formas) && formas.length > 0) {
+            formas.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.descripcion;
+                opt.textContent = f.descripcion;
+                select.appendChild(opt);
+            });
+        }
+    } catch (err) {
+        console.error('Error cargando formas de pago:', err);
     }
 }
 

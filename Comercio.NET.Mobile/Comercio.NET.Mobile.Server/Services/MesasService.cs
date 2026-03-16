@@ -60,7 +60,7 @@ namespace Comercio.NET.Mobile.Server.Services
             var payload = new { query = sql, parameters };
 
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content = await response.Content.ReadAsStringAsync();
+            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -78,13 +78,13 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     items.Add(new MesaItemDto
                     {
-                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                        MesaId = ConvertToInt32(row.Count > 1 ? row[1] : null),
-                        Codigo = ConvertToString(row.Count > 2 ? row[2] : null),
-                        Descripcion = ConvertToString(row.Count > 3 ? row[3] : null),
+                        Id             = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        MesaId         = ConvertToInt32(row.Count > 1 ? row[1] : null),
+                        Codigo         = ConvertToString(row.Count > 2 ? row[2] : null),
+                        Descripcion    = ConvertToString(row.Count > 3 ? row[3] : null),
                         PrecioUnitario = ConvertToDecimal(row.Count > 4 ? row[4] : null),
-                        Cantidad = ConvertToInt32(row.Count > 5 ? row[5] : null),
-                        Subtotal = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        Cantidad       = ConvertToInt32(row.Count > 5 ? row[5] : null),
+                        Subtotal       = ConvertToDecimal(row.Count > 6 ? row[6] : null),
                     });
                 }
             }
@@ -210,6 +210,28 @@ namespace Comercio.NET.Mobile.Server.Services
             return lista.FirstOrDefault();
         }
 
+        public async Task<ProductoBarDto> ActualizarProductoBarAsync(int id, ProductoBarDto dto)
+        {
+            var sql = @"
+                UPDATE ProductosBar
+                SET Codigo = @codigo, Descripcion = @descripcion, Precio = @precio
+                WHERE Id = @id;
+
+                SELECT Id, Codigo, Descripcion, Precio, Activo
+                FROM ProductosBar
+                WHERE Id = @id";
+
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@id",          id },
+                { "@codigo",      dto.Codigo },
+                { "@descripcion", dto.Descripcion },
+                { "@precio",      dto.Precio }
+            };
+            var lista = await EjecutarListaProductosBarAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
         public async Task EliminarProductoBarAsync(int id)
         {
             var sql = "UPDATE ProductosBar SET Activo = 0 WHERE Id = @id";
@@ -231,7 +253,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content = await response.Content.ReadAsStringAsync();
+            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -249,28 +271,100 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     lista.Add(new VentaMesaResumenDto
                     {
-                        MesaId = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                        NumeroMesa = ConvertToInt32(row.Count > 1 ? row[1] : null),
-                        Mozo = ConvertToString(row.Count > 2 ? row[2] : null),
-                        Estado = ConvertToString(row.Count > 3 ? row[3] : null),
+                        MesaId        = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        NumeroMesa    = ConvertToInt32(row.Count > 1 ? row[1] : null),
+                        Mozo          = ConvertToString(row.Count > 2 ? row[2] : null),
+                        Estado        = ConvertToString(row.Count > 3 ? row[3] : null),
                         FechaApertura = ConvertToDateTime(row.Count > 4 ? row[4] : null),
-                        FechaCierre = ConvertToNullableDateTime(row.Count > 5 ? row[5] : null),
-                        Total = ConvertToDecimal(row.Count > 6 ? row[6] : null),
-                        FormaPago = ConvertToString(row.Count > 7 ? row[7] : null),
+                        FechaCierre   = ConvertToNullableDateTime(row.Count > 5 ? row[5] : null),
+                        Total         = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        FormaPago     = ConvertToString(row.Count > 7 ? row[7] : null),
                     });
                 }
             }
             return lista;
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
+        // ── Formas de Pago ────────────────────────────────────────────────────
+
+        public async Task<IEnumerable<FormaPagoDto>> GetFormasPagoAsync()
+        {
+            var sql = "SELECT Id, Descripcion, Activo FROM FormasPago WHERE Activo = 1 ORDER BY Descripcion";
+            return await EjecutarListaFormasPagoAsync(sql, new Dictionary<string, object?>());
+        }
+
+        public async Task<FormaPagoDto> CrearFormaPagoAsync(string descripcion)
+        {
+            var sql = @"
+                INSERT INTO FormasPago (Descripcion, Activo)
+                OUTPUT INSERTED.Id, INSERTED.Descripcion, INSERTED.Activo
+                VALUES (@descripcion, 1)";
+
+            var parameters = new Dictionary<string, object?> { { "@descripcion", descripcion } };
+            var lista = await EjecutarListaFormasPagoAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
+        public async Task<FormaPagoDto> ActualizarFormaPagoAsync(int id, string descripcion)
+        {
+            var sql = @"
+                UPDATE FormasPago SET Descripcion = @descripcion WHERE Id = @id;
+                SELECT Id, Descripcion, Activo FROM FormasPago WHERE Id = @id";
+
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@id",          id },
+                { "@descripcion", descripcion }
+            };
+            var lista = await EjecutarListaFormasPagoAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
+        public async Task EliminarFormaPagoAsync(int id)
+        {
+            var sql = "UPDATE FormasPago SET Activo = 0 WHERE Id = @id";
+            var parameters = new Dictionary<string, object?> { { "@id", id } };
+            await EjecutarComandoAsync(sql, parameters);
+        }
+
+        private async Task<IEnumerable<FormaPagoDto>> EjecutarListaFormasPagoAsync(
+            string sql, Dictionary<string, object?> parameters)
+        {
+            var payload  = new { query = sql, parameters };
+            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            var content  = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
+            }
+
+            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            var lista = new List<FormaPagoDto>();
+            if (resultado?.Data != null)
+            {
+                foreach (var row in resultado.Data)
+                {
+                    lista.Add(new FormaPagoDto
+                    {
+                        Id          = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        Descripcion = ConvertToString(row.Count > 1 ? row[1] : null),
+                        Activo      = ConvertToInt32(row.Count > 2 ? row[2] : null) == 1,
+                    });
+                }
+            }
+            return lista;
+        }
 
         private async Task<IEnumerable<MesaDto>> EjecutarListaMesasAsync(
             string sql, Dictionary<string, object?> parameters)
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content = await response.Content.ReadAsStringAsync();
+            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -288,13 +382,13 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     mesas.Add(new MesaDto
                     {
-                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                        NumeroMesa = ConvertToInt32(row.Count > 1 ? row[1] : null),
-                        Mozo = ConvertToString(row.Count > 2 ? row[2] : null),
-                        Estado = ConvertToString(row.Count > 3 ? row[3] : null),
+                        Id            = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        NumeroMesa    = ConvertToInt32(row.Count > 1 ? row[1] : null),
+                        Mozo          = ConvertToString(row.Count > 2 ? row[2] : null),
+                        Estado        = ConvertToString(row.Count > 3 ? row[3] : null),
                         FechaApertura = ConvertToDateTime(row.Count > 4 ? row[4] : null),
-                        FechaCierre = ConvertToNullableDateTime(row.Count > 5 ? row[5] : null),
-                        Total = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        FechaCierre   = ConvertToNullableDateTime(row.Count > 5 ? row[5] : null),
+                        Total         = ConvertToDecimal(row.Count > 6 ? row[6] : null),
                     });
                 }
             }
@@ -306,7 +400,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content = await response.Content.ReadAsStringAsync();
+            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -324,7 +418,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     lista.Add(new MozoDto
                     {
-                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        Id     = ConvertToInt32(row.Count > 0 ? row[0] : null),
                         Nombre = ConvertToString(row.Count > 1 ? row[1] : null),
                         Activo = ConvertToInt32(row.Count > 2 ? row[2] : null) == 1,
                     });
@@ -338,7 +432,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content = await response.Content.ReadAsStringAsync();
+            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -356,11 +450,11 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     lista.Add(new ProductoBarDto
                     {
-                        Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                        Codigo = ConvertToString(row.Count > 1 ? row[1] : null),
+                        Id          = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        Codigo      = ConvertToString(row.Count > 1 ? row[1] : null),
                         Descripcion = ConvertToString(row.Count > 2 ? row[2] : null),
-                        Precio = ConvertToDecimal(row.Count > 3 ? row[3] : null),
-                        Activo = ConvertToInt32(row.Count > 4 ? row[4] : null) == 1,
+                        Precio      = ConvertToDecimal(row.Count > 3 ? row[3] : null),
+                        Activo      = ConvertToInt32(row.Count > 4 ? row[4] : null) == 1,
                     });
                 }
             }
@@ -371,7 +465,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content = await response.Content.ReadAsStringAsync();
+            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -413,8 +507,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 return j.ValueKind switch
                 {
                     JsonValueKind.String => j.GetString() ?? string.Empty,
-                    JsonValueKind.Null => string.Empty,
-                    _ => j.ToString()
+                    JsonValueKind.Null   => string.Empty,
+                    _                   => j.ToString()
                 };
             return value.ToString() ?? string.Empty;
         }

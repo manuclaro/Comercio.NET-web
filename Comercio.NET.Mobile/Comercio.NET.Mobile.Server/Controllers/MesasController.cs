@@ -17,61 +17,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
             _logger = logger;
         }
 
-        // ── Mesas ─────────────────────────────────────────────────────────────
-
-        [HttpGet]
-        public async Task<IActionResult> GetMesasAbiertas()
-        {
-            try { return Ok(await _mesasService.GetMesasAbiertasAsync()); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en GetMesasAbiertas"); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetMesa(int id)
-        {
-            try
-            {
-                var mesa = await _mesasService.GetMesaAsync(id);
-                if (mesa is null) return NotFound();
-                return Ok(mesa);
-            }
-            catch (Exception ex) { _logger.LogError(ex, "Error en GetMesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpGet("{id}/items")]
-        public async Task<IActionResult> GetItems(int id)
-        {
-            try { return Ok(await _mesasService.GetItemsMesaAsync(id)); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en GetItems mesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> AbrirMesa([FromBody] AbrirMesaRequest request)
-        {
-            try { return Ok(await _mesasService.AbrirMesaAsync(request)); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en AbrirMesa"); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpPost("{id}/items")]
-        public async Task<IActionResult> AgregarItem(int id, [FromBody] AgregarItemRequest request)
-        {
-            try { await _mesasService.AgregarItemAsync(id, request); return Ok(); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en AgregarItem mesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpDelete("items/{itemId}")]
-        public async Task<IActionResult> EliminarItem(int itemId)
-        {
-            try { await _mesasService.EliminarItemAsync(itemId); return Ok(); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en EliminarItem {ItemId}", itemId); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpPost("{id}/cerrar")]
-        public async Task<IActionResult> CerrarMesa(int id, [FromBody] CerrarMesaRequest request)
-        {
-            try { return Ok(await _mesasService.CerrarMesaAsync(id, request)); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en CerrarMesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
-        }
+        // ── Mozos (antes que {id:int} para evitar conflicto de rutas) ─────────
 
         [HttpGet("mozos")]
         public async Task<IActionResult> GetMozos()
@@ -87,14 +33,14 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en CrearMozo"); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        [HttpDelete("mozos/{id}")]
+        [HttpDelete("mozos/{id:int}")]
         public async Task<IActionResult> EliminarMozo(int id)
         {
             try { await _mesasService.EliminarMozoAsync(id); return Ok(); }
             catch (Exception ex) { _logger.LogError(ex, "Error en EliminarMozo {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        // ── Productos Bar ─────────────────────────────────────────────────────
+        // ── Productos Bar (antes que {id:int}) ────────────────────────────────
 
         [HttpGet("productos-bar")]
         public async Task<IActionResult> GetProductosBar()
@@ -110,20 +56,113 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en CrearProductoBar"); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        [HttpDelete("productos-bar/{id}")]
+        [HttpPut("productos-bar/{id:int}")]
+        public async Task<IActionResult> ActualizarProductoBar(int id, [FromBody] ProductoBarDto dto)
+        {
+            try { return Ok(await _mesasService.ActualizarProductoBarAsync(id, dto)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en ActualizarProductoBar {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpDelete("productos-bar/{id:int}")]
         public async Task<IActionResult> EliminarProductoBar(int id)
         {
             try { await _mesasService.EliminarProductoBarAsync(id); return Ok(); }
             catch (Exception ex) { _logger.LogError(ex, "Error en EliminarProductoBar {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        // ── Ventas del Día ────────────────────────────────────────────────────
+        // ── Ventas del Día (antes que {id:int}) ───────────────────────────────
 
         [HttpGet("ventas-dia")]
         public async Task<IActionResult> GetVentasDelDia()
         {
             try { return Ok(await _mesasService.GetVentasDelDiaAsync()); }
             catch (Exception ex) { _logger.LogError(ex, "Error en GetVentasDelDia"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // ── Mesas ─────────────────────────────────────────────────────────────
+
+        [HttpGet]
+        public async Task<IActionResult> GetMesasAbiertas()
+        {
+            try { return Ok(await _mesasService.GetMesasAbiertasAsync()); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en GetMesasAbiertas"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetMesa(int id)
+        {
+            try
+            {
+                var mesa = await _mesasService.GetMesaAsync(id);
+                if (mesa is null) return NotFound();
+                return Ok(mesa);
+            }
+            catch (Exception ex) { _logger.LogError(ex, "Error en GetMesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpGet("{id:int}/items")]
+        public async Task<IActionResult> GetItems(int id)
+        {
+            try { return Ok(await _mesasService.GetItemsMesaAsync(id)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en GetItems mesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AbrirMesa([FromBody] AbrirMesaRequest request)
+        {
+            try { return Ok(await _mesasService.AbrirMesaAsync(request)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en AbrirMesa"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPost("{id:int}/items")]
+        public async Task<IActionResult> AgregarItem(int id, [FromBody] AgregarItemRequest request)
+        {
+            try { await _mesasService.AgregarItemAsync(id, request); return Ok(); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en AgregarItem mesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpDelete("items/{itemId:int}")]
+        public async Task<IActionResult> EliminarItem(int itemId)
+        {
+            try { await _mesasService.EliminarItemAsync(itemId); return Ok(); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en EliminarItem {ItemId}", itemId); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPost("{id:int}/cerrar")]
+        public async Task<IActionResult> CerrarMesa(int id, [FromBody] CerrarMesaRequest request)
+        {
+            try { return Ok(await _mesasService.CerrarMesaAsync(id, request)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en CerrarMesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // ── Formas de Pago ────────────────────────────────────────────────────
+
+        [HttpGet("formas-pago")]
+        public async Task<IActionResult> GetFormasPago()
+        {
+            try { return Ok(await _mesasService.GetFormasPagoAsync()); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en GetFormasPago"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPost("formas-pago")]
+        public async Task<IActionResult> CrearFormaPago([FromBody] FormaPagoDto dto)
+        {
+            try { return Ok(await _mesasService.CrearFormaPagoAsync(dto.Descripcion)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en CrearFormaPago"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPut("formas-pago/{id:int}")]
+        public async Task<IActionResult> ActualizarFormaPago(int id, [FromBody] FormaPagoDto dto)
+        {
+            try { return Ok(await _mesasService.ActualizarFormaPagoAsync(id, dto.Descripcion)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en ActualizarFormaPago {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpDelete("formas-pago/{id:int}")]
+        public async Task<IActionResult> EliminarFormaPago(int id)
+        {
+            try { await _mesasService.EliminarFormaPagoAsync(id); return Ok(); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en EliminarFormaPago {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
     }
 }

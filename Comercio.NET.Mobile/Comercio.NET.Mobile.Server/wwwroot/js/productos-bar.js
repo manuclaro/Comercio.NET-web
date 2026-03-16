@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
-    if (rol !== 'pizzeria' && rol !== 'admin') { window.location.href = '/dashboard.html'; return; }
+    if (rol !== 'pizzeria') { window.location.href = '/dashboard.html'; return; }
 
     const nombre = localStorage.getItem('usuario_completo') || localStorage.getItem('usuario_nombre') || 'Usuario';
     document.getElementById('nombreUsuarioProd').textContent = `👤 ${nombre}`;
@@ -23,9 +23,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btnSalir').addEventListener('click', () => {
         localStorage.clear(); window.location.href = '/login.html';
     });
-    document.getElementById('btnNuevoProducto').addEventListener('click', () => abrirModal('modalNuevoProducto'));
-    document.getElementById('btnCancelarProducto').addEventListener('click', () => cerrarModal('modalNuevoProducto'));
-    document.getElementById('formNuevoProducto').addEventListener('submit', onCrearProducto);
+    document.getElementById('btnNuevoProducto').addEventListener('click', () => abrirModalNuevo());
+    document.getElementById('btnCancelarProducto').addEventListener('click', () => cerrarModal('modalProducto'));
+    document.getElementById('formProducto').addEventListener('submit', onGuardarProducto);
 });
 
 function formatCurrency(value) {
@@ -60,33 +60,59 @@ function renderProductos(productos) {
             <td>${p.descripcion}</td>
             <td style="text-align:right">${formatCurrency(p.precio)}</td>
             <td style="text-align:center">
+                <button class="btn-secondary" style="margin-right:4px"
+                    onclick='abrirModalEditar(${p.id}, ${JSON.stringify(p.codigo)}, ${JSON.stringify(p.descripcion)}, ${p.precio})'
+                    title="Editar">✏️</button>
                 <button class="btn-del" onclick="eliminarProducto(${p.id})" title="Eliminar">🗑️</button>
             </td>
         </tr>
     `).join('');
 }
 
-async function onCrearProducto(e) {
+function abrirModalNuevo() {
+    document.getElementById('tituloModalProducto').textContent = 'Agregar producto';
+    document.getElementById('inputIdProd').value = '';
+    document.getElementById('inputCodigoProd').value = '';
+    document.getElementById('inputDescripcionProd').value = '';
+    document.getElementById('inputPrecioProd').value = '';
+    abrirModal('modalProducto');
+}
+
+function abrirModalEditar(id, codigo, descripcion, precio) {
+    document.getElementById('tituloModalProducto').textContent = 'Editar producto';
+    document.getElementById('inputIdProd').value = id;
+    document.getElementById('inputCodigoProd').value = codigo ?? '';
+    document.getElementById('inputDescripcionProd').value = descripcion ?? '';
+    document.getElementById('inputPrecioProd').value = precio ?? '';
+    abrirModal('modalProducto');
+}
+
+async function onGuardarProducto(e) {
     e.preventDefault();
+    const id          = document.getElementById('inputIdProd').value;
     const codigo      = document.getElementById('inputCodigoProd').value.trim();
     const descripcion = document.getElementById('inputDescripcionProd').value.trim();
     const precio      = parseFloat(document.getElementById('inputPrecioProd').value);
 
     if (!descripcion || isNaN(precio)) { alert('Completá descripción y precio.'); return; }
 
+    const esEdicion = !!id;
+    const url    = esEdicion ? `/api/mesas/productos-bar/${id}` : '/api/mesas/productos-bar';
+    const method = esEdicion ? 'PUT' : 'POST';
+
     try {
-        const res = await fetch('/api/mesas/productos-bar', {
-            method: 'POST',
+        const res = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ codigo, descripcion, precio, activo: true })
         });
         if (!res.ok) throw new Error(await res.text());
-        cerrarModal('modalNuevoProducto');
-        document.getElementById('formNuevoProducto').reset();
+        cerrarModal('modalProducto');
+        document.getElementById('formProducto').reset();
         cargarProductos();
     } catch (err) {
-        console.error('Error creando producto:', err);
-        alert('No se pudo crear el producto.');
+        console.error('Error guardando producto:', err);
+        alert('No se pudo guardar el producto.');
     }
 }
 

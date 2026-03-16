@@ -20,7 +20,14 @@ namespace Comercio.NET.Mobile.Server.Services
         // Productos Bar
         Task<IEnumerable<ProductoBarDto>> GetProductosBarAsync();
         Task<ProductoBarDto> CrearProductoBarAsync(ProductoBarDto dto);
+        Task<ProductoBarDto> ActualizarProductoBarAsync(int id, ProductoBarDto dto);
         Task EliminarProductoBarAsync(int id);
+
+        // Formas de Pago
+        Task<IEnumerable<FormaPagoDto>> GetFormasPagoAsync();
+        Task<FormaPagoDto> CrearFormaPagoAsync(string descripcion);
+        Task<FormaPagoDto> ActualizarFormaPagoAsync(int id, string descripcion);
+        Task EliminarFormaPagoAsync(int id);
 
         // Ventas del día
         Task<IEnumerable<VentaMesaResumenDto>> GetVentasDelDiaAsync();

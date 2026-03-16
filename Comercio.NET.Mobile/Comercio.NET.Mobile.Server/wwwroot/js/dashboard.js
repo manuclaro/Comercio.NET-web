@@ -24,7 +24,7 @@
 
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
 
-    // Pizzeria tiene su propio dashboard
+    // Pizzeria tiene su propio dashboard, nunca llega aquí
     if (rol === 'pizzeria') {
         window.location.href = '/dashboard-pizzeria.html';
         return;
@@ -34,6 +34,10 @@
         || localStorage.getItem('usuario_nombre')
         || 'Usuario';
     document.getElementById('nombreUsuario').textContent = `👤 ${nombreCompleto}`;
+
+    // Ocultar card de mesas para cualquier rol que no sea pizzeria (incluido admin)
+    const cardMesas = document.getElementById('cardMesas');
+    if (cardMesas) cardMesas.style.display = 'none';
 
     document.getElementById('btnCerrarSesion').addEventListener('click', function () {
         localStorage.clear();

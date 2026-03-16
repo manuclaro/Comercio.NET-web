@@ -19,7 +19,24 @@
     <div class="container">
 
         <!-- Resumen total -->
-        <div id="resumenDia" style="margin-bottom:1.2rem;font-size:1.1rem;font-weight:600;color:#e65100"></div>
+        <div id="resumenDia" style="margin-bottom:1rem;font-size:1.1rem;font-weight:600;color:#e65100"></div>
+
+        <!-- Filtros -->
+        <div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1.2rem;align-items:center">
+            <select id="filtroMozo" style="flex:1;min-width:140px">
+                <option value="">Todos los mozos</option>
+            </select>
+            <select id="filtroFormaPago" style="flex:1;min-width:160px">
+                <option value="">Todas las formas de pago</option>
+            </select>
+            <select id="filtroEstado" style="flex:1;min-width:140px">
+                <option value="">Todos los estados</option>
+                <option value="Abierta">Solo abiertas</option>
+                <option value="Cerrada">Solo cerradas</option>
+            </select>
+            <button id="btnFiltrar" class="btn-primary" style="flex:0">Filtrar</button>
+            <button id="btnLimpiarFiltros" class="btn-secondary" style="flex:0">✕ Limpiar</button>
+        </div>
 
         <!-- Listado -->
         <div id="vistaListado">

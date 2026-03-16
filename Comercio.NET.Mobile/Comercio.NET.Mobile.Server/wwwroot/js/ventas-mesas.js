@@ -1,5 +1,7 @@
 ﻿'use strict';
 
+let _todasLasVentas = [];
+
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('auth_token');
     if (!token) { window.location.href = '/login.html'; return; }
@@ -13,17 +15,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
-    if (rol !== 'pizzeria' && rol !== 'admin') { window.location.href = '/dashboard.html'; return; }
+    if (rol !== 'pizzeria') { window.location.href = '/dashboard.html'; return; }
 
     const nombre = localStorage.getItem('usuario_completo') || localStorage.getItem('usuario_nombre') || 'Usuario';
     document.getElementById('nombreUsuarioVentas').textContent = `👤 ${nombre}`;
 
-    cargarVentas();
+    await cargarVentas();
 
     document.getElementById('btnSalir').addEventListener('click', () => {
         localStorage.clear(); window.location.href = '/login.html';
     });
     document.getElementById('btnVolverVentas').addEventListener('click', volverAListado);
+    document.getElementById('btnFiltrar').addEventListener('click', aplicarFiltros);
+    document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
 });
 
 function formatCurrency(value) {
@@ -41,11 +45,63 @@ async function cargarVentas() {
     try {
         const res = await fetch('/api/mesas/ventas-dia');
         const ventas = res.ok ? await res.json() : [];
-        renderVentas(Array.isArray(ventas) ? ventas : []);
+        _todasLasVentas = Array.isArray(ventas) ? ventas : [];
+        poblarFiltros(_todasLasVentas);
+        renderVentas(_todasLasVentas);
     } catch (err) {
         console.error('Error cargando ventas:', err);
         renderVentas([]);
     }
+}
+
+function poblarFiltros(ventas) {
+    // Mozos únicos
+    const mozos = [...new Set(ventas.map(v => v.mozo).filter(Boolean))].sort();
+    const selMozo = document.getElementById('filtroMozo');
+    const mozoActual = selMozo.value;
+    selMozo.innerHTML = '<option value="">Todos los mozos</option>';
+    mozos.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        if (m === mozoActual) opt.selected = true;
+        selMozo.appendChild(opt);
+    });
+
+    // Formas de pago únicas
+    const formas = [...new Set(ventas.map(v => v.formaPago).filter(Boolean))].sort();
+    const selFP = document.getElementById('filtroFormaPago');
+    const fpActual = selFP.value;
+    selFP.innerHTML = '<option value="">Todas las formas de pago</option>';
+    formas.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = f;
+        if (f === fpActual) opt.selected = true;
+        selFP.appendChild(opt);
+    });
+}
+
+function aplicarFiltros() {
+    const mozo      = document.getElementById('filtroMozo').value;
+    const formaPago = document.getElementById('filtroFormaPago').value;
+    const estado    = document.getElementById('filtroEstado').value;
+
+    const filtradas = _todasLasVentas.filter(v => {
+        if (mozo      && v.mozo      !== mozo)      return false;
+        if (formaPago && v.formaPago !== formaPago)  return false;
+        if (estado    && v.estado    !== estado)     return false;
+        return true;
+    });
+
+    renderVentas(filtradas);
+}
+
+function limpiarFiltros() {
+    document.getElementById('filtroMozo').value      = '';
+    document.getElementById('filtroFormaPago').value = '';
+    document.getElementById('filtroEstado').value    = '';
+    renderVentas(_todasLasVentas);
 }
 
 function renderVentas(ventas) {
@@ -54,7 +110,7 @@ function renderVentas(ventas) {
 
     const totalDia = ventas.reduce((acc, v) => acc + (v.total ?? 0), 0);
     document.getElementById('resumenDia').textContent =
-        `Total del día: ${formatCurrency(totalDia)} · ${ventas.length} mesa(s)`;
+        `Total filtrado: ${formatCurrency(totalDia)} · ${ventas.length} mesa(s)`;
 
     if (ventas.length === 0) {
         body.innerHTML = '';
@@ -64,7 +120,7 @@ function renderVentas(ventas) {
 
     vacio.style.display = 'none';
     body.innerHTML = ventas.map(v => `
-        <tr style="cursor:pointer" onclick="verDetalle(${v.mesaId}, 'Mesa #${v.numeroMesa}', '${v.mozo}', '${v.estado}')">
+        <tr style="cursor:pointer" onclick="verDetalle(${v.mesaId}, 'Mesa #${v.numeroMesa}', ${JSON.stringify(v.mozo)}, ${JSON.stringify(v.estado)}, ${JSON.stringify(v.formaPago)})">
             <td>#${v.numeroMesa}</td>
             <td>${v.mozo || '-'}</td>
             <td>${formatFecha(v.fechaApertura)}</td>
@@ -80,13 +136,18 @@ function renderVentas(ventas) {
     `).join('');
 }
 
-async function verDetalle(mesaId, titulo, mozo, estado) {
+async function verDetalle(mesaId, titulo, mozo, estado, formaPago) {
     try {
         const res = await fetch(`/api/mesas/${mesaId}/items`);
         const items = res.ok ? await res.json() : [];
 
-        document.getElementById('tituloDet').textContent =
-            `${titulo} — ${mozo || 'Sin mozo'} · ${estado}`;
+        const estadoLabel = estado === 'Abierta'
+            ? '<span style="color:#2e7d32;font-weight:600">● Abierta</span>'
+            : '<span style="color:#c62828;font-weight:600">● Cerrada</span>';
+
+        document.getElementById('tituloDet').innerHTML =
+            `${titulo} — ${mozo || 'Sin mozo'} &nbsp;${estadoLabel}` +
+            (formaPago ? ` &nbsp;· 💳 ${formaPago}` : '');
 
         const body = document.getElementById('bodyDetalle');
         if (!Array.isArray(items) || items.length === 0) {
