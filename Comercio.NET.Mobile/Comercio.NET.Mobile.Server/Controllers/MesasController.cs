@@ -165,6 +165,13 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en EliminarItem {ItemId}", itemId); return StatusCode(500, new { error = ex.Message }); }
         }
 
+        [HttpPut("items/{itemId:int}")]
+        public async Task<IActionResult> ActualizarCantidadItem(int itemId, [FromBody] ActualizarCantidadRequest request)
+        {
+            try { await _mesasService.ActualizarCantidadItemAsync(itemId, request.Cantidad); return Ok(); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en ActualizarCantidadItem {ItemId}", itemId); return StatusCode(500, new { error = ex.Message }); }
+        }
+
         [HttpPost("{id:int}/cerrar")]
         public async Task<IActionResult> CerrarMesa(int id, [FromBody] CerrarMesaRequest request)
         {

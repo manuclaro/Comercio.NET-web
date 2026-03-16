@@ -137,6 +137,22 @@ namespace Comercio.NET.Mobile.Server.Services
             await EjecutarComandoAsync(sql, parameters);
         }
 
+        public async Task ActualizarCantidadItemAsync(int itemId, int cantidad)
+        {
+            var sql = @"
+                UPDATE MesasItems
+                SET Cantidad = @cantidad,
+                    Subtotal = PrecioUnitario * @cantidad
+                WHERE Id = @itemId";
+
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@itemId",   itemId },
+                { "@cantidad", cantidad }
+            };
+            await EjecutarComandoAsync(sql, parameters);
+        }
+
         public async Task<MesaDto> CerrarMesaAsync(int mesaId, CerrarMesaRequest request)
         {
             var sql = @"

@@ -41,6 +41,11 @@ namespace Comercio.NET.Mobile.Server.Models
         public string FormaPago { get; set; } = string.Empty;
     }
 
+    public class ActualizarCantidadRequest
+    {
+        public int Cantidad { get; set; }
+    }
+
     public class MozoDto
     {
         public int Id { get; set; }

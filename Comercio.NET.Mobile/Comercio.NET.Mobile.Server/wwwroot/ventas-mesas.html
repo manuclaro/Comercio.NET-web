@@ -3,60 +3,85 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Control de Mesas</title>
+    <title>Ventas del Día</title>
     <link rel="stylesheet" href="/css/mesas.css" />
 </head>
 <body>
 
     <header>
         <button class="btn-back" onclick="location.href='/dashboard-pizzeria.html'">← Panel</button>
-        <h1>🍽️ Control de Mesas</h1>
+        <h1>📊 Ventas del Día</h1>
         <div class="header-user">
-            <span id="nombreUsuarioMesas"></span>
+            <span id="nombreUsuarioVentas"></span>
             <button id="btnSalir" class="btn-back">Cerrar Sesión</button>
         </div>
     </header>
 
     <div class="container">
 
-        <!-- ── Listado de mesas ───────────────────────────────────────── -->
-        <div id="listadoMesas">
-            <div class="acciones">
-                <button id="btnNuevaMesa" class="btn-primary">+ Nueva mesa</button>
+        <!-- ── Vista: listado ─────────────────────────────────────────── -->
+        <div id="vistaListado">
+
+            <!-- Filtros -->
+            <div class="form-item" style="margin-bottom:1rem">
+                <div class="field">
+                    <label>Mozo</label>
+                    <select id="filtroMozo">
+                        <option value="">Todos los mozos</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Forma de pago</label>
+                    <select id="filtroFormaPago">
+                        <option value="">Todas las formas de pago</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Estado</label>
+                    <select id="filtroEstado">
+                        <option value="">Todos</option>
+                        <option value="Abierta">Abierta</option>
+                        <option value="Cerrada">Cerrada</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:.5rem;align-items:flex-end">
+                    <button id="btnFiltrar" class="btn-primary">Filtrar</button>
+                    <button id="btnLimpiarFiltros" class="btn-secondary">Limpiar</button>
+                </div>
             </div>
-            <div id="gridMesas" class="grid-mesas"></div>
-            <p id="mensajeVacio" class="mensaje-vacio" style="display:none">
-                No hay mesas abiertas. ¡Abrí una nueva!
+
+            <!-- Resumen -->
+            <p id="resumenDia" style="margin-bottom:.8rem;font-weight:600;color:#1a1a2e"></p>
+
+            <!-- Tabla -->
+            <div class="tabla-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mesa</th>
+                            <th>Mozo</th>
+                            <th>Apertura</th>
+                            <th>Cierre</th>
+                            <th>Estado</th>
+                            <th style="text-align:right">Total</th>
+                            <th>Forma de pago</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyVentas"></tbody>
+                </table>
+            </div>
+            <p id="mensajeVacioVentas" class="mensaje-vacio" style="display:none">
+                No hay ventas registradas para hoy.
             </p>
         </div>
 
-        <!-- ── Detalle de mesa ────────────────────────────────────────── -->
-        <div id="panelDetalle" style="display:none">
+        <!-- ── Vista: detalle de mesa ─────────────────────────────────── -->
+        <div id="vistaDetalle" style="display:none">
             <div class="detalle-header">
-                <button id="btnVolverMesas" class="btn-secondary">← Volver</button>
-                <h2 id="tituloDetalle"></h2>
-                <button id="btnCerrarMesa" class="btn-danger">🧾 Cerrar mesa</button>
+                <button id="btnVolverVentas" class="btn-secondary">← Volver</button>
+                <h2 id="tituloDet"></h2>
             </div>
 
-            <!-- Agregar ítem -->
-            <div class="form-item">
-                <div class="field">
-                    <label>Producto *</label>
-                    <select id="selectProductoItem">
-                        <option value="">-- Seleccioná --</option>
-                    </select>
-                </div>
-                <div class="field field-sm">
-                    <label>Cantidad *</label>
-                    <input type="number" id="itemCantidad" min="1" value="1" />
-                </div>
-                <div>
-                    <label>&nbsp;</label>
-                    <button id="btnAgregarItem" class="btn-primary">+ Agregar</button>
-                </div>
-            </div>
-
-            <!-- Tabla de consumos -->
             <div class="tabla-wrap">
                 <table>
                     <thead>
@@ -66,66 +91,19 @@
                             <th style="text-align:center">Cant.</th>
                             <th style="text-align:right">Precio unit.</th>
                             <th style="text-align:right">Subtotal</th>
-                            <th></th>
                         </tr>
                     </thead>
-                    <tbody id="bodyItems"></tbody>
+                    <tbody id="bodyDetalle"></tbody>
                 </table>
             </div>
 
             <div class="pie-detalle">
-                <span id="totalDetalle" class="total-mesa">Total: $ 0,00</span>
+                <span id="totalDetalleDia" class="total-mesa">Total: $ 0,00</span>
             </div>
         </div>
 
     </div>
 
-    <!-- ── Modal: nueva mesa ──────────────────────────────────────────────── -->
-    <div id="modalNuevaMesa" class="modal-overlay">
-        <div class="modal">
-            <h3>Abrir nueva mesa</h3>
-            <form id="formNuevaMesa">
-                <div class="campo">
-                    <label>Número de mesa *</label>
-                    <input type="number" id="inputNumeroMesa" min="1" required />
-                </div>
-                <div class="campo">
-                    <label>Mozo *</label>
-                    <select id="selectMozo" required>
-                        <option value="">-- Seleccioná un mozo --</option>
-                    </select>
-                </div>
-                <div class="modal-acciones">
-                    <button type="button" id="btnCerrarNuevaMesa" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">Abrir mesa</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ── Modal: cerrar mesa ─────────────────────────────────────────────── -->
-    <div id="modalCerrarMesa" class="modal-overlay">
-        <div class="modal">
-            <h3>Cerrar mesa</h3>
-            <form id="formCerrarMesa">
-                <div class="campo">
-                    <label>Forma de pago *</label>
-                    <!-- Las opciones se cargan dinámicamente desde /api/mesas/formas-pago -->
-                    <select id="selectFormaPago" required>
-                        <option value="">-- Seleccioná --</option>
-                    </select>
-                </div>
-                <div class="modal-acciones">
-                    <button type="button" id="btnCancelarCierre" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">🧾 Cerrar e imprimir</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Ticket de impresión (oculto en pantalla) -->
-    <div id="ticketPrint"></div>
-
-    <script src="/js/mesas.js"></script>
+    <script src="/js/ventas-mesas.js"></script>
 </body>
 </html>

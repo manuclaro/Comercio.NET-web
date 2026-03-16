@@ -10,6 +10,7 @@ namespace Comercio.NET.Mobile.Server.Services
         Task<MesaDto> AbrirMesaAsync(AbrirMesaRequest request);
         Task AgregarItemAsync(int mesaId, AgregarItemRequest request);
         Task EliminarItemAsync(int itemId);
+        Task ActualizarCantidadItemAsync(int itemId, int cantidad);
         Task<MesaDto> CerrarMesaAsync(int mesaId, CerrarMesaRequest request);
 
         // Mozos

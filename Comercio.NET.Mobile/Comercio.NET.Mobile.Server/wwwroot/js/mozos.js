@@ -26,6 +26,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btnNuevoMozo').addEventListener('click', () => abrirModalNuevo());
     document.getElementById('btnCancelarMozo').addEventListener('click', () => cerrarModal('modalMozo'));
     document.getElementById('formMozo').addEventListener('submit', onGuardarMozo);
+
+    // Delegación de eventos para botones generados dinámicamente
+    document.getElementById('bodyMozos').addEventListener('click', (e) => {
+        const btnEditar = e.target.closest('[data-accion="editar"]');
+        const btnEliminar = e.target.closest('[data-accion="eliminar"]');
+
+        if (btnEditar) {
+            abrirModalEditar(
+                Number(btnEditar.dataset.id),
+                btnEditar.dataset.nombre
+            );
+        }
+        if (btnEliminar) {
+            eliminarMozo(Number(btnEliminar.dataset.id));
+        }
+    });
 });
 
 async function cargarMozos() {
@@ -56,10 +72,16 @@ function renderMozos(mozos) {
             <td>${i + 1}</td>
             <td>${m.nombre}</td>
             <td style="text-align:center">
-                <button class="btn-secondary" style="margin-right:4px"
-                    onclick='abrirModalEditar(${m.id}, ${JSON.stringify(m.nombre)})'
+                <button class="btn-secondary"
+                    style="margin-right:4px"
+                    data-accion="editar"
+                    data-id="${m.id}"
+                    data-nombre="${m.nombre.replace(/"/g, '&quot;')}"
                     title="Editar">✏️</button>
-                <button class="btn-del" onclick="eliminarMozo(${m.id})" title="Eliminar">🗑️</button>
+                <button class="btn-del"
+                    data-accion="eliminar"
+                    data-id="${m.id}"
+                    title="Eliminar">🗑️</button>
             </td>
         </tr>
     `).join('');

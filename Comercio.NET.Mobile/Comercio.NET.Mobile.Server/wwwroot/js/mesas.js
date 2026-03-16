@@ -15,8 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
-
-    // Solo pizzeria puede acceder a mesas
     if (rol !== 'pizzeria') {
         window.location.href = rol === 'admin' ? '/dashboard.html' : '/login.html';
         return;
@@ -42,6 +40,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btnCerrarMesa').addEventListener('click', () => abrirModal('modalCerrarMesa'));
     document.getElementById('btnCancelarCierre').addEventListener('click', () => cerrarModal('modalCerrarMesa'));
     document.getElementById('formCerrarMesa').addEventListener('submit', onCerrarMesa);
+
+    // Delegación de eventos para botones generados dinámicamente en la tabla de ítems
+    document.getElementById('bodyItems').addEventListener('click', async (e) => {
+        const btnEliminar = e.target.closest('[data-accion="eliminar-item"]');
+        const btnConfirmar = e.target.closest('[data-accion="confirmar-cantidad"]');
+
+        if (btnEliminar) {
+            await eliminarItem(Number(btnEliminar.dataset.id));
+        }
+        if (btnConfirmar) {
+            const itemId = Number(btnConfirmar.dataset.id);
+            const input  = document.querySelector(`input[data-cantidad-id="${itemId}"]`);
+            const nuevaCantidad = parseInt(input?.value, 10);
+            if (!input || isNaN(nuevaCantidad) || nuevaCantidad < 1) {
+                alert('Ingresá una cantidad válida (mínimo 1).');
+                return;
+            }
+            await actualizarCantidadItem(itemId, nuevaCantidad);
+        }
+    });
 });
 
 function formatCurrency(value) {
@@ -60,11 +78,7 @@ function formatFecha(isoString) {
 async function cargarMozos() {
     try {
         const res = await fetch('/api/mesas/mozos');
-        if (!res.ok) {
-            const txt = await res.text();
-            console.error('Error GET /api/mesas/mozos:', res.status, txt);
-            return;
-        }
+        if (!res.ok) { console.error('Error GET /api/mesas/mozos:', res.status, await res.text()); return; }
         const mozos = await res.json();
         const select = document.getElementById('selectMozo');
         select.innerHTML = '<option value="">-- Seleccioná un mozo --</option>';
@@ -89,11 +103,7 @@ async function cargarMozos() {
 async function cargarProductosBar() {
     try {
         const res = await fetch('/api/mesas/productos-bar');
-        if (!res.ok) {
-            const txt = await res.text();
-            console.error('Error GET /api/mesas/productos-bar:', res.status, txt);
-            return;
-        }
+        if (!res.ok) { console.error('Error GET /api/mesas/productos-bar:', res.status, await res.text()); return; }
         const productos = await res.json();
         const select = document.getElementById('selectProductoItem');
         select.innerHTML = '<option value="">-- Seleccioná un producto --</option>';
@@ -215,11 +225,27 @@ function renderItems(items) {
         <tr>
             <td>${i.codigo ?? '-'}</td>
             <td>${i.descripcion ?? '-'}</td>
-            <td style="text-align:center">${i.cantidad}</td>
+            <td style="text-align:center">
+                <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+                    <input type="number"
+                        data-cantidad-id="${i.id}"
+                        value="${i.cantidad}"
+                        min="1"
+                        style="width:60px;padding:2px 4px;border:1px solid #ccc;border-radius:6px;text-align:center;font-size:.9rem" />
+                    <button class="btn-secondary"
+                        style="padding:2px 7px;font-size:.85rem"
+                        data-accion="confirmar-cantidad"
+                        data-id="${i.id}"
+                        title="Confirmar cantidad">✔</button>
+                </div>
+            </td>
             <td style="text-align:right">${formatCurrency(i.precioUnitario)}</td>
             <td style="text-align:right"><strong>${formatCurrency(i.subtotal)}</strong></td>
             <td style="text-align:center">
-                <button class="btn-del" title="Eliminar" onclick="eliminarItem(${i.id})">🗑️</button>
+                <button class="btn-del"
+                    data-accion="eliminar-item"
+                    data-id="${i.id}"
+                    title="Eliminar">🗑️</button>
             </td>
         </tr>
     `).join('');
@@ -297,6 +323,23 @@ async function onAgregarItem() {
     } catch (err) {
         console.error('Error agregando ítem:', err);
         alert('No se pudo agregar el ítem.');
+    }
+}
+
+// ─── Actualizar cantidad de ítem ──────────────────────────────────────────────
+
+async function actualizarCantidadItem(itemId, cantidad) {
+    try {
+        const res = await fetch(`/api/mesas/items/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cantidad })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        await abrirDetalleMesa(mesaActivaId);
+    } catch (err) {
+        console.error('Error actualizando cantidad:', err);
+        alert('No se pudo actualizar la cantidad.');
     }
 }
 
