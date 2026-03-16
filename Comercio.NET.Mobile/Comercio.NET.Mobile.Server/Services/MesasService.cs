@@ -178,6 +178,21 @@ namespace Comercio.NET.Mobile.Server.Services
             return lista.FirstOrDefault();
         }
 
+        public async Task<MozoDto> ActualizarMozoAsync(int id, string nombre)
+        {
+            var sql = @"
+                UPDATE Mozos SET Nombre = @nombre WHERE Id = @id;
+                SELECT Id, Nombre, Activo FROM Mozos WHERE Id = @id";
+
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@id",     id },
+                { "@nombre", nombre }
+            };
+            var lista = await EjecutarListaMozosAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
         public async Task EliminarMozoAsync(int id)
         {
             var sql = "UPDATE Mozos SET Activo = 0 WHERE Id = @id";
@@ -239,6 +254,48 @@ namespace Comercio.NET.Mobile.Server.Services
             await EjecutarComandoAsync(sql, parameters);
         }
 
+        // ── Formas de Pago ────────────────────────────────────────────────────
+
+        public async Task<IEnumerable<FormaPagoDto>> GetFormasPagoAsync()
+        {
+            var sql = "SELECT Id, Descripcion, Activo FROM FormasPago WHERE Activo = 1 ORDER BY Descripcion";
+            return await EjecutarListaFormasPagoAsync(sql, new Dictionary<string, object?>());
+        }
+
+        public async Task<FormaPagoDto> CrearFormaPagoAsync(string descripcion)
+        {
+            var sql = @"
+                INSERT INTO FormasPago (Descripcion, Activo)
+                OUTPUT INSERTED.Id, INSERTED.Descripcion, INSERTED.Activo
+                VALUES (@descripcion, 1)";
+
+            var parameters = new Dictionary<string, object?> { { "@descripcion", descripcion } };
+            var lista = await EjecutarListaFormasPagoAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
+        public async Task<FormaPagoDto> ActualizarFormaPagoAsync(int id, string descripcion)
+        {
+            var sql = @"
+                UPDATE FormasPago SET Descripcion = @descripcion WHERE Id = @id;
+                SELECT Id, Descripcion, Activo FROM FormasPago WHERE Id = @id";
+
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@id",          id },
+                { "@descripcion", descripcion }
+            };
+            var lista = await EjecutarListaFormasPagoAsync(sql, parameters);
+            return lista.FirstOrDefault();
+        }
+
+        public async Task EliminarFormaPagoAsync(int id)
+        {
+            var sql = "UPDATE FormasPago SET Activo = 0 WHERE Id = @id";
+            var parameters = new Dictionary<string, object?> { { "@id", id } };
+            await EjecutarComandoAsync(sql, parameters);
+        }
+
         // ── Ventas del Día ────────────────────────────────────────────────────
 
         public async Task<IEnumerable<VentaMesaResumenDto>> GetVentasDelDiaAsync()
@@ -285,79 +342,7 @@ namespace Comercio.NET.Mobile.Server.Services
             return lista;
         }
 
-        // ── Formas de Pago ────────────────────────────────────────────────────
-
-        public async Task<IEnumerable<FormaPagoDto>> GetFormasPagoAsync()
-        {
-            var sql = "SELECT Id, Descripcion, Activo FROM FormasPago WHERE Activo = 1 ORDER BY Descripcion";
-            return await EjecutarListaFormasPagoAsync(sql, new Dictionary<string, object?>());
-        }
-
-        public async Task<FormaPagoDto> CrearFormaPagoAsync(string descripcion)
-        {
-            var sql = @"
-                INSERT INTO FormasPago (Descripcion, Activo)
-                OUTPUT INSERTED.Id, INSERTED.Descripcion, INSERTED.Activo
-                VALUES (@descripcion, 1)";
-
-            var parameters = new Dictionary<string, object?> { { "@descripcion", descripcion } };
-            var lista = await EjecutarListaFormasPagoAsync(sql, parameters);
-            return lista.FirstOrDefault();
-        }
-
-        public async Task<FormaPagoDto> ActualizarFormaPagoAsync(int id, string descripcion)
-        {
-            var sql = @"
-                UPDATE FormasPago SET Descripcion = @descripcion WHERE Id = @id;
-                SELECT Id, Descripcion, Activo FROM FormasPago WHERE Id = @id";
-
-            var parameters = new Dictionary<string, object?>
-            {
-                { "@id",          id },
-                { "@descripcion", descripcion }
-            };
-            var lista = await EjecutarListaFormasPagoAsync(sql, parameters);
-            return lista.FirstOrDefault();
-        }
-
-        public async Task EliminarFormaPagoAsync(int id)
-        {
-            var sql = "UPDATE FormasPago SET Activo = 0 WHERE Id = @id";
-            var parameters = new Dictionary<string, object?> { { "@id", id } };
-            await EjecutarComandoAsync(sql, parameters);
-        }
-
-        private async Task<IEnumerable<FormaPagoDto>> EjecutarListaFormasPagoAsync(
-            string sql, Dictionary<string, object?> parameters)
-        {
-            var payload  = new { query = sql, parameters };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
-                throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
-            }
-
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-            var lista = new List<FormaPagoDto>();
-            if (resultado?.Data != null)
-            {
-                foreach (var row in resultado.Data)
-                {
-                    lista.Add(new FormaPagoDto
-                    {
-                        Id          = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                        Descripcion = ConvertToString(row.Count > 1 ? row[1] : null),
-                        Activo      = ConvertToInt32(row.Count > 2 ? row[2] : null) == 1,
-                    });
-                }
-            }
-            return lista;
-        }
+        // ── Helpers ───────────────────────────────────────────────────────────
 
         private async Task<IEnumerable<MesaDto>> EjecutarListaMesasAsync(
             string sql, Dictionary<string, object?> parameters)
@@ -455,6 +440,38 @@ namespace Comercio.NET.Mobile.Server.Services
                         Descripcion = ConvertToString(row.Count > 2 ? row[2] : null),
                         Precio      = ConvertToDecimal(row.Count > 3 ? row[3] : null),
                         Activo      = ConvertToInt32(row.Count > 4 ? row[4] : null) == 1,
+                    });
+                }
+            }
+            return lista;
+        }
+
+        private async Task<IEnumerable<FormaPagoDto>> EjecutarListaFormasPagoAsync(
+            string sql, Dictionary<string, object?> parameters)
+        {
+            var payload  = new { query = sql, parameters };
+            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            var content  = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
+            }
+
+            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            var lista = new List<FormaPagoDto>();
+            if (resultado?.Data != null)
+            {
+                foreach (var row in resultado.Data)
+                {
+                    lista.Add(new FormaPagoDto
+                    {
+                        Id          = ConvertToInt32(row.Count > 0 ? row[0] : null),
+                        Descripcion = ConvertToString(row.Count > 1 ? row[1] : null),
+                        Activo      = ConvertToInt32(row.Count > 2 ? row[2] : null) == 1,
                     });
                 }
             }

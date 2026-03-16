@@ -15,6 +15,7 @@ namespace Comercio.NET.Mobile.Server.Services
         // Mozos
         Task<IEnumerable<MozoDto>> GetMozosAsync();
         Task<MozoDto> CrearMozoAsync(string nombre);
+        Task<MozoDto> ActualizarMozoAsync(int id, string nombre);
         Task EliminarMozoAsync(int id);
 
         // Productos Bar

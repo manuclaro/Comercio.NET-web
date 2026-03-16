@@ -26,7 +26,7 @@
                     <tr>
                         <th>#</th>
                         <th>Nombre</th>
-                        <th></th>
+                        <th style="text-align:center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="bodyMozos"></tbody>
@@ -35,11 +35,12 @@
         <p id="mensajeVacioMozos" class="mensaje-vacio" style="display:none">No hay mozos cargados.</p>
     </div>
 
-    <!-- Modal nuevo mozo -->
-    <div id="modalNuevoMozo" class="modal-overlay">
+    <!-- Modal nuevo / editar mozo -->
+    <div id="modalMozo" class="modal-overlay">
         <div class="modal">
-            <h3>Agregar mozo</h3>
-            <form id="formNuevoMozo">
+            <h3 id="tituloModalMozo">Agregar mozo</h3>
+            <form id="formMozo">
+                <input type="hidden" id="inputIdMozo" />
                 <div class="campo">
                     <label>Nombre *</label>
                     <input type="text" id="inputNombreMozo" placeholder="Nombre completo" required />

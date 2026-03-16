@@ -33,6 +33,13 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en CrearMozo"); return StatusCode(500, new { error = ex.Message }); }
         }
 
+        [HttpPut("mozos/{id:int}")]
+        public async Task<IActionResult> ActualizarMozo(int id, [FromBody] MozoDto dto)
+        {
+            try { return Ok(await _mesasService.ActualizarMozoAsync(id, dto.Nombre)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en ActualizarMozo {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
         [HttpDelete("mozos/{id:int}")]
         public async Task<IActionResult> EliminarMozo(int id)
         {
@@ -68,6 +75,36 @@ namespace Comercio.NET.Mobile.Server.Controllers
         {
             try { await _mesasService.EliminarProductoBarAsync(id); return Ok(); }
             catch (Exception ex) { _logger.LogError(ex, "Error en EliminarProductoBar {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // ── Formas de Pago (antes que {id:int}) ───────────────────────────────
+
+        [HttpGet("formas-pago")]
+        public async Task<IActionResult> GetFormasPago()
+        {
+            try { return Ok(await _mesasService.GetFormasPagoAsync()); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en GetFormasPago"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPost("formas-pago")]
+        public async Task<IActionResult> CrearFormaPago([FromBody] FormaPagoDto dto)
+        {
+            try { return Ok(await _mesasService.CrearFormaPagoAsync(dto.Descripcion)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en CrearFormaPago"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPut("formas-pago/{id:int}")]
+        public async Task<IActionResult> ActualizarFormaPago(int id, [FromBody] FormaPagoDto dto)
+        {
+            try { return Ok(await _mesasService.ActualizarFormaPagoAsync(id, dto.Descripcion)); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en ActualizarFormaPago {Id}", id); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpDelete("formas-pago/{id:int}")]
+        public async Task<IActionResult> EliminarFormaPago(int id)
+        {
+            try { await _mesasService.EliminarFormaPagoAsync(id); return Ok(); }
+            catch (Exception ex) { _logger.LogError(ex, "Error en EliminarFormaPago {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
 
         // ── Ventas del Día (antes que {id:int}) ───────────────────────────────
@@ -133,36 +170,6 @@ namespace Comercio.NET.Mobile.Server.Controllers
         {
             try { return Ok(await _mesasService.CerrarMesaAsync(id, request)); }
             catch (Exception ex) { _logger.LogError(ex, "Error en CerrarMesa {Id}", id); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        // ── Formas de Pago ────────────────────────────────────────────────────
-
-        [HttpGet("formas-pago")]
-        public async Task<IActionResult> GetFormasPago()
-        {
-            try { return Ok(await _mesasService.GetFormasPagoAsync()); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en GetFormasPago"); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpPost("formas-pago")]
-        public async Task<IActionResult> CrearFormaPago([FromBody] FormaPagoDto dto)
-        {
-            try { return Ok(await _mesasService.CrearFormaPagoAsync(dto.Descripcion)); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en CrearFormaPago"); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpPut("formas-pago/{id:int}")]
-        public async Task<IActionResult> ActualizarFormaPago(int id, [FromBody] FormaPagoDto dto)
-        {
-            try { return Ok(await _mesasService.ActualizarFormaPagoAsync(id, dto.Descripcion)); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en ActualizarFormaPago {Id}", id); return StatusCode(500, new { error = ex.Message }); }
-        }
-
-        [HttpDelete("formas-pago/{id:int}")]
-        public async Task<IActionResult> EliminarFormaPago(int id)
-        {
-            try { await _mesasService.EliminarFormaPagoAsync(id); return Ok(); }
-            catch (Exception ex) { _logger.LogError(ex, "Error en EliminarFormaPago {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
     }
 }

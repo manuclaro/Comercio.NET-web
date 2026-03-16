@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const rol = (localStorage.getItem('usuario_rol') || '').toLowerCase();
-    if (rol !== 'pizzeria' && rol !== 'admin') { window.location.href = '/dashboard.html'; return; }
+    if (rol !== 'pizzeria') { window.location.href = '/dashboard.html'; return; }
 
     const nombre = localStorage.getItem('usuario_completo') || localStorage.getItem('usuario_nombre') || 'Usuario';
     document.getElementById('nombreUsuarioMozos').textContent = `👤 ${nombre}`;
@@ -23,15 +23,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btnSalir').addEventListener('click', () => {
         localStorage.clear(); window.location.href = '/login.html';
     });
-    document.getElementById('btnNuevoMozo').addEventListener('click', () => abrirModal('modalNuevoMozo'));
-    document.getElementById('btnCancelarMozo').addEventListener('click', () => cerrarModal('modalNuevoMozo'));
-    document.getElementById('formNuevoMozo').addEventListener('submit', onCrearMozo);
+    document.getElementById('btnNuevoMozo').addEventListener('click', () => abrirModalNuevo());
+    document.getElementById('btnCancelarMozo').addEventListener('click', () => cerrarModal('modalMozo'));
+    document.getElementById('formMozo').addEventListener('submit', onGuardarMozo);
 });
 
 async function cargarMozos() {
     try {
         const res = await fetch('/api/mesas/mozos');
-        const mozos = res.ok ? await res.json() : [];
+        if (!res.ok) { console.error('Error GET /api/mesas/mozos:', res.status, await res.text()); return; }
+        const mozos = await res.json();
         renderMozos(Array.isArray(mozos) ? mozos : []);
     } catch (err) {
         console.error('Error cargando mozos:', err);
@@ -55,30 +56,53 @@ function renderMozos(mozos) {
             <td>${i + 1}</td>
             <td>${m.nombre}</td>
             <td style="text-align:center">
+                <button class="btn-secondary" style="margin-right:4px"
+                    onclick='abrirModalEditar(${m.id}, ${JSON.stringify(m.nombre)})'
+                    title="Editar">✏️</button>
                 <button class="btn-del" onclick="eliminarMozo(${m.id})" title="Eliminar">🗑️</button>
             </td>
         </tr>
     `).join('');
 }
 
-async function onCrearMozo(e) {
+function abrirModalNuevo() {
+    document.getElementById('tituloModalMozo').textContent = 'Agregar mozo';
+    document.getElementById('inputIdMozo').value = '';
+    document.getElementById('inputNombreMozo').value = '';
+    abrirModal('modalMozo');
+}
+
+function abrirModalEditar(id, nombre) {
+    document.getElementById('tituloModalMozo').textContent = 'Editar mozo';
+    document.getElementById('inputIdMozo').value = id;
+    document.getElementById('inputNombreMozo').value = nombre ?? '';
+    abrirModal('modalMozo');
+}
+
+async function onGuardarMozo(e) {
     e.preventDefault();
+    const id     = document.getElementById('inputIdMozo').value;
     const nombre = document.getElementById('inputNombreMozo').value.trim();
-    if (!nombre) return;
+
+    if (!nombre) { alert('Ingresá un nombre.'); return; }
+
+    const esEdicion = !!id;
+    const url    = esEdicion ? `/api/mesas/mozos/${id}` : '/api/mesas/mozos';
+    const method = esEdicion ? 'PUT' : 'POST';
 
     try {
-        const res = await fetch('/api/mesas/mozos', {
-            method: 'POST',
+        const res = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre, activo: true })
         });
         if (!res.ok) throw new Error(await res.text());
-        cerrarModal('modalNuevoMozo');
-        document.getElementById('formNuevoMozo').reset();
+        cerrarModal('modalMozo');
+        document.getElementById('formMozo').reset();
         cargarMozos();
     } catch (err) {
-        console.error('Error creando mozo:', err);
-        alert('No se pudo crear el mozo.');
+        console.error('Error guardando mozo:', err);
+        alert('No se pudo guardar el mozo.');
     }
 }
 
