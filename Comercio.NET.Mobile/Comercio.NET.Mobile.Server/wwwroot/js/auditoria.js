@@ -1,11 +1,19 @@
 ﻿'use strict';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaLocal();
     document.getElementById('desdeAudit').value = hoy;
     document.getElementById('hastaAudit').value = hoy;
     cargarAuditoria();
 });
+
+function fechaLocal() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm   = String(d.getMonth() + 1).padStart(2, '0');
+    const dd   = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
 
 function formatCurrency(value) {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);

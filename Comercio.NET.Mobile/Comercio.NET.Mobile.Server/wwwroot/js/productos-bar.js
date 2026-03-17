@@ -66,7 +66,7 @@ function renderProductos(productos) {
             <td>${p.descripcion}</td>
             <td style="text-align:right">${formatCurrency(p.precio)}</td>
             <td style="text-align:center">
-                <button class="btn-del" style="color:#1565c0;font-size:1.1rem;margin-right:6px"
+                <button class="btn-del" style="color:#1565c0;font-size:1.1rem;margin-right:6px;background:none;border:none"
                     onclick='abrirModalEditar(${p.id}, ${JSON.stringify(p.codigo)}, ${JSON.stringify(p.descripcion)}, ${p.precio})'
                     title="Editar">✏️</button>
                 <button class="btn-del" onclick="eliminarProducto(${p.id})" title="Eliminar">🗑️</button>
