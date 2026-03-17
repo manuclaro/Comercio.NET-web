@@ -33,5 +33,8 @@ namespace Comercio.NET.Mobile.Server.Services
 
         // Ventas del día
         Task<IEnumerable<VentaMesaResumenDto>> GetVentasDelDiaAsync();
+
+        // Ventas por rango de fecha agrupadas por producto
+        Task<IEnumerable<VentaProductoDto>> GetVentasPorProductoAsync(DateTime fechaDesde, DateTime fechaHasta);
     }
 }

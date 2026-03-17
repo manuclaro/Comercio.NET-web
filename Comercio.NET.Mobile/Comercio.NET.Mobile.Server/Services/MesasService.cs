@@ -358,6 +358,69 @@ namespace Comercio.NET.Mobile.Server.Services
             return lista;
         }
 
+        // ── Ventas por producto en rango de fechas ────────────────────────────
+
+        public async Task<IEnumerable<VentaProductoDto>> GetVentasPorProductoAsync(
+            DateTime fechaDesde, DateTime fechaHasta)
+        {
+            var sql = @"
+                SELECT
+                    mi.Codigo,
+                    mi.Descripcion,
+                    ISNULL(pb.Tipo, '') AS TipoProducto,
+                    mi.Cantidad,
+                    mi.PrecioUnitario,
+                    mi.Subtotal,
+                    ISNULL(m.Mozo, '')      AS Mozo,
+                    ISNULL(m.FormaPago, '') AS FormaPago,
+                    m.FechaApertura
+                FROM MesasItems mi
+                INNER JOIN Mesas m ON m.Id = mi.MesaId
+                LEFT  JOIN ProductosBar pb ON pb.Codigo = mi.Codigo
+                WHERE CAST(m.FechaApertura AS DATE) BETWEEN @fechaDesde AND @fechaHasta
+                ORDER BY mi.Descripcion, m.FechaApertura";
+
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@fechaDesde", fechaDesde.ToString("yyyy-MM-dd") },
+                { "@fechaHasta", fechaHasta.ToString("yyyy-MM-dd") }
+            };
+
+            var payload  = new { query = sql, parameters };
+            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            var content  = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
+            }
+
+            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            var lista = new List<VentaProductoDto>();
+            if (resultado?.Data != null)
+            {
+                foreach (var row in resultado.Data)
+                {
+                    lista.Add(new VentaProductoDto
+                    {
+                        Codigo          = ConvertToString(row.Count > 0 ? row[0] : null),
+                        Descripcion     = ConvertToString(row.Count > 1 ? row[1] : null),
+                        TipoProducto    = ConvertToString(row.Count > 2 ? row[2] : null),
+                        CantidadTotal   = ConvertToInt32(row.Count > 3 ? row[3] : null),
+                        PrecioUnitario  = ConvertToDecimal(row.Count > 4 ? row[4] : null),
+                        TotalRecaudado  = ConvertToDecimal(row.Count > 5 ? row[5] : null),
+                        Mozo            = ConvertToString(row.Count > 6 ? row[6] : null),
+                        FormaPago       = ConvertToString(row.Count > 7 ? row[7] : null),
+                        FechaApertura   = ConvertToDateTime(row.Count > 8 ? row[8] : null),
+                    });
+                }
+            }
+            return lista;
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private async Task<IEnumerable<MesaDto>> EjecutarListaMesasAsync(

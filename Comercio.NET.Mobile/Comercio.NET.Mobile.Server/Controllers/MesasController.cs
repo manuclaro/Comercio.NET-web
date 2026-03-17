@@ -116,6 +116,26 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en GetVentasDelDia"); return StatusCode(500, new { error = ex.Message }); }
         }
 
+        // ── Ventas por producto en rango de fechas ────────────────────────────
+
+        [HttpGet("ventas-por-producto")]
+        public async Task<IActionResult> GetVentasPorProducto(
+            [FromQuery] DateTime? fechaDesde,
+            [FromQuery] DateTime? fechaHasta)
+        {
+            try
+            {
+                var desde = fechaDesde?.Date ?? DateTime.Today;
+                var hasta = fechaHasta?.Date ?? DateTime.Today;
+                return Ok(await _mesasService.GetVentasPorProductoAsync(desde, hasta));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetVentasPorProducto");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         // ── Mesas ─────────────────────────────────────────────────────────────
 
         [HttpGet]
