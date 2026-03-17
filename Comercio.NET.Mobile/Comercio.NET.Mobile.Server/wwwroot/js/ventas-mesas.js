@@ -22,6 +22,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await cargarVentas();
 
+    // ── Delegación de eventos: clic en fila de ventas ──────────────────────
+    document.getElementById('bodyVentas').addEventListener('click', async (e) => {
+        const fila = e.target.closest('tr.fila-clickable');
+        if (!fila) return;
+
+        const mesaId    = Number(fila.dataset.mesaId);
+        const titulo    = fila.dataset.titulo;
+        const mozo      = fila.dataset.mozo;
+        const estado    = fila.dataset.estado;
+        const formaPago = fila.dataset.formaPago;
+
+        await verDetalle(mesaId, titulo, mozo, estado, formaPago);
+    });
+
     document.getElementById('btnSalir').addEventListener('click', () => {
         localStorage.clear(); window.location.href = '/login.html';
     });
@@ -123,15 +137,24 @@ function renderVentas(ventas) {
     }
 
     vacio.style.display = 'none';
+
+    // Los datos se guardan en data-* para evitar problemas con caracteres
+    // especiales en atributos onclick inline
     body.innerHTML = ventas.map(v => {
         const mozo      = (v.mozo      ?? '').trim();
         const estado    = (v.estado    ?? '').trim();
         const formaPago = (v.formaPago ?? '').trim();
 
+        const escAttr = str => str.replace(/"/g, '&quot;');
+
         return `
         <tr class="fila-clickable"
             title="Ver consumos de Mesa #${v.numeroMesa}"
-            onclick="verDetalle(${v.mesaId}, 'Mesa #${v.numeroMesa}', ${JSON.stringify(mozo)}, ${JSON.stringify(estado)}, ${JSON.stringify(formaPago)})">
+            data-mesa-id="${v.mesaId}"
+            data-titulo="Mesa #${v.numeroMesa}"
+            data-mozo="${escAttr(mozo)}"
+            data-estado="${escAttr(estado)}"
+            data-forma-pago="${escAttr(formaPago)}">
             <td>#${v.numeroMesa}</td>
             <td>${mozo || '-'}</td>
             <td>${formatFecha(v.fechaApertura)}</td>
