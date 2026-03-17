@@ -1,6 +1,7 @@
 ﻿'use strict';
 
 let mesaActivaId = null;
+let turnoActivo  = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('auth_token');
@@ -24,14 +25,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const spanNombre = document.getElementById('nombreUsuarioMesas');
     if (spanNombre) spanNombre.textContent = `👤 ${nombre}`;
 
-    await Promise.all([cargarMozos(), cargarProductosBar(), cargarFormasPago(), cargarMesas()]);
+    await Promise.all([cargarMozos(), cargarProductosBar(), cargarFormasPago()]);
+    await verificarTurno();
 
     document.getElementById('btnSalir').addEventListener('click', () => {
         localStorage.clear();
         window.location.href = '/login.html';
     });
 
-    document.getElementById('btnNuevaMesa').addEventListener('click', () => abrirModal('modalNuevaMesa'));
+    document.getElementById('btnNuevaMesa').addEventListener('click', () => {
+        if (!turnoActivo) { alert('Primero abrí un turno para poder abrir mesas.'); return; }
+        abrirModal('modalNuevaMesa');
+    });
     document.getElementById('btnCerrarNuevaMesa').addEventListener('click', () => cerrarModal('modalNuevaMesa'));
     document.getElementById('formNuevaMesa').addEventListener('submit', onAbrirMesa);
 
@@ -40,6 +45,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btnCerrarMesa').addEventListener('click', () => abrirModal('modalCerrarMesa'));
     document.getElementById('btnCancelarCierre').addEventListener('click', () => cerrarModal('modalCerrarMesa'));
     document.getElementById('formCerrarMesa').addEventListener('submit', onCerrarMesa);
+
+    // Turno
+    document.getElementById('btnAbrirTurno').addEventListener('click', onAbrirTurno);
+    document.getElementById('btnCerrarTurno').addEventListener('click', () => abrirModal('modalCerrarTurno'));
+    document.getElementById('btnCancelarCierreTurno').addEventListener('click', () => cerrarModal('modalCerrarTurno'));
+    document.getElementById('btnConfirmarCierreTurno').addEventListener('click', onCerrarTurno);
 
     // ── Delegación: tabla desktop ──────────────────────────────────────────
     document.getElementById('bodyItems').addEventListener('click', async (e) => {
@@ -63,19 +74,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ── Delegación: cards móvil ────────────────────────────────────────────
     document.getElementById('itemsCards').addEventListener('click', async (e) => {
-        const btnMenos     = e.target.closest('[data-accion="cant-menos"]');
-        const btnMas       = e.target.closest('[data-accion="cant-mas"]');
-        const btnOk        = e.target.closest('[data-accion="cant-ok"]');
-        const btnEliminar  = e.target.closest('[data-accion="eliminar-card"]');
+        const btnMenos    = e.target.closest('[data-accion="cant-menos"]');
+        const btnMas      = e.target.closest('[data-accion="cant-mas"]');
+        const btnOk       = e.target.closest('[data-accion="cant-ok"]');
+        const btnEliminar = e.target.closest('[data-accion="eliminar-card"]');
 
         if (btnMenos) {
-            const itemId = Number(btnMenos.dataset.id);
-            const input  = document.querySelector(`input[data-card-id="${itemId}"]`);
+            const input = document.querySelector(`input[data-card-id="${btnMenos.dataset.id}"]`);
             if (input) input.value = Math.max(1, parseInt(input.value, 10) - 1);
         }
         if (btnMas) {
-            const itemId = Number(btnMas.dataset.id);
-            const input  = document.querySelector(`input[data-card-id="${itemId}"]`);
+            const input = document.querySelector(`input[data-card-id="${btnMas.dataset.id}"]`);
             if (input) input.value = parseInt(input.value, 10) + 1;
         }
         if (btnOk) {
@@ -93,6 +102,76 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+// ─── Turno ────────────────────────────────────────────────────────────────────
+
+async function verificarTurno() {
+    try {
+        const res  = await fetch('/api/turno/activo');
+        const data = res.ok ? await res.json() : null;
+
+        turnoActivo = data?.abierto ? data.turno : null;
+        renderBannerTurno();
+        await cargarMesas();
+    } catch (err) {
+        console.error('Error verificando turno:', err);
+        renderBannerTurno();
+        await cargarMesas();
+    }
+}
+
+function renderBannerTurno() {
+    const banner      = document.getElementById('bannedTurno');
+    const info        = document.getElementById('turnoInfo');
+    const btnAbrir    = document.getElementById('btnAbrirTurno');
+    const btnCerrar   = document.getElementById('btnCerrarTurno');
+
+    banner.style.display = 'flex';
+
+    if (turnoActivo) {
+        banner.className   = 'turno-banner turno-abierto';
+        info.textContent   = `🟢 Turno abierto desde ${formatFecha(turnoActivo.fechaApertura)}`;
+        btnAbrir.style.display  = 'none';
+        btnCerrar.style.display = 'inline-block';
+    } else {
+        banner.className   = 'turno-banner turno-cerrado';
+        info.textContent   = '🔴 Sin turno abierto';
+        btnAbrir.style.display  = 'inline-block';
+        btnCerrar.style.display = 'none';
+    }
+}
+
+async function onAbrirTurno() {
+    try {
+        const res = await fetch('/api/turno/abrir', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        turnoActivo = await res.json();
+        renderBannerTurno();
+    } catch (err) {
+        console.error('Error abriendo turno:', err);
+        alert('No se pudo abrir el turno.');
+    }
+}
+
+async function onCerrarTurno() {
+    cerrarModal('modalCerrarTurno');
+    try {
+        const res = await fetch('/api/turno/cerrar', { method: 'POST' });
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            alert(body.error || 'No se pudo cerrar el turno.');
+            return;
+        }
+        turnoActivo = null;
+        renderBannerTurno();
+        await cargarMesas();
+    } catch (err) {
+        console.error('Error cerrando turno:', err);
+        alert('No se pudo cerrar el turno.');
+    }
+}
+
+// ─── Utilidades ───────────────────────────────────────────────────────────────
 
 function formatCurrency(value) {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
@@ -247,7 +326,6 @@ async function abrirDetalleMesa(mesaId) {
     }
 }
 
-// ── Vista tabla — desktop ─────────────────────────────────────────────────────
 function renderItems(items) {
     const body = document.getElementById('bodyItems');
 
@@ -262,29 +340,19 @@ function renderItems(items) {
             <td>${i.descripcion ?? '-'}</td>
             <td>
                 <div class="cantidad-cell">
-                    <input type="number"
-                        data-cantidad-id="${i.id}"
-                        value="${i.cantidad}"
-                        min="1" />
-                    <button class="btn-confirmar"
-                        data-accion="confirmar-cantidad"
-                        data-id="${i.id}"
-                        title="Confirmar cantidad">✔</button>
+                    <input type="number" data-cantidad-id="${i.id}" value="${i.cantidad}" min="1" />
+                    <button class="btn-confirmar" data-accion="confirmar-cantidad" data-id="${i.id}" title="Confirmar cantidad">✔</button>
                 </div>
             </td>
             <td style="text-align:right">${formatCurrency(i.precioUnitario)}</td>
             <td style="text-align:right"><strong>${formatCurrency(i.subtotal)}</strong></td>
             <td style="text-align:center">
-                <button class="btn-del"
-                    data-accion="eliminar-item"
-                    data-id="${i.id}"
-                    title="Eliminar">🗑️</button>
+                <button class="btn-del" data-accion="eliminar-item" data-id="${i.id}" title="Eliminar">🗑️</button>
             </td>
         </tr>
     `).join('');
 }
 
-// ── Vista cards — móvil ───────────────────────────────────────────────────────
 function renderItemCards(items) {
     const container = document.getElementById('itemsCards');
 
@@ -300,10 +368,7 @@ function renderItemCards(items) {
                     <div class="item-card-nombre">${i.descripcion ?? '-'}</div>
                     <div class="item-card-codigo">${i.codigo ?? ''}</div>
                 </div>
-                <button class="btn-del-card"
-                    data-accion="eliminar-card"
-                    data-id="${i.id}"
-                    title="Eliminar">🗑️</button>
+                <button class="btn-del-card" data-accion="eliminar-card" data-id="${i.id}" title="Eliminar">🗑️</button>
             </div>
             <div class="item-card-bottom">
                 <div class="item-card-precios">
@@ -311,20 +376,10 @@ function renderItemCards(items) {
                     <strong>Subtotal: ${formatCurrency(i.subtotal)}</strong>
                 </div>
                 <div class="item-card-cantidad">
-                    <button class="btn-cant"
-                        data-accion="cant-menos"
-                        data-id="${i.id}">−</button>
-                    <input type="number"
-                        data-card-id="${i.id}"
-                        value="${i.cantidad}"
-                        min="1" />
-                    <button class="btn-cant"
-                        data-accion="cant-mas"
-                        data-id="${i.id}">+</button>
-                    <button class="btn-cant-ok"
-                        data-accion="cant-ok"
-                        data-id="${i.id}"
-                        title="Confirmar">✔</button>
+                    <button class="btn-cant" data-accion="cant-menos" data-id="${i.id}">−</button>
+                    <input type="number" data-card-id="${i.id}" value="${i.cantidad}" min="1" />
+                    <button class="btn-cant" data-accion="cant-mas" data-id="${i.id}">+</button>
+                    <button class="btn-cant-ok" data-accion="cant-ok" data-id="${i.id}" title="Confirmar">✔</button>
                 </div>
             </div>
         </div>

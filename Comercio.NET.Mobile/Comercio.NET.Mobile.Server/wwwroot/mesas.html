@@ -1,11 +1,13 @@
 ﻿<!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Control de Mesas</title>
     <link rel="stylesheet" href="/css/mesas.css" />
 </head>
+
 <body>
 
     <header>
@@ -16,6 +18,15 @@
             <button id="btnSalir" class="btn-back">Cerrar Sesión</button>
         </div>
     </header>
+
+    <!-- ── Banner de turno ──────────────────────────────────────────────────── -->
+    <div id="bannedTurno" class="turno-banner turno-cerrado" style="display:none">
+        <span id="turnoInfo">Sin turno abierto</span>
+        <div class="turno-acciones">
+            <button id="btnAbrirTurno" class="btn-turno-abrir" style="display:none">▶ Abrir turno</button>
+            <button id="btnCerrarTurno" class="btn-turno-cerrar" style="display:none">■ Cerrar turno</button>
+        </div>
+    </div>
 
     <div class="container">
 
@@ -56,7 +67,7 @@
                 </div>
             </div>
 
-            <!-- Tabla de consumos — DESKTOP (oculta en móvil vía CSS) -->
+            <!-- Tabla de consumos — DESKTOP -->
             <div class="tabla-wrap tabla-items-wrap">
                 <table>
                     <thead>
@@ -73,7 +84,7 @@
                 </table>
             </div>
 
-            <!-- Cards de consumos — MÓVIL (ocultas en desktop vía CSS) -->
+            <!-- Cards de consumos — MÓVIL -->
             <div id="itemsCards" class="items-cards"></div>
 
             <div class="pie-detalle">
@@ -125,9 +136,24 @@
         </div>
     </div>
 
+    <!-- ── Modal: confirmar cierre de turno ──────────────────────────────── -->
+    <div id="modalCerrarTurno" class="modal-overlay">
+        <div class="modal">
+            <h3>Cerrar turno</h3>
+            <p style="margin-bottom:1rem;color:#555">
+                ¿Confirmás el cierre del turno actual? Esta acción cerrará el turno y ya no se podrán registrar nuevas ventas hasta abrir uno nuevo.
+            </p>
+            <div class="modal-acciones">
+                <button type="button" id="btnCancelarCierreTurno" class="btn-secondary">Cancelar</button>
+                <button type="button" id="btnConfirmarCierreTurno" class="btn-danger">■ Cerrar turno</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Ticket de impresión (oculto en pantalla) -->
     <div id="ticketPrint"></div>
 
     <script src="/js/mesas.js"></script>
 </body>
+
 </html>

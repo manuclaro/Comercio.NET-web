@@ -215,6 +215,14 @@ namespace Comercio.NET.Mobile.Server.Services
             return new ResumenVentasDto();
         }
 
+        public Task<IEnumerable<VentaDto>> GetVentasPorTurnoAsync(
+            DateTime desde, int? numeroCajero = null, string? formaPago = null, string? tipoFactura = null)
+            => GetVentasDelDiaAsync(desde, DateTime.Now, numeroCajero, formaPago, tipoFactura);
+
+        public Task<ResumenVentasDto> GetResumenPorTurnoAsync(
+            DateTime desde, int? numeroCajero = null, string? formaPago = null, string? tipoFactura = null)
+            => GetResumenAsync(desde, DateTime.Now, numeroCajero, formaPago, tipoFactura);
+
         private static int ConvertToInt32(object? value)
         {
             if (value is null) return 0;

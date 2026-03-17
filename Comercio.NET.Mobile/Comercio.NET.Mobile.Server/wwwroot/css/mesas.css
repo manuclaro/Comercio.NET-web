@@ -190,6 +190,61 @@ header {
     flex-shrink: 0;
 }
 
+/* ── Banner turno ── */
+.turno-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1.2rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.turno-abierto {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-bottom: 2px solid #a5d6a7;
+}
+
+.turno-cerrado {
+    background: #ffebee;
+    color: #c62828;
+    border-bottom: 2px solid #ef9a9a;
+}
+
+.turno-acciones {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-turno-abrir {
+    background: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-turno-abrir:hover { background: #1b5e20; }
+
+.btn-turno-cerrar {
+    background: #c62828;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-turno-cerrar:hover { background: #b71c1c; }
+
 /* ══════════════════════════════════════════════════════════
    TABLA DE ÍTEMS — desktop (siempre visible en ≥ 601px)
    ══════════════════════════════════════════════════════════ */

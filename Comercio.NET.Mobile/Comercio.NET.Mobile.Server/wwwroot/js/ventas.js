@@ -1,19 +1,8 @@
 ﻿'use strict';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const hoy = fechaLocal();
-    document.getElementById('desdeVentas').value = hoy;
-    document.getElementById('hastaVentas').value = hoy;
     cargarVentas();
 });
-
-function fechaLocal() {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm   = String(d.getMonth() + 1).padStart(2, '0');
-    const dd   = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
 
 function formatCurrency(value) {
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
@@ -41,33 +30,32 @@ function badgePago(formaPago, esCtaCte) {
 }
 
 async function cargarVentas() {
-    const desde       = document.getElementById('desdeVentas').value  || fechaLocal();
-    const hasta       = document.getElementById('hastaVentas').value  || desde;
     const cajero      = document.getElementById('cajeroVentas').value.trim();
     const formaPago   = document.getElementById('formaPagoVentas').value;
     const tipoFactura = document.getElementById('tipoFacturaVentas').value;
 
-    let urlVentas  = `/api/ventas?desde=${desde}&hasta=${hasta}`;
-    let urlResumen = `/api/ventas/resumen?desde=${desde}&hasta=${hasta}`;
+    let urlVentas  = '/api/ventas';
+    let urlResumen = '/api/ventas/resumen';
+    const params   = new URLSearchParams();
 
-    if (cajero) {
-        urlVentas  += `&numeroCajero=${cajero}`;
-        urlResumen += `&numeroCajero=${cajero}`;
-    }
-    if (formaPago) {
-        urlVentas  += `&formaPago=${encodeURIComponent(formaPago)}`;
-        urlResumen += `&formaPago=${encodeURIComponent(formaPago)}`;
-    }
-    if (tipoFactura) {
-        urlVentas  += `&tipoFactura=${encodeURIComponent(tipoFactura)}`;
-        urlResumen += `&tipoFactura=${encodeURIComponent(tipoFactura)}`;
-    }
+    if (cajero)      params.set('numeroCajero', cajero);
+    if (formaPago)   params.set('formaPago', formaPago);
+    if (tipoFactura) params.set('tipoFactura', tipoFactura);
+
+    const qs = params.toString();
+    if (qs) { urlVentas += `?${qs}`; urlResumen += `?${qs}`; }
 
     try {
         const [ventasRes, resumenRes] = await Promise.all([
             fetch(urlVentas),
             fetch(urlResumen)
         ]);
+
+        // Verificar si hay turno abierto
+        const turnoRes  = await fetch('/api/turno/activo');
+        const turnoData = turnoRes.ok ? await turnoRes.json() : null;
+        const avisoEl   = document.getElementById('avisoSinTurno');
+        if (avisoEl) avisoEl.style.display = turnoData?.abierto ? 'none' : 'block';
 
         if (!ventasRes.ok) {
             console.error('Error en /api/ventas:', ventasRes.status, await ventasRes.text());

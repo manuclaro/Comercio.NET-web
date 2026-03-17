@@ -10,7 +10,6 @@ builder.Services.AddHttpClient();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Serializa propiedades en camelCase hacia el cliente (comportamiento estándar de Web APIs)
         options.JsonSerializerOptions.PropertyNamingPolicy        = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
@@ -22,6 +21,7 @@ builder.Services.AddScoped<EstadisticasService>();
 builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<IMesasService, MesasService>();
+builder.Services.AddScoped<ITurnoService, TurnoService>();
 
 builder.Services.AddCors(options =>
 {
@@ -48,9 +48,9 @@ app.MapGet("/api/health", () =>
     var sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL");
     return Results.Ok(new
     {
-        status        = "OK",
+        status          = "OK",
         hasSqlBridgeUrl = !string.IsNullOrEmpty(sqlBridgeUrl),
-        sqlBridgeUrl  = sqlBridgeUrl
+        sqlBridgeUrl    = sqlBridgeUrl
     });
 });
 

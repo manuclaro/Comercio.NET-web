@@ -8,28 +8,30 @@ namespace Comercio.NET.Mobile.Server.Controllers
     public class VentasController : ControllerBase
     {
         private readonly IVentasService _ventasService;
+        private readonly ITurnoService  _turnoService;
         private readonly ILogger<VentasController> _logger;
 
-        public VentasController(IVentasService ventasService, ILogger<VentasController> logger)
+        public VentasController(IVentasService ventasService, ITurnoService turnoService, ILogger<VentasController> logger)
         {
             _ventasService = ventasService;
-            _logger = logger;
+            _turnoService  = turnoService;
+            _logger        = logger;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetVentas(
-            [FromQuery] string? desde,
-            [FromQuery] string? hasta,
             [FromQuery] int? numeroCajero,
             [FromQuery] string? formaPago,
             [FromQuery] string? tipoFactura)
         {
-            var fechaDesde = DateTime.TryParse(desde, out var d) ? d : DateTime.Today;
-            var fechaHasta = DateTime.TryParse(hasta, out var h) ? h : fechaDesde;
-
             try
             {
-                var ventas = await _ventasService.GetVentasDelDiaAsync(fechaDesde, fechaHasta, numeroCajero, formaPago, tipoFactura);
+                var turno = await _turnoService.GetTurnoActivoAsync();
+                if (turno is null)
+                    return Ok(Array.Empty<object>());
+
+                var ventas = await _ventasService.GetVentasPorTurnoAsync(
+                    turno.FechaApertura, numeroCajero, formaPago, tipoFactura);
                 return Ok(ventas);
             }
             catch (Exception ex)
@@ -41,18 +43,18 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet("resumen")]
         public async Task<IActionResult> GetResumen(
-            [FromQuery] string? desde,
-            [FromQuery] string? hasta,
             [FromQuery] int? numeroCajero,
             [FromQuery] string? formaPago,
             [FromQuery] string? tipoFactura)
         {
-            var fechaDesde = DateTime.TryParse(desde, out var d) ? d : DateTime.Today;
-            var fechaHasta = DateTime.TryParse(hasta, out var h) ? h : fechaDesde;
-
             try
             {
-                var resumen = await _ventasService.GetResumenAsync(fechaDesde, fechaHasta, numeroCajero, formaPago, tipoFactura);
+                var turno = await _turnoService.GetTurnoActivoAsync();
+                if (turno is null)
+                    return Ok(new { });
+
+                var resumen = await _ventasService.GetResumenPorTurnoAsync(
+                    turno.FechaApertura, numeroCajero, formaPago, tipoFactura);
                 return Ok(resumen);
             }
             catch (Exception ex)
