@@ -46,12 +46,6 @@ async function cargarVentas() {
         const res = await fetch('/api/mesas/ventas-dia');
         const ventas = res.ok ? await res.json() : [];
         _todasLasVentas = Array.isArray(ventas) ? ventas : [];
-
-        // Debug: verificar estructura del primer registro
-        if (_todasLasVentas.length > 0) {
-            console.log('[ventas-mesas] primer registro:', _todasLasVentas[0]);
-        }
-
         poblarFiltros(_todasLasVentas);
         renderVentas(_todasLasVentas);
     } catch (err) {
@@ -61,11 +55,8 @@ async function cargarVentas() {
 }
 
 function poblarFiltros(ventas) {
-    // Normalizar y filtrar valores válidos (no nulos, no vacíos tras trim)
     const mozos = [...new Set(
-        ventas
-            .map(v => (v.mozo ?? v.Mozo ?? '').toString().trim())
-            .filter(m => m !== '')
+        ventas.map(v => (v.mozo ?? '').trim()).filter(m => m !== '')
     )].sort();
 
     const selMozo    = document.getElementById('filtroMozo');
@@ -73,16 +64,14 @@ function poblarFiltros(ventas) {
     selMozo.innerHTML = '<option value="">Todos los mozos</option>';
     mozos.forEach(m => {
         const opt = document.createElement('option');
-        opt.value = m;
+        opt.value       = m;
         opt.textContent = m;
         if (m === mozoActual) opt.selected = true;
         selMozo.appendChild(opt);
     });
 
     const formas = [...new Set(
-        ventas
-            .map(v => (v.formaPago ?? v.FormaPago ?? '').toString().trim())
-            .filter(f => f !== '')
+        ventas.map(v => (v.formaPago ?? '').trim()).filter(f => f !== '')
     )].sort();
 
     const selFP    = document.getElementById('filtroFormaPago');
@@ -90,7 +79,7 @@ function poblarFiltros(ventas) {
     selFP.innerHTML = '<option value="">Todas las formas de pago</option>';
     formas.forEach(f => {
         const opt = document.createElement('option');
-        opt.value = f;
+        opt.value       = f;
         opt.textContent = f;
         if (f === fpActual) opt.selected = true;
         selFP.appendChild(opt);
@@ -103,13 +92,9 @@ function aplicarFiltros() {
     const estado    = document.getElementById('filtroEstado').value;
 
     const filtradas = _todasLasVentas.filter(v => {
-        const vMozo  = (v.mozo ?? v.Mozo ?? '').toString().trim();
-        const vFP    = (v.formaPago ?? v.FormaPago ?? '').toString().trim();
-        const vEst   = (v.estado ?? v.Estado ?? '').toString().trim();
-
-        if (mozo      && vMozo !== mozo)      return false;
-        if (formaPago && vFP   !== formaPago)  return false;
-        if (estado    && vEst  !== estado)     return false;
+        if (mozo      && (v.mozo      ?? '').trim() !== mozo)      return false;
+        if (formaPago && (v.formaPago ?? '').trim() !== formaPago)  return false;
+        if (estado    && (v.estado    ?? '').trim() !== estado)     return false;
         return true;
     });
 
@@ -127,7 +112,7 @@ function renderVentas(ventas) {
     const body  = document.getElementById('bodyVentas');
     const vacio = document.getElementById('mensajeVacioVentas');
 
-    const totalDia = ventas.reduce((acc, v) => acc + (v.total ?? v.Total ?? 0), 0);
+    const totalDia = ventas.reduce((acc, v) => acc + (v.total ?? 0), 0);
     document.getElementById('resumenDia').textContent =
         `Total del día: ${formatCurrency(totalDia)} · ${ventas.length} mesa(s)`;
 
@@ -139,24 +124,22 @@ function renderVentas(ventas) {
 
     vacio.style.display = 'none';
     body.innerHTML = ventas.map(v => {
-        const mozo      = (v.mozo      ?? v.Mozo      ?? '').toString().trim();
-        const estado    = (v.estado    ?? v.Estado    ?? '').toString().trim();
-        const formaPago = (v.formaPago ?? v.FormaPago ?? '').toString().trim();
-        const mesaId    =  v.mesaId    ?? v.MesaId;
-        const nroMesa   =  v.numeroMesa ?? v.NumeroMesa;
+        const mozo      = (v.mozo      ?? '').trim();
+        const estado    = (v.estado    ?? '').trim();
+        const formaPago = (v.formaPago ?? '').trim();
 
         return `
-        <tr style="cursor:pointer" onclick="verDetalle(${mesaId}, 'Mesa #${nroMesa}', ${JSON.stringify(mozo)}, ${JSON.stringify(estado)}, ${JSON.stringify(formaPago)})">
-            <td>#${nroMesa}</td>
+        <tr style="cursor:pointer" onclick="verDetalle(${v.mesaId}, 'Mesa #${v.numeroMesa}', ${JSON.stringify(mozo)}, ${JSON.stringify(estado)}, ${JSON.stringify(formaPago)})">
+            <td>#${v.numeroMesa}</td>
             <td>${mozo || '-'}</td>
-            <td>${formatFecha(v.fechaApertura ?? v.FechaApertura)}</td>
-            <td>${(v.fechaCierre ?? v.FechaCierre) ? formatFecha(v.fechaCierre ?? v.FechaCierre) : '-'}</td>
+            <td>${formatFecha(v.fechaApertura)}</td>
+            <td class="col-cierre">${v.fechaCierre ? formatFecha(v.fechaCierre) : '-'}</td>
             <td>
                 <span style="color:${estado === 'Abierta' ? '#2e7d32' : '#c62828'};font-weight:600">
                     ${estado}
                 </span>
             </td>
-            <td style="text-align:right;font-weight:600">${formatCurrency(v.total ?? v.Total ?? 0)}</td>
+            <td style="text-align:right;font-weight:600">${formatCurrency(v.total ?? 0)}</td>
             <td>${formaPago || '-'}</td>
         </tr>`;
     }).join('');
@@ -181,7 +164,7 @@ async function verDetalle(mesaId, titulo, mozo, estado, formaPago) {
         } else {
             body.innerHTML = items.map(i => `
                 <tr>
-                    <td>${i.codigo || '-'}</td>
+                    <td class="col-codigo">${i.codigo || '-'}</td>
                     <td>${i.descripcion}</td>
                     <td style="text-align:center">${i.cantidad}</td>
                     <td style="text-align:right">${formatCurrency(i.precioUnitario)}</td>

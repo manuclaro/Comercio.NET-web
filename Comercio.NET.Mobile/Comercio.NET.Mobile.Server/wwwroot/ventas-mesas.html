@@ -23,7 +23,7 @@
         <div id="vistaListado">
 
             <!-- Filtros -->
-            <div class="form-item" style="margin-bottom:1rem">
+            <div class="form-item">
                 <div class="field">
                     <label>Mozo</label>
                     <select id="filtroMozo">
@@ -44,14 +44,14 @@
                         <option value="Cerrada">Cerrada</option>
                     </select>
                 </div>
-                <div style="display:flex;gap:.5rem;align-items:flex-end">
+                <div class="filtros-acciones">
                     <button id="btnFiltrar" class="btn-primary">Filtrar</button>
                     <button id="btnLimpiarFiltros" class="btn-secondary">Limpiar</button>
                 </div>
             </div>
 
             <!-- Resumen -->
-            <p id="resumenDia" style="margin-bottom:.8rem;font-weight:600;color:#1a1a2e"></p>
+            <p id="resumenDia" class="resumen-dia"></p>
 
             <!-- Tabla -->
             <div class="tabla-wrap">
@@ -61,7 +61,7 @@
                             <th>Mesa</th>
                             <th>Mozo</th>
                             <th>Apertura</th>
-                            <th>Cierre</th>
+                            <th class="col-cierre">Cierre</th>
                             <th>Estado</th>
                             <th style="text-align:right">Total</th>
                             <th>Forma de pago</th>
@@ -86,7 +86,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Código</th>
+                            <th class="col-codigo">Código</th>
                             <th>Descripción</th>
                             <th style="text-align:center">Cant.</th>
                             <th style="text-align:right">Precio unit.</th>

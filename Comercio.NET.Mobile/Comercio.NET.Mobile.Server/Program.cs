@@ -7,7 +7,13 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 builder.Services.AddHttpClient();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Serializa propiedades en camelCase hacia el cliente (comportamiento estándar de Web APIs)
+        options.JsonSerializerOptions.PropertyNamingPolicy        = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 
 builder.Services.AddScoped<ArqueoCajaService>();
 builder.Services.AddScoped<AuthService>();
@@ -42,9 +48,9 @@ app.MapGet("/api/health", () =>
     var sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL");
     return Results.Ok(new
     {
-        status = "OK",
+        status        = "OK",
         hasSqlBridgeUrl = !string.IsNullOrEmpty(sqlBridgeUrl),
-        sqlBridgeUrl = sqlBridgeUrl
+        sqlBridgeUrl  = sqlBridgeUrl
     });
 });
 

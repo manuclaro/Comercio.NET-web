@@ -43,15 +43,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Delegación de eventos para botones generados dinámicamente en la tabla de ítems
     document.getElementById('bodyItems').addEventListener('click', async (e) => {
-        const btnEliminar = e.target.closest('[data-accion="eliminar-item"]');
+        const btnEliminar  = e.target.closest('[data-accion="eliminar-item"]');
         const btnConfirmar = e.target.closest('[data-accion="confirmar-cantidad"]');
 
         if (btnEliminar) {
             await eliminarItem(Number(btnEliminar.dataset.id));
         }
         if (btnConfirmar) {
-            const itemId = Number(btnConfirmar.dataset.id);
-            const input  = document.querySelector(`input[data-cantidad-id="${itemId}"]`);
+            const itemId        = Number(btnConfirmar.dataset.id);
+            const input         = document.querySelector(`input[data-cantidad-id="${itemId}"]`);
             const nuevaCantidad = parseInt(input?.value, 10);
             if (!input || isNaN(nuevaCantidad) || nuevaCantidad < 1) {
                 alert('Ingresá una cantidad válida (mínimo 1).');
@@ -225,15 +225,13 @@ function renderItems(items) {
         <tr>
             <td>${i.codigo ?? '-'}</td>
             <td>${i.descripcion ?? '-'}</td>
-            <td style="text-align:center">
-                <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+            <td>
+                <div class="cantidad-cell">
                     <input type="number"
                         data-cantidad-id="${i.id}"
                         value="${i.cantidad}"
-                        min="1"
-                        style="width:60px;padding:2px 4px;border:1px solid #ccc;border-radius:6px;text-align:center;font-size:.9rem" />
-                    <button class="btn-secondary"
-                        style="padding:2px 7px;font-size:.85rem"
+                        min="1" />
+                    <button class="btn-confirmar"
                         data-accion="confirmar-cantidad"
                         data-id="${i.id}"
                         title="Confirmar cantidad">✔</button>
