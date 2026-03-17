@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btnCancelarCierre').addEventListener('click', () => cerrarModal('modalCerrarMesa'));
     document.getElementById('formCerrarMesa').addEventListener('submit', onCerrarMesa);
 
-    // Delegación de eventos para botones generados dinámicamente en la tabla de ítems
+    // ── Delegación: tabla desktop ──────────────────────────────────────────
     document.getElementById('bodyItems').addEventListener('click', async (e) => {
         const btnEliminar  = e.target.closest('[data-accion="eliminar-item"]');
         const btnConfirmar = e.target.closest('[data-accion="confirmar-cantidad"]');
@@ -60,6 +60,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             await actualizarCantidadItem(itemId, nuevaCantidad);
         }
     });
+
+    // ── Delegación: cards móvil ────────────────────────────────────────────
+    document.getElementById('itemsCards').addEventListener('click', async (e) => {
+        const btnMenos     = e.target.closest('[data-accion="cant-menos"]');
+        const btnMas       = e.target.closest('[data-accion="cant-mas"]');
+        const btnOk        = e.target.closest('[data-accion="cant-ok"]');
+        const btnEliminar  = e.target.closest('[data-accion="eliminar-card"]');
+
+        if (btnMenos) {
+            const itemId = Number(btnMenos.dataset.id);
+            const input  = document.querySelector(`input[data-card-id="${itemId}"]`);
+            if (input) input.value = Math.max(1, parseInt(input.value, 10) - 1);
+        }
+        if (btnMas) {
+            const itemId = Number(btnMas.dataset.id);
+            const input  = document.querySelector(`input[data-card-id="${itemId}"]`);
+            if (input) input.value = parseInt(input.value, 10) + 1;
+        }
+        if (btnOk) {
+            const itemId        = Number(btnOk.dataset.id);
+            const input         = document.querySelector(`input[data-card-id="${itemId}"]`);
+            const nuevaCantidad = parseInt(input?.value, 10);
+            if (!input || isNaN(nuevaCantidad) || nuevaCantidad < 1) {
+                alert('Ingresá una cantidad válida (mínimo 1).');
+                return;
+            }
+            await actualizarCantidadItem(itemId, nuevaCantidad);
+        }
+        if (btnEliminar) {
+            await eliminarItem(Number(btnEliminar.dataset.id));
+        }
+    });
 });
 
 function formatCurrency(value) {
@@ -73,7 +105,7 @@ function formatFecha(isoString) {
     return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-// ─── Carga selects de mozos y productos ──────────────────────────────────────
+// ─── Carga selects ────────────────────────────────────────────────────────────
 
 async function cargarMozos() {
     try {
@@ -203,7 +235,9 @@ async function abrirDetalleMesa(mesaId) {
         document.getElementById('tituloDetalle').textContent =
             `Mesa #${mesa.numeroMesa} — ${mesa.mozo || 'Sin mozo'}`;
 
-        renderItems(Array.isArray(items) ? items : []);
+        const listaItems = Array.isArray(items) ? items : [];
+        renderItems(listaItems);
+        renderItemCards(listaItems);
         actualizarTotalDetalle(mesa.total);
 
         document.getElementById('listadoMesas').style.display = 'none';
@@ -213,6 +247,7 @@ async function abrirDetalleMesa(mesaId) {
     }
 }
 
+// ── Vista tabla — desktop ─────────────────────────────────────────────────────
 function renderItems(items) {
     const body = document.getElementById('bodyItems');
 
@@ -246,6 +281,53 @@ function renderItems(items) {
                     title="Eliminar">🗑️</button>
             </td>
         </tr>
+    `).join('');
+}
+
+// ── Vista cards — móvil ───────────────────────────────────────────────────────
+function renderItemCards(items) {
+    const container = document.getElementById('itemsCards');
+
+    if (items.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;padding:1.5rem">Sin consumos cargados</p>';
+        return;
+    }
+
+    container.innerHTML = items.map(i => `
+        <div class="item-card">
+            <div class="item-card-top">
+                <div>
+                    <div class="item-card-nombre">${i.descripcion ?? '-'}</div>
+                    <div class="item-card-codigo">${i.codigo ?? ''}</div>
+                </div>
+                <button class="btn-del-card"
+                    data-accion="eliminar-card"
+                    data-id="${i.id}"
+                    title="Eliminar">🗑️</button>
+            </div>
+            <div class="item-card-bottom">
+                <div class="item-card-precios">
+                    <span>${formatCurrency(i.precioUnitario)} c/u</span><br>
+                    <strong>Subtotal: ${formatCurrency(i.subtotal)}</strong>
+                </div>
+                <div class="item-card-cantidad">
+                    <button class="btn-cant"
+                        data-accion="cant-menos"
+                        data-id="${i.id}">−</button>
+                    <input type="number"
+                        data-card-id="${i.id}"
+                        value="${i.cantidad}"
+                        min="1" />
+                    <button class="btn-cant"
+                        data-accion="cant-mas"
+                        data-id="${i.id}">+</button>
+                    <button class="btn-cant-ok"
+                        data-accion="cant-ok"
+                        data-id="${i.id}"
+                        title="Confirmar">✔</button>
+                </div>
+            </div>
+        </div>
     `).join('');
 }
 
@@ -324,7 +406,7 @@ async function onAgregarItem() {
     }
 }
 
-// ─── Actualizar cantidad de ítem ──────────────────────────────────────────────
+// ─── Actualizar cantidad ──────────────────────────────────────────────────────
 
 async function actualizarCantidadItem(itemId, cantidad) {
     try {

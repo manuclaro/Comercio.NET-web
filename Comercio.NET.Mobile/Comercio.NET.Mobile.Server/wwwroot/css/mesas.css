@@ -49,9 +49,7 @@ header {
     white-space: nowrap;
 }
 
-    .btn-back:hover {
-        background: rgba(255,255,255,.15);
-    }
+    .btn-back:hover { background: rgba(255,255,255,.15); }
 
 /* ── Contenedor principal ── */
 .container {
@@ -78,9 +76,7 @@ header {
     font-weight: 600;
 }
 
-    .btn-primary:hover {
-        background: #3651d4;
-    }
+    .btn-primary:hover { background: #3651d4; }
 
 /* ── Grid de mesas ── */
 .grid-mesas {
@@ -104,22 +100,9 @@ header {
         box-shadow: 0 6px 16px rgba(0,0,0,.12);
     }
 
-    .card-mesa h2 {
-        font-size: 1.1rem;
-        margin-bottom: .4rem;
-    }
-
-    .card-mesa .mozo {
-        color: #555;
-        font-size: .85rem;
-        margin-bottom: .6rem;
-    }
-
-    .card-mesa .total {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #4361ee;
-    }
+    .card-mesa h2          { font-size: 1.1rem; margin-bottom: .4rem; }
+    .card-mesa .mozo       { color: #555; font-size: .85rem; margin-bottom: .6rem; }
+    .card-mesa .total      { font-size: 1.2rem; font-weight: 700; color: #4361ee; }
 
 .mensaje-vacio {
     text-align: center;
@@ -129,9 +112,7 @@ header {
 }
 
 /* ── Panel de detalle de mesa ── */
-#panelDetalle {
-    display: none;
-}
+#panelDetalle { display: none; }
 
 .detalle-header {
     display: flex;
@@ -141,11 +122,7 @@ header {
     flex-wrap: wrap;
 }
 
-    .detalle-header h2 {
-        font-size: 1.3rem;
-        flex: 1;
-        min-width: 0;
-    }
+    .detalle-header h2 { font-size: 1.3rem; flex: 1; min-width: 0; }
 
 .btn-danger {
     background: #e63946;
@@ -158,9 +135,7 @@ header {
     white-space: nowrap;
 }
 
-    .btn-danger:hover {
-        background: #c1121f;
-    }
+    .btn-danger:hover { background: #c1121f; }
 
 .btn-secondary {
     background: #6c757d;
@@ -173,9 +148,7 @@ header {
     white-space: nowrap;
 }
 
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
+    .btn-secondary:hover { background: #5a6268; }
 
 /* ── Formulario agregar ítem / filtros ── */
 .form-item {
@@ -206,14 +179,8 @@ header {
         width: 100%;
     }
 
-    .form-item .field {
-        flex: 1;
-        min-width: 130px;
-    }
-
-    .form-item .field-sm {
-        flex: 0 0 90px;
-    }
+    .form-item .field    { flex: 1; min-width: 130px; }
+    .form-item .field-sm { flex: 0 0 90px; }
 
 /* ── Grupo de botones de filtro ── */
 .filtros-acciones {
@@ -223,7 +190,9 @@ header {
     flex-shrink: 0;
 }
 
-/* ── Tabla ── */
+/* ══════════════════════════════════════════════════════════
+   TABLA DE ÍTEMS — desktop (siempre visible en ≥ 601px)
+   ══════════════════════════════════════════════════════════ */
 .tabla-wrap {
     background: #fff;
     border-radius: 12px;
@@ -259,15 +228,10 @@ tbody td {
     vertical-align: middle;
 }
 
-tbody tr:last-child td {
-    border-bottom: none;
-}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover         { background: #f9f9f9; }
 
-tbody tr:hover {
-    background: #f9f9f9;
-}
-
-/* ── Celda de cantidad editable ── */
+/* ── Celda de cantidad editable (tabla desktop) ── */
 .cantidad-cell {
     display: flex;
     align-items: center;
@@ -288,9 +252,7 @@ tbody tr:hover {
     }
 
     .cantidad-cell input[type="number"]::-webkit-inner-spin-button,
-    .cantidad-cell input[type="number"]::-webkit-outer-spin-button {
-        opacity: 1;
-    }
+    .cantidad-cell input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
 
 .btn-confirmar {
     background: #2e7d32;
@@ -305,9 +267,7 @@ tbody tr:hover {
     flex-shrink: 0;
 }
 
-    .btn-confirmar:hover {
-        background: #1b5e20;
-    }
+    .btn-confirmar:hover { background: #1b5e20; }
 
 .btn-del {
     background: none;
@@ -318,6 +278,137 @@ tbody tr:hover {
     padding: 2px 4px;
     line-height: 1;
 }
+
+/* ══════════════════════════════════════════════════════════
+   CARDS DE ÍTEMS — móvil (ocultas en desktop)
+   ══════════════════════════════════════════════════════════ */
+.items-cards { display: none; }
+
+.item-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: .9rem 1rem;
+    margin-bottom: .65rem;
+    box-shadow: 0 1px 6px rgba(0,0,0,.07);
+    border-left: 4px solid #4361ee;
+}
+
+.item-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: .55rem;
+    gap: .5rem;
+}
+
+.item-card-nombre {
+    font-weight: 600;
+    font-size: .95rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.item-card-codigo {
+    font-size: .75rem;
+    color: #888;
+    margin-top: 2px;
+}
+
+.item-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.item-card-precios {
+    font-size: .85rem;
+    color: #555;
+    line-height: 1.5;
+}
+
+    .item-card-precios strong {
+        color: #1a1a2e;
+        font-size: .95rem;
+    }
+
+/* Controles cantidad en card móvil */
+.item-card-cantidad {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+    /* Botones – y + táctiles */
+    .btn-cant {
+        width: 36px;
+        height: 36px;
+        border: 1.5px solid #4361ee;
+        background: #fff;
+        color: #4361ee;
+        font-size: 1.2rem;
+        font-weight: 700;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        touch-action: manipulation;
+        line-height: 1;
+    }
+
+        .btn-cant:active { background: #eef0fd; }
+
+    .item-card-cantidad input[type="number"] {
+        width: 44px;
+        height: 36px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        text-align: center;
+        font-size: .95rem;
+        -moz-appearance: textfield;
+    }
+
+    .item-card-cantidad input[type="number"]::-webkit-inner-spin-button,
+    .item-card-cantidad input[type="number"]::-webkit-outer-spin-button { display: none; }
+
+    /* Botón confirmar en card */
+    .btn-cant-ok {
+        height: 36px;
+        padding: 0 10px;
+        background: #2e7d32;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: .9rem;
+        cursor: pointer;
+        flex-shrink: 0;
+        touch-action: manipulation;
+    }
+
+        .btn-cant-ok:active { background: #1b5e20; }
+
+    /* Botón eliminar en card */
+    .btn-del-card {
+        width: 36px;
+        height: 36px;
+        border: 1.5px solid #e63946;
+        background: #fff;
+        color: #e63946;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        touch-action: manipulation;
+    }
+
+        .btn-del-card:active { background: #fdecea; }
 
 /* ── Resumen / Total y pie ── */
 .resumen-dia {
@@ -357,9 +448,7 @@ tbody tr:hover {
     padding: 1rem;
 }
 
-    .modal-overlay.activo {
-        display: flex;
-    }
+    .modal-overlay.activo { display: flex; }
 
 .modal {
     background: #fff;
@@ -372,14 +461,8 @@ tbody tr:hover {
     overflow-y: auto;
 }
 
-    .modal h3 {
-        margin-bottom: 1.2rem;
-        font-size: 1.1rem;
-    }
-
-    .modal .campo {
-        margin-bottom: 1rem;
-    }
+    .modal h3              { margin-bottom: 1.2rem; font-size: 1.1rem; }
+    .modal .campo          { margin-bottom: 1rem; }
 
     .modal label {
         font-size: .85rem;
@@ -407,93 +490,45 @@ tbody tr:hover {
 
 /* ── Ticket de impresión ── */
 @media print {
-    body > *:not(#ticketPrint) {
-        display: none !important;
-    }
-
-    #ticketPrint {
-        display: block !important;
-        font-family: monospace;
-        font-size: 12px;
-    }
+    body > *:not(#ticketPrint) { display: none !important; }
+    #ticketPrint { display: block !important; font-family: monospace; font-size: 12px; }
 }
 
-#ticketPrint {
-    display: none;
-}
+#ticketPrint { display: none; }
 
 /* ════════════════════════════════════════════════════════════════════════════
    RESPONSIVE — móvil (≤ 600 px)
    ════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
 
-    /* ── Header ── */
-    header {
-        padding: .75rem 1rem;
-        gap: .5rem;
-    }
+    /* Header */
+    header { padding: .75rem 1rem; gap: .5rem; }
 
-        header h1 {
-            font-size: 1rem;
-            white-space: normal;        /* permite salto de línea si es largo */
-            flex: none;
-            width: 100%;
-            order: 1;
-        }
+        header h1 { font-size: 1rem; white-space: normal; flex: none; width: 100%; order: 1; }
 
-    .btn-back {
-        order: 0;
-        font-size: .8rem;
-        padding: .25rem .6rem;
-    }
+    .btn-back { order: 0; font-size: .8rem; padding: .25rem .6rem; }
 
-    .header-user {
-        order: 2;
-        width: 100%;
-        justify-content: space-between;
-        font-size: .8rem;
-    }
+    .header-user { order: 2; width: 100%; justify-content: space-between; font-size: .8rem; }
 
-    /* ── Contenedor ── */
-    .container {
-        margin: .75rem auto;
-        padding: 0 .65rem;
-    }
+    /* Contenedor */
+    .container { margin: .75rem auto; padding: 0 .65rem; }
 
-    /* ── Barra de acciones ── */
-    .acciones {
-        justify-content: stretch;
-    }
+    /* Barra de acciones */
+    .acciones { justify-content: stretch; }
+        .acciones .btn-primary { width: 100%; text-align: center; }
 
-        .acciones .btn-primary {
-            width: 100%;
-            text-align: center;
-        }
+    /* Grid de mesas: 2 col */
+    .grid-mesas { grid-template-columns: repeat(2, 1fr); gap: .6rem; }
 
-    /* ── Grid de mesas: 2 col ── */
-    .grid-mesas {
-        grid-template-columns: repeat(2, 1fr);
-        gap: .6rem;
-    }
-
-    .card-mesa {
-        padding: .8rem;
-    }
-
+    .card-mesa { padding: .8rem; }
         .card-mesa h2    { font-size: .95rem; }
         .card-mesa .mozo { font-size: .78rem; margin-bottom: .3rem; }
         .card-mesa .total { font-size: 1rem; }
 
-    /* ── Encabezado detalle de mesa ── */
-    .detalle-header {
-        gap: .5rem;
-    }
+    /* Encabezado detalle */
+    .detalle-header { gap: .5rem; }
 
-        .detalle-header h2 {
-            font-size: 1rem;
-            width: 100%;
-            order: -1;
-        }
+        .detalle-header h2 { font-size: 1rem; width: 100%; order: -1; }
 
         .detalle-header .btn-secondary,
         .detalle-header .btn-danger {
@@ -503,104 +538,51 @@ tbody tr:hover {
             font-size: .88rem;
         }
 
-    /* ── Formulario agregar ítem ── */
-    .form-item {
-        flex-direction: column;
-        gap: .55rem;
-        padding: .8rem .9rem;
-    }
+    /* Formulario agregar ítem */
+    .form-item { flex-direction: column; gap: .55rem; padding: .8rem .9rem; }
 
         .form-item .field,
-        .form-item .field-sm {
-            flex: none;
-            width: 100%;
-        }
+        .form-item .field-sm { flex: none; width: 100%; }
 
-        /* Botones dentro de form-item (Agregar / Filtrar+Limpiar) */
         .form-item .btn-primary,
-        .form-item .btn-secondary {
-            width: 100%;
-            text-align: center;
-        }
+        .form-item .btn-secondary { width: 100%; text-align: center; }
 
-    /* ── Grupo botones filtro ── */
-    .filtros-acciones {
-        width: 100%;
-        flex-direction: row;        /* Filtrar y Limpiar en la misma fila */
-    }
-
+    /* Filtros */
+    .filtros-acciones { width: 100%; flex-direction: row; }
         .filtros-acciones .btn-primary,
-        .filtros-acciones .btn-secondary {
-            flex: 1;
-            text-align: center;
-        }
+        .filtros-acciones .btn-secondary { flex: 1; text-align: center; }
 
-    /* ── Tabla: scroll horizontal ── */
-    table {
-        font-size: .8rem;
-        min-width: 340px;
+    /* ── TABLA oculta en móvil; se usan cards ── */
+    .tabla-items-wrap { display: none; }
+    .items-cards      { display: block; }           /* ← cards visibles */
+
+    /* Tablas que NO son de ítems (ventas, ABMs) siguen con scroll horizontal */
+    .tabla-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
+
+    table { font-size: .8rem; min-width: 340px; }
 
     thead th,
-    tbody td {
-        padding: .45rem .5rem;
-    }
+    tbody td { padding: .45rem .5rem; }
 
-    /* Ocultar columnas de menor relevancia en ventas-día */
-    .col-cierre  { display: none; }
-    .col-codigo  { display: none; }
+    .col-cierre { display: none; }
+    .col-codigo { display: none; }
 
-    /* ── Cantidad editable ── */
-    .cantidad-cell input[type="number"] {
-        width: 44px;
-        min-width: 36px;
-        font-size: .78rem;
-    }
-
-    .btn-confirmar {
-        padding: 2px 5px;
-        font-size: .75rem;
-    }
-
-    .btn-del {
-        font-size: .95rem;
-        padding: 2px 3px;
-    }
-
-    /* ── Resumen del día ── */
+    /* Resumen del día */
     .resumen-dia,
-    #resumenDia {
-        font-size: .85rem;
-        padding: .5rem .6rem;
-    }
+    #resumenDia { font-size: .85rem; padding: .5rem .6rem; }
 
-    /* ── Pie detalle ── */
-    .pie-detalle {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: .5rem;
-    }
+    /* Pie detalle */
+    .pie-detalle { flex-direction: column; align-items: flex-start; gap: .5rem; }
+    .total-mesa  { font-size: 1.15rem; }
 
-    .total-mesa {
-        font-size: 1.15rem;
-    }
+    /* Modal */
+    .modal { padding: 1.3rem 1rem; border-radius: 10px; }
 
-    /* ── Modal ── */
-    .modal {
-        padding: 1.3rem 1rem;
-        border-radius: 10px;
-    }
-
-    .modal-acciones {
-        flex-direction: column-reverse;
-        gap: .6rem;
-    }
-
-        .modal-acciones button {
-            width: 100%;
-            text-align: center;
-            padding: .6rem;
-        }
+    .modal-acciones { flex-direction: column-reverse; gap: .6rem; }
+        .modal-acciones button { width: 100%; text-align: center; padding: .6rem; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -608,28 +590,16 @@ tbody tr:hover {
    ════════════════════════════════════════════════════════════════════════════ */
 @media (min-width: 601px) and (max-width: 900px) {
 
-    header h1 {
-        font-size: 1.15rem;
-    }
+    header h1 { font-size: 1.15rem; }
 
-    .grid-mesas {
-        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    }
+    .grid-mesas { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 
-    .form-item .field-sm {
-        flex: 0 0 80px;
-    }
+    .form-item .field-sm { flex: 0 0 80px; }
 
-    table {
-        font-size: .88rem;
-    }
+    table { font-size: .88rem; }
 
     thead th,
-    tbody td {
-        padding: .6rem .75rem;
-    }
+    tbody td { padding: .6rem .75rem; }
 
-    .filtros-acciones {
-        flex-wrap: nowrap;
-    }
+    .filtros-acciones { flex-wrap: nowrap; }
 }

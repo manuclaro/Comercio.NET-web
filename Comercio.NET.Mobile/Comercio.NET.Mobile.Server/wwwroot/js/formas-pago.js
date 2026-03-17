@@ -56,7 +56,7 @@ function renderFormasPago(formas) {
             <td>${i + 1}</td>
             <td>${f.descripcion}</td>
             <td style="text-align:center">
-                <button class="btn-secondary" style="margin-right:4px"
+                <button class="btn-del" style="color:#1565c0;font-size:1.1rem;margin-right:4px"
                     onclick='abrirModalEditar(${f.id}, ${JSON.stringify(f.descripcion)})'
                     title="Editar">✏️</button>
                 <button class="btn-del" onclick="eliminarFormaPago(${f.id})" title="Eliminar">🗑️</button>

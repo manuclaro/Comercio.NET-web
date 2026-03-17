@@ -56,8 +56,8 @@
                 </div>
             </div>
 
-            <!-- Tabla de consumos -->
-            <div class="tabla-wrap">
+            <!-- Tabla de consumos — DESKTOP (oculta en móvil vía CSS) -->
+            <div class="tabla-wrap tabla-items-wrap">
                 <table>
                     <thead>
                         <tr>
@@ -72,6 +72,9 @@
                     <tbody id="bodyItems"></tbody>
                 </table>
             </div>
+
+            <!-- Cards de consumos — MÓVIL (ocultas en desktop vía CSS) -->
+            <div id="itemsCards" class="items-cards"></div>
 
             <div class="pie-detalle">
                 <span id="totalDetalle" class="total-mesa">Total: $ 0,00</span>
@@ -112,11 +115,6 @@
                     <label>Forma de pago *</label>
                     <select id="selectFormaPago" required>
                         <option value="">-- Seleccioná --</option>
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Mercado Pago">Mercado Pago</option>
-                        <option value="Débito">Débito</option>
-                        <option value="Crédito">Crédito</option>
-                        <option value="Cuenta Corriente">Cuenta Corriente</option>
                     </select>
                 </div>
                 <div class="modal-acciones">
