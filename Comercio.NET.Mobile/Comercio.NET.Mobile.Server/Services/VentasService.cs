@@ -21,7 +21,7 @@ namespace Comercio.NET.Mobile.Server.Services
             _httpClient = httpClientFactory.CreateClient();
         }
 
-        public async Task<IEnumerable<VentaDto>> GetVentasDelDiaAsync(DateTime fecha, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
+        public async Task<IEnumerable<VentaDto>> GetVentasDelDiaAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
             var ventas = new List<VentaDto>();
 
@@ -41,7 +41,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     ISNULL(CAST(f.Cajero AS INT), 0)  AS NumeroCajero
                 FROM Ventas v
                 LEFT JOIN Facturas f ON f.NumeroRemito = v.nrofactura
-                WHERE CAST(v.fecha AS DATE) = @fecha";
+                WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
 
             if (numeroCajero.HasValue)
                 sql += " AND CAST(f.Cajero AS INT) = @numeroCajero";
@@ -58,7 +58,11 @@ namespace Comercio.NET.Mobile.Server.Services
 
             sql += " ORDER BY v.id DESC";
 
-            var parameters = new Dictionary<string, object?> { { "@fecha", fecha.Date.ToString("yyyy-MM-dd") } };
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@desde", desde.Date.ToString("yyyy-MM-dd") },
+                { "@hasta", hasta.Date.ToString("yyyy-MM-dd") }
+            };
 
             if (numeroCajero.HasValue)
                 parameters["@numeroCajero"] = numeroCajero.Value;
@@ -116,32 +120,29 @@ namespace Comercio.NET.Mobile.Server.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo ventas del día {Fecha}", fecha);
+                _logger.LogError(ex, "Error obteniendo ventas {Desde} - {Hasta}", desde, hasta);
                 throw;
             }
 
             return ventas;
         }
 
-        public async Task<ResumenVentasDto> GetResumenAsync(DateTime fecha, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
+        public async Task<ResumenVentasDto> GetResumenAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
-            // ✅ El resumen se calcula directamente desde Facturas (una fila por remito),
-            //    igual que Arqueo de Caja, para evitar multiplicar ImporteFinal por cada
-            //    producto de la tabla Ventas.
             var sql = @"
                 SELECT
                     ISNULL(SUM(ImporteFinal), 0)                                                                      AS TotalVendido,
                     COUNT(DISTINCT NumeroRemito)                                                                       AS CantidadTransacciones,
-                    ISNULL((SELECT SUM(cantidad) FROM Ventas WHERE CAST(fecha AS DATE) = @fecha), 0)                   AS CantidadProductos,
-                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'efectivo'     AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalEfectivo,
+                    ISNULL((SELECT SUM(cantidad) FROM Ventas WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta), 0) AS CantidadProductos,
+                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'efectivo'          AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalEfectivo,
                     ISNULL(SUM(CASE WHEN LOWER(FormadePago) LIKE '%mercado%pago%' AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalMercadoPago,
-                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'dni'          AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalDni,
-                    ISNULL(SUM(CASE WHEN ISNULL(esCtaCte,0) = 1                                         THEN ImporteFinal ELSE 0 END), 0) AS TotalCtaCte,
+                    ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'dni'               AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalDni,
+                    ISNULL(SUM(CASE WHEN ISNULL(esCtaCte,0) = 1                                               THEN ImporteFinal ELSE 0 END), 0) AS TotalCtaCte,
                     ISNULL(SUM(CASE WHEN LOWER(FormadePago) NOT IN ('efectivo','dni')
                                      AND LOWER(FormadePago) NOT LIKE '%mercado%pago%'
-                                     AND ISNULL(esCtaCte,0) = 0                                         THEN ImporteFinal ELSE 0 END), 0) AS TotalOtros
+                                     AND ISNULL(esCtaCte,0) = 0                                               THEN ImporteFinal ELSE 0 END), 0) AS TotalOtros
                 FROM Facturas
-                WHERE CAST(Fecha AS DATE) = @fecha
+                WHERE CAST(Fecha AS DATE) BETWEEN @desde AND @hasta
                   AND ISNULL(Cajero, '') <> ''";
 
             if (numeroCajero.HasValue)
@@ -157,7 +158,11 @@ namespace Comercio.NET.Mobile.Server.Services
                     : " AND TipoFactura = @tipoFactura";
             }
 
-            var parameters = new Dictionary<string, object?> { { "@fecha", fecha.Date.ToString("yyyy-MM-dd") } };
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@desde", desde.Date.ToString("yyyy-MM-dd") },
+                { "@hasta", hasta.Date.ToString("yyyy-MM-dd") }
+            };
 
             if (numeroCajero.HasValue)
                 parameters["@numeroCajero"] = numeroCajero.Value;
@@ -203,7 +208,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo resumen del día {Fecha}", fecha);
+                _logger.LogError(ex, "Error obteniendo resumen {Desde} - {Hasta}", desde, hasta);
                 throw;
             }
 

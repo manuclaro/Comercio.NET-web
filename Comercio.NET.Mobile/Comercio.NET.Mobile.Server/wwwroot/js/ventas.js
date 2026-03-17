@@ -1,11 +1,13 @@
 ﻿'use strict';
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('fechaVentas').value = hoy();
+    const hoy = fechaLocal();
+    document.getElementById('desdeVentas').value = hoy;
+    document.getElementById('hastaVentas').value = hoy;
     cargarVentas();
 });
 
-function hoy() {
+function fechaLocal() {
     const d = new Date();
     const yyyy = d.getFullYear();
     const mm   = String(d.getMonth() + 1).padStart(2, '0');
@@ -39,13 +41,14 @@ function badgePago(formaPago, esCtaCte) {
 }
 
 async function cargarVentas() {
-    const fecha       = document.getElementById('fechaVentas').value || hoy();
+    const desde       = document.getElementById('desdeVentas').value  || fechaLocal();
+    const hasta       = document.getElementById('hastaVentas').value  || desde;
     const cajero      = document.getElementById('cajeroVentas').value.trim();
     const formaPago   = document.getElementById('formaPagoVentas').value;
     const tipoFactura = document.getElementById('tipoFacturaVentas').value;
 
-    let urlVentas  = `/api/ventas?fecha=${fecha}`;
-    let urlResumen = `/api/ventas/resumen?fecha=${fecha}`;
+    let urlVentas  = `/api/ventas?desde=${desde}&hasta=${hasta}`;
+    let urlResumen = `/api/ventas/resumen?desde=${desde}&hasta=${hasta}`;
 
     if (cajero) {
         urlVentas  += `&numeroCajero=${cajero}`;

@@ -18,16 +18,18 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetVentas(
-            [FromQuery] string? fecha,
+            [FromQuery] string? desde,
+            [FromQuery] string? hasta,
             [FromQuery] int? numeroCajero,
             [FromQuery] string? formaPago,
             [FromQuery] string? tipoFactura)
         {
-            var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;
+            var fechaDesde = DateTime.TryParse(desde, out var d) ? d : DateTime.Today;
+            var fechaHasta = DateTime.TryParse(hasta, out var h) ? h : fechaDesde;
 
             try
             {
-                var ventas = await _ventasService.GetVentasDelDiaAsync(fechaConsulta, numeroCajero, formaPago, tipoFactura);
+                var ventas = await _ventasService.GetVentasDelDiaAsync(fechaDesde, fechaHasta, numeroCajero, formaPago, tipoFactura);
                 return Ok(ventas);
             }
             catch (Exception ex)
@@ -39,16 +41,18 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet("resumen")]
         public async Task<IActionResult> GetResumen(
-            [FromQuery] string? fecha,
+            [FromQuery] string? desde,
+            [FromQuery] string? hasta,
             [FromQuery] int? numeroCajero,
             [FromQuery] string? formaPago,
             [FromQuery] string? tipoFactura)
         {
-            var fechaConsulta = DateTime.TryParse(fecha, out var f) ? f : DateTime.Today;
+            var fechaDesde = DateTime.TryParse(desde, out var d) ? d : DateTime.Today;
+            var fechaHasta = DateTime.TryParse(hasta, out var h) ? h : fechaDesde;
 
             try
             {
-                var resumen = await _ventasService.GetResumenAsync(fechaConsulta, numeroCajero, formaPago, tipoFactura);
+                var resumen = await _ventasService.GetResumenAsync(fechaDesde, fechaHasta, numeroCajero, formaPago, tipoFactura);
                 return Ok(resumen);
             }
             catch (Exception ex)
