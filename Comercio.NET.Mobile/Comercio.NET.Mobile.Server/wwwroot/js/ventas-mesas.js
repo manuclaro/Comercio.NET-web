@@ -129,8 +129,9 @@ function renderVentas(ventas) {
         const formaPago = (v.formaPago ?? '').trim();
 
         return `
-        <tr onclick="verDetalle(${v.mesaId}, 'Mesa #${v.numeroMesa}', ${JSON.stringify(mozo)}, ${JSON.stringify(estado)}, ${JSON.stringify(formaPago)})"
-            title="Clic para ver el detalle de consumos">
+        <tr class="fila-clickable"
+            title="Ver consumos de Mesa #${v.numeroMesa}"
+            onclick="verDetalle(${v.mesaId}, 'Mesa #${v.numeroMesa}', ${JSON.stringify(mozo)}, ${JSON.stringify(estado)}, ${JSON.stringify(formaPago)})">
             <td>#${v.numeroMesa}</td>
             <td>${mozo || '-'}</td>
             <td>${formatFecha(v.fechaApertura)}</td>
@@ -142,17 +143,15 @@ function renderVentas(ventas) {
             </td>
             <td style="text-align:right;font-weight:600">${formatCurrency(v.total ?? 0)}</td>
             <td>${formaPago || '-'}</td>
-            <td class="col-ver-detalle" style="text-align:center;color:#4361ee;font-size:.8rem">
-                🔍 Ver
-            </td>
+            <td class="col-ver-detalle">🔍 Ver</td>
         </tr>`;
     }).join('');
 }
 
 async function verDetalle(mesaId, titulo, mozo, estado, formaPago) {
-    const btnVolver = document.getElementById('btnVolverVentas');
-    btnVolver.textContent = '⏳ Cargando...';
-    btnVolver.disabled    = true;
+    const btn = document.getElementById('btnVolverVentas');
+    btn.textContent = '⏳ Cargando...';
+    btn.disabled    = true;
 
     try {
         const res   = await fetch(`/api/mesas/${mesaId}/items`);
@@ -190,8 +189,8 @@ async function verDetalle(mesaId, titulo, mozo, estado, formaPago) {
         console.error('Error cargando detalle:', err);
         alert('No se pudo cargar el detalle.');
     } finally {
-        btnVolver.textContent = '← Volver';
-        btnVolver.disabled    = false;
+        btn.textContent = '← Volver';
+        btn.disabled    = false;
     }
 }
 

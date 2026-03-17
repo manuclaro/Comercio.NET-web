@@ -286,22 +286,30 @@ tbody td {
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover         { background: #f9f9f9; }
 
-/* ── Filas clicables en tabla de ventas ── */
-tbody tr[onclick] {
+/* ── Filas clicables (grilla ventas del día) ── */
+tbody tr.fila-clickable {
     cursor: pointer;
-    transition: background .12s, transform .08s;
+    transition: background .12s ease, box-shadow .12s ease;
 }
 
-    tbody tr[onclick]:hover {
+    tbody tr.fila-clickable:hover {
         background: #eef2ff !important;
-        outline: 2px solid #4361ee;
-        outline-offset: -2px;
+        box-shadow: inset 3px 0 0 #4361ee;
     }
 
-    tbody tr[onclick]:active {
+    tbody tr.fila-clickable:active {
         background: #dde4fb !important;
-        transform: scale(0.995);
     }
+
+/* ── Celda "Ver detalle" ── */
+.col-ver-detalle {
+    width: 60px;
+    text-align: center;
+    color: #4361ee;
+    font-size: .8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
 
 /* ── Celda de cantidad editable (tabla desktop) ── */
 .cantidad-cell {
@@ -639,8 +647,9 @@ tbody tr[onclick] {
     thead th,
     tbody td { padding: .45rem .5rem; }
 
-    .col-cierre { display: none; }
-    .col-codigo { display: none; }
+    .col-cierre      { display: none; }
+    .col-codigo      { display: none; }
+    .col-ver-detalle { display: none; }
 
     /* Resumen del día */
     .resumen-dia,
