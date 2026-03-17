@@ -40,7 +40,7 @@
 
                 // Redirigir según rol
                 if ((data.usuario.rol || '').toLowerCase() === 'pizzeria') {
-                    window.location.href = '/mesas.html';
+                    window.location.href = '/dashboard-pizzeria.html';
                 } else {
                     window.location.href = '/dashboard.html';
                 }
@@ -71,7 +71,7 @@
             if (data.valido) {
                 const rol = localStorage.getItem('usuario_rol') || '';
                 if (rol.toLowerCase() === 'pizzeria') {
-                    window.location.href = '/mesas.html';
+                    window.location.href = '/dashboard-pizzeria.html';
                 } else {
                     window.location.href = '/dashboard.html';
                 }

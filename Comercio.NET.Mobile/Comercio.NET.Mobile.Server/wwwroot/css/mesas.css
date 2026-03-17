@@ -286,6 +286,23 @@ tbody td {
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover         { background: #f9f9f9; }
 
+/* ── Filas clicables en tabla de ventas ── */
+tbody tr[onclick] {
+    cursor: pointer;
+    transition: background .12s, transform .08s;
+}
+
+    tbody tr[onclick]:hover {
+        background: #eef2ff !important;
+        outline: 2px solid #4361ee;
+        outline-offset: -2px;
+    }
+
+    tbody tr[onclick]:active {
+        background: #dde4fb !important;
+        transform: scale(0.995);
+    }
+
 /* ── Celda de cantidad editable (tabla desktop) ── */
 .cantidad-cell {
     display: flex;
