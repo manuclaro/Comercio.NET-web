@@ -29,9 +29,18 @@ namespace Comercio.NET.Mobile.Server.Services
                     ORDER BY Cajero";
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query });
-                response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<QueryResult>();
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("❌ SQL Bridge error en ObtenerCajerosAsync: {StatusCode} - {Content}",
+                        response.StatusCode, responseContent);
+                    return new List<string>();
+                }
+
+                var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 var cajeros = new List<string>();
                 if (result?.Data != null)
@@ -60,7 +69,6 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                // ✅ QUERY ACTUALIZADA: Incluye pagos a proveedores
                 var query = @"
                     SELECT 
                         COUNT(DISTINCT NumeroRemito) as TotalVentas,
@@ -75,7 +83,6 @@ namespace Comercio.NET.Mobile.Server.Services
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Otro,
                         SUM(CASE WHEN TipoFactura = 'FacturaC' OR TipoFactura = 'Factura C' OR TipoFactura = 'C'
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as FacturaC,
-                        -- ✅ NUEVO: Total de pagos a proveedores del día
                         ISNULL((
                             SELECT SUM(CAST(Monto AS DECIMAL(18,2)))
                             FROM PagosProveedores
@@ -95,9 +102,18 @@ namespace Comercio.NET.Mobile.Server.Services
                 };
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
-                response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<QueryResult>();
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("❌ SQL Bridge error en ObtenerArqueoAsync: {StatusCode} - {Content}",
+                        response.StatusCode, responseContent);
+                    return resultado;
+                }
+
+                var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 if (result?.Data != null && result.Data.Count > 0)
                 {
@@ -110,7 +126,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     resultado.MercadoPago = ConvertToDecimal(row[4]);
                     resultado.Otro = ConvertToDecimal(row[5]);
                     resultado.FacturaC = ConvertToDecimal(row[6]);
-                    resultado.PagosProveedores = ConvertToDecimal(row[7]);  // ✅ NUEVO
+                    resultado.PagosProveedores = ConvertToDecimal(row[7]);
                 }
 
                 return resultado;
@@ -129,7 +145,6 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                // ✅ Query actualizada con los nombres correctos de columnas
                 var query = @"
                     SELECT 
                         pp.Id,
@@ -169,7 +184,8 @@ namespace Comercio.NET.Mobile.Server.Services
                     return new List<DetallePagoProveedorDto>();
                 }
 
-                var result = await response.Content.ReadFromJsonAsync<QueryResult>();
+                var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 var pagos = new List<DetallePagoProveedorDto>();
                 
@@ -186,13 +202,13 @@ namespace Comercio.NET.Mobile.Server.Services
                                 Id = ConvertToInt32(row[0]),
                                 Proveedor = ConvertToString(row[1]),
                                 Monto = ConvertToDecimal(row[2]),
-                                FechaPago = ConvertToDateTime(row[3]),  // ✅ CORREGIDO
+                                FechaPago = ConvertToDateTime(row[3]),
                                 Observaciones = ConvertToString(row[4]),
                                 UsuarioRegistro = ConvertToString(row[5]),
                                 NumeroCajero = ConvertToInt32(row[6]),
                                 NumeroRemito = row[7] != null ? ConvertToInt32(row[7]) : null,
                                 NombreEquipo = ConvertToString(row[8]),
-                                FechaRegistro = ConvertToDateTime(row[9]),  // ✅ CORREGIDO
+                                FechaRegistro = ConvertToDateTime(row[9]),
                                 IdProveedor = row[10] != null ? ConvertToInt32(row[10]) : null,
                                 CompraId = row[11] != null ? ConvertToInt32(row[11]) : null,
                                 CtaCteId = row[12] != null ? ConvertToInt32(row[12]) : null,
@@ -205,7 +221,7 @@ namespace Comercio.NET.Mobile.Server.Services
                         catch (Exception exRow)
                         {
                             _logger.LogError(exRow, "❌ Error procesando fila: {Row}", 
-                                System.Text.Json.JsonSerializer.Serialize(row));
+                                JsonSerializer.Serialize(row));
                         }
                     }
                 }
@@ -220,7 +236,6 @@ namespace Comercio.NET.Mobile.Server.Services
             }
         }
 
-        // ✅ NUEVO MÉTODO HELPER: Convertir a DateTime
         private static DateTime ConvertToDateTime(object? value)
         {
             if (value == null) return DateTime.MinValue;
@@ -245,7 +260,6 @@ namespace Comercio.NET.Mobile.Server.Services
             return DateTime.MinValue;
         }
 
-        // Métodos auxiliares para convertir JsonElement
         private static int ConvertToInt32(object? value)
         {
             if (value == null) return 0;
@@ -301,9 +315,7 @@ namespace Comercio.NET.Mobile.Server.Services
         }
     }
 
-    // Clase auxiliar para deserializar la respuesta del SQL Bridge
     public class QueryResult
     {
         public List<List<object?>> Data { get; set; } = new();
     }
-}
