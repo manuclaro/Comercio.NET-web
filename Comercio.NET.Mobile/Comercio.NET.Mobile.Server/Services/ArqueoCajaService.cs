@@ -175,9 +175,9 @@ namespace Comercio.NET.Mobile.Server.Services
                 _logger.LogInformation("📤 Ejecutando query");
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
-                
+
                 var responseContent = await response.Content.ReadAsStringAsync();
-                
+
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError("❌ SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
@@ -188,7 +188,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 var pagos = new List<DetallePagoProveedorDto>();
-                
+
                 if (result?.Data != null && result.Data.Count > 0)
                 {
                     _logger.LogInformation("📊 Procesando {Count} filas", result.Data.Count);
@@ -214,13 +214,13 @@ namespace Comercio.NET.Mobile.Server.Services
                                 CtaCteId = row[12] != null ? ConvertToInt32(row[12]) : null,
                                 Origen = ConvertToString(row[13])
                             });
-                            
-                            _logger.LogDebug("✅ Pago procesado: {Proveedor} - {Monto}", 
+
+                            _logger.LogDebug("✅ Pago procesado: {Proveedor} - {Monto}",
                                 ConvertToString(row[1]), ConvertToDecimal(row[2]));
                         }
                         catch (Exception exRow)
                         {
-                            _logger.LogError(exRow, "❌ Error procesando fila: {Row}", 
+                            _logger.LogError(exRow, "❌ Error procesando fila: {Row}",
                                 JsonSerializer.Serialize(row));
                         }
                     }
@@ -244,8 +244,8 @@ namespace Comercio.NET.Mobile.Server.Services
             {
                 return jsonElement.ValueKind switch
                 {
-                    JsonValueKind.String => DateTime.TryParse(jsonElement.GetString(), out DateTime result) 
-                        ? result 
+                    JsonValueKind.String => DateTime.TryParse(jsonElement.GetString(), out DateTime result)
+                        ? result
                         : DateTime.MinValue,
                     _ => DateTime.MinValue
                 };
@@ -319,3 +319,4 @@ namespace Comercio.NET.Mobile.Server.Services
     {
         public List<List<object?>> Data { get; set; } = new();
     }
+}
