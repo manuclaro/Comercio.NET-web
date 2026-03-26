@@ -129,10 +129,6 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<ResumenVentasDto> GetResumenAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
-            // El total se calcula sumando ImporteFinal de Facturas (una fila por venta real),
-            // igual que lo hace el arqueo de caja. La tabla Ventas tiene items individuales
-            // cuya suma de v.total NO necesariamente coincide con ImporteFinal (descuentos, etc).
-            // Para los desgoses por forma de pago se usa un subquery escalar por factura.
             var sql = @"
                 WITH FacturasUnicas AS (
                     SELECT
@@ -141,33 +137,34 @@ namespace Comercio.NET.Mobile.Server.Services
                         f.FormadePago,
                         f.TipoFactura,
                         f.Cajero,
-                        f.esctacte,
                         ROW_NUMBER() OVER (PARTITION BY f.NumeroRemito ORDER BY f.Id ASC) AS rn
                     FROM Facturas f
                     WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
                       AND ISNULL(f.Cajero, '') <> ''
-                      AND ISNULL(f.esctacte, 0) = 0
                 )
                 SELECT
-                    ISNULL(SUM(fu.ImporteFinal), 0)         AS TotalVendido,
-                    COUNT(*)                                AS CantidadTransacciones,
+                    ISNULL(SUM(fu.ImporteFinal), 0)      AS TotalVendido,
+                    COUNT(*)                             AS CantidadTransacciones,
                     ISNULL((
                         SELECT SUM(v2.cantidad)
-                        FROM Ventas v2
-                        INNER JOIN FacturasUnicas fu2 ON fu2.NumeroRemito = v2.nrofactura
-                        WHERE fu2.rn = 1
-                          AND CAST(v2.fecha AS DATE) BETWEEN @desde AND @hasta
-                    ), 0)                                   AS CantidadProductos,
+                        FROM ventas v2
+                        INNER JOIN FacturasUnicas fu2
+                               ON fu2.NumeroRemito = v2.nrofactura
+                              AND fu2.rn = 1
+                        WHERE CAST(v2.fecha AS DATE) BETWEEN @desde AND @hasta
+                    ), 0)                                AS CantidadProductos,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'efectivo'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                      AS TotalEfectivo,
+                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalEfectivo,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) LIKE '%mercado%pago%'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                      AS TotalMercadoPago,
+                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalMercadoPago,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'dni'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                      AS TotalDni,
-                    0                                       AS TotalCtaCte,
-                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) NOT IN ('efectivo', 'dni')
+                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalDni,
+                    ISNULL(SUM(CASE WHEN ISNULL(fu.ImporteFinal, 0) > 0
+                                     AND LOWER(fu.FormadePago) = 'cta. cte.'
+                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalCtaCte,
+                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) NOT IN ('efectivo', 'dni', 'cta. cte.')
                                      AND LOWER(fu.FormadePago) NOT LIKE '%mercado%pago%'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                      AS TotalOtros
+                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalOtros
                 FROM FacturasUnicas fu
                 WHERE fu.rn = 1";
 
