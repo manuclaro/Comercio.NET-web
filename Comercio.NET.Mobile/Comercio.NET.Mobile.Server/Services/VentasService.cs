@@ -129,40 +129,46 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<ResumenVentasDto> GetResumenAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
+            // Misma lógica que frmControlFacturas: una fila por factura usando ROW_NUMBER,
+            // filtrando solo esCtaCte = 0 y cajero no vacío, igual que el arqueo de caja.
             var sql = @"
                 WITH FacturasUnicas AS (
                     SELECT
                         f.NumeroRemito,
+                        f.ImporteFinal,
                         f.FormadePago,
                         f.TipoFactura,
                         f.Cajero,
-                        f.esctacte,
-                        ROW_NUMBER() OVER (PARTITION BY f.NumeroRemito ORDER BY f.Id ASC) AS rn
+                        f.esCtaCte,
+                        ROW_NUMBER() OVER (PARTITION BY f.NumeroRemito ORDER BY f.IdFactura ASC) AS rn
                     FROM Facturas f
                     WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
                       AND ISNULL(f.Cajero, '') <> ''
+                      AND ISNULL(f.esCtaCte, 0) = 0
                 )
                 SELECT
-                    ISNULL(SUM(v.total), 0)          AS TotalVendido,
-                    COUNT(DISTINCT v.nrofactura)      AS CantidadTransacciones,
-                    ISNULL(SUM(v.cantidad), 0)        AS CantidadProductos,
+                    ISNULL(SUM(fu.ImporteFinal), 0)       AS TotalVendido,
+                    COUNT(*)                               AS CantidadTransacciones,
+                    ISNULL((
+                        SELECT SUM(v2.cantidad)
+                        FROM ventas v2
+                        INNER JOIN FacturasUnicas fu2
+                               ON fu2.NumeroRemito = v2.nrofactura
+                              AND fu2.rn = 1
+                        WHERE CAST(v2.fecha AS DATE) BETWEEN @desde AND @hasta
+                    ), 0)                                  AS CantidadProductos,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'efectivo'
-                        THEN v.total ELSE 0 END), 0)                              AS TotalEfectivo,
+                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalEfectivo,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) LIKE '%mercado%pago%'
-                        THEN v.total ELSE 0 END), 0)                              AS TotalMercadoPago,
+                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalMercadoPago,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'dni'
-                        THEN v.total ELSE 0 END), 0)                              AS TotalDni,
-                    ISNULL(SUM(CASE WHEN ISNULL(fu.esctacte, 0) = 1
-                        THEN v.total ELSE 0 END), 0)                              AS TotalCtaCte,
+                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalDni,
+                    0                                      AS TotalCtaCte,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) NOT IN ('efectivo', 'dni')
                                      AND LOWER(fu.FormadePago) NOT LIKE '%mercado%pago%'
-                                     AND ISNULL(fu.esctacte, 0) = 0
-                        THEN v.total ELSE 0 END), 0)                              AS TotalOtros
-                FROM ventas v
-                INNER JOIN FacturasUnicas fu
-                       ON fu.NumeroRemito = v.nrofactura
-                      AND fu.rn = 1
-                WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
+                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalOtros
+                FROM FacturasUnicas fu
+                WHERE fu.rn = 1";
 
             if (numeroCajero.HasValue)
                 sql += " AND CAST(fu.Cajero AS INT) = @numeroCajero";
