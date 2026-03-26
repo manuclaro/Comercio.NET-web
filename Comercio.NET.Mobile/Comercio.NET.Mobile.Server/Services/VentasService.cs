@@ -129,39 +129,46 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<ResumenVentasDto> GetResumenAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
+            // Se obtiene la FormadePago desde Facturas pero con DISTINCT para evitar
+            // multiplicar los ítems cuando hay más de una fila por NumeroRemito.
             var sql = @"
+                WITH FacturasBase AS (
+                    SELECT DISTINCT NumeroRemito, FormadePago, TipoFactura, Cajero
+                    FROM Facturas
+                    WHERE CAST(Fecha AS DATE) BETWEEN @desde AND @hasta
+                      AND ISNULL(Cajero, '') <> ''
+                )
                 SELECT
-                    ISNULL(SUM(v.total), 0)          AS TotalVendido,
-                    COUNT(DISTINCT v.nrofactura)      AS CantidadTransacciones,
-                    ISNULL(SUM(v.cantidad), 0)        AS CantidadProductos,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'efectivo'
+                    ISNULL(SUM(v.total), 0)     AS TotalVendido,
+                    COUNT(DISTINCT v.nrofactura) AS CantidadTransacciones,
+                    ISNULL(SUM(v.cantidad), 0)  AS CantidadProductos,
+                    ISNULL(SUM(CASE WHEN LOWER(fb.FormadePago) = 'efectivo'
                         THEN v.total ELSE 0 END), 0)                              AS TotalEfectivo,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) LIKE '%mercado%pago%'
+                    ISNULL(SUM(CASE WHEN LOWER(fb.FormadePago) LIKE '%mercado%pago%'
                         THEN v.total ELSE 0 END), 0)                              AS TotalMercadoPago,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'dni'
+                    ISNULL(SUM(CASE WHEN LOWER(fb.FormadePago) = 'dni'
                         THEN v.total ELSE 0 END), 0)                              AS TotalDni,
                     ISNULL(SUM(CASE WHEN ISNULL(v.EsCtaCte, 0) = 1
                         THEN v.total ELSE 0 END), 0)                              AS TotalCtaCte,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) NOT IN ('efectivo', 'dni')
-                                     AND LOWER(f.FormadePago) NOT LIKE '%mercado%pago%'
+                    ISNULL(SUM(CASE WHEN LOWER(fb.FormadePago) NOT IN ('efectivo', 'dni')
+                                     AND LOWER(fb.FormadePago) NOT LIKE '%mercado%pago%'
                                      AND ISNULL(v.EsCtaCte, 0) = 0
                         THEN v.total ELSE 0 END), 0)                              AS TotalOtros
                 FROM Ventas v
-                LEFT JOIN Facturas f ON f.NumeroRemito = v.nrofactura
-                WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta
-                  AND ISNULL(f.Cajero, '') <> ''";
+                INNER JOIN FacturasBase fb ON fb.NumeroRemito = v.nrofactura
+                WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
 
             if (numeroCajero.HasValue)
-                sql += " AND CAST(f.Cajero AS INT) = @numeroCajero";
+                sql += " AND CAST(fb.Cajero AS INT) = @numeroCajero";
 
             if (!string.IsNullOrWhiteSpace(formaPago))
-                sql += " AND f.FormadePago = @formaPago";
+                sql += " AND fb.FormadePago = @formaPago";
 
             if (!string.IsNullOrWhiteSpace(tipoFactura))
             {
                 sql += string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase)
-                    ? " AND f.TipoFactura LIKE 'Factura%'"
-                    : " AND f.TipoFactura = @tipoFactura";
+                    ? " AND fb.TipoFactura LIKE 'Factura%'"
+                    : " AND fb.TipoFactura = @tipoFactura";
             }
 
             var parameters = new Dictionary<string, object?>
