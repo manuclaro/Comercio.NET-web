@@ -25,9 +25,11 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var ventas = new List<VentaDto>();
 
-            // La subconsulta filtra Facturas por el mismo rango de fechas que Ventas,
-            // evitando que el GROUP BY opere sobre toda la tabla histórica y garantizando
-            // que cada NumeroRemito del período tenga exactamente una fila en el JOIN.
+            // La subconsulta agrupa Facturas por NumeroRemito para evitar el producto
+            // cartesiano (Facturas tiene una fila por venta, no por producto).
+            // No se filtra por fecha dentro del LEFT JOIN porque Facturas.Fecha puede
+            // diferir de Ventas.fecha (ej.: turno nocturno que cruza medianoche).
+            // El filtro de fecha real se aplica sobre Ventas.fecha en el WHERE principal.
             var sql = @"
                 SELECT 
                     v.id, v.nrofactura, v.codigo, v.descripcion,
@@ -53,7 +55,6 @@ namespace Comercio.NET.Mobile.Server.Services
                         MAX(UsuarioVenta) AS UsuarioVenta,
                         MAX(esCtaCte)     AS esCtaCte
                     FROM Facturas
-                    WHERE CAST(Fecha AS DATE) BETWEEN @desde AND @hasta
                     GROUP BY NumeroRemito
                 ) f ON f.NumeroRemito = v.nrofactura
                 WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
@@ -160,6 +161,10 @@ namespace Comercio.NET.Mobile.Server.Services
                         : " AND f.TipoFactura = @tipoFactura");
             }
 
+            // Facturas tiene UNA fila por NumeroRemito (insertada al finalizar la venta).
+            // Se usa GROUP BY para deduplicar por si algún remito tuviera más de un registro.
+            // No se filtra por Fecha dentro del CTE porque el turno puede cruzar medianoche:
+            // el rango de fechas se aplica sobre Ventas.fecha en la subconsulta de CantidadProductos.
             var sql = $@"
                 WITH FacturasUnicas AS (
                     SELECT
@@ -170,8 +175,12 @@ namespace Comercio.NET.Mobile.Server.Services
                         MAX(f.Cajero)       AS Cajero,
                         MAX(f.esCtaCte)     AS esCtaCte
                     FROM Facturas f
-                    WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                      AND ISNULL(f.Cajero, '') <> ''
+                    INNER JOIN (
+                        SELECT DISTINCT nrofactura
+                        FROM Ventas
+                        WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta
+                    ) v ON v.nrofactura = f.NumeroRemito
+                    WHERE ISNULL(f.Cajero, '') <> ''
                       AND ISNULL(f.esCtaCte, 0) = 0
                       {filtrosCte}
                     GROUP BY f.NumeroRemito
@@ -181,8 +190,12 @@ namespace Comercio.NET.Mobile.Server.Services
                         f.NumeroRemito,
                         MAX(f.ImporteFinal) AS ImporteFinal
                     FROM Facturas f
-                    WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                      AND ISNULL(f.esCtaCte, 0) = 1
+                    INNER JOIN (
+                        SELECT DISTINCT nrofactura
+                        FROM Ventas
+                        WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta
+                    ) v ON v.nrofactura = f.NumeroRemito
+                    WHERE ISNULL(f.esCtaCte, 0) = 1
                     GROUP BY f.NumeroRemito
                 )
                 SELECT
