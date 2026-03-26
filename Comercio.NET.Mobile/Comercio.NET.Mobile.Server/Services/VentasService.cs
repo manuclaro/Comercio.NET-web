@@ -131,19 +131,27 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var sql = @"
                 SELECT
-                    ISNULL(SUM(ImporteFinal), 0)                                                                      AS TotalVendido,
-                    COUNT(DISTINCT NumeroRemito)                                                                       AS CantidadTransacciones,
-                    ISNULL((SELECT SUM(cantidad) FROM Ventas WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta), 0) AS CantidadProductos,
+                    ISNULL(SUM(ImporteFinal), 0) AS TotalVendido,
+                    COUNT(DISTINCT NumeroRemito) AS CantidadTransacciones,
+                    ISNULL((
+                        SELECT SUM(v.cantidad)
+                        FROM Ventas v
+                        INNER JOIN Facturas f2 ON f2.NumeroRemito = v.nrofactura
+                        WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta
+                          AND ISNULL(f2.Cajero, '') <> ''
+                          AND ISNULL(f2.esctacte, 0) = 0
+                    ), 0) AS CantidadProductos,
                     ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'efectivo'          AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalEfectivo,
                     ISNULL(SUM(CASE WHEN LOWER(FormadePago) LIKE '%mercado%pago%' AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalMercadoPago,
                     ISNULL(SUM(CASE WHEN LOWER(FormadePago) = 'dni'               AND ISNULL(esCtaCte,0) = 0 THEN ImporteFinal ELSE 0 END), 0) AS TotalDni,
                     ISNULL(SUM(CASE WHEN ISNULL(esCtaCte,0) = 1                                               THEN ImporteFinal ELSE 0 END), 0) AS TotalCtaCte,
                     ISNULL(SUM(CASE WHEN LOWER(FormadePago) NOT IN ('efectivo','dni')
                                      AND LOWER(FormadePago) NOT LIKE '%mercado%pago%'
-                                     AND ISNULL(esCtaCte,0) = 0                                               THEN ImporteFinal ELSE 0 END), 0) AS TotalOtros
+                                     AND ISNULL(esCtaCte,0) = 0                       THEN ImporteFinal ELSE 0 END), 0) AS TotalOtros
                 FROM Facturas
                 WHERE CAST(Fecha AS DATE) BETWEEN @desde AND @hasta
-                  AND ISNULL(Cajero, '') <> ''";
+                  AND ISNULL(Cajero, '') <> ''
+                  AND ISNULL(esctacte, 0) = 0";
 
             if (numeroCajero.HasValue)
                 sql += " AND CAST(Cajero AS INT) = @numeroCajero";
