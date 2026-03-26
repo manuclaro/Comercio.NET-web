@@ -27,11 +27,14 @@ namespace Comercio.NET.Mobile.Server.Controllers
             try
             {
                 var turno = await _turnoService.GetTurnoActivoAsync();
-                if (turno is null)
-                    return Ok(Array.Empty<object>());
 
-                var ventas = await _ventasService.GetVentasPorTurnoAsync(
-                    turno.FechaApertura, numeroCajero, formaPago, tipoFactura);
+                // Si hay turno abierto, mostrar desde su apertura hasta ahora.
+                // Si no hay turno, mostrar las ventas del día actual completo.
+                var desde = turno?.FechaApertura ?? DateTime.Today;
+                var hasta = DateTime.Now;
+
+                var ventas = await _ventasService.GetVentasDelDiaAsync(
+                    desde, hasta, numeroCajero, formaPago, tipoFactura);
                 return Ok(ventas);
             }
             catch (Exception ex)
@@ -50,11 +53,13 @@ namespace Comercio.NET.Mobile.Server.Controllers
             try
             {
                 var turno = await _turnoService.GetTurnoActivoAsync();
-                if (turno is null)
-                    return Ok(new { });
 
-                var resumen = await _ventasService.GetResumenPorTurnoAsync(
-                    turno.FechaApertura, numeroCajero, formaPago, tipoFactura);
+                // Mismo criterio: turno activo o día de hoy si no hay turno.
+                var desde = turno?.FechaApertura ?? DateTime.Today;
+                var hasta = DateTime.Now;
+
+                var resumen = await _ventasService.GetResumenAsync(
+                    desde, hasta, numeroCajero, formaPago, tipoFactura);
                 return Ok(resumen);
             }
             catch (Exception ex)
