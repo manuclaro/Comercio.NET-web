@@ -133,40 +133,36 @@ namespace Comercio.NET.Mobile.Server.Services
                 WITH FacturasUnicas AS (
                     SELECT
                         f.NumeroRemito,
-                        f.ImporteFinal,
                         f.FormadePago,
                         f.TipoFactura,
                         f.Cajero,
+                        f.esctacte,
                         ROW_NUMBER() OVER (PARTITION BY f.NumeroRemito ORDER BY f.Id ASC) AS rn
                     FROM Facturas f
                     WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
                       AND ISNULL(f.Cajero, '') <> ''
                 )
                 SELECT
-                    ISNULL(SUM(fu.ImporteFinal), 0)      AS TotalVendido,
-                    COUNT(*)                             AS CantidadTransacciones,
-                    ISNULL((
-                        SELECT SUM(v2.cantidad)
-                        FROM ventas v2
-                        INNER JOIN FacturasUnicas fu2
-                               ON fu2.NumeroRemito = v2.nrofactura
-                              AND fu2.rn = 1
-                        WHERE CAST(v2.fecha AS DATE) BETWEEN @desde AND @hasta
-                    ), 0)                                AS CantidadProductos,
+                    ISNULL(SUM(v.total), 0)          AS TotalVendido,
+                    COUNT(DISTINCT v.nrofactura)      AS CantidadTransacciones,
+                    ISNULL(SUM(v.cantidad), 0)        AS CantidadProductos,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'efectivo'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalEfectivo,
+                        THEN v.total ELSE 0 END), 0)                              AS TotalEfectivo,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) LIKE '%mercado%pago%'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalMercadoPago,
+                        THEN v.total ELSE 0 END), 0)                              AS TotalMercadoPago,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'dni'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalDni,
-                    ISNULL(SUM(CASE WHEN ISNULL(fu.ImporteFinal, 0) > 0
-                                     AND LOWER(fu.FormadePago) = 'cta. cte.'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalCtaCte,
-                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) NOT IN ('efectivo', 'dni', 'cta. cte.')
+                        THEN v.total ELSE 0 END), 0)                              AS TotalDni,
+                    ISNULL(SUM(CASE WHEN ISNULL(fu.esctacte, 0) = 1
+                        THEN v.total ELSE 0 END), 0)                              AS TotalCtaCte,
+                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) NOT IN ('efectivo', 'dni')
                                      AND LOWER(fu.FormadePago) NOT LIKE '%mercado%pago%'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)               AS TotalOtros
-                FROM FacturasUnicas fu
-                WHERE fu.rn = 1";
+                                     AND ISNULL(fu.esctacte, 0) = 0
+                        THEN v.total ELSE 0 END), 0)                              AS TotalOtros
+                FROM ventas v
+                INNER JOIN FacturasUnicas fu
+                       ON fu.NumeroRemito = v.nrofactura
+                      AND fu.rn = 1
+                WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
 
             if (numeroCajero.HasValue)
                 sql += " AND CAST(fu.Cajero AS INT) = @numeroCajero";
