@@ -25,10 +25,9 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var ventas = new List<VentaDto>();
 
-            // Se hace JOIN contra una subconsulta que garantiza UNA sola fila
-            // por NumeroRemito en Facturas (la de menor IdFactura), evitando
-            // el producto cartesiano que duplicaba filas cuando Facturas tiene
-            // múltiples registros por remito.
+            // La subconsulta filtra Facturas por el mismo rango de fechas que Ventas,
+            // evitando que el GROUP BY opere sobre toda la tabla histórica y garantizando
+            // que cada NumeroRemito del período tenga exactamente una fila en el JOIN.
             var sql = @"
                 SELECT 
                     v.id, v.nrofactura, v.codigo, v.descripcion,
@@ -47,13 +46,14 @@ namespace Comercio.NET.Mobile.Server.Services
                 LEFT JOIN (
                     SELECT
                         NumeroRemito,
-                        MIN(IdFactura)  AS IdFactura,
+                        MIN(IdFactura)    AS IdFactura,
                         MAX(FormadePago)  AS FormadePago,
                         MAX(TipoFactura)  AS TipoFactura,
                         MAX(Cajero)       AS Cajero,
                         MAX(UsuarioVenta) AS UsuarioVenta,
                         MAX(esCtaCte)     AS esCtaCte
                     FROM Facturas
+                    WHERE CAST(Fecha AS DATE) BETWEEN @desde AND @hasta
                     GROUP BY NumeroRemito
                 ) f ON f.NumeroRemito = v.nrofactura
                 WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
@@ -111,24 +111,24 @@ namespace Comercio.NET.Mobile.Server.Services
                     {
                         ventas.Add(new VentaDto
                         {
-                            Id = ConvertToInt32(row.Count > 0 ? row[0] : null),
-                            NroFactura = ConvertToInt32(row.Count > 1 ? row[1] : null),
-                            Codigo = ConvertToString(row.Count > 2 ? row[2] : null),
-                            Descripcion = ConvertToString(row.Count > 3 ? row[3] : null),
-                            Precio = ConvertToDecimal(row.Count > 4 ? row[4] : null),
-                            Cantidad = ConvertToInt32(row.Count > 5 ? row[5] : null),
-                            Total = ConvertToDecimal(row.Count > 6 ? row[6] : null),
-                            PorcentajeIva = ConvertToDecimal(row.Count > 7 ? row[7] : null),
-                            EsOferta = ConvertToBoolean(row.Count > 8 ? row[8] : null),
-                            NombreOferta = ConvertToString(row.Count > 9 ? row[9] : null),
-                            FormaPago = ConvertToString(row.Count > 10 ? row[10] : null),
-                            TipoFactura = ConvertToString(row.Count > 11 ? row[11] : null),
-                            Fecha = ConvertToDateTime(row.Count > 12 ? row[12] : null),
-                            Hora = ConvertToString(row.Count > 13 ? row[13] : null),
-                            EsCtaCte = ConvertToBoolean(row.Count > 14 ? row[14] : null),
-                            NombreCtaCte = ConvertToString(row.Count > 15 ? row[15] : null),
-                            UsuarioVenta = ConvertToString(row.Count > 16 ? row[16] : null),
-                            NumeroCajero = ConvertToInt32(row.Count > 17 ? row[17] : null),
+                            Id            = ConvertToInt32(row.Count > 0  ? row[0]  : null),
+                            NroFactura    = ConvertToInt32(row.Count > 1  ? row[1]  : null),
+                            Codigo        = ConvertToString(row.Count > 2  ? row[2]  : null),
+                            Descripcion   = ConvertToString(row.Count > 3  ? row[3]  : null),
+                            Precio        = ConvertToDecimal(row.Count > 4  ? row[4]  : null),
+                            Cantidad      = ConvertToInt32(row.Count > 5  ? row[5]  : null),
+                            Total         = ConvertToDecimal(row.Count > 6  ? row[6]  : null),
+                            PorcentajeIva = ConvertToDecimal(row.Count > 7  ? row[7]  : null),
+                            EsOferta      = ConvertToBoolean(row.Count > 8  ? row[8]  : null),
+                            NombreOferta  = ConvertToString(row.Count > 9  ? row[9]  : null),
+                            FormaPago     = ConvertToString(row.Count > 10 ? row[10] : null),
+                            TipoFactura   = ConvertToString(row.Count > 11 ? row[11] : null),
+                            Fecha         = ConvertToDateTime(row.Count > 12 ? row[12] : null),
+                            Hora          = ConvertToString(row.Count > 13 ? row[13] : null),
+                            EsCtaCte      = ConvertToBoolean(row.Count > 14 ? row[14] : null),
+                            NombreCtaCte  = ConvertToString(row.Count > 15 ? row[15] : null),
+                            UsuarioVenta  = ConvertToString(row.Count > 16 ? row[16] : null),
+                            NumeroCajero  = ConvertToInt32(row.Count > 17 ? row[17] : null),
                         });
                     }
                 }
@@ -144,8 +144,6 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<ResumenVentasDto> GetResumenAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
-            // Filtros opcionales aplicados dentro del CTE para que la agrupación
-            // por NumeroRemito ya opere sobre el conjunto correcto.
             var filtrosCte = new System.Text.StringBuilder();
 
             if (numeroCajero.HasValue)
@@ -162,10 +160,6 @@ namespace Comercio.NET.Mobile.Server.Services
                         : " AND f.TipoFactura = @tipoFactura");
             }
 
-            // Se agrupa por NumeroRemito y se toma el ImporteFinal máximo (todos
-            // los registros del mismo remito comparten el mismo ImporteFinal).
-            // Esto elimina la duplicación causada por múltiples filas en Facturas
-            // por remito antes de sumar los totales.
             var sql = $@"
                 WITH FacturasUnicas AS (
                     SELECT
@@ -250,14 +244,14 @@ namespace Comercio.NET.Mobile.Server.Services
                     var row = resultado.Data[0];
                     return new ResumenVentasDto
                     {
-                        TotalVendido = ConvertToDecimal(row.Count > 0 ? row[0] : null),
-                        CantidadTransacciones = ConvertToInt32(row.Count > 1 ? row[1] : null),
-                        CantidadProductos = ConvertToInt32(row.Count > 2 ? row[2] : null),
-                        TotalEfectivo = ConvertToDecimal(row.Count > 3 ? row[3] : null),
-                        TotalMercadoPago = ConvertToDecimal(row.Count > 4 ? row[4] : null),
-                        TotalDni = ConvertToDecimal(row.Count > 5 ? row[5] : null),
-                        TotalCtaCte = ConvertToDecimal(row.Count > 6 ? row[6] : null),
-                        TotalOtros = ConvertToDecimal(row.Count > 7 ? row[7] : null),
+                        TotalVendido          = ConvertToDecimal(row.Count > 0 ? row[0] : null),
+                        CantidadTransacciones = ConvertToInt32(row.Count > 1  ? row[1] : null),
+                        CantidadProductos     = ConvertToInt32(row.Count > 2  ? row[2] : null),
+                        TotalEfectivo         = ConvertToDecimal(row.Count > 3 ? row[3] : null),
+                        TotalMercadoPago      = ConvertToDecimal(row.Count > 4 ? row[4] : null),
+                        TotalDni              = ConvertToDecimal(row.Count > 5 ? row[5] : null),
+                        TotalCtaCte           = ConvertToDecimal(row.Count > 6 ? row[6] : null),
+                        TotalOtros            = ConvertToDecimal(row.Count > 7 ? row[7] : null),
                     };
                 }
             }
@@ -310,8 +304,8 @@ namespace Comercio.NET.Mobile.Server.Services
             if (value is JsonElement j)
                 return j.ValueKind switch
                 {
-                    JsonValueKind.True => true,
-                    JsonValueKind.False => false,
+                    JsonValueKind.True   => true,
+                    JsonValueKind.False  => false,
                     JsonValueKind.Number => j.GetInt32() != 0,
                     JsonValueKind.String => j.GetString() is "1" or "true" or "True",
                     _ => false
@@ -326,8 +320,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 return j.ValueKind switch
                 {
                     JsonValueKind.String => j.GetString() ?? string.Empty,
-                    JsonValueKind.Null => string.Empty,
-                    _ => j.ToString()
+                    JsonValueKind.Null   => string.Empty,
+                    _                   => j.ToString()
                 };
             return value.ToString() ?? string.Empty;
         }
@@ -341,3 +335,4 @@ namespace Comercio.NET.Mobile.Server.Services
         }
     }
 }
+
