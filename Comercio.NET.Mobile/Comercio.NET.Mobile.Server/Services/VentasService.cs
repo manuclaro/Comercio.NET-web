@@ -129,8 +129,6 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<ResumenVentasDto> GetResumenAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
-            // Misma lógica que frmControlFacturas: una fila por factura usando ROW_NUMBER,
-            // filtrando solo esCtaCte = 0 y cajero no vacío, igual que el arqueo de caja.
             var sql = @"
                 WITH FacturasUnicas AS (
                     SELECT
@@ -145,6 +143,15 @@ namespace Comercio.NET.Mobile.Server.Services
                     WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
                       AND ISNULL(f.Cajero, '') <> ''
                       AND ISNULL(f.esCtaCte, 0) = 0
+                ),
+                CtaCteUnicas AS (
+                    SELECT
+                        f.NumeroRemito,
+                        f.ImporteFinal,
+                        ROW_NUMBER() OVER (PARTITION BY f.NumeroRemito ORDER BY f.IdFactura ASC) AS rn
+                    FROM Facturas f
+                    WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
+                      AND ISNULL(f.esCtaCte, 0) = 1
                 )
                 SELECT
                     ISNULL(SUM(fu.ImporteFinal), 0)       AS TotalVendido,
@@ -163,7 +170,7 @@ namespace Comercio.NET.Mobile.Server.Services
                         THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalMercadoPago,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'dni'
                         THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalDni,
-                    0                                      AS TotalCtaCte,
+                    ISNULL((SELECT SUM(cc.ImporteFinal) FROM CtaCteUnicas cc WHERE cc.rn = 1), 0) AS TotalCtaCte,
                     ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) NOT IN ('efectivo', 'dni')
                                      AND LOWER(fu.FormadePago) NOT LIKE '%mercado%pago%'
                         THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalOtros
