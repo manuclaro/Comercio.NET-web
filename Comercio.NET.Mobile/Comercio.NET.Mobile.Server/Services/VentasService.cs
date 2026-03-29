@@ -27,8 +27,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             // La subconsulta agrupa Facturas por NumeroRemito para evitar el producto
             // cartesiano (Facturas tiene una fila por venta, no por producto).
-            // No se filtra por fecha dentro del LEFT JOIN porque Facturas.Fecha puede
-            // diferir de Ventas.fecha (ej.: turno nocturno que cruza medianoche).
+            // Se filtra Facturas por fecha para evitar traer remitos antiguos con el mismo número.
             // El filtro de fecha real se aplica sobre Ventas.fecha en el WHERE principal.
             var sql = @"
                 SELECT 
@@ -55,6 +54,7 @@ namespace Comercio.NET.Mobile.Server.Services
                         MAX(UsuarioVenta)           AS UsuarioVenta,
                         MAX(CAST(esCtaCte AS INT))  AS esCtaCte
                     FROM Facturas
+                    WHERE CAST(Fecha AS DATE) BETWEEN @desde AND @hasta
                     GROUP BY NumeroRemito
                 ) f ON f.NumeroRemito = v.nrofactura
                 WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
@@ -154,80 +154,62 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<ResumenVentasDto> GetResumenAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
-            var filtrosCte = new System.Text.StringBuilder();
+            var filtrosFactura = new System.Text.StringBuilder();
 
             if (numeroCajero.HasValue)
-                filtrosCte.Append(" AND CAST(f.Cajero AS INT) = @numeroCajero");
+                filtrosFactura.Append(" AND CAST(f.Cajero AS INT) = @numeroCajero");
 
             if (!string.IsNullOrWhiteSpace(formaPago))
-                filtrosCte.Append(" AND f.FormadePago = @formaPago");
+                filtrosFactura.Append(" AND f.FormadePago = @formaPago");
 
             if (!string.IsNullOrWhiteSpace(tipoFactura))
             {
-                filtrosCte.Append(
+                filtrosFactura.Append(
                     string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase)
                         ? " AND f.TipoFactura LIKE 'Factura%'"
                         : " AND f.TipoFactura = @tipoFactura");
             }
 
-            // Facturas tiene UNA fila por NumeroRemito (insertada al finalizar la venta).
-            // Se usa GROUP BY para deduplicar por si algún remito tuviera más de un registro.
-            // No se filtra por Fecha dentro del CTE porque el turno puede cruzar medianoche:
-            // el rango de fechas se aplica sobre Ventas.fecha en la subconsulta de CantidadProductos.
+            // Los totales monetarios se calculan directamente desde Facturas (1 fila por remito)
+            // filtrando por Facturas.Fecha, igual que ArqueoCajaService.
+            // La cantidad de productos se obtiene por separado desde Ventas para no multiplicar
+            // el ImporteFinal por la cantidad de productos de cada remito.
             var sql = $@"
-                WITH FacturasUnicas AS (
-                    SELECT
-                        f.NumeroRemito,
-                        MAX(f.ImporteFinal) AS ImporteFinal,
-                        MAX(f.FormadePago)  AS FormadePago,
-                        MAX(f.TipoFactura)  AS TipoFactura,
-                        MAX(f.Cajero)       AS Cajero,
-                        MAX(CAST(f.esCtaCte AS INT)) AS esCtaCte
-                    FROM Facturas f
-                    INNER JOIN (
-                        SELECT DISTINCT nrofactura
-                        FROM Ventas
-                        WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta
-                    ) v ON v.nrofactura = f.NumeroRemito
-                    WHERE ISNULL(f.Cajero, '') <> ''
-                      AND ISNULL(f.esCtaCte, 0) = 0
-                      {filtrosCte}
-                    GROUP BY f.NumeroRemito
-                ),
-                CtaCteUnicas AS (
-                    SELECT
-                        f.NumeroRemito,
-                        MAX(f.ImporteFinal) AS ImporteFinal
-                    FROM Facturas f
-                    INNER JOIN (
-                        SELECT DISTINCT nrofactura
-                        FROM Ventas
-                        WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta
-                    ) v ON v.nrofactura = f.NumeroRemito
-                    WHERE ISNULL(f.esCtaCte, 0) = 1
-                    GROUP BY f.NumeroRemito
-                )
                 SELECT
-                    ISNULL(SUM(fu.ImporteFinal), 0)       AS TotalVendido,
-                    COUNT(*)                               AS CantidadTransacciones,
+                    ISNULL(SUM(CAST(f.ImporteFinal AS DECIMAL(18,2))), 0) AS TotalVendido,
+                    COUNT(DISTINCT f.NumeroRemito)                        AS CantidadTransacciones,
                     ISNULL((
-                        SELECT SUM(v2.cantidad)
-                        FROM ventas v2
-                        INNER JOIN FacturasUnicas fu2
-                               ON fu2.NumeroRemito = v2.nrofactura
-                        WHERE CAST(v2.fecha AS DATE) BETWEEN @desde AND @hasta
-                    ), 0)                                  AS CantidadProductos,
-                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'efectivo'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalEfectivo,
-                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) LIKE '%mercado%pago%'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalMercadoPago,
-                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) = 'dni'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalDni,
-                    ISNULL((SELECT SUM(cc.ImporteFinal) FROM CtaCteUnicas cc), 0) AS TotalCtaCte,
-                    ISNULL(SUM(CASE WHEN LOWER(fu.FormadePago) NOT IN ('efectivo', 'dni')
-                                     AND LOWER(fu.FormadePago) NOT LIKE '%mercado%pago%'
-                        THEN fu.ImporteFinal ELSE 0 END), 0)                AS TotalOtros
-                FROM FacturasUnicas fu";
+                        SELECT SUM(v.cantidad)
+                        FROM Ventas v
+                        WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta
+                          AND EXISTS (
+                              SELECT 1 FROM Facturas f2
+                              WHERE f2.NumeroRemito = v.nrofactura
+                                AND CAST(f2.Fecha AS DATE) BETWEEN @desde AND @hasta
+                                AND ISNULL(f2.Cajero, '') <> ''
+                                AND ISNULL(f2.esCtaCte, 0) = 0
+                          )
+                    ), 0)                                                  AS CantidadProductos,
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'efectivo'
+                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalEfectivo,
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) LIKE '%mercado%pago%'
+                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalMercadoPago,
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'dni'
+                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalDni,
+                    ISNULL((
+                        SELECT SUM(CAST(fc.ImporteFinal AS DECIMAL(18,2)))
+                        FROM Facturas fc
+                        WHERE CAST(fc.Fecha AS DATE) BETWEEN @desde AND @hasta
+                          AND ISNULL(fc.esCtaCte, 0) = 1
+                    ), 0)                                                  AS TotalCtaCte,
+                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) NOT IN ('efectivo', 'dni')
+                                     AND LOWER(f.FormadePago) NOT LIKE '%mercado%pago%'
+                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalOtros
+                FROM Facturas f
+                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
+                  AND ISNULL(f.Cajero, '') <> ''
+                  AND ISNULL(f.esCtaCte, 0) = 0
+                  {filtrosFactura}";
 
             var parameters = new Dictionary<string, object?>
             {
@@ -275,7 +257,6 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     var row = resultado.Data[0];
 
-                    // Log de cada valor para diagnóstico
                     _logger.LogInformation("GetResumenAsync → Raw values: [{V}]",
                         string.Join(", ", row.Select(v => v?.ToString() ?? "null")));
 
