@@ -94,8 +94,14 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
+                _logger.LogInformation("GetVentasDelDiaAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
+                    desde, hasta, numeroCajero, formaPago, tipoFactura);
+
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("GetVentasDelDiaAsync → StatusCode={StatusCode}, ContentLength={Length}",
+                    response.StatusCode, content?.Length ?? 0);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -105,6 +111,9 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                _logger.LogInformation("GetVentasDelDiaAsync → Filas recibidas: {Count}",
+                    resultado?.Data?.Count ?? 0);
 
                 if (resultado?.Data != null)
                 {
@@ -240,8 +249,14 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
+                _logger.LogInformation("GetResumenAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
+                    desde, hasta, numeroCajero, formaPago, tipoFactura);
+
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("GetResumenAsync → StatusCode={StatusCode}, Response={Content}",
+                    response.StatusCode, content);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -252,9 +267,18 @@ namespace Comercio.NET.Mobile.Server.Services
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
+                _logger.LogInformation("GetResumenAsync → Data rows: {Count}, First row columns: {Cols}",
+                    resultado?.Data?.Count ?? 0,
+                    resultado?.Data?.FirstOrDefault()?.Count ?? 0);
+
                 if (resultado?.Data != null && resultado.Data.Count > 0)
                 {
                     var row = resultado.Data[0];
+
+                    // Log de cada valor para diagnóstico
+                    _logger.LogInformation("GetResumenAsync → Raw values: [{V}]",
+                        string.Join(", ", row.Select(v => v?.ToString() ?? "null")));
+
                     return new ResumenVentasDto
                     {
                         TotalVendido          = ConvertToDecimal(row.Count > 0 ? row[0] : null),
