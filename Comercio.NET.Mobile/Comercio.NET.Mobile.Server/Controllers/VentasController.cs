@@ -20,21 +20,19 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetVentas(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
             [FromQuery] int? numeroCajero,
             [FromQuery] string? formaPago,
             [FromQuery] string? tipoFactura)
         {
             try
             {
-                var turno = await _turnoService.GetTurnoActivoAsync();
-
-                // Si hay turno abierto, mostrar desde su apertura hasta ahora.
-                // Si no hay turno, mostrar las ventas del día actual completo.
-                var desde = turno?.FechaApertura ?? DateTime.Today;
-                var hasta = DateTime.Now;
+                var fechaDesde = desde?.Date ?? DateTime.Today;
+                var fechaHasta = hasta?.Date ?? DateTime.Today;
 
                 var ventas = await _ventasService.GetVentasDelDiaAsync(
-                    desde, hasta, numeroCajero, formaPago, tipoFactura);
+                    fechaDesde, fechaHasta, numeroCajero, formaPago, tipoFactura);
                 return Ok(ventas);
             }
             catch (Exception ex)
@@ -46,20 +44,19 @@ namespace Comercio.NET.Mobile.Server.Controllers
 
         [HttpGet("resumen")]
         public async Task<IActionResult> GetResumen(
+            [FromQuery] DateTime? desde,
+            [FromQuery] DateTime? hasta,
             [FromQuery] int? numeroCajero,
             [FromQuery] string? formaPago,
             [FromQuery] string? tipoFactura)
         {
             try
             {
-                var turno = await _turnoService.GetTurnoActivoAsync();
-
-                // Mismo criterio: turno activo o día de hoy si no hay turno.
-                var desde = turno?.FechaApertura ?? DateTime.Today;
-                var hasta = DateTime.Now;
+                var fechaDesde = desde?.Date ?? DateTime.Today;
+                var fechaHasta = hasta?.Date ?? DateTime.Today;
 
                 var resumen = await _ventasService.GetResumenAsync(
-                    desde, hasta, numeroCajero, formaPago, tipoFactura);
+                    fechaDesde, fechaHasta, numeroCajero, formaPago, tipoFactura);
                 return Ok(resumen);
             }
             catch (Exception ex)

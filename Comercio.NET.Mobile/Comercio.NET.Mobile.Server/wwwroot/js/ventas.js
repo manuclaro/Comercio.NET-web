@@ -1,6 +1,11 @@
 ﻿'use strict';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Inicializar fechas con el día de hoy
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('fechaDesde').value = hoy;
+    document.getElementById('fechaHasta').value = hoy;
+
     cargarVentas();
 });
 
@@ -30,20 +35,31 @@ function badgePago(formaPago, esCtaCte) {
 }
 
 async function cargarVentas() {
+    const fechaDesde  = document.getElementById('fechaDesde').value;
+    const fechaHasta  = document.getElementById('fechaHasta').value;
     const cajero      = document.getElementById('cajeroVentas').value.trim();
     const formaPago   = document.getElementById('formaPagoVentas').value;
     const tipoFactura = document.getElementById('tipoFacturaVentas').value;
 
+    if (!fechaDesde || !fechaHasta) {
+        alert('Debe seleccionar las fechas Desde y Hasta.');
+        return;
+    }
+
     let urlVentas  = '/api/ventas';
     let urlResumen = '/api/ventas/resumen';
     const params   = new URLSearchParams();
+
+    params.set('desde', fechaDesde);
+    params.set('hasta', fechaHasta);
 
     if (cajero)      params.set('numeroCajero', cajero);
     if (formaPago)   params.set('formaPago', formaPago);
     if (tipoFactura) params.set('tipoFactura', tipoFactura);
 
     const qs = params.toString();
-    if (qs) { urlVentas += `?${qs}`; urlResumen += `?${qs}`; }
+    urlVentas  += `?${qs}`;
+    urlResumen += `?${qs}`;
 
     try {
         const [ventasRes, resumenRes] = await Promise.all([
