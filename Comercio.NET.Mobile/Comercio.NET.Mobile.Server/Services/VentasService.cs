@@ -48,12 +48,12 @@ namespace Comercio.NET.Mobile.Server.Services
                 LEFT JOIN (
                     SELECT
                         NumeroRemito,
-                        MIN(IdFactura)    AS IdFactura,
-                        MAX(FormadePago)  AS FormadePago,
-                        MAX(TipoFactura)  AS TipoFactura,
-                        MAX(Cajero)       AS Cajero,
-                        MAX(UsuarioVenta) AS UsuarioVenta,
-                        MAX(esCtaCte)     AS esCtaCte
+                        MIN(IdFactura)              AS IdFactura,
+                        MAX(FormadePago)            AS FormadePago,
+                        MAX(TipoFactura)            AS TipoFactura,
+                        MAX(Cajero)                 AS Cajero,
+                        MAX(UsuarioVenta)           AS UsuarioVenta,
+                        MAX(CAST(esCtaCte AS INT))  AS esCtaCte
                     FROM Facturas
                     GROUP BY NumeroRemito
                 ) f ON f.NumeroRemito = v.nrofactura
@@ -182,7 +182,7 @@ namespace Comercio.NET.Mobile.Server.Services
                         MAX(f.FormadePago)  AS FormadePago,
                         MAX(f.TipoFactura)  AS TipoFactura,
                         MAX(f.Cajero)       AS Cajero,
-                        MAX(f.esCtaCte)     AS esCtaCte
+                        MAX(CAST(f.esCtaCte AS INT)) AS esCtaCte
                     FROM Facturas f
                     INNER JOIN (
                         SELECT DISTINCT nrofactura
