@@ -1,11 +1,18 @@
 ﻿'use strict';
 
+/** Obtiene la fecha de hoy en formato yyyy-MM-dd usando hora local (Argentina). */
+function fechaHoyLocal() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar fechas con el día de hoy
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaHoyLocal();
     document.getElementById('fechaDesde').value = hoy;
     document.getElementById('fechaHasta').value = hoy;
-
     cargarVentas();
 });
 
