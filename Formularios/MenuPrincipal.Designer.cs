@@ -246,42 +246,42 @@
             // newWindowToolStripMenuItem
             // 
             newWindowToolStripMenuItem.Name = "newWindowToolStripMenuItem";
-            newWindowToolStripMenuItem.Size = new Size(180, 22);
+            newWindowToolStripMenuItem.Size = new Size(175, 22);
             newWindowToolStripMenuItem.Text = "&Nueva ventana";
             newWindowToolStripMenuItem.Click += ShowNewForm;
             // 
             // cascadeToolStripMenuItem
             // 
             cascadeToolStripMenuItem.Name = "cascadeToolStripMenuItem";
-            cascadeToolStripMenuItem.Size = new Size(180, 22);
+            cascadeToolStripMenuItem.Size = new Size(175, 22);
             cascadeToolStripMenuItem.Text = "&Cascada";
             cascadeToolStripMenuItem.Click += CascadeToolStripMenuItem_Click;
             // 
             // tileVerticalToolStripMenuItem
             // 
             tileVerticalToolStripMenuItem.Name = "tileVerticalToolStripMenuItem";
-            tileVerticalToolStripMenuItem.Size = new Size(180, 22);
+            tileVerticalToolStripMenuItem.Size = new Size(175, 22);
             tileVerticalToolStripMenuItem.Text = "Mosaico &vertical";
             tileVerticalToolStripMenuItem.Click += TileVerticalToolStripMenuItem_Click;
             // 
             // tileHorizontalToolStripMenuItem
             // 
             tileHorizontalToolStripMenuItem.Name = "tileHorizontalToolStripMenuItem";
-            tileHorizontalToolStripMenuItem.Size = new Size(180, 22);
+            tileHorizontalToolStripMenuItem.Size = new Size(175, 22);
             tileHorizontalToolStripMenuItem.Text = "Mosaico &horizontal";
             tileHorizontalToolStripMenuItem.Click += TileHorizontalToolStripMenuItem_Click;
             // 
             // closeAllToolStripMenuItem
             // 
             closeAllToolStripMenuItem.Name = "closeAllToolStripMenuItem";
-            closeAllToolStripMenuItem.Size = new Size(180, 22);
+            closeAllToolStripMenuItem.Size = new Size(175, 22);
             closeAllToolStripMenuItem.Text = "C&errar todo";
             closeAllToolStripMenuItem.Click += CloseAllToolStripMenuItem_Click;
             // 
             // arrangeIconsToolStripMenuItem
             // 
             arrangeIconsToolStripMenuItem.Name = "arrangeIconsToolStripMenuItem";
-            arrangeIconsToolStripMenuItem.Size = new Size(180, 22);
+            arrangeIconsToolStripMenuItem.Size = new Size(175, 22);
             arrangeIconsToolStripMenuItem.Text = "&Organizar iconos";
             arrangeIconsToolStripMenuItem.Click += ArrangeIconsToolStripMenuItem_Click;
             // 

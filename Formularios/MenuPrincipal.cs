@@ -1,4 +1,4 @@
-﻿using Comercio.NET;
+using Comercio.NET;
 using Comercio.NET.Formularios;
 using Comercio.NET.Models;
 using Comercio.NET.Services;
@@ -30,9 +30,10 @@ namespace Comercio.NET
         private ToolStripMenuItem controlVentasProductosToolStripMenuItem;
         private ToolStripButton toolStripControlVentasProductos;
 
-        // ✅ CORREGIDO: Constantes para actualización automática
-        private const string CURRENT_VERSION = "1.3.0"; // ✅ ACTUALIZADO a versión actual
-        private const string UPDATE_SERVER = "https://github.com/manuclaro/Comercio.NET-web/releases/download/v1.3.0"; // ✅ SIN version.json al final
+        // ✅ CORREGIDO: Lee la versión directamente del ensamblado para evitar desincronización
+        private static readonly string CURRENT_VERSION = Program.GetCurrentVersionPublic();
+        private const string UPDATE_SERVER = "https://github.com/manuclaro/Comercio.NET-web";
+        private const string GITHUB_TOKEN = "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"; // Token de GitHub para repositorios privados
       
         public MenuPrincipal()
         {
@@ -2987,7 +2988,7 @@ namespace Comercio.NET
                 var originalCursor = this.Cursor;
                 this.Cursor = Cursors.WaitCursor;
 
-                using (var updater = new AutoUpdaterService(UPDATE_SERVER, CURRENT_VERSION))
+                using (var updater = new AutoUpdaterService(UPDATE_SERVER, CURRENT_VERSION, string.IsNullOrWhiteSpace(GITHUB_TOKEN) ? null : GITHUB_TOKEN))
                 {
                     var versionInfo = await updater.CheckForUpdatesAsync();
 
@@ -2996,7 +2997,7 @@ namespace Comercio.NET
                     if (versionInfo != null)
                     {
                         // Hay actualización disponible
-                        using (var frmUpdate = new frmActualizacion(versionInfo, CURRENT_VERSION, UPDATE_SERVER))
+                        using (var frmUpdate = new frmActualizacion(versionInfo, CURRENT_VERSION, UPDATE_SERVER, string.IsNullOrWhiteSpace(GITHUB_TOKEN) ? null : GITHUB_TOKEN))
                         {
                             frmUpdate.ShowDialog(this);
                         }

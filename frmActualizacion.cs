@@ -1,5 +1,6 @@
-using System;
+ï»¿using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Comercio.NET.Servicios;
@@ -11,25 +12,25 @@ namespace Comercio.NET.Formularios
         private Label lblTitulo;
         private Label lblVersionActual;
         private Label lblVersionNueva;
-        private Label lblTamañoArchivo;
+        private Label lblTamanoArchivo;
+        private Label lblFechaPublicacion;
         private TextBox txtChangeLog;
         private ProgressBar progressBar;
         private Label lblProgreso;
         private Button btnActualizar;
         private Button btnOmitir;
         private Panel panelInfo;
-        private PictureBox picIcono;
 
         private readonly AutoUpdaterService _updaterService;
         private readonly VersionInfo _versionInfo;
         private readonly string _currentVersion;
 
-        public frmActualizacion(VersionInfo versionInfo, string currentVersion, string updateServerUrl)
+        public frmActualizacion(VersionInfo versionInfo, string currentVersion, string githubRepoUrl, string githubToken = null)
         {
             _versionInfo = versionInfo ?? throw new ArgumentNullException(nameof(versionInfo));
             _currentVersion = currentVersion ?? throw new ArgumentNullException(nameof(currentVersion));
-            
-            _updaterService = new AutoUpdaterService(updateServerUrl, currentVersion);
+
+            _updaterService = new AutoUpdaterService(githubRepoUrl, currentVersion, githubToken);
 
             InitializeComponent();
             MostrarInformacion();
@@ -37,7 +38,7 @@ namespace Comercio.NET.Formularios
 
         private void InitializeComponent()
         {
-            this.Text = "Actualización Disponible - Comercio .NET";
+            this.Text = "Actualizacion Disponible - Comercio .NET";
             this.Size = new Size(650, 550);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -49,37 +50,26 @@ namespace Comercio.NET.Formularios
             panelInfo = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 140,
+                Height = 150,
                 BackColor = Color.FromArgb(0, 120, 215)
             };
             panelInfo.Paint += (s, e) =>
             {
                 var rect = panelInfo.ClientRectangle;
-                using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                using (var brush = new LinearGradientBrush(
                     rect, Color.FromArgb(0, 120, 215), Color.FromArgb(0, 90, 180), 90f))
                 {
                     e.Graphics.FillRectangle(brush, rect);
                 }
             };
 
-            // Icono de actualización
-            picIcono = new PictureBox
-            {
-                Size = new Size(64, 64),
-                Location = new Point(20, 38),
-                SizeMode = PictureBoxSizeMode.CenterImage,
-                BackColor = Color.Transparent
-            };
-            // Aquí puedes agregar un icono si tienes uno en recursos
-            panelInfo.Controls.Add(picIcono);
-
             lblTitulo = new Label
             {
-                Text = "?? Nueva versión disponible",
+                Text = "Nueva version disponible",
                 Font = new Font("Segoe UI", 18F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(100, 30),
+                Location = new Point(20, 20),
                 BackColor = Color.Transparent
             };
 
@@ -88,7 +78,7 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 11F),
                 ForeColor = Color.FromArgb(220, 220, 220),
                 AutoSize = true,
-                Location = new Point(100, 70),
+                Location = new Point(20, 60),
                 BackColor = Color.Transparent
             };
 
@@ -97,37 +87,46 @@ namespace Comercio.NET.Formularios
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(144, 238, 144),
                 AutoSize = true,
-                Location = new Point(100, 95),
+                Location = new Point(20, 85),
                 BackColor = Color.Transparent
             };
 
-            lblTamañoArchivo = new Label
+            lblTamanoArchivo = new Label
             {
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(200, 200, 200),
                 AutoSize = true,
-                Location = new Point(100, 118),
+                Location = new Point(20, 110),
                 BackColor = Color.Transparent
             };
 
-            panelInfo.Controls.AddRange(new Control[] { 
-                lblTitulo, lblVersionActual, lblVersionNueva, lblTamañoArchivo
+            lblFechaPublicacion = new Label
+            {
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                AutoSize = true,
+                Location = new Point(300, 110),
+                BackColor = Color.Transparent
+            };
+
+            panelInfo.Controls.AddRange(new Control[] {
+                lblTitulo, lblVersionActual, lblVersionNueva, lblTamanoArchivo, lblFechaPublicacion
             });
 
-            // Título del ChangeLog
+            // Titulo del ChangeLog
             var lblChangeLogTitulo = new Label
             {
-                Text = "?? Novedades en esta versión:",
+                Text = "Novedades en esta version:",
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 120, 215),
-                Location = new Point(20, 160),
+                Location = new Point(20, 165),
                 AutoSize = true
             };
 
             // TextBox para ChangeLog
             txtChangeLog = new TextBox
             {
-                Location = new Point(20, 190),
+                Location = new Point(20, 195),
                 Size = new Size(590, 200),
                 Multiline = true,
                 ReadOnly = true,
@@ -159,7 +158,7 @@ namespace Comercio.NET.Formularios
             // Botones
             btnActualizar = new Button
             {
-                Text = "?? Actualizar Ahora",
+                Text = "Actualizar Ahora",
                 Size = new Size(180, 45),
                 Location = new Point(290, 460),
                 BackColor = Color.FromArgb(40, 167, 69),
@@ -195,37 +194,39 @@ namespace Comercio.NET.Formularios
 
         private void MostrarInformacion()
         {
-            lblVersionActual.Text = $"?? Versión actual: {_currentVersion}";
-            lblVersionNueva.Text = $"?? Nueva versión: {_versionInfo.Version}";
+            lblVersionActual.Text = $"Version actual: {_currentVersion}";
+            lblVersionNueva.Text = $"Nueva version: {_versionInfo.Version}";
 
-            // Mostrar tamaño del archivo
             if (_versionInfo.FileSize > 0)
             {
                 double sizeMB = _versionInfo.FileSize / 1024.0 / 1024.0;
-                lblTamañoArchivo.Text = $"?? Tamaño: {sizeMB:F2} MB";
+                lblTamanoArchivo.Text = $"Tamano: {sizeMB:F2} MB";
             }
 
-            // Mostrar changelog
+            if (_versionInfo.ReleaseDate != default)
+            {
+                lblFechaPublicacion.Text = $"Publicado: {_versionInfo.ReleaseDate:dd/MM/yyyy HH:mm}";
+            }
+
             if (_versionInfo.ChangeLog != null && _versionInfo.ChangeLog.Length > 0)
             {
                 txtChangeLog.Lines = _versionInfo.ChangeLog;
             }
             else
             {
-                txtChangeLog.Text = "• Mejoras generales de rendimiento\r\n• Correcciones de errores";
+                txtChangeLog.Text = "- Mejoras generales de rendimiento\r\n- Correcciones de errores";
             }
 
-            // Si es actualización obligatoria
             if (_versionInfo.IsRequired)
             {
                 btnOmitir.Enabled = false;
                 btnOmitir.Text = "Obligatoria";
-                lblTitulo.Text = "?? Actualización Requerida";
+                lblTitulo.Text = "Actualizacion Requerida";
                 panelInfo.BackColor = Color.FromArgb(220, 53, 69);
-                
+
                 var msgObligatoria = new Label
                 {
-                    Text = "?? Esta actualización es obligatoria y debe instalarse para continuar usando la aplicación.",
+                    Text = "Esta actualizacion es obligatoria y debe instalarse para continuar usando la aplicacion.",
                     Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                     ForeColor = Color.FromArgb(220, 53, 69),
                     Location = new Point(20, 395),
@@ -240,21 +241,20 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                // Deshabilitar botones
                 btnActualizar.Enabled = false;
                 btnOmitir.Enabled = false;
-                
-                // Mostrar progreso
+
                 progressBar.Visible = true;
                 progressBar.Value = 0;
                 lblProgreso.Visible = true;
-                lblProgreso.Text = "Descargando actualización...";
+                lblProgreso.Text = "Descargando actualizacion...";
 
                 var progress = new Progress<int>(percent =>
                 {
                     if (progressBar.InvokeRequired)
                     {
-                        progressBar.Invoke(new Action(() => {
+                        progressBar.Invoke(new Action(() =>
+                        {
                             progressBar.Value = percent;
                             lblProgreso.Text = $"Descargando: {percent}%";
                         }));
@@ -271,35 +271,33 @@ namespace Comercio.NET.Formularios
                 if (!success)
                 {
                     MessageBox.Show(
-                        "Error al descargar la actualización.\n\n" +
-                        "Por favor, intente nuevamente más tarde o contacte al soporte técnico.",
-                        "Error de Actualización", 
-                        MessageBoxButtons.OK, 
+                        "Error al descargar la actualizacion.\n\n" +
+                        "Por favor, intente nuevamente mas tarde o contacte al soporte tecnico.",
+                        "Error de Actualizacion",
+                        MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
-                    
-                    // Rehabilitar botones
+
                     btnActualizar.Enabled = true;
                     if (!_versionInfo.IsRequired)
                         btnOmitir.Enabled = true;
-                    
+
                     progressBar.Visible = false;
                     lblProgreso.Visible = false;
                 }
-                // Si success == true, la aplicación se cerrará automáticamente
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Error durante la actualización:\n\n{ex.Message}\n\n" +
-                    "Por favor, contacte al soporte técnico.",
-                    "Error", 
-                    MessageBoxButtons.OK, 
+                    $"Error durante la actualizacion:\n\n{ex.Message}\n\n" +
+                    "Por favor, contacte al soporte tecnico.",
+                    "Error",
+                    MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
 
                 btnActualizar.Enabled = true;
                 if (!_versionInfo.IsRequired)
                     btnOmitir.Enabled = true;
-                
+
                 progressBar.Visible = false;
                 lblProgreso.Visible = false;
             }

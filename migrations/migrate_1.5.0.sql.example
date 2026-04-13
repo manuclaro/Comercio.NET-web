@@ -1,0 +1,67 @@
+-- ============================================================
+-- MIGRACIÓN v1.5.0 — Comercio .NET
+-- Archivo:  migrate_1.5.0.sql
+-- Propósito: Ejemplo de script de migración
+--
+-- REGLAS OBLIGATORIAS:
+--   1. Cada sentencia debe ser IDEMPOTENTE (puede correr más de una vez sin error)
+--   2. Usar IF NOT EXISTS / IF EXISTS antes de CREATE / DROP
+--   3. Separar bloques con GO para ejecución paso a paso
+--   4. Incluir comentarios explicativos
+--   5. Probar en entorno de Testing ANTES de publicar el release
+-- ============================================================
+
+-- Ejemplo 1: Agregar columna (idempotente)
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Productos' AND COLUMN_NAME = 'CodigoBarras'
+)
+BEGIN
+    ALTER TABLE Productos ADD CodigoBarras NVARCHAR(50) NULL
+    PRINT 'Columna CodigoBarras agregada a Productos'
+END
+GO
+
+-- Ejemplo 2: Crear tabla nueva (idempotente)
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_NAME = 'LogEventos'
+)
+BEGIN
+    CREATE TABLE LogEventos (
+        Id        INT IDENTITY(1,1) PRIMARY KEY,
+        Fecha     DATETIME      NOT NULL DEFAULT GETDATE(),
+        Tipo      NVARCHAR(50)  NOT NULL,
+        Mensaje   NVARCHAR(MAX) NOT NULL,
+        Usuario   NVARCHAR(100) NULL
+    )
+    PRINT 'Tabla LogEventos creada'
+END
+GO
+
+-- Ejemplo 3: Modificar longitud de columna (idempotente)
+IF EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Clientes'
+      AND COLUMN_NAME = 'Email'
+      AND CHARACTER_MAXIMUM_LENGTH < 255
+)
+BEGIN
+    ALTER TABLE Clientes ALTER COLUMN Email NVARCHAR(255) NULL
+    PRINT 'Columna Email ampliada a 255 caracteres'
+END
+GO
+
+-- Ejemplo 4: Crear índice (idempotente)
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_Ventas_Fecha' AND object_id = OBJECT_ID('Ventas')
+)
+BEGIN
+    CREATE INDEX IX_Ventas_Fecha ON Ventas (Fecha DESC)
+    PRINT 'Índice IX_Ventas_Fecha creado'
+END
+GO
+
+PRINT 'Migración 1.5.0 completada'
+GO

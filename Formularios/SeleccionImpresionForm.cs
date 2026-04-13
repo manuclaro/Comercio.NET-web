@@ -291,7 +291,7 @@ namespace Comercio.NET
                 SELECT ISNULL(SUM(ImporteTotal), 0) AS TotalFacturado
                 FROM Facturas
                 WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)
-                  AND TipoFactura IN ('FacturaA', 'FacturaB')";
+                  AND TipoFactura IN ('FacturaA', 'FacturaB', 'FacturaC')";
 
                     using (var cmd = new SqlCommand(query, connection))
                     {
@@ -1553,6 +1553,29 @@ namespace Comercio.NET
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return;
+                }
+
+                // ✅ VALIDACIÓN 2: Límite diario de facturación
+                if (!ValidarLimiteFacturacion(out string mensajeLimiteFacturacion))
+                {
+                    // Determinar si es bloqueo total o advertencia
+                    bool esBloqueoTotal = limitarFacturacion && montoLimiteFacturacion > 0
+                                         && montoAcumuladoHoy >= montoLimiteFacturacion;
+
+                    if (esBloqueoTotal)
+                    {
+                        MessageBox.Show(mensajeLimiteFacturacion, "Límite de Facturación Alcanzado",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                    else
+                    {
+                        // Advertencia: se superaría el límite, preguntar si continúa
+                        var respuesta = MessageBox.Show(mensajeLimiteFacturacion, "Advertencia de Límite",
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+                        if (respuesta != DialogResult.Yes)
+                            return;
+                    }
                 }
 
                 // ✅ CRÍTICO: CAPTURAR DESCUENTOS ANTES DE INICIAR EL PROCESO

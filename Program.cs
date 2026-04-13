@@ -6,6 +6,7 @@ using Comercio.NET.Formularios;
 using Comercio.NET.Services;
 using Comercio.NET.Servicios;
 using System.Linq;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 
@@ -13,26 +14,39 @@ namespace Comercio.NET
 {
     static class Program
     {
-        // ✅ CONFIGURACIÓN DE VERSIÓN - ACTUALIZAR CON CADA RELEASE
-        private const string CURRENT_VERSION = "1.2.0";
+        // ✅ VERSIÓN: Se lee automáticamente del ensamblado (configurada en .csproj <Version>)
+        private static readonly string CURRENT_VERSION = GetCurrentVersion();
         
         // ✅ URL del servidor de actualizaciones - CONFIGURAR SEGÚN TU SERVIDOR
-        private const string UPDATE_SERVER = "https://tu-servidor.com/updates/comercio-net";
+        private const string UPDATE_SERVER = "https://github.com/manuclaro/Comercio.NET-web";
+
+        // ✅ Token de acceso personal de GitHub (necesario para repositorios PRIVADOS)
+        // Crear en: GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+        // Permisos necesarios: repo (Full control of private repositories)
+        private const string GITHUB_TOKEN = "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"; // ← PONER TU TOKEN AQUÍ
         
         // ✅ Verificar actualizaciones al iniciar (true) o solo manualmente (false)
         private const bool AUTO_CHECK_UPDATES = true;
 
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            // Modo migración: invocado por el .bat de actualización antes de reiniciar la UI
+            // Ejemplo: "Comercio .NET.exe" --migrate
+            if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
+            {
+                EjecutarMigracionesYSalir();
+                return;
+            }
+
             ApplicationConfiguration.Initialize();
 
             Debug.WriteLine($"[APP] Iniciando Comercio .NET v{CURRENT_VERSION}");
 
-            // ✅ Verificar actualizaciones al iniciar
+            // ✅ Verificar actualizaciones al iniciar (bloqueante antes del login)
             if (AUTO_CHECK_UPDATES)
             {
-                _ = CheckForUpdatesAsync();
+                CheckForUpdatesAsync().GetAwaiter().GetResult();
             }
 
             try
@@ -426,6 +440,152 @@ namespace Comercio.NET
         }
 
         /// <summary>
+        /// Ejecuta las migraciones de base de datos pendientes en modo consola (sin UI).
+        /// Retorna código de salida 0 si todo fue bien, 1 si hubo errores.
+        /// </summary>
+        private static void EjecutarMigracionesYSalir()
+        {
+            // Asegurar que la carpeta migrations exista antes de escribir el log
+            var migrationsFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "migrations");
+            Directory.CreateDirectory(migrationsFolder);
+
+            var logPath = Path.Combine(migrationsFolder, "migration.log");
+
+            void Log(string mensaje)
+            {
+                var linea = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {mensaje}";
+                Console.WriteLine(linea);
+                try { File.AppendAllText(logPath, linea + Environment.NewLine); } catch { }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("============================================================");
+            Console.WriteLine($"  MIGRACION DE BASE DE DATOS - Comercio .NET v{CURRENT_VERSION}");
+            Console.WriteLine("============================================================");
+            Console.WriteLine($"  Log: {logPath}");
+            Console.WriteLine("============================================================");
+            Console.WriteLine();
+
+            Log($"=== Iniciando migracion (v{CURRENT_VERSION}) ===");
+            Log($"Carpeta: {migrationsFolder}");
+
+            // Mostrar todos los archivos .sql encontrados para diagnóstico
+            var archivosEncontrados = Directory.GetFiles(migrationsFolder, "*.sql");
+            Log($"Archivos .sql encontrados: {archivosEncontrados.Length}");
+            foreach (var a in archivosEncontrados)
+                Log($"  - {Path.GetFileName(a)}");
+
+            try
+            {
+                var service = new DatabaseMigrationService(migrationsFolder);
+                var resultados = service.AplicarMigracionesPendientesAsync().GetAwaiter().GetResult();
+
+                if (resultados.Count == 0)
+                {
+                    Log("No habia migraciones pendientes.");
+                    Console.WriteLine();
+                    Console.WriteLine("  RESULTADO: Sin cambios pendientes");
+                    Console.WriteLine();
+                    Environment.Exit(0);
+                    return;
+                }
+
+                bool hayErrores = false;
+                foreach (var r in resultados)
+                {
+                    Log(r.ToString());
+                    if (!r.Exitoso) hayErrores = true;
+                }
+
+                Console.WriteLine();
+                if (hayErrores)
+                {
+                    Log("=== Migracion FALLIDA - revise los errores anteriores ===");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  RESULTADO: FALLIDO");
+                    Console.WriteLine($"  Revise el log completo en:");
+                    Console.WriteLine($"  {logPath}");
+                    Console.ResetColor();
+                    Console.WriteLine();
+                    Environment.Exit(1);
+                    return;
+                }
+
+                Log($"=== Migracion completada: {resultados.Count} script(s) aplicado(s) ===");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  RESULTADO: OK - {resultados.Count} script(s) aplicado(s)");
+                Console.ResetColor();
+                Console.WriteLine();
+                Environment.Exit(0);
+            }
+            catch (Exception ex)
+            {
+                Log($"ERROR CRITICO: {ex.Message}");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  RESULTADO: ERROR CRITICO - {ex.Message}");
+                Console.WriteLine($"  Revise el log completo en:");
+                Console.WriteLine($"  {logPath}");
+                Console.ResetColor();
+                Console.WriteLine();
+                Environment.Exit(1);
+            }
+        }
+
+        /// <summary>
+        /// Obtiene la version actual desde los metadatos del ensamblado.
+        /// La version se configura en el .csproj con la propiedad Version.
+        /// Cuando se compila un nuevo release con una version mayor, los binarios
+        /// actualizados reportaran automaticamente la nueva version.
+        /// </summary>
+        public static string GetCurrentVersionPublic() => GetCurrentVersion();
+
+        private static string GetCurrentVersion()
+        {
+            try
+            {
+                // Prioridad 1: version.txt escrito por el .bat de actualización
+                // Esto resuelve el caso donde el .exe viejo ya está en memoria pero
+                // los binarios nuevos ya fueron copiados al disco
+                var versionFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
+                if (File.Exists(versionFile))
+                {
+                    var versionFromFile = File.ReadAllText(versionFile).Trim();
+                    if (Version.TryParse(versionFromFile, out var vFile) && vFile > new Version(0, 0, 0))
+                    {
+                        Debug.WriteLine($"[APP] Version leida de version.txt: {versionFromFile}");
+                        return versionFromFile;
+                    }
+                }
+
+                var assembly = Assembly.GetExecutingAssembly();
+
+                // Prioridad 2: InformationalVersion del ensamblado (corresponde a <Version> del csproj)
+                var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                    ?.InformationalVersion;
+
+                if (!string.IsNullOrWhiteSpace(infoVersion))
+                {
+                    // Quitar sufijo de metadata de build si existe (ej: "1.4.0+commithash")
+                    var plusIndex = infoVersion.IndexOf('+');
+                    return plusIndex > 0 ? infoVersion[..plusIndex] : infoVersion;
+                }
+
+                // Prioridad 3: AssemblyVersion
+                var version = assembly.GetName().Version;
+                if (version != null)
+                {
+                    return $"{version.Major}.{version.Minor}.{version.Build}";
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[APP] Error obteniendo version del ensamblado: {ex.Message}");
+            }
+
+            return "0.0.0";
+        }
+
+        /// <summary>
         /// Verifica si hay actualizaciones disponibles
         /// </summary>
         public static async Task CheckForUpdatesAsync()
@@ -434,7 +594,8 @@ namespace Comercio.NET
             {
                 Debug.WriteLine("[APP] Verificando actualizaciones...");
 
-                using (var updater = new AutoUpdaterService(UPDATE_SERVER, CURRENT_VERSION))
+                using (var updater = new AutoUpdaterService(UPDATE_SERVER, CURRENT_VERSION, 
+                    string.IsNullOrWhiteSpace(GITHUB_TOKEN) ? null : GITHUB_TOKEN))
                 {
                     var versionInfo = await updater.CheckForUpdatesAsync();
 
@@ -443,7 +604,8 @@ namespace Comercio.NET
                         Debug.WriteLine($"[APP] ✅ Nueva versión disponible: {versionInfo.Version}");
 
                         // Mostrar formulario de actualización
-                        using (var frmUpdate = new frmActualizacion(versionInfo, CURRENT_VERSION, UPDATE_SERVER))
+                        using (var frmUpdate = new frmActualizacion(versionInfo, CURRENT_VERSION, UPDATE_SERVER,
+                            string.IsNullOrWhiteSpace(GITHUB_TOKEN) ? null : GITHUB_TOKEN))
                         {
                             frmUpdate.ShowDialog();
                         }
