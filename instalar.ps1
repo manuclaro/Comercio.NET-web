@@ -21,8 +21,8 @@
     Si el repositorio es público, no es necesario.
 
 .EXAMPLE
-    # Instalación estándar (una línea desde PowerShell):
-    irm https://raw.githubusercontent.com/manuclaro/Comercio.NET-web/main/instalar.ps1 | iex
+# Instalación estándar (una línea desde PowerShell):
+irm https://raw.githubusercontent.com/manuclaro/Comercio.NET-web/master/instalar.ps1 | iex
 
 .EXAMPLE
     # Con carpeta personalizada:
