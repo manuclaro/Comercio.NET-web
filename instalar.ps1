@@ -267,6 +267,13 @@ if ($sqlInstalled) {
             } else {
                 Write-Warn "El servicio no respondió en 60 segundos. Se intentará continuar."
             }
+
+            # Agregar la ruta del motor al PATH de esta sesión para que el paso 7 encuentre sqlcmd
+            $sqlToolsPath = "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn"
+            if (Test-Path $sqlToolsPath) {
+                $env:PATH = "$sqlToolsPath;$env:PATH"
+                Write-Info "Ruta de sqlcmd agregada al PATH de la sesión."
+            }
         } else {
             Write-Warn "El instalador de SQL Express finalizó con código $($procSql.ExitCode)."
             Write-Warn "Consulte el log en: C:\Program Files\Microsoft SQL Server\*\Setup Bootstrap\Log"
@@ -584,11 +591,19 @@ Write-Step "7/8" "Inicializando base de datos SQL Server..."
 $sqlcmdPath = $null
 $sqlcmdCandidates = @(
     "sqlcmd",
+    # SQL Server engine Tools\Binn (instalado junto al motor)
+    "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn\sqlcmd.exe",
+    "${env:ProgramFiles}\Microsoft SQL Server\150\Tools\Binn\sqlcmd.exe",
+    "${env:ProgramFiles}\Microsoft SQL Server\140\Tools\Binn\sqlcmd.exe",
+    "${env:ProgramFiles}\Microsoft SQL Server\130\Tools\Binn\sqlcmd.exe",
+    # Client SDK / ODBC standalone tools
     "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\130\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles(x86)}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles(x86)}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe"
+    "${env:ProgramFiles(x86)}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe",
+    # go-sqlcmd (nueva CLI de Microsoft)
+    "${env:LOCALAPPDATA}\Microsoft\go-sqlcmd\sqlcmd.exe"
 )
 
 foreach ($candidate in $sqlcmdCandidates) {
