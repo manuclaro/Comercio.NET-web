@@ -45,8 +45,8 @@ $DOTNET_RUNTIME_URL = "https://download.visualstudio.microsoft.com/download/pr/b
 $DOTNET_RUNTIME_FILENAME = "windowsdesktop-runtime-8.0-win-x64.exe"
 $DB_INIT_SCRIPT    = "database\init_comercio.sql"
 $DB_NAME           = "comercio"
-# SQL Server Express 2022 - instalador web SSEI (~6 MB, descarga el medio offline)
-$SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2216019&clcid=0x0409&culture=en-us&country=us"
+# SQL Server Express 2022 RTM - SSEI fwlink especifico para SQL 2022 (no SQL 2025)
+$SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2215158&clcid=0x0409&culture=en-us&country=us"
 $SQLEXPRESS_FILENAME = "SQL2022-SSEI-Expr.exe"
 $SQL_INSTANCE_NAME   = "SQLEXPRESS"
 
@@ -71,6 +71,100 @@ function Write-OK   { param([string]$Msg) Write-Host "    OK  $Msg" -ForegroundC
 function Write-Info { param([string]$Msg) Write-Host "    >>  $Msg" -ForegroundColor Gray   }
 function Write-Warn { param([string]$Msg) Write-Host "    !!  $Msg" -ForegroundColor Magenta }
 function Write-Fail { param([string]$Msg) Write-Host "    XX  $Msg" -ForegroundColor Red    }
+
+# =============================================================================
+# HELPERS DE DIAGNOSTICO SQL
+# =============================================================================
+function Get-SqlSetupLogSummary {
+    <#
+    .SYNOPSIS
+        Lee el log de instalacion de SQL Server y devuelve las lineas de error mas relevantes.
+    #>
+    $logRoot = "C:\Program Files\Microsoft SQL Server"
+    $bootstrapLog = $null
+
+    # Buscar el ultimo directorio de log de Bootstrap
+    $bootstrapDirs = @(
+        "$logRoot\160\Setup Bootstrap\Log",
+        "$logRoot\150\Setup Bootstrap\Log",
+        "$logRoot\140\Setup Bootstrap\Log"
+    )
+
+    foreach ($dir in $bootstrapDirs) {
+        if (Test-Path $dir) {
+            $latest = Get-ChildItem -Path $dir -Directory -ErrorAction SilentlyContinue |
+                      Sort-Object LastWriteTime -Descending |
+                      Select-Object -First 1
+            if ($latest) {
+                $summaryFile = Get-ChildItem -Path $latest.FullName -Filter "Summary*.txt" -ErrorAction SilentlyContinue |
+                               Select-Object -First 1
+                if ($summaryFile) {
+                    $bootstrapLog = $summaryFile.FullName
+                    break
+                }
+            }
+        }
+    }
+
+    if ($bootstrapLog -and (Test-Path $bootstrapLog)) {
+        Write-Warn "--- Extracto del log de instalacion SQL Server ---"
+        Write-Info "Archivo: $bootstrapLog"
+        # Mostrar lineas con errores o estado final
+        $lines = Get-Content $bootstrapLog -ErrorAction SilentlyContinue
+        $relevant = $lines | Where-Object {
+            $_ -match '(Failed|Error|Exception|Exit code|Overall summary|Passed|warning)' -and
+            $_ -notmatch '^\s*$'
+        } | Select-Object -Last 30
+        foreach ($line in $relevant) {
+            Write-Info $line
+        }
+        Write-Warn "--- Fin del extracto ---"
+        Write-Info "Log completo en: $bootstrapLog"
+    } else {
+        Write-Info "No se encontro log de Bootstrap de SQL Server en rutas estandar."
+    }
+}
+
+function Test-SqlPartialInstall {
+    <#
+    .SYNOPSIS
+        Detecta instalaciones parciales o pendientes de reinicio de SQL Server
+        que podrian causar el error 1603.
+    #>
+    $issues = @()
+
+    # 1. Verificar si hay un reinicio pendiente de una instalacion anterior
+    $rebootPending = $false
+    $rebootKeys = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager"
+    )
+    if (Test-Path $rebootKeys[0]) { $rebootPending = $true }
+    if (Test-Path $rebootKeys[1]) { $rebootPending = $true }
+    try {
+        $pending = (Get-ItemProperty -Path $rebootKeys[2] -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations
+        if ($pending) { $rebootPending = $true }
+    } catch { }
+
+    if ($rebootPending) {
+        $issues += "REINICIO_PENDIENTE: El sistema tiene operaciones pendientes que requieren reinicio."
+    }
+
+    # 2. Verificar si existe la clave de instalacion parcial de SQL Server
+    $sqlPendingKey = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\SQLEXPRESS"
+    if (Test-Path $sqlPendingKey) {
+        $issues += "INSTANCIA_PREVIA: Se detectaron restos de una instalacion anterior de SQLEXPRESS."
+    }
+
+    # 3. Verificar si el servicio existe pero no esta corriendo (instalacion rota)
+    $svc = Get-Service -Name "MSSQL`$SQLEXPRESS" -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -ne 'Running') {
+        $issues += "SERVICIO_DETENIDO: El servicio MSSQL`$SQLEXPRESS existe pero no esta corriendo (estado: $($svc.Status))."
+    }
+
+    return $issues
+}
 
 # =============================================================================
 # PASO 0 - VERIFICAR PRIVILEGIOS DE ADMINISTRADOR
@@ -187,6 +281,31 @@ if ($sqlInstalled) {
         "localhost\$sqlInstanceName"
     }
 } else {
+    # -------------------------------------------------------------------------
+    # PRE-FLIGHT: Verificar condiciones que causan error 1603
+    # -------------------------------------------------------------------------
+    Write-Info "Verificando pre-requisitos de instalacion..."
+    $preflightIssues = Test-SqlPartialInstall
+
+    if ($preflightIssues.Count -gt 0) {
+        Write-Warn "Se detectaron problemas que pueden impedir la instalacion:"
+        foreach ($issue in $preflightIssues) {
+            Write-Warn "  - $issue"
+        }
+        if ($preflightIssues -match "REINICIO_PENDIENTE") {
+            Write-Warn "ACCION REQUERIDA: Reinicie el equipo y vuelva a ejecutar el instalador."
+            Read-Host "Presione ENTER para continuar de todos modos o Ctrl+C para cancelar"
+        }
+        if ($preflightIssues -match "INSTANCIA_PREVIA|SERVICIO_DETENIDO") {
+            Write-Warn "Se detectaron restos de una instalacion anterior de SQL Server."
+            Write-Warn "Se intentara la instalacion de todos modos."
+            Write-Warn "Si falla, desinstale manualmente SQL Server desde 'Agregar o quitar programas'"
+            Write-Warn "y vuelva a ejecutar el instalador."
+        }
+    } else {
+        Write-OK "Pre-requisitos verificados correctamente."
+    }
+
     Write-Info "SQL Server no detectado. Descargando SQL Server 2022 Express..."
     Write-Info "(Instalador web SSEI ~6 MB + descarga medio offline ~280 MB)"
     Write-Warn "Este proceso puede tardar varios minutos segun la conexion."
@@ -243,72 +362,124 @@ if ($sqlInstalled) {
             }
 
             # Buscar setup.exe en el directorio extraido
-            $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            # IMPORTANTE: Usar setup.exe, NUNCA los MSI internos directamente
+            $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue |
+                     Where-Object { $_.DirectoryName -notmatch '\\[xX]64\\[Ss]etup' } |
+                     Select-Object -First 1
+            # Si no lo encontro fuera de x64\Setup, buscar en cualquier lugar
+            if (-not $found) {
+                $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue |
+                         Select-Object -First 1
+            }
             if ($found) { $setupExe = $found.FullName }
         }
 
         if (-not $setupExe -or -not (Test-Path $setupExe)) {
-            # Buscar setup.exe directamente en la carpeta de media (algunos builds lo dejan ahi)
+            # Buscar setup.exe directamente en la carpeta de media
             $found = Get-ChildItem -Path $tempSqlMedia -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($found) { $setupExe = $found.FullName }
         }
 
         if ($setupExe -and (Test-Path $setupExe)) {
-            # Paso B: Ejecutar setup.exe en modo silencioso
-            Write-Info "Instalando SQL Server 2022 Express en modo silencioso..."
-            Write-Info "(Esto puede tardar entre 5 y 15 minutos, por favor espere)"
+            Write-Info "Setup encontrado: $setupExe"
 
-            $sqlArgs = '/Q /ACTION=Install /FEATURES=SQLEngine ' +
-                       '/INSTANCENAME=SQLEXPRESS ' +
-                       '/SQLSVCACCOUNT="NT AUTHORITY\NETWORK SERVICE" ' +
-                       '/SQLSYSADMINACCOUNTS="BUILTIN\Administrators" ' +
-                       '/TCPENABLED=1 /NPENABLED=0 ' +
-                       '/IACCEPTSQLSERVERLICENSETERMS'
-
-            $procSql = Start-Process -FilePath $setupExe -ArgumentList $sqlArgs -PassThru
-            Write-Info "Esperando que finalice la instalacion (timeout: 30 min)..."
-            $sqlFinished = $procSql.WaitForExit(30 * 60 * 1000)
-            if (-not $sqlFinished) {
-                Write-Warn "La instalacion de SQL Server supero 30 minutos."
-                Write-Warn "El proceso continua en segundo plano. Verifique el servicio MSSQL`$SQLEXPRESS manualmente."
-                $procSql.Kill()
-            }
-
-            if ($sqlFinished -and ($procSql.ExitCode -eq 0 -or $procSql.ExitCode -eq 3010)) {
-                Write-OK "SQL Server 2022 Express instalado correctamente."
-                if ($procSql.ExitCode -eq 3010) {
-                    Write-Warn "Se recomienda reiniciar el equipo despues de la instalacion."
-                }
+            # Verificar que NO es un MSI (proteccion contra ruta incorrecta)
+            if ($setupExe -match '\.msi$') {
+                Write-Fail "ERROR CRITICO: Se intento usar un archivo .MSI directamente."
+                Write-Fail "Los archivos MSI internos de SQL Server NO pueden instalarse por separado."
+                Write-Fail "Se requiere el setup.exe principal. Abortando instalacion de SQL Server."
+                Write-Warn "Instale SQL Server Express manualmente desde:"
+                Write-Warn "https://www.microsoft.com/sql-server/sql-server-downloads"
                 $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
-
-                # Esperar a que el servicio SQL Server este disponible (hasta 60 segundos)
-                Write-Info "Esperando que el servicio SQL Server inicie..."
-                $sqlService = "MSSQL`$$SQL_INSTANCE_NAME"
-                $intentos = 0
-                do {
-                    Start-Sleep -Seconds 3
-                    $intentos++
-                    $svc = Get-Service -Name $sqlService -ErrorAction SilentlyContinue
-                } while (($svc -eq $null -or $svc.Status -ne 'Running') -and ($intentos -lt 20))
-
-                if ($svc -and $svc.Status -eq 'Running') {
-                    Write-OK "Servicio SQL Server listo."
-                } else {
-                    Write-Warn "El servicio no respondio en 60 segundos. Se intentara continuar."
-                }
-
-                # Agregar la ruta del motor al PATH de esta sesion para que el paso 7 encuentre sqlcmd
-                $sqlToolsPath = "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn"
-                if (Test-Path $sqlToolsPath) {
-                    $env:PATH = "$sqlToolsPath;$env:PATH"
-                    Write-Info "Ruta de sqlcmd agregada al PATH de la sesion."
-                }
             } else {
-                if ($sqlFinished) {
-                    Write-Warn "setup.exe finalizo con codigo $($procSql.ExitCode)."
+                # Paso B: Ejecutar setup.exe en modo silencioso
+                Write-Info "Instalando SQL Server 2022 Express en modo silencioso..."
+                Write-Info "(Esto puede tardar entre 5 y 15 minutos, por favor espere)"
+                Write-Info "Usando: $setupExe"
+
+                $sqlLogPath = Join-Path $env:TEMP "sql_setup_$(Get-Date -Format 'yyyyMMddHHmmss').log"
+
+                $sqlArgs = "/Q /ACTION=Install /FEATURES=SQLEngine " +
+                           "/INSTANCENAME=SQLEXPRESS " +
+                           "/SQLSVCACCOUNT=`"NT AUTHORITY\NETWORK SERVICE`" " +
+                           "/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`" " +
+                           "/TCPENABLED=1 /NPENABLED=0 " +
+                           "/IACCEPTSQLSERVERLICENSETERMS"
+
+                $procSql = Start-Process -FilePath $setupExe -ArgumentList $sqlArgs -PassThru
+                Write-Info "Esperando que finalice la instalacion (timeout: 30 min)..."
+                $sqlFinished = $procSql.WaitForExit(30 * 60 * 1000)
+
+                if (-not $sqlFinished) {
+                    Write-Warn "La instalacion de SQL Server supero 30 minutos."
+                    Write-Warn "El proceso continua en segundo plano. Verifique el servicio MSSQL`$SQLEXPRESS manualmente."
+                    $procSql.Kill()
                 }
-                Write-Warn "Consulte el log en: C:\Program Files\Microsoft SQL Server\*\Setup Bootstrap\Log"
-                $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+
+                $exitCode = if ($sqlFinished) { $procSql.ExitCode } else { -1 }
+                Write-Info "Codigo de salida de setup.exe: $exitCode"
+
+                switch ($exitCode) {
+                    0     { Write-OK "SQL Server 2022 Express instalado correctamente." }
+                    3010  {
+                        Write-OK "SQL Server 2022 Express instalado correctamente."
+                        Write-Warn "Se requiere reiniciar el equipo para completar la instalacion."
+                    }
+                    1641  {
+                        Write-OK "SQL Server instalado. El sistema se reiniciara automaticamente."
+                    }
+                    -1    { Write-Warn "Timeout: la instalacion continua en segundo plano." }
+                    default {
+                        Write-Warn "setup.exe finalizo con codigo $exitCode."
+
+                        if ($exitCode -eq 1603) {
+                            Write-Fail "ERROR 1603: Fallo generico de instalacion MSI."
+                            Write-Warn "Causas mas comunes:"
+                            Write-Warn "  1. Reinicio pendiente del sistema (reinicie y vuelva a intentar)"
+                            Write-Warn "  2. Instalacion anterior de SQL Server incompleta o daniada"
+                            Write-Warn "  3. Visual C++ Redistributable faltante o corrupto"
+                            Write-Warn "  4. Permisos insuficientes en carpetas del sistema"
+                            Write-Warn ""
+                            Write-Warn "SOLUCION RECOMENDADA:"
+                            Write-Warn "  1. Reinicie el equipo"
+                            Write-Warn "  2. Vaya a 'Agregar o quitar programas' y desinstale cualquier"
+                            Write-Warn "     componente de 'Microsoft SQL Server' que aparezca"
+                            Write-Warn "  3. Vuelva a ejecutar este instalador"
+                        }
+
+                        # Mostrar extracto del log oficial de SQL Setup
+                        Get-SqlSetupLogSummary
+                    }
+                }
+
+                if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) {
+                    $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+
+                    # Esperar a que el servicio SQL Server este disponible (hasta 60 segundos)
+                    Write-Info "Esperando que el servicio SQL Server inicie..."
+                    $sqlService = "MSSQL`$$SQL_INSTANCE_NAME"
+                    $intentos = 0
+                    do {
+                        Start-Sleep -Seconds 3
+                        $intentos++
+                        $svc = Get-Service -Name $sqlService -ErrorAction SilentlyContinue
+                    } while (($svc -eq $null -or $svc.Status -ne 'Running') -and ($intentos -lt 20))
+
+                    if ($svc -and $svc.Status -eq 'Running') {
+                        Write-OK "Servicio SQL Server listo."
+                    } else {
+                        Write-Warn "El servicio no respondio en 60 segundos. Se intentara continuar."
+                    }
+
+                    # Agregar la ruta del motor al PATH de esta sesion para que el paso 7 encuentre sqlcmd
+                    $sqlToolsPath = "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn"
+                    if (Test-Path $sqlToolsPath) {
+                        $env:PATH = "$sqlToolsPath;$env:PATH"
+                        Write-Info "Ruta de sqlcmd agregada al PATH de la sesion."
+                    }
+                } else {
+                    $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+                }
             }
         } else {
             Write-Warn "No se encontro setup.exe en el medio descargado."
