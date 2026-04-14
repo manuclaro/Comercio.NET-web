@@ -227,19 +227,28 @@ if ($sqlInstalled) {
         $mediaExe = Get-ChildItem -Path $tempSqlMedia -Filter "SQLEXPR*" -File -ErrorAction SilentlyContinue | Select-Object -First 1
 
         if ($mediaExe) {
-            # Es un exe autoextraible - extraerlo
-            Write-Info "Extrayendo medio de instalacion..."
+            # Es un exe autoextraible - extraerlo con timeout de 10 minutos
+            Write-Info "Extrayendo medio de instalacion (puede tardar varios minutos)..."
             $extractDir = Join-Path $env:TEMP "SqlExpressExtracted"
             Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
-            $procExtract = Start-Process -FilePath $mediaExe.FullName -ArgumentList "/Q /x:`"$extractDir`"" -Wait -PassThru
-            $setupExe = Join-Path $extractDir "setup.exe"
-            if (-not (Test-Path $setupExe)) {
-                $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($found) { $setupExe = $found.FullName }
+            New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
+
+            $procExtract = Start-Process -FilePath $mediaExe.FullName -ArgumentList "/Q /x:`"$extractDir`"" -PassThru
+            $timeoutMs = 10 * 60 * 1000  # 10 minutos
+            $finished = $procExtract.WaitForExit($timeoutMs)
+
+            if (-not $finished) {
+                Write-Warn "Extraccion supero 10 minutos. Terminando proceso..."
+                $procExtract.Kill()
             }
+
+            # Buscar setup.exe en el directorio extraido
+            $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $setupExe = $found.FullName }
         }
 
         if (-not $setupExe -or -not (Test-Path $setupExe)) {
+            # Buscar setup.exe directamente en la carpeta de media (algunos builds lo dejan ahi)
             $found = Get-ChildItem -Path $tempSqlMedia -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($found) { $setupExe = $found.FullName }
         }
@@ -256,9 +265,16 @@ if ($sqlInstalled) {
                        '/TCPENABLED=1 /NPENABLED=0 ' +
                        '/IACCEPTSQLSERVERLICENSETERMS'
 
-            $procSql = Start-Process -FilePath $setupExe -ArgumentList $sqlArgs -Wait -PassThru
+            $procSql = Start-Process -FilePath $setupExe -ArgumentList $sqlArgs -PassThru
+            Write-Info "Esperando que finalice la instalacion (timeout: 30 min)..."
+            $sqlFinished = $procSql.WaitForExit(30 * 60 * 1000)
+            if (-not $sqlFinished) {
+                Write-Warn "La instalacion de SQL Server supero 30 minutos."
+                Write-Warn "El proceso continua en segundo plano. Verifique el servicio MSSQL`$SQLEXPRESS manualmente."
+                $procSql.Kill()
+            }
 
-            if ($procSql.ExitCode -eq 0 -or $procSql.ExitCode -eq 3010) {
+            if ($sqlFinished -and ($procSql.ExitCode -eq 0 -or $procSql.ExitCode -eq 3010)) {
                 Write-OK "SQL Server 2022 Express instalado correctamente."
                 if ($procSql.ExitCode -eq 3010) {
                     Write-Warn "Se recomienda reiniciar el equipo despues de la instalacion."
@@ -288,7 +304,9 @@ if ($sqlInstalled) {
                     Write-Info "Ruta de sqlcmd agregada al PATH de la sesion."
                 }
             } else {
-                Write-Warn "setup.exe finalizo con codigo $($procSql.ExitCode)."
+                if ($sqlFinished) {
+                    Write-Warn "setup.exe finalizo con codigo $($procSql.ExitCode)."
+                }
                 Write-Warn "Consulte el log en: C:\Program Files\Microsoft SQL Server\*\Setup Bootstrap\Log"
                 $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
             }
