@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -7,12 +7,26 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Imagenes\Icon\ico\icons8-shop-40.ico</ApplicationIcon>
+    <Version>1.7.0</Version>
+    <AssemblyVersion>1.7.0.0</AssemblyVersion>
+    <FileVersion>1.7.0.0</FileVersion>
   </PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="Comercio.NET.Mobile\**" />
+		<EmbeddedResource Remove="Comercio.NET.Mobile\**" />
+		<None Remove="Comercio.NET.Mobile\**" />
+	</ItemGroup>
   <ItemGroup>
+    <Content Include="Imagenes\Icon\ico\icons8-shop-40.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".dockerignore Comercio.NET.Mobile\Comercio.NET.Mobile.Server\.dockerignore" />
     <None Include="DebugAfip.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AF.DataAccessor" Version="2.0.2" />
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="Google.Protobuf" Version="3.21.5" />
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.49.0" />
     <PackageReference Include="Grpc.Tools" Version="2.49.0">
@@ -29,6 +43,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="System.Data.OleDb" Version="10.0.1" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Formularios\LoginForm.cs">
@@ -50,12 +65,24 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="version.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="OpenAPIs\service.asmx" ClassName="ArcaWS" />
     <None Update="OpenAPIs\service1.asmx" ClassName="ArcaWS" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.ServiceModel.Http" Version="8.*" />
-    <PackageReference Include="System.ServiceModel.NetTcp" Version="8.*" />
-    <PackageReference Include="System.ServiceModel.Primitives" Version="8.*" />
+	  <PackageReference Include="System.ServiceModel.Http" Version="6.*" />
+	  <PackageReference Include="System.ServiceModel.NetTcp" Version="6.*" />
+	  <PackageReference Include="System.ServiceModel.Primitives" Version="6.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Herramientas\" />
+    <Folder Include="Resources\" />
   </ItemGroup>
 </Project>
+
+
+
+
+

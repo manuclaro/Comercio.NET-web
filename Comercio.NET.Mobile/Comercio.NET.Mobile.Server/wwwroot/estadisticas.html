@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6a1b9a">
+    <title>Estadísticas - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/estadisticas.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+    <header class="page-header">
+        <a href="/dashboard.html" class="btn-back">← Volver</a>
+        <div class="header-title">
+            <span>📊</span>
+            <div>
+                <h1>Estadísticas</h1>
+                <p>Ventas por rubro</p>
+            </div>
+        </div>
+        <div class="header-user">
+            <span id="nombreUsuario"></span>
+            <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <main class="page-main">
+
+        <!-- Filtro de fechas -->
+        <div class="filtro-box">
+            <div class="filtro-grupo">
+                <label for="inputDesde">Desde</label>
+                <input type="date" id="inputDesde">
+            </div>
+            <div class="filtro-grupo">
+                <label for="inputHasta">Hasta</label>
+                <input type="date" id="inputHasta">
+            </div>
+            <button class="btn-consultar" id="btnConsultar">Consultar</button>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <span>Cargando estadísticas...</span>
+        </div>
+
+        <!-- Error -->
+        <div class="error-msg" id="error" style="display:none;"></div>
+
+        <!-- Mensaje estado vacío -->
+        <div class="estado-mensaje" id="estadoMensaje">
+            Seleccioná un rango de fechas y presioná Consultar.
+        </div>
+
+        <!-- Resultados -->
+        <div id="resultados" style="display:none;">
+
+            <div class="resumen-total" id="resumenTotal"></div>
+
+            <div class="charts-grid">
+                <!-- Gráfico de torta -->
+                <div class="chart-card">
+                    <h3>Distribución de ventas</h3>
+                    <div class="chart-container">
+                        <canvas id="graficoPie"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tabla de detalle -->
+                <div class="chart-card">
+                    <h3>Detalle por rubro</h3>
+                    <table class="tabla-detalle">
+                        <thead>
+                            <tr>
+                                <th>Rubro</th>
+                                <th class="text-right">Total ventas</th>
+                                <th class="text-right">%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyDetalle"></tbody>
+                        <tfoot id="tfootTotal"></tfoot>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="page-footer">
+        <p>Comercio.NET Mobile · v1.4.0 · 2026 · <span class="footer-brand">TPQ Solutions</span></p>
+    </footer>
+
+    <script src="/js/estadisticas.js"></script>
+</body>
+</html>

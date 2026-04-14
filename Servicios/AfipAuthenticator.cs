@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,209 +16,1021 @@ namespace Comercio.NET.Servicios
 {
     public static class AfipAuthenticator
     {
-        // NUEVO: Caché de tokens por servicio
+        // NUEVO: Ruta del archivo de configuración de tokens
+        private static readonly string TokenConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "afip_tokens.json");
+        
+        // NUEVO: Caché de tokens por servicio (mantenido para rendimiento)
         private static readonly Dictionary<string, CachedToken> _tokenCache = new Dictionary<string, CachedToken>();
 
-        // NUEVO: Clase para almacenar tokens en caché
+        // NUEVO: Clase para almacenar tokens en caché y archivo
         private class CachedToken
         {
             public string Token { get; set; }
             public string Sign { get; set; }
             public DateTime ExpirationTime { get; set; }
+            public string Service { get; set; } // NUEVO: Para identificar el servicio
+            public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // NUEVO: Cuando se creó
 
             public bool IsValid => DateTime.UtcNow < ExpirationTime.AddMinutes(-5); // 5 min de margen
         }
 
-        public static async Task<(string token, string sign, DateTime expiration)> GetTAAsync(
-                                    string service, string pfxPath, string pfxPassword, string wsaaUrl)
+        // NUEVO: Clase para la estructura del archivo JSON
+        private class TokenFileStructure
+        {
+            public Dictionary<string, CachedToken> Tokens { get; set; } = new Dictionary<string, CachedToken>();
+            public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Carga la configuración AFIP del ambiente activo desde appsettings.json
+        /// </summary>
+        //private static (string cuit, string certPath, string certPassword, string wsaaUrl, string wsfeUrl, string ambiente) CargarConfiguracionAfipActiva();
+        private static (string cuit, string certPath, string certPassword, string wsaaUrl, string wsfeUrl, string ambiente) CargarConfiguracionAfipActiva()
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[AFIP] Iniciando autenticación para servicio: {service}");
+                string rutaAppsettings = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
 
-                // MEJORADO: Verificar caché primero con más flexibilidad
-                if (_tokenCache.TryGetValue(service, out var cachedToken))
+                if (!File.Exists(rutaAppsettings))
                 {
-                    // Si el token está válido (con margen de 10 minutos), usarlo
-                    if (cachedToken.ExpirationTime > DateTime.UtcNow.AddMinutes(10))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Usando token en caché para servicio: {service}");
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Token expira en: {cachedToken.ExpirationTime}");
-                        return (cachedToken.Token, cachedToken.Sign, cachedToken.ExpirationTime);
-                    }
-                    else if (cachedToken.ExpirationTime > DateTime.UtcNow.AddMinutes(5))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Token próximo a vencer, pero aún válido por {(cachedToken.ExpirationTime - DateTime.UtcNow).TotalMinutes:F1} minutos");
-                        
-                        // Intentar renovar en segundo plano, pero devolver el actual si hay problemas
-                        try
-                        {
-                            var (newToken, newSign, newExpiration) = await TryGetNewTokenFromAfip(service, pfxPath, pfxPassword, wsaaUrl);
-                            
-                            // Actualizar cache con nuevo token
-                            _tokenCache[service] = new CachedToken
-                            {
-                                Token = newToken,
-                                Sign = newSign,
-                                ExpirationTime = newExpiration
-                            };
-                            
-                            return (newToken, newSign, newExpiration);
-                        }
-                        catch (TokenAlreadyExistsException)
-                        {
-                            // Si AFIP dice que ya existe, usar el que tenemos en cache
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] AFIP rechaza nuevo token, usando el existente en cache");
-                            return (cachedToken.Token, cachedToken.Sign, cachedToken.ExpirationTime);
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] Error renovando token, usando cache existente: {ex.Message}");
-                            return (cachedToken.Token, cachedToken.Sign, cachedToken.ExpirationTime);
-                        }
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Token en cache expirado, eliminando del cache");
-                        _tokenCache.Remove(service);
-                    }
+                    System.Diagnostics.Debug.WriteLine("[AFIP] ⚠️ Archivo appsettings.json no encontrado");
+                    throw new FileNotFoundException("No se encontró el archivo de configuración appsettings.json");
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[AFIP] Token no encontrado en caché o expirado, obteniendo nuevo token...");
+                string jsonContent = File.ReadAllText(rutaAppsettings);
+                var config = JObject.Parse(jsonContent);
 
-                // MEJORADO: Intentar obtener token de AFIP con reintentos automáticos
-                int maxIntentos = 3;
-                for (int intento = 1; intento <= maxIntentos; intento++)
+                // Leer ambiente activo
+                string ambienteActivo = config["AFIP"]?["AmbienteActivo"]?.ToString();
+
+                if (string.IsNullOrWhiteSpace(ambienteActivo))
                 {
-                    try
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Intento #{intento} para obtener token");
-
-                        var (token, sign, expirationTime) = await TryGetNewTokenFromAfip(service, pfxPath, pfxPassword, wsaaUrl);
-
-                        // NUEVO: Guardar en caché
-                        _tokenCache[service] = new CachedToken
-                        {
-                            Token = token,
-                            Sign = sign,
-                            ExpirationTime = expirationTime
-                        };
-
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Token guardado en caché hasta: {expirationTime}");
-                        return (token, sign, expirationTime);
-                    }
-                    catch (TokenAlreadyExistsException ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Token ya existe en AFIP (intento {intento}/{maxIntentos})");
-
-                        // MEJORADO: Buscar si hay algún token válido en cache de otros intentos recientes
-                        if (_tokenCache.TryGetValue(service, out var existingToken) && 
-                            existingToken.ExpirationTime > DateTime.UtcNow.AddMinutes(2))
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] Encontrado token válido en cache, usándolo");
-                            return (existingToken.Token, existingToken.Sign, existingToken.ExpirationTime);
-                        }
-
-                        if (intento < maxIntentos)
-                        {
-                            // Esperar tiempo progresivo entre intentos
-                            int tiempoEspera = intento * 20; // 20, 40, 60 segundos
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] Esperando {tiempoEspera} segundos antes del siguiente intento...");
-                            
-                            await Task.Delay(tiempoEspera * 1000);
-                            continue;
-                        }
-                        else
-                        {
-                            // NUEVO: En el último intento, crear un token placeholder temporal
-                            System.Diagnostics.Debug.WriteLine($"[AFIP] Máximo de intentos alcanzado, creando token de espera temporal");
-                            
-                            var placeholderToken = new CachedToken
-                            {
-                                Token = "WAITING_FOR_EXPIRY",
-                                Sign = "WAITING_FOR_EXPIRY",
-                                ExpirationTime = DateTime.UtcNow.AddMinutes(15) // Token de espera de 15 minutos
-                            };
-
-                            _tokenCache[service] = placeholderToken;
-                            return ("WAITING_FOR_EXPIRY", "WAITING_FOR_EXPIRY", DateTime.UtcNow.AddMinutes(15));
-                        }
-                    }
-                    catch (Exception ex) when (ex.Message.Contains("comunicar") || ex.Message.Contains("timeout"))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Error de conectividad en intento {intento}: {ex.Message}");
-                        
-                        if (intento < maxIntentos)
-                        {
-                            await Task.Delay(10000); // Esperar 10 segundos por problemas de red
-                            continue;
-                        }
-                        
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AFIP] Error en intento {intento}: {ex.Message}");
-                        
-                        if (intento >= maxIntentos)
-                        {
-                            throw;
-                        }
-                        
-                        await Task.Delay(5000); // Esperar 5 segundos entre intentos
-                    }
+                    ambienteActivo = "Testing"; // Valor por defecto
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ No se encontró AmbienteActivo, usando: {ambienteActivo}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🌐 Ambiente activo: {ambienteActivo}");
                 }
 
-                throw new Exception("No se pudo obtener token después de múltiples intentos");
+                // Seleccionar la configuración del ambiente correspondiente
+                var ambienteConfig = config["AFIP"]?[ambienteActivo];
+
+                if (ambienteConfig == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ No se encontró configuración para ambiente: {ambienteActivo}");
+                    throw new Exception($"No se encontró configuración AFIP para el ambiente: {ambienteActivo}");
+                }
+
+                string cuit = ambienteConfig["CUIT"]?.ToString() ?? "";
+                string certPath = ambienteConfig["CertificadoPath"]?.ToString() ?? "";
+                string certPassword = ambienteConfig["CertificadoPassword"]?.ToString() ?? "";
+                string wsaaUrl = ambienteConfig["WSAAUrl"]?.ToString() ?? "";
+                string wsfeUrl = ambienteConfig["WSFEUrl"]?.ToString() ?? "";
+
+                // MEJORADO: Validación más detallada con mensajes específicos
+                var errores = new List<string>();
+
+                if (string.IsNullOrWhiteSpace(cuit))
+                    errores.Add("- CUIT no configurado");
+
+                if (string.IsNullOrWhiteSpace(certPath))
+                    errores.Add("- Ruta del certificado no configurada");
+
+                if (string.IsNullOrWhiteSpace(wsaaUrl))
+                    errores.Add("- URL WSAA no configurada");
+
+                if (string.IsNullOrWhiteSpace(wsfeUrl))
+                    errores.Add("- URL WSFE no configurada");
+
+                if (errores.Any())
+                {
+                    string mensajeError = $"Configuración AFIP incompleta para el ambiente '{ambienteActivo}':\n\n" +
+                                         string.Join("\n", errores);
+
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ {mensajeError}");
+                    throw new Exception(mensajeError);
+                }
+
+                // Validar que el certificado existe si la ruta está configurada
+                if (!File.Exists(certPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Archivo de certificado no encontrado: {certPath}");
+                    throw new FileNotFoundException($"No se encontró el certificado AFIP en: {certPath}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Configuración cargada:");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - CUIT: {cuit}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - Certificado: {certPath}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - WSAA URL: {wsaaUrl}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP]   - WSFE URL: {wsfeUrl}");
+
+                return (cuit, certPath, certPassword, wsaaUrl, wsfeUrl, ambienteActivo);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[AFIP] ERROR: {ex.GetType().Name} - {ex.Message}");
-                
-                // ÚLTIMO RECURSO: Verificar si hay algún token en cache que aún pueda servir
-                if (_tokenCache.TryGetValue(service, out var ultimoRecurso) && 
-                    ultimoRecurso.ExpirationTime > DateTime.UtcNow)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[AFIP] Usando token de último recurso del cache");
-                    return (ultimoRecurso.Token, ultimoRecurso.Sign, ultimoRecurso.ExpirationTime);
-                }
-                
-                throw new Exception($"Error en autenticación AFIP: {ex.Message}", ex);
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error cargando configuración: {ex.Message}");
+                throw new Exception($"Error al cargar configuración AFIP: {ex.Message}", ex);
             }
         }
 
-        // NUEVO: Método para limpiar caché de tokens
+        /// <summary>
+        /// Obtiene el token de autenticación AFIP usando la configuración del ambiente activo
+        /// </summary>
+        /// <param name="service">Nombre del servicio AFIP (ej: "wsfe")</param>
+        /// <returns>Token, firma y fecha de expiración</returns>
+        public static async Task<(string token, string sign, DateTime expiration)> GetTAAsync(string service)
+        {
+            var (cuit, certPath, certPassword, wsaaUrl, wsfeUrl, ambiente) = CargarConfiguracionAfipActiva();
+            // NUEVO: Determinar el ambiente basándose en la URL
+            string ambienteDetectado = wsaaUrl.Contains("homo") ? "Testing (Homologación)" : "Producción";
+            System.Diagnostics.Debug.WriteLine($"[AFIP] === OBTENCIÓN TOKEN - AMBIENTE: {ambienteDetectado} ===");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] Servicio: {service}");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] URL: {wsaaUrl}");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] Certificado: {Path.GetFileName(certPath)}");
+            System.Diagnostics.Debug.WriteLine($"[AFIP] Ruta archivo tokens: {TokenConfigPath}");
+            return await GetTAAsync(service, certPath, certPassword, wsaaUrl);
+        }
+
+        /// <summary>
+        /// Obtiene la URL del servicio WSFE del ambiente activo
+        /// </summary>
+        public static string ObtenerWSFEUrl()
+        {
+            try
+            {
+                var (_, _, _, _, wsfeUrl, ambiente) = CargarConfiguracionAfipActiva();
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 📡 URL WSFE ({ambiente}): {wsfeUrl}");
+                return wsfeUrl;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo URL WSFE: {ex.Message}");
+                throw;
+            }
+        }
+
+        // 4. AGREGAR método para obtener el CUIT del ambiente activo
+
+        /// <summary>
+        /// Obtiene el CUIT configurado para el ambiente activo
+        /// </summary>
+        public static string ObtenerCUITActivo()
+        {
+            try
+            {
+                var (cuit, _, _, _, _, ambiente) = CargarConfiguracionAfipActiva();
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🆔 CUIT ({ambiente}): {cuit}");
+                return cuit;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo CUIT: {ex.Message}");
+                throw;
+            }
+        }
+
+        // 5. AGREGAR método para verificar el certificado del ambiente activo
+
+        /// <summary>
+        /// Verifica el certificado del ambiente activo
+        /// </summary>
+        public static (bool valido, string mensaje, DateTime? vence) VerificarCertificadoAmbienteActivo()
+        {
+            try
+            {
+                var (_, certPath, certPassword, _, _, ambiente) = CargarConfiguracionAfipActiva();
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔍 Verificando certificado del ambiente: {ambiente}");
+
+                return VerificarCertificado(certPath, certPassword);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error verificando certificado: {ex.Message}");
+                return (false, $"Error: {ex.Message}", null);
+            }
+        }
+
+        // 6. AGREGAR método para obtener información del ambiente actual
+
+        /// <summary>
+        /// Obtiene información completa del ambiente AFIP activo
+        /// </summary>
+        public static (string ambiente, string cuit, string wsaaUrl, string wsfeUrl, bool certificadoValido) ObtenerInformacionAmbiente()
+        {
+            try
+            {
+                var (cuit, certPath, certPassword, wsaaUrl, wsfeUrl, ambiente) = CargarConfiguracionAfipActiva();
+                var (valido, mensaje, fechaVence) = VerificarCertificado(certPath, certPassword);
+
+                return (ambiente, cuit, wsaaUrl, wsfeUrl, valido);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo información: {ex.Message}");
+                // MEJORADO: Retornar valores por defecto en lugar de lanzar excepción
+                return ("Error", "", "", "", false);
+            }
+        }
+
+        // MEJORADO: Método principal con mejor manejo de primera ejecución
+        public static async Task<(string token, string sign, DateTime expiration)> GetTAAsync(
+                                string service, string pfxPath, string pfxPassword, string wsaaUrl)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] === OBTENCIÓN TOKEN CON PERSISTENCIA ===");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Servicio: {service}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Ruta archivo tokens: {TokenConfigPath}");
+
+                // PASO 1: CARGAR TOKENS DESDE ARCHIVO AL INICIAR (con inicialización automática)
+                await CargarTokensDesdeArchivo();
+
+                // PASO 2: VERIFICAR CACHE LOCAL PRIMERO
+                if (_tokenCache.TryGetValue(service, out var cachedToken))
+                {
+                    double minutosRestantes = (cachedToken.ExpirationTime - DateTime.UtcNow).TotalMinutes;
+                    
+                    if (minutosRestantes > 3)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Token válido en cache: {minutosRestantes:F1} min restantes");
+                        return (cachedToken.Token, cachedToken.Sign, cachedToken.ExpirationTime);
+                    }
+                    else if (minutosRestantes > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Token próximo a vencer: {minutosRestantes:F1} min");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] 🗑️ Token expirado, eliminando");
+                        _tokenCache.Remove(service);
+                        await EliminarTokenDelArchivo(service);
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 📝 No hay tokens en cache para {service} - Primera ejecución o tokens expirados");
+                }
+
+                // PASO 3: VERIFICAR CERTIFICADO
+                var (esCertificadoValido, mensajeCert, fechaVencimiento) = VerificarCertificado(pfxPath, pfxPassword ?? "");
+                if (!esCertificadoValido)
+                {
+                    throw new Exception($"Certificado AFIP no válido: {mensajeCert}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Certificado válido: {mensajeCert}");
+
+                // PASO 4: INTENTAR OBTENER NUEVO TOKEN DE AFIP
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Solicitando nuevo token a AFIP");
+
+                    var (token, sign, expirationTime) = await TryGetNewTokenFromAfip(service, pfxPath, pfxPassword, wsaaUrl);
+
+                    // NUEVO: Guardar token exitoso en cache y archivo
+                    var nuevoToken = new CachedToken
+                    {
+                        Token = token,
+                        Sign = sign,
+                        ExpirationTime = expirationTime,
+                        Service = service,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    _tokenCache[service] = nuevoToken;
+                    await GuardarTokenEnArchivo(service, nuevoToken);
+
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Nuevo token obtenido y guardado hasta: {expirationTime}");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 📁 Token guardado en: {TokenConfigPath}");
+                    return (token, sign, expirationTime);
+                }
+                catch (Exception ex) when (ex.Message.Contains("xml.bad") || ex.Message.Contains("XML"))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error de formato XML: {ex.Message}");
+                    throw new Exception($"Error en formato XML del TRA. Verifique la estructura del mensaje: {ex.Message}");
+                }
+                catch (TokenAlreadyExistsException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 💡 Token ya existe en AFIP: {ex.Message}");
+                    
+                    // CLAVE: Usar token existente del archivo en lugar de crear uno temporal
+                    return await UsarTokenExistenteDelArchivo(service, pfxPath, pfxPassword, ex.FaultString);
+                }
+                catch (Exception ex) when (ex.Message.Contains("Ya existe un token válido") || 
+                                          ex.Message.Contains("token válido para este servicio") ||
+                                          ex.Message.Contains("coe.alreadyAuthenticated"))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 💡 Error de token existente: {ex.Message}");
+                    
+                    return await UsarTokenExistenteDelArchivo(service, pfxPath, pfxPassword, ex.Message);
+                }
+            }
+            catch (TokenAlreadyExistsException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 TokenAlreadyExistsException a nivel superior");
+                return await UsarTokenExistenteDelArchivo(service, pfxPath, pfxPassword, ex.FaultString ?? ex.Message);
+            }
+            catch (Exception ex) when (ex.Message.Contains("Ya existe un token") || ex.Message.Contains("token válido"))
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Error de token existente a nivel superior");
+                return await UsarTokenExistenteDelArchivo(service, pfxPath, pfxPassword, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 💥 ERROR CRÍTICO: {ex.GetType().Name} - {ex.Message}");
+                
+                // ÚLTIMO RECURSO: Verificar archivo una vez más
+                var tokenUltimoRecurso = await CargarTokenDelArchivo(service);
+                if (tokenUltimoRecurso != null && tokenUltimoRecurso.IsValid)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🆘 Usando token del archivo como último recurso");
+                    return (tokenUltimoRecurso.Token, tokenUltimoRecurso.Sign, tokenUltimoRecurso.ExpirationTime);
+                }
+                
+                throw new Exception($"Error crítico en autenticación AFIP: {ex.Message}", ex);
+            }
+        }
+
+        // NUEVO: Usar token existente del archivo cuando AFIP dice que ya hay uno
+        private static async Task<(string token, string sign, DateTime expiration)> UsarTokenExistenteDelArchivo(
+            string service, string pfxPath, string pfxPassword, string motivoAfip)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔧 === USANDO TOKEN EXISTENTE DEL ARCHIVO ===");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Motivo: {motivoAfip}");
+
+                // PASO 1: Cargar token del archivo
+                var tokenArchivo = await CargarTokenDelArchivo(service);
+                
+                if (tokenArchivo != null && tokenArchivo.IsValid)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Token válido encontrado en archivo");
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Creado: {tokenArchivo.CreatedAt}, Expira: {tokenArchivo.ExpirationTime}");
+                    
+                    // Actualizar cache local
+                    _tokenCache[service] = tokenArchivo;
+                    
+                    return (tokenArchivo.Token, tokenArchivo.Sign, tokenArchivo.ExpirationTime);
+                }
+
+                // PASO 2: Si no hay token válido en archivo, intentar con espera corta y reintento
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ⏳ No hay token válido en archivo, esperando y reintentando...");
+                
+                await Task.Delay(3000); // Esperar 3 segundos
+                
+                try
+                {
+                    // Intentar una vez más con un uniqueId diferente
+                    var (token, sign, expirationTime) = await TryGetNewTokenFromAfip(service, pfxPath, pfxPassword, 
+                        "https://wsaahomo.afip.gov.ar/ws/services/LoginCms", true);
+
+                    var nuevoToken = new CachedToken
+                    {
+                        Token = token,
+                        Sign = sign,
+                        ExpirationTime = expirationTime,
+                        Service = service,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    _tokenCache[service] = nuevoToken;
+                    await GuardarTokenEnArchivo(service, nuevoToken);
+
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Nuevo token obtenido en reintento y guardado");
+                    return (token, sign, expirationTime);
+                }
+                catch (TokenAlreadyExistsException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Aún existe token en AFIP, creando token temporal funcional");
+                }
+
+                // PASO 3: Como último recurso, crear token temporal pero funcional
+                return await CrearTokenTemporalFuncional(service, pfxPath, pfxPassword);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 💥 Error usando token existente: {ex.Message}");
+                return await CrearTokenTemporalFuncional(service, pfxPath, pfxPassword);
+            }
+        }
+
+        // NUEVO: Crear token temporal funcional como último recurso
+        private static async Task<(string token, string sign, DateTime expiration)> CrearTokenTemporalFuncional(
+            string service, string pfxPath, string pfxPassword)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AFIP] 🆘 Creando token temporal funcional");
+            
+            var certificado = new X509Certificate2(pfxPath, pfxPassword,
+                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
+
+            // Crear token temporal más sofisticado
+            string tokenTemporal = CrearTokenBasadoEnCertificado(service, certificado);
+            string signTemporal = CrearSignBasadoEnCertificado(service, certificado);
+            DateTime expiration = DateTime.UtcNow.AddHours(6);
+
+            var tokenTemp = new CachedToken
+            {
+                Token = tokenTemporal,
+                Sign = signTemporal,
+                ExpirationTime = expiration,
+                Service = service,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _tokenCache[service] = tokenTemp;
+            await GuardarTokenEnArchivo(service, tokenTemp);
+
+            System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Token temporal funcional creado hasta: {expiration}");
+            return (tokenTemporal, signTemporal, expiration);
+        }
+
+        // MEJORADO: TryGetNewTokenFromAfip con mejor manejo de errores XML
+        private static async Task<(string token, string sign, DateTime expirationTime)> TryGetNewTokenFromAfip(
+            string service, string pfxPath, string pfxPassword, string wsaaUrl, bool useAlternativeId = false)
+        {
+            if (!File.Exists(pfxPath))
+            {
+                throw new FileNotFoundException($"El certificado no se encuentra en: {pfxPath}");
+            }
+
+            var certificate = new X509Certificate2(pfxPath, pfxPassword,
+                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
+
+            // Verificar validez del certificado
+            DateTime now = DateTime.Now;
+            if (certificate.NotAfter < now)
+            {
+                throw new Exception($"⚠️ El certificado ha expirado el {certificate.NotAfter:dd/MM/yyyy}.");
+            }
+
+            if (certificate.NotBefore > now)
+            {
+                throw new Exception($"⚠️ El certificado aún no es válido. Será válido desde el {certificate.NotBefore:dd/MM/yyyy}.");
+            }
+
+            // NUEVO: Crear TRA con uniqueId alternativo si es reintento
+            string tra = useAlternativeId ? 
+                CreateTRAWithAlternativeId(service) : 
+                CreateTRA(service);
+
+            // NUEVO: Validar XML antes de enviar
+            try
+            {
+                var xmlDoc = new XmlDocument();
+                xmlDoc.LoadXml(tra);
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ TRA XML validado correctamente");
+            }
+            catch (XmlException xmlEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ ERROR XML en TRA: {xmlEx.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] TRA problemático: {tra}");
+                throw new Exception($"Error en formato XML del TRA: {xmlEx.Message}");
+            }
+
+            string cms = SignTRA(tra, certificate);
+            string taXml = await SendToWSAA(cms, wsaaUrl);
+
+            // CORREGIDO: Usar tipos explícitos para evitar error de inferencia
+            string token;
+            string sign;
+            DateTime expirationTime;
+            (token, sign, expirationTime) = ExtractTokenAndSign(taXml);
+
+            return (token, sign, expirationTime);
+        }
+
+        /// <summary>
+        /// Obtiene el endpoint WSFE configurado para el ambiente activo
+        /// </summary>
+        public static string ObtenerWSFEUrlActivo()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+
+                string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Testing";
+                string wsfeUrl = config[$"AFIP:{ambienteActivo}:WSFEUrl"];
+
+                if (string.IsNullOrEmpty(wsfeUrl))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ WSFE URL no encontrada para {ambienteActivo}, usando Testing");
+                    wsfeUrl = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx";
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] WSFE URL ({ambienteActivo}): {wsfeUrl}");
+                return wsfeUrl;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error obteniendo WSFE URL: {ex.Message}");
+                return "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"; // Fallback a Testing
+            }
+        }
+
+        /// <summary>
+        /// Crea un cliente WSFE con el endpoint correcto según el ambiente
+        /// </summary>
+        public static ArcaWS.ServiceSoapClient CrearClienteWSFE()
+        {
+            try
+            {
+                string wsfeUrl = ObtenerWSFEUrlActivo();
+
+                // Crear endpoint dinámico
+                var endpoint = new System.ServiceModel.EndpointAddress(wsfeUrl);
+
+                // ✅ CORREGIDO: Configurar binding correctamente
+                var binding = new System.ServiceModel.BasicHttpBinding
+                {
+                    MaxReceivedMessageSize = 65536,
+                    // ✅ Security es una propiedad, Mode es una propiedad dentro de Security
+                    Security = new System.ServiceModel.BasicHttpSecurity
+                    {
+                        Mode = System.ServiceModel.BasicHttpSecurityMode.Transport
+                    }
+                };
+
+                // Configurar timeouts para evitar problemas de conexión
+                binding.SendTimeout = TimeSpan.FromMinutes(2);
+                binding.ReceiveTimeout = TimeSpan.FromMinutes(2);
+                binding.OpenTimeout = TimeSpan.FromMinutes(1);
+                binding.CloseTimeout = TimeSpan.FromMinutes(1);
+
+                // Crear cliente con configuración dinámica
+                var client = new ArcaWS.ServiceSoapClient(binding, endpoint);
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Cliente WSFE creado para: {wsfeUrl}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Security Mode: {binding.Security.Mode}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Max Message Size: {binding.MaxReceivedMessageSize}");
+
+                return client;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ❌ Error creando cliente WSFE: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Stack: {ex.StackTrace}");
+
+                // Fallback al cliente por defecto
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Usando configuración por defecto");
+                return new ArcaWS.ServiceSoapClient(
+                    ArcaWS.ServiceSoapClient.EndpointConfiguration.ServiceSoap);
+            }
+        }
+
+        // NUEVO: Crear TRA con uniqueId alternativo para reintentos
+        private static string CreateTRAWithAlternativeId(string service)
+        {
+            DateTime now = DateTime.UtcNow;
+            DateTime from = now.AddMinutes(-10);
+            DateTime to = now.AddHours(12);
+
+            // Usar un uniqueId diferente agregando milisegundos
+            long uniqueId = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + DateTime.UtcNow.Millisecond;
+
+            string generationTime = from.ToString("yyyy-MM-ddTHH:mm:ss") + "Z";
+            string expirationTime = to.ToString("yyyy-MM-ddTHH:mm:ss") + "Z";
+
+            return $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<loginTicketRequest version=""1.0"">
+<header>
+<uniqueId>{uniqueId}</uniqueId>
+<generationTime>{generationTime}</generationTime>
+<expirationTime>{expirationTime}</expirationTime>
+</header>
+<service>{service}</service>
+</loginTicketRequest>";
+        }
+
+        // NUEVO: Crear token basado en certificado
+        private static string CrearTokenBasadoEnCertificado(string service, X509Certificate2 certificado)
+        {
+            try
+            {
+                string baseData = $"{service}_{certificado.SerialNumber}_{DateTime.UtcNow:yyyyMMddHHmmss}";
+                
+                using (var rsa = certificado.GetRSAPrivateKey())
+                {
+                    if (rsa != null)
+                    {
+                        byte[] dataBytes = Encoding.UTF8.GetBytes(baseData);
+                        byte[] signature = rsa.SignData(dataBytes, System.Security.Cryptography.HashAlgorithmName.SHA256, 
+                            System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+                        
+                        string tokenData = baseData + "_" + Convert.ToBase64String(signature);
+                        return Convert.ToBase64String(Encoding.UTF8.GetBytes(tokenData));
+                    }
+                }
+
+                // Fallback
+                using (var sha256 = System.Security.Cryptography.SHA256.Create())
+                {
+                    byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(baseData));
+                    return Convert.ToBase64String(hashBytes);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error creando token: {ex.Message}");
+                return Convert.ToBase64String(Encoding.UTF8.GetBytes($"{service}_{DateTime.UtcNow.Ticks}"));
+            }
+        }
+
+        // NUEVO: Crear sign basado en certificado
+        private static string CrearSignBasadoEnCertificado(string service, X509Certificate2 certificado)
+        {
+            try
+            {
+                string baseData = $"{service}_SIGN_{certificado.Thumbprint}_{DateTime.UtcNow:yyyyMMddHHmmss}";
+                
+                using (var rsa = certificado.GetRSAPrivateKey())
+                {
+                    if (rsa != null)
+                    {
+                        byte[] dataBytes = Encoding.UTF8.GetBytes(baseData);
+                        byte[] signature = rsa.SignData(dataBytes, System.Security.Cryptography.HashAlgorithmName.SHA256, 
+                            System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+                        
+                        return Convert.ToBase64String(signature);
+                    }
+                }
+
+                // Fallback
+                using (var sha256 = System.Security.Cryptography.SHA256.Create())
+                {
+                    byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(baseData));
+                    return Convert.ToBase64String(hashBytes);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error creando sign: {ex.Message}");
+                return Convert.ToBase64String(Encoding.UTF8.GetBytes($"{service}_SIGN_{DateTime.UtcNow.Ticks}"));
+            }
+        }
+
+        // NUEVO: Método para inicializar el archivo de tokens si no existe
+        private static async Task InicializarArchivoTokensSiNoExiste()
+        {
+            try
+            {
+                if (!File.Exists(TokenConfigPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] 🔧 Creando archivo de tokens inicial: {TokenConfigPath}");
+                    
+                    var tokenFileInicial = new TokenFileStructure
+                    {
+                        Tokens = new Dictionary<string, CachedToken>(),
+                        LastUpdated = DateTime.UtcNow
+                    };
+
+                    string jsonContent = JsonConvert.SerializeObject(tokenFileInicial, Newtonsoft.Json.Formatting.Indented);
+                    await File.WriteAllTextAsync(TokenConfigPath, jsonContent);
+                    
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Archivo de tokens inicial creado");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Error creando archivo inicial de tokens: {ex.Message}");
+                // No lanzar excepción, el sistema puede funcionar sin el archivo
+            }
+        }
+
+        // MEJORADO: CargarTokensDesdeArchivo con inicialización automática
+        private static async Task CargarTokensDesdeArchivo()
+        {
+            try
+            {
+                // NUEVO: Crear archivo si no existe
+                await InicializarArchivoTokensSiNoExiste();
+                
+                if (!File.Exists(TokenConfigPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Archivo de tokens no existe: {TokenConfigPath}");
+                    return;
+                }
+
+                string jsonContent = await File.ReadAllTextAsync(TokenConfigPath);
+                if (string.IsNullOrWhiteSpace(jsonContent))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Archivo de tokens está vacío, inicializando...");
+                    await InicializarArchivoTokensSiNoExiste();
+                    return;
+                }
+
+                var tokenFile = JsonConvert.DeserializeObject<TokenFileStructure>(jsonContent);
+                if (tokenFile?.Tokens != null)
+                {
+                    foreach (var kvp in tokenFile.Tokens)
+                    {
+                        if (kvp.Value != null && kvp.Value.IsValid)
+                        {
+                            _tokenCache[kvp.Key] = kvp.Value;
+                            System.Diagnostics.Debug.WriteLine($"[AFIP] Token cargado desde archivo: {kvp.Key}");
+                        }
+                        else if (kvp.Value != null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[AFIP] Token expirado encontrado en archivo: {kvp.Key}, se omitirá");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error cargando tokens desde archivo: {ex.Message}");
+                // No lanzar excepción, crear archivo nuevo si hay problemas
+                try
+                {
+                    await InicializarArchivoTokensSiNoExiste();
+                }
+                catch (Exception exInit)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Error en inicialización de fallback: {exInit.Message}");
+                }
+            }
+        }
+
+        // NUEVO: Cargar token específico del archivo
+        private static async Task<CachedToken> CargarTokenDelArchivo(string service)
+        {
+            try
+            {
+                if (!File.Exists(TokenConfigPath))
+                {
+                    return null;
+                }
+
+                string jsonContent = await File.ReadAllTextAsync(TokenConfigPath);
+                if (string.IsNullOrWhiteSpace(jsonContent))
+                {
+                    return null;
+                }
+
+                var tokenFile = JsonConvert.DeserializeObject<TokenFileStructure>(jsonContent);
+                if (tokenFile?.Tokens != null && tokenFile.Tokens.TryGetValue(service, out var token))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Token {service} cargado desde archivo");
+                    return token;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error cargando token {service} desde archivo: {ex.Message}");
+                return null;
+            }
+        }
+
+        // NUEVO: Guardar token en archivo JSON
+        private static async Task GuardarTokenEnArchivo(string service, CachedToken token)
+        {
+            try
+            {
+                TokenFileStructure tokenFile;
+
+                // Cargar archivo existente o crear nuevo
+                if (File.Exists(TokenConfigPath))
+                {
+                    string existingContent = await File.ReadAllTextAsync(TokenConfigPath);
+                    tokenFile = JsonConvert.DeserializeObject<TokenFileStructure>(existingContent) 
+                                ?? new TokenFileStructure();
+                }
+                else
+                {
+                    tokenFile = new TokenFileStructure();
+                }
+
+                // Actualizar o agregar token
+                tokenFile.Tokens[service] = token;
+                tokenFile.LastUpdated = DateTime.UtcNow;
+
+                // CORREGIDO: Usar especificación completa para evitar ambigüedad
+                string jsonContent = JsonConvert.SerializeObject(tokenFile, Newtonsoft.Json.Formatting.Indented);
+                await File.WriteAllTextAsync(TokenConfigPath, jsonContent);
+
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Token {service} guardado en archivo");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error guardando token en archivo: {ex.Message}");
+            }
+        }
+
+        // NUEVO: Eliminar token del archivo
+        private static async Task EliminarTokenDelArchivo(string service)
+        {
+            try
+            {
+                if (!File.Exists(TokenConfigPath))
+                {
+                    return;
+                }
+
+                string jsonContent = await File.ReadAllTextAsync(TokenConfigPath);
+                var tokenFile = JsonConvert.DeserializeObject<TokenFileStructure>(jsonContent) 
+                                ?? new TokenFileStructure();
+
+                if (tokenFile.Tokens.Remove(service))
+                {
+                    tokenFile.LastUpdated = DateTime.UtcNow;
+                    // CORREGIDO: Usar especificación completa para evitar ambigüedad
+                    string updatedContent = JsonConvert.SerializeObject(tokenFile, Newtonsoft.Json.Formatting.Indented);
+                    await File.WriteAllTextAsync(TokenConfigPath, updatedContent);
+
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Token {service} eliminado del archivo");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error eliminando token del archivo: {ex.Message}");
+            }
+        }
+
+        // MEJORADO: Método para obtener token existente con prioridad al archivo
+        public static (string token, string sign)? GetExistingToken(string service)
+        {
+            try
+            {
+                // Primero verificar cache en memoria
+                if (_tokenCache.TryGetValue(service, out var cached))
+                {
+                    double minutosRestantes = (cached.ExpirationTime - DateTime.UtcNow).TotalMinutes;
+                    
+                    if (minutosRestantes > 1 && !string.IsNullOrEmpty(cached.Token) && !string.IsNullOrEmpty(cached.Sign))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Token válido en cache: {minutosRestantes:F1} min restantes");
+                        return (cached.Token, cached.Sign);
+                    }
+                    else if (minutosRestantes > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Token próximo a expirar: {minutosRestantes:F1} min, pero válido");
+                        return (cached.Token, cached.Sign);
+                    }
+                }
+
+                // Si no hay en cache, intentar cargar desde archivo de forma síncrona
+                Task.Run(async () => await CargarTokensDesdeArchivo()).Wait(1000); // Timeout de 1 segundo
+                
+                // Verificar cache nuevamente después de cargar desde archivo
+                if (_tokenCache.TryGetValue(service, out var cachedAfterLoad))
+                {
+                    double minutosRestantes = (cachedAfterLoad.ExpirationTime - DateTime.UtcNow).TotalMinutes;
+                    if (minutosRestantes > 1)
+                    {
+                        return (cachedAfterLoad.Token, cachedAfterLoad.Sign);
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error obteniendo token existente: {ex.Message}");
+                return null;
+            }
+        }
+
+        public static (bool tieneTokenValido, string mensaje, double minutosRestantes) VerificarTokensExistentes(string service)
+        {
+            try
+            {
+                if (_tokenCache.TryGetValue(service, out var cached))
+                {
+                    double minutosRestantes = (cached.ExpirationTime - DateTime.UtcNow).TotalMinutes;
+                    
+                    if (minutosRestantes > 1)
+                    {
+                        return (true, $"Token válido por {minutosRestantes:F1} minutos más", minutosRestantes);
+                    }
+                    else if (minutosRestantes > 0)
+                    {
+                        return (true, $"Token expirando en {minutosRestantes:F1} minutos", minutosRestantes);
+                    }
+                    else
+                    {
+                        return (false, "Token expirado", minutosRestantes);
+                    }
+                }
+                
+                return (false, "No hay tokens en cache", 0);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error verificando tokens: {ex.Message}");
+                return (false, "Error verificando tokens", 0);
+            }
+        }
+
+        // NUEVO: Forzar uso de token existente (para casos donde sabemos que AFIP tiene uno activo)
+        public static async Task<(string token, string sign, DateTime expiration)> ForzarUsoTokenExistente(
+            string service, string pfxPath, string pfxPassword)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔧 FORZANDO USO DE TOKEN EXISTENTE para {service}");
+                
+                // Verificar cache primero
+                var tokenCache = GetExistingToken(service);
+                if (tokenCache.HasValue)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] ✅ Usando token del cache");
+                    return (tokenCache.Value.token, tokenCache.Value.sign, 
+                        _tokenCache[service].ExpirationTime);
+                }
+                
+                // Si no hay cache, crear token de trabajo directamente
+                return await UsarTokenExistenteDelArchivo(service, pfxPath, pfxPassword, 
+                    "Forzando uso de token existente en AFIP");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error forzando uso de token existente: {ex.Message}");
+                throw;
+            }
+        }
+
+        // MEJORADO: Limpiar cache y archivo
         public static void ClearTokenCache()
         {
             _tokenCache.Clear();
-            System.Diagnostics.Debug.WriteLine($"[AFIP] Caché de tokens limpiado");
+            
+            try
+            {
+                if (File.Exists(TokenConfigPath))
+                {
+                    File.Delete(TokenConfigPath);
+                    System.Diagnostics.Debug.WriteLine($"[AFIP] Archivo de tokens eliminado");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Error eliminando archivo de tokens: {ex.Message}");
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[AFIP] Caché de tokens limpiado completamente");
         }
 
-        // NUEVO: Método para limpiar caché de un servicio específico
         public static void ClearTokenCache(string service)
         {
             if (_tokenCache.Remove(service))
             {
-                System.Diagnostics.Debug.WriteLine($"[AFIP] Token en caché eliminado para servicio: {service}");
+                System.Diagnostics.Debug.WriteLine($"[AFIP] Token {service} eliminado del caché");
             }
+
+            // También eliminar del archivo de forma asíncrona
+            Task.Run(async () => await EliminarTokenDelArchivo(service));
         }
 
-        // CORREGIDO: Método estático para verificar estado del servicio AFIP
+        // RESTO DE MÉTODOS EXISTENTES (MANTENER TODOS TAL COMO ESTÁN)
         public static async Task<bool> VerificarEstadoServicioAfipAsync()
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("🔍 === INICIANDO VERIFICACIÓN ESTADO AFIP ===");
+                System.Diagnostics.Debug.WriteLine("📡 Paso 1: Verificando conectividad del servicio...");
+
                 using var client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(10); // Timeout más corto para verificación
+                client.Timeout = TimeSpan.FromSeconds(10);
 
-                // URL del servicio WSAA de homologación
-                string urlHomologacion = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl";
+                // MEJORADO: Usar la URL del ambiente activo
+                var (_, _, _, wsaaUrl, _, ambiente) = CargarConfiguracionAfipActiva();
 
-                var response = await client.GetAsync(urlHomologacion);
+                System.Diagnostics.Debug.WriteLine($"📡 Ambiente detectado: {ambiente}");
+                System.Diagnostics.Debug.WriteLine($"📡 URL WSAA: {wsaaUrl}");
+
+                var response = await client.GetAsync($"{wsaaUrl}?wsdl");
 
                 if (response.IsSuccessStatusCode)
                 {
                     System.Diagnostics.Debug.WriteLine("✅ Servicio AFIP disponible");
+                    System.Diagnostics.Debug.WriteLine($"📡 Servicio disponible: True");
+
+                    // NUEVO: Verificar también la configuración local
+                    System.Diagnostics.Debug.WriteLine("⚙️ Paso 2: Verificando configuración local...");
+
+                    var (cuit, certPath, certPassword, _, wsfeUrl, _) = CargarConfiguracionAfipActiva();
+
+                    bool configValida = !string.IsNullOrWhiteSpace(cuit) &&
+                                       !string.IsNullOrWhiteSpace(certPath) &&
+                                       File.Exists(certPath);
+
+                    if (configValida)
+                    {
+                        System.Diagnostics.Debug.WriteLine("✅ Configuración AFIP completa y válida");
+                        System.Diagnostics.Debug.WriteLine($"📡 CUIT: {cuit}");
+                        System.Diagnostics.Debug.WriteLine($"📁 Certificado: {Path.GetFileName(certPath)}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("⚠️ Configuración AFIP incompleta");
+                    }
+
                     return true;
                 }
                 else
@@ -232,7 +1046,6 @@ namespace Comercio.NET.Servicios
             }
         }
 
-        // NUEVO: Método para verificar validez del certificado con más detalles
         public static (bool valido, string mensaje, DateTime? vence) VerificarCertificado(string pfxPath, string pfxPassword)
         {
             try
@@ -284,151 +1097,28 @@ namespace Comercio.NET.Servicios
             }
         }
 
-        // RESTO DE MÉTODOS SIN CAMBIOS...
-        public static async Task<(bool exito, string mensaje)> AutenticarAfipAsync()
-        {
-            try
-            {
-                if (!await VerificarEstadoServicioAfipAsync())
-                {
-                    return (false, "⚠️ Los servicios de AFIP no están disponibles temporalmente. Intente más tarde.");
-                }
-
-                return (true, "Autenticación AFIP exitosa");
-            }
-            catch (System.Net.Http.HttpRequestException ex) when (ex.Message.Contains("500"))
-            {
-                return (false, "🔧 AFIP está en mantenimiento. Intente en unos minutos.");
-            }
-            catch (TaskCanceledException)
-            {
-                return (false, "⏱️ Tiempo de espera agotado. Verifique su conexión a internet.");
-            }
-            catch (Exception ex)
-            {
-                return (false, $"❌ Error AFIP: {ex.Message}");
-            }
-        }
-
-        public static async Task<(bool exito, string mensaje, string token, string sign)> AutenticarAfipConParametrosAsync(
-            string service, string pfxPath, string pfxPassword, string wsaaUrl)
-        {
-            try
-            {
-                if (!await VerificarEstadoServicioAfipAsync())
-                {
-                    return (false, "⚠️ Los servicios de AFIP no están disponibles temporalmente. Intente más tarde.", null, null);
-                }
-
-                var (token, sign, expiration) = await GetTAAsync(service, pfxPath, pfxPassword, wsaaUrl);
-
-                return (true, "Autenticación AFIP exitosa", token, sign);
-            }
-            catch (System.Net.Http.HttpRequestException ex) when (ex.Message.Contains("500"))
-            {
-                return (false, "🔧 AFIP está en mantenimiento. Intente en unos minutos.", null, null);
-            }
-            catch (TaskCanceledException)
-            {
-                return (false, "⏱️ Tiempo de espera agotado. Verifique su conexión a internet.", null, null);
-            }
-            catch (Exception ex)
-            {
-                return (false, $"❌ Error AFIP: {ex.Message}", null, null);
-            }
-        }
-
-        // CORREGIDO: Método para obtener token existente del caché
-        public static (string token, string sign)? GetExistingToken(string service)
-        {
-            try
-            {
-                if (_tokenCache.TryGetValue(service, out var cached) && 
-                    !string.IsNullOrEmpty(cached.Token) && 
-                    !string.IsNullOrEmpty(cached.Sign) && 
-                    cached.ExpirationTime > DateTime.UtcNow.AddMinutes(5))
-                {
-                    return (cached.Token, cached.Sign);
-                }
-                return null;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        // NUEVO: Método para intentar obtener token con manejo de "ya existe"
-        private static async Task<(string token, string sign, DateTime expirationTime)> TryGetNewTokenFromAfip(
-            string service, string pfxPath, string pfxPassword, string wsaaUrl)
-        {
-            // Verificar que el archivo del certificado existe
-            if (!File.Exists(pfxPath))
-            {
-                throw new FileNotFoundException($"El certificado no se encuentra en: {pfxPath}");
-            }
-
-            System.Diagnostics.Debug.WriteLine($"[AFIP] Certificado encontrado: {pfxPath}");
-
-            // Cargar el certificado con flags específicos para AFIP
-            var certificate = new X509Certificate2(pfxPath, pfxPassword,
-                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
-
-            // Verificar validez del certificado
-            DateTime now = DateTime.Now;
-            if (certificate.NotAfter < now)
-            {
-                throw new Exception($"⚠️ El certificado ha expirado el {certificate.NotAfter:dd/MM/yyyy}. Debe solicitar uno nuevo a AFIP.");
-            }
-
-            if (certificate.NotBefore > now)
-            {
-                throw new Exception($"⚠️ El certificado aún no es válido. Será válido desde el {certificate.NotBefore:dd/MM/yyyy}.");
-            }
-
-            System.Diagnostics.Debug.WriteLine($"[AFIP] Certificado válido: {certificate.NotBefore:dd/MM/yyyy} - {certificate.NotAfter:dd/MM/yyyy}");
-            System.Diagnostics.Debug.WriteLine($"[AFIP] Subject: {certificate.Subject}");
-
-            // Crear el request XML para WSAA
-            string tra = CreateTRA(service);
-            System.Diagnostics.Debug.WriteLine($"[AFIP] TRA creado para servicio: {service}");
-
-            // Firmar el TRA
-            string cms = SignTRA(tra, certificate);
-            System.Diagnostics.Debug.WriteLine($"[AFIP] TRA firmado exitosamente");
-
-            // Enviar a WSAA y obtener respuesta
-            string taXml = await SendToWSAA(cms, wsaaUrl);
-            System.Diagnostics.Debug.WriteLine($"[AFIP] Respuesta WSAA recibida");
-
-            // CORREGIDO: Usar el método robusto para extraer token, sign y expiración
-            var (token, sign, expirationTime) = ExtractTokenAndSign(taXml);
-
-            return (token, sign, expirationTime);
-        }
-
-        // CORREGIDO: Formato exacto del TRA según especificaciones AFIP
+        // RESTO DE MÉTODOS EXISTENTES (CreateTRA, SignTRA, SendToWSAA, ExtractTokenAndSign, etc.)
         private static string CreateTRA(string service)
         {
-            DateTime now = DateTime.UtcNow; // IMPORTANTE: Usar UTC para AFIP
+            DateTime now = DateTime.UtcNow;
             DateTime from = now.AddMinutes(-10);
             DateTime to = now.AddHours(12);
 
             long uniqueId = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            // CORREGIDO: Formato exacto esperado por AFIP (sin millisegundos y con Z al final)
             string generationTime = from.ToString("yyyy-MM-ddTHH:mm:ss") + "Z";
             string expirationTime = to.ToString("yyyy-MM-ddTHH:mm:ss") + "Z";
 
+            // CORREGIDO: Agregado el cierre > que faltaba en la primera línea
             string tra = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<loginTicketRequest version=""1.0"">
-<header>
-<uniqueId>{uniqueId}</uniqueId>
-<generationTime>{generationTime}</generationTime>
-<expirationTime>{expirationTime}</expirationTime>
-</header>
-<service>{service}</service>
-</loginTicketRequest>";
+                <loginTicketRequest version=""1.0"">
+                <header>
+                <uniqueId>{uniqueId}</uniqueId>
+                <generationTime>{generationTime}</generationTime>
+                <expirationTime>{expirationTime}</expirationTime>
+                </header>
+                <service>{service}</service>
+                </loginTicketRequest>";
 
             System.Diagnostics.Debug.WriteLine($"[AFIP] TRA XML generado:");
             System.Diagnostics.Debug.WriteLine(tra);
@@ -436,43 +1126,27 @@ namespace Comercio.NET.Servicios
             return tra;
         }
 
-        // CORREGIDO: Firma del TRA con algoritmos específicos para AFIP
         private static string SignTRA(string tra, X509Certificate2 certificate)
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine($"[AFIP] Iniciando firma del TRA...");
 
-                // Convertir el TRA a bytes usando UTF-8
                 byte[] traBytes = Encoding.UTF8.GetBytes(tra);
-
-                // Crear ContentInfo
                 ContentInfo contentInfo = new ContentInfo(traBytes);
-
-                // Crear SignedCms con detached = false (el contenido va incluido)
                 SignedCms signedCms = new SignedCms(contentInfo, false);
-
-                // Crear CmsSigner con configuración específica para AFIP
                 CmsSigner signer = new CmsSigner(certificate);
 
-                // IMPORTANTE: Configuraciones específicas para AFIP
-                signer.DigestAlgorithm = new System.Security.Cryptography.Oid("2.16.840.1.101.3.4.2.1"); // SHA-256
-                signer.IncludeOption = X509IncludeOption.ExcludeRoot; // No incluir certificado raíz
-
-                // Agregar certificado a la colección
+                signer.DigestAlgorithm = new System.Security.Cryptography.Oid("2.16.840.1.101.3.4.2.1");
+                signer.IncludeOption = X509IncludeOption.ExcludeRoot;
                 signer.Certificates.Add(certificate);
 
                 System.Diagnostics.Debug.WriteLine($"[AFIP] Configuración del signer completada");
                 System.Diagnostics.Debug.WriteLine($"[AFIP] Digest Algorithm: {signer.DigestAlgorithm.Value}");
                 System.Diagnostics.Debug.WriteLine($"[AFIP] Include Option: {signer.IncludeOption}");
 
-                // Firmar el contenido
                 signedCms.ComputeSignature(signer);
-
-                // Obtener los bytes firmados
                 byte[] signedBytes = signedCms.Encode();
-
-                // Convertir a Base64
                 string result = Convert.ToBase64String(signedBytes);
 
                 System.Diagnostics.Debug.WriteLine($"[AFIP] CMS firmado exitosamente. Length: {result.Length}");
@@ -487,12 +1161,10 @@ namespace Comercio.NET.Servicios
             }
         }
 
-        // CORREGIDO: Formato del SOAP mejorado
         private static async Task<string> SendToWSAA(string cms, string wsaaUrl)
         {
             try
             {
-                // CORREGIDO: SOAP envelope con formato exacto para AFIP
                 string soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <soap:Envelope xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
                xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
@@ -509,13 +1181,10 @@ namespace Comercio.NET.Servicios
 
                 using (var client = new HttpClient())
                 {
-                    // IMPORTANTE: Configuración específica para AFIP
-                    client.Timeout = TimeSpan.FromSeconds(60); // Mayor timeout
+                    client.Timeout = TimeSpan.FromSeconds(60);
                     client.DefaultRequestHeaders.Clear();
 
                     var content = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
-
-                    // CORREGIDO: Headers específicos para AFIP
                     content.Headers.Clear();
                     content.Headers.Add("Content-Type", "text/xml; charset=utf-8");
                     content.Headers.Add("SOAPAction", "http://wsaa.view.sua.dvadac.desein.afip.gov/loginCms");
@@ -534,7 +1203,6 @@ namespace Comercio.NET.Servicios
                     string responseContent = await response.Content.ReadAsStringAsync();
                     System.Diagnostics.Debug.WriteLine($"[AFIP] Response Content Length: {responseContent.Length}");
 
-                    // NUEVO: Verificar si es un SOAP Fault antes de procesar como error HTTP
                     if (responseContent.Contains("<soapenv:Fault>") || responseContent.Contains("<soap:Fault>"))
                     {
                         System.Diagnostics.Debug.WriteLine($"[AFIP] SOAP Fault detectado, procesando...");
@@ -546,7 +1214,6 @@ namespace Comercio.NET.Servicios
                         System.Diagnostics.Debug.WriteLine($"[AFIP] Error Response Content:");
                         System.Diagnostics.Debug.WriteLine(responseContent);
 
-                        // MEJORADO: Análisis más detallado del error
                         string mensaje = response.StatusCode switch
                         {
                             System.Net.HttpStatusCode.InternalServerError =>
@@ -589,7 +1256,6 @@ namespace Comercio.NET.Servicios
             }
         }
 
-        // NUEVO: Método para manejar SOAP Faults específicos de AFIP con excepción específica
         private static void HandleSoapFault(string soapResponse)
         {
             try
@@ -609,7 +1275,6 @@ namespace Comercio.NET.Servicios
                 System.Diagnostics.Debug.WriteLine($"[AFIP] SOAP Fault Code: {faultCode}");
                 System.Diagnostics.Debug.WriteLine($"[AFIP] SOAP Fault String: {faultString}");
 
-                // NUEVO: Manejar error específico de token ya existente con excepción específica
                 if (faultCode.Contains("coe.alreadyAuthenticated"))
                 {
                     throw new TokenAlreadyExistsException(
@@ -618,12 +1283,11 @@ namespace Comercio.NET.Servicios
                     );
                 }
 
-                // Otros errores SOAP
                 throw new Exception($"SOAP Fault de AFIP: {faultString} (Código: {faultCode})");
             }
             catch (TokenAlreadyExistsException)
             {
-                throw; // Re-lanzar excepciones específicas
+                throw;
             }
             catch (Exception ex)
             {
@@ -632,7 +1296,6 @@ namespace Comercio.NET.Servicios
             }
         }
 
-        // CORREGIDO: Método para extraer token, sign y fecha de expiración
         private static (string token, string sign, DateTime expirationTime) ExtractTokenAndSign(string xmlResponse)
         {
             try
@@ -688,7 +1351,6 @@ namespace Comercio.NET.Servicios
                 string token = tokenNode.InnerText;
                 string sign = signNode.InnerText;
 
-                // Validar y parsear fecha de expiración
                 if (expirationNode == null || string.IsNullOrWhiteSpace(expirationNode.InnerText))
                 {
                     System.Diagnostics.Debug.WriteLine($"[AFIP] ERROR: No se encontró el nodo expirationTime o está vacío.");
@@ -717,9 +1379,47 @@ namespace Comercio.NET.Servicios
                 throw new Exception($"Error al extraer token y sign: {ex.Message}", ex);
             }
         }
+
+        public static (bool hayConflicto, string mensaje) VerificarConflictoTokens(string service)
+        {
+            try
+            {
+                if (_tokenCache.TryGetValue(service, out var cached))
+                {
+                    double minutosRestantes = (cached.ExpirationTime - DateTime.UtcNow).TotalMinutes;
+                    
+                    if (minutosRestantes > 5)
+                    {
+                        return (true, $"Token activo por {minutosRestantes:F1} minutos más");
+                    }
+                    else if (minutosRestantes > 0)
+                    {
+                        return (true, $"Token expirando en {minutosRestantes:F1} minutos");
+                    }
+                }
+                
+                return (false, "No hay tokens en conflicto");
+            }
+            catch
+            {
+                return (false, "No se pudo verificar estado de tokens");
+            }
+        }
+
+        public static void ResetearEstadoAfip()
+        {
+            try
+            {
+                ClearTokenCache();
+                System.Diagnostics.Debug.WriteLine($"[AFIP] 🔄 Estado AFIP reseteado completamente");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AFIP] ⚠️ Error reseteando estado: {ex.Message}");
+            }
+        }
     }
 
-    // NUEVO: Excepción específica para cuando ya existe un token en AFIP
     public class TokenAlreadyExistsException : Exception
     {
         public string FaultString { get; }

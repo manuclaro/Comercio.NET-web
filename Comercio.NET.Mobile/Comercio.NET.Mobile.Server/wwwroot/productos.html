@@ -1,0 +1,142 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#00897b">
+    <title>Consulta de Productos - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/productos.css">
+</head>
+<body>
+    <div class="page-wrapper">
+
+        <header class="page-header">
+            <a href="/dashboard.html" class="btn-back">← Volver</a>
+            <div class="header-title">
+                <span>📦</span>
+                <div>
+                    <h1>Consulta de Productos</h1>
+                    <p>Comercio.NET Mobile</p>
+                </div>
+            </div>
+            <div class="header-user">
+                <span id="nombreUsuario"></span>
+                <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <main class="page-main">
+
+            <div class="search-box">
+                <input type="text"
+                       id="txtBuscar"
+                       placeholder="🔍 Buscar por código, descripción o rubro..."
+                       autocomplete="off"
+                       autofocus />
+                <button id="btnBuscar" class="btn-search">Buscar</button>
+            </div>
+
+            <div class="opciones-tabla">
+                <label class="opcion-check">
+                    <input type="checkbox" id="chkMostrarCosto" />
+                    <span>Mostrar Costo</span>
+                </label>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Buscando productos...</p>
+            </div>
+
+            <div id="error" class="error-msg" style="display: none;"></div>
+
+            <div id="estadoMensaje" class="estado-mensaje">
+                Ingresá un término para buscar productos.
+            </div>
+
+            <div id="resultados" style="display: none;">
+                <p id="contadorResultados" class="contador"></p>
+                <p class="hint-edicion">💡 Tocá una fila para editar costo, precio y stock.</p>
+                <div class="table-wrapper">
+                    <table id="tablaProductos">
+                        <thead>
+                            <tr>
+                                <th class="col-landscape">Código</th>
+                                <th>Descripción</th>
+                                <th class="col-landscape">Rubro</th>
+                                <th class="col-costo text-right">Costo</th>
+                                <th class="text-right">Precio</th>
+                                <th class="text-center">Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyProductos"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="page-footer">
+            <p>Comercio.NET Mobile · v1.4.0 · 2026 · <span class="footer-brand">TPQ Solutions</span></p>
+        </footer>
+    </div>
+
+    <!-- ── MODAL EDICIÓN DE PRODUCTO ── -->
+    <div id="modalEdicion" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modalEdicionTitulo">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modalEdicionTitulo">✏️ Editar Producto</h3>
+                    <p id="modalEdicionDesc" class="modal-subtitulo"></p>
+                </div>
+                <button class="btn-close" id="btnCerrarModal" title="Cerrar">✕</button>
+            </div>
+            <div class="modal-body">
+
+                <div id="modalError" class="error-msg" style="display: none;"></div>
+                <div id="modalExito" class="exito-msg" style="display: none;"></div>
+
+                <!-- Costo y Porcentaje -->
+                <div class="edit-row">
+                    <div class="edit-grupo">
+                        <label for="editCosto">💲 Costo</label>
+                        <input type="number" id="editCosto" min="0" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="edit-grupo">
+                        <label for="editPorcentaje">📊 Porcentaje (%)</label>
+                        <input type="number" id="editPorcentaje" min="0" step="0.1" placeholder="0.0" />
+                    </div>
+                </div>
+
+                <!-- Precio de venta calculado / editable -->
+                <div class="edit-grupo edit-grupo-precio">
+                    <label for="editPrecio">🏷️ Precio de Venta <span class="label-hint">(editable para redondear)</span></label>
+                    <input type="number" id="editPrecio" min="0" step="0.01" placeholder="0.00" class="input-precio" />
+                    <p class="precio-calculado-info" id="precioCalculadoInfo"></p>
+                </div>
+
+                <hr class="separador" />
+
+                <!-- Stock -->
+                <div class="edit-grupo">
+                    <label for="editStock">📦 Stock (cantidad)</label>
+                    <div class="stock-controles">
+                        <button class="btn-stock-adj" id="btnStockMenos" type="button">−</button>
+                        <input type="number" id="editStock" min="0" step="1" placeholder="0" class="input-stock" />
+                        <button class="btn-stock-adj" id="btnStockMas" type="button">+</button>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelarModal">Cancelar</button>
+                <button class="btn btn-primary" id="btnGuardarCambios">
+                    <span id="btnGuardarTexto">💾 Guardar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/productos.js"></script>
+</body>
+</html>

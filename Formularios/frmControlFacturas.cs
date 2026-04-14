@@ -10,15 +10,23 @@ using System.Windows.Forms;
 using System.Threading.Tasks;  // NUEVO: Para métodos async
 using Comercio.NET.Servicios;
 using TicketConfig = Comercio.NET.Servicios.TicketConfig; // Alias específico
+using Comercio.NET.Formularios;
+
 
 namespace Comercio.NET.Formularios
 {
     public class frmControlFacturas : Form
     {
         private DataGridView dgvVentas;
-        private DateTimePicker dtpFecha;
+        private DateTimePicker dtpDesde;
+        private DateTimePicker dtpHasta;
+        private Label lblDesde;
+        private Label lblHasta;
+        private Button btnSemana;
+        private Button btnMes;
         private Button btnBuscar;
         private Button btnHoy;
+        private Button btnAyer;
         private Label lblTotal;
         private Label lblCantidadVentas;
         private Label lblTitulo;
@@ -29,7 +37,7 @@ namespace Comercio.NET.Formularios
         private Panel panelTotales;
         private Label lblDetalleTiposFactura;
         private Label lblDetalleFormasPago;
-        private TextBox txtFiltroCtaCte; // AGREGAR: TextBox para filtrar por nombre Cta Cte
+        private ComboBox cboFiltroCtaCte; // ✅ CAMBIO: de TextBox a ComboBox
         private Button btnAuditoriaEliminados; // Botón para Auditoría de Eliminados
         // AGREGAR: TextBox para filtrar por cajero
         private TextBox txtFiltroCajero; // TextBox para filtrar por número de cajero
@@ -37,6 +45,33 @@ namespace Comercio.NET.Formularios
         // NUEVO: ComboBox para filtrar por forma de pago
         private ComboBox cboFiltroFormaPago;
         private Label lblFiltroFormaPago;
+
+        //private ComboBox cboFiltroRubro;
+        //private Label lblFiltroRubro;
+
+        //private ComboBox cboFiltroProveedor;
+        //private Label lblFiltroProveedor;
+
+        private CheckedListBox clbFiltroTipoFactura;
+        private Label lblFiltroTipoFactura;
+        private TextBox txtCheckedComboTipo;
+        private Button btnCheckedComboTipo;
+        private ToolStripDropDown dropDownTipo;
+
+        private Button btnEstadisticasOfertas; // NUEVO: Botón para estadísticas de ofertas
+
+        // ✅ NUEVO: Labels para totales por rubro (agregar después de btnEstadisticasOfertas)
+        private Label lblTotalCarniceria;
+        private Label lblTotalVerduleria;
+        private Label lblTotalFiambreria;
+        private Label lblTotalPanaderia;
+        private Label lblTotalAlmacen;
+
+        private Button btnReportePorRubro;
+
+        // NUEVO: Botones para las nuevas funcionalidades
+        private Button btnEliminarRemito;
+        private Button btnFacturaDirecta;
 
         // AGREGAR: Clase auxiliar para los datos de la factura
         private class DatosFactura
@@ -56,9 +91,11 @@ namespace Comercio.NET.Formularios
             ConfigurarFormulario();
             CrearVentanaDetalle();
             CargarVentasDelDia();
-            
-            // NUEVO: Cargar formas de pago después de cargar los datos iniciales
+            ConfigurarNuevosBotones(); // NUEVO: Configurar los nuevos botones
+
+        // NUEVO: Cargar formas de pago después de cargar los datos iniciales
             CargarFormasDePago();
+
             
             // MAXIMIZAR EL FORMULARIO AL ABRIRSE
             this.WindowState = FormWindowState.Maximized;
@@ -69,71 +106,359 @@ namespace Comercio.NET.Formularios
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmControlFacturas));
             dgvVentas = new DataGridView();
-            dtpFecha = new DateTimePicker();
+            dtpDesde = new DateTimePicker();
+            dtpHasta = new DateTimePicker();
             btnBuscar = new Button();
             btnHoy = new Button();
+            btnAyer = new Button();
+            btnSemana = new Button();
+            btnMes = new Button();
+            lblDesde = new Label();
+            lblHasta = new Label();
             lblTotal = new Label();
             lblCantidadVentas = new Label();
             lblTitulo = new Label();
             panelFiltros = new Panel();
-            txtFiltroCtaCte = new TextBox();
             chkCtaCte = new CheckBox();
             panelResumen = new Panel();
             panelTotales = new Panel();
             lblDetalleTiposFactura = new Label();
             lblDetalleFormasPago = new Label();
             btnAuditoriaEliminados = new Button();
-            
+
             // NUEVO: Controles para filtro por forma de pago
             lblFiltroFormaPago = new Label();
             cboFiltroFormaPago = new ComboBox();
-            
+
             // NUEVO: Agregar labels para IVA
             var lblTotalIVA = new Label();
             var lblSubtotalSinIVA = new Label();
-            
-            // 
+
             // txtFiltroCajero
-            // 
             txtFiltroCajero = new TextBox();
             txtFiltroCajero.Font = new Font("Segoe UI", 10F);
-            txtFiltroCajero.Location = new Point(18, 45); // MOVIDO: Segunda fila
-            txtFiltroCajero.Name = "txtFiltroCajero";
             txtFiltroCajero.PlaceholderText = "Buscar cajero...";
-            txtFiltroCajero.Size = new Size(120, 25);
+            txtFiltroCajero.Size = new Size(160, 25);
             txtFiltroCajero.TabIndex = 6;
             txtFiltroCajero.TextChanged += TxtFiltroCajero_TextChanged;
 
-            // 
+            // Fecha Desde
+            lblDesde = new Label();
+            lblDesde.Text = "Desde:";
+            lblDesde.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblDesde.ForeColor = Color.FromArgb(0, 120, 215);
+            lblDesde.AutoSize = true;
+            lblDesde.Location = new Point(12, 14);
+
+            dtpDesde.Font = new Font("Segoe UI", 10F);
+            dtpDesde.Format = DateTimePickerFormat.Short;
+            dtpDesde.Size = new Size(110, 25);
+            dtpDesde.Value = DateTime.Today;
+
+            // Fecha Hasta
+            lblHasta = new Label();
+            lblHasta.Text = "Hasta:";
+            lblHasta.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblHasta.ForeColor = Color.FromArgb(0, 120, 215);
+            lblHasta.AutoSize = true;
+
+            dtpHasta.Font = new Font("Segoe UI", 10F);
+            dtpHasta.Format = DateTimePickerFormat.Short;
+            dtpHasta.Size = new Size(110, 25);
+            dtpHasta.Value = DateTime.Today;
+
+            // Botones de búsqueda y rápidos
+            btnBuscar.BackColor = Color.FromArgb(0, 120, 215);
+            btnBuscar.FlatStyle = FlatStyle.Flat;
+            btnBuscar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnBuscar.ForeColor = Color.White;
+            btnBuscar.Size = new Size(80, 28);
+            btnBuscar.Text = "Buscar";
+            btnBuscar.UseVisualStyleBackColor = false;
+            btnBuscar.Click += BtnBuscar_Click;
+
+            btnHoy.BackColor = Color.FromArgb(0, 150, 136);
+            btnHoy.FlatStyle = FlatStyle.Flat;
+            btnHoy.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnHoy.ForeColor = Color.White;
+            btnHoy.Size = new Size(60, 28);
+            btnHoy.Text = "Hoy";
+            btnHoy.UseVisualStyleBackColor = false;
+            btnHoy.Click += BtnHoy_Click;
+
+            // ✅ NUEVO: Botón Ayer
+            btnAyer = new Button();
+            btnAyer.BackColor = Color.FromArgb(156, 39, 176); // Color púrpura
+            btnAyer.FlatStyle = FlatStyle.Flat;
+            btnAyer.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnAyer.ForeColor = Color.White;
+            btnAyer.Size = new Size(60, 28);
+            btnAyer.Text = "Ayer";
+            btnAyer.UseVisualStyleBackColor = false;
+            btnAyer.Click += BtnAyer_Click;
+
+            btnSemana.BackColor = Color.FromArgb(255, 193, 7);
+            btnSemana.FlatStyle = FlatStyle.Flat;
+            btnSemana.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnSemana.ForeColor = Color.White;
+            btnSemana.Size = new Size(80, 28);
+            btnSemana.Text = "Semana";
+            btnSemana.UseVisualStyleBackColor = false;
+            btnSemana.Click += (s, e) =>
+            {
+                var today = DateTime.Today;
+                // Asume semana comenzando lunes
+                int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+                dtpDesde.Value = today.AddDays(-diff);
+                dtpHasta.Value = dtpDesde.Value.AddDays(6);
+                CargarVentasPorFecha(dtpDesde.Value.Date, dtpHasta.Value.Date);
+            };
+
+            btnMes.BackColor = Color.FromArgb(0, 123, 255);
+            btnMes.FlatStyle = FlatStyle.Flat;
+            btnMes.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnMes.ForeColor = Color.White;
+            btnMes.Size = new Size(60, 28);
+            btnMes.Text = "Mes";
+            btnMes.UseVisualStyleBackColor = false;
+            btnMes.Click += (s, e) =>
+            {
+                var today = DateTime.Today;
+                dtpDesde.Value = new DateTime(today.Year, today.Month, 1);
+                dtpHasta.Value = dtpDesde.Value.AddMonths(1).AddDays(-1);
+                CargarVentasPorFecha(dtpDesde.Value.Date, dtpHasta.Value.Date);
+            };
+
             // lblFiltroFormaPago
-            // 
             lblFiltroFormaPago.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             lblFiltroFormaPago.ForeColor = Color.FromArgb(0, 120, 215);
-            lblFiltroFormaPago.Location = new Point(150, 43); // MOVIDO: Segunda fila
-            lblFiltroFormaPago.Name = "lblFiltroFormaPago";
-            lblFiltroFormaPago.Size = new Size(90, 28);
-            lblFiltroFormaPago.TabIndex = 7;
-            lblFiltroFormaPago.Text = "Forma Pago:";
-            lblFiltroFormaPago.TextAlign = ContentAlignment.MiddleLeft;
+            lblFiltroFormaPago.Text = "Forma de Pago:";
+            lblFiltroFormaPago.AutoSize = true;
 
-            // 
             // cboFiltroFormaPago
-            // 
             cboFiltroFormaPago.DropDownStyle = ComboBoxStyle.DropDownList;
             cboFiltroFormaPago.Font = new Font("Segoe UI", 10F);
-            cboFiltroFormaPago.Location = new Point(250, 45); // MOVIDO: Segunda fila
-            cboFiltroFormaPago.Name = "cboFiltroFormaPago";
-            cboFiltroFormaPago.Size = new Size(140, 25);
-            cboFiltroFormaPago.TabIndex = 8;
+            cboFiltroFormaPago.Size = new Size(160, 25);
             cboFiltroFormaPago.SelectedIndexChanged += CboFiltroFormaPago_SelectedIndexChanged;
 
-            // Configuración existente del DataGridView...
-            dgvVentas.AllowUserToAddRows = false;
-            dgvVentas.AllowUserToDeleteRows = false;
-            dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvVentas.BackgroundColor = Color.White;
-            dgvVentas.BorderStyle = BorderStyle.None;
-            dgvVentas.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            // Label y CheckedListBox para filtro por Tipo de Factura (multi-selección)
+            lblFiltroTipoFactura = new Label();
+            lblFiltroTipoFactura.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblFiltroTipoFactura.ForeColor = Color.FromArgb(0, 120, 215);
+            lblFiltroTipoFactura.Text = "Tipo Comprobante:";
+            lblFiltroTipoFactura.AutoSize = true;
+
+            // CheckedListBox que actúa como "combo" multi-select
+            clbFiltroTipoFactura = new CheckedListBox();
+            clbFiltroTipoFactura.CheckOnClick = true;
+            clbFiltroTipoFactura.Font = new Font("Segoe UI", 10F);
+            clbFiltroTipoFactura.ItemHeight = 18;
+            clbFiltroTipoFactura.Size = new Size(100, clbFiltroTipoFactura.ItemHeight * 4 + 8);
+            clbFiltroTipoFactura.FormattingEnabled = true;
+            clbFiltroTipoFactura.ItemCheck += ClbFiltroTipoFactura_ItemCheck;
+
+            // dtp layout: reubicamos todo dentro de panelFiltros en DOS filas
+            panelFiltros.BackColor = Color.FromArgb(248, 249, 250);
+            panelFiltros.Dock = DockStyle.Top;
+            panelFiltros.Padding = new Padding(9);
+            // Altura para dos filas
+            panelFiltros.Height = 88;
+
+            // Primera fila (fechas + botones rápidos + buscar + CtaCte en el medio + auditoría / IVA a la derecha)
+            int x = 12;
+            int y1 = 6;
+            lblDesde.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(lblDesde);
+            x += lblDesde.Width + 6;
+
+            dtpDesde.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(dtpDesde);
+            x += dtpDesde.Width + 8;
+
+            lblHasta.Location = new Point(x, y1 + 2);
+            panelFiltros.Controls.Add(lblHasta);
+            x += lblHasta.Width + 6;
+
+            dtpHasta.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(dtpHasta);
+            x += dtpHasta.Width + 10;
+
+            // ✅ MODIFICADO: Reducir espacios entre botones de la primera fila
+            btnBuscar.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(btnBuscar);
+            x += btnBuscar.Width + 4; // ✅ CAMBIO: de 6 a 4
+
+            btnHoy.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(btnHoy);
+            x += btnHoy.Width + 4; // ✅ CAMBIO: de 6 a 4
+
+            // ✅ Botón Ayer
+            btnAyer.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(btnAyer);
+            x += btnAyer.Width + 4; // ✅ CAMBIO: de 8 a 4
+
+            btnSemana.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(btnSemana);
+            x += btnSemana.Width + 4; // ✅ CAMBIO: de 6 a 4
+
+            btnMes.Location = new Point(x, y1);
+            panelFiltros.Controls.Add(btnMes);
+            x += btnMes.Width + 12; // ✅ CAMBIO: de 20 a 12 (antes del checkbox)
+
+            // CheckBox Cta.Cte. 
+            chkCtaCte.Location = new Point(x, y1);
+            chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
+            chkCtaCte.Size = new Size(90, 28);
+            chkCtaCte.Text = "Cta. Cte.";
+            chkCtaCte.UseVisualStyleBackColor = true;
+            chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
+            panelFiltros.Controls.Add(chkCtaCte);
+
+
+            // ✅ REEMPLAZAR los botones individuales por uno consolidado
+            var btnReporteConsolidado = new Button();
+            btnReporteConsolidado.BackColor = Color.FromArgb(76, 175, 80);
+            btnReporteConsolidado.FlatStyle = FlatStyle.Flat;
+            btnReporteConsolidado.FlatAppearance.BorderSize = 0;
+            btnReporteConsolidado.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnReporteConsolidado.ForeColor = Color.White;
+            btnReporteConsolidado.Size = new Size(125, 28);
+            btnReporteConsolidado.Text = "📊 ReporteIVA";
+            btnReporteConsolidado.UseVisualStyleBackColor = false;
+            btnReporteConsolidado.Click += BtnReporteConsolidado_Click;
+            btnReporteConsolidado.Location = new Point(panelFiltros.Width - 535, y1);
+            btnReporteConsolidado.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            panelFiltros.Controls.Add(btnReporteConsolidado);
+
+            // ✅ Botón de Estadísticas de Ofertas
+            btnEstadisticasOfertas = new Button();
+            btnEstadisticasOfertas.BackColor = Color.FromArgb(0, 150, 136);
+            btnEstadisticasOfertas.FlatStyle = FlatStyle.Flat;
+            btnEstadisticasOfertas.FlatAppearance.BorderSize = 0;
+            btnEstadisticasOfertas.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnEstadisticasOfertas.ForeColor = Color.White;
+            btnEstadisticasOfertas.Size = new Size(90, 28);
+            btnEstadisticasOfertas.Text = "🎁 Ofertas";
+            btnEstadisticasOfertas.UseVisualStyleBackColor = false;
+            btnEstadisticasOfertas.Location = new Point(panelFiltros.Width - 164, y1);
+            btnEstadisticasOfertas.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnEstadisticasOfertas.Click += (s, e) =>
+            {
+                try
+                {
+                    var formEstadisticas = new EstadisticasOfertasForm();
+                    formEstadisticas.ShowDialog(this);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al abrir estadísticas de ofertas: {ex.Message}",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            panelFiltros.Controls.Add(btnEstadisticasOfertas);
+
+
+            // ✅ NUEVO: Botón para exportar/imprimir listado
+            var btnExportarListado = new Button();
+            btnExportarListado.Name = "btnExportarListado";
+            btnExportarListado.BackColor = Color.FromArgb(0, 150, 136); // Color verde azulado
+            btnExportarListado.FlatStyle = FlatStyle.Flat;
+            btnExportarListado.FlatAppearance.BorderSize = 0;
+            btnExportarListado.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnExportarListado.ForeColor = Color.White;
+            btnExportarListado.Size = new Size(110, 28);
+            btnExportarListado.Text = "📋 Exportar";
+            btnExportarListado.UseVisualStyleBackColor = false;
+            btnExportarListado.Location = new Point(panelFiltros.Width - 400, y1); // ✅ A LA IZQUIERDA de Auditoría
+            btnExportarListado.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnExportarListado.Click += BtnExportarListado_Click;
+            panelFiltros.Controls.Add(btnExportarListado);
+
+            // ✅ Botón de Auditoría
+            btnAuditoriaEliminados.BackColor = Color.FromArgb(255, 152, 0);
+            btnAuditoriaEliminados.FlatStyle = FlatStyle.Flat;
+            btnAuditoriaEliminados.FlatAppearance.BorderSize = 0;
+            btnAuditoriaEliminados.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnAuditoriaEliminados.ForeColor = Color.White;
+            btnAuditoriaEliminados.Size = new Size(110, 28);
+            btnAuditoriaEliminados.Text = "🗑️ Auditoría";
+            btnAuditoriaEliminados.UseVisualStyleBackColor = false;
+            btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click;
+            btnAuditoriaEliminados.Location = new Point(panelFiltros.Width - 282, y1);
+            btnAuditoriaEliminados.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            panelFiltros.Controls.Add(btnAuditoriaEliminados);
+
+            // Segunda fila (filtros: cajero, forma de pago, rubro, tipo + textbox CtaCte cuando está visible)
+            int y2 = 46;
+
+            txtFiltroCajero.Location = new Point(12, y2);
+            panelFiltros.Controls.Add(txtFiltroCajero);
+
+            // Label y combo "Forma de Pago"
+            lblFiltroFormaPago.Location = new Point(190, y2 + 2);
+            panelFiltros.Controls.Add(lblFiltroFormaPago);
+
+            cboFiltroFormaPago.Size = new Size(130, 25);
+            cboFiltroFormaPago.Location = new Point(lblFiltroFormaPago.Right + 8, y2 + 2);
+            panelFiltros.Controls.Add(cboFiltroFormaPago);
+
+            // Label para Tipo
+            lblFiltroTipoFactura.Location = new Point(cboFiltroFormaPago.Right + 12, y2 + 2);
+            panelFiltros.Controls.Add(lblFiltroTipoFactura);
+
+            // TextBox que actúa como "checked combo" (solo lectura)
+            txtCheckedComboTipo = new TextBox();
+            txtCheckedComboTipo.ReadOnly = true;
+            txtCheckedComboTipo.Font = new Font("Segoe UI", 9F);
+            txtCheckedComboTipo.Size = new Size(100, 25);
+            txtCheckedComboTipo.Location = new Point(lblFiltroTipoFactura.Right + 8, y2 + 2);
+            txtCheckedComboTipo.BackColor = Color.White;
+            txtCheckedComboTipo.Cursor = Cursors.Hand;
+            txtCheckedComboTipo.Click += (s, e) => {
+                if (dropDownTipo == null) return;
+                if (dropDownTipo.Visible) dropDownTipo.Close();
+                else dropDownTipo.Show(txtCheckedComboTipo, new Point(0, txtCheckedComboTipo.Height));
+            };
+            panelFiltros.Controls.Add(txtCheckedComboTipo);
+
+            // Botón pequeño para desplegar (flecha)
+            btnCheckedComboTipo = new Button();
+            btnCheckedComboTipo.Text = "▾";
+            btnCheckedComboTipo.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnCheckedComboTipo.Size = new Size(28, 25);
+            btnCheckedComboTipo.Location = new Point(txtCheckedComboTipo.Right + 2, y2 + 2);
+            btnCheckedComboTipo.FlatStyle = FlatStyle.Flat;
+            btnCheckedComboTipo.FlatAppearance.BorderSize = 0;
+            btnCheckedComboTipo.BackColor = Color.FromArgb(240, 240, 240);
+            btnCheckedComboTipo.Click += (s, e) => {
+                if (dropDownTipo == null) return;
+                if (dropDownTipo.Visible) dropDownTipo.Close();
+                else dropDownTipo.Show(txtCheckedComboTipo, new Point(0, txtCheckedComboTipo.Height));
+            };
+            panelFiltros.Controls.Add(btnCheckedComboTipo);
+
+            clbFiltroTipoFactura.Size = new Size(txtCheckedComboTipo.Width, clbFiltroTipoFactura.ItemHeight * 4 + 8);
+
+            // ✅ REEMPLAZAR: Crear ComboBox en lugar de TextBox
+            cboFiltroCtaCte = new ComboBox();
+            cboFiltroCtaCte.DropDownStyle = ComboBoxStyle.DropDownList;
+            cboFiltroCtaCte.Font = new Font("Segoe UI", 10F);
+            cboFiltroCtaCte.Location = new Point(chkCtaCte.Left, y2 + 2);
+            cboFiltroCtaCte.Size = new Size(140, 25);
+            cboFiltroCtaCte.Visible = false; // OCULTO POR DEFECTO
+            cboFiltroCtaCte.SelectedIndexChanged += CboFiltroCtaCte_SelectedIndexChanged;
+            panelFiltros.Controls.Add(cboFiltroCtaCte);
+
+            // Crear el host y el dropdown
+            var host = new ToolStripControlHost(clbFiltroTipoFactura) { AutoSize = false, Margin = Padding.Empty, Padding = Padding.Empty };
+            host.Size = clbFiltroTipoFactura.Size;
+            dropDownTipo = new ToolStripDropDown { AutoClose = true, Padding = Padding.Empty };
+            dropDownTipo.Items.Add(host);
+
+            txtCheckedComboTipo.Text = "Todos";
+
+            // Setup dgvVentas
             dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle1.BackColor = Color.FromArgb(248, 249, 250);
             dataGridViewCellStyle1.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
@@ -145,188 +470,160 @@ namespace Comercio.NET.Formularios
             dgvVentas.ColumnHeadersHeight = 35;
             dgvVentas.Dock = DockStyle.Fill;
             dgvVentas.EnableHeadersVisualStyles = false;
-            dgvVentas.Location = new Point(0, 125); // AJUSTADO: Más espacio para el panel más alto
-            dgvVentas.Name = "dgvVentas";
             dgvVentas.ReadOnly = true;
             dgvVentas.RowHeadersVisible = false;
             dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvVentas.Size = new Size(909, 311); // AJUSTADO: Menos altura disponible
-            dgvVentas.TabIndex = 0;
-            dgvVentas.CellClick += DgvVentas_CellClick;
+            dgvVentas.Size = new Size(909, 311);
+            dgvVentas.CellDoubleClick += DgvVentas_CellDoubleClick;
             dgvVentas.Click += FrmControlFacturas_Click;
+            //dgvVentas.SelectionChanged += DgvVentas_SelectionChanged;
+            dgvVentas.AllowUserToAddRows = false;
+            dgvVentas.AllowUserToDeleteRows = false;
+            dgvVentas.AllowUserToResizeRows = false;
 
-            // Configuración de otros controles existentes...
-            dtpFecha.Font = new Font("Segoe UI", 10F);
-            dtpFecha.Format = DateTimePickerFormat.Short;
-            dtpFecha.Location = new Point(18, 14); // PRIMERA FILA
-            dtpFecha.Name = "dtpFecha";
-            dtpFecha.Size = new Size(106, 25);
-            dtpFecha.TabIndex = 4;
-            dtpFecha.Value = new DateTime(2025, 9, 20, 0, 0, 0, 0);
+            // ✅ NUEVO: Panel central para totales por rubro
+            var panelTotalesRubros = new Panel();
+            panelTotalesRubros.Name = "panelTotalesRubros";
+            panelTotalesRubros.Dock = DockStyle.Fill;
+            panelTotalesRubros.BackColor = Color.FromArgb(0, 120, 215);
+            panelTotalesRubros.Padding = new Padding(15, 8, 15, 8);
 
-            btnBuscar.BackColor = Color.FromArgb(0, 120, 215);
-            btnBuscar.FlatStyle = FlatStyle.Flat;
-            btnBuscar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnBuscar.ForeColor = Color.White;
-            btnBuscar.Location = new Point(131, 14); // PRIMERA FILA
-            btnBuscar.Name = "btnBuscar";
-            btnBuscar.Size = new Size(70, 28);
-            btnBuscar.TabIndex = 3;
-            btnBuscar.Text = "Buscar";
-            btnBuscar.UseVisualStyleBackColor = false;
-            btnBuscar.Click += BtnBuscar_Click;
+            // ✅ Inicializar labels de rubros
+            lblTotalCarniceria = new Label();
+            lblTotalVerduleria = new Label();
+            lblTotalFiambreria = new Label();
+            lblTotalPanaderia = new Label();
+            lblTotalAlmacen = new Label();
 
-            btnHoy.BackColor = Color.FromArgb(0, 150, 136);
-            btnHoy.FlatStyle = FlatStyle.Flat;
-            btnHoy.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnHoy.ForeColor = Color.White;
-            btnHoy.Location = new Point(210, 14); // PRIMERA FILA
-            btnHoy.Name = "btnHoy";
-            btnHoy.Size = new Size(70, 28);
-            btnHoy.TabIndex = 2;
-            btnHoy.Text = "Hoy";
-            btnHoy.UseVisualStyleBackColor = false;
-            btnHoy.Click += BtnHoy_Click;
+            // ✅ CORREGIDO: Usar FlowLayoutPanel para distribución automática
+            var panelColumna1 = new FlowLayoutPanel();
+            panelColumna1.Dock = DockStyle.Left;
+            panelColumna1.Width = 380; // ✅ AUMENTADO: de 280 a 380
+            panelColumna1.FlowDirection = FlowDirection.TopDown;
+            panelColumna1.WrapContents = false;
+            panelColumna1.BackColor = Color.Transparent;
+            panelColumna1.Padding = new Padding(0, 5, 10, 5);
 
-            // MODIFICADO: Cambiar la altura del panel de resumen para hacer espacio al IVA
+            var panelColumna2 = new FlowLayoutPanel();
+            panelColumna2.Dock = DockStyle.Left;
+            panelColumna2.Width = 380; // ✅ AUMENTADO: de 280 a 380
+            panelColumna2.FlowDirection = FlowDirection.TopDown;
+            panelColumna2.WrapContents = false;
+            panelColumna2.BackColor = Color.Transparent;
+            panelColumna2.Padding = new Padding(10, 5, 0, 5);
+
+            // ✅ MODIFICADO: Configurar labels con AutoSize true para que se ajusten al contenido
+            ConfigurarLabelRubro(lblTotalCarniceria, "🥩 Carnicería: $0,00", Color.FromArgb(255, 120, 120), 14F);
+            ConfigurarLabelRubro(lblTotalVerduleria, "🥕 Verdulería: $0,00", Color.FromArgb(144, 238, 144), 14F);
+            ConfigurarLabelRubro(lblTotalFiambreria, "🧀 Fiambrería: $0,00", Color.FromArgb(255, 223, 128), 14F);
+            ConfigurarLabelRubro(lblTotalPanaderia, "🍞 Panadería: $0,00", Color.FromArgb(216, 191, 216), 14F);
+            ConfigurarLabelRubro(lblTotalAlmacen, "🛒 Almacén: $0,00", Color.FromArgb(173, 216, 230), 14F);
+
+            // ✅ Distribuir labels en dos columnas
+            // Columna 1: Carnicería, Verdulería, Fiambrería
+            panelColumna1.Controls.Add(lblTotalCarniceria);
+            panelColumna1.Controls.Add(lblTotalVerduleria);
+            panelColumna1.Controls.Add(lblTotalFiambreria);
+
+            // Columna 2: Panadería, Almacén
+            panelColumna2.Controls.Add(lblTotalPanaderia);
+            panelColumna2.Controls.Add(lblTotalAlmacen);
+
+            // ✅ Agregar columnas al panel principal
+            panelTotalesRubros.Controls.Add(panelColumna2);
+            panelTotalesRubros.Controls.Add(panelColumna1);
+
+            // ✅ NUEVO: Agregar columnas al panel principal en orden correcto
+            panelTotalesRubros.Controls.Add(panelColumna2);
+            panelTotalesRubros.Controls.Add(panelColumna1);
+
+            // ✅ Configurar panelTotales PRIMERO (antes de agregarlo al panelResumen)
+            panelTotales.BackColor = Color.FromArgb(0, 120, 215);
+            panelTotales.Dock = DockStyle.Right;
+            panelTotales.Width = 450;
+
+            // ✅ Configurar labels de totales/IVA
             lblTotal.Dock = DockStyle.Top;
             lblTotal.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
             lblTotal.ForeColor = Color.White;
-            lblTotal.Location = new Point(0, 0);
-            lblTotal.Name = "lblTotal";
-            lblTotal.Size = new Size(909, 23);
-            lblTotal.TabIndex = 2;
             lblTotal.Text = "Total: $0,00";
             lblTotal.TextAlign = ContentAlignment.MiddleRight;
+            lblTotal.AutoSize = false;
+            lblTotal.Height = 30; // ✅ NUEVO: Altura fija
 
-            // NUEVO: Label para IVA Total
-            lblTotalIVA.Name = "lblTotalIVA";
-            lblTotalIVA.Dock = DockStyle.Top;
-            lblTotalIVA.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-            lblTotalIVA.ForeColor = Color.FromArgb(255, 182, 193); // Rosa claro
-            lblTotalIVA.Location = new Point(0, 23);
-            lblTotalIVA.Size = new Size(909, 18);
-            lblTotalIVA.TabIndex = 3;
-            lblTotalIVA.Text = "IVA Total: $0,00";
-            lblTotalIVA.TextAlign = ContentAlignment.MiddleRight;
+            //// ✅ OCULTAR TEMPORALMENTE: Labels de IVA
+            //lblTotalIVA.Name = "lblTotalIVA";
+            //lblTotalIVA.Dock = DockStyle.Top;
+            //lblTotalIVA.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            //lblTotalIVA.ForeColor = Color.FromArgb(255, 182, 193);
+            //lblTotalIVA.Text = "IVA Total: $0,00";
+            //lblTotalIVA.TextAlign = ContentAlignment.MiddleRight;
+            //lblTotalIVA.AutoSize = false;
+            //lblTotalIVA.Height = 25; // ✅ NUEVO: Altura fija
+            //lblTotalIVA.Visible = false; // ✅ OCULTAR TEMPORALMENTE
 
-            // NUEVO: Label para Subtotal sin IVA
-            lblSubtotalSinIVA.Name = "lblSubtotalSinIVA";
-            lblSubtotalSinIVA.Dock = DockStyle.Top;
-            lblSubtotalSinIVA.Font = new Font("Segoe UI", 10F);
-            lblSubtotalSinIVA.ForeColor = Color.FromArgb(200, 200, 200);
-            lblSubtotalSinIVA.Location = new Point(0, 41);
-            lblSubtotalSinIVA.Size = new Size(909, 16);
-            lblSubtotalSinIVA.TabIndex = 4;
-            lblSubtotalSinIVA.Text = "Subtotal sin IVA: $0,00";
-            lblSubtotalSinIVA.TextAlign = ContentAlignment.MiddleRight;
+            //lblSubtotalSinIVA.Name = "lblSubtotalSinIVA";
+            //lblSubtotalSinIVA.Dock = DockStyle.Top;
+            //lblSubtotalSinIVA.Font = new Font("Segoe UI", 10F);
+            //lblSubtotalSinIVA.ForeColor = Color.FromArgb(200, 200, 200);
+            //lblSubtotalSinIVA.Text = "Subtotal sin IVA: $0,00";
+            //lblSubtotalSinIVA.TextAlign = ContentAlignment.MiddleRight;
+            //lblSubtotalSinIVA.AutoSize = false;
+            //lblSubtotalSinIVA.Height = 22; // ✅ NUEVO: Altura fija
+            //lblSubtotalSinIVA.Visible = false; // ✅ OCULTAR TEMPORALMENTE
 
+            lblDetalleTiposFactura.Dock = DockStyle.Top;
+            lblDetalleTiposFactura.Font = new Font("Segoe UI", 8.5F); // ✅ CAMBIO: de 9F a 8.5F
+            lblDetalleTiposFactura.ForeColor = Color.White;
+            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
+            lblDetalleTiposFactura.AutoSize = false;
+            lblDetalleTiposFactura.Height = 20; // ✅ NUEVO: Altura fija
+            lblDetalleTiposFactura.Padding = new Padding(5, 0, 10, 0); // ✅ NUEVO: Padding
+
+            // ✅ CRÍTICO: Label de formas de pago con más espacio
+            lblDetalleFormasPago.Dock = DockStyle.None; // ✅ Quitar Dock.Top
+            lblDetalleFormasPago.Location = new Point(0, 50); // ✅ Posicionar manualmente debajo del Total
+            lblDetalleFormasPago.Size = new Size(450, 40); // ✅ Tamaño fijo
+            lblDetalleFormasPago.Font = new Font("Segoe UI", 10F);
+            lblDetalleFormasPago.ForeColor = Color.White;
+            lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
+            lblDetalleFormasPago.AutoSize = false; // ✅ CAMBIO: Desactivar AutoSize para control manual
+            lblDetalleFormasPago.Padding = new Padding(5, 2, 10, 2);
+
+            // ✅ Agregar controles al panelTotales en orden inverso
+            panelTotales.Controls.Add(lblSubtotalSinIVA);
+            panelTotales.Controls.Add(lblTotalIVA);
+            panelTotales.Controls.Add(lblDetalleTiposFactura);
+            panelTotales.Controls.Add(lblDetalleFormasPago);
+            panelTotales.Controls.Add(lblTotal);
+
+            // ✅ Configurar lblCantidadVentas y lblTitulo
             lblCantidadVentas.Dock = DockStyle.Left;
             lblCantidadVentas.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             lblCantidadVentas.ForeColor = Color.White;
-            lblCantidadVentas.Location = new Point(0, 0);
-            lblCantidadVentas.Name = "lblCantidadVentas";
-            lblCantidadVentas.Padding = new Padding(18, 0, 0, 0);
-            lblCantidadVentas.Size = new Size(175, 95); // AUMENTADO: era 75, ahora 95
-            lblCantidadVentas.TabIndex = 0;
+            lblCantidadVentas.Width = 175;
             lblCantidadVentas.Text = "Ventas: 0";
             lblCantidadVentas.TextAlign = ContentAlignment.MiddleLeft;
 
             lblTitulo.Dock = DockStyle.Top;
             lblTitulo.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
             lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
-            lblTitulo.Location = new Point(0, 0);
-            lblTitulo.Name = "lblTitulo";
             lblTitulo.Size = new Size(909, 47);
-            lblTitulo.TabIndex = 3;
             lblTitulo.Text = "Control de Facturas - Ventas del Día";
             lblTitulo.TextAlign = ContentAlignment.MiddleCenter;
 
-            // MODIFICADO: Panel de filtros más alto para 2 filas
-            panelFiltros.BackColor = Color.FromArgb(248, 249, 250);
-            panelFiltros.Controls.Add(lblFiltroFormaPago);
-            panelFiltros.Controls.Add(cboFiltroFormaPago);
-            panelFiltros.Controls.Add(txtFiltroCtaCte);
-            panelFiltros.Controls.Add(chkCtaCte);
-            panelFiltros.Controls.Add(btnAuditoriaEliminados);
-            panelFiltros.Controls.Add(btnHoy);
-            panelFiltros.Controls.Add(btnBuscar);
-            panelFiltros.Controls.Add(dtpFecha);
-            panelFiltros.Controls.Add(txtFiltroCajero);
-            panelFiltros.Dock = DockStyle.Top;
-            panelFiltros.Location = new Point(0, 47);
-            panelFiltros.Name = "panelFiltros";
-            panelFiltros.Padding = new Padding(9);
-            panelFiltros.Size = new Size(909, 78); // AUMENTADO: era 56, ahora 78 para 2 filas
-            panelFiltros.TabIndex = 2;
-            panelFiltros.Click += FrmControlFacturas_Click;
-
-            txtFiltroCtaCte.Font = new Font("Segoe UI", 10F);
-            txtFiltroCtaCte.Location = new Point(551, 14); // PRIMERA FILA - Mejor posicionado
-            txtFiltroCtaCte.Name = "txtFiltroCtaCte";
-            txtFiltroCtaCte.PlaceholderText = "Buscar cliente...";
-            txtFiltroCtaCte.Size = new Size(176, 25);
-            txtFiltroCtaCte.TabIndex = 0;
-            txtFiltroCtaCte.Visible = false;
-            txtFiltroCtaCte.TextChanged += TxtFiltroCtaCte_TextChanged;
-
-            chkCtaCte.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            chkCtaCte.ForeColor = Color.FromArgb(0, 120, 215);
-            chkCtaCte.Location = new Point(440, 14); // PRIMERA FILA
-            chkCtaCte.Name = "chkCtaCte";
-            chkCtaCte.Size = new Size(105, 28);
-            chkCtaCte.TabIndex = 1;
-            chkCtaCte.Text = "Cta. Cte.";
-            chkCtaCte.UseVisualStyleBackColor = true;
-            chkCtaCte.CheckedChanged += ChkCtaCte_CheckedChanged;
-
-            // MODIFICADO: Aumentar altura del panel de resumen
+            // ✅ Configurar y ensamblar panelResumen
             panelResumen.BackColor = Color.FromArgb(0, 120, 215);
-            panelResumen.Controls.Add(lblCantidadVentas);
-            panelResumen.Controls.Add(panelTotales);
             panelResumen.Dock = DockStyle.Bottom;
-            panelResumen.Location = new Point(0, 416); // MANTENER posición
-            panelResumen.Name = "panelResumen";
-            panelResumen.Size = new Size(909, 95);
-            panelResumen.TabIndex = 1;
+            panelResumen.Height = 95;
             panelResumen.Click += FrmControlFacturas_Click;
 
-            // MODIFICADO: Panel de totales con más espacio
-            panelTotales.BackColor = Color.FromArgb(0, 120, 215);
-            panelTotales.Controls.Add(lblSubtotalSinIVA); // NUEVO
-            panelTotales.Controls.Add(lblTotalIVA); // NUEVO
-            panelTotales.Controls.Add(lblDetalleTiposFactura);
-            panelTotales.Controls.Add(lblDetalleFormasPago);
-            panelTotales.Controls.Add(lblTotal);
-            panelTotales.Dock = DockStyle.Fill;
-            panelTotales.Location = new Point(0, 0);
-            panelTotales.Name = "panelTotales";
-            panelTotales.Size = new Size(909, 95);
-            panelTotales.TabIndex = 1;
+            // ✅ Agregar paneles en orden correcto: primero totales (derecha), luego rubros (fill), luego cantidad (izquierda)
+            panelResumen.Controls.Add(panelTotalesRubros); // Fill (centro)
+            panelResumen.Controls.Add(panelTotales);       // Right (derecha)
+            panelResumen.Controls.Add(lblCantidadVentas);  // Left (izquierda)
 
-            // AJUSTAR: Posición de labels existentes
-            lblDetalleTiposFactura.Dock = DockStyle.Top;
-            lblDetalleTiposFactura.Font = new Font("Segoe UI", 9F);
-            lblDetalleTiposFactura.ForeColor = Color.White;
-            lblDetalleTiposFactura.Location = new Point(0, 75);
-            lblDetalleTiposFactura.Name = "lblDetalleTiposFactura";
-            lblDetalleTiposFactura.Size = new Size(909, 19);
-            lblDetalleTiposFactura.TabIndex = 0;
-            lblDetalleTiposFactura.TextAlign = ContentAlignment.MiddleRight;
-
-            lblDetalleFormasPago.Dock = DockStyle.Top;
-            lblDetalleFormasPago.Font = new Font("Segoe UI", 9F);
-            lblDetalleFormasPago.ForeColor = Color.White;
-            lblDetalleFormasPago.Location = new Point(0, 57);
-            lblDetalleFormasPago.Name = "lblDetalleFormasPago";
-            lblDetalleFormasPago.Size = new Size(909, 18);
-            lblDetalleFormasPago.TabIndex = 0;
-            lblDetalleFormasPago.TextAlign = ContentAlignment.MiddleRight;
-
-            // Resto de la configuración del formulario...
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(909, 511);
+            // Añadir controles al formulario
             Controls.Add(dgvVentas);
             Controls.Add(panelResumen);
             Controls.Add(panelFiltros);
@@ -335,52 +632,558 @@ namespace Comercio.NET.Formularios
             MinimumSize = new Size(925, 550);
             Name = "frmControlFacturas";
             Text = "Control de Facturas";
+
             ((System.ComponentModel.ISupportInitialize)dgvVentas).EndInit();
             panelFiltros.ResumeLayout(false);
             panelFiltros.PerformLayout();
             panelResumen.ResumeLayout(false);
             panelTotales.ResumeLayout(false);
             ResumeLayout(false);
+        }
 
-            // PRIMERA FILA - Botones principales
-            // Configuración del botón de auditoría...
-            btnAuditoriaEliminados.BackColor = Color.FromArgb(255, 152, 0);
-            btnAuditoriaEliminados.FlatStyle = FlatStyle.Flat;
-            btnAuditoriaEliminados.FlatAppearance.BorderSize = 0;
-            btnAuditoriaEliminados.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnAuditoriaEliminados.ForeColor = Color.White;
-            btnAuditoriaEliminados.Location = new Point(290, 14); // PRIMERA FILA
-            btnAuditoriaEliminados.Name = "btnAuditoriaEliminados";
-            btnAuditoriaEliminados.Size = new Size(140, 28);
-            btnAuditoriaEliminados.TabIndex = 5;
-            btnAuditoriaEliminados.Text = "🗑️ Auditoría";
-            btnAuditoriaEliminados.UseVisualStyleBackColor = false;
-            btnAuditoriaEliminados.Click += BtnAuditoriaEliminados_Click;
+        // NUEVO: Método para configurar los nuevos botones
+        private void ConfigurarNuevosBotones()
+        {
+            // Botón para eliminar remito
+            btnEliminarRemito = new Button
+            {
+                Text = "🗑️ Eliminar Remito",
+                Size = new Size(140, 35),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Enabled = false
+            };
+            btnEliminarRemito.FlatAppearance.BorderSize = 0;
+            btnEliminarRemito.Click += BtnEliminarRemito_Click;
 
-            // SEGUNDA FILA - Botón de IVA
-            var btnResumenIva = new Button();
-            btnResumenIva.BackColor = Color.FromArgb(76, 175, 80); // Verde
-            btnResumenIva.FlatStyle = FlatStyle.Flat;
-            btnResumenIva.FlatAppearance.BorderSize = 0;
-            btnResumenIva.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            btnResumenIva.ForeColor = Color.White;
-            btnResumenIva.Location = new Point(400, 45); // SEGUNDA FILA
-            btnResumenIva.Name = "btnResumenIva";
-            btnResumenIva.Size = new Size(120, 28);
-            btnResumenIva.TabIndex = 9;
-            btnResumenIva.Text = "📊 IVA";
-            btnResumenIva.UseVisualStyleBackColor = false;
-            btnResumenIva.Click += BtnResumenIva_Click;
-            btnResumenIva.Cursor = Cursors.Hand;
+            // Botón para factura directa AFIP
+            btnFacturaDirecta = new Button
+            {
+                Text = "📄 Factura Directa AFIP",
+                Size = new Size(160, 35),
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnFacturaDirecta.FlatAppearance.BorderSize = 0;
+            btnFacturaDirecta.Click += BtnFacturaDirecta_Click;
 
-            // Agregar tooltip
-            var tooltipIva = new ToolTip();
-            tooltipIva.SetToolTip(btnResumenIva, "Ver resumen de IVA discriminado por alícuotas");
+            // ✅ MODIFICADO: Posicionar en la segunda fila (y2) a la derecha
+            if (panelFiltros != null)
+            {
+                int y2 = 46; // Segunda fila del panel de filtros
 
-            panelFiltros.Controls.Add(btnResumenIva);
+                // ✅ Posicionar a la derecha del panel (con Anchor para mantener posición)
+                btnFacturaDirecta.Location = new Point(panelFiltros.Width - 450, y2);
+                btnFacturaDirecta.Anchor = AnchorStyles.Top | AnchorStyles.Right;
 
-            // ELIMINADO: No cargar opciones del ComboBox aquí, se hará después de cargar datos
-            // CargarFormasDePago();
+                btnEliminarRemito.Location = new Point(panelFiltros.Width - 280, y2);
+                btnEliminarRemito.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+                panelFiltros.Controls.Add(btnEliminarRemito);
+                panelFiltros.Controls.Add(btnFacturaDirecta);
+
+                System.Diagnostics.Debug.WriteLine($"[BOTONES] ✅ Posicionados en segunda fila - FacturaDirecta: {btnFacturaDirecta.Location}, EliminarRemito: {btnEliminarRemito.Location}");
+            }
+
+            // ✅ CORREGIDO: Evento de selección con validación correcta del tipo de factura
+            if (dgvVentas != null)
+            {
+                dgvVentas.SelectionChanged += (s, e) =>
+                {
+                    bool haySeleccion = dgvVentas.SelectedRows.Count > 0;
+
+                    if (haySeleccion)
+                    {
+                        var tipoFactura = dgvVentas.SelectedRows[0].Cells["Tipo"]?.Value?.ToString()?.Trim();
+
+                        // ✅ DEBUG: Ver qué valor viene realmente
+                        System.Diagnostics.Debug.WriteLine($"[SELECCIÓN] Tipo de factura detectado: '{tipoFactura}'");
+
+                        // ✅ CORREGIDO: Validar contra TODOS los posibles formatos de facturas AFIP
+                        bool esFacturaAfip = !string.IsNullOrEmpty(tipoFactura) && (
+                            tipoFactura.Equals("A", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("B", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("C", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("FacturaA", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("FacturaB", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("FacturaC", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("Factura A", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("Factura B", StringComparison.OrdinalIgnoreCase) ||
+                            tipoFactura.Equals("Factura C", StringComparison.OrdinalIgnoreCase)
+                        );
+
+                        // Solo habilitar si NO es una factura de AFIP
+                        btnEliminarRemito.Enabled = !esFacturaAfip;
+
+                        System.Diagnostics.Debug.WriteLine($"[SELECCIÓN] Es factura AFIP: {esFacturaAfip}, Botón habilitado: {!esFacturaAfip}");
+                    }
+                    else
+                    {
+                        btnEliminarRemito.Enabled = false;
+                        System.Diagnostics.Debug.WriteLine("[SELECCIÓN] Sin selección - Botón deshabilitado");
+                    }
+                };
+            }
+        }
+
+        // NUEVO: Evento para generar factura directa de AFIP
+        private async void BtnFacturaDirecta_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var formFacturaDirecta = new FacturaDirectaAfipForm())
+                {
+                    if (formFacturaDirecta.ShowDialog() == DialogResult.OK)
+                    {
+                        MessageBox.Show("Factura generada correctamente en AFIP.",
+                            "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Recargar la grilla
+                        CargarVentasPorFecha(dtpDesde.Value, dtpHasta.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al generar la factura:\n\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private string ObtenerUsuarioActual()
+        {
+            // Obtener el usuario actual desde la sesión
+            return Comercio.NET.Services.AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
+        }
+        // NUEVO: Evento para eliminar remito completo
+        private async void BtnEliminarRemito_Click(object sender, EventArgs e)
+        {
+            if (dgvVentas.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Debe seleccionar un remito para eliminar.", "Advertencia",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                var row = dgvVentas.SelectedRows[0];
+                string nroFactura = row.Cells["Remito"]?.Value?.ToString();
+                string tipoFactura = row.Cells["Tipo"]?.Value?.ToString()?.Trim();
+                decimal total = Convert.ToDecimal(row.Cells["Importe Final"]?.Value ?? 0);
+
+                int cantidadProductos = await ObtenerCantidadProductosRemito(nroFactura);
+
+                // Validar que NO sea factura de AFIP
+                bool esFacturaAfip = !string.IsNullOrEmpty(tipoFactura) && (
+                    tipoFactura.Equals("A", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("B", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("C", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("FacturaA", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("FacturaB", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("FacturaC", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("Factura A", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("Factura B", StringComparison.OrdinalIgnoreCase) ||
+                    tipoFactura.Equals("Factura C", StringComparison.OrdinalIgnoreCase)
+                );
+
+                if (esFacturaAfip)
+                {
+                    MessageBox.Show("No se pueden eliminar facturas de AFIP (A, B o C).\n\nSolo se permiten eliminar remitos.",
+                        "Operación no permitida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // ✅ NUEVO: Usar el constructor extendido con títulos personalizados
+                var formMotivo = new MotivoEliminacionForm(
+                    $"Remito: {nroFactura} ({cantidadProductos} productos)",
+                    1,                              // Cantidad = 1 (representa 1 remito)
+                    nroFactura,                     // Código
+                    total,                          // Total del remito
+                    "🗑️ Eliminar Remito",          // ✅ Título del formulario
+                    "ELIMINAR REMITO"               // ✅ Título del encabezado
+                );
+
+                if (formMotivo.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                string motivo = formMotivo.Motivo;
+
+                // Confirmación final
+                var resultado = MessageBox.Show(
+                    $"¿Está seguro de eliminar el remito completo?\n\n" +
+                    $"Número: {nroFactura}\n" +
+                    $"Tipo: {tipoFactura}\n" +
+                    $"Productos: {cantidadProductos}\n" +
+                    $"Total: {total:C2}\n\n" +
+                    $"Motivo: {motivo}\n\n" +
+                    "Esta acción:\n" +
+                    "- Eliminará el remito de la base de datos\n" +
+                    "- Devolverá las cantidades al stock\n" +
+                    "- Registrará la eliminación en auditoría\n\n" +
+                    "¿Desea continuar?",
+                    "Confirmar eliminación de remito",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (resultado != DialogResult.Yes)
+                {
+                    return;
+                }
+
+                await EliminarRemitoCompleto(nroFactura, motivo);
+
+                MessageBox.Show($"Remito {nroFactura} eliminado correctamente.\n\n" +
+                                $"Se devolvieron {cantidadProductos} productos al stock y se registró en auditoría.",
+                                "Eliminación exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                CargarVentasPorFecha(dtpDesde.Value, dtpHasta.Value);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al eliminar el remito:\n\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Método para obtener cantidad de productos de un remito
+        private async Task<int> ObtenerCantidadProductosRemito(string nroFactura)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = "SELECT COUNT(*) FROM Ventas WHERE NroFactura = @nroFactura";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        await connection.OpenAsync();
+
+                        int cantidad = (int)await cmd.ExecuteScalarAsync();
+                        return cantidad;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ELIMINAR] Error obteniendo cantidad de productos: {ex.Message}");
+                return 0;
+            }
+        }
+
+        // NUEVO: Método para eliminar remito completo con devolución de stock y auditoría
+        private async Task EliminarRemitoCompleto(string nroFactura, string motivo)
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            string connectionString = config.GetConnectionString("DefaultConnection");
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                // ✅ CRÍTICO: Configurar SET options ANTES de iniciar la transacción
+                using (var setOptionsCmd = new SqlCommand(@"
+            SET ARITHABORT ON;
+            SET ANSI_NULLS ON;
+            SET ANSI_PADDING ON;
+            SET ANSI_WARNINGS ON;
+            SET CONCAT_NULL_YIELDS_NULL ON;
+            SET QUOTED_IDENTIFIER ON;
+            SET NUMERIC_ROUNDABORT OFF;", connection))
+                {
+                    await setOptionsCmd.ExecuteNonQueryAsync();
+                }
+
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Obtener todos los productos del remito
+                        var productosQuery = @"
+                    SELECT codigo, descripcion, cantidad, precio
+                    FROM Ventas
+                    WHERE NroFactura = @nroFactura";
+
+                        var productos = new List<(string codigo, string descripcion, int cantidad, decimal precio)>();
+
+                        using (var cmd = new SqlCommand(productosQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            using (var reader = await cmd.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    productos.Add((
+                                        reader.GetString(0),
+                                        reader.GetString(1),
+                                        reader.GetInt32(2),
+                                        reader.GetDecimal(3)
+                                    ));
+                                }
+                            }
+                        }
+
+                        // 2. Devolver stock para cada producto
+                        foreach (var producto in productos)
+                        {
+                            var updateStockQuery = @"
+                        UPDATE Productos 
+                        SET cantidad = cantidad + @cantidad 
+                        WHERE codigo = @codigo";
+
+                            using (var cmd = new SqlCommand(updateStockQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@cantidad", producto.cantidad);
+                                cmd.Parameters.AddWithValue("@codigo", producto.codigo);
+                                int filasAfectadas = await cmd.ExecuteNonQueryAsync();
+
+                                System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ Stock devuelto para {producto.codigo}: +{producto.cantidad} (filas: {filasAfectadas})");
+                            }
+
+                            // 3. ✅ CORREGIDO: Registrar en auditoría con nombres de columnas correctos
+                            var auditQuery = @"
+                        INSERT INTO AuditoriaProductosEliminados 
+                            (CodigoProducto, DescripcionProducto, Cantidad, PrecioUnitario, 
+                             TotalEliminado, MotivoEliminacion, FechaEliminacion, 
+                             UsuarioEliminacion, NumeroFactura)
+                        VALUES 
+                            (@codigo, @descripcion, @cantidad, @precio, 
+                             @totalEliminado, @motivo, @fecha, @usuario, @nroFactura)";
+
+                            using (var cmd = new SqlCommand(auditQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@codigo", producto.codigo);
+                                cmd.Parameters.AddWithValue("@descripcion", producto.descripcion);
+                                cmd.Parameters.AddWithValue("@cantidad", producto.cantidad);
+                                cmd.Parameters.AddWithValue("@precio", producto.precio);
+                                cmd.Parameters.AddWithValue("@totalEliminado", producto.cantidad * producto.precio);
+                                cmd.Parameters.AddWithValue("@motivo", $"Eliminación remito completo: {motivo}");
+                                cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
+                                cmd.Parameters.AddWithValue("@usuario", ObtenerUsuarioActual());
+                                cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {productos.Count} productos procesados - Stock devuelto y auditoría registrada");
+
+                        // 4. Eliminar de la tabla Ventas
+                        var deleteVentasQuery = "DELETE FROM Ventas WHERE NroFactura = @nroFactura";
+                        using (var cmd = new SqlCommand(deleteVentasQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            int ventasEliminadas = await cmd.ExecuteNonQueryAsync();
+                            System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {ventasEliminadas} registros eliminados de Ventas");
+                        }
+
+                        // 5. Eliminar de la tabla Facturas
+                        var deleteFacturasQuery = "DELETE FROM Facturas WHERE NumeroRemito = @nroFactura";
+                        using (var cmd = new SqlCommand(deleteFacturasQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            int facturasEliminadas = await cmd.ExecuteNonQueryAsync();
+                            System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {facturasEliminadas} registros eliminados de Facturas");
+                        }
+
+                        // 6. Eliminar de DetallesPagoFactura si existen
+                        var deleteDetallesPagoQuery = "DELETE FROM DetallesPagoFactura WHERE NumeroRemito = @nroFactura";
+                        using (var cmd = new SqlCommand(deleteDetallesPagoQuery, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            int pagosEliminados = await cmd.ExecuteNonQueryAsync();
+                            if (pagosEliminados > 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {pagosEliminados} registros eliminados de DetallesPagoFactura");
+                            }
+                        }
+
+                        transaction.Commit();
+                        System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅✅✅ Remito {nroFactura} eliminado COMPLETAMENTE - Transacción confirmada");
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ❌ Error - Transacción revertida: {ex.Message}");
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private async void BtnReportePorRubro_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                DateTime desde = dtpDesde.Value.Date;
+                DateTime hasta = dtpHasta.Value.Date.AddDays(1).AddSeconds(-1);
+
+                var resumenRubros = await ObtenerResumenPorRubro(desde, hasta);
+
+                if (resumenRubros == null || resumenRubros.Count == 0)
+                {
+                    MessageBox.Show("No hay ventas en el período seleccionado.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Crear y mostrar el formulario de reporte
+                using (var formReporte = new ResumenRubrosForm(desde, hasta, resumenRubros, chkCtaCte.Checked))
+                {
+                    formReporte.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al generar reporte por rubro: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnReporteConsolidado_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                DateTime desde = dtpDesde.Value.Date;
+                DateTime hasta = dtpHasta.Value.Date.AddDays(1).AddSeconds(-1);
+
+                using (var formReporte = new ResumenConsolidadoForm(desde, hasta, chkCtaCte.Checked))
+                {
+                    formReporte.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al generar reporte consolidado: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task<List<ResumenRubroGroup>> ObtenerResumenPorRubro(DateTime desde, DateTime hasta)
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            string connectionString = config.GetConnectionString("DefaultConnection");
+            var resultado = new List<ResumenRubroGroup>();
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                // ✅ MODIFICADO: Solo 4 rubros (Carniceria, Verduleria, Cigarrillos, Almacen)
+                var query = @"
+                            WITH VentasConTotal AS (
+                                SELECT 
+                                    v.NroFactura,
+                                    CASE 
+                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
+                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
+                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
+                                        ELSE 'ALMACEN'
+                                    END AS Rubro,
+                                    CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                                FROM Ventas v
+                                INNER JOIN Productos p ON v.codigo = p.codigo
+                                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta";
+
+                                    if (chkCtaCte.Checked)
+                                    {
+                                        query += " AND f.TipoFactura = 'CtaCte'";
+                                    }
+
+                                    query += @"
+                            )
+                            SELECT 
+                                Rubro,
+                                COUNT(DISTINCT NroFactura) AS CantidadFacturas,
+                                COUNT(*) AS CantidadProductos,
+                                CAST(SUM(
+                                    CASE 
+                                        WHEN TotalFacturaVentas > 0 
+                                        THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                                        ELSE 0
+                                    END
+                                ) AS DECIMAL(18,2)) AS MontoTotal
+                            FROM VentasConTotal
+                            GROUP BY Rubro
+                            ORDER BY MontoTotal DESC";
+
+                using (var cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@desde", desde);
+                    cmd.Parameters.AddWithValue("@hasta", hasta);
+
+                    connection.Open();
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (reader.Read())
+                        {
+                            resultado.Add(new ResumenRubroGroup
+                            {
+                                Rubro = reader.GetString(0),
+                                CantidadFacturas = reader.GetInt32(1),
+                                CantidadProductos = reader.GetInt32(2),
+                                MontoTotal = reader.GetDecimal(3)
+                            });
+                        }
+                    }
+                }
+            }
+
+            return resultado;
+        }
+
+        // Clase auxiliar para agrupar datos por rubro
+        public class ResumenRubroGroup
+        {
+            public string Rubro { get; set; }
+            public int CantidadFacturas { get; set; }
+            public int CantidadProductos { get; set; }
+            public decimal MontoTotal { get; set; }
+        }
+
+        // ✅ NUEVO: Event handler para el botón Ayer
+        private void BtnAyer_Click(object sender, EventArgs e)
+        {
+            DateTime ayer = DateTime.Today.AddDays(-1);
+            dtpDesde.Value = ayer;
+            dtpHasta.Value = ayer;
+            CargarVentasPorFecha(ayer, ayer);
+        }
+
+        // ✅ NUEVO: Método helper para configurar labels de rubros
+        private void ConfigurarLabelRubro(Label label, string texto, Color color, float fontSize = 9F)
+        {
+            label.Text = texto;
+            label.Font = new Font("Segoe UI", fontSize, FontStyle.Bold);
+            label.ForeColor = color;
+            label.AutoSize = true; // ✅ CAMBIO: de false a true
+            label.MinimumSize = new Size(250, 24); // ✅ NUEVO: Tamaño mínimo garantizado
+            label.TextAlign = ContentAlignment.MiddleLeft;
+            label.Padding = new Padding(0, 0, 0, 0);
+            label.Margin = new Padding(0, 0, 0, 0); // ✅ NUEVO: Margen entre labels
         }
 
         private void ConfigurarFormulario()
@@ -394,11 +1197,164 @@ namespace Comercio.NET.Formularios
             // Cargar los eventos de las columnas
             CargarEventosColumnas();
 
-            // NO formatear columnas aquí, se hará después de cargar datos
-            // FormatearColumnas(); // COMENTAR esta línea
-
             // Establecer el rango de fechas por defecto
-            dtpFecha.Value = DateTime.Today;
+            dtpDesde.Value = DateTime.Today;
+            dtpHasta.Value = DateTime.Today;
+        }
+
+        // NUEVO: Método para cargar proveedores en el ComboBox
+        //private void CargarProveedores()
+        //{
+        //    try
+        //    {
+        //        cboFiltroProveedor.Items.Clear();
+        //        cboFiltroProveedor.Items.Add("Todos los proveedores"); // Opción para mostrar todos
+
+        //        var config = new ConfigurationBuilder()
+        //            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        //            .AddJsonFile("appsettings.json")
+        //            .Build();
+        //        string connectionString = config.GetConnectionString("DefaultConnection");
+
+        //        using (var connection = new SqlConnection(connectionString))
+        //        {
+        //            // Obtener proveedores únicos desde la tabla Productos
+        //            // que tienen ventas registradas
+        //            var query = @"
+        //        SELECT DISTINCT p.proveedor 
+        //        FROM Productos p
+        //        INNER JOIN Ventas v ON p.codigo = v.codigo
+        //        WHERE p.proveedor IS NOT NULL 
+        //          AND RTRIM(LTRIM(p.proveedor)) <> '' 
+        //        ORDER BY p.proveedor";
+
+        //            using (var cmd = new SqlCommand(query, connection))
+        //            {
+        //                connection.Open();
+        //                using (var reader = cmd.ExecuteReader())
+        //                {
+        //                    while (reader.Read())
+        //                    {
+        //                        string proveedor = reader["proveedor"]?.ToString()?.Trim();
+        //                        if (!string.IsNullOrEmpty(proveedor))
+        //                        {
+        //                            cboFiltroProveedor.Items.Add(proveedor);
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+
+        //        // Seleccionar "Todos los proveedores" por defecto
+        //        cboFiltroProveedor.SelectedIndex = 0;
+
+        //        System.Diagnostics.Debug.WriteLine($"CargarProveedores: Se cargaron {cboFiltroProveedor.Items.Count - 1} proveedores disponibles");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"Error cargando proveedores: {ex.Message}");
+        //        cboFiltroProveedor.Items.Clear();
+        //        cboFiltroProveedor.Items.Add("Todos los proveedores");
+        //        cboFiltroProveedor.SelectedIndex = 0;
+        //    }
+        //}
+
+        // NUEVO: Event handler para cambio en el ComboBox de proveedor
+        //private void CboFiltroProveedor_SelectedIndexChanged(object sender, EventArgs e)
+        //{
+        //    AplicarFiltros();
+        //}
+
+        // Cargar tipos de factura en el CheckedListBox
+        private void CargarTiposFactura()
+        {
+            try
+            {
+                clbFiltroTipoFactura.Items.Clear();
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"SELECT DISTINCT TipoFactura 
+                  FROM Facturas
+                  WHERE TipoFactura IS NOT NULL
+                    AND RTRIM(LTRIM(TipoFactura)) <> ''
+                    AND RTRIM(LTRIM(TipoFactura)) <> 'DNI'
+                  ORDER BY TipoFactura";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        connection.Open();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string tipo = reader["TipoFactura"]?.ToString()?.Trim();
+                                // ✅ Filtro adicional en código para mayor seguridad
+                                if (!string.IsNullOrEmpty(tipo) && !tipo.Equals("DNI", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    clbFiltroTipoFactura.Items.Add(tipo, false);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"CargarTiposFactura: se cargaron {clbFiltroTipoFactura.Items.Count} tipos");
+                UpdateCheckedComboTexto();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error cargando tipos de factura: {ex.Message}");
+                clbFiltroTipoFactura.Items.Clear();
+                UpdateCheckedComboTexto();
+            }
+        }
+
+
+        private void UpdateCheckedComboTexto()
+        {
+            try
+            {
+                if (clbFiltroTipoFactura == null || clbFiltroTipoFactura.Items.Count == 0)
+                {
+                    txtCheckedComboTipo.Text = "Sin tipos";
+                    return;
+                }
+
+                var checkedItems = clbFiltroTipoFactura.CheckedItems.Cast<object>().Select(i => i.ToString()).ToList();
+                if (checkedItems.Count == 0)
+                {
+                    txtCheckedComboTipo.Text = "Todos los tipos";
+                }
+                else if (checkedItems.Count <= 3)
+                {
+                    txtCheckedComboTipo.Text = string.Join(", ", checkedItems);
+                }
+                else
+                {
+                    txtCheckedComboTipo.Text = $"{checkedItems.Count} seleccionados";
+                }
+            }
+            catch
+            {
+                txtCheckedComboTipo.Text = "Todos los tipos";
+            }
+        }
+
+        private void ClbFiltroTipoFactura_ItemCheck(object sender, ItemCheckEventArgs e)
+        {
+            // Se ejecuta antes de cambiar el estado; usar BeginInvoke para leer el estado actualizado
+            this.BeginInvoke((MethodInvoker)(() =>
+            {
+                UpdateCheckedComboTexto();
+                AplicarFiltros();
+            }));
         }
 
         // AGREGAR: Método para cargar eventos de columnas
@@ -470,25 +1426,88 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        // NUEVO: Método para cargar rubros en el ComboBox
+        //private void CargarRubros()
+        //{
+        //    try
+        //    {
+        //        cboFiltroRubro.Items.Clear();
+        //        cboFiltroRubro.Items.Add("Todos los rubros"); // Opción para mostrar todos
+
+        //        var config = new ConfigurationBuilder()
+        //            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+        //            .AddJsonFile("appsettings.json")
+        //            .Build();
+        //        string connectionString = config.GetConnectionString("DefaultConnection");
+
+        //        using (var connection = new SqlConnection(connectionString))
+        //        {
+        //            // Obtener rubros únicos desde la tabla Productos
+        //            // ya que los productos de las ventas están relacionados con sus rubros
+        //            var query = @"
+        //        SELECT DISTINCT p.rubro 
+        //        FROM Productos p
+        //        INNER JOIN Ventas v ON p.codigo = v.codigo
+        //        WHERE p.rubro IS NOT NULL 
+        //          AND RTRIM(LTRIM(p.rubro)) <> '' 
+        //        ORDER BY p.rubro";
+
+        //            using (var cmd = new SqlCommand(query, connection))
+        //            {
+        //                connection.Open();
+        //                using (var reader = cmd.ExecuteReader())
+        //                {
+        //                    while (reader.Read())
+        //                    {
+        //                        string rubro = reader["rubro"]?.ToString()?.Trim();
+        //                        if (!string.IsNullOrEmpty(rubro))
+        //                        {
+        //                            cboFiltroRubro.Items.Add(rubro);
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+
+        //        // Seleccionar "Todos los rubros" por defecto
+        //        cboFiltroRubro.SelectedIndex = 0;
+
+        //        System.Diagnostics.Debug.WriteLine($"CargarRubros: Se cargaron {cboFiltroRubro.Items.Count - 1} rubros disponibles");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"Error cargando rubros: {ex.Message}");
+        //        cboFiltroRubro.Items.Clear();
+        //        cboFiltroRubro.Items.Add("Todos los rubros");
+        //        cboFiltroRubro.SelectedIndex = 0;
+        //    }
+        //}
+
         // NUEVO: Event handler para cambio en el ComboBox de forma de pago
         private void CboFiltroFormaPago_SelectedIndexChanged(object sender, EventArgs e)
         {
             AplicarFiltros();
         }
 
+        // NUEVO: Event handler para cambio en el ComboBox de rubro
+        //private void CboFiltroRubro_SelectedIndexChanged(object sender, EventArgs e)
+        //{
+        //    AplicarFiltros();
+        //}
+
         private void CrearVentanaDetalle()
         {
             // Crear la ventana flotante para el detalle de la factura (MÁS PEQUEÑA)
             frmDetalle = new Form();
             frmDetalle.Text = "Detalle de Factura";
-            frmDetalle.Size = new Size(600, 400); // REDUCIDO: era 800x600, ahora 600x400
-            frmDetalle.StartPosition = FormStartPosition.Manual; // CAMBIO: Manual para control total
+            frmDetalle.Size = new Size(600, 400);
+            frmDetalle.StartPosition = FormStartPosition.Manual;
             frmDetalle.FormBorderStyle = FormBorderStyle.FixedDialog;
             frmDetalle.MaximizeBox = false;
             frmDetalle.MinimizeBox = false;
             frmDetalle.BackColor = Color.White;
 
-            // Agregar un DataGridView para mostrar los detalles de la factura (IGUAL QUE LA GRILLA PRINCIPAL)
+            // DataGridView para mostrar los detalles
             var dgvDetalle = new DataGridView();
             dgvDetalle.Name = "dgvDetalle";
             dgvDetalle.Dock = DockStyle.Fill;
@@ -502,8 +1521,6 @@ namespace Comercio.NET.Formularios
             dgvDetalle.RowHeadersVisible = false;
             dgvDetalle.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvDetalle.EnableHeadersVisualStyles = false;
-            
-            // MISMO ESTILO DE HEADER QUE LA GRILLA PRINCIPAL
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle1.BackColor = Color.FromArgb(248, 249, 250);
@@ -511,20 +1528,23 @@ namespace Comercio.NET.Formularios
             dataGridViewCellStyle1.ForeColor = Color.Black;
             dataGridViewCellStyle1.SelectionBackColor = Color.FromArgb(248, 249, 250);
             dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True; // ✅ Mantener wrap habilitado
+            dataGridViewCellStyle1.Padding = new Padding(3, 2, 3, 2); // ✅ NUEVO: Agregar padding
+    
             dgvDetalle.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
-            dgvDetalle.ColumnHeadersHeight = 35;
+            dgvDetalle.ColumnHeadersHeight = 55; // ✅ AUMENTADO de 50 a 55 píxeles
+            dgvDetalle.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing; // ✅ CAMBIO: Habilitar resizing
 
             frmDetalle.Controls.Add(dgvDetalle);
 
-            // NUEVO: Panel para mostrar totales de la factura
+            // Panel para mostrar totales y formas de pago (altura aumentada)
             var panelTotales = new Panel();
             panelTotales.Dock = DockStyle.Bottom;
-            panelTotales.Height = 40;
+            panelTotales.Height = 90; // un poco más alto para totales + formas de pago
             panelTotales.BackColor = Color.FromArgb(0, 120, 215);
             frmDetalle.Controls.Add(panelTotales);
 
-            // REORGANIZADO: Labels distribuidos correctamente
+            // REORGANIZACIÓN: primero los labels de Totales (arriba)...
             var lblCantidadProductos = new Label();
             lblCantidadProductos.Name = "lblCantidadProductos";
             lblCantidadProductos.Text = "Productos: 0";
@@ -532,7 +1552,7 @@ namespace Comercio.NET.Formularios
             lblCantidadProductos.ForeColor = Color.White;
             lblCantidadProductos.AutoSize = false;
             lblCantidadProductos.Dock = DockStyle.Left;
-            lblCantidadProductos.Width = 120; // ALA IZQUIERDA
+            lblCantidadProductos.Width = 140;
             lblCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
             lblCantidadProductos.Padding = new Padding(10, 0, 0, 0);
             panelTotales.Controls.Add(lblCantidadProductos);
@@ -544,9 +1564,9 @@ namespace Comercio.NET.Formularios
             lblTotalFactura.ForeColor = Color.White;
             lblTotalFactura.AutoSize = false;
             lblTotalFactura.Dock = DockStyle.Right;
-            lblTotalFactura.Width = 200; // MÁS ANCHO: era 150, ahora 200
+            lblTotalFactura.Width = 220;
             lblTotalFactura.TextAlign = ContentAlignment.MiddleRight;
-            lblTotalFactura.Padding = new Padding(0, 0, 10, 0);
+            lblTotalFactura.Padding = new Padding(0, 0, 12, 0);
             panelTotales.Controls.Add(lblTotalFactura);
 
             var lblCantidadTotalDetalle = new Label();
@@ -555,19 +1575,40 @@ namespace Comercio.NET.Formularios
             lblCantidadTotalDetalle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             lblCantidadTotalDetalle.ForeColor = Color.White;
             lblCantidadTotalDetalle.AutoSize = false;
-            lblCantidadTotalDetalle.Dock = DockStyle.Fill; // CAMBIO: Fill para ocupar el centro
-            lblCantidadTotalDetalle.TextAlign = ContentAlignment.MiddleCenter; // CENTRADO
-            lblCantidadTotalDetalle.Padding = new Padding(0);
+            lblCantidadTotalDetalle.Dock = DockStyle.Fill;
+            lblCantidadTotalDetalle.TextAlign = ContentAlignment.MiddleCenter;
             panelTotales.Controls.Add(lblCantidadTotalDetalle);
 
-            // Panel inferior para botones (SIMPLE Y LIMPIO)
+            // ...y después el label con el desglose por formas de pago, anclado abajo
+            var lblDetalleFormasPagoDetalle = new Label();
+            lblDetalleFormasPagoDetalle.Name = "lblDetalleFormasPagoDetalle";
+            lblDetalleFormasPagoDetalle.Text = ""; // se llenará dinámicamente
+            lblDetalleFormasPagoDetalle.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+            lblDetalleFormasPagoDetalle.ForeColor = Color.White;
+            lblDetalleFormasPagoDetalle.AutoSize = false;
+            lblDetalleFormasPagoDetalle.Dock = DockStyle.Bottom;
+            lblDetalleFormasPagoDetalle.Height = 24;
+            lblDetalleFormasPagoDetalle.TextAlign = ContentAlignment.MiddleCenter;
+            lblDetalleFormasPagoDetalle.Padding = new Padding(8, 2, 8, 2);
+            lblDetalleFormasPagoDetalle.AutoEllipsis = true;
+            // Ajustar el ancho máximo al redimensionar el panel para permitir wrap adecuado
+            panelTotales.Resize += (s, e) =>
+            {
+                try
+                {
+                    lblDetalleFormasPagoDetalle.MaximumSize = new Size(panelTotales.ClientSize.Width - 20, 0);
+                }
+                catch { }
+            };
+            panelTotales.Controls.Add(lblDetalleFormasPagoDetalle);
+
+            // Panel inferior para botones
             var panelBotones = new Panel();
             panelBotones.Dock = DockStyle.Bottom;
             panelBotones.Height = 50;
             panelBotones.BackColor = Color.FromArgb(248, 249, 250);
             frmDetalle.Controls.Add(panelBotones);
 
-            // Botón para imprimir (MISMO ESTILO QUE LOS BOTONES PRINCIPALES)
             var btnImprimir = new Button();
             btnImprimir.Name = "btnImprimir";
             btnImprimir.Text = "Imprimir";
@@ -581,7 +1622,6 @@ namespace Comercio.NET.Formularios
             btnImprimir.Click += BtnImprimir_Click;
             panelBotones.Controls.Add(btnImprimir);
 
-            // Botón para cerrar (MISMO ESTILO QUE LOS BOTONES PRINCIPALES)
             var btnCerrar = new Button();
             btnCerrar.Text = "Cerrar";
             btnCerrar.BackColor = Color.FromArgb(0, 150, 136);
@@ -593,28 +1633,61 @@ namespace Comercio.NET.Formularios
             btnCerrar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             btnCerrar.Click += (s, e) => { frmDetalle.Hide(); };
             panelBotones.Controls.Add(btnCerrar);
-            
-            // PREVENT form disposal when user clicks X button
+
             frmDetalle.FormClosing += (s, e) => {
-                e.Cancel = true;  // Cancel the close operation
-                frmDetalle.Hide(); // Just hide instead
+                e.Cancel = true;
+                frmDetalle.Hide();
             };
 
-            // Ajustar posición de botones cuando se redimensiona
-            panelBotones.Resize += (s, e) => {
-                btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
-                btnImprimir.Location = new Point(panelBotones.Width - 180, 10);
+            //panelBotones.Resize += (s, e) => {
+            //    btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
+            //    btnImprimir.Location = new Point(panelBotones.Width - 180, 10);
+            //};
+
+            this.Load += (s, e) => {
+                AgregarBotonesModalDetalle();
             };
         }
-
         private void CargarVentasDelDia()
         {
-            // Usar el método que ya funciona correctamente
-            CargarVentasPorFecha(DateTime.Today);
+            // Por defecto ambas fechas hoy
+            dtpDesde.Value = DateTime.Today;
+            dtpHasta.Value = DateTime.Today;
+            CargarVentasPorFecha(DateTime.Today, DateTime.Today);
         }
 
+        
         // CORREGIR: Método de carga con conversión de datos numéricos
-        private void CargarVentasPorFecha(DateTime fecha)
+        private void CargarVentasPorFecha(DateTime desde, DateTime hasta)
+        {
+            // ✅ Delegar toda la lógica a la versión asíncrona
+            _ = CargarVentasPorFechaAsync(desde, hasta);
+        }
+
+        // MODIFICAR: Event handler para el checkbox
+        private async void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
+        {
+            // Mostrar/ocultar el combobox según el estado del checkbox
+            cboFiltroCtaCte.Visible = chkCtaCte.Checked;
+
+            if (!chkCtaCte.Checked)
+            {
+                // Al destildar, ocultar el combobox y limpiar selección
+                cboFiltroCtaCte.SelectedIndex = -1;
+            }
+
+            // ✅ CAMBIO: Hacer la llamada async
+            await CargarVentasPorFechaAsync(dtpDesde.Value.Date, dtpHasta.Value.Date);
+
+            // ✅ NUEVO: Si está tildado, cargar nombres DESPUÉS de que se recargó la grilla
+            if (chkCtaCte.Checked)
+            {
+                CargarNombresCtaCteDesdeGrilla();
+                cboFiltroCtaCte.Focus();
+            }
+        }
+
+        private async Task CargarVentasPorFechaAsync(DateTime desde, DateTime hasta)
         {
             try
             {
@@ -626,101 +1699,157 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    // MODIFICADO: Query con columnas reordenadas e inclusión de IVA
-                    var query = chkCtaCte.Checked 
-                        ? @"SELECT 
-                            NumeroRemito as 'Remito',
-                            NroFactura as 'N° Factura',
-                            CAST(ISNULL(ImporteTotal, 0) AS DECIMAL(18,2)) as 'Importe',
-                            CAST(ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'IVA',
-                            CAST(ISNULL(ImporteTotal, 0) - ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
-                            ISNULL(Cajero, '') as 'Cajero',
-                            Fecha as 'Fecha',
-                            Hora as 'Hora',
-                            ISNULL(FormadePago, 'No especificado') as 'Forma de Pago',
-                            ISNULL(TipoFactura, 'No especificado') as 'Tipo',
-                            CAENumero as 'CAE',
-                            CtaCteNombre as 'Cta. Cte. Nombre'
-                        FROM Facturas 
-                        WHERE CAST(Fecha AS DATE) = @fecha 
-                        AND esCtaCte = @esCtaCte
-                        ORDER BY NumeroRemito DESC"
-                        : @"SELECT 
-                            NumeroRemito as 'Remito',
-                            NroFactura as 'N° Factura',
-                            CAST(ISNULL(ImporteTotal, 0) AS DECIMAL(18,2)) as 'Importe',
-                            CAST(ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'IVA',
-                            CAST(ISNULL(ImporteTotal, 0) - ISNULL(IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
-                            ISNULL(Cajero, '') as 'Cajero',
-                            Fecha as 'Fecha',
-                            Hora as 'Hora',
-                            ISNULL(FormadePago, 'No especificado') as 'Forma de Pago',
-                            ISNULL(TipoFactura, 'No especificado') as 'Tipo',
-                            CAENumero as 'CAE',
-                            CUITCliente as 'CUIT Cliente'
-                        FROM Facturas 
-                        WHERE CAST(Fecha AS DATE) = @fecha 
-                        AND esCtaCte = @esCtaCte
-                        ORDER BY NumeroRemito DESC";
-
-                    System.Diagnostics.Debug.WriteLine($"🔍 DIAGNÓSTICO - Ejecutando consulta: {query}");
-                    System.Diagnostics.Debug.WriteLine($"🔍 DIAGNÓSTICO - Parámetros: fecha={fecha:yyyy-MM-dd}, esCtaCte={chkCtaCte.Checked}");
+                    var query = chkCtaCte.Checked
+                       ? @"SELECT 
+                    f.NumeroRemito as 'Remito',
+                    f.NroFactura as 'N° Factura',
+                    CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
+                    CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
+                    CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
+                    CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
+                    CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
+                    ISNULL(f.Cajero, '') as 'Cajero',
+                    f.Fecha as 'Fecha',
+                    f.Hora as 'Hora',
+                    ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
+                    ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
+                    f.CAENumero as 'CAE',
+                    f.CtaCteNombre as 'Cta. Cte. Nombre',
+                    (SELECT TOP 1 p.proveedor 
+                     FROM Ventas v 
+                     INNER JOIN Productos p ON v.codigo = p.codigo 
+                     WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
+                FROM Facturas f
+                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
+                AND f.esCtaCte = @esCtaCte
+                ORDER BY f.NumeroRemito DESC"
+                            : @"SELECT 
+                    f.NumeroRemito as 'Remito',
+                    f.NroFactura as 'N° Factura',
+                    CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
+                    CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
+                    CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
+                    CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
+                    CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
+                    ISNULL(f.Cajero, '') as 'Cajero',
+                    f.Fecha as 'Fecha',
+                    f.Hora as 'Hora',
+                    ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
+                    ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
+                    f.CAENumero as 'CAE',
+                    (SELECT TOP 1 p.proveedor 
+                     FROM Ventas v 
+                     INNER JOIN Productos p ON v.codigo = p.codigo 
+                     WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
+                FROM Facturas f
+                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
+                AND f.esCtaCte = @esCtaCte
+                ORDER BY f.NumeroRemito DESC";
 
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
-                        adapter.SelectCommand.Parameters.AddWithValue("@fecha", fecha.Date);
+                        adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
+                        adapter.SelectCommand.Parameters.AddWithValue("@hasta", hasta.Date);
                         adapter.SelectCommand.Parameters.AddWithValue("@esCtaCte", chkCtaCte.Checked);
+
                         DataTable dt = new DataTable();
-                        adapter.Fill(dt);
-                        
+
+                        // ✅ CRÍTICO: Ejecutar de forma asíncrona
+                        await Task.Run(() => adapter.Fill(dt));
+
+                        // Eliminar filas completamente vacías
+                        for (int i = dt.Rows.Count - 1; i >= 0; i--)
+                        {
+                            var row = dt.Rows[i];
+                            bool empty = true;
+                            foreach (var cell in row.ItemArray)
+                            {
+                                if (cell != DBNull.Value && !string.IsNullOrWhiteSpace(cell?.ToString()))
+                                {
+                                    empty = false;
+                                    break;
+                                }
+                            }
+                            if (empty)
+                                dt.Rows.RemoveAt(i);
+                        }
+
+                        // ✅ Asignar a la grilla
                         dgvVentas.DataSource = dt;
                         FormatearColumnas();
-                        
-                        // NUEVO: Recargar formas de pago después de cambiar los datos
+
+                        // ✅ IMPORTANTE: Cargar formas y tipos ANTES de aplicar filtros
                         CargarFormasDePago();
-                        
-                        // Si hay filtros aplicados, reaplicarlos
-                        if (!string.IsNullOrEmpty(txtFiltroCajero.Text) || 
-                            (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text)) ||
-                            (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas"))
+                        CargarTiposFactura();
+
+                        // ✅ CRÍTICO: Decidir si aplicar filtros o actualizar resumen
+                        bool hayFiltrosActivos =
+                            !string.IsNullOrEmpty(txtFiltroCajero.Text) ||
+                            (chkCtaCte.Checked && cboFiltroCtaCte.SelectedItem != null && cboFiltroCtaCte.SelectedItem.ToString() != "Todos los clientes") ||
+                            (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas");
+
+                        if (hayFiltrosActivos)
                         {
-                            AplicarFiltros();
+                            AplicarFiltros(); // ✅ AplicarFiltros llama internamente a ActualizarResumenFiltrado
                         }
                         else
                         {
+                            // ✅ SOLUCIÓN: Actualizar resumen DESPUÉS de cargar los datos
                             ActualizarResumen(dt);
-                            // NUEVO: Actualizar título sin filtros
                             ActualizarTituloConFiltros(0, dt.Rows.Count, dt.Rows.Count);
                         }
+
+                        System.Diagnostics.Debug.WriteLine($"[CARGA ASYNC] ✅ Datos cargados: {dt.Rows.Count} facturas, Resumen actualizado");
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al cargar las ventas: {ex.Message}\n\nDetalles: {ex.ToString()}", "Error", 
+                MessageBox.Show($"Error al cargar las ventas: {ex.Message}\n\nDetalles: {ex.ToString()}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // MODIFICAR: Event handler para el checkbox
-        private void ChkCtaCte_CheckedChanged(object sender, EventArgs e)
+        // ✅ NUEVO: Método para cargar nombres únicos desde la grilla
+        private void CargarNombresCtaCteDesdeGrilla()
         {
-            // Mostrar/ocultar el TextBox de filtro
-            txtFiltroCtaCte.Visible = chkCtaCte.Checked;
-            
-            if (chkCtaCte.Checked)
+            try
             {
-                // Limpiar el filtro y hacer foco
-                txtFiltroCtaCte.Text = "";
-                txtFiltroCtaCte.Focus();
+                cboFiltroCtaCte.Items.Clear();
+                cboFiltroCtaCte.Items.Add("Todos los clientes"); // Opción para mostrar todos
+
+                if (dgvVentas.DataSource is DataTable dt)
+                {
+                    // Obtener nombres únicos de la columna "Cta. Cte. Nombre"
+                    var nombresUnicos = dt.AsEnumerable()
+                        .Select(row => row.Field<string>("Cta. Cte. Nombre"))
+                        .Where(nombre => !string.IsNullOrWhiteSpace(nombre))
+                        .Distinct()
+                        .OrderBy(nombre => nombre)
+                        .ToList();
+
+                    foreach (var nombre in nombresUnicos)
+                    {
+                        cboFiltroCtaCte.Items.Add(nombre);
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[FILTRO CTA CTE] Se cargaron {nombresUnicos.Count} clientes únicos desde la grilla");
+                }
+
+                // Seleccionar "Todos los clientes" por defecto
+                cboFiltroCtaCte.SelectedIndex = 0;
             }
-            
-            // Recargar los datos con el filtro actual
-            CargarVentasPorFecha(dtpFecha.Value.Date);
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error cargando nombres de Cta Cte: {ex.Message}");
+                cboFiltroCtaCte.Items.Clear();
+                cboFiltroCtaCte.Items.Add("Todos los clientes");
+                cboFiltroCtaCte.SelectedIndex = 0;
+            }
         }
 
-        // AGREGAR: Event handler para el TextBox de filtro
-        private void TxtFiltroCtaCte_TextChanged(object sender, EventArgs e)
+        // ✅ NUEVO: Event handler para el ComboBox de Cta Cte
+        private void CboFiltroCtaCte_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (chkCtaCte.Checked)
             {
@@ -740,21 +1869,21 @@ namespace Comercio.NET.Formularios
             if (dgvVentas.DataSource is DataTable dt)
             {
                 var filtros = new List<string>();
-                
+
                 // Filtro por cajero
                 string filtroCajero = txtFiltroCajero.Text.Trim();
                 if (!string.IsNullOrEmpty(filtroCajero))
                 {
                     filtros.Add($"[Cajero] LIKE '%{filtroCajero.Replace("'", "''")}%'");
                 }
-                
-                // Filtro por cuenta corriente (solo si está habilitado)
-                if (chkCtaCte.Checked)
+
+                // ✅ MODIFICAR: Filtro por cuenta corriente usando ComboBox
+                if (chkCtaCte.Checked && cboFiltroCtaCte.SelectedItem != null)
                 {
-                    string filtroCtaCte = txtFiltroCtaCte.Text.Trim();
-                    if (!string.IsNullOrEmpty(filtroCtaCte))
+                    string clienteSeleccionado = cboFiltroCtaCte.SelectedItem.ToString();
+                    if (clienteSeleccionado != "Todos los clientes")
                     {
-                        filtros.Add($"[Cta. Cte. Nombre] LIKE '%{filtroCtaCte.Replace("'", "''")}%'");
+                        filtros.Add($"[Cta. Cte. Nombre] = '{clienteSeleccionado.Replace("'", "''")}'");
                     }
                 }
 
@@ -767,11 +1896,28 @@ namespace Comercio.NET.Formularios
                         filtros.Add($"[Forma de Pago] = '{formaPagoSeleccionada.Replace("'", "''")}'");
                     }
                 }
+
                 
+                var query = chkCtaCte.Checked;
+
+                // Filtro por tipo de factura (multi-selección)
+                if (clbFiltroTipoFactura != null && clbFiltroTipoFactura.CheckedItems.Count > 0)
+                {
+                    var tipos = new List<string>();
+                    foreach (var item in clbFiltroTipoFactura.CheckedItems)
+                        tipos.Add(item.ToString().Replace("'", "''"));
+
+                    if (tipos.Count > 0)
+                    {
+                        // Usamos IN si el DataView lo soporta; si no, se puede reemplazar por ORs
+                        filtros.Add($"[Tipo] IN ('{string.Join("','", tipos)}')");
+                    }
+                }
+
                 // Aplicar filtros combinados
                 string filtroCompleto = filtros.Count > 0 ? string.Join(" AND ", filtros) : "";
                 dt.DefaultView.RowFilter = filtroCompleto;
-                
+
                 // Actualizar el resumen con los datos filtrados
                 ActualizarResumenFiltrado();
                 
@@ -828,35 +1974,45 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                DateTime fechaSeleccionada = dtpFecha.Value.Date;
-                string tipoVenta = chkCtaCte.Checked ? "Cuenta Corriente" : "Contado";
-                
-                string tituloBase = fechaSeleccionada == DateTime.Today 
-                    ? $"Control de Facturas - Ventas del Día ({tipoVenta})" 
-                    : $"Control de Facturas - Ventas del {fechaSeleccionada:dd/MM/yyyy} ({tipoVenta})";
+                DateTime inicio = dtpDesde.Value.Date;
+                DateTime fin = dtpHasta.Value.Date;
+
+                string tituloBase;
+                if (inicio == DateTime.Today && fin == DateTime.Today)
+                    tituloBase = $"Control de Facturas - Ventas del Día";
+                else if (inicio == fin)
+                    tituloBase = $"Control de Facturas - Ventas del {inicio:dd/MM/yyyy}";
+                else
+                    tituloBase = $"Control de Facturas - Ventas {inicio:dd/MM/yyyy} → {fin:dd/MM/yyyy}";
 
                 if (cantidadFiltros > 0)
                 {
-                    // Construir información de filtros activos
                     var filtrosActivos = new List<string>();
-                    
+
                     if (!string.IsNullOrEmpty(txtFiltroCajero.Text.Trim()))
                         filtrosActivos.Add($"Cajero: '{txtFiltroCajero.Text.Trim()}'");
-                    
-                    if (chkCtaCte.Checked && !string.IsNullOrEmpty(txtFiltroCtaCte.Text.Trim()))
-                        filtrosActivos.Add($"Cliente: '{txtFiltroCtaCte.Text.Trim()}'");
-                    
+
+                    // ✅ MODIFICAR: Usar ComboBox en lugar de TextBox
+                    if (chkCtaCte.Checked && cboFiltroCtaCte.SelectedItem != null)
+                    {
+                        string clienteSeleccionado = cboFiltroCtaCte.SelectedItem.ToString();
+                        if (clienteSeleccionado != "Todos los clientes")
+                        {
+                            filtrosActivos.Add($"Cliente: '{clienteSeleccionado}'");
+                        }
+                    }
+
                     if (cboFiltroFormaPago.SelectedItem != null && cboFiltroFormaPago.SelectedItem.ToString() != "Todas las formas")
                         filtrosActivos.Add($"Forma Pago: '{cboFiltroFormaPago.SelectedItem}'");
 
                     string infoFiltros = string.Join(" | ", filtrosActivos);
                     lblTitulo.Text = $"{tituloBase} - Filtrado: {registrosFiltrados}/{totalRegistros} ({infoFiltros})";
-                    lblTitulo.ForeColor = Color.FromArgb(255, 111, 0); // Naranja para indicar filtro activo
+                    lblTitulo.ForeColor = Color.FromArgb(255, 111, 0);
                 }
                 else
                 {
                     lblTitulo.Text = tituloBase;
-                    lblTitulo.ForeColor = Color.FromArgb(0, 120, 215); // Color normal
+                    lblTitulo.ForeColor = Color.FromArgb(0, 120, 215);
                 }
             }
             catch (Exception ex)
@@ -868,18 +2024,19 @@ namespace Comercio.NET.Formularios
         // AGREGAR: Event handler para el botón Buscar
         private void BtnBuscar_Click(object sender, EventArgs e)
         {
-            CargarVentasPorFecha(dtpFecha.Value.Date);
+            CargarVentasPorFecha(dtpDesde.Value.Date, dtpHasta.Value.Date);
         }
 
         // AGREGAR: Event handler para el botón Hoy
         private void BtnHoy_Click(object sender, EventArgs e)
         {
-            dtpFecha.Value = DateTime.Today;
-            CargarVentasPorFecha(DateTime.Today);
+            dtpDesde.Value = DateTime.Today;
+            dtpHasta.Value = DateTime.Today;
+            CargarVentasPorFecha(DateTime.Today, DateTime.Today);
         }
 
         // AGREGAR: Event handler para el click en las celdas del DataGridView
-        private void DgvVentas_CellClick(object sender, DataGridViewCellEventArgs e)
+        private void DgvVentas_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
             {
@@ -959,9 +2116,11 @@ namespace Comercio.NET.Formularios
         // NUEVO: Método async para crear configuración de ticket con número correcto
         private async Task<TicketConfig> CrearConfiguracionTicketAsync(DatosFactura datos, string numeroRemito)
         {
-            // Obtener el número de factura correcto desde la base de datos
-            string numeroComprobanteFinal = numeroRemito; // Por defecto usar el número de remito
-            
+            string numeroComprobanteFinal = numeroRemito;
+            decimal porcentajeDescuento = 0m;
+            decimal importeDescuento = 0m;
+            decimal importeFinal = 0m;
+
             try
             {
                 var config = new ConfigurationBuilder()
@@ -972,17 +2131,34 @@ namespace Comercio.NET.Formularios
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    var query = @"SELECT NroFactura FROM Facturas WHERE NumeroRemito = @numeroRemito";
-                    
+                    // Obtener también los datos de descuento
+                    var query = @"SELECT NroFactura, PorcentajeDescuento, ImporteDescuento, ImporteFinal 
+                     FROM Facturas 
+                     WHERE NumeroRemito = @numeroRemito";
+
                     using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                         await connection.OpenAsync();
-                        
-                        var nroFactura = await cmd.ExecuteScalarAsync();
-                        if (nroFactura != null && !string.IsNullOrEmpty(nroFactura.ToString()))
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
-                            numeroComprobanteFinal = nroFactura.ToString();
+                            if (await reader.ReadAsync())
+                            {
+                                var nroFactura = reader["NroFactura"];
+                                if (nroFactura != null && !string.IsNullOrEmpty(nroFactura.ToString()))
+                                {
+                                    numeroComprobanteFinal = nroFactura.ToString();
+                                }
+
+                                // Leer datos de descuento
+                                porcentajeDescuento = reader["PorcentajeDescuento"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["PorcentajeDescuento"]) : 0m;
+                                importeDescuento = reader["ImporteDescuento"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["ImporteDescuento"]) : 0m;
+                                importeFinal = reader["ImporteFinal"] != DBNull.Value
+                                    ? Convert.ToDecimal(reader["ImporteFinal"]) : 0m;
+                            }
                         }
                     }
                 }
@@ -990,20 +2166,65 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error obteniendo número de factura: {ex.Message}");
-                // Usar número de remito como fallback
             }
+
+            // ✅ CRÍTICO: Normalizar el tipo de comprobante
+            string tipoComprobanteNormalizado = "REMITO"; // Por defecto
+
+            if (!string.IsNullOrEmpty(datos.TipoFactura))
+            {
+                string tipoOriginal = datos.TipoFactura.Trim();
+
+                System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] Tipo original desde BD: '{tipoOriginal}'");
+
+                // Mapear todos los posibles valores a los tipos estándar
+                if (tipoOriginal.Equals("FacturaA", StringComparison.OrdinalIgnoreCase) ||
+                    tipoOriginal.Equals("Factura A", StringComparison.OrdinalIgnoreCase))
+                {
+                    tipoComprobanteNormalizado = "FacturaA";
+                }
+                else if (tipoOriginal.Equals("FacturaB", StringComparison.OrdinalIgnoreCase) ||
+                         tipoOriginal.Equals("Factura B", StringComparison.OrdinalIgnoreCase))
+                {
+                    tipoComprobanteNormalizado = "FacturaB";
+                }
+                else if (tipoOriginal.Equals("FacturaC", StringComparison.OrdinalIgnoreCase) ||
+                         tipoOriginal.Equals("Factura C", StringComparison.OrdinalIgnoreCase))
+                {
+                    tipoComprobanteNormalizado = "FacturaC";
+                }
+                else if (tipoOriginal.Equals("Remito", StringComparison.OrdinalIgnoreCase) ||
+                         tipoOriginal.Equals("RemitoTicket", StringComparison.OrdinalIgnoreCase) ||
+                         tipoOriginal.Equals("Ticket", StringComparison.OrdinalIgnoreCase))
+                {
+                    tipoComprobanteNormalizado = "REMITO";
+                }
+                else
+                {
+                    // Si no coincide con ninguno conocido, usar REMITO por seguridad
+                    System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ⚠️ Tipo no reconocido: '{tipoOriginal}', usando REMITO");
+                    tipoComprobanteNormalizado = "REMITO";
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Tipo normalizado: '{tipoComprobanteNormalizado}'");
+            System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Número comprobante: '{numeroComprobanteFinal}'");
+            System.Diagnostics.Debug.WriteLine($"[IMPRESIÓN] ✅ Descuento: {porcentajeDescuento}% ({importeDescuento:C2})");
 
             return new TicketConfig
             {
                 NombreComercio = datos.NombreComercio,
                 DomicilioComercio = datos.DomicilioComercio,
-                TipoComprobante = datos.TipoFactura ?? "REMITO",
-                NumeroComprobante = numeroComprobanteFinal, // Solo el número correcto
+                TipoComprobante = tipoComprobanteNormalizado,  // ✅ USAR TIPO NORMALIZADO
+                NumeroComprobante = numeroComprobanteFinal,
                 FormaPago = datos.FormaPago,
                 CAE = datos.CAENumero,
                 CAEVencimiento = datos.CAEVencimiento,
                 CUIT = datos.CUITCliente,
-                MensajePie = "¡Gracias por su compra!"
+                MensajePie = "¡Gracias por su compra!",
+                PorcentajeDescuento = porcentajeDescuento,
+                ImporteDescuento = importeDescuento,
+                ImporteFinal = importeFinal
             };
         }
 
@@ -1145,22 +2366,22 @@ namespace Comercio.NET.Formularios
                 {
                     // CORREGIDO: Usar el nombre correcto de la columna
                     var query = @"
-                        SELECT 
-                            codigo as 'Código',
-                            descripcion as 'Producto',
-                            cantidad as 'Cantidad',
-                            precio as 'Precio Unit.',
-                            total as 'Total'
-                        FROM Ventas 
-                        WHERE NroFactura = @nroFactura
-                        ORDER BY descripcion";
+                SELECT 
+                    codigo as 'Código',
+                    descripcion as 'Producto',
+                    cantidad as 'Cantidad',
+                    precio as 'Precio Unit.',
+                    total as 'Total'
+                FROM Ventas 
+                WHERE NroFactura = @nroFactura
+                ORDER BY descripcion";
 
                     using (var adapter = new SqlDataAdapter(query, connection))
                     {
                         adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
                         DataTable dt = new DataTable();
                         adapter.Fill(dt);
-                        
+
                         // Buscar el DataGridView en la ventana flotante
                         var dgvDetalle = frmDetalle.Controls.Find("dgvDetalle", true).FirstOrDefault() as DataGridView;
                         if (dgvDetalle != null)
@@ -1171,7 +2392,10 @@ namespace Comercio.NET.Formularios
 
                         // Actualizar totales
                         ActualizarTotalesDetalle(dt);
-                        
+
+                        // NUEVO: Actualizar detalle de formas de pago para este remito/factura
+                        ActualizarFormasPagoDetalle(nroFactura);
+
                         // Actualizar el título de la ventana con información adicional
                         ActualizarTituloDetalle(nroFactura);
                     }
@@ -1179,10 +2403,76 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al cargar el detalle de la factura: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al cargar el detalle de la factura: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private void ActualizarFormasPagoDetalle(string nroFactura)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                var lista = new List<string>();
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"
+                SELECT ISNULL(MedioPago, '(No especificado)') AS MedioPago, SUM(ISNULL(Importe,0)) AS Importe
+                FROM DetallesPagoFactura
+                WHERE NumeroRemito = @numeroRemito
+                GROUP BY MedioPago
+                ORDER BY MedioPago";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroRemito", nroFactura);
+                        connection.Open();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string medio = reader["MedioPago"]?.ToString() ?? "(No especificado)";
+                                decimal importe = reader["Importe"] != DBNull.Value ? Convert.ToDecimal(reader["Importe"]) : 0m;
+                                lista.Add($"{medio}: {importe:C2}");
+                            }
+                        }
+                    }
+                }
+
+                var lblDetalleFormasPagoDetalle = frmDetalle.Controls.Find("lblDetalleFormasPagoDetalle", true).FirstOrDefault() as Label;
+                if (lblDetalleFormasPagoDetalle != null)
+                {
+                    // Si hay muchas formas, separar en varias líneas para que quepan mejor
+                    if (lista.Count == 0)
+                    {
+                        lblDetalleFormasPagoDetalle.Text = "";
+                    }
+                    else if (lista.Count <= 3)
+                    {
+                        // agrupar en una sola línea con separador
+                        lblDetalleFormasPagoDetalle.Text = string.Join("  |  ", lista);
+                    }
+                    else
+                    {
+                        // más de 3 formas: mostrar cada una en nueva línea
+                        lblDetalleFormasPagoDetalle.Text = string.Join(Environment.NewLine, lista);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error ActualizarFormasPagoDetalle: {ex.Message}");
+                var lblDetalleFormasPagoDetalle = frmDetalle.Controls.Find("lblDetalleFormasPagoDetalle", true).FirstOrDefault() as Label;
+                if (lblDetalleFormasPagoDetalle != null)
+                    lblDetalleFormasPagoDetalle.Text = "";
+            }
+        }
+
 
         // AGREGAR: Método para formatear columnas del DataGridView de detalle
         private void FormatearColumnasDetalle(DataGridView dgvDetalle)
@@ -1339,7 +2629,7 @@ namespace Comercio.NET.Formularios
 
                                 frmDetalle.Text = titulo;
                             }
-                            else
+ else
                             {
                                 frmDetalle.Text = $"Detalle de Comprobante N° {nroFactura}";
                             }
@@ -1415,43 +2705,73 @@ namespace Comercio.NET.Formularios
         {
             if (dgvVentas.Columns.Count == 0) return;
 
-            // CAMBIO: Usar None temporalmente para configuración manual
             var originalAutoSizeMode = dgvVentas.AutoSizeColumnsMode;
             dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
             try
             {
-                // COLUMNAS FIJAS (primeras columnas - no se redimensionan)
+                // COLUMNAS FIJAS
                 var remitoCol = dgvVentas.Columns["Remito"];
                 if (remitoCol != null)
                 {
-                    remitoCol.Width = 60;
+                    remitoCol.Width = 80;
                     remitoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     remitoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    remitoCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var facturaCol = dgvVentas.Columns["N° Factura"];
                 if (facturaCol != null)
                 {
                     facturaCol.Width = 100;
-                    facturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    facturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                     facturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    facturaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // Columna Importe
-                var importeCol = dgvVentas.Columns["Importe"];
-                if (importeCol != null)
+                // ✅ MODIFICADO: Aumentar ancho de "Total Final" (era 100, ahora 120)
+                var importeFinalCol = dgvVentas.Columns["Importe Final"];
+                if (importeFinalCol != null)
                 {
-                    importeCol.Width = 100;
-                    importeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                    importeCol.DefaultCellStyle.Format = "C2";
-                    importeCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    importeCol.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69); // Verde para importe
-                    importeCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                    importeCol.HeaderText = "Importe";
+                    importeFinalCol.Width = 140; // ✅ CAMBIO: de 100 a 120
+                    importeFinalCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    importeFinalCol.DefaultCellStyle.Format = "C2";
+                    importeFinalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    importeFinalCol.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
+                    importeFinalCol.DefaultCellStyle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+                    importeFinalCol.HeaderCell.Style.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+                    importeFinalCol.HeaderText = "Total Final";
                 }
 
-                // NUEVO: Columna IVA
+                // Columna % Descuento
+                var porcentajeDescCol = dgvVentas.Columns["% Descuento"];
+                if (porcentajeDescCol != null)
+                {
+                    porcentajeDescCol.Width = 70;
+                    porcentajeDescCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    porcentajeDescCol.DefaultCellStyle.Format = "N2";
+                    porcentajeDescCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    porcentajeDescCol.DefaultCellStyle.ForeColor = Color.FromArgb(255, 152, 0);
+                    porcentajeDescCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                    porcentajeDescCol.HeaderText = "% Desc";
+                    porcentajeDescCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                // Columna Descuento
+                var descuentoCol = dgvVentas.Columns["Descuento"];
+                if (descuentoCol != null)
+                {
+                    descuentoCol.Width = 80;
+                    descuentoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    descuentoCol.DefaultCellStyle.Format = "C2";
+                    descuentoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    descuentoCol.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69);
+                    descuentoCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                    descuentoCol.HeaderText = "Descuento";
+                    descuentoCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                // Columna IVA
                 var ivaCol = dgvVentas.Columns["IVA"];
                 if (ivaCol != null)
                 {
@@ -1459,12 +2779,13 @@ namespace Comercio.NET.Formularios
                     ivaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     ivaCol.DefaultCellStyle.Format = "C2";
                     ivaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    ivaCol.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69); // Rojo para IVA
+                    ivaCol.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69);
                     ivaCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                     ivaCol.HeaderText = "IVA";
+                    ivaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // NUEVO: Columna Subtotal
+                // Columna Subtotal
                 var subtotalCol = dgvVentas.Columns["Subtotal"];
                 if (subtotalCol != null)
                 {
@@ -1472,9 +2793,10 @@ namespace Comercio.NET.Formularios
                     subtotalCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     subtotalCol.DefaultCellStyle.Format = "C2";
                     subtotalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    subtotalCol.DefaultCellStyle.ForeColor = Color.FromArgb(108, 117, 125); // Gris para subtotal
+                    subtotalCol.DefaultCellStyle.ForeColor = Color.FromArgb(108, 117, 125);
                     subtotalCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
                     subtotalCol.HeaderText = "Subtotal";
+                    subtotalCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 // Columna Cajero
@@ -1484,6 +2806,7 @@ namespace Comercio.NET.Formularios
                     cajeroCol.Width = 60;
                     cajeroCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     cajeroCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    cajeroCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var fechaCol = dgvVentas.Columns["Fecha"];
@@ -1491,94 +2814,254 @@ namespace Comercio.NET.Formularios
                 {
                     fechaCol.DefaultCellStyle.Format = "dd/MM/yyyy";
                     fechaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    fechaCol.Width = 70;
+                    fechaCol.Width = 80;
                     fechaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    fechaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var horaCol = dgvVentas.Columns["Hora"];
                 if (horaCol != null)
                 {
-                    horaCol.Width = 50;
+                    horaCol.Width = 60;
                     horaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                     horaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     horaCol.DefaultCellStyle.Format = "HH:mm";
+                    horaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                // COLUMNAS QUE SE REDIMENSIONAN (resto de columnas)
+                // ✅ MODIFICADO: Reducir ancho de "Forma de Pago" (era Fill con FillWeight 120, ahora ancho fijo 90)
                 var formaPagoCol = dgvVentas.Columns["Forma de Pago"];
                 if (formaPagoCol != null)
                 {
+                    formaPagoCol.Width = 110; // ✅ CAMBIO: de Fill a ancho fijo de 90
+                    formaPagoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // ✅ CAMBIO: de Fill a None
                     formaPagoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    formaPagoCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    formaPagoCol.FillWeight = 120; // Reducido para hacer espacio al IVA
+                    formaPagoCol.HeaderText = "Forma/Pago";
+                    formaPagoCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var tipoFacturaCol = dgvVentas.Columns["Tipo"];
                 if (tipoFacturaCol != null)
                 {
                     tipoFacturaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    tipoFacturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    tipoFacturaCol.FillWeight = 80; // Reducido
+                    tipoFacturaCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    tipoFacturaCol.FillWeight = 80;
+                    tipoFacturaCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
+                // ✅ MODIFICADO: Reducir ancho de "CAE" (era Fill con FillWeight 100, ahora ancho fijo 70)
                 var caeCol = dgvVentas.Columns["CAE"];
                 if (caeCol != null)
                 {
+                    caeCol.Width = 110; // ✅ CAMBIO: de Fill a ancho fijo de 70
+                    caeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; // ✅ CAMBIO: de Fill a None
                     caeCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    caeCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    caeCol.FillWeight = 100; // Reducido
+                    caeCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
-                var cuitCol = dgvVentas.Columns["CUIT Cliente"];
-                if (cuitCol != null)
-                {
-                    cuitCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    cuitCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    cuitCol.FillWeight = 100; // Reducido
-                }
-
-                // Columna dinámica para Cuenta Corriente
                 var ctaCteCol = dgvVentas.Columns["Cta. Cte. Nombre"];
                 if (ctaCteCol != null)
                 {
                     ctaCteCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
                     ctaCteCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                    ctaCteCol.FillWeight = 120; // Reducido
+                    ctaCteCol.FillWeight = 120;
+                    ctaCteCol.HeaderText = "CC.Nombre";
+                    ctaCteCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                var proveedorCol = dgvVentas.Columns["Proveedor"];
+                if (proveedorCol != null)
+                {
+                    proveedorCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                    proveedorCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    proveedorCol.FillWeight = 100;
+                    proveedorCol.HeaderText = "Proveedor";
+                    proveedorCol.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    proveedorCol.Visible = false; // ✅ Ocultar por defecto si no quieres mostrarla en la grilla
                 }
             }
             finally
             {
-                // CAMBIO: Mantener el modo None para respetar las configuraciones individuales
-                dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+                //dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.None;
             }
         }
 
         // AGREGAR: Método para actualizar resumen en el panel principal
+        // ✅ CORREGIDO: Actualizar formas de pago DESPUÉS de procesarlas
         private void ActualizarResumen(DataTable dt)
         {
             try
             {
                 int cantidadVentas = dt.Rows.Count;
+                int cantidadVentasValidas = 0;
                 decimal totalVentas = 0;
                 decimal totalIVA = 0;
                 decimal subtotalSinIVA = 0;
-                
-                // Diccionarios para contar tipos de factura y formas de pago
+                decimal totalDescuentos = 0;
+
+                decimal totalCarniceria = 0;
+                decimal totalVerduleria = 0;
+                decimal totalFiambreria = 0;
+                decimal totalPanaderia = 0;
+                decimal totalAlmacen = 0;
+
                 var tiposFactura = new Dictionary<string, int>();
                 var formasPago = new Dictionary<string, decimal>();
-
-                // Variables para debugging
                 int filasConErrores = 0;
                 var errores = new List<string>();
 
+                // ✅ MODIFICADO: Incluir facturas con cajero, DNI o MercadoPago
+                try
+                {
+                    var config = new ConfigurationBuilder()
+                        .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                        .AddJsonFile("appsettings.json")
+                        .Build();
+                    string connectionString = config.GetConnectionString("DefaultConnection");
+
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        var remitos = new List<string>();
+                        foreach (DataRow row in dt.Rows)
+                        {
+                            var cajero = row["Cajero"]?.ToString()?.Trim();
+                            var formaPago = row["Forma de Pago"]?.ToString()?.Trim();
+
+                            // ✅ CRÍTICO: Incluir si tiene cajero O si es DNI O si es MercadoPago
+                            bool esValida = !string.IsNullOrEmpty(cajero) ||
+                                            formaPago?.Equals("DNI", StringComparison.OrdinalIgnoreCase) == true ||
+                                            formaPago?.Equals("MercadoPago", StringComparison.OrdinalIgnoreCase) == true;
+
+                            if (!esValida)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[TOTALES] ⚠️ Factura EXCLUIDA (sin cajero, no es DNI ni MercadoPago): {row["Remito"]}");
+                                continue;
+                            }
+
+                            var remito = row["Remito"]?.ToString();
+                            if (!string.IsNullOrEmpty(remito))
+                            {
+                                remitos.Add(remito);
+                            }
+                        }
+
+                        cantidadVentasValidas = remitos.Count;
+
+                        if (remitos.Count > 0)
+                        {
+                            // Query para calcular IVA
+                            var queryIVA = $@"
+                        SELECT 
+                            SUM(CAST(v.total AS DECIMAL(18,2))) as TotalVentasProductos,
+                            SUM(CAST(v.total / (1 + (p.iva / 100.0)) AS DECIMAL(18,2))) as Subtotal,
+                            SUM(CAST(v.total - (v.total / (1 + (p.iva / 100.0))) AS DECIMAL(18,2))) as TotalIVA
+                        FROM Ventas v
+                        INNER JOIN Productos p ON v.codigo = p.codigo
+                        INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                        WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                        AND f.TipoFactura IN ('FacturaA', 'FacturaB')";
+
+                            using (var cmd = new SqlCommand(queryIVA, connection))
+                            {
+                                connection.Open();
+                                using (var reader = cmd.ExecuteReader())
+                                {
+                                    if (reader.Read())
+                                    {
+                                        totalIVA = reader["TotalIVA"] != DBNull.Value ? Convert.ToDecimal(reader["TotalIVA"]) : 0m;
+                                        subtotalSinIVA = reader["Subtotal"] != DBNull.Value ? Convert.ToDecimal(reader["Subtotal"]) : 0m;
+                                    }
+                                }
+                                connection.Close();
+                            }
+
+                            // Query para totales por rubro
+                            var queryRubros = $@"
+                        WITH VentasConTotal AS (
+                            SELECT 
+                                v.NroFactura,
+                                CASE 
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
+                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
+                                    ELSE 'Almacen'
+                                END as Rubro,
+                                CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
+                                SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
+                                CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                            FROM Ventas v
+                            INNER JOIN Productos p ON v.codigo = p.codigo
+                            INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                            WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                        )
+                        SELECT 
+                            Rubro,
+                            CAST(SUM(
+                                CASE 
+                                    WHEN TotalFacturaVentas > 0 
+                                    THEN (TotalProducto / TotalFacturaVentas) * ImporteFinalFactura
+                                    ELSE 0
+                                END
+                            ) AS DECIMAL(18,2)) AS Total
+                        FROM VentasConTotal
+                        GROUP BY Rubro";
+
+                            using (var cmd = new SqlCommand(queryRubros, connection))
+                            {
+                                connection.Open();
+                                using (var reader = cmd.ExecuteReader())
+                                {
+                                    while (reader.Read())
+                                    {
+                                        string rubro = reader["Rubro"]?.ToString() ?? "";
+                                        decimal total = reader["Total"] != DBNull.Value ? Convert.ToDecimal(reader["Total"]) : 0m;
+
+                                        switch (rubro)
+                                        {
+                                            case "Carniceria": totalCarniceria = total; break;
+                                            case "Verduleria": totalVerduleria = total; break;
+                                            case "Fiambreria": totalFiambreria = total; break;
+                                            case "Panaderia": totalPanaderia = total; break;
+                                            case "Almacen": totalAlmacen = total; break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[TOTALES] ⚠️ No hay facturas válidas para procesar");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error obteniendo IVA y totales por rubro: {ex.Message}");
+                }
+
+                // ✅ MODIFICADO: Procesar solo filas válidas (con cajero, DNI o MercadoPago)
                 foreach (DataRow row in dt.Rows)
                 {
                     try
                     {
+                        var cajero = row["Cajero"]?.ToString()?.Trim();
+                        var formaPago = row["Forma de Pago"]?.ToString()?.Trim();
+
+                        // ✅ CRÍTICO: Incluir si tiene cajero O si es DNI O si es MercadoPago
+                        bool esValida = !string.IsNullOrEmpty(cajero) ||
+                                        formaPago?.Equals("DNI", StringComparison.OrdinalIgnoreCase) == true ||
+                                        formaPago?.Equals("MercadoPago", StringComparison.OrdinalIgnoreCase) == true;
+
+                        if (!esValida)
+                        {
+                            continue; // Saltar facturas sin cajero, que no sean DNI ni MercadoPago
+                        }
+
                         // Procesar Importe Total
-                        object importeObj = row["Importe"];
+                        object importeObj = row["Importe Final"];
                         decimal importe = 0;
-                        
+
                         if (importeObj != null && importeObj != DBNull.Value)
                         {
                             if (importeObj is decimal decimalValue)
@@ -1589,7 +3072,7 @@ namespace Comercio.NET.Formularios
                             else
                             {
                                 string importeStr = importeObj.ToString().Trim();
-                                
+
                                 if (decimal.TryParse(importeStr, out importe))
                                 {
                                     totalVentas += importe;
@@ -1607,50 +3090,26 @@ namespace Comercio.NET.Formularios
                             }
                         }
 
-                        // NUEVO: Procesar IVA
-                        object ivaObj = row["IVA"];
-                        decimal iva = 0;
-                        
-                        if (ivaObj != null && ivaObj != DBNull.Value)
-                        {
-                            if (ivaObj is decimal ivaDecimalValue)
-                            {
-                                iva = ivaDecimalValue;
-                                totalIVA += iva;
-                            }
-                            else
-                            {
-                                string ivaStr = ivaObj.ToString().Trim();
-                                
-                                if (decimal.TryParse(ivaStr, out iva) ||
-                                    decimal.TryParse(ivaStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out iva) ||
-                                    decimal.TryParse(ivaStr, NumberStyles.Number, CultureInfo.InvariantCulture, out iva))
-                                {
-                                    totalIVA += iva;
-                                }
-                            }
-                        }
+                        // Procesar Descuento
+                        object descuentoObj = row["Descuento"];
+                        decimal descuento = 0;
 
-                        // NUEVO: Procesar Subtotal
-                        object subtotalObj = row["Subtotal"];
-                        decimal subtotal = 0;
-                        
-                        if (subtotalObj != null && subtotalObj != DBNull.Value)
+                        if (descuentoObj != null && descuentoObj != DBNull.Value)
                         {
-                            if (subtotalObj is decimal subtotalDecimalValue)
+                            if (descuentoObj is decimal descuentoDecimalValue)
                             {
-                                subtotal = subtotalDecimalValue;
-                                subtotalSinIVA += subtotal;
+                                descuento = descuentoDecimalValue;
+                                totalDescuentos += descuento;
                             }
                             else
                             {
-                                string subtotalStr = subtotalObj.ToString().Trim();
-                                
-                                if (decimal.TryParse(subtotalStr, out subtotal) ||
-                                    decimal.TryParse(subtotalStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out subtotal) ||
-                                    decimal.TryParse(subtotalStr, NumberStyles.Number, CultureInfo.InvariantCulture, out subtotal))
+                                string descuentoStr = descuentoObj.ToString().Trim();
+
+                                if (decimal.TryParse(descuentoStr, out descuento) ||
+                                    decimal.TryParse(descuentoStr, NumberStyles.Currency, CultureInfo.CurrentCulture, out descuento) ||
+                                    decimal.TryParse(descuentoStr, NumberStyles.Number, CultureInfo.InvariantCulture, out descuento))
                                 {
-                                    subtotalSinIVA += subtotal;
+                                    totalDescuentos += descuento;
                                 }
                             }
                         }
@@ -1662,12 +3121,17 @@ namespace Comercio.NET.Formularios
                         else
                             tiposFactura[tipoFactura] = 1;
 
+                        // ✅ CRÍTICO: Normalizar nombre de forma de pago (puede venir con espacios o mayúsculas)
+                        string formaPagoNormalizada = formaPago ?? "No especificado";
+
                         // Sumar por formas de pago
-                        string formaPago = row["Forma de Pago"]?.ToString()?.Trim() ?? "Sin especificar";
-                        if (formasPago.ContainsKey(formaPago))
-                            formasPago[formaPago] += importe;
+                        if (formasPago.ContainsKey(formaPagoNormalizada))
+                            formasPago[formaPagoNormalizada] += importe;
                         else
-                            formasPago[formaPago] = importe;
+                            formasPago[formaPagoNormalizada] = importe;
+
+                        // ✅ DEBUG: Verificar que se está sumando correctamente
+                        System.Diagnostics.Debug.WriteLine($"[FORMAS PAGO] {formaPagoNormalizada}: +{importe:C2} = {formasPago[formaPagoNormalizada]:C2}");
                     }
                     catch (Exception rowEx)
                     {
@@ -1676,11 +3140,34 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // Actualizar labels principales
-                lblCantidadVentas.Text = $"Ventas: {cantidadVentas}";
-                lblTotal.Text = $"Total: {totalVentas:C2}";
-                
-                // NUEVO: Actualizar labels de IVA y Subtotal
+                // ✅ DEBUG: Mostrar resumen de formas de pago procesadas
+                System.Diagnostics.Debug.WriteLine($"[TOTALES] === RESUMEN FORMAS DE PAGO ===");
+                foreach (var fp in formasPago)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  {fp.Key}: {fp.Value:C2}");
+                }
+
+                // Actualizar labels
+                if (cantidadVentasValidas < cantidadVentas)
+                {
+                    int facturasExcluidas = cantidadVentas - cantidadVentasValidas;
+                    lblCantidadVentas.Text = $"Ventas: {cantidadVentasValidas} ({facturasExcluidas} excl.)";
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] ℹ️ {facturasExcluidas} facturas excluidas (sin cajero, no DNI ni MercadoPago)");
+                }
+                else
+                {
+                    lblCantidadVentas.Text = $"Ventas: {cantidadVentasValidas}";
+                }
+
+                if (totalDescuentos > 0)
+                {
+                    lblTotal.Text = $"Total Final: {totalVentas:C2}\n(Desc: {totalDescuentos:C2})";
+                }
+                else
+                {
+                    lblTotal.Text = $"Total Final: {totalVentas:C2}";
+                }
+
                 var lblTotalIVA = this.Controls.Find("lblTotalIVA", true).FirstOrDefault() as Label;
                 if (lblTotalIVA != null)
                     lblTotalIVA.Text = $"IVA Total: {totalIVA:C2}";
@@ -1689,17 +3176,57 @@ namespace Comercio.NET.Formularios
                 if (lblSubtotalSinIVA != null)
                     lblSubtotalSinIVA.Text = $"Subtotal sin IVA: {subtotalSinIVA:C2}";
 
-                // Actualizar detalle de tipos de factura
-                string detalleTipos = string.Join(" | ", 
+                lblTotalCarniceria.Text = $"🥩 Carnicería: {totalCarniceria:C2}";
+                lblTotalVerduleria.Text = $"🥕 Verdulería: {totalVerduleria:C2}";
+                lblTotalFiambreria.Text = $"🧀 Fiambrería: {totalFiambreria:C2}";
+                lblTotalPanaderia.Text = $"🍞 Panadería: {totalPanaderia:C2}";
+                lblTotalAlmacen.Text = $"🛒 Almacén: {totalAlmacen:C2}";
+
+                string detalleTipos = string.Join(" | ",
                     tiposFactura.Select(kv => $"{kv.Key}: {kv.Value}"));
                 lblDetalleTiposFactura.Text = detalleTipos;
 
-                // Actualizar detalle de formas de pago
-                string detalleFormas = string.Join(" | ", 
-                    formasPago.Select(kv => $"{kv.Key}: {kv.Value:C2}"));
-                lblDetalleFormasPago.Text = detalleFormas;
+                // ✅ CRÍTICO: Formatear formas de pago DESPUÉS de llenar el diccionario
+                if (formasPago.Count == 0)
+                {
+                    lblDetalleFormasPago.Text = "";
+                    System.Diagnostics.Debug.WriteLine("[TOTALES] ⚠️ No hay formas de pago para mostrar");
+                }
+                else if (formasPago.Count > 3)
+                {
+                    var lineas = new List<string>();
+                    var pagosPorLinea = 2; // Mostrar 2 formas de pago por línea
+                    var formasList = formasPago.ToList();
 
-                // Debug información
+                    for (int i = 0; i < formasList.Count; i += pagosPorLinea)
+                    {
+                        var grupo = formasList.Skip(i).Take(pagosPorLinea)
+                            .Select(kv => $"{kv.Key}: {kv.Value:C2}");
+                        lineas.Add(string.Join(" | ", grupo));
+                    }
+
+                    lblDetalleFormasPago.Text = string.Join("\n", lineas);
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] ✅ Formas de pago en {lineas.Count} líneas: {string.Join(" / ", lineas)}");
+
+                    // ✅ NUEVO: Debug adicional para verificar el label
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Text = '{lblDetalleFormasPago.Text}'");
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Visible = {lblDetalleFormasPago.Visible}");
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Height = {lblDetalleFormasPago.Height}");
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Location = {lblDetalleFormasPago.Location}");
+                }
+                else
+                {
+                    lblDetalleFormasPago.Text = string.Join(" | ",
+                        formasPago.Select(kv => $"{kv.Key}: {kv.Value:C2}"));
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] ✅ Formas de pago en 1 línea: {lblDetalleFormasPago.Text}");
+
+                    // ✅ NUEVO: Debug adicional para verificar el label
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Text = '{lblDetalleFormasPago.Text}'");
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Visible = {lblDetalleFormasPago.Visible}");
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Height = {lblDetalleFormasPago.Height}");
+                    System.Diagnostics.Debug.WriteLine($"[TOTALES] 📊 Label.Location = {lblDetalleFormasPago.Location}");
+                }
+
                 if (filasConErrores > 0)
                 {
                     System.Diagnostics.Debug.WriteLine($"ADVERTENCIA: {filasConErrores} filas con errores en ActualizarResumen:");
@@ -1708,47 +3235,35 @@ namespace Comercio.NET.Formularios
                         System.Diagnostics.Debug.WriteLine($"  - {error}");
                     }
                 }
-                
-                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentas} ventas, Total: {totalVentas:C2}, IVA: {totalIVA:C2}, Subtotal: {subtotalSinIVA:C2}, Errores: {filasConErrores}");
+
+                System.Diagnostics.Debug.WriteLine($"ActualizarResumen: {cantidadVentasValidas} ventas válidas, Total: {totalVentas:C2}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error en ActualizarResumen: {ex.Message}");
-                
-                // En caso de error, mostrar valores por defecto
-                lblCantidadVentas.Text = "Ventas: 0";
-                lblTotal.Text = "Total: $0,00";
-                
-                var lblTotalIVA = this.Controls.Find("lblTotalIVA", true).FirstOrDefault() as Label;
-                if (lblTotalIVA != null)
-                    lblTotalIVA.Text = "IVA Total: $0,00";
 
-                var lblSubtotalSinIVA = this.Controls.Find("lblSubtotalSinIVA", true).FirstOrDefault() as Label;
-                if (lblSubtotalSinIVA != null)
-                    lblSubtotalSinIVA.Text = "Subtotal sin IVA: $0,00";
-                
-                lblDetalleTiposFactura.Text = "Error calculando tipos";
-                lblDetalleFormasPago.Text = "Error calculando formas de pago";
-                
-                MessageBox.Show($"❌ Error calculando totales:\n{ex.Message}", 
-                       "Error Cálculo Totales", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                lblCantidadVentas.Text = "Ventas: 0";
+                lblTotal.Text = "Total Final: $0,00";
+                lblDetalleTiposFactura.Text = "";
+                lblDetalleFormasPago.Text = "";
             }
         }
+
 
         // AGREGAR: Event handler para el botón de auditoría de eliminados
         private void BtnAuditoriaEliminados_Click(object sender, EventArgs e)
         {
             try
             {
-                // TODO: Implementar la ventana de auditoría de eliminados
-                using (var consultaForm = new ConsultaAuditoriaEliminados())
+                // ✅ MODIFICADO: Pasar el rango de fechas actual al formulario de auditoría
+                using (var consultaForm = new ConsultaAuditoriaEliminados(dtpDesde.Value.Date, dtpHasta.Value.Date))
                 {
                     consultaForm.ShowDialog(this);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al abrir la consulta de auditoría: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1758,18 +3273,1240 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                // TODO: Implementar la ventana de resumen de IVA
-                using (var resumenForm = new ResumenIvaForm(dtpFecha.Value.Date, chkCtaCte.Checked))
+                // Abrir el resumen de IVA usando el rango seleccionado (desde → hasta)
+                using (var resumenForm = new ResumenIvaForm(dtpDesde.Value.Date, dtpHasta.Value.Date, chkCtaCte.Checked))
                 {
                     resumenForm.ShowDialog(this);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al abrir el resumen de IVA: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al abrir el resumen de IVA: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        
+
+        
+
+        
+        // ✅ NUEVO: Event handler para Exportar Listado
+        private void BtnExportarListado_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (dgvVentas.Rows.Count == 0)
+                {
+                    MessageBox.Show("No hay datos para exportar.",
+                        "Sin datos", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Mostrar diálogo de opciones
+                using (var dialogoOpciones = new Form())
+                {
+                    dialogoOpciones.Text = "Exportar Listado de Facturas";
+                    dialogoOpciones.Size = new Size(400, 200);
+                    dialogoOpciones.StartPosition = FormStartPosition.CenterParent;
+                    dialogoOpciones.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    dialogoOpciones.MaximizeBox = false;
+                    dialogoOpciones.MinimizeBox = false;
+
+                    var lblPregunta = new Label
+                    {
+                        Text = "Seleccione el formato de exportación:",
+                        Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                        Location = new Point(20, 20),
+                        AutoSize = true
+                    };
+
+                    var btnExcel = new Button
+                    {
+                        Text = "📊 Exportar a Excel",
+                        BackColor = Color.FromArgb(33, 150, 83),
+                        ForeColor = Color.White,
+                        FlatStyle = FlatStyle.Flat,
+                        Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                        Size = new Size(160, 40),
+                        Location = new Point(20, 60)
+                    };
+
+                    var btnPDF = new Button
+                    {
+                        Text = "📄 Exportar a PDF",
+                        BackColor = Color.FromArgb(220, 53, 69),
+                        ForeColor = Color.White,
+                        FlatStyle = FlatStyle.Flat,
+                        Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                        Size = new Size(160, 40),
+                        Location = new Point(200, 60)
+                    };
+
+                    var btnImprimir = new Button
+                    {
+                        Text = "🖨️ Imprimir Listado",
+                        BackColor = Color.FromArgb(0, 120, 215),
+                        ForeColor = Color.White,
+                        FlatStyle = FlatStyle.Flat,
+                        Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                        Size = new Size(340, 40),
+                        Location = new Point(20, 110)
+                    };
+
+                    btnExcel.Click += (s, args) =>
+                    {
+                        ExportarAExcel();
+                        dialogoOpciones.Close();
+                    };
+
+                    btnPDF.Click += (s, args) =>
+                    {
+                        ExportarAPDF();
+                        dialogoOpciones.Close();
+                    };
+
+                    btnImprimir.Click += (s, args) =>
+                    {
+                        ImprimirListado();
+                        dialogoOpciones.Close();
+                    };
+
+                    dialogoOpciones.Controls.Add(lblPregunta);
+                    dialogoOpciones.Controls.Add(btnExcel);
+                    dialogoOpciones.Controls.Add(btnPDF);
+                    dialogoOpciones.Controls.Add(btnImprimir);
+
+                    dialogoOpciones.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al exportar listado: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Exportar a Excel
+        private void ExportarAExcel()
+        {
+            try
+            {
+                using (var saveDialog = new SaveFileDialog())
+                {
+                    saveDialog.Filter = "Archivos Excel (*.csv)|*.csv";
+                    saveDialog.FileName = $"Facturas_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                    saveDialog.Title = "Guardar listado como CSV (Excel)";
+
+                    if (saveDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        var sb = new System.Text.StringBuilder();
+
+                        // ✅ Encabezados - EXCLUIR "Fecha" y RENOMBRAR "Hora" a "Fecha"
+                        var headers = new List<string>();
+                        foreach (DataGridViewColumn col in dgvVentas.Columns)
+                        {
+                            if (col.Visible)
+                            {
+                                // ✅ EXCLUIR columna "Fecha"
+                                if (col.HeaderText == "Fecha")
+                                    continue;
+
+                                // ✅ RENOMBRAR "Hora" a "Fecha"
+                                string headerText = col.HeaderText == "Hora" ? "Fecha" : col.HeaderText;
+                                headers.Add($"\"{headerText}\"");
+                            }
+                        }
+                        sb.AppendLine(string.Join(",", headers));
+
+                        // ✅ Datos - EXCLUIR columna "Fecha"
+                        foreach (DataGridViewRow row in dgvVentas.Rows)
+                        {
+                            if (row.IsNewRow) continue;
+
+                            var cells = new List<string>();
+                            foreach (DataGridViewColumn col in dgvVentas.Columns)
+                            {
+                                if (col.Visible)
+                                {
+                                    // ✅ EXCLUIR columna "Fecha"
+                                    if (col.HeaderText == "Fecha")
+                                        continue;
+
+                                    var value = row.Cells[col.Index].Value?.ToString() ?? "";
+
+                                    // ✅ FORMATEAR columna "Hora" con fecha completa
+                                    if (col.HeaderText == "Hora" && row.Cells["Fecha"] != null)
+                                    {
+                                        try
+                                        {
+                                            // Combinar Fecha + Hora para exportar
+                                            var fecha = row.Cells["Fecha"].Value;
+                                            var hora = row.Cells["Hora"].Value;
+
+                                            if (fecha != null && fecha != DBNull.Value &&
+                                                hora != null && hora != DBNull.Value)
+                                            {
+                                                DateTime fechaDt = Convert.ToDateTime(fecha);
+                                                TimeSpan horaDt = hora is TimeSpan ts ? ts : TimeSpan.Parse(hora.ToString());
+
+                                                var fechaCompleta = fechaDt.Date.Add(horaDt);
+                                                value = fechaCompleta.ToString("dd/MM/yyyy HH:mm");
+                                            }
+                                        }
+                                        catch
+                                        {
+                                            // Si hay error, usar el valor original
+                                        }
+                                    }
+
+                                    cells.Add($"\"{value.Replace("\"", "\"\"")}\"");
+                                }
+                            }
+                            sb.AppendLine(string.Join(",", cells));
+                        }
+
+                        System.IO.File.WriteAllText(saveDialog.FileName, sb.ToString(), System.Text.Encoding.UTF8);
+
+                        MessageBox.Show($"Listado exportado correctamente a:\n{saveDialog.FileName}",
+                            "Exportación exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Abrir el archivo
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = saveDialog.FileName,
+                            UseShellExecute = true
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al exportar a Excel: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Exportar a PDF
+        private void ExportarAPDF()
+        {
+            try
+            {
+                using (var saveDialog = new SaveFileDialog())
+                {
+                    saveDialog.Filter = "Archivos PDF (*.pdf)|*.pdf";
+                    saveDialog.FileName = $"Facturas_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                    saveDialog.Title = "Guardar listado como PDF";
+
+                    if (saveDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        // ⚠️ NOTA: Para generar PDF necesitarás una librería como iTextSharp o QuestPDF
+                        // Por ahora, exportamos como HTML que se puede imprimir a PDF
+                        var html = GenerarHTMLListado();
+                        var htmlFile = saveDialog.FileName.Replace(".pdf", ".html");
+
+                        System.IO.File.WriteAllText(htmlFile, html, System.Text.Encoding.UTF8);
+
+                        MessageBox.Show($"Listado exportado como HTML:\n{htmlFile}\n\nPuede abrirlo en el navegador e imprimir como PDF.",
+                            "Exportación exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Abrir el archivo HTML
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = htmlFile,
+                            UseShellExecute = true
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al exportar a PDF: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Generar HTML del listado
+        private string GenerarHTMLListado()
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine("<!DOCTYPE html>");
+            sb.AppendLine("<html><head><meta charset='utf-8'>");
+            sb.AppendLine("<title>Listado de Facturas</title>");
+            sb.AppendLine("<style>");
+            sb.AppendLine("body { font-family: Arial, sans-serif; margin: 20px; }");
+            sb.AppendLine("h1 { color: #0078d7; text-align: center; }");
+            sb.AppendLine("table { width: 100%; border-collapse: collapse; margin-top: 20px; }");
+            sb.AppendLine("th { background-color: #0078d7; color: white; padding: 10px; text-align: left; }");
+            sb.AppendLine("td { border: 1px solid #ddd; padding: 8px; }");
+            sb.AppendLine("tr:nth-child(even) { background-color: #f2f2f2; }");
+            sb.AppendLine(".total { font-weight: bold; background-color: #e3f2fd; }");
+            sb.AppendLine("@media print { .no-print { display: none; } }");
+            sb.AppendLine("</style></head><body>");
+
+            // Título
+            DateTime inicio = dtpDesde.Value.Date;
+            DateTime fin = dtpHasta.Value.Date;
+            sb.AppendLine($"<h1>Listado de Facturas - {inicio:dd/MM/yyyy} al {fin:dd/MM/yyyy}</h1>");
+            sb.AppendLine($"<p><strong>Generado:</strong> {DateTime.Now:dd/MM/yyyy HH:mm:ss}</p>");
+
+            // Tabla
+            sb.AppendLine("<table>");
+            sb.AppendLine("<thead><tr>");
+
+            // ✅ Encabezados - EXCLUIR "Fecha" y RENOMBRAR "Hora"
+            foreach (DataGridViewColumn col in dgvVentas.Columns)
+            {
+                if (col.Visible)
+                {
+                    // ✅ EXCLUIR columna "Fecha"
+                    if (col.HeaderText == "Fecha")
+                        continue;
+
+                    // ✅ RENOMBRAR "Hora" a "Fecha"
+                    string headerText = col.HeaderText == "Hora" ? "Fecha" : col.HeaderText;
+                    sb.AppendLine($"<th>{headerText}</th>");
+                }
+            }
+            sb.AppendLine("</tr></thead><tbody>");
+
+            // ✅ Datos - EXCLUIR columna "Fecha"
+            foreach (DataGridViewRow row in dgvVentas.Rows)
+            {
+                if (row.IsNewRow) continue;
+                sb.AppendLine("<tr>");
+
+                foreach (DataGridViewColumn col in dgvVentas.Columns)
+                {
+                    if (col.Visible)
+                    {
+                        // ✅ EXCLUIR columna "Fecha"
+                        if (col.HeaderText == "Fecha")
+                            continue;
+
+                        var value = row.Cells[col.Index].Value?.ToString() ?? "";
+
+                        // ✅ FORMATEAR columna "Hora" con fecha completa
+                        if (col.HeaderText == "Hora" && row.Cells["Fecha"] != null)
+                        {
+                            try
+                            {
+                                var fecha = row.Cells["Fecha"].Value;
+                                var hora = row.Cells["Hora"].Value;
+
+                                if (fecha != null && fecha != DBNull.Value &&
+                                    hora != null && hora != DBNull.Value)
+                                {
+                                    DateTime fechaDt = Convert.ToDateTime(fecha);
+                                    TimeSpan horaDt = hora is TimeSpan ts ? ts : TimeSpan.Parse(hora.ToString());
+
+                                    var fechaCompleta = fechaDt.Date.Add(horaDt);
+                                    value = fechaCompleta.ToString("dd/MM/yyyy HH:mm");
+                                }
+                            }
+                            catch
+                            {
+                                // Si hay error, usar el valor original
+                            }
+                        }
+
+                        sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(value)}</td>");
+                    }
+                }
+                sb.AppendLine("</tr>");
+            }
+
+            sb.AppendLine("</tbody></table>");
+
+            // Resumen
+            sb.AppendLine("<div style='margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;'>");
+            sb.AppendLine($"<h3>Resumen</h3>");
+            sb.AppendLine($"<p><strong>Total de ventas:</strong> {lblCantidadVentas.Text}</p>");
+            sb.AppendLine($"<p><strong>{lblTotal.Text}</strong></p>");
+            sb.AppendLine("</div>");
+
+            sb.AppendLine("</body></html>");
+
+            return sb.ToString();
+        }
+
+        // ✅ NUEVO: Imprimir listado directamente
+        private void ImprimirListado()
+        {
+            try
+            {
+                // Generar HTML temporal
+                var html = GenerarHTMLListado();
+                var tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"Facturas_{DateTime.Now:yyyyMMdd_HHmmss}.html");
+
+                System.IO.File.WriteAllText(tempFile, html, System.Text.Encoding.UTF8);
+
+                // Abrir en navegador para imprimir
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = tempFile,
+                    UseShellExecute = true
+                });
+
+                MessageBox.Show("Se abrió el listado en el navegador.\nUse Ctrl+P para imprimir.",
+                    "Impresión", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al imprimir listado: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ========================================
+        // 🆕 NUEVAS FUNCIONALIDADES DEL MODAL
+        // ========================================
+
+        // ✅ FUNCIONALIDAD 1: Modificar Medio de Pago
+        private Button btnModificarMedioPago;
+
+        private void AgregarBotonesModalDetalle()
+        {
+            // Buscar el panel de botones en el modal
+            var panelBotones = frmDetalle.Controls.OfType<Panel>()
+                .FirstOrDefault(p => p.Dock == DockStyle.Bottom && p.Height == 50);
+
+            if (panelBotones == null)
+            {
+                System.Diagnostics.Debug.WriteLine("⚠️ No se encontró el panel de botones en el modal");
+                return;
+            }
+
+            // ✅ BOTÓN: Modificar Medio de Pago
+            btnModificarMedioPago = new Button
+            {
+                Text = "💳 Modificar Pago",
+                Name = "btnModificarMedioPago",
+                BackColor = Color.FromArgb(255, 193, 7),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Size = new Size(155, 30),
+                Location = new Point(20, 10),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
+                Cursor = Cursors.Hand
+            };
+            btnModificarMedioPago.FlatAppearance.BorderSize = 0;
+            btnModificarMedioPago.Click += BtnModificarMedioPago_Click;
+            panelBotones.Controls.Add(btnModificarMedioPago);
+
+            // ✅ BOTÓN: Generar Factura AFIP
+            var btnGenerarFacturaAfip = new Button
+            {
+                Text = "📄 Generar Factura",
+                Name = "btnGenerarFacturaAfip",
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Size = new Size(155, 30),
+                Location = new Point(190, 10),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
+                Cursor = Cursors.Hand
+            };
+            btnGenerarFacturaAfip.FlatAppearance.BorderSize = 0;
+            btnGenerarFacturaAfip.Click += BtnGenerarFacturaAfipDesdeRemito_Click;
+            panelBotones.Controls.Add(btnGenerarFacturaAfip);
+
+            // ✅ MODIFICADO: Mover botón Imprimir más a la derecha (mayor separación)
+            var btnImprimir = panelBotones.Controls.Find("btnImprimir", false).FirstOrDefault() as Button;
+            if (btnImprimir != null)
+            {
+                btnImprimir.Location = new Point(panelBotones.Width - 200, 10); // ✅ CAMBIO: de -180 a -200
+                btnImprimir.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            }
+
+            var btnCerrar = panelBotones.Controls.OfType<Button>()
+                .FirstOrDefault(b => b.Text == "Cerrar");
+            if (btnCerrar != null)
+            {
+                btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
+                btnCerrar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            }
+
+            // ✅ NUEVO: Ajustar posiciones al redimensionar
+            panelBotones.Resize += (s, e) => {
+                if (btnImprimir != null)
+                    btnImprimir.Location = new Point(panelBotones.Width - 200, 10); // ✅ Mantener separación
+                if (btnCerrar != null)
+                    btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
+            };
+
+            System.Diagnostics.Debug.WriteLine("✅ Botones agregados al modal de detalle");
+        }
+
+        // ========================================
+        // 💳 MODIFICAR MEDIO DE PAGO
+        // ========================================
+
+        private async void BtnModificarMedioPago_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Obtener número de remito desde el título
+                string tituloModal = frmDetalle.Text;
+                string numeroRemito = ExtraerNumeroRemitoDelTitulo(tituloModal);
+
+                if (string.IsNullOrEmpty(numeroRemito))
+                {
+                    MessageBox.Show("No se puede determinar el número de remito.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[MODIFICAR PAGO] Remito: {numeroRemito}");
+
+                // Obtener datos actuales de la factura
+                var datosFactura = await ObtenerDatosFacturaParaModificar(numeroRemito);
+
+                if (datosFactura == null)
+                {
+                    MessageBox.Show("No se encontraron datos de la factura.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Mostrar formulario de modificación
+                using (var formModificarPago = new ModificarMedioPagoForm(datosFactura))
+                {
+                    if (formModificarPago.ShowDialog(this) == DialogResult.OK)
+                    {
+                        // Actualizar en base de datos
+                        await ActualizarMedioPagoEnBD(numeroRemito, formModificarPago.MediosPagoActualizados);
+
+                        MessageBox.Show("Medios de pago actualizados correctamente.",
+                            "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Recargar detalle
+                        CargarDetalleFactura(numeroRemito);
+
+                        // Recargar grilla principal
+                        CargarVentasPorFecha(dtpDesde.Value, dtpHasta.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al modificar medio de pago:\n\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task<DatosFacturaModificar> ObtenerDatosFacturaParaModificar(string numeroRemito)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    // Obtener datos de la factura
+                    var queryFactura = @"
+                SELECT 
+                    NumeroRemito,
+                    NroFactura,
+                    TipoFactura,
+                    ImporteFinal,
+                    FormadePago
+                FROM Facturas 
+                WHERE NumeroRemito = @numeroRemito";
+
+                    using (var cmd = new SqlCommand(queryFactura, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                var datos = new DatosFacturaModificar
+                                {
+                                    NumeroRemito = reader["NumeroRemito"]?.ToString(),
+                                    NumeroFactura = reader["NroFactura"]?.ToString(),
+                                    TipoFactura = reader["TipoFactura"]?.ToString(),
+                                    ImporteTotal = reader["ImporteFinal"] != DBNull.Value
+                                        ? Convert.ToDecimal(reader["ImporteFinal"]) : 0m,
+                                    FormaPagoActual = reader["FormadePago"]?.ToString()
+                                };
+
+                                // Cerrar el reader antes de la segunda consulta
+                                reader.Close();
+
+                                // ✅ CORREGIDO: Eliminar ORDER BY Id y ordenar por otro campo
+                                var queryDetalles = @"
+                            SELECT MedioPago, Importe, Observaciones
+                            FROM DetallesPagoFactura
+                            WHERE NumeroRemito = @numeroRemito
+                            ORDER BY FechaPago";
+
+                                using (var cmdDetalles = new SqlCommand(queryDetalles, connection))
+                                {
+                                    cmdDetalles.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+
+                                    using (var readerDetalles = await cmdDetalles.ExecuteReaderAsync())
+                                    {
+                                        var detalles = new List<DetallePagoModificar>();
+
+                                        while (await readerDetalles.ReadAsync())
+                                        {
+                                            detalles.Add(new DetallePagoModificar
+                                            {
+                                                MedioPago = readerDetalles["MedioPago"]?.ToString(),
+                                                Importe = readerDetalles["Importe"] != DBNull.Value
+                                                    ? Convert.ToDecimal(readerDetalles["Importe"]) : 0m,
+                                                Observaciones = readerDetalles["Observaciones"]?.ToString()
+                                            });
+                                        }
+
+                                        datos.DetallesPago = detalles;
+                                    }
+                                }
+
+                                return datos;
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MODIFICAR PAGO] Error obteniendo datos: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task ActualizarMedioPagoEnBD(string numeroRemito, List<DetallePagoModificar> nuevosPagos)
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+            string connectionString = config.GetConnectionString("DefaultConnection");
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // ✅ PASO 0: Obtener el IdFactura del remito
+                        int idFactura = 0;
+                        var queryGetId = "SELECT IdFactura FROM Facturas WHERE NumeroRemito = @numeroRemito";
+
+                        using (var cmdGetId = new SqlCommand(queryGetId, connection, transaction))
+                        {
+                            cmdGetId.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                            var result = await cmdGetId.ExecuteScalarAsync();
+
+                            if (result == null || result == DBNull.Value)
+                            {
+                                throw new Exception($"No se encontró la factura con número de remito: {numeroRemito}");
+                            }
+
+                            idFactura = Convert.ToInt32(result);
+                            System.Diagnostics.Debug.WriteLine($"[MODIFICAR PAGO] IdFactura obtenido: {idFactura}");
+                        }
+
+                        // ✅ PASO 1: Actualizar FormadePago principal en Facturas
+                        string formaPagoPrincipal = nuevosPagos.Count == 1
+                            ? nuevosPagos[0].MedioPago
+                            : "Múltiples medios";
+
+                        var queryFactura = @"
+                    UPDATE Facturas 
+                    SET FormadePago = @formaPago 
+                    WHERE NumeroRemito = @numeroRemito";
+
+                        using (var cmd = new SqlCommand(queryFactura, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@formaPago", formaPagoPrincipal);
+                            cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+
+                        // ✅ PASO 2: Eliminar detalles de pago existentes
+                        var queryDelete = @"
+                    DELETE FROM DetallesPagoFactura 
+                    WHERE NumeroRemito = @numeroRemito";
+
+                        using (var cmd = new SqlCommand(queryDelete, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+
+                        // ✅ PASO 3: Insertar nuevos detalles de pago con IdFactura
+                        var queryInsert = @"
+                    INSERT INTO DetallesPagoFactura 
+                        (IdFactura, NumeroRemito, MedioPago, Importe, Observaciones, FechaPago, Usuario)
+                    VALUES 
+                        (@idFactura, @numeroRemito, @medioPago, @importe, @observaciones, @fecha, @usuario)";
+
+                        foreach (var pago in nuevosPagos)
+                        {
+                            using (var cmd = new SqlCommand(queryInsert, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@idFactura", idFactura); // ✅ AGREGAR IdFactura
+                                cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                                cmd.Parameters.AddWithValue("@medioPago", pago.MedioPago);
+                                cmd.Parameters.AddWithValue("@importe", pago.Importe);
+                                cmd.Parameters.AddWithValue("@observaciones", (object)pago.Observaciones ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
+                                cmd.Parameters.AddWithValue("@usuario", ObtenerUsuarioActual());
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        transaction.Commit();
+                        System.Diagnostics.Debug.WriteLine($"[MODIFICAR PAGO] ✅ Actualizado remito {numeroRemito} con IdFactura {idFactura}");
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        System.Diagnostics.Debug.WriteLine($"[MODIFICAR PAGO] ❌ Error: {ex.Message}");
+                        throw;
+                    }
+                }
+            }
+        }
+
+        // ========================================
+        // 📄 GENERAR FACTURA AFIP DESDE REMITO
+        // ========================================
+
+        private async void BtnGenerarFacturaAfipDesdeRemito_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string tituloModal = frmDetalle.Text;
+                string numeroRemito = ExtraerNumeroRemitoDelTitulo(tituloModal);
+
+                if (string.IsNullOrEmpty(numeroRemito))
+                {
+                    MessageBox.Show("No se puede determinar el número de remito.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var tipoFacturaActual = await ObtenerTipoFacturaRemito(numeroRemito);
+
+                if (tipoFacturaActual != null &&
+                    (tipoFacturaActual.Contains("FacturaA") ||
+                     tipoFacturaActual.Contains("FacturaB") ||
+                     tipoFacturaActual.Contains("FacturaC")))
+                {
+                    MessageBox.Show($"Este remito ya tiene una factura AFIP asociada:\n\n{tipoFacturaActual}",
+                        "Operación no permitida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var datosRemito = await ObtenerDatosRemitoParaFacturar(numeroRemito);
+
+                if (datosRemito == null)
+                {
+                    MessageBox.Show("No se encontraron datos del remito.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // ✅ MODIFICADO: Pasar número de remito al formulario
+                using (var formFactura = new FacturaDirectaAfipForm(datosRemito.ImporteTotal, numeroRemito))
+                {
+                    if (formFactura.ShowDialog(this) == DialogResult.OK)
+                    {
+                        MessageBox.Show("Factura AFIP generada y vinculada al remito correctamente.",
+                            "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        CargarDetalleFactura(numeroRemito);
+                        CargarVentasPorFecha(dtpDesde.Value, dtpHasta.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al generar factura AFIP:\n\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Vincular la última factura generada con el remito
+        private async Task VincularFacturaConRemito(string numeroRemito)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    // ✅ Obtener la última factura generada (la que acaba de crear FacturaDirectaAfipForm)
+                    var queryUltimaFactura = @"
+                SELECT TOP 1 
+                    NroFactura, 
+                    TipoFactura, 
+                    CAENumero, 
+                    CAEVencimiento, 
+                    CUITCliente
+                FROM Facturas
+                WHERE TipoFactura IN ('FacturaA', 'FacturaB', 'FacturaC')
+                ORDER BY IdFactura DESC";
+
+                    string nroFactura = "";
+                    string tipoFactura = "";
+                    string cae = "";
+                    DateTime? vencimiento = null;
+                    string cuit = "";
+
+                    using (var cmd = new SqlCommand(queryUltimaFactura, connection))
+                    {
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                nroFactura = reader["NroFactura"]?.ToString();
+                                tipoFactura = reader["TipoFactura"]?.ToString();
+                                cae = reader["CAENumero"]?.ToString();
+                                vencimiento = reader["CAEVencimiento"] as DateTime?;
+                                cuit = reader["CUITCliente"]?.ToString();
+                            }
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(nroFactura))
+                    {
+                        throw new Exception("No se encontró la factura generada");
+                    }
+
+                    // ✅ Actualizar el remito con los datos de la factura AFIP
+                    var queryUpdate = @"
+                UPDATE Facturas 
+                SET 
+                    NroFactura = @nroFactura,
+                    TipoFactura = @tipoFactura,
+                    CAENumero = @cae,
+                    CAEVencimiento = @vencimiento,
+                    CUITCliente = @cuit
+                WHERE NumeroRemito = @numeroRemito";
+
+                    using (var cmd = new SqlCommand(queryUpdate, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        cmd.Parameters.AddWithValue("@tipoFactura", tipoFactura);
+                        cmd.Parameters.AddWithValue("@cae", cae);
+                        cmd.Parameters.AddWithValue("@vencimiento", (object)vencimiento ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@cuit", (object)cuit ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+
+                        await cmd.ExecuteNonQueryAsync();
+
+                        System.Diagnostics.Debug.WriteLine($"[VINCULAR] ✅ Remito {numeroRemito} actualizado con factura {nroFactura}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[VINCULAR] ❌ Error: {ex.Message}");
+                throw new Exception($"Error vinculando factura con remito: {ex.Message}");
+            }
+        }
+
+        private async Task<string> ObtenerTipoFacturaRemito(string numeroRemito)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = "SELECT TipoFactura FROM Facturas WHERE NumeroRemito = @numeroRemito";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                        await connection.OpenAsync();
+
+                        var result = await cmd.ExecuteScalarAsync();
+                        return result?.ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TIPO FACTURA] Error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private async Task<DatosRemitoParaFacturar> ObtenerDatosRemitoParaFacturar(string numeroRemito)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"
+                SELECT 
+                    NumeroRemito,
+                    ImporteFinal,
+                    FormadePago,
+                    Fecha
+                FROM Facturas 
+                WHERE NumeroRemito = @numeroRemito";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                        await connection.OpenAsync();
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                return new DatosRemitoParaFacturar
+                                {
+                                    NumeroRemito = reader["NumeroRemito"]?.ToString(),
+                                    ImporteTotal = reader["ImporteFinal"] != DBNull.Value
+                                        ? Convert.ToDecimal(reader["ImporteFinal"]) : 0m,
+                                    FormaPago = reader["FormadePago"]?.ToString(),
+                                    Fecha = reader["Fecha"] != DBNull.Value
+                                        ? Convert.ToDateTime(reader["Fecha"]) : DateTime.Now
+                                };
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DATOS REMITO] Error: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task GenerarFacturaAfipDesdeRemito(
+            string numeroRemito,
+            string tipoFactura,
+            string cuitCliente,
+            decimal importeTotal)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"🔄 === GENERAR FACTURA DESDE REMITO ===");
+                System.Diagnostics.Debug.WriteLine($"   Remito: {numeroRemito}");
+                System.Diagnostics.Debug.WriteLine($"   Tipo: {tipoFactura}");
+                System.Diagnostics.Debug.WriteLine($"   Monto: {importeTotal:C2}");
+
+                // ✅ PASO 1: Autenticar con AFIP
+                string cuitEmisor = AfipAuthenticator.ObtenerCUITActivo();
+                await AutenticarConAfip(cuitEmisor);
+
+                // ✅ PASO 2: Determinar tipo de comprobante
+                int tipoComprobante = tipoFactura switch
+                {
+                    "A" => 1,
+                    "B" => 6,
+                    "C" => 11,
+                    _ => 11
+                };
+
+                // ✅ PASO 3: Obtener siguiente número
+                int puntoVenta = ObtenerPuntoVentaActivo();
+                int ultimoNumero = await ObtenerUltimoNumeroComprobante(tipoComprobante, puntoVenta);
+                int numeroComprobante = ultimoNumero + 1;
+
+                // ✅ PASO 4: Solicitar CAE
+                var resultadoCAE = await SolicitarCAE(
+                    tipoComprobante,
+                    puntoVenta,
+                    numeroComprobante,
+                    importeTotal,
+                    tipoFactura,
+                    cuitCliente);
+
+                if (!resultadoCAE.exito)
+                {
+                    throw new Exception($"Error obteniendo CAE: {resultadoCAE.error}");
+                }
+
+                // ✅ PASO 5: Actualizar remito con datos de factura AFIP
+                string numeroFormateado = FormatearNumeroFacturaAfip(tipoComprobante, puntoVenta, numeroComprobante);
+                await ActualizarRemitoConDatosFacturaAfip(
+                    numeroRemito,
+                    $"Factura{tipoFactura}",
+                    numeroFormateado,
+                    resultadoCAE.cae,
+                    resultadoCAE.vencimiento ?? DateTime.Now,
+                    cuitCliente);
+
+                System.Diagnostics.Debug.WriteLine($"✅ Factura generada: {numeroFormateado}");
+                System.Diagnostics.Debug.WriteLine($"✅ CAE: {resultadoCAE.cae}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task AutenticarConAfip(string cuitEmisor)
+        {
+            try
+            {
+                var (tieneTokenValido, _, minutosRestantes) = AfipAuthenticator.VerificarTokensExistentes("wsfe");
+
+                if (tieneTokenValido && minutosRestantes > 2)
+                {
+                    System.Diagnostics.Debug.WriteLine("[AFIP] ✅ Usando token válido existente");
+                    return;
+                }
+
+                var (token, sign, expiration) = await AfipAuthenticator.GetTAAsync("wsfe");
+                System.Diagnostics.Debug.WriteLine("✅ Autenticación AFIP completada");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error de autenticación AFIP: {ex.Message}");
+            }
+        }
+
+        private async Task<int> ObtenerUltimoNumeroComprobante(int tipoComprobante, int puntoVenta)
+        {
+            using (var wsfeClient = AfipAuthenticator.CrearClienteWSFE())
+            {
+                var tokenData = AfipAuthenticator.GetExistingToken("wsfe");
+
+                var authRequest = new ArcaWS.FEAuthRequest
+                {
+                    Token = tokenData.Value.token,
+                    Sign = tokenData.Value.sign,
+                    Cuit = long.Parse(AfipAuthenticator.ObtenerCUITActivo().Replace("-", ""))
+                };
+
+                var response = await wsfeClient.FECompUltimoAutorizadoAsync(authRequest, puntoVenta, tipoComprobante);
+                return response.Body.FECompUltimoAutorizadoResult?.CbteNro ?? 0;
+            }
+        }
+
+        private async Task<(bool exito, string cae, DateTime? vencimiento, string error)> SolicitarCAE(
+            int tipoComprobante,
+            int puntoVenta,
+            int numero,
+            decimal montoTotal,
+            string tipoFactura,
+            string cuitCliente = "")
+        {
+            try
+            {
+                using (var wsfeClient = AfipAuthenticator.CrearClienteWSFE())
+                {
+                    var tokenData = AfipAuthenticator.GetExistingToken("wsfe");
+
+                    var authRequest = new ArcaWS.FEAuthRequest
+                    {
+                        Token = tokenData.Value.token,
+                        Sign = tokenData.Value.sign,
+                        Cuit = long.Parse(AfipAuthenticator.ObtenerCUITActivo().Replace("-", ""))
+                    };
+
+                    bool esFacturaC = (tipoComprobante == 11);
+
+                    int docTipo = tipoComprobante == 1 ? 80 : 99;
+                    long docNro = tipoComprobante == 1 && !string.IsNullOrEmpty(cuitCliente)
+                        ? long.Parse(cuitCliente.Replace("-", "")) : 0;
+
+                    decimal importeNetoCalculado;
+                    decimal importeIvaCalculado;
+
+                    if (esFacturaC)
+                    {
+                        importeNetoCalculado = montoTotal;
+                        importeIvaCalculado = 0;
+                    }
+                    else
+                    {
+                        importeNetoCalculado = Math.Round(montoTotal / 1.21m, 2);
+                        importeIvaCalculado = Math.Round(montoTotal - importeNetoCalculado, 2);
+                    }
+
+                    var comprobante = new ArcaWS.FECAEDetRequest
+                    {
+                        Concepto = 1,
+                        DocTipo = docTipo,
+                        DocNro = docNro,
+                        CbteDesde = numero,
+                        CbteHasta = numero,
+                        CbteFch = DateTime.Now.ToString("yyyyMMdd"),
+                        ImpTotal = (double)montoTotal,
+                        ImpTotConc = 0,
+                        ImpNeto = (double)importeNetoCalculado,
+                        ImpOpEx = 0,
+                        ImpIVA = (double)importeIvaCalculado,
+                        ImpTrib = 0,
+                        MonId = "PES",
+                        MonCotiz = 1
+                    };
+
+                    if (!esFacturaC && importeIvaCalculado > 0)
+                    {
+                        comprobante.Iva = new[]
+                        {
+                    new ArcaWS.AlicIva
+                    {
+                        Id = 5,
+                        BaseImp = (double)importeNetoCalculado,
+                        Importe = (double)importeIvaCalculado
+                    }
+                };
+                    }
+
+                    var request = new ArcaWS.FECAERequest
+                    {
+                        FeCabReq = new ArcaWS.FECAECabRequest
+                        {
+                            CantReg = 1,
+                            PtoVta = puntoVenta,
+                            CbteTipo = tipoComprobante
+                        },
+                        FeDetReq = new ArcaWS.FECAEDetRequest[] { comprobante }
+                    };
+
+                    var response = await wsfeClient.FECAESolicitarAsync(authRequest, request);
+                    var resultado = response.Body.FECAESolicitarResult;
+
+                    if (resultado?.FeDetResp != null && resultado.FeDetResp.Length > 0)
+                    {
+                        var detalle = resultado.FeDetResp[0];
+
+                        if (!string.IsNullOrEmpty(detalle.CAE))
+                        {
+                            DateTime? fechaVencimiento = null;
+                            if (!string.IsNullOrEmpty(detalle.CAEFchVto))
+                            {
+                                DateTime.TryParseExact(detalle.CAEFchVto, "yyyyMMdd",
+                                    CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fecha);
+                                fechaVencimiento = fecha;
+                            }
+
+                            return (true, detalle.CAE, fechaVencimiento, "");
+                        }
+                    }
+
+                    return (false, "", null, "Respuesta inválida de AFIP");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, "", null, $"Error: {ex.Message}");
+            }
+        }
+
+        private int ObtenerPuntoVentaActivo()
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string ambienteActivo = config["AFIP:AmbienteActivo"] ?? "Testing";
+                return int.Parse(config[$"AFIP:{ambienteActivo}:PuntoVenta"] ?? "1");
+            }
+            catch
+            {
+                return 1;
+            }
+        }
+
+        private string FormatearNumeroFacturaAfip(int tipoComprobante, int puntoVenta, int numero)
+        {
+            string tipoLetra = tipoComprobante switch
+            {
+                1 => "A",
+                6 => "B",
+                11 => "C",
+                _ => "X"
+            };
+
+            return $"{tipoLetra} {puntoVenta:D4}-{numero:D8}";
+        }
+
+        private async Task ActualizarRemitoConDatosFacturaAfip(
+            string numeroRemito,
+            string tipoFactura,
+            string numeroFactura,
+            string cae,
+            DateTime vencimientoCae,
+            string cuitCliente)
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+            string connectionString = config.GetConnectionString("DefaultConnection");
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                var query = @"
+            UPDATE Facturas 
+            SET 
+                TipoFactura = @tipoFactura,
+                NroFactura = @numeroFactura,
+                CAENumero = @cae,
+                CAEVencimiento = @vencimiento,
+                CUITCliente = @cuit
+            WHERE NumeroRemito = @numeroRemito";
+
+                using (var cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@tipoFactura", tipoFactura);
+                    cmd.Parameters.AddWithValue("@numeroFactura", numeroFactura);
+                    cmd.Parameters.AddWithValue("@cae", cae);
+                    cmd.Parameters.AddWithValue("@vencimiento", vencimientoCae);
+                    cmd.Parameters.AddWithValue("@cuit", (object)cuitCliente ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+
+                    await cmd.ExecuteNonQueryAsync();
+                    System.Diagnostics.Debug.WriteLine($"[UPDATE] ✅ Remito {numeroRemito} actualizado con factura AFIP");
+                }
+            }
+        }
+
+
 
         protected override void Dispose(bool disposing)
         {

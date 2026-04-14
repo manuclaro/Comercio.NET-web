@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0078d7">
+    <title>Panel Principal - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-wrapper">
+
+        <header class="dashboard-header">
+            <div class="header-brand">
+                <span class="brand-icon">🏪</span>
+                <div>
+                    <h1>Comercio.NET</h1>
+                    <p>Panel Principal</p>
+                </div>
+            </div>
+            <div class="header-user" id="headerUser">
+                <span id="nombreUsuario"></span>
+                <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <h2 class="dashboard-title">¿Qué querés consultar?</h2>
+
+            <div class="cards-grid" id="cardsGrid">
+
+                <a href="/index.html" class="card" id="cardArqueo">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #0078d7, #005fa3);">
+                        🏦
+                    </div>
+                    <div class="card-body">
+                        <h3>Arqueo de Caja</h3>
+                        <p>Consultá los totales del día, desglose por forma de pago y pagos a proveedores.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/productos.html" class="card" id="cardProductos">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #00897b, #00695c);">
+                        📦
+                    </div>
+                    <div class="card-body">
+                        <h3>Consulta de Productos</h3>
+                        <p>Buscá productos por código, nombre o rubro y consultá precios y stock.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/ventas.html" class="card" id="cardVentas">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #1565c0, #0d47a1);">
+                        🧾
+                    </div>
+                    <div class="card-body">
+                        <h3>Consulta de Ventas</h3>
+                        <p>Revisá las ventas del día en tiempo real con resumen por forma de pago y filtros por cajero.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/auditoria.html" class="card" id="cardAuditoria">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #b71c1c, #7f0000);">
+                        🔍
+                    </div>
+                    <div class="card-body">
+                        <h3>Panel de Auditoría</h3>
+                        <p>Consultá productos eliminados o anulados, con motivo, usuario y cajero responsable.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/estadisticas.html" class="card" id="cardEstadisticas">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #6a1b9a, #4a148c);">
+                        📊
+                    </div>
+                    <div class="card-body">
+                        <h3>Estadísticas</h3>
+                        <p>Visualizá el porcentaje de ventas por rubro: verdulería, panadería, fiambrería y carnicería.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/mesas.html" class="card" id="cardMesas">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #e65100, #bf360c);">
+                        🍽️
+                    </div>
+                    <div class="card-body">
+                        <h3>Control de Mesas</h3>
+                        <p>Gestioná las mesas del bar, cargá consumos por mozo y cerrá con impresión de ticket.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+            </div>
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>Comercio.NET Mobile · v1.4.0 · 2026 · <span class="footer-brand">TPQ Solutions</span></p>
+        </footer>
+    </div>
+
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+@Comercio.NET.Mobile.Server_HostAddress = http://localhost:5136
+
+GET {{Comercio.NET.Mobile.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

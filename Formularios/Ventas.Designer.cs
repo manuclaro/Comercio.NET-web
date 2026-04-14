@@ -44,6 +44,7 @@
             panelHeader = new Panel();
             lbPrecio = new Label();
             txtPrecio = new TextBox();
+            btnVistaPrevia = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             panelHeader.SuspendLayout();
             SuspendLayout();
@@ -153,7 +154,7 @@
             // cbnombreCtaCte
             // 
             cbnombreCtaCte.FormattingEnabled = true;
-            cbnombreCtaCte.Location = new Point(456, 132);
+            cbnombreCtaCte.Location = new Point(456, 131);
             cbnombreCtaCte.Name = "cbnombreCtaCte";
             cbnombreCtaCte.Size = new Size(121, 23);
             cbnombreCtaCte.TabIndex = 13;
@@ -210,12 +211,28 @@
             txtPrecio.TabIndex = 1;
             txtPrecio.TextAlign = HorizontalAlignment.Center;
             // 
+            // btnVistaPrevia
+            // 
+            btnVistaPrevia.BackColor = Color.FromArgb(108, 117, 125);
+            btnVistaPrevia.FlatStyle = FlatStyle.Flat;
+            btnVistaPrevia.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            btnVistaPrevia.ForeColor = Color.White;
+            btnVistaPrevia.Location = new Point(950, 160);
+            btnVistaPrevia.MinimumSize = new Size(90, 25);
+            btnVistaPrevia.Name = "btnVistaPrevia";
+            btnVistaPrevia.Size = new Size(120, 50);
+            btnVistaPrevia.TabIndex = 19;
+            btnVistaPrevia.Text = "🔍 Vista Previa";
+            btnVistaPrevia.UseVisualStyleBackColor = false;
+            btnVistaPrevia.Click += BtnVistaPrevia_Click;
+            // 
             // Ventas
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.WhiteSmoke;
             ClientSize = new Size(757, 502);
+            Controls.Add(btnVistaPrevia);
             Controls.Add(lbPrecio);
             Controls.Add(txtPrecio);
             Controls.Add(panelHeader);
@@ -254,5 +271,6 @@
         private Label lbPrecio;
         private TextBox txtPrecio;
         private Panel panelHeader;
+        private Button btnVistaPrevia;
     }
 }

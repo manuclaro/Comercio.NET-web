@@ -1,0 +1,100 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0078d7">
+    <title>Consulta de Ventas - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/ventas.css" />
+</head>
+<body>
+
+    <header class="page-header">
+        <a href="/dashboard.html" class="btn-back">← Volver</a>
+        <div class="header-title">
+            <span>🧾</span>
+            <div>
+                <h1>Ventas del turno</h1>
+                <p>Comercio.NET Mobile</p>
+            </div>
+        </div>
+        <div class="header-user">
+            <span id="nombreUsuario"></span>
+        </div>
+    </header>
+
+    <main class="page-main" style="max-width: 1100px;">
+
+        <div id="avisoSinTurno" class="mensaje-sin-turno" style="display:none">
+            ⚠️ No hay un turno abierto. Se muestran las ventas del día de hoy.
+        </div>
+
+        <div class="filtro-box">
+            <div class="filtro-grupo">
+                <label for="fechaDesde">Desde</label>
+                <input type="date" id="fechaDesde" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="fechaHasta">Hasta</label>
+                <input type="date" id="fechaHasta" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="cajeroVentas">Cajero</label>
+                <input type="number" id="cajeroVentas" placeholder="Todos" min="1" style="width:100px;" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="formaPagoVentas">Forma de pago</label>
+                <select id="formaPagoVentas">
+                    <option value="">Todas</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Mercado Pago">Mercado Pago</option>
+                    <option value="DNI">DNI</option>
+                    <option value="Otro">Otros</option>
+                </select>
+            </div>
+            <div class="filtro-grupo">
+                <label for="tipoFacturaVentas">Tipo</label>
+                <select id="tipoFacturaVentas">
+                    <option value="">Todos</option>
+                    <option value="Remito">Remito</option>
+                    <option value="Factura">Factura</option>
+                    <option value="SinImpresion">Sin impresión</option>
+                </select>
+            </div>
+            <button class="btn-consultar" onclick="cargarVentas()">🔍 Buscar</button>
+        </div>
+
+        <div class="resumen-cards" id="resumenCards"></div>
+
+        <div class="tabla-ventas-container">
+            <table id="tablaVentas">
+                <thead>
+                    <tr>
+                        <th>Remito</th>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Cant.</th>
+                        <th>Precio</th>
+                        <th>Total</th>
+                        <th>Pago</th>
+                        <th>Tipo</th>
+                        <th>Usuario</th>
+                        <th>Hora</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyVentas"></tbody>
+            </table>
+            <p id="mensajeVentas" class="no-data" style="display:none">No hay ventas para los filtros seleccionados.</p>
+        </div>
+
+    </main>
+
+    <footer class="page-footer">
+        <p>Comercio.NET Mobile · v1.4.0 · 2026 · <span class="footer-brand">TPQ Solutions</span></p>
+    </footer>
+
+    <!-- Cache-bust: forzar recarga del JS actualizado -->
+    <script src="/js/ventas.js?v=1.4.1"></script>
+</body>
+</html>

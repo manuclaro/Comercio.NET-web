@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ventas por Producto</title>
+    <link rel="stylesheet" href="/css/mesas.css" />
+</head>
+<body>
+
+    <header>
+        <button class="btn-back" onclick="location.href='/dashboard-pizzeria.html'">← Panel</button>
+        <h1>📦 Ventas por Producto</h1>
+        <div class="header-user">
+            <span id="nombreUsuarioVP"></span>
+            <button id="btnSalir" class="btn-back">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- Filtros -->
+        <div class="form-item">
+            <div class="field">
+                <label>Desde</label>
+                <input type="date" id="filtroDesde" />
+            </div>
+            <div class="field">
+                <label>Hasta</label>
+                <input type="date" id="filtroHasta" />
+            </div>
+            <div class="field">
+                <label>Producto</label>
+                <input type="text" id="filtroProducto" placeholder="Buscar producto..." />
+            </div>
+            <div class="field">
+                <label>Tipo de producto</label>
+                <select id="filtroTipo">
+                    <option value="">Todos los tipos</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Mozo</label>
+                <select id="filtroMozo">
+                    <option value="">Todos los mozos</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Forma de pago</label>
+                <select id="filtroFormaPago">
+                    <option value="">Todas las formas de pago</option>
+                </select>
+            </div>
+            <div class="filtros-acciones">
+                <button id="btnBuscar" class="btn-primary">Buscar</button>
+                <button id="btnLimpiar" class="btn-secondary">Limpiar</button>
+            </div>
+        </div>
+
+        <!-- Resumen -->
+        <p id="resumenVP" class="resumen-dia"></p>
+
+        <!-- Tabla agrupada por producto -->
+        <div class="tabla-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Tipo</th>
+                        <th style="text-align:center">Cantidad</th>
+                        <th style="text-align:right">Precio unit.</th>
+                        <th style="text-align:right">Total</th>
+                        <th>Mozo</th>
+                        <th>Forma de pago</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyVP"></tbody>
+            </table>
+        </div>
+
+        <p id="mensajeVacioVP" class="mensaje-vacio" style="display:none">
+            No se encontraron registros para el período seleccionado.
+        </p>
+
+    </div>
+
+    <script src="/js/ventas-productos.js"></script>
+</body>
+</html>

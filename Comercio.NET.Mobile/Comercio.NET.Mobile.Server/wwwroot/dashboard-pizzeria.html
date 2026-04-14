@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e65100" />
+    <title>Panel Pizzería - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body>
+    <div class="dashboard-wrapper">
+
+        <header class="dashboard-header">
+            <div class="header-brand">
+                <span class="brand-icon">🍕</span>
+                <div>
+                    <h1>Comercio.NET</h1>
+                    <p>Panel Pizzería</p>
+                </div>
+            </div>
+            <div class="header-user" id="headerUser">
+                <span id="nombreUsuario"></span>
+                <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <h2 class="dashboard-title">¿Qué querés gestionar?</h2>
+
+            <div class="cards-grid">
+
+                <a href="/mesas.html" class="card">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #e65100, #bf360c);">🍽️</div>
+                    <div class="card-body">
+                        <h3>Control de Mesas</h3>
+                        <p>Gestioná las mesas, cargá consumos por mozo y cerrá con impresión de ticket.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/mozos.html" class="card">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #1565c0, #0d47a1);">🧑‍🍳</div>
+                    <div class="card-body">
+                        <h3>Gestión de Mozos</h3>
+                        <p>Agregá, editá o eliminá los mozos disponibles para asignar a las mesas.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/productos-bar.html" class="card">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #00897b, #00695c);">🍺</div>
+                    <div class="card-body">
+                        <h3>Productos del Bar</h3>
+                        <p>Administrá los productos disponibles para cargar en las mesas.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/formas-pago.html" class="card">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #f57f17, #e65100);">💳</div>
+                    <div class="card-body">
+                        <h3>Formas de Pago</h3>
+                        <p>Configurá las formas de pago disponibles para usar al cerrar una mesa.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/ventas-mesas.html" class="card">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #6a1b9a, #4a148c);">📊</div>
+                    <div class="card-body">
+                        <h3>Ventas del Día</h3>
+                        <p>Controlá las ventas del día. Tocá un registro para ver el detalle por mesa.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+                <a href="/ventas-productos.html" class="card">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #2e7d32, #1b5e20);">📦</div>
+                    <div class="card-body">
+                        <h3>Ventas por Producto</h3>
+                        <p>Consultá ventas por rango de fecha agrupadas por producto, con filtros por tipo, mozo y forma de pago.</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </a>
+
+            </div>
+        </main>
+
+        <footer class="dashboard-footer">
+            <p>Comercio.NET Mobile · v1.4.0 · 2026 · <span class="footer-brand">TPQ Solutions</span></p>
+        </footer>
+    </div>
+
+    <script src="/js/dashboard-pizzeria.js"></script>
+</body>
+</html>

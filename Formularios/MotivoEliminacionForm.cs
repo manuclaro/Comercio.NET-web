@@ -6,41 +6,51 @@ namespace Comercio.NET.Formularios
 {
     public partial class MotivoEliminacionForm : Form
     {
-        public string Motivo { get; private set; }
-        public int CantidadAEliminar { get; private set; }
-        
         private string DescripcionProducto;
         private int CantidadProducto;
         private string CodigoProducto;
         private decimal PrecioProducto;
 
-        public MotivoEliminacionForm(string descripcionProducto, int cantidadProducto, string codigoProducto, decimal precioProducto)
+        public string Motivo { get; private set; }
+        public int CantidadAEliminar { get; private set; } // ❌ ESTO QUEDA EN 0
+
+        public string MotivoSeleccionado => Motivo;
+
+        // ✅ NUEVO: Campos para títulos personalizados
+        private string TituloFormulario;
+        private string TituloEncabezado;
+
+        // ✅ Constructor ORIGINAL (mantener compatibilidad con Ventas.cs)
+        public MotivoEliminacionForm(string descripcion, int cantidad, string codigo, decimal precio)
+            : this(descripcion, cantidad, codigo, precio, "Eliminar Producto", "ELIMINAR PRODUCTO")
         {
+            // Llama al constructor extendido con títulos por defecto
+        }
+
+        // ✅ NUEVO: Constructor EXTENDIDO con títulos personalizados
+        public MotivoEliminacionForm(string descripcion, int cantidad, string codigo, decimal precio,
+                                      string tituloFormulario, string tituloEncabezado)
+        {
+            DescripcionProducto = descripcion;
+            CantidadProducto = cantidad;
+            CodigoProducto = codigo;
+            PrecioProducto = precio;
+            TituloFormulario = tituloFormulario;
+            TituloEncabezado = tituloEncabezado;
+
+            // ✅ CRÍTICO: Inicializar CantidadAEliminar con la cantidad total
+            CantidadAEliminar = cantidad;
+
             InitializeComponent();
-            
-            DescripcionProducto = descripcionProducto;
-            CantidadProducto = cantidadProducto;
-            CodigoProducto = codigoProducto;
-            PrecioProducto = precioProducto;
-            CantidadAEliminar = cantidadProducto; // Por defecto eliminar todo
-            
             ConfigurarFormulario();
-        }
-
-        // NUEVO: Constructor simplificado para casos donde no necesitamos toda la información del producto
-        public MotivoEliminacionForm() : this("Producto", 1, "000", 0)
-        {
-        }
-
-        // NUEVO: Propiedad pública para acceso al motivo (manteniendo compatibilidad)
-        public string MotivoSeleccionado 
-        { 
-            get { return Motivo; }
         }
 
         private void ConfigurarFormulario()
         {
-            this.Text = "Motivo de Eliminación";
+            // ✅ USAR los títulos personalizados
+            this.Text = TituloFormulario;
+
+            // Configuración básica del formulario con altura fija adecuada
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -48,183 +58,235 @@ namespace Comercio.NET.Formularios
             this.ShowInTaskbar = false;
             this.KeyPreview = true;
             this.BackColor = Color.White;
+            this.Size = new Size(520, 550);
+            this.MinimumSize = new Size(520, 550);
 
-            // CORREGIDO: Aumentar significativamente la altura para que todo se vea
-            int baseHeight = CantidadProducto > 1 ? 420 : 380; // Aumentado considerablemente
-            this.Size = new Size(480, baseHeight); // También aumenté el ancho
-            this.MinimumSize = new Size(480, baseHeight);
+            // Panel principal con scroll
+            var panelPrincipal = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                AutoScroll = true,
+                Padding = new Padding(0, 0, 0, 50)
+            };
+            this.Controls.Add(panelPrincipal);
 
-            int yPos = 15; // Reducir margen superior
-            int leftMargin = 20;
-            int rightMargin = 20;
-            int controlWidth = this.ClientSize.Width - leftMargin - rightMargin;
+            int leftMargin = 25;
+            int rightMargin = 25;
+            int topMargin = 20;
+            int controlWidth = panelPrincipal.ClientSize.Width - leftMargin - rightMargin - 20;
+            int yPos = topMargin;
 
-            // CORREGIDO: Panel superior más alto para mostrar toda la información
+            // Panel de encabezado
+            var panelHeader = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(panelPrincipal.ClientSize.Width, 60),
+                BackColor = Color.FromArgb(220, 53, 69),
+                Parent = panelPrincipal
+            };
+
+            // ✅ USAR el título de encabezado personalizado
+            var lblHeader = new Label
+            {
+                Text = TituloEncabezado,
+                Location = new Point(25, 15),
+                Size = new Size(controlWidth - 25, 30),
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
+                Parent = panelHeader
+            };
+
+            yPos = 80;
+
+            // Panel de información del producto
             var panelInfo = new Panel
             {
                 Location = new Point(leftMargin, yPos),
-                Size = new Size(controlWidth, 120), // Aumentado de 100 a 120
+                Size = new Size(controlWidth, 90),
                 BackColor = Color.FromArgb(248, 249, 250),
-                BorderStyle = BorderStyle.FixedSingle
+                BorderStyle = BorderStyle.FixedSingle,
+                Parent = panelPrincipal
             };
 
             var lblInfo = new Label
             {
-                Text = $"📝 INFORMACIÓN DEL PRODUCTO\n\n" +
-                       $"Código: {CodigoProducto}\n" +
-                       $"Descripción: {DescripcionProducto}\n" +
-                       $"Precio unitario: {PrecioProducto:C2}\n" +
-                       $"Cantidad disponible: {CantidadProducto}",
-                Location = new Point(10, 10),
-                Size = new Size(controlWidth - 20, 100), // Aumentado para mostrar todo el texto
-                Font = new Font("Segoe UI", 9F),
+                Text = "Detalles de la línea:\n\n" +
+                       $"Cantidad: {CantidadProducto}  |  Precio unitario: {PrecioProducto:C2}  |  Total: {(CantidadProducto * PrecioProducto):C2}",
+                Location = new Point(15, 10),
+                Size = new Size(controlWidth - 30, 70),
+                Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(62, 80, 100),
-                AutoSize = false // IMPORTANTE: Deshabilitar AutoSize para controlar el tamaño
+                AutoSize = false,
+                Parent = panelInfo
             };
-            panelInfo.Controls.Add(lblInfo);
-            this.Controls.Add(panelInfo);
-            yPos += 135; // Aumentado el espaciado
 
-            // Si hay más de 1 unidad, permitir seleccionar cantidad
-            TextBox txtCantidad = null;
-            if (CantidadProducto > 1)
+            yPos += 110;
+
+            // Sección de opciones de eliminación
+            var lblOpciones = new Label
             {
-                var lblCantidad = new Label
+                Text = "Opciones de eliminación:",
+                Location = new Point(leftMargin, yPos),
+                Size = new Size(200, 20),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Parent = panelPrincipal
+            };
+            yPos += 30;
+
+            // Panel para opciones
+            var panelOpciones = new Panel
+            {
+                Location = new Point(leftMargin + 10, yPos),
+                Size = new Size(controlWidth - 20, 80),
+                BackColor = Color.White,
+                Parent = panelPrincipal
+            };
+
+            var rdoEliminarTodo = new RadioButton
+            {
+                Text = $"Eliminar toda la línea ({CantidadProducto} unidades)",
+                Location = new Point(10, 10),
+                Size = new Size(controlWidth - 40, 25),
+                Font = new Font("Segoe UI", 10F),
+                Checked = true,
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Parent = panelOpciones
+            };
+
+            var rdoEliminarParcial = new RadioButton
+            {
+                Text = "Eliminar cantidad específica:",
+                Location = new Point(10, 40),
+                Size = new Size(200, 25),
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Parent = panelOpciones
+            };
+
+            var numCantidad = new NumericUpDown
+            {
+                Location = new Point(220, 38),
+                Size = new Size(80, 25),
+                Font = new Font("Segoe UI", 10F),
+                Minimum = 1,
+                Maximum = CantidadProducto,
+                Value = CantidadProducto,
+                Enabled = false,
+                TextAlign = HorizontalAlignment.Center,
+                Parent = panelOpciones
+            };
+
+            // Eventos para habilitar/deshabilitar el NumericUpDown
+            rdoEliminarTodo.CheckedChanged += (s, e) =>
+            {
+                if (rdoEliminarTodo.Checked)
                 {
-                    Text = "Cantidad a eliminar:",
-                    Location = new Point(leftMargin, yPos),
-                    Size = new Size(120, 20),
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-                };
+                    numCantidad.Enabled = false;
+                    CantidadAEliminar = CantidadProducto;
+                }
+            };
 
-                txtCantidad = new TextBox
+            rdoEliminarParcial.CheckedChanged += (s, e) =>
+            {
+                if (rdoEliminarParcial.Checked)
                 {
-                    Name = "txtCantidad",
-                    Text = CantidadProducto.ToString(),
-                    Location = new Point(leftMargin + 130, yPos - 2),
-                    Size = new Size(60, 25),
-                    Font = new Font("Segoe UI", 10F),
-                    TextAlign = HorizontalAlignment.Center,
-                    BorderStyle = BorderStyle.FixedSingle
-                };
+                    numCantidad.Enabled = true;
+                    numCantidad.Focus();
+                    numCantidad.Select(0, numCantidad.Text.Length);
+                }
+            };
 
-                txtCantidad.KeyPress += (s, e) =>
-                {
-                    if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
-                    {
-                        e.Handled = true;
-                    }
-                };
+            numCantidad.ValueChanged += (s, e) =>
+            {
+                CantidadAEliminar = (int)numCantidad.Value;
+            };
 
-                var lblTotal = new Label
-                {
-                    Name = "lblTotal",
-                    Text = $"Total: {(CantidadProducto * PrecioProducto):C2}",
-                    Location = new Point(leftMargin + 200, yPos),
-                    Size = new Size(150, 20),
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(220, 53, 69)
-                };
+            yPos += 100;
 
-                txtCantidad.TextChanged += (s, e) =>
-                {
-                    if (int.TryParse(txtCantidad.Text, out int cant) && cant > 0)
-                    {
-                        lblTotal.Text = $"Total: {(cant * PrecioProducto):C2}";
-                    }
-                    else
-                    {
-                        lblTotal.Text = "Total: $0,00";
-                    }
-                };
-
-                this.Controls.AddRange(new Control[] { lblCantidad, txtCantidad, lblTotal });
-                yPos += 40;
-            }
-
-            // Campo de motivo
+            // Sección de motivo
             var lblMotivo = new Label
             {
-                Text = "⚠️ Motivo de la eliminación (mínimo 5 caracteres):",
+                Text = "Motivo de la eliminación:",
                 Location = new Point(leftMargin, yPos),
                 Size = new Size(controlWidth, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(220, 53, 69)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(220, 53, 69),
+                Parent = panelPrincipal
             };
             yPos += 25;
 
-            // TextBox del motivo
             var txtMotivo = new TextBox
             {
                 Name = "txtMotivo",
                 Location = new Point(leftMargin, yPos),
-                Size = new Size(controlWidth, 80), // Aumentado de 60 a 80 para mejor usabilidad
+                Size = new Size(controlWidth, 80),
                 Multiline = true,
                 Font = new Font("Segoe UI", 10F),
                 BorderStyle = BorderStyle.FixedSingle,
-                PlaceholderText = "Ej: Error de precio, producto dañado, cambio de cliente, etc.",
-                ScrollBars = ScrollBars.Vertical
+                PlaceholderText = "Ejemplo: Error de precio, producto dañado, cambio de cliente, etc.",
+                ScrollBars = ScrollBars.Vertical,
+                Parent = panelPrincipal
             };
-            yPos += 95; // Aumentado el espaciado
+            yPos += 100;
 
-            // CORREGIDO: Botones con posicionamiento seguro
+            // CORREGIDO: Panel para botones fijo en la parte inferior del formulario
+            var panelBotones = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 60,
+                BackColor = Color.FromArgb(248, 249, 250),
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(25, 10, 25, 10)
+            };
+            this.Controls.Add(panelBotones);
+
             var btnCancelar = new Button
             {
-                Text = "✗ Cancelar",
-                Location = new Point(leftMargin + controlWidth - 215, yPos), // Más margen para seguridad
+                Text = "Cancelar",
                 Size = new Size(100, 35),
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 UseVisualStyleBackColor = false,
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right // IMPORTANTE: Anclar para prevenir problemas
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Parent = panelBotones
             };
             btnCancelar.FlatAppearance.BorderSize = 0;
+            btnCancelar.Location = new Point(panelBotones.Width - 220, 12);
 
-            var btnAceptar = new Button
+            var btnEliminar = new Button
             {
-                Text = "✓ Continuar", // CAMBIADO: Era "✓ Eliminar"
-                Location = new Point(leftMargin + controlWidth - 105, yPos), // Más margen para seguridad
+                Text = "Eliminar",
                 Size = new Size(100, 35),
-                BackColor = Color.FromArgb(0, 120, 215), // CAMBIADO: Era rojo, ahora azul
+                BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 UseVisualStyleBackColor = false,
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right // IMPORTANTE: Anclar para prevenir problemas
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Parent = panelBotones
             };
-            btnAceptar.FlatAppearance.BorderSize = 0;
+            btnEliminar.FlatAppearance.BorderSize = 0;
+            btnEliminar.Location = new Point(panelBotones.Width - 110, 12);
 
-            // VERIFICACIÓN: Asegurar que los botones están dentro del área visible
-            if (yPos + 35 + 20 > this.ClientSize.Height) // 35 altura botón + 20 margen inferior
-            {
-                this.Height = yPos + 35 + 50; // Ajustar altura automáticamente si es necesario
-            }
-
-            // Eventos
+            // Eventos de botones
             btnCancelar.Click += (s, e) =>
             {
                 this.DialogResult = DialogResult.Cancel;
                 this.Close();
             };
 
-            this.KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.Escape)
-                {
-                    btnCancelar.PerformClick();
-                }
-            };
-
-            // CORREGIDO: Eliminar la confirmación adicional
-            btnAceptar.Click += (s, e) =>
+            btnEliminar.Click += (s, e) =>
             {
                 // Validar motivo
                 if (string.IsNullOrWhiteSpace(txtMotivo.Text) || txtMotivo.Text.Trim().Length < 5)
                 {
                     MessageBox.Show(
-                        "⚠️ Debe ingresar un motivo válido.\n\n" +
+                        "Debe ingresar un motivo válido.\n\n" +
                         "El motivo debe tener al menos 5 caracteres.",
                         "Motivo requerido",
                         MessageBoxButtons.OK,
@@ -235,71 +297,39 @@ namespace Comercio.NET.Formularios
                 }
 
                 Motivo = txtMotivo.Text.Trim();
-
-                // Validar cantidad si es aplicable
-                if (CantidadProducto > 1)
-                {
-                    var txtCantidadControl = this.Controls.Find("txtCantidad", true)[0] as TextBox;
-                    if (!int.TryParse(txtCantidadControl.Text, out int cantidadSeleccionada) ||
-                        cantidadSeleccionada <= 0 || cantidadSeleccionada > CantidadProducto)
-                    {
-                        MessageBox.Show(
-                            $"⚠️ Cantidad inválida.\n\n" +
-                            $"Debe ingresar un número entre 1 y {CantidadProducto}",
-                            "Cantidad inválida",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        txtCantidadControl.Focus();
-                        txtCantidadControl.SelectAll();
-                        return;
-                    }
-                    CantidadAEliminar = cantidadSeleccionada;
-                }
-
-                // ELIMINADO: Ya no hay confirmación aquí - ir directamente a OK
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             };
 
-            // IMPORTANTE: Agregar los controles en el orden correcto
-            this.Controls.AddRange(new Control[] { lblMotivo, txtMotivo, btnAceptar, btnCancelar });
-            this.AcceptButton = btnAceptar;
+            // Eventos de teclado
+            this.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape)
+                {
+                    btnCancelar.PerformClick();
+                }
+            };
+
+            // CORREGIDO: Configurar accept/cancel buttons
+            this.AcceptButton = btnEliminar;
             this.CancelButton = btnCancelar;
 
             // Configurar tab order
             int tabIndex = 0;
-            if (txtCantidad != null) 
-            {
-                txtCantidad.TabIndex = tabIndex++;
-            }
+            rdoEliminarTodo.TabIndex = tabIndex++;
+            rdoEliminarParcial.TabIndex = tabIndex++;
+            numCantidad.TabIndex = tabIndex++;
             txtMotivo.TabIndex = tabIndex++;
-            btnAceptar.TabIndex = tabIndex++;
+            btnEliminar.TabIndex = tabIndex++;
             btnCancelar.TabIndex = tabIndex++;
 
-            // Enfocar el campo apropiado
-            if (txtCantidad != null && CantidadProducto > 1)
-            {
-                txtCantidad.Focus();
-                txtCantidad.SelectAll();
-            }
-            else
-            {
-                txtMotivo.Focus();
-            }
-
-            // DEBUG: Para verificar las dimensiones
-            System.Diagnostics.Debug.WriteLine($"=== DIMENSIONES FORMULARIO ===");
-            System.Diagnostics.Debug.WriteLine($"Tamaño del formulario: {this.Size}");
-            System.Diagnostics.Debug.WriteLine($"Área del cliente: {this.ClientSize}");
-            System.Diagnostics.Debug.WriteLine($"Posición de botones Y: {yPos}");
-            System.Diagnostics.Debug.WriteLine($"Altura total necesaria: {yPos + 35 + 20}");
-            System.Diagnostics.Debug.WriteLine($"=============================");
+            // Enfocar el campo de motivo inicialmente
+            this.Load += (s, e) => txtMotivo.Focus();
         }
 
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            // Configuración básica del formulario
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ResumeLayout(false);

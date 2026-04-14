@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -17,7 +17,7 @@ namespace Comercio.NET.Controles
             public DateTime Fecha { get; set; } = DateTime.Now;
         }
 
-        // Propiedades públicas
+        // Propiedades pÃºblicas
         public decimal ImporteTotal { get; set; }
         public decimal ImportePendiente => ImporteTotal - ImporteAsignado;
         public decimal ImporteAsignado => _pagos.Sum(p => p.Importe);
@@ -36,9 +36,8 @@ namespace Comercio.NET.Controles
         private Label lblPendiente;
         private ProgressBar progressBar;
 
-        // NUEVO: Botones de acceso rápido
+        // NUEVO: Botones de acceso rÃ¡pido
         private Button btnMitad;
-        private Button btnTercio;
         private Button btnCompleto;
         private Button btnMil;
         private Button btnDosMil;
@@ -60,16 +59,16 @@ namespace Comercio.NET.Controles
         {
             this.SuspendLayout();
 
-            // Configuración general
+            // ConfiguraciÃ³n general
             this.Size = new Size(600, 400);
             this.BackColor = Color.White;
             this.BorderStyle = BorderStyle.FixedSingle;
 
-            // Panel superior - Controles de entrada - COMPACTADO para dar más espacio a la grilla
+            // Panel superior - Controles de entrada - COMPACTADO para dar mÃ¡s espacio a la grilla
             var panelEntrada = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 110, // REDUCIDO de 140 a 110 para dar más espacio a la grilla
+                Height = 110, // REDUCIDO de 140 a 110 para dar mÃ¡s espacio a la grilla
                 BackColor = Color.FromArgb(248, 249, 250),
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -97,14 +96,14 @@ namespace Comercio.NET.Controles
             var lblImporte = new Label
             {
                 Text = "Importe:",
-                Location = new Point(130, 8), // AJUSTADO posición
+                Location = new Point(130, 8), // AJUSTADO posiciÃ³n
                 AutoSize = true,
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
             };
 
             nudImporte = new NumericUpDown
             {
-                Location = new Point(130, 25), // AJUSTADO posición
+                Location = new Point(130, 25), // AJUSTADO posiciÃ³n
                 Width = 90, // REDUCIDO de 100 a 90
                 Maximum = 999999999,
                 DecimalPlaces = 0,
@@ -116,14 +115,14 @@ namespace Comercio.NET.Controles
             var lblObs = new Label
             {
                 Text = "Observaciones:",
-                Location = new Point(230, 8), // AJUSTADO posición
+                Location = new Point(230, 8), // AJUSTADO posiciÃ³n
                 AutoSize = true,
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
             };
 
             txtObservaciones = new TextBox
             {
-                Location = new Point(230, 25), // AJUSTADO posición
+                Location = new Point(230, 25), // AJUSTADO posiciÃ³n
                 Width = 130, // REDUCIDO de 150 a 130
                 Font = new Font("Segoe UI", 8.5F),
                 PlaceholderText = "Opcional..."
@@ -133,8 +132,8 @@ namespace Comercio.NET.Controles
             btnAgregar = new Button
             {
                 Text = "+ Agregar",
-                Location = new Point(370, 23), // AJUSTADO posición
-                Size = new Size(75, 23), // REDUCIDO tamaño
+                Location = new Point(370, 23), // AJUSTADO posiciÃ³n
+                Size = new Size(75, 23), // REDUCIDO tamaÃ±o
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -144,52 +143,41 @@ namespace Comercio.NET.Controles
             btnEliminar = new Button
             {
                 Text = "- Quitar",
-                Location = new Point(450, 23), // AJUSTADO posición
-                Size = new Size(60, 23), // REDUCIDO tamaño
+                Location = new Point(450, 23), // AJUSTADO posiciÃ³n
+                Size = new Size(60, 23), // REDUCIDO tamaÃ±o
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 7.5F, FontStyle.Bold)
             };
 
-            // NUEVO: Etiqueta para botones rápidos - COMPACTADA
+            // NUEVO: Etiqueta para botones rÃ¡pidos - COMPACTADA
             var lblRapidos = new Label
             {
-                Text = "Accesos rápidos:",
+                Text = "Accesos rÃ¡pidos:",
                 Location = new Point(10, 50), // REDUCIDO de 70 a 50
                 AutoSize = true,
                 Font = new Font("Segoe UI", 8F, FontStyle.Bold), // REDUCIDO ligeramente
                 ForeColor = Color.FromArgb(0, 120, 215)
             };
 
-            // NUEVO: Botones de acceso rápido - COMPACTADOS
+            // NUEVO: Botones de acceso rÃ¡pido - COMPACTADOS
             btnMitad = new Button
             {
                 Text = "Mitad",
                 Location = new Point(10, 68), // REDUCIDO de 90 a 68
-                Size = new Size(50, 22), // REDUCIDO tamaño
+                Size = new Size(50, 22), // REDUCIDO tamaÃ±o
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 7F, FontStyle.Bold) // REDUCIDO fuente
             };
 
-            btnTercio = new Button
-            {
-                Text = "1/3",
-                Location = new Point(65, 68), // AJUSTADO posición
-                Size = new Size(35, 22), // REDUCIDO tamaño
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 7F, FontStyle.Bold)
-            };
-
             btnCompleto = new Button
             {
                 Text = "Completo",
-                Location = new Point(105, 68), // AJUSTADO posición
-                Size = new Size(60, 22), // REDUCIDO tamaño
+                Location = new Point(65, 68), // AJUSTADO posiciÃ³n
+                Size = new Size(60, 22), // REDUCIDO tamaÃ±o
                 BackColor = Color.FromArgb(0, 150, 136),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -199,9 +187,9 @@ namespace Comercio.NET.Controles
             // NUEVO: Botones de valores fijos - COMPACTADOS
             btnMil = new Button
             {
-                Text = "$1.000",
-                Location = new Point(170, 68), // AJUSTADO posición
-                Size = new Size(50, 22), // REDUCIDO tamaño
+                Text = "$5.000", // âœ… CAMBIADO: de "$1.000" a "$5.000"
+                Location = new Point(130, 68), // âœ… AJUSTADO: Movido a la izquierda
+                Size = new Size(50, 22),
                 BackColor = Color.FromArgb(255, 193, 7),
                 ForeColor = Color.Black,
                 FlatStyle = FlatStyle.Flat,
@@ -210,9 +198,9 @@ namespace Comercio.NET.Controles
 
             btnDosMil = new Button
             {
-                Text = "$2.000",
-                Location = new Point(225, 68), // AJUSTADO posición
-                Size = new Size(50, 22), // REDUCIDO tamaño
+                Text = "$10.000", // âœ… CAMBIADO: de "$2.000" a "$10.000"
+                Location = new Point(185, 68), // âœ… AJUSTADO: Movido a la izquierda
+                Size = new Size(55, 22), // âœ… AUMENTADO: ancho para el texto mÃ¡s largo
                 BackColor = Color.FromArgb(255, 193, 7),
                 ForeColor = Color.Black,
                 FlatStyle = FlatStyle.Flat,
@@ -221,21 +209,21 @@ namespace Comercio.NET.Controles
 
             btnCincoMil = new Button
             {
-                Text = "$5.000",
-                Location = new Point(280, 68), // AJUSTADO posición
-                Size = new Size(50, 22), // REDUCIDO tamaño
+                Text = "$20.000", // âœ… CAMBIADO: de "$5.000" a "$20.000"
+                Location = new Point(245, 68), // âœ… AJUSTADO: Movido a la izquierda
+                Size = new Size(55, 22), // âœ… AUMENTADO: ancho para el texto mÃ¡s largo
                 BackColor = Color.FromArgb(255, 193, 7),
                 ForeColor = Color.Black,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 7F, FontStyle.Bold)
             };
 
-            // Botón para completar automáticamente con efectivo - COMPACTADO
+            // BotÃ³n para completar automÃ¡ticamente con efectivo - COMPACTADO
             var btnCompletar = new Button
             {
                 Text = "Completar con Efectivo",
-                Location = new Point(340, 68), // AJUSTADO posición
-                Size = new Size(140, 22), // REDUCIDO tamaño
+                Location = new Point(310, 68), // âœ… AJUSTADO: de 340 a 310
+                Size = new Size(140, 22),
                 BackColor = Color.FromArgb(23, 162, 184),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -247,7 +235,7 @@ namespace Comercio.NET.Controles
             panelEntrada.Controls.AddRange(new Control[] {
                 lblMedio, cmbMedioPago, lblImporte, nudImporte,
                 lblObs, txtObservaciones, btnAgregar, btnEliminar,
-                lblRapidos, btnMitad, btnTercio, btnCompleto,
+                lblRapidos, btnMitad, btnCompleto,
                 btnMil, btnDosMil, btnCincoMil, btnCompletar
             });
 
@@ -289,7 +277,7 @@ namespace Comercio.NET.Controles
 
             progressBar = new ProgressBar
             {
-                Location = new Point(200, 20), // AJUSTADO posición
+                Location = new Point(200, 20), // AJUSTADO posiciÃ³n
                 Size = new Size(300, 25), // REDUCIDO altura de 30 a 25
                 Style = ProgressBarStyle.Continuous,
                 BackColor = Color.White
@@ -297,7 +285,7 @@ namespace Comercio.NET.Controles
 
             panelTotales.Controls.AddRange(new Control[] { lblTotal, lblAsignado, lblPendiente, progressBar });
 
-            // DataGridView - AHORA TIENE MÁS ESPACIO (aprox. 30px más)
+            // DataGridView - AHORA TIENE MÃS ESPACIO (aprox. 30px mÃ¡s)
             dgvPagos = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -309,8 +297,8 @@ namespace Comercio.NET.Controles
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
-                Font = new Font("Segoe UI", 8.5F), // REDUCIDO ligeramente para ver más filas
-                RowTemplate = { Height = 22 } // REDUCIDO altura de filas para ver más
+                Font = new Font("Segoe UI", 8.5F), // REDUCIDO ligeramente para ver mÃ¡s filas
+                RowTemplate = { Height = 22 } // REDUCIDO altura de filas para ver mÃ¡s
             };
 
             ConfigurarDataGridView();
@@ -323,6 +311,7 @@ namespace Comercio.NET.Controles
             this.ResumeLayout(false);
         }
 
+
         private void ConfigurarDataGridView()
         {
             dgvPagos.Columns.Clear();
@@ -331,7 +320,7 @@ namespace Comercio.NET.Controles
             dgvPagos.Columns.Add("Observaciones", "Observaciones");
             dgvPagos.Columns.Add("Fecha", "Fecha/Hora");
 
-            // Configurar formato de columnas - MODIFICADO para números enteros
+            // Configurar formato de columnas - MODIFICADO para nÃºmeros enteros
             dgvPagos.Columns["Importe"].DefaultCellStyle.Format = "N0"; // CAMBIADO: Sin decimales
             dgvPagos.Columns["Importe"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             dgvPagos.Columns["Fecha"].DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
@@ -351,13 +340,12 @@ namespace Comercio.NET.Controles
             btnAgregar.Click += BtnAgregar_Click;
             btnEliminar.Click += BtnEliminar_Click;
             
-            // Eventos para botones de acceso rápido
+            // Eventos para botones de acceso rÃ¡pido
             btnMitad.Click += (s, e) => EstablecerImporte(ImportePendiente / 2);
-            btnTercio.Click += (s, e) => EstablecerImporte(ImportePendiente / 3);
             btnCompleto.Click += (s, e) => EstablecerImporte(ImportePendiente);
-            btnMil.Click += (s, e) => EstablecerImporte(1000);
-            btnDosMil.Click += (s, e) => EstablecerImporte(2000);
-            btnCincoMil.Click += (s, e) => EstablecerImporte(5000);
+            btnMil.Click += (s, e) => EstablecerImporte(5000);
+            btnDosMil.Click += (s, e) => EstablecerImporte(10000);
+            btnCincoMil.Click += (s, e) => EstablecerImporte(20000);
             
             // NUEVO: Agregar eventos adicionales para mejorar la experiencia del usuario
             nudImporte.ValueChanged += (s, e) => ActualizarEstadoBotones();
@@ -373,13 +361,13 @@ namespace Comercio.NET.Controles
             };
         }
 
-        // NUEVO: Método para establecer importe con redondeo
+        // NUEVO: MÃ©todo para establecer importe con redondeo
         private void EstablecerImporte(decimal importe)
         {
-            // Redondear a número entero
+            // Redondear a nÃºmero entero
             decimal importeRedondeado = Math.Round(importe, 0);
             
-            // Verificar que no exceda el máximo del control
+            // Verificar que no exceda el mÃ¡ximo del control
             if (importeRedondeado > nudImporte.Maximum)
                 importeRedondeado = nudImporte.Maximum;
             
@@ -397,7 +385,7 @@ namespace Comercio.NET.Controles
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("=== BOTÓN AGREGAR CLICKEADO ===");
+                System.Diagnostics.Debug.WriteLine("=== BOTÃ“N AGREGAR CLICKEADO ===");
                 System.Diagnostics.Debug.WriteLine($"Medio de pago: {cmbMedioPago.SelectedItem}");
                 System.Diagnostics.Debug.WriteLine($"Importe: {nudImporte.Value}");
                 System.Diagnostics.Debug.WriteLine($"Importe Total: {ImporteTotal}");
@@ -409,7 +397,7 @@ namespace Comercio.NET.Controles
                     var pago = new DetallePago
                     {
                         MedioPago = cmbMedioPago.SelectedItem.ToString(),
-                        Importe = nudImporte.Value, // Ya es número entero
+                        Importe = nudImporte.Value, // Ya es nÃºmero entero
                         Observaciones = txtObservaciones.Text.Trim()
                     };
 
@@ -421,7 +409,7 @@ namespace Comercio.NET.Controles
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("? Validación falló");
+                    System.Diagnostics.Debug.WriteLine("? ValidaciÃ³n fallÃ³");
                 }
             }
             catch (Exception ex)
@@ -441,8 +429,8 @@ namespace Comercio.NET.Controles
                 {
                     var pago = _pagos[index];
                     var resultado = MessageBox.Show(
-                        $"¿Eliminar el pago de ${pago.Importe:N0} por {pago.MedioPago}?",
-                        "Confirmar eliminación",
+                        $"Â¿Eliminar el pago de ${pago.Importe:N0} por {pago.MedioPago}?",
+                        "Confirmar eliminaciÃ³n",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
 
@@ -459,11 +447,11 @@ namespace Comercio.NET.Controles
         {
             if (ImportePendiente > 0)
             {
-                // Redondear a número entero
+                // Redondear a nÃºmero entero
                 decimal importeCompleto = Math.Round(ImportePendiente, 0);
                 
                 var resultado = MessageBox.Show(
-                    $"¿Completar el pago pendiente de ${importeCompleto:N0} con Efectivo?",
+                    $"Â¿Completar el pago pendiente de ${importeCompleto:N0} con Efectivo?",
                     "Completar pago",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
@@ -474,7 +462,7 @@ namespace Comercio.NET.Controles
                     {
                         MedioPago = "Efectivo",
                         Importe = importeCompleto,
-                        Observaciones = "Completado automáticamente"
+                        Observaciones = "Completado automÃ¡ticamente"
                     };
 
                     _pagos.Add(pago);
@@ -492,7 +480,7 @@ namespace Comercio.NET.Controles
                 if (cmbMedioPago.SelectedItem == null)
                 {
                     System.Diagnostics.Debug.WriteLine("? No hay medio de pago seleccionado");
-                    MessageBox.Show("Seleccione un medio de pago.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("Seleccione un medio de pago.", "ValidaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     cmbMedioPago.Focus();
                     return false;
                 }
@@ -500,33 +488,33 @@ namespace Comercio.NET.Controles
                 if (nudImporte.Value <= 0)
                 {
                     System.Diagnostics.Debug.WriteLine("? Importe debe ser mayor a cero");
-                    MessageBox.Show("El importe debe ser mayor a cero.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("El importe debe ser mayor a cero.", "ValidaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     nudImporte.Focus();
                     return false;
                 }
 
-                // CORREGIDO: Permitir pagos que excedan ligeramente el total (diferencia mínima)
+                // CORREGIDO: Permitir pagos que excedan ligeramente el total (diferencia mÃ­nima)
                 decimal importeAExceder = ImporteAsignado + nudImporte.Value - ImporteTotal;
-                if (importeAExceder > 1m) // Permitir hasta $1 de diferencia para números enteros
+                if (importeAExceder > 1m) // Permitir hasta $1 de diferencia para nÃºmeros enteros
                 {
                     System.Diagnostics.Debug.WriteLine($"? Importe excede el pendiente. Exceso: ${importeAExceder:N0}");
                     MessageBox.Show(
                         $"El importe ingresado (${nudImporte.Value:N0}) excede el pendiente (${ImportePendiente:N0}).\n" +
                         $"Exceso: ${importeAExceder:N0}",
-                        "Validación",
+                        "ValidaciÃ³n",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     nudImporte.Focus();
                     return false;
                 }
 
-                System.Diagnostics.Debug.WriteLine("? Validación exitosa");
+                System.Diagnostics.Debug.WriteLine("? ValidaciÃ³n exitosa");
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"? Error en validación: {ex.Message}");
-                MessageBox.Show($"Error en validación: {ex.Message}", "Error", 
+                System.Diagnostics.Debug.WriteLine($"? Error en validaciÃ³n: {ex.Message}");
+                MessageBox.Show($"Error en validaciÃ³n: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
@@ -534,7 +522,7 @@ namespace Comercio.NET.Controles
 
         private void LimpiarEntrada()
         {
-            // CORREGIDO: Establecer un valor por defecto más inteligente para números enteros
+            // CORREGIDO: Establecer un valor por defecto mÃ¡s inteligente para nÃºmeros enteros
             if (ImportePendiente > 0)
             {
                 decimal valorSugerido = Math.Round(ImportePendiente, 0);
@@ -549,22 +537,22 @@ namespace Comercio.NET.Controles
             cmbMedioPago.Focus();
         }
 
-        // NUEVO: Método para actualizar el estado de los botones
+        // NUEVO: MÃ©todo para actualizar el estado de los botones
         private void ActualizarEstadoBotones()
         {
             try
             {
-                // El botón agregar debe estar habilitado si:
+                // El botÃ³n agregar debe estar habilitado si:
                 // 1. Hay un medio de pago seleccionado
                 // 2. El importe es mayor a 0
                 // 3. No se excede significativamente el total
-                bool puedeAgregar = cmbMedioPago.SelectedItem != null && 
-                                   nudImporte.Value > 0 && 
-                                   (ImporteAsignado + nudImporte.Value - ImporteTotal) <= 1m; // Tolerancia de $1
+                bool puedeAgregar = cmbMedioPago.SelectedItem != null &&
+                                   nudImporte.Value > 0 &&
+                                   (ImporteAsignado + nudImporte.Value - ImporteTotal) <= 1m;
 
                 btnAgregar.Enabled = puedeAgregar;
-                
-                // Cambiar color del botón según estado
+
+                // Cambiar color del botÃ³n segÃºn estado
                 if (puedeAgregar)
                 {
                     btnAgregar.BackColor = Color.FromArgb(40, 167, 69);
@@ -576,13 +564,13 @@ namespace Comercio.NET.Controles
                     btnAgregar.ForeColor = Color.DarkGray;
                 }
 
-                // Actualizar estado de botones rápidos
+                // âœ… MODIFICADO: Actualizar estado de botones rÃ¡pidos (SIN btnTercio)
                 bool hayImportePendiente = ImportePendiente > 0;
                 btnMitad.Enabled = hayImportePendiente;
-                btnTercio.Enabled = hayImportePendiente;
+                // âŒ ELIMINADO: btnTercio.Enabled
                 btnCompleto.Enabled = hayImportePendiente;
 
-                System.Diagnostics.Debug.WriteLine($"?? Estado botón Agregar: {(puedeAgregar ? "Habilitado" : "Deshabilitado")}");
+                System.Diagnostics.Debug.WriteLine($"âš™ï¸ Estado botÃ³n Agregar: {(puedeAgregar ? "Habilitado" : "Deshabilitado")}");
             }
             catch (Exception ex)
             {
@@ -593,16 +581,16 @@ namespace Comercio.NET.Controles
         public void EstablecerImporteTotal(decimal total)
         {
             ImporteTotal = total;
-            LimpiarPagos();
-            ActualizarVista();
-            
+            LimpiarPagos(); // LimpiarPagos ya llama a ActualizarVista()
+
             // Sugerir el total como primer importe (redondeado)
             if (total > 0)
             {
                 decimal totalRedondeado = Math.Round(total, 0);
                 nudImporte.Value = Math.Min(totalRedondeado, nudImporte.Maximum);
             }
-            
+
+            // Actualizar estado de botones (pero no volver a forzar ActualizarVista)
             ActualizarEstadoBotones();
         }
 
@@ -623,12 +611,11 @@ namespace Comercio.NET.Controles
                     dgvPagos.Rows.Add(pago.MedioPago, pago.Importe, pago.Observaciones, pago.Fecha);
                 }
 
-                // Actualizar labels - MODIFICADO para números enteros
+                // Actualizar labels
                 lblTotal.Text = $"Total: ${ImporteTotal:N0}";
                 lblAsignado.Text = $"Asignado: ${ImporteAsignado:N0}";
                 lblPendiente.Text = $"Pendiente: ${ImportePendiente:N0}";
 
-                // Actualizar colores según estado
                 if (PagoCompleto)
                 {
                     lblPendiente.ForeColor = Color.LightGreen;
@@ -645,29 +632,25 @@ namespace Comercio.NET.Controles
                     lblPendiente.Text = $"PENDIENTE: ${ImportePendiente:N0}";
                 }
 
-                // Actualizar progress bar
+                // Progress bar seguro
                 if (ImporteTotal > 0)
                 {
                     var porcentaje = (int)Math.Min(100, (ImporteAsignado / ImporteTotal) * 100);
                     progressBar.Value = porcentaje;
-                    
-                    // Cambiar color según estado
-                    if (porcentaje == 100)
-                    {
-                        progressBar.ForeColor = Color.Green;
-                    }
-                    else if (porcentaje > 100)
-                    {
-                        progressBar.ForeColor = Color.Red;
-                    }
                 }
 
-                // CORREGIDO: Actualizar estado de botones correctamente
                 btnEliminar.Enabled = _pagos.Count > 0;
-                ActualizarEstadoBotones(); // Usar el nuevo método
+                ActualizarEstadoBotones();
 
-                // Disparar evento de cambio
-                OnPagosChanged?.Invoke(this, EventArgs.Empty);
+                // Disparar evento de cambio de forma asÃ­ncrona para evitar reentradas
+                if (this.IsHandleCreated)
+                {
+                    this.BeginInvoke(new Action(() => OnPagosChanged?.Invoke(this, EventArgs.Empty)));
+                }
+                else
+                {
+                    OnPagosChanged?.Invoke(this, EventArgs.Empty);
+                }
 
                 System.Diagnostics.Debug.WriteLine($"?? Vista actualizada - Pagos: {_pagos.Count}, Total: ${ImporteTotal:N0}, Asignado: ${ImporteAsignado:N0}");
             }
@@ -680,7 +663,7 @@ namespace Comercio.NET.Controles
         // Evento para notificar cambios
         public event EventHandler OnPagosChanged;
 
-        // Métodos públicos de utilidad
+        // MÃ©todos pÃºblicos de utilidad
         public bool TienePagoDigital()
         {
             return _pagos.Any(p => p.MedioPago == "DNI" || p.MedioPago == "MercadoPago");

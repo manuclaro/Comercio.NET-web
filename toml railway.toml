@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Comercio.NET.Mobile/Comercio.NET.Mobile.Server/Dockerfile"
+# El contexto será la raíz del repositorio
+watchPatterns = ["Comercio.NET.Mobile/Comercio.NET.Mobile.Server/**"]
+
+[deploy]
+startCommand = ""

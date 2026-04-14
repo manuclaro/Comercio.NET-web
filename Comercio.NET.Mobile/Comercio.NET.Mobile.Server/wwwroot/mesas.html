@@ -1,0 +1,159 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control de Mesas</title>
+    <link rel="stylesheet" href="/css/mesas.css" />
+</head>
+
+<body>
+
+    <header>
+        <button class="btn-back" onclick="location.href='/dashboard-pizzeria.html'">← Panel</button>
+        <h1>🍽️ Control de Mesas</h1>
+        <div class="header-user">
+            <span id="nombreUsuarioMesas"></span>
+            <button id="btnSalir" class="btn-back">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <!-- ── Banner de turno ──────────────────────────────────────────────────── -->
+    <div id="bannedTurno" class="turno-banner turno-cerrado" style="display:none">
+        <span id="turnoInfo">Sin turno abierto</span>
+        <div class="turno-acciones">
+            <button id="btnAbrirTurno" class="btn-turno-abrir" style="display:none">▶ Abrir turno</button>
+            <button id="btnCerrarTurno" class="btn-turno-cerrar" style="display:none">■ Cerrar turno</button>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- ── Listado de mesas ───────────────────────────────────────── -->
+        <div id="listadoMesas">
+            <div class="acciones">
+                <button id="btnNuevaMesa" class="btn-primary">+ Nueva mesa</button>
+            </div>
+            <div id="gridMesas" class="grid-mesas"></div>
+            <p id="mensajeVacio" class="mensaje-vacio" style="display:none">
+                No hay mesas abiertas. ¡Abrí una nueva!
+            </p>
+        </div>
+
+        <!-- ── Detalle de mesa ────────────────────────────────────────── -->
+        <div id="panelDetalle" style="display:none">
+            <div class="detalle-header">
+                <button id="btnVolverMesas" class="btn-secondary">← Volver</button>
+                <h2 id="tituloDetalle"></h2>
+                <button id="btnCerrarMesa" class="btn-danger">🧾 Cerrar mesa</button>
+            </div>
+
+            <!-- Agregar ítem -->
+            <div class="form-item">
+                <div class="field">
+                    <label>Producto *</label>
+                    <select id="selectProductoItem">
+                        <option value="">-- Seleccioná --</option>
+                    </select>
+                </div>
+                <div class="field field-sm">
+                    <label>Cantidad *</label>
+                    <input type="number" id="itemCantidad" min="1" value="1" />
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <button id="btnAgregarItem" class="btn-primary">+ Agregar</button>
+                </div>
+            </div>
+
+            <!-- Tabla de consumos — DESKTOP -->
+            <div class="tabla-wrap tabla-items-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th style="text-align:center">Cant.</th>
+                            <th style="text-align:right">Precio unit.</th>
+                            <th style="text-align:right">Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyItems"></tbody>
+                </table>
+            </div>
+
+            <!-- Cards de consumos — MÓVIL -->
+            <div id="itemsCards" class="items-cards"></div>
+
+            <div class="pie-detalle">
+                <span id="totalDetalle" class="total-mesa">Total: $ 0,00</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── Modal: nueva mesa ──────────────────────────────────────────────── -->
+    <div id="modalNuevaMesa" class="modal-overlay">
+        <div class="modal">
+            <h3>Abrir nueva mesa</h3>
+            <form id="formNuevaMesa">
+                <div class="campo">
+                    <label>Número de mesa *</label>
+                    <input type="number" id="inputNumeroMesa" min="1" required />
+                </div>
+                <div class="campo">
+                    <label>Mozo *</label>
+                    <select id="selectMozo" required>
+                        <option value="">-- Seleccioná un mozo --</option>
+                    </select>
+                </div>
+                <div class="modal-acciones">
+                    <button type="button" id="btnCerrarNuevaMesa" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">Abrir mesa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Modal: cerrar mesa ─────────────────────────────────────────────── -->
+    <div id="modalCerrarMesa" class="modal-overlay">
+        <div class="modal">
+            <h3>Cerrar mesa</h3>
+            <form id="formCerrarMesa">
+                <div class="campo">
+                    <label>Forma de pago *</label>
+                    <select id="selectFormaPago" required>
+                        <option value="">-- Seleccioná --</option>
+                    </select>
+                </div>
+                <div class="modal-acciones">
+                    <button type="button" id="btnCancelarCierre" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">🧾 Cerrar e imprimir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Modal: confirmar cierre de turno ──────────────────────────────── -->
+    <div id="modalCerrarTurno" class="modal-overlay">
+        <div class="modal">
+            <h3>Cerrar turno</h3>
+            <p style="margin-bottom:1rem;color:#555">
+                ¿Confirmás el cierre del turno actual? Esta acción cerrará el turno y ya no se podrán registrar nuevas ventas hasta abrir uno nuevo.
+            </p>
+            <div class="modal-acciones">
+                <button type="button" id="btnCancelarCierreTurno" class="btn-secondary">Cancelar</button>
+                <button type="button" id="btnConfirmarCierreTurno" class="btn-danger">■ Cerrar turno</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket de impresión (oculto en pantalla) -->
+    <div id="ticketPrint"></div>
+
+    <script src="/js/mesas.js"></script>
+</body>
+
+</html>

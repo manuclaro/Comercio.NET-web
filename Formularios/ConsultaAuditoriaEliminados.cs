@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -21,7 +21,28 @@ namespace Comercio.NET.Formularios
         public ConsultaAuditoriaEliminados()
         {
             ConfigurarFormulario();
-            ConfigurarEventosTextBoxes(); // NUEVO: Configurar eventos de navegaci�n
+            ConfigurarEventosTextBoxes(); // NUEVO: Configurar eventos de navegación
+            CrearVentanaDetalle();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (frmDetalle != null && !frmDetalle.IsDisposed)
+                {
+                    frmDetalle.Dispose();
+                }
+            }
+            base.Dispose(disposing);
+        }
+
+        // ✅ NUEVO: Constructor sobrecargado que acepta rango de fechas
+        public ConsultaAuditoriaEliminados(DateTime fechaDesde, DateTime fechaHasta) : this()
+        {
+            // Establecer las fechas recibidas como parámetros
+            dtpDesde.Value = fechaDesde;
+            dtpHasta.Value = fechaHasta;
         }
 
         protected override void OnShown(EventArgs e)
@@ -30,7 +51,7 @@ namespace Comercio.NET.Formularios
             CargarDatosIniciales();
         }
 
-        // NUEVO: M�todo para configurar eventos de navegaci�n con Enter en TextBoxes
+        // NUEVO: Método para configurar eventos de navegación con Enter en TextBoxes
         private void ConfigurarEventosTextBoxes()
         {
             // Configurar cada TextBox para navegar con Enter
@@ -40,7 +61,7 @@ namespace Comercio.NET.Formularios
             ConfigurarTextBoxNavegacion(txtCajero);
         }
 
-        // NUEVO: M�todo helper para configurar navegaci�n con Enter en un TextBox espec�fico
+        // NUEVO: Método helper para configurar navegación con Enter en un TextBox específico
         private void ConfigurarTextBoxNavegacion(TextBox textBox)
         {
             textBox.KeyDown += (sender, e) =>
@@ -49,7 +70,7 @@ namespace Comercio.NET.Formularios
                 {
                     e.SuppressKeyPress = true; // Evitar el beep del sistema
                     
-                    // Navegar al siguiente control en el orden de tabulaci�n
+                    // Navegar al siguiente control en el orden de tabulación
                     this.SelectNextControl(textBox, true, true, true, true);
                 }
             };
@@ -63,7 +84,7 @@ namespace Comercio.NET.Formularios
 
         private void ConfigurarFormulario()
         {
-            this.Text = "Consulta de Productos Eliminados - Auditor�a";
+            this.Text = "Consulta de Productos Eliminados - Auditoría";
             this.Size = new Size(1200, 500);
             this.MinimumSize = new Size(1000, 400);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -75,15 +96,16 @@ namespace Comercio.NET.Formularios
                 BackColor = Color.FromArgb(240, 240, 240)
             };
 
-            // PRIMERA FILA - Filtros de fecha, c�digo, remito y usuario
+            // PRIMERA FILA - Filtros de fecha, código, remito y usuario
             var lblDesde = new Label { Text = "Desde:", Location = new Point(10, 15), Size = new Size(50, 20) };
             dtpDesde = new DateTimePicker { Location = new Point(65, 12), Size = new Size(120, 23), TabIndex = 0 }; // NUEVO: TabIndex
-            dtpDesde.Value = DateTime.Now.AddDays(-30);
+            //dtpDesde.Value = DateTime.Now.AddDays(-30);
+            dtpDesde.Value = DateTime.Now;
 
             var lblHasta = new Label { Text = "Hasta:", Location = new Point(200, 15), Size = new Size(50, 20) };
             dtpHasta = new DateTimePicker { Location = new Point(255, 12), Size = new Size(120, 23), TabIndex = 1 }; // NUEVO: TabIndex
 
-            var lblCodigo = new Label { Text = "C�digo:", Location = new Point(390, 15), Size = new Size(50, 20) };
+            var lblCodigo = new Label { Text = "Código:", Location = new Point(390, 15), Size = new Size(50, 20) };
             txtCodigoProducto = new TextBox { Location = new Point(445, 12), Size = new Size(100, 23), TabIndex = 2 }; // NUEVO: TabIndex
 
             var lblFactura = new Label { Text = "Remito:", Location = new Point(560, 15), Size = new Size(50, 20) };
@@ -179,9 +201,614 @@ namespace Comercio.NET.Formularios
             this.Controls.Add(dgvAuditoria);
             this.Controls.Add(panelFiltros);
 
-            // NUEVO: Configurar el orden de tabulaci�n y foco inicial
+            // ✅ AGREGAR en el constructor o InitializeComponent:
+            dgvAuditoria.CellDoubleClick += DgvAuditoria_CellDoubleClick;
+
+            // NUEVO: Configurar el orden de tabulación y foco inicial
             this.TabStop = true;
             dtpDesde.Select(); // Establecer foco inicial en el primer control
+        }
+
+        // ✅ NUEVO: Event handler para doble clic en auditoría
+        private void DgvAuditoria_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                // ✅ CAMBIO: Usar "Remito" en lugar de "NumeroFactura"
+                var numeroFactura = dgvAuditoria.Rows[e.RowIndex].Cells["Remito"]?.Value?.ToString();
+
+                if (!string.IsNullOrEmpty(numeroFactura))
+                {
+                    CargarDetalleFacturaEliminada(numeroFactura);
+                    MostrarVentanaDetalle();
+                }
+            }
+        }
+
+        // ✅ NUEVO: Método para cargar detalle de factura eliminada
+        private void CargarDetalleFacturaEliminada(string nroFactura)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[DETALLE] Cargando productos del remito desde tabla Ventas: {nroFactura}");
+
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    // ✅ CAMBIO CRÍTICO: Consultar tabla Ventas en lugar de AuditoriaProductosEliminados
+                    var query = @"
+                SELECT 
+                    codigo as 'Código',
+                    descripcion as 'Producto',
+                    cantidad as 'Cantidad',
+                    precio as 'Precio Unit.',
+                    total as 'Total'
+                FROM Ventas 
+                WHERE NroFactura = @nroFactura
+                ORDER BY descripcion";
+
+                    using (var adapter = new SqlDataAdapter(query, connection))
+                    {
+                        adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+
+                        System.Diagnostics.Debug.WriteLine($"[DETALLE] ✅ Productos encontrados en Ventas: {dt.Rows.Count}");
+
+                        if (dt.Rows.Count == 0)
+                        {
+                            // ✅ Si no hay productos en Ventas, buscar en auditoría
+                            System.Diagnostics.Debug.WriteLine($"[DETALLE] ⚠️ No hay productos en Ventas, buscando en auditoría...");
+                            CargarDetalleDesdeAuditoria(nroFactura);
+                            return;
+                        }
+
+                        // Buscar el DataGridView en la ventana flotante
+                        var dgvDetalle = frmDetalle.Controls.Find("dgvDetalle", true).FirstOrDefault() as DataGridView;
+                        if (dgvDetalle != null)
+                        {
+                            dgvDetalle.DataSource = dt;
+                            FormatearColumnasDetalleVentas(dgvDetalle); // ✅ Usar formato para Ventas (no auditoría)
+                        }
+
+                        // Actualizar totales
+                        ActualizarTotalesDetalleVentas(dt, nroFactura);
+
+                        // Actualizar el título de la ventana
+                        ActualizarTituloDetalleVentas(nroFactura);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al cargar el detalle del remito: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Debug.WriteLine($"[ERROR DETALLE] {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
+        // ✅ NUEVO: Cargar desde auditoría si el remito ya fue eliminado completamente
+        private void CargarDetalleDesdeAuditoria(string nroFactura)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"
+                SELECT 
+                    CodigoProducto as 'Código',
+                    DescripcionProducto as 'Producto',
+                    Cantidad as 'Cantidad',
+                    PrecioUnitario as 'Precio Unit.',
+                    TotalEliminado as 'Total',
+                    MotivoEliminacion as 'Motivo',
+                    FechaEliminacion as 'Fecha Eliminación',
+                    UsuarioEliminacion as 'Usuario'
+                FROM AuditoriaProductosEliminados 
+                WHERE NumeroFactura = @nroFactura
+                ORDER BY DescripcionProducto";
+
+                    using (var adapter = new SqlDataAdapter(query, connection))
+                    {
+                        adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+
+                        System.Diagnostics.Debug.WriteLine($"[DETALLE] ✅ Productos encontrados en Auditoría: {dt.Rows.Count}");
+
+                        if (dt.Rows.Count == 0)
+                        {
+                            MessageBox.Show($"No se encontraron productos para el remito N° {nroFactura}.\n\n" +
+                                            "El remito no existe ni en Ventas ni en Auditoría.",
+                                "Sin datos", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        var dgvDetalle = frmDetalle.Controls.Find("dgvDetalle", true).FirstOrDefault() as DataGridView;
+                        if (dgvDetalle != null)
+                        {
+                            dgvDetalle.DataSource = dt;
+                            FormatearColumnasDetalle(dgvDetalle); // Formato con columnas de auditoría
+                        }
+
+                        ActualizarTotalesDetalle(dt, nroFactura);
+                        ActualizarTituloDetalle(nroFactura, dt);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al cargar datos de auditoría: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Formatear columnas para datos de Ventas (sin columnas de auditoría)
+        private void FormatearColumnasDetalleVentas(DataGridView dgvDetalle)
+        {
+            if (dgvDetalle.Columns.Count == 0) return;
+
+            var originalAutoSizeMode = dgvDetalle.AutoSizeColumnsMode;
+            dgvDetalle.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+            try
+            {
+                var codigoCol = dgvDetalle.Columns["Código"];
+                if (codigoCol != null)
+                {
+                    codigoCol.Width = 100;
+                    codigoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                var productoCol = dgvDetalle.Columns["Producto"];
+                if (productoCol != null)
+                {
+                    productoCol.Width = 300;
+                }
+
+                var cantidadCol = dgvDetalle.Columns["Cantidad"];
+                if (cantidadCol != null)
+                {
+                    cantidadCol.Width = 100;
+                    cantidadCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                var precioCol = dgvDetalle.Columns["Precio Unit."];
+                if (precioCol != null)
+                {
+                    precioCol.DefaultCellStyle.Format = "C2";
+                    precioCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    precioCol.Width = 120;
+                }
+
+                var totalCol = dgvDetalle.Columns["Total"];
+                if (totalCol != null)
+                {
+                    totalCol.DefaultCellStyle.Format = "C2";
+                    totalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    totalCol.Width = 120;
+                    totalCol.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69); // ✅ Verde (datos actuales)
+                    totalCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                }
+            }
+            finally
+            {
+                dgvDetalle.AutoSizeColumnsMode = originalAutoSizeMode;
+            }
+        }
+
+        // ✅ NUEVO: Actualizar totales para datos de Ventas
+        private void ActualizarTotalesDetalleVentas(DataTable dt, string nroFactura)
+        {
+            int cantidadProductos = dt.Rows.Count;
+            decimal cantidadTotal = 0;
+            decimal totalFactura = 0;
+
+            foreach (DataRow row in dt.Rows)
+            {
+                if (decimal.TryParse(row["Cantidad"].ToString(), out decimal cantidad))
+                {
+                    cantidadTotal += cantidad;
+                }
+
+                if (decimal.TryParse(row["Total"].ToString(), out decimal total))
+                {
+                    totalFactura += total;
+                }
+            }
+
+            var lblCantidadProductos = frmDetalle.Controls.Find("lblCantidadProductos", true).FirstOrDefault() as Label;
+            if (lblCantidadProductos != null)
+                lblCantidadProductos.Text = $"Productos: {cantidadProductos}";
+
+            var lblCantidadTotalDetalle = frmDetalle.Controls.Find("lblCantidadTotalDetalle", true).FirstOrDefault() as Label;
+            if (lblCantidadTotalDetalle != null)
+                lblCantidadTotalDetalle.Text = $"Cantidad: {cantidadTotal:N0}";
+
+            var lblTotalFactura = frmDetalle.Controls.Find("lblTotalFactura", true).FirstOrDefault() as Label;
+            if (lblTotalFactura != null)
+            {
+                lblTotalFactura.Text = $"Total: {totalFactura:C2}";
+                lblTotalFactura.ForeColor = Color.White; // ✅ Blanco (datos actuales, no eliminados)
+            }
+        }
+
+        // ✅ NUEVO: Actualizar título para datos de Ventas
+        private void ActualizarTituloDetalleVentas(string nroFactura)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+                string connectionString = config.GetConnectionString("DefaultConnection");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    var query = @"
+                SELECT 
+                    TipoFactura,
+                    FormadePago,
+                    Fecha
+                FROM Facturas 
+                WHERE NumeroRemito = @nroFactura";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        connection.Open();
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                string tipo = reader["TipoFactura"]?.ToString() ?? "Remito";
+                                string formaPago = reader["FormadePago"]?.ToString() ?? "";
+                                DateTime? fecha = reader["Fecha"] as DateTime?;
+
+                                string titulo = $"📋 Detalle {tipo} N° {nroFactura}";
+
+                                if (fecha.HasValue)
+                                {
+                                    titulo += $" - Fecha: {fecha.Value:dd/MM/yyyy}";
+                                }
+
+                                if (!string.IsNullOrEmpty(formaPago))
+                                {
+                                    titulo += $" - {formaPago}";
+                                }
+
+                                frmDetalle.Text = titulo;
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                // Si no se encontró en Facturas
+                frmDetalle.Text = $"📋 Detalle Remito N° {nroFactura}";
+            }
+            catch
+            {
+                frmDetalle.Text = $"📋 Detalle Remito N° {nroFactura}";
+            }
+        }
+
+        // ✅ NUEVO: Método para formatear columnas del detalle de auditoría
+        private void FormatearColumnasDetalle(DataGridView dgvDetalle)
+        {
+            if (dgvDetalle.Columns.Count == 0) return;
+
+            var originalAutoSizeMode = dgvDetalle.AutoSizeColumnsMode;
+            dgvDetalle.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+            try
+            {
+                var codigoCol = dgvDetalle.Columns["Código"];
+                if (codigoCol != null)
+                {
+                    codigoCol.Width = 80;
+                    codigoCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                var productoCol = dgvDetalle.Columns["Producto"];
+                if (productoCol != null)
+                {
+                    productoCol.Width = 250;
+                }
+
+                var cantidadCol = dgvDetalle.Columns["Cantidad"];
+                if (cantidadCol != null)
+                {
+                    cantidadCol.Width = 80;
+                    cantidadCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                var precioCol = dgvDetalle.Columns["Precio Unit."];
+                if (precioCol != null)
+                {
+                    precioCol.DefaultCellStyle.Format = "C2";
+                    precioCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    precioCol.Width = 100;
+                }
+
+                var totalCol = dgvDetalle.Columns["Total"];
+                if (totalCol != null)
+                {
+                    totalCol.DefaultCellStyle.Format = "C2";
+                    totalCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    totalCol.Width = 100;
+                    totalCol.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69); // ✅ Rojo para indicar eliminación
+                    totalCol.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                }
+
+                var motivoCol = dgvDetalle.Columns["Motivo"];
+                if (motivoCol != null)
+                {
+                    motivoCol.Width = 200;
+                    motivoCol.DefaultCellStyle.ForeColor = Color.FromArgb(255, 152, 0); // ✅ Naranja
+                }
+
+                var fechaCol = dgvDetalle.Columns["Fecha Eliminación"];
+                if (fechaCol != null)
+                {
+                    fechaCol.DefaultCellStyle.Format = "dd/MM/yyyy HH:mm";
+                    fechaCol.Width = 120;
+                    fechaCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+
+                var usuarioCol = dgvDetalle.Columns["Usuario"];
+                if (usuarioCol != null)
+                {
+                    usuarioCol.Width = 100;
+                    usuarioCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+            }
+            finally
+            {
+                dgvDetalle.AutoSizeColumnsMode = originalAutoSizeMode;
+            }
+        }
+
+        // ✅ NUEVO: Actualizar totales para factura eliminada
+        private void ActualizarTotalesDetalle(DataTable dt, string nroFactura)
+        {
+            int cantidadProductos = dt.Rows.Count;
+            decimal cantidadTotal = 0;
+            decimal totalFactura = 0;
+
+            foreach (DataRow row in dt.Rows)
+            {
+                if (decimal.TryParse(row["Cantidad"].ToString(), out decimal cantidad))
+                {
+                    cantidadTotal += cantidad;
+                }
+
+                if (decimal.TryParse(row["Total"].ToString(), out decimal total))
+                {
+                    totalFactura += total;
+                }
+            }
+
+            // Actualizar los labels de totales
+            var lblCantidadProductos = frmDetalle.Controls.Find("lblCantidadProductos", true).FirstOrDefault() as Label;
+            if (lblCantidadProductos != null)
+                lblCantidadProductos.Text = $"Productos: {cantidadProductos}";
+
+            var lblCantidadTotalDetalle = frmDetalle.Controls.Find("lblCantidadTotalDetalle", true).FirstOrDefault() as Label;
+            if (lblCantidadTotalDetalle != null)
+                lblCantidadTotalDetalle.Text = $"Cantidad: {cantidadTotal:N0}";
+
+            var lblTotalFactura = frmDetalle.Controls.Find("lblTotalFactura", true).FirstOrDefault() as Label;
+            if (lblTotalFactura != null)
+            {
+                lblTotalFactura.Text = $"Total Eliminado: {totalFactura:C2}";
+                lblTotalFactura.ForeColor = Color.FromArgb(220, 53, 69); // ✅ Rojo para indicar eliminación
+            }
+        }
+
+        // ✅ NUEVO: Actualizar título para factura eliminada
+        private void ActualizarTituloDetalle(string nroFactura, DataTable dt)
+        {
+            try
+            {
+                string usuario = "";
+                DateTime? fechaEliminacion = null;
+
+                if (dt.Rows.Count > 0)
+                {
+                    usuario = dt.Rows[0]["Usuario"]?.ToString() ?? "";
+                    fechaEliminacion = dt.Rows[0]["Fecha Eliminación"] as DateTime?;
+                }
+
+                string titulo = $"🗑️ Factura Eliminada N° {nroFactura}";
+
+                if (fechaEliminacion.HasValue)
+                {
+                    titulo += $" - Eliminada: {fechaEliminacion.Value:dd/MM/yyyy HH:mm}";
+                }
+
+                if (!string.IsNullOrEmpty(usuario))
+                {
+                    titulo += $" - Usuario: {usuario}";
+                }
+
+                frmDetalle.Text = titulo;
+            }
+            catch
+            {
+                frmDetalle.Text = $"🗑️ Factura Eliminada N° {nroFactura}";
+            }
+        }
+
+        private Form frmDetalle;
+
+        private void CrearVentanaDetalle()
+        {
+            // ✅ MISMO CÓDIGO QUE EN frmControlFacturas
+            frmDetalle = new Form();
+            frmDetalle.Text = "Detalle de Factura Eliminada";
+            frmDetalle.Size = new Size(800, 500);
+            frmDetalle.StartPosition = FormStartPosition.Manual;
+            frmDetalle.FormBorderStyle = FormBorderStyle.FixedDialog;
+            frmDetalle.MaximizeBox = false;
+            frmDetalle.MinimizeBox = false;
+            frmDetalle.BackColor = Color.White;
+
+            // DataGridView para mostrar los detalles
+            var dgvDetalle = new DataGridView();
+            dgvDetalle.Name = "dgvDetalle";
+            dgvDetalle.Dock = DockStyle.Fill;
+            dgvDetalle.AllowUserToAddRows = false;
+            dgvDetalle.AllowUserToDeleteRows = false;
+            dgvDetalle.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvDetalle.BackgroundColor = Color.White;
+            dgvDetalle.BorderStyle = BorderStyle.None;
+            dgvDetalle.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            dgvDetalle.ReadOnly = true;
+            dgvDetalle.RowHeadersVisible = false;
+            dgvDetalle.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvDetalle.EnableHeadersVisualStyles = false;
+
+            DataGridViewCellStyle headerStyle = new DataGridViewCellStyle();
+            headerStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            headerStyle.BackColor = Color.FromArgb(220, 53, 69); // ✅ Rojo para auditoría
+            headerStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            headerStyle.ForeColor = Color.White;
+            headerStyle.SelectionBackColor = Color.FromArgb(220, 53, 69);
+            headerStyle.SelectionForeColor = SystemColors.HighlightText;
+            headerStyle.WrapMode = DataGridViewTriState.True;
+            headerStyle.Padding = new Padding(3, 2, 3, 2);
+
+            dgvDetalle.ColumnHeadersDefaultCellStyle = headerStyle;
+            dgvDetalle.ColumnHeadersHeight = 55;
+            dgvDetalle.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
+
+            frmDetalle.Controls.Add(dgvDetalle);
+
+            // Panel para mostrar totales
+            var panelTotales = new Panel();
+            panelTotales.Dock = DockStyle.Bottom;
+            panelTotales.Height = 70;
+            panelTotales.BackColor = Color.FromArgb(220, 53, 69); // ✅ Rojo para auditoría
+            frmDetalle.Controls.Add(panelTotales);
+
+            var lblCantidadProductos = new Label();
+            lblCantidadProductos.Name = "lblCantidadProductos";
+            lblCantidadProductos.Text = "Productos: 0";
+            lblCantidadProductos.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblCantidadProductos.ForeColor = Color.White;
+            lblCantidadProductos.AutoSize = false;
+            lblCantidadProductos.Dock = DockStyle.Left;
+            lblCantidadProductos.Width = 140;
+            lblCantidadProductos.TextAlign = ContentAlignment.MiddleLeft;
+            lblCantidadProductos.Padding = new Padding(10, 0, 0, 0);
+            panelTotales.Controls.Add(lblCantidadProductos);
+
+            var lblTotalFactura = new Label();
+            lblTotalFactura.Name = "lblTotalFactura";
+            lblTotalFactura.Text = "Total: $0,00";
+            lblTotalFactura.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            lblTotalFactura.ForeColor = Color.White;
+            lblTotalFactura.AutoSize = false;
+            lblTotalFactura.Dock = DockStyle.Right;
+            lblTotalFactura.Width = 220;
+            lblTotalFactura.TextAlign = ContentAlignment.MiddleRight;
+            lblTotalFactura.Padding = new Padding(0, 0, 12, 0);
+            panelTotales.Controls.Add(lblTotalFactura);
+
+            var lblCantidadTotalDetalle = new Label();
+            lblCantidadTotalDetalle.Name = "lblCantidadTotalDetalle";
+            lblCantidadTotalDetalle.Text = "Cantidad: 0";
+            lblCantidadTotalDetalle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblCantidadTotalDetalle.ForeColor = Color.White;
+            lblCantidadTotalDetalle.AutoSize = false;
+            lblCantidadTotalDetalle.Dock = DockStyle.Fill;
+            lblCantidadTotalDetalle.TextAlign = ContentAlignment.MiddleCenter;
+            panelTotales.Controls.Add(lblCantidadTotalDetalle);
+
+            // Panel inferior para botones
+            var panelBotones = new Panel();
+            panelBotones.Dock = DockStyle.Bottom;
+            panelBotones.Height = 50;
+            panelBotones.BackColor = Color.FromArgb(248, 249, 250);
+            frmDetalle.Controls.Add(panelBotones);
+
+            var btnCerrar = new Button();
+            btnCerrar.Text = "Cerrar";
+            btnCerrar.BackColor = Color.FromArgb(0, 150, 136);
+            btnCerrar.ForeColor = Color.White;
+            btnCerrar.FlatStyle = FlatStyle.Flat;
+            btnCerrar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnCerrar.Size = new Size(80, 30);
+            btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
+            btnCerrar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnCerrar.Click += (s, e) => { frmDetalle.Hide(); };
+            panelBotones.Controls.Add(btnCerrar);
+
+            frmDetalle.FormClosing += (s, e) => {
+                e.Cancel = true;
+                frmDetalle.Hide();
+            };
+
+            panelBotones.Resize += (s, e) => {
+                btnCerrar.Location = new Point(panelBotones.Width - 90, 10);
+            };
+        }
+
+        private void MostrarVentanaDetalle()
+        {
+            if (frmDetalle == null || frmDetalle.IsDisposed)
+            {
+                CrearVentanaDetalle();
+            }
+
+            if (frmDetalle != null && !frmDetalle.IsDisposed)
+            {
+                Form mdiParent = this.MdiParent;
+
+                if (mdiParent != null)
+                {
+                    Rectangle parentBounds = mdiParent.WindowState == FormWindowState.Maximized
+                        ? Screen.FromControl(mdiParent).WorkingArea
+                        : mdiParent.Bounds;
+
+                    int x = parentBounds.X + (parentBounds.Width - frmDetalle.Width) / 2;
+                    int y = parentBounds.Y + (parentBounds.Height - frmDetalle.Height) / 2;
+
+                    Rectangle screenBounds = Screen.FromControl(this).WorkingArea;
+                    if (x < screenBounds.X) x = screenBounds.X;
+                    if (y < screenBounds.Y) y = screenBounds.Y;
+                    if (x + frmDetalle.Width > screenBounds.Right)
+                        x = screenBounds.Right - frmDetalle.Width;
+                    if (y + frmDetalle.Height > screenBounds.Bottom)
+                        y = screenBounds.Bottom - frmDetalle.Height;
+
+                    frmDetalle.Location = new Point(x, y);
+                }
+                else
+                {
+                    Rectangle workingArea = Screen.FromControl(this).WorkingArea;
+                    int x = workingArea.X + (workingArea.Width - frmDetalle.Width) / 2;
+                    int y = workingArea.Y + (workingArea.Height - frmDetalle.Height) / 2;
+                    frmDetalle.Location = new Point(x, y);
+                }
+
+                frmDetalle.Show();
+                frmDetalle.BringToFront();
+            }
         }
 
         private void BtnSalir_Click(object sender, EventArgs e)
@@ -231,16 +858,16 @@ namespace Comercio.NET.Formularios
                 string query = @"
                     SELECT 
                         IdAuditoriaProductosEliminados,
-                        CodigoProducto AS 'C�digo',
-                        DescripcionProducto AS 'Descripci�n Producto',
+                        CodigoProducto AS 'Código',
+                        DescripcionProducto AS 'Descripción Producto',
                         PrecioUnitario AS 'Precio Unitario',
                         Cantidad AS 'Cant.',
                         TotalEliminado AS 'Total Eliminado',
                         NumeroFactura AS 'Remito',
                         FechaHoraVentaOriginal AS 'Fecha Factura',
-                        FechaEliminacion AS 'Fecha Eliminaci�n',
-                        MotivoEliminacion AS 'Motivo de Eliminaci�n',
-                        CASE WHEN EsCtaCte = 1 THEN 'S�' ELSE 'No' END AS 'CtaCte',
+                        FechaEliminacion AS 'Fecha Eliminación',
+                        MotivoEliminacion AS 'Motivo de Eliminación',
+                        CASE WHEN EsCtaCte = 1 THEN 'Sí' ELSE 'No' END AS 'CtaCte',
                         UsuarioEliminacion AS 'Usuario',
                         NumeroCajero AS 'Cajero',
                         NombreEquipo AS 'Equipo'
@@ -273,7 +900,7 @@ namespace Comercio.NET.Formularios
                     parametros.Add(new SqlParameter("@usuario", $"%{txtUsuario.Text.Trim()}%"));
                 }
 
-                // NUEVO: Filtro por n�mero de cajero
+                // NUEVO: Filtro por número de cajero
                 if (!string.IsNullOrWhiteSpace(txtCajero.Text))
                 {
                     if (int.TryParse(txtCajero.Text.Trim(), out int numeroCajero))
@@ -283,7 +910,7 @@ namespace Comercio.NET.Formularios
                     }
                     else
                     {
-                        MessageBox.Show("El n�mero de cajero debe ser un valor num�rico.", "Validaci�n", 
+                        MessageBox.Show("El número de cajero debe ser un valor numérico.", "Validación", 
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -325,24 +952,24 @@ namespace Comercio.NET.Formularios
                 dgvAuditoria.Columns["Precio Unitario"].Visible = false;
 
 
-            ConfigurarColumna("C�digo", 100, DataGridViewContentAlignment.MiddleCenter);
-            ConfigurarColumna("Descripci�n Producto", 180, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("Código", 100, DataGridViewContentAlignment.MiddleCenter);
+            ConfigurarColumna("Descripción Producto", 180, DataGridViewContentAlignment.MiddleLeft);
             ConfigurarColumna("Cant.", 40, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Total Eliminado", 100, DataGridViewContentAlignment.MiddleRight, "C2");
             ConfigurarColumna("Remito", 70, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Fecha Factura", 110, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
-            ConfigurarColumna("Fecha Eliminaci�n", 115, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
-            ConfigurarColumna("Motivo de Eliminaci�n", 130, DataGridViewContentAlignment.MiddleLeft);
+            ConfigurarColumna("Fecha Eliminación", 115, DataGridViewContentAlignment.MiddleCenter, "dd/MM/yyyy HH:mm");
+            ConfigurarColumna("Motivo de Eliminación", 130, DataGridViewContentAlignment.MiddleLeft);
             ConfigurarColumna("CtaCte", 45, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Usuario", 70, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Cajero", 50, DataGridViewContentAlignment.MiddleCenter);
             ConfigurarColumna("Equipo", 80, DataGridViewContentAlignment.MiddleCenter);
 
-            // Ajustar ancho m�nimo de "Motivo de Eliminaci�n" para la expansi�n autom�tica
-            if (dgvAuditoria.Columns["Motivo de Eliminaci�n"] != null)
+            // Ajustar ancho mínimo de "Motivo de Eliminación" para la expansión automática
+            if (dgvAuditoria.Columns["Motivo de Eliminación"] != null)
             {
-                dgvAuditoria.Columns["Motivo de Eliminaci�n"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                dgvAuditoria.Columns["Motivo de Eliminaci�n"].MinimumWidth = 200;
+                dgvAuditoria.Columns["Motivo de Eliminación"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvAuditoria.Columns["Motivo de Eliminación"].MinimumWidth = 200;
             }
         }
 
@@ -376,7 +1003,7 @@ namespace Comercio.NET.Formularios
                 {
                     columna.DefaultCellStyle.ForeColor = Color.FromArgb(0, 0, 150); // Azul oscuro
                 }
-                else if (nombreColumna == "Motivo de Eliminaci�n") // Columna de motivo
+                else if (nombreColumna == "Motivo de Eliminación") // Columna de motivo
                 {
                     columna.DefaultCellStyle.ForeColor = Color.FromArgb(150, 0, 0); // Rojo oscuro
                     columna.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
@@ -408,7 +1035,7 @@ namespace Comercio.NET.Formularios
         {
             if (dgvAuditoria.DataSource == null)
             {
-                MessageBox.Show("No hay datos para exportar.", "Informaci�n", 
+                MessageBox.Show("No hay datos para exportar.", "Información", 
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -423,7 +1050,7 @@ namespace Comercio.NET.Formularios
                     try
                     {
                         ExportarACSV(saveDialog.FileName);
-                        MessageBox.Show("Datos exportados correctamente.", "�xito", 
+                        MessageBox.Show("Datos exportados correctamente.", "Éxito", 
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)

@@ -41,24 +41,130 @@ namespace Comercio.NET.Formularios
             // Configuración básica del formulario
             this.WindowState = FormWindowState.Maximized;
             this.StartPosition = FormStartPosition.CenterScreen;
-            
-            // Configurar timer de búsqueda
+            this.KeyPreview = true; // ✅ Habilitar captura de teclas
+
+            // ✅ NUEVO: Configurar atajo F5 para actualizar
+            this.KeyDown += Productos_KeyDown;
+
+            // ✅ RESTAURAR: Configurar timer de búsqueda
             searchTimer = new System.Windows.Forms.Timer();
-            searchTimer.Interval = 500;
+            searchTimer.Interval = 500; // Esperar 500ms antes de buscar
             searchTimer.Tick += SearchTimer_Tick;
-            
+
             // Configurar eventos de filtro
             txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
             txtFiltroDescripcion.KeyDown += TxtFiltroDescripcion_KeyDown;
-            
+
             // Configurar eventos de botones
             btnAgregarProducto.Click += BtnAgregarProducto_Click;
             btnModificarProducto.Click += BtnModificarProducto_Click;
-            
+
             // Configurar textos de los controles (sin emojis)
             ConfigurarTextos();
-            
+
             isInitialized = true;
+        }
+
+        // ✅ NUEVO: Manejador de teclas del formulario
+        private void Productos_KeyDown(object sender, KeyEventArgs e)
+        {
+            // F5: Actualizar datos
+            if (e.KeyCode == Keys.F5)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+
+                // Buscar el botón actualizar y hacer clic en él
+                var btnActualizar = this.Controls.Find("btnActualizar", false).FirstOrDefault() as Button;
+                btnActualizar?.PerformClick();
+            }
+        }
+
+        private void CrearBotonActualizacionRapida()
+        {
+            var btnActualizacionRapida = new Button
+            {
+                Text = "⚡ Actualización Rápida",
+                Location = new Point(555, 8), // ✅ Encima del botón "Agregar" (misma X)
+                Size = new Size(180, 27),
+                BackColor = Color.FromArgb(255, 152, 0),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left // ✅ FIJO en la izquierda
+            };
+            btnActualizacionRapida.FlatAppearance.BorderSize = 0;
+            btnActualizacionRapida.Click += BtnActualizacionRapida_Click;
+
+            this.Controls.Add(btnActualizacionRapida);
+            btnActualizacionRapida.BringToFront();
+        }
+
+        private void BtnActualizacionRapida_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // ✅ CAMBIO: Usar el método estático para mostrar como MDI Child con instancia única
+                ActualizacionRapidaForm.MostrarFormulario(this.MdiParent);
+
+                // ✅ NUEVO: Configurar evento para refrescar cuando se cierre
+                // (El formulario ahora es MDI, no modal, así que manejamos esto diferente)
+
+                // Nota: Como ahora es MDI Child (no modal), el refresh se hará cuando
+                // el usuario cierre el formulario. Si quieres auto-refresh periódico,
+                // puedes agregarlo después.
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir actualización rápida: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void CrearBotonActualizacionMasiva()
+        {
+            var btnActualizacionMasiva = new Button
+            {
+                Text = "⚡⚡ Actualización Masiva",
+                Location = new Point(745, 8), // ✅ Al lado de Act. Rápida (555 + 180 + 10)
+                Size = new Size(180, 27),
+                BackColor = Color.FromArgb(156, 39, 176),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left // ✅ FIJO en la izquierda
+            };
+            btnActualizacionMasiva.FlatAppearance.BorderSize = 0;
+            btnActualizacionMasiva.Click += BtnActualizacionMasiva_Click;
+
+            this.Controls.Add(btnActualizacionMasiva);
+            btnActualizacionMasiva.BringToFront();
+        }
+
+
+        private void BtnActualizacionMasiva_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // ✅ CORRECTO: Mostrar como diálogo modal SIN asignar MdiParent
+                using (var form = new ActualizacionMasivaForm())
+                {
+                    // NO asignar MdiParent cuando usamos ShowDialog
+                    // form.MdiParent = this; // ❌ NO HACER ESTO con ShowDialog
+
+                    form.ShowDialog(this);
+
+                    // Refrescar la grilla después de cerrar el formulario
+                    _ = CargarProductosAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al abrir actualización masiva: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void ConfigurarTextos()
@@ -82,31 +188,148 @@ namespace Comercio.NET.Formularios
             try
             {
                 System.Diagnostics.Debug.WriteLine("🚀 Cargando formulario de productos");
-                
+
                 // Mostrar el formulario rápidamente
                 this.Show();
                 this.Refresh();
-                
+
                 // Verificar y crear columnas necesarias en la BD
                 await VerificarColumnasBaseDatos();
-                
+
                 // Configurar la grilla antes de cargar datos
                 ConfigurarGrilla();
-                
+
+                CrearBotonActualizacionRapida();
+                CrearBotonActualizacionMasiva();
+                CrearBotonEliminar();
+                CrearBotonActualizar(); // ✅ NUEVO: Agregar botón Actualizar
+
                 // Cargar productos
                 await CargarProductosAsync();
-                
+
                 // Enfocar el filtro
                 txtFiltroDescripcion.Focus();
-                
+
                 System.Diagnostics.Debug.WriteLine("✅ Formulario cargado exitosamente");
-                
+
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error cargando formulario: {ex.Message}");
                 MessageBox.Show($"Error al cargar productos: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ✅ NUEVO: Crear botón Actualizar
+        private void CrearBotonActualizar()
+        {
+            var btnActualizar = new Button
+            {
+                Text = "🔄 Actualizar",
+                Location = new Point(425, 8), // ✅ Encima del botón "Modificar" (misma X)
+                Size = new Size(120, 27),
+                BackColor = Color.FromArgb(33, 150, 243), // Azul
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left, // ✅ FIJO en la izquierda
+                Name = "btnActualizar"
+            };
+            btnActualizar.FlatAppearance.BorderSize = 0;
+            btnActualizar.Click += BtnActualizar_Click;
+
+            // Tooltip explicativo
+            var toolTip = new ToolTip();
+            toolTip.SetToolTip(btnActualizar,
+                "Recargar datos desde la base de datos\n" +
+                "Útil para ver cambios realizados desde otros usuarios\n" +
+                "o para actualizar el stock en tiempo real.\n\n" +
+                "Atajo: F5");
+
+            this.Controls.Add(btnActualizar);
+            btnActualizar.BringToFront();
+        }
+
+        // ✅ NUEVO: Manejador del botón Actualizar
+        private async void BtnActualizar_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🔄 Actualizando datos de productos desde BD");
+
+                // Guardar el filtro actual
+                string filtroActual = txtFiltroDescripcion?.Text?.Trim() ?? "";
+
+                // Guardar la selección actual (si existe)
+                string codigoSeleccionado = "";
+                if (GrillaProductos?.SelectedRows?.Count > 0)
+                {
+                    var filaSeleccionada = GrillaProductos.SelectedRows[0];
+                    codigoSeleccionado = filaSeleccionada.Cells["codigo"]?.Value?.ToString() ?? "";
+                }
+
+                // Deshabilitar el botón temporalmente
+                if (sender is Button btn)
+                {
+                    btn.Enabled = false;
+                    btn.Text = "🔄 Actualizando...";
+                }
+
+                this.Cursor = Cursors.WaitCursor;
+                lblContador.Text = "🔄 Actualizando datos desde la base de datos...";
+                lblContador.ForeColor = Color.FromArgb(33, 150, 243);
+
+                // Limpiar caché para forzar recarga desde BD
+                LimpiarCache();
+
+                // Recargar productos
+                await CargarProductosAsync();
+
+                // Reaplicar filtro si existía
+                if (!string.IsNullOrEmpty(filtroActual))
+                {
+                    txtFiltroDescripcion.TextChanged -= TxtFiltroDescripcion_TextChanged;
+                    txtFiltroDescripcion.Text = filtroActual;
+                    await AplicarFiltro(filtroActual);
+                    txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
+                    lastSearchText = filtroActual;
+                }
+
+                // Restaurar selección si existía
+                if (!string.IsNullOrEmpty(codigoSeleccionado))
+                {
+                    await SeleccionarProductoEnGrilla(codigoSeleccionado);
+                }
+
+                System.Diagnostics.Debug.WriteLine("✅ Datos actualizados exitosamente");
+
+                // Feedback visual temporal
+                lblContador.ForeColor = Color.FromArgb(76, 175, 80); // Verde
+                await Task.Delay(2000); // Mostrar mensaje 2 segundos
+                ActualizarContador(); // Restaurar contador normal
+
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error actualizando datos: {ex.Message}");
+                MessageBox.Show($"Error al actualizar datos:\n\n{ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                lblContador.Text = "❌ Error al actualizar";
+                lblContador.ForeColor = Color.FromArgb(220, 53, 69);
+            }
+            finally
+            {
+                this.Cursor = Cursors.Default;
+
+                // Restaurar el botón
+                if (sender is Button btn)
+                {
+                    btn.Enabled = true;
+                    btn.Text = "🔄 Actualizar";
+                }
             }
         }
 
@@ -124,7 +347,31 @@ namespace Comercio.NET.Formularios
                 using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
-                    
+
+                    // ✅ NUEVO: Verificar columna Activo
+                    string checkActivoQuery = @"
+                                            SELECT COUNT(*) 
+                                            FROM INFORMATION_SCHEMA.COLUMNS 
+                                            WHERE TABLE_NAME = 'Productos' 
+                                            AND COLUMN_NAME = 'Activo'";
+
+                    using (var checkCmd = new SqlCommand(checkActivoQuery, connection))
+                    {
+                        int columnExists = (int)await checkCmd.ExecuteScalarAsync();
+
+                        if (columnExists == 0)
+                        {
+                            string addColumnQuery = @"
+                                                ALTER TABLE Productos 
+                                                ADD Activo BIT NOT NULL DEFAULT 1";
+
+                            using (var addCmd = new SqlCommand(addColumnQuery, connection))
+                            {
+                                await addCmd.ExecuteNonQueryAsync();
+                                System.Diagnostics.Debug.WriteLine("✅ Columna Activo creada exitosamente");
+                            }
+                        }
+                    }
                     // Verificar si existe la columna EditarPrecio
                     string checkColumnQuery = @"
                         SELECT COUNT(*) 
@@ -234,6 +481,7 @@ namespace Comercio.NET.Formularios
                 GrillaProductos.CellValueChanged += GrillaProductos_CellValueChanged;
                 GrillaProductos.CurrentCellDirtyStateChanged += GrillaProductos_CurrentCellDirtyStateChanged;
                 GrillaProductos.CellBeginEdit += GrillaProductos_CellBeginEdit;
+                //GrillaProductos.CellDoubleClick += GrillaProductos_CellDoubleClick;
             }
             finally
             {
@@ -306,42 +554,106 @@ namespace Comercio.NET.Formularios
 
             string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
             var dataTable = new DataTable();
-            
+            var productosConError = new List<string>();
+
             using (var connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
-                
-                // MODIFICADO: Cambiar el orden de las columnas para que rubro aparezca antes de proveedor
+
+                // ✅ MODIFICADO: Query más robusta que maneja valores fuera de rango
                 var query = @"SELECT 
-                    codigo, descripcion, marca, 
-                    CAST(costo AS DECIMAL(10,2)) as costo, 
-                    CAST(porcentaje AS DECIMAL(5,2)) as porcentaje, 
-                    CAST(precio AS DECIMAL(10,2)) as precio, 
-                    CAST(cantidad AS INT) as cantidad, 
-                    CAST(ISNULL(iva, 21.00) AS DECIMAL(5,2)) as iva,
-                    rubro, proveedor,
-                    CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular,
-                    CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio
-                FROM Productos 
-                ORDER BY descripcion";
+                codigo, 
+                descripcion, 
+                marca,
+                -- Validar y limitar valores que puedan causar overflow
+                CASE 
+                    WHEN ISNUMERIC(costo) = 1 AND ABS(CAST(costo AS DECIMAL(18,2))) <= 99999999.99 
+                    THEN CAST(costo AS DECIMAL(10,2))
+                    ELSE 0.00 
+                END as costo,
+                CASE 
+                    WHEN ISNUMERIC(porcentaje) = 1 AND ABS(CAST(porcentaje AS DECIMAL(7,2))) <= 999.99 
+                    THEN CAST(porcentaje AS DECIMAL(5,2))
+                    ELSE 0.00 
+                END as porcentaje,
+                CASE 
+                    WHEN ISNUMERIC(precio) = 1 AND ABS(CAST(precio AS DECIMAL(18,2))) <= 99999999.99 
+                    THEN CAST(precio AS DECIMAL(10,2))
+                    ELSE 0.00 
+                END as precio,
+                CAST(cantidad AS INT) as cantidad, 
+                CAST(ISNULL(iva, 21.00) AS DECIMAL(5,2)) as iva,
+                CAST(ISNULL(Activo, 1) AS BIT) as Activo,
+                CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular,
+                CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio,
+                -- Columna auxiliar para detectar errores
+                CASE 
+                    WHEN (ISNUMERIC(costo) = 0 OR ABS(CAST(costo AS DECIMAL(18,2))) > 99999999.99)
+                      OR (ISNUMERIC(porcentaje) = 0 OR ABS(CAST(porcentaje AS DECIMAL(7,2))) > 999.99)
+                      OR (ISNUMERIC(precio) = 0 OR ABS(CAST(precio AS DECIMAL(18,2))) > 99999999.99)
+                    THEN 1 
+                    ELSE 0 
+                END as TieneError
+            FROM Productos 
+            ORDER BY descripcion";
 
                 using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.CommandTimeout = 60;
                     await Task.Run(() => adapter.Fill(dataTable));
                 }
+
+                // Detectar productos con errores
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    if (row["TieneError"] != DBNull.Value && Convert.ToInt32(row["TieneError"]) == 1)
+                    {
+                        productosConError.Add($"• {row["codigo"]} - {row["descripcion"]}");
+                    }
+                }
             }
-            
+
+            // ⚠️ Si hay productos con error, mostrar advertencia
+            if (productosConError.Count > 0)
+            {
+                string mensaje = $"⚠️ ATENCIÓN: Se encontraron {productosConError.Count} producto(s) con valores fuera de rango.\n\n" +
+                                "Estos productos tienen valores de COSTO, PORCENTAJE o PRECIO demasiado altos.\n" +
+                                "Se mostrarán en ROJO en la grilla.\n\n" +
+                                "Productos con error:\n" +
+                                string.Join("\n", productosConError.Take(10));
+
+                if (productosConError.Count > 10)
+                {
+                    mensaje += $"\n... y {productosConError.Count - 10} más.";
+                }
+
+                mensaje += "\n\n⚠️ Por favor, edite estos productos para corregir los valores.";
+
+                System.Diagnostics.Debug.WriteLine($"⚠️ Productos con error detectados: {productosConError.Count}");
+
+                // Mostrar mensaje sin bloquear la carga
+                MessageBox.Show(mensaje,
+                    "⚠️ Productos con Valores Inválidos Detectados",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+
             return dataTable;
         }
 
+        
         private void ConfigurarColumnas()
         {
             if (GrillaProductos?.Columns?.Count == 0) return;
 
             try
             {
-                // MODIFICADO: Actualizar configuración para reflejar el nuevo orden de columnas
+                // ✅ NUEVO: Ocultar columna auxiliar de error
+                if (GrillaProductos.Columns.Contains("TieneError"))
+                {
+                    GrillaProductos.Columns["TieneError"].Visible = false;
+                }
+
                 var columnConfig = new Dictionary<string, (int width, string header, DataGridViewContentAlignment align, string format)>
                 {
                     ["codigo"] = (90, "CÓDIGO", DataGridViewContentAlignment.MiddleCenter, ""),
@@ -352,8 +664,7 @@ namespace Comercio.NET.Formularios
                     ["precio"] = (90, "PRECIO VENTA", DataGridViewContentAlignment.MiddleRight, "C2"),
                     ["cantidad"] = (50, "STOCK", DataGridViewContentAlignment.MiddleCenter, "N0"),
                     ["iva"] = (55, "IVA %", DataGridViewContentAlignment.MiddleCenter, "N2"),
-                    ["rubro"] = (100, "RUBRO", DataGridViewContentAlignment.MiddleCenter, ""),
-                    ["proveedor"] = (110, "PROVEEDOR", DataGridViewContentAlignment.MiddleCenter, ""),
+                    ["activo"] = (70, "ACTIVO", DataGridViewContentAlignment.MiddleCenter, ""),
                     ["permiteacumular"] = (90, "ACUMULAR", DataGridViewContentAlignment.MiddleCenter, ""),
                     ["editarprecio"] = (90, "EDIT PRECIO", DataGridViewContentAlignment.MiddleCenter, "")
                 };
@@ -361,7 +672,7 @@ namespace Comercio.NET.Formularios
                 foreach (DataGridViewColumn col in GrillaProductos.Columns)
                 {
                     var columnName = col.Name.ToLower();
-                    
+
                     if (columnConfig.ContainsKey(columnName))
                     {
                         var config = columnConfig[columnName];
@@ -369,39 +680,50 @@ namespace Comercio.NET.Formularios
                         col.HeaderText = config.header;
                         col.DefaultCellStyle.Alignment = config.align;
                         col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                        
+
                         if (!string.IsNullOrEmpty(config.format))
                             col.DefaultCellStyle.Format = config.format;
-                        
+
                         // Configuración especial por columna
                         if (columnName == "iva")
                         {
                             col.DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
                             col.DefaultCellStyle.ForeColor = Color.FromArgb(25, 118, 210);
                             col.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                            col.ReadOnly = true; // IVA no editable desde la grilla
+                            col.ReadOnly = true;
                         }
-                        else if (columnName == "permiteacumular" || columnName == "editarprecio")
+                        else if (columnName == "activo" || columnName == "permiteacumular" || columnName == "editarprecio")
                         {
-                            // Configurar columnas checkbox como editables
                             col.ReadOnly = false;
-                            col.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240);
-                            col.DefaultCellStyle.ForeColor = Color.FromArgb(0, 100, 0);
+
+                            if (columnName == "activo")
+                            {
+                                col.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 255);
+                                col.DefaultCellStyle.ForeColor = Color.FromArgb(0, 0, 100);
+                            }
+                            else if (columnName == "permiteacumular")
+                            {
+                                col.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240);
+                                col.DefaultCellStyle.ForeColor = Color.FromArgb(0, 100, 0);
+                            }
+                            else if (columnName == "editarprecio")
+                            {
+                                col.DefaultCellStyle.BackColor = Color.FromArgb(255, 240, 240);
+                                col.DefaultCellStyle.ForeColor = Color.FromArgb(100, 0, 0);
+                            }
+
                             col.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                             col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                         }
                         else
                         {
-                            // Todas las demás columnas son de solo lectura
                             col.ReadOnly = true;
                         }
                     }
                 }
 
-                // Configurar para que la grilla aproveche mejor el ancho disponible
                 GrillaProductos.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-                
-                // Hacer que la columna descripción se ajuste al espacio restante
+
                 if (GrillaProductos.Columns["descripcion"] != null)
                 {
                     GrillaProductos.Columns["descripcion"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
@@ -409,7 +731,6 @@ namespace Comercio.NET.Formularios
                     GrillaProductos.Columns["descripcion"].FillWeight = 100;
                 }
 
-                // Configurar las columnas checkbox después de que estén vinculadas
                 ConfigurarColumnasCheckbox();
             }
             catch (Exception ex)
@@ -422,101 +743,116 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                // Buscar las columnas originales y reemplazarlas por columnas checkbox
-                // Luego las moveremos al comienzo para mejor experiencia de usuario
-                
+                var activoIndex = -1;
                 var permiteAcumularIndex = -1;
                 var editarPrecioIndex = -1;
-                
+
                 // Buscar índices de las columnas
                 for (int i = 0; i < GrillaProductos.Columns.Count; i++)
                 {
-                    if (GrillaProductos.Columns[i].Name.Equals("PermiteAcumular", StringComparison.OrdinalIgnoreCase))
-                    {
+                    var colName = GrillaProductos.Columns[i].Name;
+                    if (colName.Equals("Activo", StringComparison.OrdinalIgnoreCase))
+                        activoIndex = i;
+                    else if (colName.Equals("PermiteAcumular", StringComparison.OrdinalIgnoreCase))
                         permiteAcumularIndex = i;
-                    }
-                    else if (GrillaProductos.Columns[i].Name.Equals("EditarPrecio", StringComparison.OrdinalIgnoreCase))
-                    {
+                    else if (colName.Equals("EditarPrecio", StringComparison.OrdinalIgnoreCase))
                         editarPrecioIndex = i;
-                    }
-                }
-                
-                // Lista para almacenar las columnas checkbox que crearemos
-                var columnasCheckbox = new List<DataGridViewCheckBoxColumn>();
-                
-                // Configurar columna PermiteAcumular como checkbox si existe
-                if (permiteAcumularIndex >= 0)
-                {
-                    // Guardar el data property name antes de remover la columna
-                    string dataPropertyName1 = GrillaProductos.Columns[permiteAcumularIndex].DataPropertyName;
-                    
-                    // Crear nueva columna checkbox
-                    var checkCol1 = new DataGridViewCheckBoxColumn();
-                    checkCol1.Name = "PermiteAcumular";
-                    checkCol1.DataPropertyName = dataPropertyName1;
-                    checkCol1.HeaderText = "ACUMULAR";
-                    checkCol1.Width = 90;
-                    checkCol1.ReadOnly = false;
-                    checkCol1.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    checkCol1.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240);
-                    checkCol1.TrueValue = true;
-                    checkCol1.FalseValue = false;
-                    checkCol1.IndeterminateValue = false;
-                    checkCol1.ToolTipText = "Marcar si el producto permite acumular descuentos o promociones (se desmarca automáticamente si se marca 'EDIT PRECIO')";
-                    
-                    columnasCheckbox.Add(checkCol1);
-                    
-                    // Remover la columna original
-                    GrillaProductos.Columns.RemoveAt(permiteAcumularIndex);
-                    
-                    // Ajustar el índice de EditarPrecio si estaba después
-                    if (editarPrecioIndex > permiteAcumularIndex)
-                    {
-                        editarPrecioIndex--;
-                    }
                 }
 
-                // Configurar columna EditarPrecio como checkbox si existe
+                var columnasCheckbox = new List<DataGridViewCheckBoxColumn>();
+
+                // ✅ NUEVO: Configurar columna Activo como checkbox
+                if (activoIndex >= 0)
+                {
+                    string dataPropertyName = GrillaProductos.Columns[activoIndex].DataPropertyName;
+
+                    var checkCol = new DataGridViewCheckBoxColumn
+                    {
+                        Name = "Activo",
+                        DataPropertyName = dataPropertyName,
+                        HeaderText = "ACTIVO",
+                        Width = 70,
+                        ReadOnly = false,
+                        TrueValue = true,
+                        FalseValue = false,
+                        IndeterminateValue = false,
+                        ToolTipText = "Marcar si el producto está activo (visible en el sistema). Desmarcar para ocultarlo sin eliminarlo."
+                    };
+                    checkCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    checkCol.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 255);
+
+                    columnasCheckbox.Add(checkCol);
+                    GrillaProductos.Columns.RemoveAt(activoIndex);
+
+                    // Ajustar índices
+                    if (permiteAcumularIndex > activoIndex) permiteAcumularIndex--;
+                    if (editarPrecioIndex > activoIndex) editarPrecioIndex--;
+                }
+
+                // Configurar columna PermiteAcumular
+                if (permiteAcumularIndex >= 0)
+                {
+                    string dataPropertyName1 = GrillaProductos.Columns[permiteAcumularIndex].DataPropertyName;
+
+                    var checkCol1 = new DataGridViewCheckBoxColumn
+                    {
+                        Name = "PermiteAcumular",
+                        DataPropertyName = dataPropertyName1,
+                        HeaderText = "ACUMULAR",
+                        Width = 90,
+                        ReadOnly = false,
+                        TrueValue = true,
+                        FalseValue = false,
+                        IndeterminateValue = false,
+                        ToolTipText = "Marcar si el producto permite acumular descuentos o promociones (se desmarca automáticamente si se marca 'EDIT PRECIO')"
+                    };
+                    checkCol1.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    checkCol1.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240);
+
+                    columnasCheckbox.Add(checkCol1);
+                    GrillaProductos.Columns.RemoveAt(permiteAcumularIndex);
+
+                    if (editarPrecioIndex > permiteAcumularIndex) editarPrecioIndex--;
+                }
+
+                // Configurar columna EditarPrecio
                 if (editarPrecioIndex >= 0)
                 {
-                    // Guardar el data property name antes de remover la columna
                     string dataPropertyName2 = GrillaProductos.Columns[editarPrecioIndex].DataPropertyName;
-                    
-                    // Crear nueva columna checkbox
-                    var checkCol2 = new DataGridViewCheckBoxColumn();
-                    checkCol2.Name = "EditarPrecio";
-                    checkCol2.DataPropertyName = dataPropertyName2;
-                    checkCol2.HeaderText = "EDIT PRECIO";
-                    checkCol2.Width = 90;
-                    checkCol2.ReadOnly = false;
+
+                    var checkCol2 = new DataGridViewCheckBoxColumn
+                    {
+                        Name = "EditarPrecio",
+                        DataPropertyName = dataPropertyName2,
+                        HeaderText = "EDIT PRECIO",
+                        Width = 90,
+                        ReadOnly = false,
+                        TrueValue = true,
+                        FalseValue = false,
+                        IndeterminateValue = false,
+                        ToolTipText = "Marcar si se permite editar el precio del producto en ventas (se desmarca automáticamente si se marca 'ACUMULAR')"
+                    };
                     checkCol2.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     checkCol2.DefaultCellStyle.BackColor = Color.FromArgb(255, 240, 240);
-                    checkCol2.TrueValue = true;
-                    checkCol2.FalseValue = false;
-                    checkCol2.IndeterminateValue = false;
-                    checkCol2.ToolTipText = "Marcar si se permite editar el precio del producto en ventas (se desmarca automáticamente si se marca 'ACUMULAR')";
-                    
+
                     columnasCheckbox.Add(checkCol2);
-                    
-                    // Remover la columna original
                     GrillaProductos.Columns.RemoveAt(editarPrecioIndex);
                 }
 
-                // Insertar las columnas checkbox al comienzo de la grilla
+                // Insertar las columnas checkbox al comienzo
                 for (int i = columnasCheckbox.Count - 1; i >= 0; i--)
                 {
                     GrillaProductos.Columns.Insert(0, columnasCheckbox[i]);
                 }
 
-                // Crear tooltip para la grilla si no existe
                 if (GrillaProductos.Tag == null)
                 {
                     var toolTip = new ToolTip();
-                    toolTip.SetToolTip(GrillaProductos, "Primeras columnas ✓ ACUMULAR y EDIT PRECIO son editables. Haga clic para cambiar valores. Nota: Son excluyentes");
-                    GrillaProductos.Tag = toolTip; // Guardar referencia para evitar múltiples tooltips
+                    toolTip.SetToolTip(GrillaProductos, "Primeras columnas ✓ ACTIVO, ACUMULAR y EDIT PRECIO son editables. Haga clic para cambiar valores.");
+                    GrillaProductos.Tag = toolTip;
                 }
-                
-                System.Diagnostics.Debug.WriteLine($"✅ Columnas checkbox configuradas al comienzo de la grilla");
+
+                System.Diagnostics.Debug.WriteLine($"✅ Columnas checkbox (incluyendo Activo) configuradas al comienzo de la grilla");
             }
             catch (Exception ex)
             {
@@ -532,20 +868,42 @@ namespace Comercio.NET.Formularios
             {
                 foreach (DataGridViewRow row in GrillaProductos.Rows)
                 {
-                    var cantidadCell = row.Cells["cantidad"];
-                    if (cantidadCell?.Value != null && decimal.TryParse(cantidadCell.Value.ToString(), out decimal stock))
+                    // ✅ NUEVO: Detectar y resaltar productos con errores
+                    bool tieneError = false;
+                    if (row.Cells["TieneError"]?.Value != DBNull.Value)
                     {
-                        if (stock <= 5)
+                        tieneError = Convert.ToInt32(row.Cells["TieneError"].Value) == 1;
+                    }
+
+                    if (tieneError)
+                    {
+                        // ⚠️ Resaltar TODA LA FILA en rojo si tiene error
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 238);
+                        row.DefaultCellStyle.ForeColor = Color.FromArgb(183, 28, 28);
+                        row.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+                        // Agregar tooltip explicativo
+                        row.Cells["codigo"].ToolTipText = "⚠️ PRODUCTO CON ERROR: Valores fuera de rango. Haga doble clic para editar.";
+                        row.Cells["descripcion"].ToolTipText = "⚠️ PRODUCTO CON ERROR: Valores fuera de rango. Haga doble clic para editar.";
+                    }
+                    else
+                    {
+                        // Formato normal de stock (solo si no hay error)
+                        var cantidadCell = row.Cells["cantidad"];
+                        if (cantidadCell?.Value != null && decimal.TryParse(cantidadCell.Value.ToString(), out decimal stock))
                         {
-                            cantidadCell.Style.BackColor = Color.FromArgb(255, 199, 206);
-                            cantidadCell.Style.ForeColor = Color.FromArgb(183, 28, 28);
-                            cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                        }
-                        else if (stock <= 10)
-                        {
-                            cantidadCell.Style.BackColor = Color.FromArgb(255, 248, 225);
-                            cantidadCell.Style.ForeColor = Color.FromArgb(255, 111, 0);
-                            cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                            if (stock <= 5)
+                            {
+                                cantidadCell.Style.BackColor = Color.FromArgb(255, 199, 206);
+                                cantidadCell.Style.ForeColor = Color.FromArgb(183, 28, 28);
+                                cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                            }
+                            else if (stock <= 10)
+                            {
+                                cantidadCell.Style.BackColor = Color.FromArgb(255, 248, 225);
+                                cantidadCell.Style.ForeColor = Color.FromArgb(255, 111, 0);
+                                cantidadCell.Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                            }
                         }
                     }
                 }
@@ -565,7 +923,12 @@ namespace Comercio.NET.Formularios
                     int total = productosTable.Rows.Count;
                     int filtrados = productosTable.DefaultView.Count;
                     
-                    string textoFiltro = txtFiltroDescripcion?.Text?.Trim() ?? "";
+                    // CORREGIDO: Obtener texto de manera segura
+                    string textoFiltro = "";
+                    if (txtFiltroDescripcion?.Text != null)
+                    {
+                        textoFiltro = txtFiltroDescripcion.Text.Trim();
+                    }
                     
                     if (string.IsNullOrEmpty(textoFiltro))
                     {
@@ -622,8 +985,8 @@ namespace Comercio.NET.Formularios
             try
             {
                 if (!isInitialized) return;
-                
-                // Reiniciar el timer
+
+                // ✅ RESTAURAR: Reiniciar timer en cada cambio de texto
                 searchTimer?.Stop();
                 searchTimer?.Start();
             }
@@ -638,18 +1001,18 @@ namespace Comercio.NET.Formularios
             try
             {
                 searchTimer?.Stop();
-                
+
                 var textoBuscar = txtFiltroDescripcion.Text.Trim();
-                
+
                 // Evitar búsquedas idénticas consecutivas
                 if (lastSearchText.Equals(textoBuscar, StringComparison.OrdinalIgnoreCase))
                     return;
-                
+
                 lastSearchText = textoBuscar;
-                
+
                 System.Diagnostics.Debug.WriteLine($"🔍 Aplicando filtro: '{textoBuscar}'");
-                
-                // Aplicar filtro de búsqueda (ahora con manejo mejorado de texto vacío)
+
+                // Aplicar filtro de búsqueda
                 await AplicarFiltro(textoBuscar);
             }
             catch (Exception ex)
@@ -663,23 +1026,35 @@ namespace Comercio.NET.Formularios
             try
             {
                 System.Diagnostics.Debug.WriteLine("➕ Agregar nuevo producto");
-                
-                // Guardar el filtro actual antes de abrir el modal
+
+                // Guardar el filtro actual antes de abrir el formulario
                 string filtroActual = txtFiltroDescripcion.Text;
-                
-                using (var form = new frmAgregarProducto())
+
+                // ✅ CREAR formulario y asignar MdiParent
+                var form = new ProductoFormUnificado(
+                    ProductoFormUnificado.ModoOperacion.Agregar,
+                    "",
+                    ProductoFormUnificado.OrigenLlamada.Productos);
+
+                // ✅ ASIGNAR MdiParent del formulario padre (Productos)
+                form.MdiParent = this.MdiParent;
+
+                // Configurar evento de cierre para actualizar cuando se cierre
+                form.FormClosed += async (s, args) =>
                 {
-                    form.Modo = frmAgregarProducto.ModoFormulario.Agregar;
-                    form.Origen = frmAgregarProducto.OrigenLlamada.Productos;
-                    form.Text = "Agregar Nuevo Producto";
-                    
-                    if (form.ShowDialog() == DialogResult.OK)
+                    // Actualizar la grilla manteniendo el filtro aplicado
+                    await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                    // Si se agregó un producto, intentar seleccionarlo en la grilla
+                    if (!string.IsNullOrEmpty(form.CodigoAgregado))
                     {
-                        // Actualizar la grilla manteniendo el filtro aplicado
-                        await ActualizarDatosManteniendoFiltro(filtroActual);
-                        txtFiltroDescripcion.Focus();
+                        await SeleccionarProductoEnGrilla(form.CodigoAgregado);
                     }
-                }
+
+                    txtFiltroDescripcion.Focus();
+                };
+
+                form.Show(); // ✅ Muestra el formulario de forma no modal DENTRO del MDI
             }
             catch (Exception ex)
             {
@@ -694,38 +1069,130 @@ namespace Comercio.NET.Formularios
             try
             {
                 System.Diagnostics.Debug.WriteLine("✏️ Modificar producto seleccionado");
-                
+
                 if (GrillaProductos.SelectedRows.Count == 0)
                 {
                     MessageBox.Show("Seleccione un producto para modificar.", "Información",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                
+
                 var filaSeleccionada = GrillaProductos.SelectedRows[0];
                 var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
-                
-                // Guardar el filtro actual antes de abrir el modal
+
+                // Guardar el filtro actual antes de abrir el formulario
                 string filtroActual = txtFiltroDescripcion.Text;
-                
-                // CORREGIDO: Usar frmActualizarProducto para modificar, no frmAgregarProducto
-                using (var form = new frmActualizarProducto(productoId))
+
+                // ✅ CREAR formulario y asignar MdiParent
+                var form = new ProductoFormUnificado(
+                    ProductoFormUnificado.ModoOperacion.Modificar,
+                    productoId,
+                    ProductoFormUnificado.OrigenLlamada.Productos);
+
+                // ✅ ASIGNAR MdiParent del formulario padre (Productos)
+                form.MdiParent = this.MdiParent;
+
+                // Configurar evento de cierre para actualizar cuando se cierre
+                form.FormClosed += async (s, args) =>
                 {
-                    form.Text = "Modificar Producto";
-                    
-                    if (form.ShowDialog() == DialogResult.OK)
-                    {
-                        // Actualizar la grilla manteniendo el filtro aplicado
-                        await ActualizarDatosManteniendoFiltro(filtroActual);
-                        txtFiltroDescripcion.Focus();
-                    }
-                }
+                    // Actualizar la grilla manteniendo el filtro aplicado
+                    await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                    // Mantener la selección en el producto modificado
+                    await SeleccionarProductoEnGrilla(productoId);
+
+                    txtFiltroDescripcion.Focus();
+                };
+
+                form.Show(); // ✅ Muestra el formulario de forma no modal DENTRO del MDI
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error en BtnModificarProducto_Click: {ex.Message}");
                 MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async void GrillaProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                // Verificar si es una columna editable (checkbox)
+                var columnName = GrillaProductos.Columns[e.ColumnIndex].Name;
+                if (columnName == "PermiteAcumular" || columnName == "EditarPrecio" || columnName == "Activo")
+                {
+                    // No abrir el formulario de edición para estas columnas
+                    return;
+                }
+
+                // Guardar el filtro actual antes de abrir el formulario
+                string filtroActual = txtFiltroDescripcion.Text;
+
+                // Obtener el código del producto de la fila seleccionada
+                var filaSeleccionada = GrillaProductos.Rows[e.RowIndex];
+                var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
+
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"✏️ Modificar producto desde doble click: {productoId}");
+
+                    // ✅ CREAR formulario y asignar MdiParent
+                    var form = new ProductoFormUnificado(
+                        ProductoFormUnificado.ModoOperacion.Modificar,
+                        productoId,
+                        ProductoFormUnificado.OrigenLlamada.Productos);
+
+                    // ✅ ASIGNAR MdiParent del formulario padre (Productos)
+                    form.MdiParent = this.MdiParent;
+
+                    // Configurar evento de cierre para actualizar cuando se cierre
+                    form.FormClosed += async (s, args) =>
+                    {
+                        // Actualizar la grilla manteniendo el filtro aplicado
+                        await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                        // Mantener la selección en el producto modificado
+                        await SeleccionarProductoEnGrilla(productoId);
+
+                        txtFiltroDescripcion.Focus();
+                    };
+
+                    form.Show(); // ✅ Muestra el formulario de forma no modal DENTRO del MDI
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error en GrillaProductos_CellDoubleClick: {ex.Message}");
+                    MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        // MÉTODO SeleccionarProductoEnGrilla agregado
+        private async Task SeleccionarProductoEnGrilla(string codigo)
+        {
+            try
+            {
+                await Task.Delay(100); // Pequeña pausa para asegurar que la grilla esté actualizada
+
+                if (GrillaProductos?.Rows != null)
+                {
+                    foreach (DataGridViewRow row in GrillaProductos.Rows)
+                    {
+                        if (row.Cells["codigo"]?.Value?.ToString() == codigo)
+                        {
+                            GrillaProductos.ClearSelection();
+                            row.Selected = true;
+                            GrillaProductos.FirstDisplayedScrollingRowIndex = row.Index;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error seleccionando producto en grilla: {ex.Message}");
             }
         }
 
@@ -780,12 +1247,12 @@ namespace Comercio.NET.Formularios
 
             _filtroTokenSource?.Cancel();
             _filtroTokenSource = new CancellationTokenSource();
-            
+
             try
             {
                 // Limpiar texto de espacios al inicio y final
                 texto = texto?.Trim() ?? "";
-                
+
                 if (string.IsNullOrEmpty(texto))
                 {
                     // Si no hay texto, mostrar todos los registros
@@ -798,18 +1265,18 @@ namespace Comercio.NET.Formularios
                     string[] palabras = texto.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
                                              .Take(4)
                                              .ToArray();
-                    
+
                     // Escapar comillas simples en cada palabra
                     for (int i = 0; i < palabras.Length; i++)
                     {
                         palabras[i] = palabras[i].Replace("'", "''");
                     }
-                    
+
                     string filtro = "";
-                    
+
                     if (palabras.Length == 1)
                     {
-                        // Lógica original para una sola palabra
+                        // ✅ MODIFICADO: Eliminado 'rubro' de la búsqueda
                         string palabra = palabras[0];
                         if (palabra.Length <= 3)
                         {
@@ -817,34 +1284,30 @@ namespace Comercio.NET.Formularios
                         }
                         else
                         {
-                            filtro = $"(descripcion LIKE '%{palabra}%' OR codigo LIKE '%{palabra}%' OR marca LIKE '%{palabra}%' OR rubro LIKE '%{palabra}%')";
+                            filtro = $"(descripcion LIKE '%{palabra}%' OR codigo LIKE '%{palabra}%' OR marca LIKE '%{palabra}%')";
                         }
                     }
                     else
                     {
-                        // Búsqueda con múltiples palabras (2 a 4 palabras)
-                        // Para múltiples palabras NO buscar en código, solo en descripción, marca y rubro
+                        // ✅ MODIFICADO: Eliminado 'rubro' de la búsqueda con múltiples palabras
                         var condicionesPalabras = new List<string>();
-                        
+
                         foreach (string palabra in palabras)
                         {
-                            // Para múltiples palabras, buscar solo en descripción, marca y rubro (NO en código)
-                            string condicionPalabra = $"(descripcion LIKE '%{palabra}%' OR marca LIKE '%{palabra}%' OR rubro LIKE '%{palabra}%')";
+                            string condicionPalabra = $"(descripcion LIKE '%{palabra}%' OR marca LIKE '%{palabra}%')";
                             condicionesPalabras.Add($"({condicionPalabra})");
                         }
-                        
-                        // Combinar TODAS las condiciones con AND para filtro acumulativo
-                        // Esto asegura que el producto debe contener TODAS las palabras
+
                         filtro = string.Join(" AND ", condicionesPalabras);
                     }
-                    
+
                     System.Diagnostics.Debug.WriteLine($"🔍 Filtro aplicado: {filtro}");
                     productosTable.DefaultView.RowFilter = filtro;
                 }
-                
+
                 // Actualizar contador y formato
                 ActualizarContador();
-                
+
                 // Solo aplicar formato de stock si hay pocos registros para mejor rendimiento
                 if (productosTable.DefaultView.Count <= 100)
                 {
@@ -863,7 +1326,28 @@ namespace Comercio.NET.Formularios
                 ActualizarContador();
             }
         }
-        
+
+        //private async void TxtFiltroDescripcion_KeyDown(object sender, KeyEventArgs e)
+        //{
+        //    if (e.KeyCode == Keys.Enter)
+        //    {
+        //        e.SuppressKeyPress = true;
+        //        await RealizarBusqueda(); // ✅ Buscar al presionar ENTER
+        //    }
+        //    else if (e.KeyCode == Keys.Escape)
+        //    {
+        //        txtFiltroDescripcion.Clear();
+        //        await AplicarFiltro("");
+        //        System.Diagnostics.Debug.WriteLine("🧹 Filtro limpiado con ESC");
+        //    }
+        //    else if (e.KeyCode == Keys.Down && GrillaProductos?.Rows?.Count > 0)
+        //    {
+        //        GrillaProductos.Focus();
+        //        if (GrillaProductos.Rows.Count > 0)
+        //            GrillaProductos.Rows[0].Selected = true;
+        //    }
+        //}
+
         private void TxtFiltroDescripcion_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Escape)
@@ -887,50 +1371,6 @@ namespace Comercio.NET.Formularios
 
         #region Eventos de Grilla
 
-        private async void GrillaProductos_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex >= 0)
-            {
-                // Verificar si es una columna editable (checkbox)
-                var columnName = GrillaProductos.Columns[e.ColumnIndex].Name;
-                if (columnName == "PermiteAcumular" || columnName == "EditarPrecio")
-                {
-                    // No abrir el modal de edición para estas columnas
-                    return;
-                }
-                
-                // Guardar el filtro actual antes de abrir el modal
-                string filtroActual = txtFiltroDescripcion.Text;
-                
-                // Obtener el código del producto de la fila seleccionada
-                var filaSeleccionada = GrillaProductos.Rows[e.RowIndex];
-                var productoId = filaSeleccionada.Cells["codigo"].Value.ToString();
-                
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine($"✏️ Modificar producto desde doble click: {productoId}");
-                    
-                    using (var form = new frmActualizarProducto(productoId))
-                    {
-                        form.Text = "Modificar Producto";
-                        
-                        if (form.ShowDialog() == DialogResult.OK)
-                        {
-                            // Actualizar la grilla manteniendo el filtro aplicado
-                            await ActualizarDatosManteniendoFiltro(filtroActual);
-                            txtFiltroDescripcion.Focus();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error en GrillaProductos_CellDoubleClick: {ex.Message}");
-                    MessageBox.Show($"Error al modificar producto: {ex.Message}", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
         private void GrillaProductos_SelectionChanged(object sender, EventArgs e)
         {
             // Mantener simple - solo para cumplir con el evento
@@ -947,9 +1387,9 @@ namespace Comercio.NET.Formularios
 
         private void GrillaProductos_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
         {
-            // Solo permitir edición de las columnas checkbox
+            // Permitir edición de las columnas checkbox (incluyendo Activo)
             var columnName = GrillaProductos.Columns[e.ColumnIndex].Name;
-            if (columnName != "PermiteAcumular" && columnName != "EditarPrecio")
+            if (columnName != "Activo" && columnName != "PermiteAcumular" && columnName != "EditarPrecio")
             {
                 e.Cancel = true;
             }
@@ -957,11 +1397,10 @@ namespace Comercio.NET.Formularios
 
         private void GrillaProductos_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
-            // Confirmar inmediatamente los cambios en las celdas checkbox
             if (GrillaProductos.IsCurrentCellDirty)
             {
                 var columnName = GrillaProductos.CurrentCell?.OwningColumn?.Name;
-                if (columnName == "PermiteAcumular" || columnName == "EditarPrecio")
+                if (columnName == "Activo" || columnName == "PermiteAcumular" || columnName == "EditarPrecio")
                 {
                     GrillaProductos.CommitEdit(DataGridViewDataErrorContexts.Commit);
                 }
@@ -973,28 +1412,27 @@ namespace Comercio.NET.Formularios
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
             var columnName = GrillaProductos.Columns[e.ColumnIndex].Name;
-            
-            // Solo procesar cambios en las columnas editables
-            if (columnName != "PermiteAcumular" && columnName != "EditarPrecio")
+
+            // Procesar cambios en las columnas editables (incluyendo Activo)
+            if (columnName != "Activo" && columnName != "PermiteAcumular" && columnName != "EditarPrecio")
                 return;
 
             try
             {
                 var row = GrillaProductos.Rows[e.RowIndex];
                 var codigo = row.Cells["codigo"]?.Value?.ToString();
-                
+
                 if (string.IsNullOrEmpty(codigo))
                     return;
 
                 var nuevoValor = row.Cells[columnName]?.Value;
                 bool valorBool = nuevoValor != null && (bool)nuevoValor;
 
-                // **NUEVA LÓGICA DE EXCLUSIÓN MUTUA**
-                if (valorBool) // Si se está marcando como true
+                // Lógica de exclusión mutua solo para PermiteAcumular y EditarPrecio
+                if (valorBool && columnName != "Activo")
                 {
                     if (columnName == "PermiteAcumular")
                     {
-                        // Si se marca PermiteAcumular, desmarcar EditarPrecio
                         var editarPrecioCell = row.Cells["EditarPrecio"];
                         if (editarPrecioCell != null && editarPrecioCell.Value != null && (bool)editarPrecioCell.Value)
                         {
@@ -1005,7 +1443,6 @@ namespace Comercio.NET.Formularios
                     }
                     else if (columnName == "EditarPrecio")
                     {
-                        // Si se marca EditarPrecio, desmarcar PermiteAcumular
                         var permitirAcumularCell = row.Cells["PermiteAcumular"];
                         if (permitirAcumularCell != null && permitirAcumularCell.Value != null && (bool)permitirAcumularCell.Value)
                         {
@@ -1016,40 +1453,38 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                // Actualizar el campo principal que cambió
+                // Actualizar el campo en la BD
                 await ActualizarCampoEnBD(codigo, columnName, valorBool);
 
-                // Mostrar feedback visual temporal
-                row.Cells[columnName].Style.BackColor = valorBool 
-                    ? Color.FromArgb(200, 255, 200) 
-                    : Color.FromArgb(255, 230, 230);
+                // Feedback visual
+                Color colorFeedback = valorBool ? Color.FromArgb(200, 255, 200) : Color.FromArgb(255, 230, 230);
+                row.Cells[columnName].Style.BackColor = colorFeedback;
 
                 // Restaurar color después de 1 segundo
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 1000;
+                var timer = new System.Windows.Forms.Timer { Interval = 1000 };
                 timer.Tick += (s, args) =>
                 {
                     timer.Stop();
                     timer.Dispose();
-                    
-                    if (e.RowIndex < GrillaProductos.Rows.Count && 
-                        e.ColumnIndex < GrillaProductos.Columns.Count)
+
+                    if (e.RowIndex < GrillaProductos.Rows.Count && e.ColumnIndex < GrillaProductos.Columns.Count)
                     {
-                        Color colorFondo = columnName == "PermiteAcumular" 
-                            ? Color.FromArgb(240, 255, 240) 
-                            : Color.FromArgb(255, 240, 240);
-                        
+                        Color colorFondo = columnName == "Activo"
+                            ? Color.FromArgb(240, 240, 255)
+                            : (columnName == "PermiteAcumular"
+                                ? Color.FromArgb(240, 255, 240)
+                                : Color.FromArgb(255, 240, 240));
+
                         row.Cells[columnName].Style.BackColor = colorFondo;
-                        
-                        // También restaurar el color de la otra columna si fue afectada
-                        if (valorBool) // Solo si se marcó como true (activó la exclusión mutua)
+
+                        if (valorBool && columnName != "Activo")
                         {
                             string otraColumna = columnName == "PermiteAcumular" ? "EditarPrecio" : "PermiteAcumular";
                             var otraCell = row.Cells[otraColumna];
                             if (otraCell != null)
                             {
-                                Color otroColorFondo = otraColumna == "PermiteAcumular" 
-                                    ? Color.FromArgb(240, 255, 240) 
+                                Color otroColorFondo = otraColumna == "PermiteAcumular"
+                                    ? Color.FromArgb(240, 255, 240)
                                     : Color.FromArgb(255, 240, 240);
                                 otraCell.Style.BackColor = otroColorFondo;
                             }
@@ -1063,7 +1498,7 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error actualizando campo: {ex.Message}");
-                MessageBox.Show($"Error al actualizar el campo: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al actualizar el campo: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1105,6 +1540,120 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        private void CrearBotonEliminar()
+        {
+            var btnEliminar = new Button
+            {
+                Text = "🗑️ Eliminar",
+                Location = new Point(685, 40), // ✅ Fila inferior
+                Size = new Size(120, 27),
+                Font = new Font("Segoe UI", 9F),
+                UseVisualStyleBackColor = true,
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left, // ✅ FIJO en la izquierda
+                Name = "btnEliminar",
+                TabIndex = 5
+            };
+            btnEliminar.Click += BtnEliminar_Click;
+
+            this.Controls.Add(btnEliminar);
+            btnEliminar.BringToFront();
+        }
+
+        private async void BtnEliminar_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (GrillaProductos.SelectedRows.Count == 0)
+                {
+                    MessageBox.Show("Seleccione un producto para eliminar.", "Información",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var filaSeleccionada = GrillaProductos.SelectedRows[0];
+                var codigo = filaSeleccionada.Cells["codigo"].Value.ToString();
+                var descripcion = filaSeleccionada.Cells["descripcion"].Value.ToString();
+
+                // Confirmar eliminación PERMANENTE
+                var resultado = MessageBox.Show(
+                    $"⚠️ ADVERTENCIA: Esta acción eliminará PERMANENTEMENTE el producto de la base de datos.\n\n" +
+                    $"Código: {codigo}\n" +
+                    $"Descripción: {descripcion}\n\n" +
+                    $"Esta acción NO se puede deshacer.\n\n" +
+                    $"Si desea ocultarlo temporalmente, use el checkbox 'ACTIVO' en su lugar.\n\n" +
+                    $"¿Está seguro de que desea ELIMINAR PERMANENTEMENTE este producto?",
+                    "⚠️ Confirmar Eliminación Permanente",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2);
+
+                if (resultado == DialogResult.Yes)
+                {
+                    // Eliminar producto PERMANENTEMENTE de la base de datos
+                    await EliminarProductoPermanentemente(codigo);
+
+                    // Guardar el filtro actual
+                    string filtroActual = txtFiltroDescripcion.Text;
+
+                    // Actualizar la grilla manteniendo el filtro
+                    await ActualizarDatosManteniendoFiltro(filtroActual);
+
+                    MessageBox.Show("Producto eliminado permanentemente de la base de datos.", "Eliminación Exitosa",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    txtFiltroDescripcion.Focus();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error en BtnEliminar_Click: {ex.Message}");
+                MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task EliminarProductoPermanentemente(string codigo)
+        {
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("appsettings.json")
+                    .Build();
+
+                string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    // ✅ ELIMINAR PERMANENTEMENTE el producto
+                    string query = @"DELETE FROM Productos WHERE codigo = @codigo";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@codigo", codigo);
+                        int rowsAffected = await cmd.ExecuteNonQueryAsync();
+
+                        if (rowsAffected == 0)
+                        {
+                            throw new Exception("No se encontró el producto a eliminar.");
+                        }
+                    }
+                }
+
+                // Limpiar cache
+                LimpiarCache();
+
+                System.Diagnostics.Debug.WriteLine($"✅ Producto {codigo} ELIMINADO PERMANENTEMENTE de la base de datos");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error al eliminar producto permanentemente: {ex.Message}");
+            }
+        }
+
         public static void LimpiarCache()
         {
             try
@@ -1121,7 +1670,6 @@ namespace Comercio.NET.Formularios
                 System.Diagnostics.Debug.WriteLine($"Error limpiando cache: {ex.Message}");
             }
         }
-
         #endregion
     }
 }

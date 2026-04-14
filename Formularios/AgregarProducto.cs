@@ -24,10 +24,25 @@ namespace Comercio.NET.Formularios
 
         // NO DECLARAR CONTROLES AQUÍ - ya están en el diseñador
 
+        private IEnumerable<Control> GetAllControls(Control parent)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                yield return c;
+                foreach (var child in GetAllControls(c))
+                    yield return child;
+            }
+        }
+
         public frmAgregarProducto()
         {
             InitializeComponent();
-            
+
+
+
+            // dentro del constructor, justo después de InitializeComponent();
+            AplicarEstiloModal();
+
             ConfigurarFormulario();
             this.StartPosition = FormStartPosition.CenterParent;
 
@@ -48,6 +63,196 @@ namespace Comercio.NET.Formularios
                 };
                 timer.Start();
             };
+        }
+
+        private void AplicarEstiloModal()
+        {
+            // Estilo general del formulario
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.BackColor = Color.White;
+            this.Padding = new Padding(12);
+            this.MinimizeBox = false;
+            this.MaximizeBox = false;
+            this.Font = new Font("Segoe UI", 9.5F);
+
+            // Cabecera superior tipo "banner"
+            var header = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 64,
+                BackColor = Color.FromArgb(63, 81, 181),
+                Padding = new Padding(12)
+            };
+
+            var lblIcon = new Label
+            {
+                Text = "＋",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(8, 10)
+            };
+            header.Controls.Add(lblIcon);
+
+            var lblTitle = new Label
+            {
+                Text = "Agregar Producto",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(72, 8) // <-- desplazado a la derecha
+            };
+            header.Controls.Add(lblTitle);
+
+            var lblSub = new Label
+            {
+                Text = "Complete los campos mínimos para continuar",
+                ForeColor = Color.FromArgb(220, 230, 255),
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                AutoSize = true,
+                Location = new Point(72, 30) // <-- desplazado a la derecha
+            };
+            header.Controls.Add(lblSub);
+
+            // Insertar al tope (si ya hay uno con DockTop, evitar duplicar)
+            if (!this.Controls.OfType<Panel>().Any(p => p.Height == 64 && p.BackColor == header.BackColor))
+                this.Controls.Add(header);
+
+            header.BringToFront();
+
+            // Estilizar TextBox / ComboBox / DateTimePicker
+            foreach (Control c in GetAllControls(this))
+            {
+                // placeholder (no-op) si necesitás iterar todos los controles
+            }
+
+            foreach (var tb in this.Controls.OfType<TextBox>())
+            {
+                tb.Font = new Font("Segoe UI", 10F);
+                tb.BorderStyle = BorderStyle.FixedSingle;
+                tb.BackColor = Color.White;
+                tb.ForeColor = Color.Black;
+            }
+
+            foreach (var cb in this.Controls.OfType<ComboBox>())
+            {
+                cb.Font = new Font("Segoe UI", 10F);
+                cb.FlatStyle = FlatStyle.Flat;
+                cb.BackColor = Color.White;
+            }
+
+            foreach (var dt in this.Controls.OfType<DateTimePicker>())
+            {
+                dt.Font = new Font("Segoe UI", 10F);
+                dt.CalendarFont = new Font("Segoe UI", 9F);
+            }
+
+            // Botones: buscar por nombres comunes y aplicar estilo moderno
+            string[] posiblesGuardar = { "btnGuardar", "BtnGuardar", "btnAceptar", "BtnAceptar" };
+            string[] posiblesCancelar = { "btnCancelar", "BtnCancelar", "BtnSalirModal", "btnCerrar" };
+
+            Button btnGuardar = null;
+            Button btnCancelar = null;
+
+            foreach (var name in posiblesGuardar)
+            {
+                var ctrl = this.Controls.Find(name, true).FirstOrDefault() as Button;
+                if (ctrl != null) { btnGuardar = ctrl; break; }
+            }
+            foreach (var name in posiblesCancelar)
+            {
+                var ctrl = this.Controls.Find(name, true).FirstOrDefault() as Button;
+                if (ctrl != null) { btnCancelar = ctrl; break; }
+            }
+
+            if (btnGuardar != null)
+            {
+                btnGuardar.FlatStyle = FlatStyle.Flat;
+                btnGuardar.BackColor = Color.FromArgb(40, 167, 69); // verde
+                btnGuardar.ForeColor = Color.White;
+                btnGuardar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                btnGuardar.FlatAppearance.BorderSize = 0;
+                this.AcceptButton = btnGuardar;
+            }
+
+            if (btnCancelar != null)
+            {
+                btnCancelar.FlatStyle = FlatStyle.Flat;
+                btnCancelar.BackColor = Color.FromArgb(158, 158, 158); // gris
+                btnCancelar.ForeColor = Color.White;
+                btnCancelar.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                btnCancelar.FlatAppearance.BorderSize = 0;
+                this.CancelButton = btnCancelar;
+            }
+
+            // Reubicar botones de acción a la derecha inferior si existen (no fuerza layout complejo)
+            var actionButtons = new List<Button>();
+            if (btnGuardar != null) actionButtons.Add(btnGuardar);
+            if (btnCancelar != null && btnCancelar != btnGuardar) actionButtons.Add(btnCancelar);
+
+            if (actionButtons.Any())
+            {
+                // crear un panel para agrupar botones si no existe
+                var panelAccion = new Panel
+                {
+                    Height = 48,
+                    Dock = DockStyle.Bottom,
+                    BackColor = Color.Transparent,
+                    Padding = new Padding(12)
+                };
+                // mover los botones al panel (si ya están en otro padre, los reubica)
+                foreach (var b in actionButtons)
+                {
+                    try
+                    {
+                        b.Parent?.Controls.Remove(b);
+                        b.Width = 120;
+                        b.Height = 36;
+                        b.Margin = new Padding(8, 6, 8, 6);
+                        b.Anchor = AnchorStyles.Right | AnchorStyles.Bottom;
+                        panelAccion.Controls.Add(b);
+                    }
+                    catch { }
+                }
+
+                // agregar panel si no está agregado aún
+                if (!this.Controls.OfType<Panel>().Any(p => p.Dock == DockStyle.Bottom && p != panelAccion))
+                    this.Controls.Add(panelAccion);
+
+                panelAccion.BringToFront();
+                // alinear botones a la derecha
+                int x = panelAccion.ClientSize.Width - 12;
+                for (int i = panelAccion.Controls.Count - 1; i >= 0; i--)
+                {
+                    Control b = panelAccion.Controls[i];
+                    b.Left = x - b.Width;
+                    b.Top = (panelAccion.Height - b.Height) / 2;
+                    x = b.Left - 12;
+                }
+
+                // reajustar cuando cambie tamaño
+                panelAccion.SizeChanged += (s, e) =>
+                {
+                    int xx = panelAccion.ClientSize.Width - 12;
+                    for (int i = panelAccion.Controls.Count - 1; i >= 0; i--)
+                    {
+                        Control b = panelAccion.Controls[i];
+                        b.Left = xx - b.Width;
+                        b.Top = (panelAccion.Height - b.Height) / 2;
+                        xx = b.Left - 12;
+                    }
+                };
+            }
+
+            // Mejorar labels: fuente y color
+            foreach (var lbl in GetAllControls(this).OfType<Label>())
+            {
+                // skip header labels ya creados
+                if (lbl == lblTitle || lbl == lblSub || lbl == lblIcon) continue;
+                lbl.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                lbl.ForeColor = Color.FromArgb(33, 33, 33);
+            }
         }
 
         private void CrearControlesFaltantes()
@@ -152,7 +357,13 @@ namespace Comercio.NET.Formularios
             try
             {
                 int startX = 30;
-                int startY = 30;
+                // Calcular el Y inicial teniendo en cuenta un posible panel superior (header) y el padding del formulario
+                int headerHeight = 0;
+                var topPanel = this.Controls.OfType<Panel>().FirstOrDefault(p => p.Dock == DockStyle.Top);
+                if (topPanel != null) headerHeight = topPanel.Height;
+                // Dejar al menos 18px de margen si no hay header; si lo hay, ubicar controles debajo del mismo (+8px de separación)
+                int startY = Math.Max(18, this.Padding.Top + headerHeight + 8);
+
                 int labelWidth = 120;
                 int controlHeight = 30;
                 int spacingY = 15;
@@ -279,10 +490,10 @@ namespace Comercio.NET.Formularios
                     btnSalirModal.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 }
 
-                // Ajustar tamaño del formulario según el origen
-                int formHeight = buttonY + 100;
+                // Ajustar la altura del formulario añadiendo el padding inferior para evitar recortes
+                int formHeight = buttonY + 100 + this.Padding.Bottom;
                 int formWidth = textBoxX + textBoxWidth + 50;
-                
+
                 if (Origen == OrigenLlamada.Ventas)
                 {
                     // Formulario más pequeño para Ventas (solo 3 campos)

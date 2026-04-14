@@ -1,0 +1,16 @@
+﻿{
+  "Version": "1.3.0",
+  "DownloadUrl": "https://github.com/manuclaro/Comercio.NET-web/releases/download/v1.3.0/ComercioNET_v1.3.0.zip",
+  "ReleaseDate": "2026-01-29T10:00:00",
+  "IsRequired": false,
+  "FileSize": 0,
+  "ChangeLog": [
+    "✅ NUEVO: Sistema de auto-actualización integrado",
+    "✅ NUEVO: Eliminación de remitos completos",
+    "✅ NUEVO: Factura directa AFIP",
+    "✅ MEJORA: Filtros avanzados por forma de pago y tipo",
+    "✅ MEJORA: Cálculo optimizado de IVA en reportes",
+    "✅ CORRECCIÓN: Problema al exportar listados a Excel",
+    "⚠️ IMPORTANTE: Respaldar base de datos antes de actualizar"
+  ]
+}

@@ -153,6 +153,16 @@ namespace Comercio.NET.Properties {
         /// <summary>
         ///   Busca un recurso adaptado de tipo System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap supply_chain {
+            get {
+                object obj = ResourceManager.GetObject("supply-chain", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Busca un recurso adaptado de tipo System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap UserAdd {
             get {
                 object obj = ResourceManager.GetObject("UserAdd", resourceCulture);
