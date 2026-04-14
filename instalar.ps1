@@ -5,32 +5,24 @@
     
 .DESCRIPTION
     Descarga e instala Comercio .NET desde GitHub Releases.
-    Instala el .NET 8 Runtime si no está presente.
-    Crea la carpeta de instalación, un acceso directo en el escritorio
+    Instala el .NET 8 Runtime si no esta presente.
+    Crea la carpeta de instalacion, un acceso directo en el escritorio
     y genera un appsettings.json inicial listo para configurar.
 
 .PARAMETER InstallDir
-    Carpeta de instalación. Por defecto: C:\Comercio.NET
+    Carpeta de instalacion. Por defecto: C:\Comercio.NET
 
 .PARAMETER GitHubRepo
     Repositorio de GitHub en formato owner/repo.
-    Por defecto: manuclaro/Comercio.NET-web
 
 .PARAMETER GitHubToken
     Token de acceso personal para repositorios privados (opcional).
-    Si el repositorio es público, no es necesario.
 
 .EXAMPLE
-# Instalación estándar (una línea desde PowerShell):
 irm https://raw.githubusercontent.com/manuclaro/Comercio.NET-web/master/instalar.ps1 | iex
 
 .EXAMPLE
-    # Con carpeta personalizada:
     .\instalar.ps1 -InstallDir "D:\MiComercio"
-
-.EXAMPLE
-    # Con token para repo privado:
-    .\instalar.ps1 -GitHubToken "ghp_tutoken"
 #>
 
 [CmdletBinding()]
@@ -49,16 +41,13 @@ $ErrorActionPreference = "Stop"
 $APP_NAME          = "Comercio .NET"
 $APP_EXE           = "Comercio .NET.exe"
 $DOTNET_VERSION    = "8.0"
-# URL del runtime framework-dependent (sin self-contained). ~56 MB.
 $DOTNET_RUNTIME_URL = "https://download.visualstudio.microsoft.com/download/pr/b6f19ef3-52d7-4b4b-98a7-84e9cdc82e8c/f4d27595d2b7c798d5eca2f0547f3d16/windowsdesktop-runtime-8.0.12-win-x64.exe"
 $DOTNET_RUNTIME_FILENAME = "windowsdesktop-runtime-8.0-win-x64.exe"
-# Nombre del script SQL de inicializacion incluido en el .zip del release
 $DB_INIT_SCRIPT    = "database\init_comercio.sql"
 $DB_NAME           = "comercio"
-# SQL Server Express 2022 - instalador offline completo (~290 MB, soporta /FEATURES etc.)
-$SQLEXPRESS_URL      = "https://download.microsoft.com/download/5/1/4/5147f99c-f20b-4e9c-af7b-492f6c00c74c/SQLEXPR_x64_ENU.exe"
-$SQLEXPRESS_FILENAME = "SQLEXPR_x64_ENU.exe"
-# Nombre de instancia que usa el instalador silencioso de Express
+# SQL Server Express 2022 - instalador web SSEI (~6 MB, descarga el medio offline)
+$SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2216019&clcid=0x0409&culture=en-us&country=us"
+$SQLEXPRESS_FILENAME = "SQL2022-SSEI-Expr.exe"
 $SQL_INSTANCE_NAME   = "SQLEXPRESS"
 
 # =============================================================================
@@ -132,9 +121,7 @@ try {
         $dotnetInstalled = $true
         Write-OK ".NET $DOTNET_VERSION Desktop Runtime ya instalado."
     }
-} catch {
-    # dotnet.exe no encontrado en PATH, seguir adelante
-}
+} catch { }
 
 if (-not $dotnetInstalled) {
     Write-Info ".NET $DOTNET_VERSION no encontrado. Descargando instalador (~56 MB)..."
@@ -146,9 +133,8 @@ if (-not $dotnetInstalled) {
         Write-OK "Descarga completada."
     } catch {
         Write-Fail "Error descargando .NET runtime: $_"
-        Write-Warn "Por favor instale manualmente desde:"
-        Write-Warn "https://dotnet.microsoft.com/download/dotnet/8.0"
-        Read-Host "Presione ENTER para continuar de todos modos o Ctrl+C para cancelar"
+        Write-Warn "Instale manualmente desde: https://dotnet.microsoft.com/download/dotnet/8.0"
+        Read-Host "Presione ENTER para continuar o Ctrl+C para cancelar"
     }
 
     if (Test-Path $tempRuntime) {
@@ -157,8 +143,7 @@ if (-not $dotnetInstalled) {
         if ($proc.ExitCode -eq 0) {
             Write-OK ".NET $DOTNET_VERSION instalado correctamente."
         } else {
-            Write-Warn "El instalador de .NET finalizo con codigo $($proc.ExitCode)."
-            Write-Warn "Puede que ya estuviera instalado o requiera reinicio."
+            Write-Warn "Instalador .NET finalizo con codigo $($proc.ExitCode)."
         }
         Remove-Item $tempRuntime -Force -ErrorAction SilentlyContinue
     }
@@ -171,9 +156,8 @@ if (-not $dotnetInstalled) {
 # =============================================================================
 Write-Step "2/8" "Verificando SQL Server..."
 
-# Detectar si ya hay alguna instancia de SQL Server instalada
 $sqlInstalled    = $false
-$sqlInstanceName = $null   # nombre real de la instancia encontrada
+$sqlInstanceName = $null
 
 $sqlRegPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL",
@@ -204,80 +188,121 @@ if ($sqlInstalled) {
     }
 } else {
     Write-Info "SQL Server no detectado. Descargando SQL Server 2022 Express..."
-    Write-Info "(~290 MB, instalador offline completo - puede tardar varios minutos)"
-    Write-Warn "Esta descarga puede tardar varios minutos segun la conexion."
+    Write-Info "(Instalador web SSEI ~6 MB + descarga medio offline ~280 MB)"
+    Write-Warn "Este proceso puede tardar varios minutos segun la conexion."
     Write-Host ""
 
-    $tempSql = Join-Path $env:TEMP $SQLEXPRESS_FILENAME
-    Remove-Item $tempSql -Force -ErrorAction SilentlyContinue
+    $tempSsei = Join-Path $env:TEMP $SQLEXPRESS_FILENAME
+    $tempSqlMedia = Join-Path $env:TEMP "SqlExpressMedia"
+    Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
+    Remove-Item $tempSqlMedia -Recurse -Force -ErrorAction SilentlyContinue
 
     try {
         $wc2 = New-Object System.Net.WebClient
-        $wc2.DownloadFile($SQLEXPRESS_URL, $tempSql)
-        Write-OK "Instalador de SQL Express descargado."
+        $wc2.DownloadFile($SQLEXPRESS_URL, $tempSsei)
+        Write-OK "Instalador SSEI descargado (~6 MB)."
     } catch {
         Write-Fail "Error descargando SQL Server Express: $_"
         Write-Warn "Instale SQL Server Express manualmente desde:"
         Write-Warn "https://www.microsoft.com/sql-server/sql-server-downloads"
-        Read-Host "Presione ENTER para continuar de todos modos o Ctrl+C para cancelar"
+        Read-Host "Presione ENTER para continuar o Ctrl+C para cancelar"
     }
 
-    if (Test-Path $tempSql) {
-        Write-Info "Instalando SQL Server 2022 Express en modo silencioso..."
-        Write-Info "(Esto puede tardar entre 5 y 15 minutos, por favor espere)"
+    if (Test-Path $tempSsei) {
+        # Paso A: Usar SSEI para descargar el medio offline completo
+        Write-Info "Descargando medio de instalacion offline (~280 MB, puede tardar)..."
+        New-Item -ItemType Directory -Path $tempSqlMedia -Force | Out-Null
 
-        # Argumentos para el instalador offline SQLEXPR_x64_ENU.exe
-        # /Q                    - sin interfaz grafica
-        # /ACTION=Install       - nueva instalacion
-        # /FEATURES=SQLEngine   - solo el motor de base de datos
-        # /INSTANCENAME         - nombre estandar de Express
-        # /SQLSYSADMINACCOUNTS  - los Administradores locales son sysadmin
-        # /TCPENABLED=1         - habilitar TCP/IP para conexiones locales
-        # /IACCEPTSQLSERVERLICENSETERMS - requerido en modo silencioso
-        $sqlArgs = '/Q /ACTION=Install /FEATURES=SQLEngine ' +
-                   '/INSTANCENAME=SQLEXPRESS ' +
-                   '/SQLSVCACCOUNT="NT AUTHORITY\NETWORK SERVICE" ' +
-                   '/SQLSYSADMINACCOUNTS="BUILTIN\Administrators" ' +
-                   '/TCPENABLED=1 /NPENABLED=0 ' +
-                   '/IACCEPTSQLSERVERLICENSETERMS'
+        $downloadArgs = "/Action=Download /MediaPath=`"$tempSqlMedia`" /MediaType=Core /Quiet"
+        $procDownload = Start-Process -FilePath $tempSsei -ArgumentList $downloadArgs -Wait -PassThru
 
-        $procSql = Start-Process -FilePath $tempSql -ArgumentList $sqlArgs -Wait -PassThru
-        Remove-Item $tempSql -Force -ErrorAction SilentlyContinue
+        Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
 
-        if ($procSql.ExitCode -eq 0 -or $procSql.ExitCode -eq 3010) {
-            Write-OK "SQL Server 2022 Express instalado correctamente."
-            if ($procSql.ExitCode -eq 3010) {
-                Write-Warn "Se recomienda reiniciar el equipo despues de la instalacion."
+        if ($procDownload.ExitCode -ne 0) {
+            Write-Warn "SSEI finalizo descarga con codigo $($procDownload.ExitCode)."
+        }
+
+        # Buscar el SQLEXPR_x64_ENU.exe descargado por SSEI
+        $setupExe = $null
+        $mediaExe = Get-ChildItem -Path $tempSqlMedia -Filter "SQLEXPR*" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+
+        if ($mediaExe) {
+            # Es un exe autoextraible - extraerlo
+            Write-Info "Extrayendo medio de instalacion..."
+            $extractDir = Join-Path $env:TEMP "SqlExpressExtracted"
+            Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+            $procExtract = Start-Process -FilePath $mediaExe.FullName -ArgumentList "/Q /x:`"$extractDir`"" -Wait -PassThru
+            $setupExe = Join-Path $extractDir "setup.exe"
+            if (-not (Test-Path $setupExe)) {
+                $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) { $setupExe = $found.FullName }
             }
-            $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+        }
 
-            # Esperar a que el servicio SQL Server este disponible (hasta 60 segundos)
-            Write-Info "Esperando que el servicio SQL Server inicie..."
-            $sqlService = "MSSQL`$$SQL_INSTANCE_NAME"
-            $intentos = 0
-            do {
-                Start-Sleep -Seconds 3
-                $intentos++
-                $svc = Get-Service -Name $sqlService -ErrorAction SilentlyContinue
-            } while (($svc -eq $null -or $svc.Status -ne 'Running') -and ($intentos -lt 20))
+        if (-not $setupExe -or -not (Test-Path $setupExe)) {
+            $found = Get-ChildItem -Path $tempSqlMedia -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $setupExe = $found.FullName }
+        }
 
-            if ($svc -and $svc.Status -eq 'Running') {
-                Write-OK "Servicio SQL Server listo."
+        if ($setupExe -and (Test-Path $setupExe)) {
+            # Paso B: Ejecutar setup.exe en modo silencioso
+            Write-Info "Instalando SQL Server 2022 Express en modo silencioso..."
+            Write-Info "(Esto puede tardar entre 5 y 15 minutos, por favor espere)"
+
+            $sqlArgs = '/Q /ACTION=Install /FEATURES=SQLEngine ' +
+                       '/INSTANCENAME=SQLEXPRESS ' +
+                       '/SQLSVCACCOUNT="NT AUTHORITY\NETWORK SERVICE" ' +
+                       '/SQLSYSADMINACCOUNTS="BUILTIN\Administrators" ' +
+                       '/TCPENABLED=1 /NPENABLED=0 ' +
+                       '/IACCEPTSQLSERVERLICENSETERMS'
+
+            $procSql = Start-Process -FilePath $setupExe -ArgumentList $sqlArgs -Wait -PassThru
+
+            if ($procSql.ExitCode -eq 0 -or $procSql.ExitCode -eq 3010) {
+                Write-OK "SQL Server 2022 Express instalado correctamente."
+                if ($procSql.ExitCode -eq 3010) {
+                    Write-Warn "Se recomienda reiniciar el equipo despues de la instalacion."
+                }
+                $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+
+                # Esperar a que el servicio SQL Server este disponible (hasta 60 segundos)
+                Write-Info "Esperando que el servicio SQL Server inicie..."
+                $sqlService = "MSSQL`$$SQL_INSTANCE_NAME"
+                $intentos = 0
+                do {
+                    Start-Sleep -Seconds 3
+                    $intentos++
+                    $svc = Get-Service -Name $sqlService -ErrorAction SilentlyContinue
+                } while (($svc -eq $null -or $svc.Status -ne 'Running') -and ($intentos -lt 20))
+
+                if ($svc -and $svc.Status -eq 'Running') {
+                    Write-OK "Servicio SQL Server listo."
+                } else {
+                    Write-Warn "El servicio no respondio en 60 segundos. Se intentara continuar."
+                }
+
+                # Agregar la ruta del motor al PATH de esta sesion para que el paso 7 encuentre sqlcmd
+                $sqlToolsPath = "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn"
+                if (Test-Path $sqlToolsPath) {
+                    $env:PATH = "$sqlToolsPath;$env:PATH"
+                    Write-Info "Ruta de sqlcmd agregada al PATH de la sesion."
+                }
             } else {
-                Write-Warn "El servicio no respondio en 60 segundos. Se intentara continuar."
-            }
-
-            # Agregar la ruta del motor al PATH de esta sesion para que el paso 7 encuentre sqlcmd
-            $sqlToolsPath = "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn"
-            if (Test-Path $sqlToolsPath) {
-                $env:PATH = "$sqlToolsPath;$env:PATH"
-                Write-Info "Ruta de sqlcmd agregada al PATH de la sesion."
+                Write-Warn "setup.exe finalizo con codigo $($procSql.ExitCode)."
+                Write-Warn "Consulte el log en: C:\Program Files\Microsoft SQL Server\*\Setup Bootstrap\Log"
+                $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
             }
         } else {
-            Write-Warn "El instalador de SQL Express finalizo con codigo $($procSql.ExitCode)."
-            Write-Warn "Consulte el log en: C:\Program Files\Microsoft SQL Server\*\Setup Bootstrap\Log"
+            Write-Warn "No se encontro setup.exe en el medio descargado."
+            Write-Warn "Instale SQL Server Express manualmente desde:"
+            Write-Warn "https://www.microsoft.com/sql-server/sql-server-downloads"
             $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
         }
+
+        # Limpieza de archivos temporales de SQL
+        Remove-Item $tempSqlMedia -Recurse -Force -ErrorAction SilentlyContinue
+        $extractDir2 = Join-Path $env:TEMP "SqlExpressExtracted"
+        Remove-Item $extractDir2 -Recurse -Force -ErrorAction SilentlyContinue
     } else {
         Write-Warn "No se pudo descargar SQL Server Express. Continuando sin el."
         $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
@@ -304,7 +329,6 @@ try {
 } catch {
     Write-Fail "No se pudo conectar a GitHub: $_"
     Write-Warn "Verifique la conexion a internet y que el repositorio exista."
-    Write-Warn "URL consultada: $apiUrl"
     Read-Host "Presione ENTER para salir"
     exit 1
 }
@@ -314,12 +338,10 @@ $zipAsset   = $release.assets | Where-Object { $_.name -like "*.zip" } | Select-
 
 if (-not $zipAsset) {
     Write-Fail "No se encontro un archivo .zip en el release $version."
-    Write-Warn "El desarrollador debe adjuntar un .zip con los binarios al GitHub Release."
     Read-Host "Presione ENTER para salir"
     exit 1
 }
 
-# Para repositorios privados usar la URL de la API; publicos usar browser_download_url
 $downloadUrl = if ($GitHubToken) { $zipAsset.url } else { $zipAsset.browser_download_url }
 $sizeMB      = [math]::Round($zipAsset.size / 1MB, 1)
 
@@ -335,25 +357,21 @@ Write-Step "4/8" "Descargando $APP_NAME v$version..."
 $tempZip    = Join-Path $env:TEMP "ComercioNET_Install_$version.zip"
 $tempExtract = Join-Path $env:TEMP "ComercioNET_Install_$version"
 
-# Limpiar archivos temporales anteriores si existen
 Remove-Item $tempZip     -Force -ErrorAction SilentlyContinue
 Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 
 try {
     $downloadHeaders = $headers.Clone()
-
-    # Para assets de la API de GitHub se necesita Accept: application/octet-stream
     if ($GitHubToken -and $downloadUrl -match "api\.github\.com") {
         $downloadHeaders["Accept"] = "application/octet-stream"
     }
 
-    # Descargar con progreso
     $wc = New-Object System.Net.WebClient
     foreach ($key in $downloadHeaders.Keys) {
         $wc.Headers.Add($key, $downloadHeaders[$key])
     }
 
-    Write-Info "Descargando desde GitHub... (puede tardar segun la conexion)"
+    Write-Info "Descargando desde GitHub..."
     $wc.DownloadFile($downloadUrl, $tempZip)
     Write-OK "Descarga completada."
 } catch {
@@ -376,7 +394,6 @@ try {
 # =============================================================================
 Write-Step "5/8" "Instalando en $InstallDir..."
 
-# Si ya existe una instalacion previa, hacer backup de los archivos de configuracion
 $archivosProtegidos = @(
     "appsettings.json",
     "loginconfig.json",
@@ -398,7 +415,6 @@ if (Test-Path $InstallDir) {
         }
     }
 
-    # Backup de certificados AFIP (.pfx / .p12)
     $certDir = Join-Path $InstallDir "Certificados FE"
     if (Test-Path $certDir) {
         $backupCertDir = Join-Path $backupDir "Certificados FE"
@@ -406,7 +422,6 @@ if (Test-Path $InstallDir) {
         Write-Info "Backup: carpeta 'Certificados FE'"
     }
 
-    # Backup de la carpeta migrations (scripts SQL personalizados)
     $migrDir = Join-Path $InstallDir "migrations"
     if (Test-Path $migrDir) {
         $backupMigrDir = Join-Path $backupDir "migrations"
@@ -417,24 +432,19 @@ if (Test-Path $InstallDir) {
     Write-OK "Backup de configuracion guardado en $backupDir"
 }
 
-# Crear carpeta de instalacion
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 
-# Determinar la raiz del contenido extraido
-# El zip puede tener una subcarpeta raiz o los archivos directamente
 $extractedItems = Get-ChildItem -Path $tempExtract
 $sourceDir = if ($extractedItems.Count -eq 1 -and $extractedItems[0].PSIsContainer) {
-    $extractedItems[0].FullName  # hay una subcarpeta raiz
+    $extractedItems[0].FullName
 } else {
-    $tempExtract  # los archivos estan en la raiz del zip
+    $tempExtract
 }
 
-# Copiar todos los archivos al directorio de instalacion
 Write-Info "Copiando archivos de la aplicacion..."
 Copy-Item -Path "$sourceDir\*" -Destination $InstallDir -Recurse -Force
 Write-OK "Archivos copiados."
 
-# Restaurar archivos de configuracion del backup (si habia instalacion previa)
 if ($backupDir -and (Test-Path $backupDir)) {
     Write-Info "Restaurando configuraciones anteriores..."
 
@@ -446,7 +456,6 @@ if ($backupDir -and (Test-Path $backupDir)) {
         }
     }
 
-    # Restaurar certificados
     $backupCertDir = Join-Path $backupDir "Certificados FE"
     if (Test-Path $backupCertDir) {
         $destCertDir = Join-Path $InstallDir "Certificados FE"
@@ -455,7 +464,6 @@ if ($backupDir -and (Test-Path $backupDir)) {
         Write-Info "  Restaurados: certificados AFIP"
     }
 
-    # Restaurar migrations personalizadas
     $backupMigrDir = Join-Path $backupDir "migrations"
     if (Test-Path $backupMigrDir) {
         $destMigrDir = Join-Path $InstallDir "migrations"
@@ -468,7 +476,6 @@ if ($backupDir -and (Test-Path $backupDir)) {
     Remove-Item $backupDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# Escribir version.txt
 Set-Content -Path (Join-Path $InstallDir "version.txt") -Value $version -Encoding UTF8
 Write-OK "Version $version registrada."
 
@@ -482,7 +489,6 @@ $appSettingsPath = Join-Path $InstallDir "appsettings.json"
 if (-not (Test-Path $appSettingsPath)) {
     Write-Info "Generando appsettings.json con valores de ejemplo..."
 
-    # Template de appsettings.json con todos los campos que usa la aplicacion
     $appsettingsTemplate = @'
 {
   "ConnectionStrings": {
@@ -565,16 +571,14 @@ if (-not (Test-Path $appSettingsPath)) {
     Write-OK "appsettings.json existente conservado (no sobreescrito)."
 }
 
-# Crear carpeta de certificados si no existe
 $certFolder = Join-Path $InstallDir "Certificados FE"
 if (-not (Test-Path $certFolder)) {
     New-Item -ItemType Directory -Path $certFolder -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $certFolder "Testing") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $certFolder "Produccion") -Force | Out-Null
-    Write-OK "Carpeta 'Certificados FE' creada. Copie aqui sus archivos .p12/.pfx de AFIP."
+    Write-OK "Carpeta 'Certificados FE' creada."
 }
 
-# Crear carpeta migrations si no existe
 $migrFolder = Join-Path $InstallDir "migrations"
 if (-not (Test-Path $migrFolder)) {
     New-Item -ItemType Directory -Path $migrFolder -Force | Out-Null
@@ -586,22 +590,18 @@ if (-not (Test-Path $migrFolder)) {
 # =============================================================================
 Write-Step "7/8" "Inicializando base de datos SQL Server..."
 
-# Verificar si sqlcmd esta disponible en el sistema
 $sqlcmdPath = $null
 $sqlcmdCandidates = @(
     "sqlcmd",
-    # SQL Server engine Tools\Binn (instalado junto al motor)
     "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles}\Microsoft SQL Server\150\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles}\Microsoft SQL Server\140\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles}\Microsoft SQL Server\130\Tools\Binn\sqlcmd.exe",
-    # Client SDK / ODBC standalone tools
     "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\130\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles(x86)}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
     "${env:ProgramFiles(x86)}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe",
-    # go-sqlcmd (nueva CLI de Microsoft)
     "${env:LOCALAPPDATA}\Microsoft\go-sqlcmd\sqlcmd.exe"
 )
 
@@ -617,7 +617,6 @@ foreach ($candidate in $sqlcmdCandidates) {
 
 $dbScriptDest = Join-Path $InstallDir $DB_INIT_SCRIPT
 
-# Copiar el script SQL desde la carpeta database\ del zip al directorio de instalacion
 $dbScriptSrc = Join-Path $sourceDir $DB_INIT_SCRIPT
 if (-not (Test-Path (Join-Path $InstallDir "database"))) {
     New-Item -ItemType Directory -Path (Join-Path $InstallDir "database") -Force | Out-Null
@@ -637,7 +636,6 @@ if (-not $sqlcmdPath) {
     Write-Warn "Script SQL no encontrado en: $dbScriptDest"
     Write-Warn "Asegurese de que el .zip del release incluya la carpeta database\"
 } else {
-    # Usar la instancia detectada/instalada en el paso 2
     $sqlServer = if ($script:SqlServerConn) { $script:SqlServerConn } else { "localhost" }
     Write-Info "sqlcmd encontrado  : $sqlcmdPath"
     Write-Info "Servidor SQL target: $sqlServer"
@@ -661,19 +659,16 @@ if (-not $sqlcmdPath) {
             Write-Info "  Usuario creado: admin / password: 1506"
             Write-Warn "  Cambie la password del administrador desde la aplicacion."
 
-            # Actualizar appsettings.json con la connection string real
             $connString = "Server=$sqlServer;Database=$DB_NAME;Trusted_Connection=True;TrustServerCertificate=True;"
             if (Test-Path $appSettingsPath) {
                 try {
                     $json = Get-Content $appSettingsPath -Raw -Encoding UTF8
-                    # Reemplazar el valor de DefaultConnection usando regex (preserva el resto del JSON)
                     $json = $json -replace '(?<="DefaultConnection"\s*:\s*")[^"]*(?=")', $connString
                     Set-Content -Path $appSettingsPath -Value $json -Encoding UTF8
                     Write-OK "appsettings.json actualizado con la conexion: $sqlServer"
                 } catch {
                     Write-Warn "No se pudo actualizar appsettings.json: $_"
-                    Write-Info "Connection string a configurar manualmente:"
-                    Write-Info "  $connString"
+                    Write-Info "Connection string: $connString"
                 }
             }
         } else {
@@ -702,10 +697,7 @@ if (Test-Path $exePath) {
         $shortcut.TargetPath       = $exePath
         $shortcut.WorkingDirectory = $InstallDir
         $shortcut.Description      = "$APP_NAME - Sistema de Gestion Comercial"
-
-        # Usar el icono del propio exe si existe
         $shortcut.IconLocation = "$exePath, 0"
-
         $shortcut.Save()
         Write-OK "Acceso directo creado en el escritorio."
     } catch {
@@ -750,10 +742,8 @@ Write-Host ""
 Write-Host "  2. Copiar certificados AFIP (.p12 / .pfx) en:" -ForegroundColor White
 Write-Host "     $certFolder" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  3. Verificar que SQL Server este corriendo en localhost" -ForegroundColor White
-Write-Host "     (la BD 'comercio' fue creada automaticamente durante" -ForegroundColor Gray
-Write-Host "      la instalacion si sqlcmd estaba disponible)." -ForegroundColor Gray
-Write-Host "     Si no se creo, ejecute manualmente:" -ForegroundColor Gray
+Write-Host "  3. Verificar que SQL Server este corriendo" -ForegroundColor White
+Write-Host "     Si la BD no se creo, ejecute manualmente:" -ForegroundColor Gray
 Write-Host "     $(Join-Path $InstallDir $DB_INIT_SCRIPT)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  4. Ejecutar la aplicacion con el acceso directo" -ForegroundColor White
@@ -763,7 +753,6 @@ Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Cyan
 Write-Host ""
 
-# Preguntar si abrir la carpeta de instalacion
 $respuesta = Read-Host "Desea abrir la carpeta de instalacion ahora? (S/N)"
 if ($respuesta -match "^[sS]") {
     Start-Process explorer.exe -ArgumentList $InstallDir
