@@ -1,16 +1,16 @@
-ï»¿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Instalador de Comercio .NET
     
 .DESCRIPTION
     Descarga e instala Comercio .NET desde GitHub Releases.
-    Instala el .NET 8 Runtime si no estÃ¡ presente.
-    Crea la carpeta de instalaciÃ³n, un acceso directo en el escritorio
+    Instala el .NET 8 Runtime si no está presente.
+    Crea la carpeta de instalación, un acceso directo en el escritorio
     y genera un appsettings.json inicial listo para configurar.
 
 .PARAMETER InstallDir
-    Carpeta de instalaciÃ³n. Por defecto: C:\Comercio.NET
+    Carpeta de instalación. Por defecto: C:\Comercio.NET
 
 .PARAMETER GitHubRepo
     Repositorio de GitHub en formato owner/repo.
@@ -18,11 +18,11 @@
 
 .PARAMETER GitHubToken
     Token de acceso personal para repositorios privados (opcional).
-    Si el repositorio es pÃºblico, no es necesario.
+    Si el repositorio es público, no es necesario.
 
 .EXAMPLE
-    # InstalaciÃ³n estÃ¡ndar (una lÃ­nea desde PowerShell):
-    irm https://raw.githubusercontent.com/manuclaro/Comercio.NET-web/master/instalar.ps1 | iex
+# Instalación estándar (una línea desde PowerShell):
+irm https://raw.githubusercontent.com/manuclaro/Comercio.NET-web/master/instalar.ps1 | iex
 
 .EXAMPLE
     # Con carpeta personalizada:
@@ -52,10 +52,10 @@ $DOTNET_VERSION    = "8.0"
 # URL del runtime framework-dependent (sin self-contained). ~56 MB.
 $DOTNET_RUNTIME_URL = "https://download.visualstudio.microsoft.com/download/pr/b6f19ef3-52d7-4b4b-98a7-84e9cdc82e8c/f4d27595d2b7c798d5eca2f0547f3d16/windowsdesktop-runtime-8.0.12-win-x64.exe"
 $DOTNET_RUNTIME_FILENAME = "windowsdesktop-runtime-8.0-win-x64.exe"
-# Nombre del script SQL de inicializaciÃ³n incluido en el .zip del release
+# Nombre del script SQL de inicialización incluido en el .zip del release
 $DB_INIT_SCRIPT    = "database\init_comercio.sql"
 $DB_NAME           = "comercio"
-# SQL Server Express 2022 â€“ instalador web (~6 MB, descarga el resto online)
+# SQL Server Express 2022 – instalador web (~6 MB, descarga el resto online)
 $SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2216019&clcid=0x40a&culture=es-ar&country=ar"
 $SQLEXPRESS_FILENAME = "SQL2022-SSEI-Expr.exe"
 # Nombre de instancia que usa el instalador silencioso de Express
@@ -84,7 +84,7 @@ function Write-Warn { param([string]$Msg) Write-Host "    !!  $Msg" -ForegroundC
 function Write-Fail { param([string]$Msg) Write-Host "    XX  $Msg" -ForegroundColor Red    }
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 0 â€“ VERIFICAR PRIVILEGIOS DE ADMINISTRADOR
+# PASO 0 – VERIFICAR PRIVILEGIOS DE ADMINISTRADOR
 # ?????????????????????????????????????????????????????????????????????????????
 function Test-Admin {
     $current = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -94,7 +94,7 @@ function Test-Admin {
 
 if (-not (Test-Admin)) {
     Write-Warn "El instalador necesita permisos de administrador."
-    Write-Warn "Reiniciando con elevaciÃ³n..."
+    Write-Warn "Reiniciando con elevación..."
     Start-Sleep -Seconds 2
 
     $args = @(
@@ -121,7 +121,7 @@ Write-Info "Fecha/Hora  : $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')"
 Write-Host ""
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 1 â€“ VERIFICAR / INSTALAR .NET 8 RUNTIME
+# PASO 1 – VERIFICAR / INSTALAR .NET 8 RUNTIME
 # ?????????????????????????????????????????????????????????????????????????????
 Write-Step "1/8" "Verificando .NET $DOTNET_VERSION Runtime..."
 
@@ -157,7 +157,7 @@ if (-not $dotnetInstalled) {
         if ($proc.ExitCode -eq 0) {
             Write-OK ".NET $DOTNET_VERSION instalado correctamente."
         } else {
-            Write-Warn "El instalador de .NET finalizÃ³ con cÃ³digo $($proc.ExitCode)."
+            Write-Warn "El instalador de .NET finalizó con código $($proc.ExitCode)."
             Write-Warn "Puede que ya estuviera instalado o requiera reinicio."
         }
         Remove-Item $tempRuntime -Force -ErrorAction SilentlyContinue
@@ -167,7 +167,7 @@ if (-not $dotnetInstalled) {
 }
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 2 â€“ VERIFICAR / INSTALAR SQL SERVER EXPRESS
+# PASO 2 – VERIFICAR / INSTALAR SQL SERVER EXPRESS
 # ?????????????????????????????????????????????????????????????????????????????
 Write-Step "2/8" "Verificando SQL Server..."
 
@@ -205,8 +205,8 @@ if ($sqlInstalled) {
     }
 } else {
     Write-Info "SQL Server no detectado. Descargando SQL Server 2022 Express..."
-    Write-Info "(~6 MB inicial, el instalador descargarÃ¡ el resto ~280 MB)"
-    Write-Warn "Esta descarga puede tardar varios minutos segÃºn la conexiÃ³n."
+    Write-Info "(~6 MB inicial, el instalador descargará el resto ~280 MB)"
+    Write-Warn "Esta descarga puede tardar varios minutos según la conexión."
     Write-Host ""
 
     $tempSql = Join-Path $env:TEMP $SQLEXPRESS_FILENAME
@@ -229,7 +229,7 @@ if ($sqlInstalled) {
 
         # /Q                    ? sin interfaz
         # /FEATURES=SQLEngine   ? solo el motor (sin SSMS ni Reporting Services)
-        # /INSTANCENAME         ? nombre estÃ¡ndar de Express
+        # /INSTANCENAME         ? nombre estándar de Express
         # /SQLSYSADMINACCOUNTS  ? los Administradores locales son sysadmin (necesario para Trusted_Connection)
         # /TCPENABLED=1         ? habilitar TCP/IP para conexiones locales
         # /IACCEPTSQLSERVERLICENSETERMS ? requerido en modo silencioso
@@ -246,11 +246,11 @@ if ($sqlInstalled) {
         if ($procSql.ExitCode -eq 0 -or $procSql.ExitCode -eq 3010) {
             Write-OK "SQL Server 2022 Express instalado correctamente."
             if ($procSql.ExitCode -eq 3010) {
-                Write-Warn "Se recomienda reiniciar el equipo despuÃ©s de la instalaciÃ³n."
+                Write-Warn "Se recomienda reiniciar el equipo después de la instalación."
             }
             $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
 
-            # Esperar a que el servicio SQL Server estÃ© disponible (hasta 60 segundos)
+            # Esperar a que el servicio SQL Server esté disponible (hasta 60 segundos)
             Write-Info "Esperando que el servicio SQL Server inicie..."
             $sqlService = "MSSQL`$$SQL_INSTANCE_NAME"
             $intentos = 0
@@ -263,23 +263,23 @@ if ($sqlInstalled) {
             if ($svc -and $svc.Status -eq 'Running') {
                 Write-OK "Servicio SQL Server listo."
             } else {
-                Write-Warn "El servicio no respondiÃ³ en 60 segundos. Se intentarÃ¡ continuar."
+                Write-Warn "El servicio no respondió en 60 segundos. Se intentará continuar."
             }
         } else {
-            Write-Warn "El instalador de SQL Express finalizÃ³ con cÃ³digo $($procSql.ExitCode)."
+            Write-Warn "El instalador de SQL Express finalizó con código $($procSql.ExitCode)."
             Write-Warn "Consulte el log en: C:\Program Files\Microsoft SQL Server\*\Setup Bootstrap\Log"
             $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
         }
     } else {
-        Write-Warn "No se pudo descargar SQL Server Express. Continuando sin Ã©l."
+        Write-Warn "No se pudo descargar SQL Server Express. Continuando sin él."
         $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
     }
 }
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 3 â€“ OBTENER ÃšLTIMA VERSIÃ“N DE GITHUB
+# PASO 3 – OBTENER ÚLTIMA VERSIÓN DE GITHUB
 # ?????????????????????????????????????????????????????????????????????????????
-Write-Step "3/8" "Consultando Ãºltima versiÃ³n en GitHub..."
+Write-Step "3/8" "Consultando última versión en GitHub..."
 
 $headers = @{
     "User-Agent" = "ComercioNET-Installer/1.0"
@@ -295,7 +295,7 @@ try {
     $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -ErrorAction Stop
 } catch {
     Write-Fail "No se pudo conectar a GitHub: $_"
-    Write-Warn "Verifique la conexiÃ³n a internet y que el repositorio exista."
+    Write-Warn "Verifique la conexión a internet y que el repositorio exista."
     Write-Warn "URL consultada: $apiUrl"
     Read-Host "Presione ENTER para salir"
     exit 1
@@ -305,22 +305,22 @@ $version    = $release.tag_name -replace '^v', ''
 $zipAsset   = $release.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
 
 if (-not $zipAsset) {
-    Write-Fail "No se encontrÃ³ un archivo .zip en el release $version."
+    Write-Fail "No se encontró un archivo .zip en el release $version."
     Write-Warn "El desarrollador debe adjuntar un .zip con los binarios al GitHub Release."
     Read-Host "Presione ENTER para salir"
     exit 1
 }
 
-# Para repositorios privados usar la URL de la API; pÃºblicos usar browser_download_url
+# Para repositorios privados usar la URL de la API; públicos usar browser_download_url
 $downloadUrl = if ($GitHubToken) { $zipAsset.url } else { $zipAsset.browser_download_url }
 $sizeMB      = [math]::Round($zipAsset.size / 1MB, 1)
 
-Write-OK "VersiÃ³n encontrada : $version"
+Write-OK "Versión encontrada : $version"
 Write-Info "Archivo            : $($zipAsset.name) ($sizeMB MB)"
 Write-Info "Publicado          : $($release.published_at)"
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 3 â€“ DESCARGAR Y EXTRAER LA APLICACIÃ“N
+# PASO 3 – DESCARGAR Y EXTRAER LA APLICACIÓN
 # ?????????????????????????????????????????????????????????????????????????????
 Write-Step "4/8" "Descargando $APP_NAME v$version..."
 
@@ -345,7 +345,7 @@ try {
         $wc.Headers.Add($key, $downloadHeaders[$key])
     }
 
-    Write-Info "Descargando desde GitHub... (puede tardar segÃºn la conexiÃ³n)"
+    Write-Info "Descargando desde GitHub... (puede tardar según la conexión)"
     $wc.DownloadFile($downloadUrl, $tempZip)
     Write-OK "Descarga completada."
 } catch {
@@ -357,18 +357,18 @@ try {
 Write-Info "Extrayendo archivos..."
 try {
     Expand-Archive -LiteralPath $tempZip -DestinationPath $tempExtract -Force
-    Write-OK "Archivos extraÃ­dos."
+    Write-OK "Archivos extraídos."
 } catch {
     Write-Fail "Error extrayendo el zip: $_"
     exit 1
 }
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 4 â€“ CREAR CARPETA DE INSTALACIÃ“N Y COPIAR ARCHIVOS
+# PASO 4 – CREAR CARPETA DE INSTALACIÓN Y COPIAR ARCHIVOS
 # ?????????????????????????????????????????????????????????????????????????????
 Write-Step "5/8" "Instalando en $InstallDir..."
 
-# Si ya existe una instalaciÃ³n previa, hacer backup de los archivos de configuraciÃ³n
+# Si ya existe una instalación previa, hacer backup de los archivos de configuración
 $archivosProtegidos = @(
     "appsettings.json",
     "loginconfig.json",
@@ -406,27 +406,27 @@ if (Test-Path $InstallDir) {
         Write-Info "Backup: carpeta 'migrations'"
     }
 
-    Write-OK "Backup de configuraciÃ³n guardado en $backupDir"
+    Write-OK "Backup de configuración guardado en $backupDir"
 }
 
-# Crear carpeta de instalaciÃ³n
+# Crear carpeta de instalación
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 
-# Determinar la raÃ­z del contenido extraÃ­do
-# El zip puede tener una subcarpeta raÃ­z o los archivos directamente
+# Determinar la raíz del contenido extraído
+# El zip puede tener una subcarpeta raíz o los archivos directamente
 $extractedItems = Get-ChildItem -Path $tempExtract
 $sourceDir = if ($extractedItems.Count -eq 1 -and $extractedItems[0].PSIsContainer) {
-    $extractedItems[0].FullName  # hay una subcarpeta raÃ­z
+    $extractedItems[0].FullName  # hay una subcarpeta raíz
 } else {
-    $tempExtract  # los archivos estÃ¡n en la raÃ­z del zip
+    $tempExtract  # los archivos están en la raíz del zip
 }
 
-# Copiar todos los archivos al directorio de instalaciÃ³n
-Write-Info "Copiando archivos de la aplicaciÃ³n..."
+# Copiar todos los archivos al directorio de instalación
+Write-Info "Copiando archivos de la aplicación..."
 Copy-Item -Path "$sourceDir\*" -Destination $InstallDir -Recurse -Force
 Write-OK "Archivos copiados."
 
-# Restaurar archivos de configuraciÃ³n del backup (si habÃ­a instalaciÃ³n previa)
+# Restaurar archivos de configuración del backup (si había instalación previa)
 if ($backupDir -and (Test-Path $backupDir)) {
     Write-Info "Restaurando configuraciones anteriores..."
 
@@ -462,19 +462,19 @@ if ($backupDir -and (Test-Path $backupDir)) {
 
 # Escribir version.txt
 Set-Content -Path (Join-Path $InstallDir "version.txt") -Value $version -Encoding UTF8
-Write-OK "VersiÃ³n $version registrada."
+Write-OK "Versión $version registrada."
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 5 â€“ CREAR appsettings.json SI NO EXISTE
+# PASO 5 – CREAR appsettings.json SI NO EXISTE
 # ?????????????????????????????????????????????????????????????????????????????
-Write-Step "6/8" "Verificando configuraciÃ³n inicial..."
+Write-Step "6/8" "Verificando configuración inicial..."
 
 $appSettingsPath = Join-Path $InstallDir "appsettings.json"
 
 if (-not (Test-Path $appSettingsPath)) {
     Write-Info "Generando appsettings.json con valores de ejemplo..."
 
-    # Template de appsettings.json con todos los campos que usa la aplicaciÃ³n
+    # Template de appsettings.json con todos los campos que usa la aplicación
     $appsettingsTemplate = @'
 {
   "ConnectionStrings": {
@@ -482,13 +482,13 @@ if (-not (Test-Path $appSettingsPath)) {
   },
   "Comercio": {
     "Nombre": "MI COMERCIO",
-    "Domicilio": "Calle 000 NÂ° 000 - Ciudad"
+    "Domicilio": "Calle 000 N° 000 - Ciudad"
   },
   "Facturacion": {
     "RazonSocial": "Nombre Apellido",
     "CUIT": "00-00000000-0",
     "IngBrutos": "00-00000000-0",
-    "DomicilioFiscal": "Calle 000 NÂ° 000 - Ciudad",
+    "DomicilioFiscal": "Calle 000 N° 000 - Ciudad",
     "CodigoPostal": "0000",
     "InicioActividades": "2020-01-01",
     "Condicion": "Monotributo",
@@ -509,7 +509,7 @@ if (-not (Test-Path $appSettingsPath)) {
       "CondicionIVA": "Monotributo",
       "PuntoVenta": 1,
       "CertificadoPath": "C:\\Certificados FE\\Testing\\MiCertificadoTesting.p12",
-      "CertificadoPassword": "contraseÃ±a_del_certificado",
+      "CertificadoPassword": "contraseña_del_certificado",
       "WSAAUrl": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
       "WSFEUrl": "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
       "Servicios": {
@@ -521,7 +521,7 @@ if (-not (Test-Path $appSettingsPath)) {
       "CondicionIVA": "Monotributo",
       "PuntoVenta": 1,
       "CertificadoPath": "C:\\Certificados FE\\Produccion\\MiCertificado.p12",
-      "CertificadoPassword": "contraseÃ±a_del_certificado",
+      "CertificadoPassword": "contraseña_del_certificado",
       "WSAAUrl": "https://wsaa.afip.gov.ar/ws/services/LoginCms",
       "WSFEUrl": "https://servicios1.afip.gov.ar/wsfev1/service.asmx",
       "Servicios": {
@@ -549,8 +549,8 @@ if (-not (Test-Path $appSettingsPath)) {
 
     Set-Content -Path $appSettingsPath -Value $appsettingsTemplate -Encoding UTF8
     Write-OK "appsettings.json creado con valores de ejemplo."
-    Write-Warn "IMPORTANTE: Edite $appSettingsPath antes de usar la aplicaciÃ³n."
-    Write-Warn "  - Cadena de conexiÃ³n SQL Server"
+    Write-Warn "IMPORTANTE: Edite $appSettingsPath antes de usar la aplicación."
+    Write-Warn "  - Cadena de conexión SQL Server"
     Write-Warn "  - Datos del comercio (nombre, domicilio)"
     Write-Warn "  - CUIT y certificados AFIP"
 } else {
@@ -563,7 +563,7 @@ if (-not (Test-Path $certFolder)) {
     New-Item -ItemType Directory -Path $certFolder -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $certFolder "Testing") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $certFolder "Produccion") -Force | Out-Null
-    Write-OK "Carpeta 'Certificados FE' creada. Copie aquÃ­ sus archivos .p12/.pfx de AFIP."
+    Write-OK "Carpeta 'Certificados FE' creada. Copie aquí sus archivos .p12/.pfx de AFIP."
 }
 
 # Crear carpeta migrations si no existe
@@ -574,11 +574,11 @@ if (-not (Test-Path $migrFolder)) {
 }
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 6 â€“ INICIALIZAR BASE DE DATOS
+# PASO 6 – INICIALIZAR BASE DE DATOS
 # ?????????????????????????????????????????????????????????????????????????????
 Write-Step "7/8" "Inicializando base de datos SQL Server..."
 
-# Verificar si sqlcmd estÃ¡ disponible en el sistema
+# Verificar si sqlcmd está disponible en el sistema
 $sqlcmdPath = $null
 $sqlcmdCandidates = @(
     "sqlcmd",
@@ -601,7 +601,7 @@ foreach ($candidate in $sqlcmdCandidates) {
 
 $dbScriptDest = Join-Path $InstallDir $DB_INIT_SCRIPT
 
-# Copiar el script SQL desde la carpeta database\ del zip al directorio de instalaciÃ³n
+# Copiar el script SQL desde la carpeta database\ del zip al directorio de instalación
 $dbScriptSrc = Join-Path $sourceDir $DB_INIT_SCRIPT
 if (-not (Test-Path (Join-Path $InstallDir "database"))) {
     New-Item -ItemType Directory -Path (Join-Path $InstallDir "database") -Force | Out-Null
@@ -612,20 +612,20 @@ if (Test-Path $dbScriptSrc) {
 
 if (-not $sqlcmdPath) {
     Write-Warn "sqlcmd no encontrado en este equipo."
-    Write-Warn "La base de datos NO se inicializarÃ¡ automÃ¡ticamente."
+    Write-Warn "La base de datos NO se inicializará automáticamente."
     Write-Info "Para crearla manualmente, ejecute en SSMS o sqlcmd:"
     Write-Info "  $dbScriptDest"
     Write-Info "O instale las SQL Server Command Line Utilities desde:"
     Write-Info "  https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-utility"
 } elseif (-not (Test-Path $dbScriptDest)) {
     Write-Warn "Script SQL no encontrado en: $dbScriptDest"
-    Write-Warn "AsegÃºrese de que el .zip del release incluya la carpeta database\"
+    Write-Warn "Asegúrese de que el .zip del release incluya la carpeta database\"
 } else {
     # Usar la instancia detectada/instalada en el paso 2
     $sqlServer = if ($script:SqlServerConn) { $script:SqlServerConn } else { "localhost" }
     Write-Info "sqlcmd encontrado  : $sqlcmdPath"
     Write-Info "Servidor SQL target: $sqlServer"
-    Write-Info "Ejecutando script de inicializaciÃ³n..."
+    Write-Info "Ejecutando script de inicialización..."
 
     $sqlLogPath = Join-Path $InstallDir "database\init_log.txt"
 
@@ -642,8 +642,8 @@ if (-not $sqlcmdPath) {
 
         if ($LASTEXITCODE -eq 0) {
             Write-OK "Base de datos '$DB_NAME' inicializada correctamente."
-            Write-Info "  Usuario creado: admin / contraseÃ±a: 1506"
-            Write-Warn "  Cambie la contraseÃ±a del administrador desde la aplicaciÃ³n."
+            Write-Info "  Usuario creado: admin / contraseña: 1506"
+            Write-Warn "  Cambie la contraseña del administrador desde la aplicación."
 
             # ?? Actualizar appsettings.json con la connection string real ??????
             $connString = "Server=$sqlServer;Database=$DB_NAME;Trusted_Connection=True;TrustServerCertificate=True;"
@@ -653,7 +653,7 @@ if (-not $sqlcmdPath) {
                     # Reemplazar el valor de DefaultConnection usando regex (preserva el resto del JSON)
                     $json = $json -replace '(?<="DefaultConnection"\s*:\s*")[^"]*(?=")', $connString
                     Set-Content -Path $appSettingsPath -Value $json -Encoding UTF8
-                    Write-OK "appsettings.json actualizado con la conexiÃ³n: $sqlServer"
+                    Write-OK "appsettings.json actualizado con la conexión: $sqlServer"
                 } catch {
                     Write-Warn "No se pudo actualizar appsettings.json: $_"
                     Write-Info "Connection string a configurar manualmente:"
@@ -662,8 +662,8 @@ if (-not $sqlcmdPath) {
             }
             # ??????????????????????????????????????????????????????????????????
         } else {
-            Write-Warn "sqlcmd finalizÃ³ con cÃ³digo $LASTEXITCODE."
-            Write-Warn "Puede que la BD ya existiera (normal en reinstalaciÃ³n) o haya un error."
+            Write-Warn "sqlcmd finalizó con código $LASTEXITCODE."
+            Write-Warn "Puede que la BD ya existiera (normal en reinstalación) o haya un error."
             Write-Info "Revise el log en: $sqlLogPath"
         }
     } catch {
@@ -673,7 +673,7 @@ if (-not $sqlcmdPath) {
 }
 
 # ?????????????????????????????????????????????????????????????????????????????
-# PASO 7 â€“ ACCESO DIRECTO EN EL ESCRITORIO
+# PASO 7 – ACCESO DIRECTO EN EL ESCRITORIO
 # ?????????????????????????????????????????????????????????????????????????????
 Write-Step "8/8" "Creando acceso directo en el escritorio..."
 
@@ -686,9 +686,9 @@ if (Test-Path $exePath) {
         $shortcut = $wshell.CreateShortcut($shortcutPath)
         $shortcut.TargetPath       = $exePath
         $shortcut.WorkingDirectory = $InstallDir
-        $shortcut.Description      = "$APP_NAME - Sistema de GestiÃ³n Comercial"
+        $shortcut.Description      = "$APP_NAME - Sistema de Gestión Comercial"
 
-        # Usar el Ã­cono del propio exe si existe
+        # Usar el ícono del propio exe si existe
         $shortcut.IconLocation = "$exePath, 0"
 
         $shortcut.Save()
@@ -698,7 +698,7 @@ if (Test-Path $exePath) {
         Write-Info "Puede crearlo manualmente desde: $exePath"
     }
 } else {
-    Write-Warn "No se encontrÃ³ $APP_EXE en $InstallDir."
+    Write-Warn "No se encontró $APP_EXE en $InstallDir."
     Write-Warn "Verifique que el .zip del release contenga el ejecutable."
 }
 
@@ -711,7 +711,7 @@ Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 # ?????????????????????????????????????????????????????????????????????????????
 # RESUMEN FINAL
 # ?????????????????????????????????????????????????????????????????????????????
-Write-Header "INSTALACIÃ“N COMPLETADA"
+Write-Header "INSTALACIÓN COMPLETADA"
 
 Write-Host "  Version instalada : " -NoNewline
 Write-Host $version -ForegroundColor Green
@@ -727,29 +727,29 @@ Write-Host "  PASOS OBLIGATORIOS ANTES DE USAR:" -ForegroundColor Yellow
 Write-Host "  ??????????????????????????????????????????????????????" -ForegroundColor Yellow
 Write-Host "  1. Editar appsettings.json con los datos del cliente:" -ForegroundColor White
 Write-Host "     $appSettingsPath" -ForegroundColor Gray
-Write-Host "     - ConnectionStrings: cadena de conexiÃ³n SQL Server" -ForegroundColor Gray
+Write-Host "     - ConnectionStrings: cadena de conexión SQL Server" -ForegroundColor Gray
 Write-Host "     - Comercio.Nombre y Comercio.Domicilio" -ForegroundColor Gray
-Write-Host "     - Facturacion: CUIT, RazÃ³n Social, CondiciÃ³n" -ForegroundColor Gray
+Write-Host "     - Facturacion: CUIT, Razón Social, Condición" -ForegroundColor Gray
 Write-Host "     - AFIP: CUIT, PuntoVenta, rutas de certificados" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  2. Copiar certificados AFIP (.p12 / .pfx) en:" -ForegroundColor White
 Write-Host "     $certFolder" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  3. Verificar que SQL Server estÃ© corriendo en localhost" -ForegroundColor White
-Write-Host "     (la BD 'comercio' fue creada automÃ¡ticamente durante" -ForegroundColor Gray
-Write-Host "      la instalaciÃ³n si sqlcmd estaba disponible)." -ForegroundColor Gray
-Write-Host "     Si no se creÃ³, ejecute manualmente:" -ForegroundColor Gray
+Write-Host "  3. Verificar que SQL Server esté corriendo en localhost" -ForegroundColor White
+Write-Host "     (la BD 'comercio' fue creada automáticamente durante" -ForegroundColor Gray
+Write-Host "      la instalación si sqlcmd estaba disponible)." -ForegroundColor Gray
+Write-Host "     Si no se creó, ejecute manualmente:" -ForegroundColor Gray
 Write-Host "     $(Join-Path $InstallDir $DB_INIT_SCRIPT)" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  4. Ejecutar la aplicaciÃ³n con el acceso directo" -ForegroundColor White
+Write-Host "  4. Ejecutar la aplicación con el acceso directo" -ForegroundColor White
 Write-Host "     del escritorio o desde:" -ForegroundColor Gray
 Write-Host "     $exePath" -ForegroundColor Gray
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Cyan
 Write-Host ""
 
-# Preguntar si abrir la carpeta de instalaciÃ³n
-$respuesta = Read-Host "Â¿Desea abrir la carpeta de instalaciÃ³n ahora? (S/N)"
+# Preguntar si abrir la carpeta de instalación
+$respuesta = Read-Host "¿Desea abrir la carpeta de instalación ahora? (S/N)"
 if ($respuesta -match "^[sS]") {
     Start-Process explorer.exe -ArgumentList $InstallDir
 }
