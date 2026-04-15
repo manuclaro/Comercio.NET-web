@@ -1125,7 +1125,7 @@ foreach ($regBase in $ssmsRegPaths) {
     if (Test-Path $regBase) {
         $found = Get-ChildItem -Path $regBase -ErrorAction SilentlyContinue |
             Get-ItemProperty -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName -like "*SQL Server Management Studio*" } |
+            Where-Object { $_ -ne $null -and $_.PSObject.Properties['DisplayName'] -ne $null -and $_.DisplayName -like "*SQL Server Management Studio*" } |
             Select-Object -First 1
         if ($found) {
             $ssmsInstalled = $true
