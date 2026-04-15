@@ -209,7 +209,7 @@ Write-Host ""
 # =============================================================================
 # PASO 1 - VERIFICAR / INSTALAR .NET 8 RUNTIME
 # =============================================================================
-Write-Step "1/10" "Verificando .NET $DOTNET_VERSION Runtime..."
+Write-Step "1/11" "Verificando .NET $DOTNET_VERSION Runtime..."
 
 $dotnetInstalled = $false
 try {
@@ -251,7 +251,7 @@ if (-not $dotnetInstalled) {
 # =============================================================================
 # PASO 2 - VERIFICAR / INSTALAR SQL SERVER EXPRESS
 # =============================================================================
-Write-Step "2/10" "Verificando SQL Server..."
+Write-Step "2/11" "Verificando SQL Server..."
 
 $sqlInstalled    = $false
 $sqlInstanceName = $null
@@ -504,7 +504,7 @@ if ($sqlInstalled) {
 # =============================================================================
 # PASO 3 - OBTENER ULTIMA VERSION DE GITHUB
 # =============================================================================
-Write-Step "3/10" "Consultando ultima version en GitHub..."
+Write-Step "3/11" "Consultando ultima version en GitHub..."
 
 $headers = @{
     "User-Agent" = "ComercioNET-Installer/1.0"
@@ -544,7 +544,7 @@ Write-Info "Publicado          : $($release.published_at)"
 # =============================================================================
 # PASO 4 - DESCARGAR Y EXTRAER LA APLICACION
 # =============================================================================
-Write-Step "4/10" "Descargando $APP_NAME v$version..."
+Write-Step "4/11" "Descargando $APP_NAME v$version..."
 
 $tempZip    = Join-Path $env:TEMP "ComercioNET_Install_$version.zip"
 $tempExtract = Join-Path $env:TEMP "ComercioNET_Install_$version"
@@ -584,7 +584,7 @@ try {
 # =============================================================================
 # PASO 5 - CREAR CARPETA DE INSTALACION Y COPIAR ARCHIVOS
 # =============================================================================
-Write-Step "5/10" "Instalando en $InstallDir..."
+Write-Step "5/11" "Instalando en $InstallDir..."
 
 $archivosProtegidos = @(
     "appsettings.json",
@@ -674,7 +674,7 @@ Write-OK "Version $version registrada."
 # =============================================================================
 # PASO 6 - CREAR appsettings.json SI NO EXISTE
 # =============================================================================
-Write-Step "6/10" "Verificando configuracion inicial..."
+Write-Step "6/11" "Verificando configuracion inicial..."
 
 $appSettingsPath = Join-Path $InstallDir "appsettings.json"
 
@@ -780,7 +780,7 @@ if (-not (Test-Path $migrFolder)) {
 # =============================================================================
 # PASO 7 - INICIALIZAR BASE DE DATOS
 # =============================================================================
-Write-Step "7/10" "Inicializando base de datos SQL Server..."
+Write-Step "7/11" "Inicializando base de datos SQL Server..."
 
 $sqlcmdPath = $null
 $sqlcmdCandidates = @(
@@ -1086,7 +1086,7 @@ GO
 # =============================================================================
 # PASO 8 - IMPORTAR PRODUCTOS DESDE CSV (OPCIONAL)
 # =============================================================================
-Write-Step "8/10" "Importando productos desde CSV (si existe)..."
+Write-Step "8/11" "Importando productos desde CSV (si existe)..."
 
 # El instalador busca un archivo llamado 'productos_export.csv' en:
 #   1. La misma carpeta donde se ejecuta el script
@@ -1240,7 +1240,7 @@ if (-not $csvProductos) {
 # =============================================================================
 # PASO 9 - ACCESO DIRECTO EN EL ESCRITORIO
 # =============================================================================
-Write-Step "9/10" "Creando acceso directo en el escritorio..."
+Write-Step "9/11" "Creando acceso directo en el escritorio..."
 
 $exePath       = Join-Path $InstallDir $APP_EXE
 $shortcutPath  = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "$APP_NAME.lnk"
@@ -1265,9 +1265,185 @@ if (Test-Path $exePath) {
 }
 
 # =============================================================================
-# PASO 9 - INSTALAR SQL SERVER MANAGEMENT STUDIO (SSMS) - OPCIONAL
+# PASO 10 - CONFIGURAR BACKUP AUTOMATICO DIARIO DE LA BASE DE DATOS
 # =============================================================================
-Write-Step "10/10" "SQL Server Management Studio (SSMS)..."
+Write-Step "10/11" "Configurando backup automatico de la base de datos..."
+
+$backupDir      = Join-Path $InstallDir "backups"
+$backupScript   = Join-Path $InstallDir "database\backup_comercio.ps1"
+$taskName       = "ComercioNET - Backup diario BD"
+$backupHora     = "10:00"
+
+# Crear carpeta de backups
+if (-not (Test-Path $backupDir)) {
+    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+    Write-Info "Carpeta de backups creada: $backupDir"
+}
+
+# Escribir el script de backup que se instalara en la PC del cliente
+$sqlServerConnBackup = if ($script:SqlServerConn) { $script:SqlServerConn } else { "localhost\SQLEXPRESS" }
+
+$backupScriptContent = @"
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Backup automatico diario de la base de datos Comercio .NET
+.DESCRIPTION
+    Genera un archivo .bak en la carpeta de backups.
+    Mantiene los ultimos 30 backups y elimina los mas antiguos.
+    Se ejecuta automaticamente a las $backupHora via Tarea Programada.
+    Log en: $InstallDir\database\backup_log.txt
+#>
+
+`$ErrorActionPreference = "SilentlyContinue"
+
+`$sqlServer   = "$sqlServerConnBackup"
+`$database    = "comercio"
+`$backupDir   = "$backupDir"
+`$logFile     = "$InstallDir\database\backup_log.txt"
+`$maxBackups  = 30
+`$fecha       = Get-Date -Format "yyyyMMdd_HHmmss"
+`$backupFile  = Join-Path `$backupDir "comercio_`$fecha.bak"
+
+function Write-Log {
+    param([string]`$msg)
+    `$line = "[`$(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')] `$msg"
+    Add-Content -Path `$logFile -Value `$line -Encoding UTF8
+}
+
+Write-Log "--- Iniciando backup ---"
+Write-Log "Servidor : `$sqlServer"
+Write-Log "Destino  : `$backupFile"
+
+# Buscar sqlcmd
+`$sqlcmdPath = `$null
+`$candidates = @(
+    "sqlcmd",
+    "`${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn\sqlcmd.exe",
+    "`${env:ProgramFiles}\Microsoft SQL Server\150\Tools\Binn\sqlcmd.exe",
+    "`${env:ProgramFiles}\Microsoft SQL Server\140\Tools\Binn\sqlcmd.exe",
+    "`${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
+    "`${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe"
+)
+foreach (`$c in `$candidates) {
+    try {
+        `$r = & `$c -? 2>`$null
+        if (`$LASTEXITCODE -eq 0 -or `$r) { `$sqlcmdPath = `$c; break }
+    } catch { }
+}
+
+if (-not `$sqlcmdPath) {
+    Write-Log "ERROR: sqlcmd no encontrado. Backup cancelado."
+    exit 1
+}
+
+# Script SQL de backup
+`$sql = @"
+BACKUP DATABASE [comercio]
+TO DISK = N'`$backupFile'
+WITH NOFORMAT, NOINIT,
+     NAME = N'comercio-backup-`$fecha',
+     SKIP, NOREWIND, NOUNLOAD,
+     COMPRESSION, STATS = 10
+GO
+"@
+
+`$tmpSql = Join-Path `$env:TEMP "backup_comercio_`$fecha.sql"
+Set-Content -Path `$tmpSql -Value `$sql -Encoding UTF8
+
+`$output = & `$sqlcmdPath -S `$sqlServer -E -i `$tmpSql -b -l 300 2>&1
+Remove-Item `$tmpSql -Force -ErrorAction SilentlyContinue
+
+if (`$LASTEXITCODE -eq 0) {
+    `$sizeMB = [math]::Round((Get-Item `$backupFile -ErrorAction SilentlyContinue).Length / 1MB, 2)
+    Write-Log "OK  Backup completado. Archivo: `$(Split-Path `$backupFile -Leaf) (`$sizeMB MB)"
+
+    # Eliminar backups antiguos, conservar los ultimos `$maxBackups
+    `$viejos = Get-ChildItem -Path `$backupDir -Filter "comercio_*.bak" |
+               Sort-Object LastWriteTime -Descending |
+               Select-Object -Skip `$maxBackups
+    foreach (`$v in `$viejos) {
+        Remove-Item `$v.FullName -Force -ErrorAction SilentlyContinue
+        Write-Log "    Eliminado backup antiguo: `$(`$v.Name)"
+    }
+} else {
+    Write-Log "ERROR: sqlcmd finalizo con codigo `$LASTEXITCODE."
+    `$output | ForEach-Object { Write-Log "    `$_" }
+    exit 1
+}
+
+Write-Log "--- Backup finalizado ---"
+"@
+
+# Guardar el script de backup en la carpeta de instalacion
+try {
+    Set-Content -Path $backupScript -Value $backupScriptContent -Encoding UTF8
+    Write-OK "Script de backup creado: $backupScript"
+} catch {
+    Write-Warn "No se pudo crear el script de backup: $_"
+}
+
+# Registrar la tarea programada en el Programador de Tareas de Windows
+if (Test-Path $backupScript) {
+    try {
+        # Eliminar tarea anterior si ya existe (reinstalacion)
+        $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if ($existingTask) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+            Write-Info "Tarea programada anterior eliminada."
+        }
+
+        # Accion: ejecutar powershell con el script de backup
+        $action = New-ScheduledTaskAction `
+            -Execute "powershell.exe" `
+            -Argument "-NoProfile -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File `"$backupScript`""
+
+        # Disparador: todos los dias a las 10:00 AM
+        $trigger = New-ScheduledTaskTrigger -Daily -At $backupHora
+
+        # Configuracion: ejecutar aunque el usuario no este logueado, con maxima prioridad
+        $settings = New-ScheduledTaskSettingsSet `
+            -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+            -StartWhenAvailable `
+            -RunOnlyIfNetworkAvailable:$false `
+            -MultipleInstances IgnoreNew
+
+        # Principal: ejecutar como SYSTEM para que funcione sin usuario logueado
+        $principal = New-ScheduledTaskPrincipal `
+            -UserId "SYSTEM" `
+            -LogonType ServiceAccount `
+            -RunLevel Highest
+
+        Register-ScheduledTask `
+            -TaskName  $taskName `
+            -Action    $action `
+            -Trigger   $trigger `
+            -Settings  $settings `
+            -Principal $principal `
+            -Description "Backup diario automatico de la base de datos Comercio .NET. Genera archivos .bak en $backupDir" `
+            -Force | Out-Null
+
+        Write-OK "Tarea programada registrada correctamente."
+        Write-Info "  Nombre  : $taskName"
+        Write-Info "  Horario : todos los dias a las $backupHora"
+        Write-Info "  Backups : $backupDir"
+        Write-Info "  Log     : $InstallDir\database\backup_log.txt"
+        Write-Info "  Retiene : ultimos 30 backups (~30 dias)"
+    } catch {
+        Write-Warn "No se pudo registrar la tarea programada: $_"
+        Write-Info "Puede configurarla manualmente en el Programador de Tareas de Windows:"
+        Write-Info "  Programa : powershell.exe"
+        Write-Info "  Argumentos: -NoProfile -ExecutionPolicy Bypass -File `"$backupScript`""
+        Write-Info "  Horario  : diario a las $backupHora"
+    }
+} else {
+    Write-Warn "El script de backup no se pudo crear. Se omite la tarea programada."
+}
+
+# =============================================================================
+# PASO 11 - INSTALAR SQL SERVER MANAGEMENT STUDIO (SSMS) - OPCIONAL
+# =============================================================================
+Write-Step "11/11" "SQL Server Management Studio (SSMS)..."
 
 # Detectar si SSMS ya esta instalado buscando en el registro
 $ssmsInstalled = $false
@@ -1409,6 +1585,12 @@ Write-Host ""
 Write-Host "  3. Verificar que SQL Server este corriendo" -ForegroundColor White
 Write-Host "     Si la BD no se creo, ejecute manualmente:" -ForegroundColor Gray
 Write-Host "     $(Join-Path $InstallDir $DB_INIT_SCRIPT)" -ForegroundColor Gray
+Write-Host ""
+Write-Host "  BACKUP AUTOMATICO DIARIO:" -ForegroundColor Yellow
+Write-Host "     Horario : todos los dias a las 10:00 AM" -ForegroundColor Gray
+Write-Host "     Carpeta : $backupDir" -ForegroundColor Gray
+Write-Host "     Log     : $InstallDir\database\backup_log.txt" -ForegroundColor Gray
+Write-Host "     Tarea   : '$taskName'" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  USUARIO SQL PARA CONEXIONES REMOTAS:" -ForegroundColor Yellow
 Write-Host "     Usuario: michael  |  Password: michael" -ForegroundColor Gray
