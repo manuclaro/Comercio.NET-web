@@ -209,7 +209,7 @@ Write-Host ""
 # =============================================================================
 # PASO 1 - VERIFICAR / INSTALAR .NET 8 RUNTIME
 # =============================================================================
-Write-Step "1/9" "Verificando .NET $DOTNET_VERSION Runtime..."
+Write-Step "1/10" "Verificando .NET $DOTNET_VERSION Runtime..."
 
 $dotnetInstalled = $false
 try {
@@ -251,7 +251,7 @@ if (-not $dotnetInstalled) {
 # =============================================================================
 # PASO 2 - VERIFICAR / INSTALAR SQL SERVER EXPRESS
 # =============================================================================
-Write-Step "2/9" "Verificando SQL Server..."
+Write-Step "2/10" "Verificando SQL Server..."
 
 $sqlInstalled    = $false
 $sqlInstanceName = $null
@@ -504,7 +504,7 @@ if ($sqlInstalled) {
 # =============================================================================
 # PASO 3 - OBTENER ULTIMA VERSION DE GITHUB
 # =============================================================================
-Write-Step "3/9" "Consultando ultima version en GitHub..."
+Write-Step "3/10" "Consultando ultima version en GitHub..."
 
 $headers = @{
     "User-Agent" = "ComercioNET-Installer/1.0"
@@ -544,7 +544,7 @@ Write-Info "Publicado          : $($release.published_at)"
 # =============================================================================
 # PASO 4 - DESCARGAR Y EXTRAER LA APLICACION
 # =============================================================================
-Write-Step "4/9" "Descargando $APP_NAME v$version..."
+Write-Step "4/10" "Descargando $APP_NAME v$version..."
 
 $tempZip    = Join-Path $env:TEMP "ComercioNET_Install_$version.zip"
 $tempExtract = Join-Path $env:TEMP "ComercioNET_Install_$version"
@@ -584,7 +584,7 @@ try {
 # =============================================================================
 # PASO 5 - CREAR CARPETA DE INSTALACION Y COPIAR ARCHIVOS
 # =============================================================================
-Write-Step "5/9" "Instalando en $InstallDir..."
+Write-Step "5/10" "Instalando en $InstallDir..."
 
 $archivosProtegidos = @(
     "appsettings.json",
@@ -674,7 +674,7 @@ Write-OK "Version $version registrada."
 # =============================================================================
 # PASO 6 - CREAR appsettings.json SI NO EXISTE
 # =============================================================================
-Write-Step "6/9" "Verificando configuracion inicial..."
+Write-Step "6/10" "Verificando configuracion inicial..."
 
 $appSettingsPath = Join-Path $InstallDir "appsettings.json"
 
@@ -780,7 +780,7 @@ if (-not (Test-Path $migrFolder)) {
 # =============================================================================
 # PASO 7 - INICIALIZAR BASE DE DATOS
 # =============================================================================
-Write-Step "7/9" "Inicializando base de datos SQL Server..."
+Write-Step "7/10" "Inicializando base de datos SQL Server..."
 
 $sqlcmdPath = $null
 $sqlcmdCandidates = @(
@@ -1084,9 +1084,163 @@ GO
 }
 
 # =============================================================================
-# PASO 8 - ACCESO DIRECTO EN EL ESCRITORIO
+# PASO 8 - IMPORTAR PRODUCTOS DESDE CSV (OPCIONAL)
 # =============================================================================
-Write-Step "8/9" "Creando acceso directo en el escritorio..."
+Write-Step "8/10" "Importando productos desde CSV (si existe)..."
+
+# El instalador busca un archivo llamado 'productos_export.csv' en:
+#   1. La misma carpeta donde se ejecuta el script
+#   2. El escritorio del usuario
+#   3. La carpeta de instalacion destino
+$csvCandidates = @(
+    (Join-Path $PSScriptRoot          "productos_export.csv"),
+    (Join-Path ([Environment]::GetFolderPath("Desktop")) "productos_export.csv"),
+    (Join-Path $InstallDir            "productos_export.csv")
+)
+$csvProductos = $csvCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+if (-not $csvProductos) {
+    Write-Info "No se encontro 'productos_export.csv'. Se omite la importacion."
+    Write-Info "Para importar productos en el futuro, coloque el archivo CSV en:"
+    Write-Info "  $($csvCandidates[0])"
+    Write-Info "y vuelva a ejecutar el instalador, o use la funcion de importacion"
+    Write-Info "dentro de la aplicacion."
+} elseif (-not $sqlcmdPath) {
+    Write-Warn "sqlcmd no disponible. No se puede importar el CSV automaticamente."
+    Write-Info "Copie '$csvProductos' en $InstallDir y use la importacion desde la app."
+} else {
+    Write-Info "Archivo encontrado: $csvProductos"
+
+    try {
+        # Leer el CSV - acepta separador ; o ,
+        $rawContent = Get-Content $csvProductos -Encoding UTF8 -Raw
+        $separator  = if ($rawContent -match ';') { ';' } else { ',' }
+        $csvData    = Import-Csv -Path $csvProductos -Delimiter $separator -Encoding UTF8
+
+        if ($csvData.Count -eq 0) {
+            Write-Warn "El archivo CSV esta vacio. No hay productos para importar."
+        } else {
+            Write-Info "Filas encontradas en el CSV: $($csvData.Count)"
+
+            # Columnas que acepta la tabla productos (sin ID que es IDENTITY)
+            $colsTabla = @(
+                'codigo','descripcion','rubro','marca','precio','costo',
+                'porcentaje','cantidad','nini','vital','maxi','bultocosto',
+                'bultoventa','costoanterior','paquetes','proveedor','envase',
+                'modificado','contar','imprimir','StockAnterior',
+                'PermiteAcumular','EditarPrecio','iva','Activo'
+            )
+
+            # Detectar que columnas del CSV coinciden con las de la tabla
+            $colsCSV    = $csvData[0].PSObject.Properties.Name
+            $colsUsar   = $colsTabla | Where-Object { $colsCSV -contains $_ }
+            $colsInsert = $colsUsar -join ', '
+
+            if ($colsUsar.Count -eq 0) {
+                Write-Warn "El CSV no tiene columnas reconocidas de la tabla 'productos'."
+                Write-Warn "Columnas esperadas (al menos una): $($colsTabla -join ', ')"
+            } else {
+                Write-Info "Columnas que se importaran: $colsInsert"
+
+                # Helper para formatear valores de texto como literal SQL
+                $fmtStr = {
+                    param([string]$v)
+                    if ([string]::IsNullOrWhiteSpace($v)) { return 'NULL' }
+                    return "'" + ($v.Trim() -replace "'", "''") + "'"
+                }
+
+                # Columnas numericas (no van entre comillas)
+                $numCols = @('precio','costo','porcentaje','cantidad',
+                             'bultocosto','bultoventa','costoanterior',
+                             'paquetes','StockAnterior','iva',
+                             'PermiteAcumular','EditarPrecio','Activo')
+
+                $fmtVal = {
+                    param([string]$col, [string]$raw)
+                    if ($numCols -contains $col) {
+                        if ([string]::IsNullOrWhiteSpace($raw)) { return 'NULL' }
+                        $n = $raw.Trim() -replace ',', '.'
+                        if ($n -match '^-?[0-9]+(\.[0-9]+)?$') { return $n } else { return 'NULL' }
+                    }
+                    return & $fmtStr $raw
+                }
+
+                # Generar script SQL con MERGE (insert o update segun codigo)
+                $sqlLines = [System.Collections.Generic.List[string]]::new()
+                $sqlLines.Add("USE [comercio]")
+                $sqlLines.Add("GO")
+                $sqlLines.Add("SET NOCOUNT ON")
+                $sqlLines.Add("DECLARE @nuevos INT = 0, @actualizados INT = 0")
+                $sqlLines.Add("")
+
+                $filasSql = 0
+                foreach ($row in $csvData) {
+                    $codigoRaw = if ($colsCSV -contains 'codigo') { $row.codigo } else { '' }
+                    if ([string]::IsNullOrWhiteSpace($codigoRaw)) { continue }
+                    $codigoEsc = $codigoRaw.Trim() -replace "'", "''"
+
+                    # Valores para el INSERT (todas las columnas usadas)
+                    $insertVals = ($colsUsar | ForEach-Object {
+                        $raw = if ($colsCSV -contains $_) { $row.$_ } else { '' }
+                        & $fmtVal $_ $raw
+                    }) -join ', '
+
+                    # Partes del SET para el UPDATE (excluye codigo)
+                    $setParts = ($colsUsar | Where-Object { $_ -ne 'codigo' } | ForEach-Object {
+                        $raw = if ($colsCSV -contains $_) { $row.$_ } else { '' }
+                        "$_ = $(& $fmtVal $_ $raw)"
+                    }) -join ', '
+
+                    $sqlLines.Add("MERGE [dbo].[productos] AS tgt")
+                    $sqlLines.Add("USING (SELECT '$codigoEsc' AS codigo) AS src ON tgt.codigo = src.codigo")
+                    $sqlLines.Add("WHEN MATCHED THEN UPDATE SET $setParts")
+                    $sqlLines.Add("WHEN NOT MATCHED THEN INSERT ($colsInsert) VALUES ($insertVals);")
+                    $sqlLines.Add("IF @@ROWCOUNT > 0")
+                    $sqlLines.Add("BEGIN")
+                    $sqlLines.Add("    IF EXISTS (SELECT 1 FROM [dbo].[productos] WHERE codigo = '$codigoEsc')")
+                    $sqlLines.Add("        SET @actualizados = @actualizados + 1")
+                    $sqlLines.Add("    ELSE")
+                    $sqlLines.Add("        SET @nuevos = @nuevos + 1")
+                    $sqlLines.Add("END")
+                    $sqlLines.Add("")
+                    $filasSql++
+                }
+
+                $sqlLines.Add("PRINT 'Productos nuevos     : ' + CAST(@nuevos       AS NVARCHAR(10))")
+                $sqlLines.Add("PRINT 'Productos actualizados: ' + CAST(@actualizados AS NVARCHAR(10))")
+                $sqlLines.Add("GO")
+
+                $tmpImportSql = Join-Path $env:TEMP "import_productos_$(Get-Date -Format 'yyyyMMddHHmmss').sql"
+                $sqlLines | Set-Content -Path $tmpImportSql -Encoding UTF8
+
+                $sqlServer = if ($script:SqlServerConn) { $script:SqlServerConn } else { 'localhost' }
+                Write-Info "Ejecutando importacion en $sqlServer ($filasSql filas)..."
+
+                $importOutput = & $sqlcmdPath -S $sqlServer -E -i $tmpImportSql -b -l 120 2>&1
+                $importOutput | ForEach-Object { Write-Info $_ }
+                Remove-Item $tmpImportSql -Force -ErrorAction SilentlyContinue
+
+                if ($LASTEXITCODE -eq 0) {
+                    Write-OK "$filasSql producto(s) procesado(s) desde el CSV."
+                    # Guardar copia del CSV importado como respaldo
+                    $csvBackup = Join-Path $InstallDir "database\productos_importados_$(Get-Date -Format 'yyyyMMddHHmmss').csv"
+                    Copy-Item $csvProductos -Destination $csvBackup -Force -ErrorAction SilentlyContinue
+                    Write-Info "Copia del CSV guardada en: $csvBackup"
+                } else {
+                    Write-Warn "La importacion finalizo con codigo $LASTEXITCODE. Revise los mensajes anteriores."
+                }
+            }
+        }
+    } catch {
+        Write-Warn "Error durante la importacion de productos: $_"
+        Write-Info "Puede importar productos manualmente desde la aplicacion."
+    }
+}
+
+# =============================================================================
+# PASO 9 - ACCESO DIRECTO EN EL ESCRITORIO
+# =============================================================================
+Write-Step "9/10" "Creando acceso directo en el escritorio..."
 
 $exePath       = Join-Path $InstallDir $APP_EXE
 $shortcutPath  = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "$APP_NAME.lnk"
@@ -1113,7 +1267,7 @@ if (Test-Path $exePath) {
 # =============================================================================
 # PASO 9 - INSTALAR SQL SERVER MANAGEMENT STUDIO (SSMS) - OPCIONAL
 # =============================================================================
-Write-Step "9/9" "SQL Server Management Studio (SSMS)..."
+Write-Step "10/10" "SQL Server Management Studio (SSMS)..."
 
 # Detectar si SSMS ya esta instalado buscando en el registro
 $ssmsInstalled = $false

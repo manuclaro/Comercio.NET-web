@@ -1,0 +1,4 @@
+codigo;descripcion;rubro;marca;precio;costo;porcentaje;cantidad;nini;vital;maxi;bultocosto;bultoventa;costoanterior;paquetes;proveedor;envase;modificado;contar;imprimir;StockAnterior;PermiteAcumular;EditarPrecio;iva;Activo
+7790001001234;COCA COLA 500ML;BEBIDAS;COCA COLA;1200.00;800.00;50;100;;;;;;;;DISTRIBUIDORA SRL;BOTELLA;;S;S;100;0;0;21.00;1
+7790001005678;AGUA MINERAL 1.5L;BEBIDAS;VILLAVICENCIO;600.00;350.00;71;80;;;;;;;;DISTRIBUIDORA SRL;BOTELLA;;S;S;80;0;0;10.50;1
+7790001009999;LECHE ENTERA 1L;LACTEOS;LA SERENISIMA;950.00;650.00;46;50;;;;;;;;LACTEOS SA;CAJA;;S;S;50;0;0;10.50;1
