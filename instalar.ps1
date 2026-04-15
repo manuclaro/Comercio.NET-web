@@ -681,7 +681,7 @@ if (-not (Test-Path $appSettingsPath)) {
     $appsettingsTemplate = @'
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
   },
   "Comercio": {
     "Nombre": "MI COMERCIO",
@@ -828,7 +828,59 @@ if (-not $sqlcmdPath) {
     $sqlServer = if ($script:SqlServerConn) { $script:SqlServerConn } else { "localhost" }
     Write-Info "sqlcmd encontrado  : $sqlcmdPath"
     Write-Info "Servidor SQL target: $sqlServer"
-    Write-Info "Ejecutando script de inicializacion..."
+
+    # -------------------------------------------------------------------------
+    # HABILITAR SQL SERVER AUTHENTICATION (modo mixto) para conexiones remotas
+    # -------------------------------------------------------------------------
+    Write-Info "Habilitando autenticacion SQL Server (modo mixto)..."
+    try {
+        $enableMixedMode = @"
+USE [master]
+GO
+-- Habilitar modo mixto (Windows + SQL Authentication)
+EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE',
+    N'Software\Microsoft\MSSQLServer\MSSQLServer',
+    N'LoginMode', REG_DWORD, 2
+GO
+"@
+        $tmpMixedScript = Join-Path $env:TEMP "enable_mixed_mode.sql"
+        Set-Content -Path $tmpMixedScript -Value $enableMixedMode -Encoding UTF8
+
+        & $sqlcmdPath -S $sqlServer -E -i $tmpMixedScript -b -l 30 2>&1 | Out-Null
+        Remove-Item $tmpMixedScript -Force -ErrorAction SilentlyContinue
+
+        # Reiniciar el servicio SQL para que el cambio de modo tome efecto
+        $sqlSvcName = "MSSQL`$$SQL_INSTANCE_NAME"
+        $svcCheck = Get-Service -Name $sqlSvcName -ErrorAction SilentlyContinue
+        if ($svcCheck) {
+            Write-Info "Reiniciando servicio SQL Server para aplicar modo mixto..."
+            Restart-Service -Name $sqlSvcName -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 8
+            # Esperar a que vuelva a estar en Running
+            $intentos = 0
+            do {
+                Start-Sleep -Seconds 3
+                $intentos++
+                $svcCheck = Get-Service -Name $sqlSvcName -ErrorAction SilentlyContinue
+            } while (($svcCheck -eq $null -or $svcCheck.Status -ne 'Running') -and ($intentos -lt 15))
+
+            if ($svcCheck -and $svcCheck.Status -eq 'Running') {
+                Write-OK "Servicio SQL Server reiniciado. Modo mixto habilitado."
+            } else {
+                Write-Warn "El servicio no respondio tras el reinicio. Verifique manualmente."
+            }
+        } else {
+            Write-Warn "No se encontro el servicio $sqlSvcName para reiniciar."
+        }
+    } catch {
+        Write-Warn "No se pudo habilitar el modo mixto automaticamente: $_"
+        Write-Warn "Habilitelo manualmente en SSMS: propiedades del servidor > Seguridad > Modo mixto."
+    }
+
+    # -------------------------------------------------------------------------
+    # EJECUTAR SCRIPT DE INICIALIZACION DE BASE DE DATOS
+    # -------------------------------------------------------------------------
+    Write-Info "Ejecutando script de inicializacion de base de datos..."
 
     $sqlLogPath = Join-Path $InstallDir "database\init_log.txt"
 
@@ -845,16 +897,20 @@ if (-not $sqlcmdPath) {
 
         if ($LASTEXITCODE -eq 0) {
             Write-OK "Base de datos '$DB_NAME' inicializada correctamente."
-            Write-Info "  Usuario creado: admin / password: 1506"
-            Write-Warn "  Cambie la password del administrador desde la aplicacion."
+            Write-Info "  Usuario app creado: admin / password: 1506"
+            Write-Info "  Usuario SQL remoto: michael / password: michael"
+            Write-Warn "  Cambie las contrasenas desde la aplicacion."
 
-            $connString = "Server=$sqlServer;Database=$DB_NAME;Trusted_Connection=True;TrustServerCertificate=True;"
+            # Usar SQL Authentication en la cadena de conexion para que funcione
+            # tanto en el servidor local como desde otras PCs en la red
+            $connString = "Server=$sqlServer;Database=$DB_NAME;User Id=michael;Password=michael;TrustServerCertificate=True;"
             if (Test-Path $appSettingsPath) {
                 try {
                     $json = Get-Content $appSettingsPath -Raw -Encoding UTF8
                     $json = $json -replace '(?<="DefaultConnection"\s*:\s*")[^"]*(?=")', $connString
                     Set-Content -Path $appSettingsPath -Value $json -Encoding UTF8
-                    Write-OK "appsettings.json actualizado con la conexion: $sqlServer"
+                    Write-OK "appsettings.json actualizado con SQL Auth (michael)."
+                    Write-Info "  Cadena: $connString"
                 } catch {
                     Write-Warn "No se pudo actualizar appsettings.json: $_"
                     Write-Info "Connection string: $connString"
@@ -934,6 +990,10 @@ Write-Host ""
 Write-Host "  3. Verificar que SQL Server este corriendo" -ForegroundColor White
 Write-Host "     Si la BD no se creo, ejecute manualmente:" -ForegroundColor Gray
 Write-Host "     $(Join-Path $InstallDir $DB_INIT_SCRIPT)" -ForegroundColor Gray
+Write-Host ""
+Write-Host "  USUARIO SQL PARA CONEXIONES REMOTAS:" -ForegroundColor Yellow
+Write-Host "     Usuario: michael  |  Password: michael" -ForegroundColor Gray
+Write-Host "     (Para acceso desde otras PCs en la red local)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  4. Ejecutar la aplicacion con el acceso directo" -ForegroundColor White
 Write-Host "     del escritorio o desde:" -ForegroundColor Gray
