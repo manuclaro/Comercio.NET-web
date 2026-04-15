@@ -49,6 +49,9 @@ $DB_NAME           = "comercio"
 $SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2215158&clcid=0x0409&culture=en-us&country=us"
 $SQLEXPRESS_FILENAME = "SQL2022-SSEI-Expr.exe"
 $SQL_INSTANCE_NAME   = "SQLEXPRESS"
+# SSMS 20.2 - URL oficial de descarga directa
+$SSMS_URL      = "https://aka.ms/ssmsfullsetup"
+$SSMS_FILENAME = "SSMS-Setup-ENU.exe"
 
 # =============================================================================
 # HELPERS DE CONSOLA
@@ -206,7 +209,7 @@ Write-Host ""
 # =============================================================================
 # PASO 1 - VERIFICAR / INSTALAR .NET 8 RUNTIME
 # =============================================================================
-Write-Step "1/8" "Verificando .NET $DOTNET_VERSION Runtime..."
+Write-Step "1/9" "Verificando .NET $DOTNET_VERSION Runtime..."
 
 $dotnetInstalled = $false
 try {
@@ -248,7 +251,7 @@ if (-not $dotnetInstalled) {
 # =============================================================================
 # PASO 2 - VERIFICAR / INSTALAR SQL SERVER EXPRESS
 # =============================================================================
-Write-Step "2/8" "Verificando SQL Server..."
+Write-Step "2/9" "Verificando SQL Server..."
 
 $sqlInstalled    = $false
 $sqlInstanceName = $null
@@ -501,7 +504,7 @@ if ($sqlInstalled) {
 # =============================================================================
 # PASO 3 - OBTENER ULTIMA VERSION DE GITHUB
 # =============================================================================
-Write-Step "3/8" "Consultando ultima version en GitHub..."
+Write-Step "3/9" "Consultando ultima version en GitHub..."
 
 $headers = @{
     "User-Agent" = "ComercioNET-Installer/1.0"
@@ -541,7 +544,7 @@ Write-Info "Publicado          : $($release.published_at)"
 # =============================================================================
 # PASO 4 - DESCARGAR Y EXTRAER LA APLICACION
 # =============================================================================
-Write-Step "4/8" "Descargando $APP_NAME v$version..."
+Write-Step "4/9" "Descargando $APP_NAME v$version..."
 
 $tempZip    = Join-Path $env:TEMP "ComercioNET_Install_$version.zip"
 $tempExtract = Join-Path $env:TEMP "ComercioNET_Install_$version"
@@ -581,7 +584,7 @@ try {
 # =============================================================================
 # PASO 5 - CREAR CARPETA DE INSTALACION Y COPIAR ARCHIVOS
 # =============================================================================
-Write-Step "5/8" "Instalando en $InstallDir..."
+Write-Step "5/9" "Instalando en $InstallDir..."
 
 $archivosProtegidos = @(
     "appsettings.json",
@@ -671,7 +674,7 @@ Write-OK "Version $version registrada."
 # =============================================================================
 # PASO 6 - CREAR appsettings.json SI NO EXISTE
 # =============================================================================
-Write-Step "6/8" "Verificando configuracion inicial..."
+Write-Step "6/9" "Verificando configuracion inicial..."
 
 $appSettingsPath = Join-Path $InstallDir "appsettings.json"
 
@@ -777,7 +780,7 @@ if (-not (Test-Path $migrFolder)) {
 # =============================================================================
 # PASO 7 - INICIALIZAR BASE DE DATOS
 # =============================================================================
-Write-Step "7/8" "Inicializando base de datos SQL Server..."
+Write-Step "7/9" "Inicializando base de datos SQL Server..."
 
 $sqlcmdPath = $null
 $sqlcmdCandidates = @(
@@ -878,6 +881,105 @@ GO
     }
 
     # -------------------------------------------------------------------------
+    # ABRIR PUERTO 1433 EN EL FIREWALL DE WINDOWS
+    # -------------------------------------------------------------------------
+    Write-Info "Configurando firewall de Windows para SQL Server (puerto 1433)..."
+    try {
+        $existingRule = netsh advfirewall firewall show rule name="SQL Server 1433" 2>$null
+        if ($existingRule -notmatch 'SQL Server 1433') {
+            netsh advfirewall firewall add rule name="SQL Server 1433" protocol=TCP dir=in localport=1433 action=allow | Out-Null
+            Write-OK "Regla de firewall creada: TCP 1433 entrada permitida."
+        } else {
+            Write-OK "Regla de firewall para puerto 1433 ya existe."
+        }
+    } catch {
+        Write-Warn "No se pudo configurar el firewall automaticamente: $_"
+        Write-Warn "Abra manualmente el puerto 1433 TCP entrante en el Firewall de Windows."
+    }
+
+    # -------------------------------------------------------------------------
+    # HABILITAR Y ARRANCAR SQL SERVER BROWSER
+    # -------------------------------------------------------------------------
+    Write-Info "Habilitando SQL Server Browser (necesario para conexiones remotas)..."
+    try {
+        $browserSvc = Get-Service -Name 'SQLBrowser' -ErrorAction SilentlyContinue
+        if ($browserSvc) {
+            Set-Service -Name 'SQLBrowser' -StartupType Automatic -ErrorAction SilentlyContinue
+            if ($browserSvc.Status -ne 'Running') {
+                Start-Service -Name 'SQLBrowser' -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 3
+            }
+            $browserSvc = Get-Service -Name 'SQLBrowser' -ErrorAction SilentlyContinue
+            if ($browserSvc.Status -eq 'Running') {
+                Write-OK "SQL Server Browser habilitado y corriendo."
+            } else {
+                Write-Warn "SQL Server Browser no pudo iniciarse. Las conexiones remotas pueden requerir el puerto 1433 explicito."
+            }
+        } else {
+            Write-Warn "Servicio SQLBrowser no encontrado. Las conexiones remotas usaran IP,1433 directamente."
+        }
+    } catch {
+        Write-Warn "No se pudo configurar SQL Server Browser: $_"
+    }
+
+    # -------------------------------------------------------------------------
+    # CREAR LOGIN SQL michael/michael (Windows Auth, siempre funciona)
+    # Se hace ANTES del script principal para garantizar que existe
+    # independientemente del estado del modo mixto durante el script
+    # -------------------------------------------------------------------------
+    Write-Info "Creando usuario SQL michael para conexiones remotas..."
+    try {
+        $createMichaelScript = @"
+USE [master]
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'michael')
+BEGIN
+    CREATE LOGIN [michael] WITH PASSWORD = 'michael',
+        DEFAULT_DATABASE = [comercio],
+        CHECK_EXPIRATION = OFF,
+        CHECK_POLICY = OFF
+    PRINT 'Login michael creado.'
+END
+ELSE
+    PRINT 'Login michael ya existe.'
+GO
+USE [comercio]
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'michael')
+BEGIN
+    CREATE USER [michael] FOR LOGIN [michael]
+    PRINT 'Usuario michael creado en base comercio.'
+END
+ELSE
+    PRINT 'Usuario michael ya existe en base comercio.'
+GO
+IF IS_ROLEMEMBER('db_owner', 'michael') = 0
+BEGIN
+    ALTER ROLE [db_owner] ADD MEMBER [michael]
+    PRINT 'Rol db_owner asignado a michael.'
+END
+ELSE
+    PRINT 'michael ya tiene rol db_owner.'
+GO
+"@
+        $tmpMichaelScript = Join-Path $env:TEMP "create_michael.sql"
+        Set-Content -Path $tmpMichaelScript -Value $createMichaelScript -Encoding UTF8
+
+        $michaelOutput = & $sqlcmdPath -S $sqlServer -E -i $tmpMichaelScript -b -l 30 2>&1
+        Remove-Item $tmpMichaelScript -Force -ErrorAction SilentlyContinue
+
+        if ($LASTEXITCODE -eq 0) {
+            Write-OK "Usuario SQL michael creado/verificado correctamente."
+        } else {
+            Write-Warn "Advertencia al crear usuario michael (codigo $LASTEXITCODE)."
+            Write-Warn "Puede que la base 'comercio' aun no exista - se creara en el siguiente paso."
+        }
+    } catch {
+        Write-Warn "No se pudo crear el usuario michael en este paso: $_"
+        Write-Info "Se intentara nuevamente al final del script de inicializacion."
+    }
+
+    # -------------------------------------------------------------------------
     # EJECUTAR SCRIPT DE INICIALIZACION DE BASE DE DATOS
     # -------------------------------------------------------------------------
     Write-Info "Ejecutando script de inicializacion de base de datos..."
@@ -901,20 +1003,74 @@ GO
             Write-Info "  Usuario SQL remoto: michael / password: michael"
             Write-Warn "  Cambie las contrasenas desde la aplicacion."
 
-            # Usar SQL Authentication en la cadena de conexion para que funcione
-            # tanto en el servidor local como desde otras PCs en la red
-            $connString = "Server=$sqlServer;Database=$DB_NAME;User Id=michael;Password=michael;TrustServerCertificate=True;"
+            # Obtener la IP de red local real (192.168.x.x) para conexiones remotas
+            $localIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.InterfaceAlias -notlike '*Loopback*' -and
+                    $_.IPAddress -notlike '169.254.*' -and
+                    $_.IPAddress -notlike '127.*'
+                } |
+                Sort-Object { [System.Net.IPAddress]::Parse($_.IPAddress).GetAddressBytes()[0] } -Descending |
+                Select-Object -First 1).IPAddress
+
+            if (-not $localIp) { $localIp = 'localhost' }
+            Write-Info "  IP de red detectada: $localIp"
+
+            # Cadena de conexion con IP real para que funcione tanto local como remoto
+            $connString = "Server=$localIp,1433;Database=$DB_NAME;User Id=michael;Password=michael;TrustServerCertificate=True;"
             if (Test-Path $appSettingsPath) {
                 try {
                     $json = Get-Content $appSettingsPath -Raw -Encoding UTF8
                     $json = $json -replace '(?<="DefaultConnection"\s*:\s*")[^"]*(?=")', $connString
                     Set-Content -Path $appSettingsPath -Value $json -Encoding UTF8
-                    Write-OK "appsettings.json actualizado con SQL Auth (michael)."
+                    Write-OK "appsettings.json actualizado con IP de red ($localIp)."
                     Write-Info "  Cadena: $connString"
+                    Write-Info "  Usar esta misma cadena en las PCs clientes de la red."
                 } catch {
                     Write-Warn "No se pudo actualizar appsettings.json: $_"
                     Write-Info "Connection string: $connString"
                 }
+            }
+
+            # -----------------------------------------------------------------
+            # SEGUNDA PASADA: garantizar que michael existe ahora que la BD existe
+            # -----------------------------------------------------------------
+            Write-Info "Verificando usuario SQL michael (segunda pasada)..."
+            try {
+                $verifyMichael = @"
+USE [master]
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'michael')
+BEGIN
+    CREATE LOGIN [michael] WITH PASSWORD = 'michael',
+        DEFAULT_DATABASE = [comercio],
+        CHECK_EXPIRATION = OFF,
+        CHECK_POLICY = OFF
+    PRINT 'Login michael creado (segunda pasada).'
+END
+GO
+USE [comercio]
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'michael')
+BEGIN
+    CREATE USER [michael] FOR LOGIN [michael]
+    PRINT 'Usuario michael creado en comercio (segunda pasada).'
+END
+GO
+IF IS_ROLEMEMBER('db_owner', 'michael') = 0
+BEGIN
+    ALTER ROLE [db_owner] ADD MEMBER [michael]
+    PRINT 'Rol db_owner asignado a michael (segunda pasada).'
+END
+GO
+"@
+                $tmpVerify = Join-Path $env:TEMP "verify_michael.sql"
+                Set-Content -Path $tmpVerify -Value $verifyMichael -Encoding UTF8
+                & $sqlcmdPath -S $sqlServer -E -i $tmpVerify -b -l 30 2>&1 | Out-Null
+                Remove-Item $tmpVerify -Force -ErrorAction SilentlyContinue
+                Write-OK "Usuario SQL michael verificado."
+            } catch {
+                Write-Warn "No se pudo verificar usuario michael: $_"
             }
         } else {
             Write-Warn "sqlcmd finalizo con codigo $LASTEXITCODE."
@@ -930,7 +1086,7 @@ GO
 # =============================================================================
 # PASO 8 - ACCESO DIRECTO EN EL ESCRITORIO
 # =============================================================================
-Write-Step "8/8" "Creando acceso directo en el escritorio..."
+Write-Step "8/9" "Creando acceso directo en el escritorio..."
 
 $exePath       = Join-Path $InstallDir $APP_EXE
 $shortcutPath  = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "$APP_NAME.lnk"
@@ -952,6 +1108,115 @@ if (Test-Path $exePath) {
 } else {
     Write-Warn "No se encontro $APP_EXE en $InstallDir."
     Write-Warn "Verifique que el .zip del release contenga el ejecutable."
+}
+
+# =============================================================================
+# PASO 9 - INSTALAR SQL SERVER MANAGEMENT STUDIO (SSMS) - OPCIONAL
+# =============================================================================
+Write-Step "9/9" "SQL Server Management Studio (SSMS)..."
+
+# Detectar si SSMS ya esta instalado buscando en el registro
+$ssmsInstalled = $false
+$ssmsRegPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+)
+foreach ($regBase in $ssmsRegPaths) {
+    if (Test-Path $regBase) {
+        $found = Get-ChildItem -Path $regBase -ErrorAction SilentlyContinue |
+            Get-ItemProperty -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like "*SQL Server Management Studio*" } |
+            Select-Object -First 1
+        if ($found) {
+            $ssmsInstalled = $true
+            Write-OK "SSMS ya instalado: $($found.DisplayName) v$($found.DisplayVersion)"
+            break
+        }
+    }
+}
+
+if (-not $ssmsInstalled) {
+    Write-Info "SSMS no encontrado en este equipo."
+    Write-Host ""
+    Write-Host "  SQL Server Management Studio (SSMS) es una herramienta gratuita" -ForegroundColor White
+    Write-Host "  de Microsoft para administrar la base de datos visualmente:" -ForegroundColor White
+    Write-Host "    - Ver y editar tablas, datos y estructuras" -ForegroundColor Gray
+    Write-Host "    - Ejecutar consultas SQL" -ForegroundColor Gray
+    Write-Host "    - Hacer backups y restauraciones" -ForegroundColor Gray
+    Write-Host "    - Gestionar usuarios y permisos" -ForegroundColor Gray
+    Write-Host "  Tamanio de descarga: ~600 MB. Instalacion: ~5-10 minutos." -ForegroundColor Gray
+    Write-Host ""
+
+    $instalarSsms = Read-Host "  Desea instalar SSMS ahora? (S/N)"
+
+    if ($instalarSsms -match "^[sS]") {
+        $tempSsms = Join-Path $env:TEMP $SSMS_FILENAME
+        Remove-Item $tempSsms -Force -ErrorAction SilentlyContinue
+
+        Write-Info "Descargando SSMS (~600 MB, puede tardar varios minutos)..."
+        try {
+            $wcSsms = New-Object System.Net.WebClient
+            $wcSsms.DownloadFile($SSMS_URL, $tempSsms)
+            Write-OK "Descarga de SSMS completada."
+        } catch {
+            Write-Fail "Error descargando SSMS: $_"
+            Write-Warn "Descargue manualmente desde: https://aka.ms/ssms"
+            $tempSsms = $null
+        }
+
+        if ($tempSsms -and (Test-Path $tempSsms)) {
+            Write-Info "Instalando SSMS en modo silencioso (puede tardar 5-10 minutos)..."
+            try {
+                $procSsms = Start-Process -FilePath $tempSsms `
+                    -ArgumentList "/install /quiet /norestart" `
+                    -Wait -PassThru
+
+                switch ($procSsms.ExitCode) {
+                    0    { Write-OK "SSMS instalado correctamente." }
+                    3010 {
+                        Write-OK "SSMS instalado correctamente."
+                        Write-Warn "Se requiere reiniciar el equipo para completar la instalacion de SSMS."
+                    }
+                    default {
+                        Write-Warn "Instalador SSMS finalizo con codigo $($procSsms.ExitCode)."
+                        Write-Info "Si SSMS no aparece, descargue manualmente desde: https://aka.ms/ssms"
+                    }
+                }
+            } catch {
+                Write-Warn "Error al ejecutar el instalador de SSMS: $_"
+            } finally {
+                Remove-Item $tempSsms -Force -ErrorAction SilentlyContinue
+            }
+
+            # Crear acceso directo a SSMS en el escritorio si el exe existe
+            $ssmsPaths = @(
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
+                "${env:ProgramFiles}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe",
+                "${env:ProgramFiles}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe"
+            )
+            $ssmsExe = $ssmsPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if ($ssmsExe) {
+                try {
+                    $ssmsShortcut = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "SQL Server Management Studio.lnk"
+                    $wshellSsms   = New-Object -ComObject WScript.Shell
+                    $scSsms       = $wshellSsms.CreateShortcut($ssmsShortcut)
+                    $scSsms.TargetPath  = $ssmsExe
+                    $scSsms.Description = "SQL Server Management Studio"
+                    $scSsms.IconLocation = "$ssmsExe, 0"
+                    $scSsms.Save()
+                    Write-OK "Acceso directo a SSMS creado en el escritorio."
+                } catch {
+                    Write-Warn "No se pudo crear el acceso directo de SSMS: $_"
+                }
+            }
+        }
+    } else {
+        Write-Info "Instalacion de SSMS omitida."
+        Write-Info "Puede instalarlo en cualquier momento desde: https://aka.ms/ssms"
+    }
+} else {
+    Write-OK "SSMS listo."
 }
 
 # =============================================================================
