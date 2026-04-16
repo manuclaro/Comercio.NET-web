@@ -1,4 +1,4 @@
-using Comercio.NET;
+﻿using Comercio.NET;
 using Comercio.NET.Formularios;
 using Comercio.NET.Models;
 using Comercio.NET.Services;
@@ -29,6 +29,7 @@ namespace Comercio.NET
 
         private ToolStripMenuItem controlVentasProductosToolStripMenuItem;
         private ToolStripButton toolStripControlVentasProductos;
+        private ToolStripMenuItem controlVentasCtaCteToolStripMenuItem;
 
         // ✅ CORREGIDO: Lee la versión directamente del ensamblado para evitar desincronización
         private static readonly string CURRENT_VERSION = Program.GetCurrentVersionPublic();
@@ -52,6 +53,7 @@ namespace Comercio.NET
             AgregarOpcionGestionOfertas();
             AgregarMenuConfiguracionPermisos();
             AgregarMenuControlVentasProductos();
+            AgregarMenuControlVentasCtaCte();
             // ✅ NUEVO: Configurar menú de ayuda con actualización
             ConfigurarMenuAyuda();
         }
@@ -2905,6 +2907,93 @@ namespace Comercio.NET
 
         }
 
+        // NUEVO: Agregar item Control Ventas Cta. Cte. al menu Ventas
+        private void AgregarMenuControlVentasCtaCte()
+        {
+            try
+            {
+                if (this.menuStrip == null) return;
+
+                ToolStripMenuItem menuVentas = null;
+                foreach (ToolStripMenuItem menu in this.menuStrip.Items.OfType<ToolStripMenuItem>())
+                {
+                    if (menu.DropDownItems.OfType<ToolStripMenuItem>().Any(i => i.Name == "controlVentasProductosToolStripMenuItem"))
+                    {
+                        menuVentas = menu;
+                        break;
+                    }
+                }
+                if (menuVentas == null)
+                    menuVentas = this.menuStrip.Items.OfType<ToolStripMenuItem>()
+                        .FirstOrDefault(i => i.Text.Contains("Ventas") || i.Text.Contains("Facturacion"));
+
+                if (menuVentas == null) return;
+
+                if (menuVentas.DropDownItems.OfType<ToolStripMenuItem>().Any(i => i.Name == "controlVentasCtaCteToolStripMenuItem"))
+                    return;
+
+                controlVentasCtaCteToolStripMenuItem = new ToolStripMenuItem
+                {
+                    Name = "controlVentasCtaCteToolStripMenuItem",
+                    Text = "\U0001F4B3 Control Ventas Cta. Cte.",
+                    ToolTipText = "Control de ventas en cuenta corriente"
+                };
+                controlVentasCtaCteToolStripMenuItem.Click += ControlVentasCtaCteToolStripMenuItem_Click;
+
+                var itemProductos = menuVentas.DropDownItems.OfType<ToolStripMenuItem>()
+                    .FirstOrDefault(i => i.Name == "controlVentasProductosToolStripMenuItem");
+
+                if (itemProductos != null)
+                    menuVentas.DropDownItems.Insert(menuVentas.DropDownItems.IndexOf(itemProductos) + 1, controlVentasCtaCteToolStripMenuItem);
+                else
+                    menuVentas.DropDownItems.Add(controlVentasCtaCteToolStripMenuItem);
+
+                System.Diagnostics.Debug.WriteLine("OK: Control Ventas Cta.Cte. agregado al menu");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error AgregarMenuControlVentasCtaCte: " + ex.Message);
+            }
+        }
+
+        // NUEVO: Abrir formulario Control Ventas Cta. Cte.
+        private void ControlVentasCtaCteToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (AuthenticationService.SesionActual?.Usuario != null)
+                {
+                    var usuario = AuthenticationService.SesionActual.Usuario;
+                    if (usuario.PuedeVerReportes || usuario.Nivel == Models.NivelUsuario.Administrador)
+                    {
+                        foreach (Form form in this.MdiChildren)
+                        {
+                            if (form is Comercio.NET.Formularios.FRMControlVentasCtaCte)
+                            {
+                                form.Activate();
+                                return;
+                            }
+                        }
+                        var frm = new Comercio.NET.Formularios.FRMControlVentasCtaCte { MdiParent = this };
+                        frm.Show();
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "\u26a0\ufe0f ACCESO DENEGADO\n\nNo tienes permisos para acceder al control de ventas Cta. Cte.\n\nEste modulo requiere el permiso 'Ver Reportes'.\nContacta a un administrador si necesitas acceso.",
+                            "Permisos Insuficientes", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("No hay una sesion activa.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al abrir Control Ventas Cta. Cte.: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         /// <summary>
         /// Configura el menú de Ayuda con opción de actualización manual
         /// </summary>
