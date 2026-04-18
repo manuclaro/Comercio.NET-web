@@ -327,7 +327,7 @@ if ($sqlInstalled) {
         Write-Info "Descargando medio de instalacion offline (~280 MB, puede tardar)..."
         New-Item -ItemType Directory -Path $tempSqlMedia -Force | Out-Null
 
-        $downloadArgs = "/Action=Download /MediaPath=`"$tempSqlMedia`" /MediaType=Core /Quiet"
+        $downloadArgs = "/Action=Download /MediaPath=`"$tempSqlMedia`" /MediaType=CAB /Quiet"
         $procDownload = Start-Process -FilePath $tempSsei -ArgumentList $downloadArgs -Wait -PassThru
 
         Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
@@ -1085,10 +1085,10 @@ Write-Step "8/11" "Importando productos desde CSV (si existe)..."
 #   2. El escritorio del usuario
 #   3. La carpeta de instalacion destino
 $csvCandidates = @(
-    (Join-Path $PSScriptRoot          "productos_export.csv"),
+    $(if ($PSScriptRoot) { Join-Path $PSScriptRoot "productos_export.csv" } else { $null }),
     (Join-Path ([Environment]::GetFolderPath("Desktop")) "productos_export.csv"),
     (Join-Path $InstallDir            "productos_export.csv")
-)
+) | Where-Object { $_ }
 $csvProductos = $csvCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if (-not $csvProductos) {
