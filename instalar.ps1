@@ -1338,15 +1338,16 @@ if (-not `$sqlcmdPath) {
 }
 
 # Script SQL de backup
-`$sql = @"
-BACKUP DATABASE [comercio]
-TO DISK = N'`$backupFile'
-WITH NOFORMAT, NOINIT,
-     NAME = N'comercio-backup-`$fecha',
-     SKIP, NOREWIND, NOUNLOAD,
-     COMPRESSION, STATS = 10
-GO
-"@
+`$sqlLines = @(
+    "BACKUP DATABASE [comercio]",
+    "TO DISK = N'`$backupFile'",
+    "WITH NOFORMAT, NOINIT,",
+    "     NAME = N'comercio-backup-`$fecha',",
+    "     SKIP, NOREWIND, NOUNLOAD,",
+    "     COMPRESSION, STATS = 10",
+    "GO"
+)
+`$sql = `$sqlLines -join [Environment]::NewLine
 
 `$tmpSql = Join-Path `$env:TEMP "backup_comercio_`$fecha.sql"
 Set-Content -Path `$tmpSql -Value `$sql -Encoding UTF8
