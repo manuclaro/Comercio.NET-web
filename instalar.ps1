@@ -45,9 +45,9 @@ $DOTNET_RUNTIME_URL = "https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.
 $DOTNET_RUNTIME_FILENAME = "windowsdesktop-runtime-8.0-win-x64.exe"
 $DB_INIT_SCRIPT    = "database\init_comercio.sql"
 $DB_NAME           = "comercio"
-# SQL Server Express 2022 - descarga directa del instalador completo SQLEXPR_x64_ENU.exe (~280 MB)
-$SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2216019&clcid=0x0409&culture=en-us&country=us"
-$SQLEXPRESS_FILENAME = "SQLEXPR_x64_ENU.exe"
+# SQL Server Express 2022 - SSEI (Small Web Setup ~6 MB), se ejecuta directamente con parametros de instalacion
+$SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2215158&clcid=0x0409&culture=en-us&country=us"
+$SQLEXPRESS_FILENAME = "SQL2022-SSEI-Expr.exe"
 $SQL_INSTANCE_NAME   = "SQLEXPRESS"
 # SSMS 20.2 - URL oficial de descarga directa
 $SSMS_URL      = "https://aka.ms/ssmsfullsetup"
@@ -399,8 +399,8 @@ if ($sqlInstalled) {
         Write-OK "Pre-requisitos verificados correctamente."
     }
 
-    Write-Info "SQL Server no detectado. Descargando SQL Server 2022 Express (~280 MB)..."
-    Write-Warn "Este proceso puede tardar varios minutos segun la conexion."
+    Write-Info "SQL Server no detectado. Descargando instalador SQL Server 2022 Express (~6 MB)..."
+    Write-Warn "El SSEI descargara e instalara SQL Server 2022 (~280 MB). Puede tardar varios minutos."
     Write-Host ""
 
     $tempSqlExpr = Join-Path $env:TEMP $SQLEXPRESS_FILENAME
@@ -409,7 +409,7 @@ if ($sqlInstalled) {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $SQLEXPRESS_URL -OutFile $tempSqlExpr -UseBasicParsing -ErrorAction Stop
-        Write-OK "Descarga completada."
+        Write-OK "SSEI descargado."
     } catch {
         Write-Fail "Error descargando SQL Server Express: $_"
         Write-Warn "Instale SQL Server Express manualmente desde:"
@@ -418,9 +418,10 @@ if ($sqlInstalled) {
     }
 
     if (Test-Path $tempSqlExpr) {
-        Write-Info "Instalando SQL Server 2022 Express en modo silencioso..."
-        Write-Info "(Esto puede tardar entre 5 y 15 minutos, por favor espere)"
+        Write-Info "Instalando SQL Server 2022 Express (descarga + instalacion, puede tardar 10-20 min)..."
 
+        # El SSEI se ejecuta directamente con los parametros de instalacion.
+        # Descarga los componentes necesarios e instala en un solo paso.
         $sqlArgs = "/Q /ACTION=Install /FEATURES=SQLEngine " +
                    "/INSTANCENAME=SQLEXPRESS " +
                    "/SQLSVCACCOUNT=`"NT AUTHORITY\NETWORK SERVICE`" " +
@@ -429,8 +430,8 @@ if ($sqlInstalled) {
                    "/IACCEPTSQLSERVERLICENSETERMS"
 
         $procSql = Start-Process -FilePath $tempSqlExpr -ArgumentList $sqlArgs -PassThru
-        Write-Info "Esperando que finalice la instalacion (timeout: 30 min)..."
-        $sqlFinished = $procSql.WaitForExit(30 * 60 * 1000)
+        Write-Info "Esperando que finalice la instalacion (timeout: 60 min)..."
+        $sqlFinished = $procSql.WaitForExit(60 * 60 * 1000)
 
         Remove-Item $tempSqlExpr -Force -ErrorAction SilentlyContinue
 
