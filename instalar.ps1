@@ -404,105 +404,130 @@ if ($sqlInstalled) {
     Write-Host ""
 
     $sqlInstalledOk = $false
+    $sqlSetupArgs   = "/Q /ACTION=Install /FEATURES=SQLEngine " +
+                      "/INSTANCENAME=SQLEXPRESS " +
+                      "/SQLSVCACCOUNT=`"NT AUTHORITY\NETWORK SERVICE`" " +
+                      "/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`" " +
+                      "/TCPENABLED=1 /NPENABLED=0 " +
+                      "/IACCEPTSQLSERVERLICENSETERMS"
+
+    # Helper: ejecutar setup.exe con los argumentos de instalacion y esperar resultado
+    function Invoke-SqlSetup {
+        param([string]$SetupPath)
+        Write-Info "Ejecutando: $SetupPath"
+        Write-Info "(Esto puede tardar entre 5 y 15 minutos)"
+        $proc = Start-Process -FilePath $SetupPath -ArgumentList $sqlSetupArgs -PassThru
+        $done = $proc.WaitForExit(40 * 60 * 1000)
+        $code = if ($done) { $proc.ExitCode } else { $proc.Kill(); -1 }
+        Write-Info "Codigo de salida: $code"
+        return $code
+    }
 
     # -------------------------------------------------------------------------
-    # Metodo 1: winget (disponible en Windows 10 1709+ / Windows 11)
-    # ID de paquete estable, sin dependencia de URLs que Microsoft cambia.
+    # Metodo 1: winget — ID de paquete estable, no depende de URLs de Microsoft
+    # Disponible en Windows 10 1709+ / Windows 11
     # -------------------------------------------------------------------------
     $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
     if ($wingetCmd) {
-        Write-Info "Instalando via winget (Microsoft.SQLServer.2022.Express)..."
-        Write-Info "(Puede tardar entre 10 y 20 minutos segun la conexion)"
-
-        $overrideArgs = "/Q /ACTION=Install /FEATURES=SQLEngine " +
-                        "/INSTANCENAME=SQLEXPRESS " +
-                        "/SQLSVCACCOUNT=`"NT AUTHORITY\NETWORK SERVICE`" " +
-                        "/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`" " +
-                        "/TCPENABLED=1 /NPENABLED=0 " +
-                        "/IACCEPTSQLSERVERLICENSETERMS"
+        Write-Info "[Metodo 1/3] Instalando via winget (Microsoft.SQLServer.2022.Express)..."
 
         $wingetArgs = "install --id $SQLEXPRESS_WINGET_ID -e --silent " +
                       "--accept-source-agreements --accept-package-agreements " +
-                      "--override `"$overrideArgs`""
+                      "--override `"$sqlSetupArgs`""
 
         $procWinget = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -PassThru
         $wgFinished = $procWinget.WaitForExit(60 * 60 * 1000)
 
         if ($wgFinished -and ($procWinget.ExitCode -eq 0 -or $procWinget.ExitCode -eq -1978335189)) {
-            # -1978335189 (0x8A150011) = ya estaba instalado, tambien es exito
-            Write-OK "SQL Server 2022 Express instalado correctamente via winget."
+            Write-OK "SQL Server 2022 Express instalado via winget."
             $sqlInstalledOk = $true
         } elseif (-not $wgFinished) {
-            Write-Fail "Timeout: winget supero 60 minutos."
+            Write-Warn "winget supero 60 minutos. Intentando metodo alternativo..."
             $procWinget.Kill()
         } else {
             Write-Warn "winget finalizo con codigo $($procWinget.ExitCode). Intentando metodo alternativo..."
         }
     } else {
-        Write-Warn "winget no esta disponible en este equipo. Intentando metodo alternativo..."
+        Write-Warn "[Metodo 1/3] winget no disponible en este equipo."
     }
 
     # -------------------------------------------------------------------------
-    # Metodo 2: SSEI (respaldo si winget no esta disponible o falla)
+    # Metodo 2: SSEI descarga ISO ? montar ? setup.exe
+    # El SSEI bootstrapper NO acepta parametros de instalacion directamente.
+    # Hay que usarlo para descargar el medio (ISO) y luego ejecutar setup.exe.
     # -------------------------------------------------------------------------
     if (-not $sqlInstalledOk) {
-        Write-Info "Descargando instalador SSEI de SQL Server 2022 Express (~6 MB)..."
-        $tempSsei = Join-Path $env:TEMP $SQLEXPRESS_FILENAME
-        Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
+        Write-Info "[Metodo 2/3] Descargando medio SQL Server 2022 Express via SSEI..."
+        Write-Info "(~280 MB, puede tardar varios minutos segun la conexion)"
 
+        $tempSsei     = Join-Path $env:TEMP $SQLEXPRESS_FILENAME
+        $tempSqlMedia = Join-Path $env:TEMP "SqlExpressMedia"
+        Remove-Item $tempSsei     -Force -ErrorAction SilentlyContinue
+        Remove-Item $tempSqlMedia -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Path $tempSqlMedia -Force | Out-Null
+
+        $sseiOk = $false
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-WebRequest -Uri $SQLEXPRESS_URL -OutFile $tempSsei -UseBasicParsing -ErrorAction Stop
             Write-OK "SSEI descargado."
+            $sseiOk = $true
         } catch {
             Write-Fail "Error descargando SSEI: $_"
         }
 
-        if (Test-Path $tempSsei) {
-            # Detectar si Microsoft actualizo el fwlink al nuevo installer de 2025
-            $fileInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($tempSsei)
-            $esNuevoFormato = $fileInfo.FileDescription -match "SQL Server Installer" -and
-                              $fileInfo.ProductVersion -match "^1[6-9]\." -eq $false
+        if ($sseiOk) {
+            # Descargar el medio como ISO (un solo archivo .iso bien definido)
+            Write-Info "Descargando ISO de instalacion..."
+            $dlProc = Start-Process -FilePath $tempSsei `
+                        -ArgumentList "/Action=Download /MediaPath=`"$tempSqlMedia`" /MediaType=ISO /Quiet" `
+                        -Wait -PassThru
+            Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
 
-            if ($esNuevoFormato) {
-                Write-Fail "El fwlink ahora descarga SQL Server 2025 (formato incompatible con parametros 2022)."
-                Write-Warn "Instale SQL Server 2022 Express manualmente:"
-                Write-Warn "  https://www.microsoft.com/sql-server/sql-server-downloads"
-                Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
-            } else {
-                Write-Info "Instalando SQL Server 2022 Express via SSEI (10-20 min)..."
+            if ($dlProc.ExitCode -eq 0) {
+                $isoFile = Get-ChildItem -Path $tempSqlMedia -Filter "*.iso" -ErrorAction SilentlyContinue |
+                           Select-Object -First 1
 
-                $sqlArgs = "/Q /ACTION=Install /FEATURES=SQLEngine " +
-                           "/INSTANCENAME=SQLEXPRESS " +
-                           "/SQLSVCACCOUNT=`"NT AUTHORITY\NETWORK SERVICE`" " +
-                           "/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`" " +
-                           "/TCPENABLED=1 /NPENABLED=0 " +
-                           "/IACCEPTSQLSERVERLICENSETERMS"
+                if ($isoFile) {
+                    Write-OK "ISO descargado: $($isoFile.Name)"
+                    try {
+                        Write-Info "Montando ISO..."
+                        $mountResult = Mount-DiskImage -ImagePath $isoFile.FullName -PassThru -ErrorAction Stop
+                        $driveLetter = ($mountResult | Get-Volume).DriveLetter
+                        $setupPath   = "${driveLetter}:\setup.exe"
 
-                $procSsei = Start-Process -FilePath $tempSsei -ArgumentList $sqlArgs -PassThru
-                Write-Info "Esperando instalacion (timeout: 60 min)..."
-                $sseiFinished = $procSsei.WaitForExit(60 * 60 * 1000)
-                Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
+                        if (Test-Path $setupPath) {
+                            $exitCode = Invoke-SqlSetup -SetupPath $setupPath
+                            if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) {
+                                Write-OK "SQL Server 2022 Express instalado correctamente."
+                                if ($exitCode -eq 3010) { Write-Warn "Se requiere reiniciar el equipo." }
+                                $sqlInstalledOk = $true
+                            } else {
+                                Write-Fail "setup.exe finalizo con codigo $exitCode."
+                                if ($exitCode -eq 1603) {
+                                    Write-Warn "ERROR 1603: Reinicie el equipo, desinstale restos de SQL Server y reintente."
+                                }
+                                if ($exitCode -eq -1) { Write-Fail "Timeout: setup supero 40 minutos." }
+                                Get-SqlSetupLogSummary
+                            }
+                        } else {
+                            Write-Fail "No se encontro setup.exe en el ISO montado (unidad $driveLetter)."
+                        }
 
-                $exitCode = if ($sseiFinished) { $procSsei.ExitCode } else { -1 }
-                Write-Info "Codigo de salida: $exitCode"
-
-                if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) {
-                    Write-OK "SQL Server 2022 Express instalado correctamente."
-                    if ($exitCode -eq 3010) { Write-Warn "Se requiere reiniciar el equipo." }
-                    $sqlInstalledOk = $true
-                } else {
-                    Write-Fail "Instalacion SSEI finalizo con codigo $exitCode."
-                    if ($exitCode -eq 1603) {
-                        Write-Warn "ERROR 1603: Reinicie el equipo, desinstale restos de SQL Server y vuelva a intentar."
+                        Dismount-DiskImage -ImagePath $isoFile.FullName -ErrorAction SilentlyContinue
+                    } catch {
+                        Write-Fail "Error montando el ISO: $_"
                     }
-                    if ($exitCode -eq -1) { Write-Fail "Timeout: la instalacion supero 60 minutos." }
-                    Get-SqlSetupLogSummary
+                } else {
+                    Write-Fail "El SSEI no genero un archivo ISO en $tempSqlMedia."
+                    Write-Info "Archivos descargados: $(Get-ChildItem $tempSqlMedia | Select-Object -ExpandProperty Name)"
                 }
+            } else {
+                Write-Fail "El SSEI finalizo la descarga con codigo $($dlProc.ExitCode)."
             }
-        } else {
-            Write-Fail "No se pudo descargar el instalador de SQL Server."
         }
+
+        Remove-Item $tempSqlMedia -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     $script:SqlInstallOk = $sqlInstalledOk
