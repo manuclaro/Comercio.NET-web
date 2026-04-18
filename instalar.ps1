@@ -406,10 +406,12 @@ if ($sqlInstalled) {
     $sqlInstalledOk = $false
     $sqlSetupArgs   = "/Q /ACTION=Install /FEATURES=SQLEngine " +
                       "/INSTANCENAME=SQLEXPRESS " +
+                      "/EDITION=Express " +
                       "/SQLSVCACCOUNT=`"NT AUTHORITY\NETWORK SERVICE`" " +
                       "/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`" " +
                       "/TCPENABLED=1 /NPENABLED=0 " +
-                      "/IACCEPTSQLSERVERLICENSETERMS"
+                      "/IACCEPTSQLSERVERLICENSETERMS " +
+                      "/IACCEPTROPENLICENSETERMS"
 
     # Helper: ejecutar setup.exe con los argumentos de instalacion y esperar resultado
     function Invoke-SqlSetup {
