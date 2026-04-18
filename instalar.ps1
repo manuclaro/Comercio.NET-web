@@ -136,22 +136,19 @@ function Test-SqlPartialInstall {
     #>
     $issues = @()
 
-    # 1. Verificar si hay un reinicio pendiente de una instalacion anterior
+    # 1. Verificar reinicio pendiente SOLO por claves confiables (CBS y WindowsUpdate).
+    #    PendingFileRenameOperations se ignora: casi siempre tiene contenido en Windows
+    #    por actualizaciones rutinarias y genera falsos positivos constantemente.
     $rebootPending = $false
-    $rebootKeys = @(
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending",
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired",
-        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager"
-    )
-    if (Test-Path $rebootKeys[0]) { $rebootPending = $true }
-    if (Test-Path $rebootKeys[1]) { $rebootPending = $true }
-    try {
-        $pending = (Get-ItemProperty -Path $rebootKeys[2] -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations
-        if ($pending) { $rebootPending = $true }
-    } catch { }
+    if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
+        $rebootPending = $true
+    }
+    if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") {
+        $rebootPending = $true
+    }
 
     if ($rebootPending) {
-        $issues += "REINICIO_PENDIENTE: El sistema tiene operaciones pendientes que requieren reinicio."
+        $issues += "REINICIO_PENDIENTE: El sistema tiene actualizaciones pendientes que requieren reinicio."
     }
 
     # 2. Verificar si existe la clave de instalacion parcial de SQL Server
@@ -291,13 +288,8 @@ if ($sqlInstalled) {
     $preflightIssues = @(Test-SqlPartialInstall)
 
     if ($preflightIssues.Count -gt 0) {
-        Write-Warn "Se detectaron problemas que pueden impedir la instalacion:"
         foreach ($issue in $preflightIssues) {
-            Write-Warn "  - $issue"
-        }
-        if ($preflightIssues -match "REINICIO_PENDIENTE") {
-            Write-Warn "ACCION REQUERIDA: Reinicie el equipo y vuelva a ejecutar el instalador."
-            Read-Host "Presione ENTER para continuar de todos modos o Ctrl+C para cancelar"
+            Write-Warn "Aviso pre-instalacion: $issue"
         }
         if ($preflightIssues -match "INSTANCIA_PREVIA|SERVICIO_DETENIDO") {
             Write-Warn "Se detectaron restos de una instalacion anterior de SQL Server."
