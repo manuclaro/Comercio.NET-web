@@ -54,6 +54,101 @@ $SSMS_URL      = "https://aka.ms/ssmsfullsetup"
 $SSMS_FILENAME = "SSMS-Setup-ENU.exe"
 
 # =============================================================================
+# DIAGNOSTICO DE BASE DE DATOS
+# =============================================================================
+function Test-DatabaseDiagnostic {
+    param(
+        [string]$AppSettingsPath,
+        [string]$InstallDir,
+        [string]$DbInitScript
+    )
+
+    Write-Host ""
+    Write-Host "  DIAGNOSTICO DE BASE DE DATOS" -ForegroundColor Yellow
+    Write-Host "  ====================================================" -ForegroundColor Yellow
+
+    # 1. Servicio SQL Server
+    $sqlSvc = Get-Service -Name "MSSQL`$SQLEXPRESS" -ErrorAction SilentlyContinue
+    if (-not $sqlSvc) {
+        $sqlSvc = Get-Service -Name "MSSQLSERVER" -ErrorAction SilentlyContinue
+    }
+
+    if ($sqlSvc -and $sqlSvc.Status -eq 'Running') {
+        Write-Host "  [OK] Servicio SQL Server   : CORRIENDO ($($sqlSvc.Name))" -ForegroundColor Green
+    } elseif ($sqlSvc) {
+        Write-Host "  [!!] Servicio SQL Server   : $($sqlSvc.Status) ($($sqlSvc.Name))" -ForegroundColor Red
+        Write-Host "       Intente: Start-Service '$($sqlSvc.Name)'" -ForegroundColor Gray
+    } else {
+        Write-Host "  [XX] Servicio SQL Server   : NO ENCONTRADO" -ForegroundColor Red
+        Write-Host "       SQL Server no esta instalado en este equipo." -ForegroundColor Gray
+        Write-Host "       Descargue e instale desde: https://www.microsoft.com/sql-server/sql-server-downloads" -ForegroundColor Gray
+    }
+
+    # 2. sqlcmd disponible
+    $sqlcmdFound = $null
+    $sqlcmdCandidates = @(
+        "sqlcmd",
+        "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
+        "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe",
+        "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn\sqlcmd.exe",
+        "${env:ProgramFiles}\Microsoft SQL Server\150\Tools\Binn\sqlcmd.exe"
+    )
+    foreach ($c in $sqlcmdCandidates) {
+        try {
+            $r = & $c -? 2>$null
+            if ($LASTEXITCODE -eq 0 -or $r) { $sqlcmdFound = $c; break }
+        } catch { }
+    }
+
+    if ($sqlcmdFound) {
+        Write-Host "  [OK] sqlcmd                : $sqlcmdFound" -ForegroundColor Green
+    } else {
+        Write-Host "  [!!] sqlcmd                : NO ENCONTRADO" -ForegroundColor Magenta
+        Write-Host "       Instale las SQL Server Command Line Utilities:" -ForegroundColor Gray
+        Write-Host "       https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-utility" -ForegroundColor Gray
+    }
+
+    # 3. Conectividad al servidor y existencia de la base de datos 'comercio'
+    if ($sqlcmdFound -and $sqlSvc -and $sqlSvc.Status -eq 'Running') {
+        $svcName  = $sqlSvc.Name
+        $connStr  = if ($svcName -eq "MSSQLSERVER") { "localhost" } else { "localhost\$($svcName -replace 'MSSQL\$','')" }
+
+        # Intentar con autenticacion Windows
+        $dbExists = $null
+        try {
+            $dbExists = & $sqlcmdFound -S $connStr -E -Q "SELECT name FROM sys.databases WHERE name='comercio'" -b -l 10 2>&1
+        } catch { }
+
+        if ($dbExists -match "comercio") {
+            Write-Host "  [OK] Base de datos 'comercio': EXISTE en $connStr" -ForegroundColor Green
+        } else {
+            Write-Host "  [XX] Base de datos 'comercio': NO EXISTE en $connStr" -ForegroundColor Red
+            Write-Host "       Cree la base de datos ejecutando el siguiente script en SSMS o sqlcmd:" -ForegroundColor Gray
+            Write-Host "       $DbInitScript" -ForegroundColor Cyan
+            Write-Host "       O ejecute directamente:" -ForegroundColor Gray
+            Write-Host "       sqlcmd -S $connStr -E -i `"$DbInitScript`"" -ForegroundColor Cyan
+        }
+    }
+
+    # 4. Cadena de conexion en appsettings.json
+    if (Test-Path $AppSettingsPath) {
+        try {
+            $json = Get-Content $AppSettingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $connStringActual = $json.ConnectionStrings.DefaultConnection
+            if ($connStringActual) {
+                Write-Host "  [>>] Connection string actual:" -ForegroundColor Gray
+                Write-Host "       $connStringActual" -ForegroundColor Cyan
+            }
+        } catch { }
+    } else {
+        Write-Host "  [XX] appsettings.json      : NO ENCONTRADO en $AppSettingsPath" -ForegroundColor Red
+    }
+
+    Write-Host "  ====================================================" -ForegroundColor Yellow
+    Write-Host ""
+}
+
+# =============================================================================
 # HELPERS DE CONSOLA
 # =============================================================================
 function Write-Header {
@@ -273,6 +368,8 @@ foreach ($regPath in $sqlRegPaths) {
     }
 }
 
+$script:SqlInstallOk = $false
+
 if ($sqlInstalled) {
     Write-OK "SQL Server encontrado. Instancia: $sqlInstanceName"
     $script:SqlServerConn = if ($sqlInstanceName -eq "MSSQLSERVER") {
@@ -280,6 +377,7 @@ if ($sqlInstalled) {
     } else {
         "localhost\$sqlInstanceName"
     }
+    $script:SqlInstallOk = $true
 } else {
     # -------------------------------------------------------------------------
     # PRE-FLIGHT: Verificar condiciones que causan error 1603
@@ -312,8 +410,8 @@ if ($sqlInstalled) {
     Remove-Item $tempSqlMedia -Recurse -Force -ErrorAction SilentlyContinue
 
     try {
-        $wc2 = New-Object System.Net.WebClient
-        $wc2.DownloadFile($SQLEXPRESS_URL, $tempSsei)
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $SQLEXPRESS_URL -OutFile $tempSsei -UseBasicParsing -ErrorAction Stop
         Write-OK "Instalador SSEI descargado (~6 MB)."
     } catch {
         Write-Fail "Error descargando SQL Server Express: $_"
@@ -333,7 +431,8 @@ if ($sqlInstalled) {
         Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
 
         if ($procDownload.ExitCode -ne 0) {
-            Write-Warn "SSEI finalizo descarga con codigo $($procDownload.ExitCode)."
+            Write-Fail "SSEI finalizo con codigo $($procDownload.ExitCode). No se descargo el medio de instalacion."
+            $script:SqlInstallOk = $false
         }
 
         # Buscar el SQLEXPR_x64_ENU.exe descargado por SSEI
@@ -415,17 +514,20 @@ if ($sqlInstalled) {
                 Write-Info "Codigo de salida de setup.exe: $exitCode"
 
                 switch ($exitCode) {
-                    0     { Write-OK "SQL Server 2022 Express instalado correctamente." }
+                    0     { Write-OK "SQL Server 2022 Express instalado correctamente."; $script:SqlInstallOk = $true }
                     3010  {
                         Write-OK "SQL Server 2022 Express instalado correctamente."
                         Write-Warn "Se requiere reiniciar el equipo para completar la instalacion."
+                        $script:SqlInstallOk = $true
                     }
                     1641  {
                         Write-OK "SQL Server instalado. El sistema se reiniciara automaticamente."
+                        $script:SqlInstallOk = $true
                     }
-                    -1    { Write-Warn "Timeout: la instalacion continua en segundo plano." }
+                    -1    { Write-Fail "Timeout: la instalacion de SQL Server supero 30 minutos. SQL Server NO fue instalado."; $script:SqlInstallOk = $false }
                     default {
-                        Write-Warn "setup.exe finalizo con codigo $exitCode."
+                        Write-Fail "setup.exe finalizo con codigo $exitCode. SQL Server NO fue instalado."
+                        $script:SqlInstallOk = $false
 
                         if ($exitCode -eq 1603) {
                             Write-Fail "ERROR 1603: Fallo generico de instalacion MSI."
@@ -477,10 +579,11 @@ if ($sqlInstalled) {
                 }
             }
         } else {
-            Write-Warn "No se encontro setup.exe en el medio descargado."
+            Write-Fail "No se encontro setup.exe en el medio descargado. SQL Server NO fue instalado."
             Write-Warn "Instale SQL Server Express manualmente desde:"
             Write-Warn "https://www.microsoft.com/sql-server/sql-server-downloads"
             $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+            $script:SqlInstallOk = $false
         }
 
         # Limpieza de archivos temporales de SQL
@@ -488,8 +591,9 @@ if ($sqlInstalled) {
         $extractDir2 = Join-Path $env:TEMP "SqlExpressExtracted"
         Remove-Item $extractDir2 -Recurse -Force -ErrorAction SilentlyContinue
     } else {
-        Write-Warn "No se pudo descargar SQL Server Express. Continuando sin el."
+        Write-Fail "No se pudo descargar SQL Server Express. SQL Server NO fue instalado."
         $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+        $script:SqlInstallOk = $false
     }
 }
 
@@ -1563,8 +1667,26 @@ Write-Host "  Ejecutable        : " -NoNewline
 Write-Host (Join-Path $InstallDir $APP_EXE) -ForegroundColor Cyan
 
 Write-Host ""
+if (-not $script:SqlInstallOk) {
+    Write-Host ""
+    Write-Host ("=" * 60) -ForegroundColor Red
+    Write-Host "  ATENCION: SQL SERVER NO FUE INSTALADO" -ForegroundColor Red
+    Write-Host ("=" * 60) -ForegroundColor Red
+    Write-Host "  La aplicacion NO funcionara hasta que SQL Server este" -ForegroundColor Red
+    Write-Host "  instalado y la base de datos 'comercio' sea creada." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  PASOS PARA RESOLVER MANUALMENTE:" -ForegroundColor Yellow
+    Write-Host "  1. Descargue SQL Server 2022 Express desde:" -ForegroundColor White
+    Write-Host "     https://www.microsoft.com/sql-server/sql-server-downloads" -ForegroundColor Cyan
+    Write-Host "  2. Instale SQL Server con la instancia 'SQLEXPRESS'" -ForegroundColor White
+    Write-Host "  3. Ejecute el script de base de datos:" -ForegroundColor White
+    Write-Host "     sqlcmd -S localhost\SQLEXPRESS -E -i `"$(Join-Path $InstallDir $DB_INIT_SCRIPT)`"" -ForegroundColor Cyan
+    Write-Host ("=" * 60) -ForegroundColor Red
+    Write-Host ""
+}
+
 Write-Host "  PASOS OBLIGATORIOS ANTES DE USAR:" -ForegroundColor Yellow
-Write-Host "  ====================================================" -ForegroundColor Yellow
+    Write-Host "  ====================================================" -ForegroundColor Yellow
 Write-Host "  1. Editar appsettings.json con los datos del cliente:" -ForegroundColor White
 Write-Host "     $appSettingsPath" -ForegroundColor Gray
 Write-Host "     - ConnectionStrings: cadena de conexion SQL Server" -ForegroundColor Gray
@@ -1600,3 +1722,6 @@ $respuesta = Read-Host "Desea abrir la carpeta de instalacion ahora? (S/N)"
 if ($respuesta -match "^[sS]") {
     Start-Process explorer.exe -ArgumentList $InstallDir
 }
+
+# Diagnostico final de base de datos
+Test-DatabaseDiagnostic -AppSettingsPath $appSettingsPath -InstallDir $InstallDir -DbInitScript (Join-Path $InstallDir $DB_INIT_SCRIPT)
