@@ -41,7 +41,7 @@ $ErrorActionPreference = "Stop"
 $APP_NAME          = "Comercio .NET"
 $APP_EXE           = "Comercio .NET.exe"
 $DOTNET_VERSION    = "8.0"
-$DOTNET_RUNTIME_URL = "https://download.visualstudio.microsoft.com/download/pr/b6f19ef3-52d7-4b4b-98a7-84e9cdc82e8c/f4d27595d2b7c798d5eca2f0547f3d16/windowsdesktop-runtime-8.0.12-win-x64.exe"
+$DOTNET_RUNTIME_URL = "https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe"
 $DOTNET_RUNTIME_FILENAME = "windowsdesktop-runtime-8.0-win-x64.exe"
 $DB_INIT_SCRIPT    = "database\init_comercio.sql"
 $DB_NAME           = "comercio"
@@ -225,8 +225,8 @@ if (-not $dotnetInstalled) {
 
     $tempRuntime = Join-Path $env:TEMP $DOTNET_RUNTIME_FILENAME
     try {
-        $wc = New-Object System.Net.WebClient
-        $wc.DownloadFile($DOTNET_RUNTIME_URL, $tempRuntime)
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $DOTNET_RUNTIME_URL -OutFile $tempRuntime -UseBasicParsing -ErrorAction Stop
         Write-OK "Descarga completada."
     } catch {
         Write-Fail "Error descargando .NET runtime: $_"
@@ -288,7 +288,7 @@ if ($sqlInstalled) {
     # PRE-FLIGHT: Verificar condiciones que causan error 1603
     # -------------------------------------------------------------------------
     Write-Info "Verificando pre-requisitos de instalacion..."
-    $preflightIssues = Test-SqlPartialInstall
+    $preflightIssues = @(Test-SqlPartialInstall)
 
     if ($preflightIssues.Count -gt 0) {
         Write-Warn "Se detectaron problemas que pueden impedir la instalacion:"
