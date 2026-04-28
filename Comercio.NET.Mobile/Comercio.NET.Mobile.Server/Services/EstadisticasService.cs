@@ -87,7 +87,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(
                     new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content)),
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
                 {

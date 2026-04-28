@@ -1,4 +1,4 @@
-﻿using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -16,7 +16,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -103,7 +103,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
                 {
@@ -119,14 +119,14 @@ namespace Comercio.NET.Mobile.Server.Services
                             TotalEliminado         = ConvertToDecimal(row.Count > 5  ? row[5]  : null),  // TotalEliminado
                             NumeroFactura          = ConvertToInt32(row.Count > 6  ? row[6]  : null),   // NumeroFactura
                             FechaEliminacion       = ConvertToDateTime(row.Count > 7  ? row[7]  : null), // FechaEliminacion
-                            UsuarioEliminacion     = ConvertToString(row.Count > 8  ? row[8]  : null),  // UsuarioEliminacion  ← corregido
-                            MotivoEliminacion      = ConvertToString(row.Count > 9  ? row[9]  : null),  // MotivoEliminacion   ← corregido
-                            EsCtaCte               = ConvertToBoolean(row.Count > 10 ? row[10] : null), // EsCtaCte            ← corregido
-                            NombreCtaCte           = ConvertToString(row.Count > 11 ? row[11] : null),  // NombreCtaCte        ← corregido
-                            IPUsuario              = ConvertToString(row.Count > 12 ? row[12] : null),  // IPUsuario           ← corregido
-                            NombreEquipo           = ConvertToString(row.Count > 13 ? row[13] : null),  // NombreEquipo        ← corregido
-                            FechaHoraVentaOriginal = ConvertToNullableDateTime(row.Count > 14 ? row[14] : null), // FechaHoraVentaOriginal ← corregido
-                            NumeroCajero           = ConvertToInt32(row.Count > 15 ? row[15] : null),   // NumeroCajero        ← corregido
+                            UsuarioEliminacion     = ConvertToString(row.Count > 8  ? row[8]  : null),  // UsuarioEliminacion  ? corregido
+                            MotivoEliminacion      = ConvertToString(row.Count > 9  ? row[9]  : null),  // MotivoEliminacion   ? corregido
+                            EsCtaCte               = ConvertToBoolean(row.Count > 10 ? row[10] : null), // EsCtaCte            ? corregido
+                            NombreCtaCte           = ConvertToString(row.Count > 11 ? row[11] : null),  // NombreCtaCte        ? corregido
+                            IPUsuario              = ConvertToString(row.Count > 12 ? row[12] : null),  // IPUsuario           ? corregido
+                            NombreEquipo           = ConvertToString(row.Count > 13 ? row[13] : null),  // NombreEquipo        ? corregido
+                            FechaHoraVentaOriginal = ConvertToNullableDateTime(row.Count > 14 ? row[14] : null), // FechaHoraVentaOriginal ? corregido
+                            NumeroCajero           = ConvertToInt32(row.Count > 15 ? row[15] : null),   // NumeroCajero        ? corregido
                             IvaEliminado           = ConvertToNullableDecimal(row.Count > 16 ? row[16] : null),  // IvaEliminado
                             CantidadOriginal       = ConvertToNullableInt32(row.Count > 17 ? row[17] : null),    // CantidadOriginal
                             EsEliminacionCompleta  = ConvertToNullableBoolean(row.Count > 18 ? row[18] : null),  // EsEliminacionCompleta
@@ -136,7 +136,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo auditoría desde {Desde} hasta {Hasta}", desde, hasta);
+                _logger.LogError(ex, "Error obteniendo auditor�a desde {Desde} hasta {Hasta}", desde, hasta);
                 throw;
             }
 

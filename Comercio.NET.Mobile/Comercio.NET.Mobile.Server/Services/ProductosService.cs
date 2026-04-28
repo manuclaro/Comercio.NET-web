@@ -1,4 +1,4 @@
-ï»¿using Comercio.NET.Mobile.Server.Controllers;
+using Comercio.NET.Mobile.Server.Controllers;
 using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
@@ -17,7 +17,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no estÃ¡ configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -60,7 +60,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(
                     new MemoryStream(System.Text.Encoding.UTF8.GetBytes(responseContent)),
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
                 {
@@ -79,11 +79,11 @@ namespace Comercio.NET.Mobile.Server.Services
                     }
                 }
 
-                _logger.LogInformation("BÃºsqueda '{Termino}': {Count} producto(s) encontrado(s)", termino, productos.Count);
+                _logger.LogInformation("Búsqueda '{Termino}': {Count} producto(s) encontrado(s)", termino, productos.Count);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error buscando productos con tÃ©rmino '{Termino}'", termino);
+                _logger.LogError(ex, "Error buscando productos con término '{Termino}'", termino);
                 throw;
             }
 
@@ -113,7 +113,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                // âœ… Usar /query en lugar de /execute (el bridge no expone /execute)
+                // ? Usar /query en lugar de /execute (el bridge no expone /execute)
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -123,7 +123,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
                 }
 
-                _logger.LogInformation("Producto '{Codigo}' actualizado â€” Costo: {Costo}, Precio: {Precio}, Stock: {Stock}",
+                _logger.LogInformation("Producto '{Codigo}' actualizado — Costo: {Costo}, Precio: {Precio}, Stock: {Stock}",
                     codigo, datos.Costo, datos.Precio, datos.Stock);
             }
             catch (Exception ex)

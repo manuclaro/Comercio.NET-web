@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Comercio.NET.Mobile.Server.Models;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -13,7 +13,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -34,13 +34,13 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("❌ SQL Bridge error en ObtenerCajerosAsync: {StatusCode} - {Content}",
+                    _logger.LogError("? SQL Bridge error en ObtenerCajerosAsync: {StatusCode} - {Content}",
                         response.StatusCode, responseContent);
                     return new List<string>();
                 }
 
                 var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 var cajeros = new List<string>();
                 if (result?.Data != null)
@@ -107,13 +107,13 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("❌ SQL Bridge error en ObtenerArqueoAsync: {StatusCode} - {Content}",
+                    _logger.LogError("? SQL Bridge error en ObtenerArqueoAsync: {StatusCode} - {Content}",
                         response.StatusCode, responseContent);
                     return resultado;
                 }
 
                 var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (result?.Data != null && result.Data.Count > 0)
                 {
@@ -140,7 +140,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<List<DetallePagoProveedorDto>> ObtenerDetallePagosProveedoresAsync(DateTime fecha, string? cajero = null)
         {
-            _logger.LogInformation("🔍 Iniciando consulta de pagos a proveedores - Fecha: {Fecha}, Cajero: {Cajero}", 
+            _logger.LogInformation("?? Iniciando consulta de pagos a proveedores - Fecha: {Fecha}, Cajero: {Cajero}", 
                 fecha.ToString("yyyy-MM-dd"), cajero ?? "NULL");
 
             try
@@ -172,7 +172,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     { "@cajero", string.IsNullOrEmpty(cajero) ? null : cajero }
                 };
 
-                _logger.LogInformation("📤 Ejecutando query");
+                _logger.LogInformation("?? Ejecutando query");
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
 
@@ -180,18 +180,18 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("❌ SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
+                    _logger.LogError("? SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
                     return new List<DetallePagoProveedorDto>();
                 }
 
                 var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 var pagos = new List<DetallePagoProveedorDto>();
 
                 if (result?.Data != null && result.Data.Count > 0)
                 {
-                    _logger.LogInformation("📊 Procesando {Count} filas", result.Data.Count);
+                    _logger.LogInformation("?? Procesando {Count} filas", result.Data.Count);
 
                     foreach (var row in result.Data)
                     {
@@ -215,23 +215,23 @@ namespace Comercio.NET.Mobile.Server.Services
                                 Origen = ConvertToString(row[13])
                             });
 
-                            _logger.LogDebug("✅ Pago procesado: {Proveedor} - {Monto}",
+                            _logger.LogDebug("? Pago procesado: {Proveedor} - {Monto}",
                                 ConvertToString(row[1]), ConvertToDecimal(row[2]));
                         }
                         catch (Exception exRow)
                         {
-                            _logger.LogError(exRow, "❌ Error procesando fila: {Row}",
+                            _logger.LogError(exRow, "? Error procesando fila: {Row}",
                                 JsonSerializer.Serialize(row));
                         }
                     }
                 }
 
-                _logger.LogInformation("✅ Consulta finalizada - Total pagos: {Count}", pagos.Count);
+                _logger.LogInformation("? Consulta finalizada - Total pagos: {Count}", pagos.Count);
                 return pagos;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error obteniendo detalle de pagos a proveedores");
+                _logger.LogError(ex, "? Error obteniendo detalle de pagos a proveedores");
                 return new List<DetallePagoProveedorDto>();
             }
         }

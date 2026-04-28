@@ -1,4 +1,4 @@
-﻿using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -16,7 +16,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -36,13 +36,13 @@ namespace Comercio.NET.Mobile.Server.Services
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("❌ SQL Bridge error en GetTurnoActivoAsync: {StatusCode} - {Content}",
+                _logger.LogError("? SQL Bridge error en GetTurnoActivoAsync: {StatusCode} - {Content}",
                     response.StatusCode, content);
                 return null;
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             if (resultado?.Data == null || resultado.Data.Count == 0)
                 return null;
@@ -67,7 +67,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var row = resultado?.Data?.FirstOrDefault()
                 ?? throw new Exception("No se pudo obtener el turno creado.");
@@ -96,7 +96,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var row = resultado?.Data?.FirstOrDefault()
                 ?? throw new Exception("No se pudo obtener el turno cerrado.");
@@ -116,7 +116,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var row = resultado?.Data?.FirstOrDefault();
             if (row == null || row.Count == 0) return false;

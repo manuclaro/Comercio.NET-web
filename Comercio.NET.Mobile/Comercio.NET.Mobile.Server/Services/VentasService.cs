@@ -1,4 +1,4 @@
-﻿using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -16,7 +16,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -27,7 +27,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             // La subconsulta agrupa Facturas por NumeroRemito para evitar el producto
             // cartesiano (Facturas tiene una fila por venta, no por producto).
-            // Se filtra Facturas por fecha para evitar traer remitos antiguos con el mismo número.
+            // Se filtra Facturas por fecha para evitar traer remitos antiguos con el mismo n�mero.
             // El filtro de fecha real se aplica sobre Ventas.fecha en el WHERE principal.
             var sql = @"
                 SELECT 
@@ -94,13 +94,13 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                _logger.LogInformation("GetVentasDelDiaAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
+                _logger.LogInformation("GetVentasDelDiaAsync ? desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content = await response.Content.ReadAsStringAsync();
 
-                _logger.LogInformation("GetVentasDelDiaAsync → StatusCode={StatusCode}, ContentLength={Length}",
+                _logger.LogInformation("GetVentasDelDiaAsync ? StatusCode={StatusCode}, ContentLength={Length}",
                     response.StatusCode, content?.Length ?? 0);
 
                 if (!response.IsSuccessStatusCode)
@@ -110,9 +110,9 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
-                _logger.LogInformation("GetVentasDelDiaAsync → Filas recibidas: {Count}",
+                _logger.LogInformation("GetVentasDelDiaAsync ? Filas recibidas: {Count}",
                     resultado?.Data?.Count ?? 0);
 
                 if (resultado?.Data != null)
@@ -231,13 +231,13 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                _logger.LogInformation("GetResumenAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
+                _logger.LogInformation("GetResumenAsync ? desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content = await response.Content.ReadAsStringAsync();
 
-                _logger.LogInformation("GetResumenAsync → StatusCode={StatusCode}, Response={Content}",
+                _logger.LogInformation("GetResumenAsync ? StatusCode={StatusCode}, Response={Content}",
                     response.StatusCode, content);
 
                 if (!response.IsSuccessStatusCode)
@@ -247,9 +247,9 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
-                _logger.LogInformation("GetResumenAsync → Data rows: {Count}, First row columns: {Cols}",
+                _logger.LogInformation("GetResumenAsync ? Data rows: {Count}, First row columns: {Cols}",
                     resultado?.Data?.Count ?? 0,
                     resultado?.Data?.FirstOrDefault()?.Count ?? 0);
 
@@ -257,7 +257,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     var row = resultado.Data[0];
 
-                    _logger.LogInformation("GetResumenAsync → Raw values: [{V}]",
+                    _logger.LogInformation("GetResumenAsync ? Raw values: [{V}]",
                         string.Join(", ", row.Select(v => v?.ToString() ?? "null")));
 
                     return new ResumenVentasDto

@@ -1,8 +1,8 @@
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=10.239.92.74,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;",
+    "DefaultConnection": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
     "Testing": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
-    "Produccion": "Server=10.239.92.74,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
+    "Produccion": "Server=10.198.179.155,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
   },
   "Comercio": {
     "Nombre": "Comercio",
@@ -66,7 +66,7 @@
     "RestringirRemitoPorPago": false,
     "UsarVistaPrevia": true,
     "LimitarFacturacion": true,
-    "MontoLimiteFacturacion": 25000.0
+    "MontoLimiteFacturacion": 25000.00
   },
   "Descuentos": {
     "OpcionesDisponibles": [
@@ -82,6 +82,6 @@
     ]
   },
   "BaseDatos": {
-    "AmbienteActivo": "Produccion"
+    "AmbienteActivo": "Testing"
   }
 }
