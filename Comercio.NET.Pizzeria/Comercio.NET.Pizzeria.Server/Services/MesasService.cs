@@ -1,7 +1,7 @@
-﻿using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Pizzeria.Server.Models;
 using System.Text.Json;
 
-namespace Comercio.NET.Mobile.Server.Services
+namespace Comercio.NET.Pizzeria.Server.Services
 {
     public class MesasService : IMesasService
     {
@@ -16,12 +16,12 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
 
-        // ── Mesas ─────────────────────────────────────────────────────────────
+        // ?? Mesas ?????????????????????????????????????????????????????????????
 
         public async Task<IEnumerable<MesaDto>> GetMesasAbiertasAsync()
         {
@@ -68,8 +68,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                JsonSerializerDefaults.CaseInsensitive);
+            var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
             var items = new List<MesaItemDto>();
             if (resultado?.Data != null)
@@ -174,7 +173,7 @@ namespace Comercio.NET.Mobile.Server.Services
             return lista.FirstOrDefault();
         }
 
-        // ── Mozos ─────────────────────────────────────────────────────────────
+        // ?? Mozos ?????????????????????????????????????????????????????????????
 
         public async Task<IEnumerable<MozoDto>> GetMozosAsync()
         {
@@ -216,7 +215,7 @@ namespace Comercio.NET.Mobile.Server.Services
             await EjecutarComandoAsync(sql, parameters);
         }
 
-        // ── Productos Bar ─────────────────────────────────────────────────────
+        // ?? Productos Bar ?????????????????????????????????????????????????????
 
         public async Task<IEnumerable<ProductoBarDto>> GetProductosBarAsync()
         {
@@ -270,7 +269,7 @@ namespace Comercio.NET.Mobile.Server.Services
             await EjecutarComandoAsync(sql, parameters);
         }
 
-        // ── Formas de Pago ────────────────────────────────────────────────────
+        // ?? Formas de Pago ????????????????????????????????????????????????????
 
         public async Task<IEnumerable<FormaPagoDto>> GetFormasPagoAsync()
         {
@@ -312,7 +311,7 @@ namespace Comercio.NET.Mobile.Server.Services
             await EjecutarComandoAsync(sql, parameters);
         }
 
-        // ── Ventas del Día ────────────────────────────────────────────────────
+        // ?? Ventas del D�a ????????????????????????????????????????????????????
 
         public async Task<IEnumerable<VentaMesaResumenDto>> GetVentasDelDiaAsync()
         {
@@ -334,8 +333,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                JsonSerializerDefaults.CaseInsensitive);
+            var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<VentaMesaResumenDto>();
             if (resultado?.Data != null)
@@ -358,7 +356,7 @@ namespace Comercio.NET.Mobile.Server.Services
             return lista;
         }
 
-        // ── Ventas por producto en rango de fechas ────────────────────────────
+        // ?? Ventas por producto en rango de fechas ????????????????????????????
 
         public async Task<IEnumerable<VentaProductoDto>> GetVentasPorProductoAsync(
             DateTime fechaDesde, DateTime fechaHasta)
@@ -396,8 +394,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                JsonSerializerDefaults.CaseInsensitive);
+            var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<VentaProductoDto>();
             if (resultado?.Data != null)
@@ -421,7 +418,7 @@ namespace Comercio.NET.Mobile.Server.Services
             return lista;
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
+        // ?? Helpers ???????????????????????????????????????????????????????????
 
         private async Task<IEnumerable<MesaDto>> EjecutarListaMesasAsync(
             string sql, Dictionary<string, object?> parameters)
@@ -436,8 +433,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                JsonSerializerDefaults.CaseInsensitive);
+            var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
             var mesas = new List<MesaDto>();
             if (resultado?.Data != null)
@@ -472,8 +468,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                JsonSerializerDefaults.CaseInsensitive);
+            var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<MozoDto>();
             if (resultado?.Data != null)
@@ -504,8 +499,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                JsonSerializerDefaults.CaseInsensitive);
+            var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<ProductoBarDto>();
             if (resultado?.Data != null)
@@ -538,8 +532,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                JsonSerializerDefaults.CaseInsensitive);
+            var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<FormaPagoDto>();
             if (resultado?.Data != null)
@@ -624,4 +617,6 @@ namespace Comercio.NET.Mobile.Server.Services
             return ConvertToDateTime(value);
         }
     }
+
+    internal record QueryResult(List<List<object?>> Data);
 }

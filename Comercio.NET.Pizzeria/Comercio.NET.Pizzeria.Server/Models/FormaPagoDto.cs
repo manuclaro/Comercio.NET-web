@@ -1,4 +1,4 @@
-namespace Comercio.NET.Mobile.Server.Models
+namespace Comercio.NET.Pizzeria.Server.Models
 {
     public class FormaPagoDto
     {

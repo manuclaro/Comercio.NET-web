@@ -1,9 +1,8 @@
-﻿using Comercio.NET.Mobile.Server.Controllers;
-using Comercio.NET.Mobile.Server.Services;
+using Comercio.NET.Pizzeria.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8081";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 builder.Services.AddHttpClient();
@@ -14,13 +13,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
-builder.Services.AddSingleton<ArqueoCajaService>();
 builder.Services.AddSingleton<AuthService>();
-builder.Services.AddSingleton<IProductosService, ProductosService>();
-builder.Services.AddSingleton<EstadisticasService>();
-builder.Services.AddSingleton<IVentasService, VentasService>();
-builder.Services.AddSingleton<IAuditoriaService, AuditoriaService>();
-builder.Services.AddSingleton<ITurnoService, TurnoService>();
+builder.Services.AddSingleton<IMesasService, MesasService>();
 
 builder.Services.AddCors(options =>
 {

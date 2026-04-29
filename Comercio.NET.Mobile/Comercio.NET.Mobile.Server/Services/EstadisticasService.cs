@@ -77,17 +77,15 @@ namespace Comercio.NET.Mobile.Server.Services
             try
             {
                 using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-                var content = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
                 {
+                    var content = await response.Content.ReadAsStringAsync();
                     _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
                     throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
                 }
 
-                var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(
-                    new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content)),
-                    JsonSerializerDefaults.CaseInsensitive);
+                var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
                 {

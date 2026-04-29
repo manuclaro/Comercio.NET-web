@@ -30,17 +30,15 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query });
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-
                 if (!response.IsSuccessStatusCode)
                 {
+                    var responseContent = await response.Content.ReadAsStringAsync();
                     _logger.LogError("❌ SQL Bridge error en ObtenerCajerosAsync: {StatusCode} - {Content}",
                         response.StatusCode, responseContent);
                     return new List<string>();
                 }
 
-                var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    JsonSerializerDefaults.CaseInsensitive);
+                var result = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
                 var cajeros = new List<string>();
                 if (result?.Data != null)
@@ -103,17 +101,15 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-
                 if (!response.IsSuccessStatusCode)
                 {
+                    var responseContent = await response.Content.ReadAsStringAsync();
                     _logger.LogError("❌ SQL Bridge error en ObtenerArqueoAsync: {StatusCode} - {Content}",
                         response.StatusCode, responseContent);
                     return resultado;
                 }
 
-                var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    JsonSerializerDefaults.CaseInsensitive);
+                var result = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
                 if (result?.Data != null && result.Data.Count > 0)
                 {
@@ -176,16 +172,14 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-
                 if (!response.IsSuccessStatusCode)
                 {
+                    var responseContent = await response.Content.ReadAsStringAsync();
                     _logger.LogError("❌ SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
                     return new List<DetallePagoProveedorDto>();
                 }
 
-                var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    JsonSerializerDefaults.CaseInsensitive);
+                var result = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
 
                 var pagos = new List<DetallePagoProveedorDto>();
 

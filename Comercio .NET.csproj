@@ -16,12 +16,16 @@
 		<Compile Remove="Comercio.NET.Mobile\**" />
 		<EmbeddedResource Remove="Comercio.NET.Mobile\**" />
 		<None Remove="Comercio.NET.Mobile\**" />
+		<Compile Remove="Comercio.NET.Pizzeria\**" />
+		<EmbeddedResource Remove="Comercio.NET.Pizzeria\**" />
+		<None Remove="Comercio.NET.Pizzeria\**" />
 	</ItemGroup>
   <ItemGroup>
     <Content Include="Imagenes\Icon\ico\icons8-shop-40.ico" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".dockerignore Comercio.NET.Mobile\Comercio.NET.Mobile.Server\.dockerignore" />
+    <None Include="Comercio.NET.Pizzeria\Comercio.NET.Pizzeria.Server\Comercio.NET.Pizzeria.Server.csproj" />
     <None Include="DebugAfip.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -81,6 +85,9 @@
     <Folder Include="Resources\" />
   </ItemGroup>
 </Project>
+
+
+
 
 
 

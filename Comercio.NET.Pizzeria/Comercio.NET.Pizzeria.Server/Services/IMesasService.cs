@@ -1,6 +1,6 @@
-using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Pizzeria.Server.Models;
 
-namespace Comercio.NET.Mobile.Server.Services
+namespace Comercio.NET.Pizzeria.Server.Services
 {
     public interface IMesasService
     {

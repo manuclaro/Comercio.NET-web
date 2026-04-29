@@ -1,8 +1,8 @@
-﻿using Comercio.NET.Mobile.Server.Models;
-using Comercio.NET.Mobile.Server.Services;
+using Comercio.NET.Pizzeria.Server.Models;
+using Comercio.NET.Pizzeria.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Comercio.NET.Mobile.Server.Controllers
+namespace Comercio.NET.Pizzeria.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -17,7 +17,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
             _logger = logger;
         }
 
-        // ── Mozos (antes que {id:int} para evitar conflicto de rutas) ─────────
+        // ?? Mozos (antes que {id:int} para evitar conflicto de rutas) ?????????
 
         [HttpGet("mozos")]
         public async Task<IActionResult> GetMozos()
@@ -47,7 +47,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en EliminarMozo {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        // ── Productos Bar (antes que {id:int}) ────────────────────────────────
+        // ?? Productos Bar (antes que {id:int}) ????????????????????????????????
 
         [HttpGet("productos-bar")]
         public async Task<IActionResult> GetProductosBar()
@@ -77,7 +77,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en EliminarProductoBar {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        // ── Formas de Pago (antes que {id:int}) ───────────────────────────────
+        // ?? Formas de Pago (antes que {id:int}) ???????????????????????????????
 
         [HttpGet("formas-pago")]
         public async Task<IActionResult> GetFormasPago()
@@ -107,7 +107,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en EliminarFormaPago {Id}", id); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        // ── Ventas del Día (antes que {id:int}) ───────────────────────────────
+        // ?? Ventas del D�a (antes que {id:int}) ???????????????????????????????
 
         [HttpGet("ventas-dia")]
         public async Task<IActionResult> GetVentasDelDia()
@@ -116,7 +116,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex) { _logger.LogError(ex, "Error en GetVentasDelDia"); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        // ── Ventas por producto en rango de fechas ────────────────────────────
+        // ?? Ventas por producto en rango de fechas ????????????????????????????
 
         [HttpGet("ventas-por-producto")]
         public async Task<IActionResult> GetVentasPorProducto(
@@ -136,7 +136,7 @@ namespace Comercio.NET.Mobile.Server.Controllers
             }
         }
 
-        // ── Mesas ─────────────────────────────────────────────────────────────
+        // ?? Mesas ?????????????????????????????????????????????????????????????
 
         [HttpGet]
         public async Task<IActionResult> GetMesasAbiertas()
