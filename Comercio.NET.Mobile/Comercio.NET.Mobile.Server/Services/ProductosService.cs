@@ -50,16 +50,16 @@ namespace Comercio.NET.Mobile.Server.Services
             try
             {
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-                var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                     throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
                 }
 
-                var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(
-                    new MemoryStream(System.Text.Encoding.UTF8.GetBytes(responseContent)),
+                using var stream = await response.Content.ReadAsStreamAsync();
+                var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(stream,
                     JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
@@ -115,11 +115,11 @@ namespace Comercio.NET.Mobile.Server.Services
             {
                 // ? Usar /query en lugar de /execute (el bridge no expone /execute)
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-                var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("SQL Bridge error al actualizar: {StatusCode} - {Content}", response.StatusCode, responseContent);
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("SQL Bridge error al actualizar: {StatusCode} - {Content}", response.StatusCode, errorContent);
                     throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
                 }
 

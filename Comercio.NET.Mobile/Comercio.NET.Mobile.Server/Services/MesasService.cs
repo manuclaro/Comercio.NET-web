@@ -60,15 +60,16 @@ namespace Comercio.NET.Mobile.Server.Services
             var payload = new { query = sql, parameters };
 
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+            using var streamItems = await response.Content.ReadAsStreamAsync();
+            var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(streamItems,
                 JsonSerializerDefaults.CaseInsensitive);
 
             var items = new List<MesaItemDto>();
@@ -326,15 +327,16 @@ namespace Comercio.NET.Mobile.Server.Services
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+            using var streamMesas = await response.Content.ReadAsStreamAsync();
+            var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(streamMesas,
                 JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<VentaMesaResumenDto>();
@@ -388,15 +390,16 @@ namespace Comercio.NET.Mobile.Server.Services
 
             var payload  = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+            using var streamProd = await response.Content.ReadAsStreamAsync();
+            var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(streamProd,
                 JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<VentaProductoDto>();
@@ -428,15 +431,16 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+            using var streamMesasList = await response.Content.ReadAsStreamAsync();
+            var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(streamMesasList,
                 JsonSerializerDefaults.CaseInsensitive);
 
             var mesas = new List<MesaDto>();
@@ -464,15 +468,16 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+            using var streamMozos = await response.Content.ReadAsStreamAsync();
+            var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(streamMozos,
                 JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<MozoDto>();
@@ -496,15 +501,16 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+            using var streamBar = await response.Content.ReadAsStreamAsync();
+            var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(streamBar,
                 JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<ProductoBarDto>();
@@ -530,15 +536,16 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload  = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
 
-            var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+            using var streamPagos = await response.Content.ReadAsStreamAsync();
+            var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(streamPagos,
                 JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<FormaPagoDto>();
@@ -561,11 +568,11 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var payload = new { query = sql, parameters };
             var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
         }

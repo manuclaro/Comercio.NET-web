@@ -98,18 +98,19 @@ namespace Comercio.NET.Mobile.Server.Services
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-                var content = await response.Content.ReadAsStringAsync();
 
-                _logger.LogInformation("GetVentasDelDiaAsync ? StatusCode={StatusCode}, ContentLength={Length}",
-                    response.StatusCode, content?.Length ?? 0);
+                _logger.LogInformation("GetVentasDelDiaAsync ? StatusCode={StatusCode}",
+                    response.StatusCode);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                     throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
                 }
 
-                var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                using var stream = await response.Content.ReadAsStreamAsync();
+                var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(stream,
                     JsonSerializerDefaults.CaseInsensitive);
 
                 _logger.LogInformation("GetVentasDelDiaAsync ? Filas recibidas: {Count}",
@@ -235,18 +236,18 @@ namespace Comercio.NET.Mobile.Server.Services
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
                 var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-                var content = await response.Content.ReadAsStringAsync();
-
-                _logger.LogInformation("GetResumenAsync ? StatusCode={StatusCode}, Response={Content}",
-                    response.StatusCode, content);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
                     throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
                 }
 
-                var resultado = JsonSerializer.Deserialize<QueryResult>(content,
+                _logger.LogInformation("GetResumenAsync ? StatusCode={StatusCode}", response.StatusCode);
+
+                using var stream = await response.Content.ReadAsStreamAsync();
+                var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(stream,
                     JsonSerializerDefaults.CaseInsensitive);
 
                 _logger.LogInformation("GetResumenAsync ? Data rows: {Count}, First row columns: {Cols}",
