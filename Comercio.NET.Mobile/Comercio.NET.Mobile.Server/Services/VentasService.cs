@@ -97,7 +97,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 _logger.LogInformation("GetVentasDelDiaAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content = await response.Content.ReadAsStringAsync();
 
                 _logger.LogInformation("GetVentasDelDiaAsync → StatusCode={StatusCode}, ContentLength={Length}",
@@ -110,7 +110,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 _logger.LogInformation("GetVentasDelDiaAsync → Filas recibidas: {Count}",
                     resultado?.Data?.Count ?? 0);
@@ -234,7 +234,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 _logger.LogInformation("GetResumenAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content = await response.Content.ReadAsStringAsync();
 
                 _logger.LogInformation("GetResumenAsync → StatusCode={StatusCode}, Response={Content}",
@@ -247,7 +247,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 _logger.LogInformation("GetResumenAsync → Data rows: {Count}, First row columns: {Cols}",
                     resultado?.Data?.Count ?? 0,

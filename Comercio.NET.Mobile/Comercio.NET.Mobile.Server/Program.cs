@@ -14,14 +14,14 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
-builder.Services.AddScoped<ArqueoCajaService>();
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<IProductosService, ProductosService>();
-builder.Services.AddScoped<EstadisticasService>();
-builder.Services.AddScoped<IVentasService, VentasService>();
-builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
-builder.Services.AddScoped<IMesasService, MesasService>();
-builder.Services.AddScoped<ITurnoService, TurnoService>();
+builder.Services.AddSingleton<ArqueoCajaService>();
+builder.Services.AddSingleton<AuthService>();
+builder.Services.AddSingleton<IProductosService, ProductosService>();
+builder.Services.AddSingleton<EstadisticasService>();
+builder.Services.AddSingleton<IVentasService, VentasService>();
+builder.Services.AddSingleton<IAuditoriaService, AuditoriaService>();
+builder.Services.AddSingleton<IMesasService, MesasService>();
+builder.Services.AddSingleton<ITurnoService, TurnoService>();
 
 builder.Services.AddCors(options =>
 {

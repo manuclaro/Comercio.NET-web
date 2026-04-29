@@ -59,7 +59,7 @@ namespace Comercio.NET.Mobile.Server.Services
             var parameters = new Dictionary<string, object?> { { "@mesaId", mesaId } };
             var payload = new { query = sql, parameters };
 
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -69,7 +69,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var items = new List<MesaItemDto>();
             if (resultado?.Data != null)
@@ -325,7 +325,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 ORDER BY m.FechaApertura DESC";
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -335,7 +335,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<VentaMesaResumenDto>();
             if (resultado?.Data != null)
@@ -387,7 +387,7 @@ namespace Comercio.NET.Mobile.Server.Services
             };
 
             var payload  = new { query = sql, parameters };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -397,7 +397,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<VentaProductoDto>();
             if (resultado?.Data != null)
@@ -427,7 +427,7 @@ namespace Comercio.NET.Mobile.Server.Services
             string sql, Dictionary<string, object?> parameters)
         {
             var payload = new { query = sql, parameters };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -437,7 +437,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var mesas = new List<MesaDto>();
             if (resultado?.Data != null)
@@ -463,7 +463,7 @@ namespace Comercio.NET.Mobile.Server.Services
             string sql, Dictionary<string, object?> parameters)
         {
             var payload = new { query = sql, parameters };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -473,7 +473,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<MozoDto>();
             if (resultado?.Data != null)
@@ -495,7 +495,7 @@ namespace Comercio.NET.Mobile.Server.Services
             string sql, Dictionary<string, object?> parameters)
         {
             var payload = new { query = sql, parameters };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -505,7 +505,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<ProductoBarDto>();
             if (resultado?.Data != null)
@@ -529,7 +529,7 @@ namespace Comercio.NET.Mobile.Server.Services
             string sql, Dictionary<string, object?> parameters)
         {
             var payload  = new { query = sql, parameters };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -539,7 +539,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonSerializerDefaults.CaseInsensitive);
 
             var lista = new List<FormaPagoDto>();
             if (resultado?.Data != null)
@@ -560,7 +560,7 @@ namespace Comercio.NET.Mobile.Server.Services
         private async Task EjecutarComandoAsync(string sql, Dictionary<string, object?> parameters)
         {
             var payload = new { query = sql, parameters };
-            var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+            using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
             var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)

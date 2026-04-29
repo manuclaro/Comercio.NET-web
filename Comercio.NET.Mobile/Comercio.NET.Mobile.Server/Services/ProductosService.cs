@@ -49,7 +49,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
@@ -60,7 +60,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(
                     new MemoryStream(System.Text.Encoding.UTF8.GetBytes(responseContent)),
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
                 {
@@ -114,7 +114,7 @@ namespace Comercio.NET.Mobile.Server.Services
             try
             {
                 // ✅ Usar /query en lugar de /execute (el bridge no expone /execute)
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)

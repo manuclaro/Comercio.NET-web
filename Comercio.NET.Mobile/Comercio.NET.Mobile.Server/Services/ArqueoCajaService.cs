@@ -28,7 +28,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     WHERE ISNULL(Cajero, '') <> ''
                     ORDER BY Cajero";
 
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query });
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query });
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -40,7 +40,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 var cajeros = new List<string>();
                 if (result?.Data != null)
@@ -101,7 +101,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     { "@cajero", string.IsNullOrEmpty(cajero) ? null : cajero }
                 };
 
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -113,7 +113,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (result?.Data != null && result.Data.Count > 0)
                 {
@@ -174,7 +174,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 _logger.LogInformation("📤 Ejecutando query");
 
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -185,7 +185,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var result = JsonSerializer.Deserialize<QueryResult>(responseContent,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 var pagos = new List<DetallePagoProveedorDto>();
 

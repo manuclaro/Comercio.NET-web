@@ -1,4 +1,4 @@
-using Comercio.NET.Mobile.Server.Models;
+ï»¿using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
@@ -16,7 +16,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no estï¿½ configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -66,7 +66,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 query,
                 parameters = new Dictionary<string, object?>
                 {
-                    // Formato yyyyMMdd: SQL Server lo interpreta sin ambigüedad con CONVERT(..., 112)
+                    // Formato yyyyMMdd: SQL Server lo interpreta sin ambigï¿½edad con CONVERT(..., 112)
                     { "@desde", desde.ToString("yyyyMMdd") },
                     { "@hasta", hasta.ToString("yyyyMMdd") }
                 }
@@ -76,7 +76,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
@@ -87,7 +87,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
                 var resultado = await JsonSerializer.DeserializeAsync<QueryResult>(
                     new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content)),
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
                 {
@@ -102,12 +102,12 @@ namespace Comercio.NET.Mobile.Server.Services
                     }
                 }
 
-                _logger.LogInformation("Estadísticas por rubro: {Count} rubro(s) desde {Desde} hasta {Hasta}",
+                _logger.LogInformation("Estadï¿½sticas por rubro: {Count} rubro(s) desde {Desde} hasta {Hasta}",
                     resultados.Count, desde, hasta);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo estadísticas de ventas por rubro");
+                _logger.LogError(ex, "Error obteniendo estadï¿½sticas de ventas por rubro");
                 throw;
             }
 

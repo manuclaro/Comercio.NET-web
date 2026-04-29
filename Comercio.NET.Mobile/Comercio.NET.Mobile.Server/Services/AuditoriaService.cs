@@ -93,7 +93,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
                 var content  = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
@@ -103,7 +103,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 }
 
                 var resultado = JsonSerializer.Deserialize<QueryResult>(content,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    JsonSerializerDefaults.CaseInsensitive);
 
                 if (resultado?.Data != null)
                 {
