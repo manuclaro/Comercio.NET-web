@@ -7,6 +7,10 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 builder.Services.AddHttpClient();
+// Aumentar HandlerLifetime para reducir rotaciones innecesarias de handlers
+// (los servicios singleton reutilizan siempre el mismo HttpClient).
+builder.Services.ConfigureHttpClientDefaults(b =>
+    b.SetHandlerLifetime(TimeSpan.FromMinutes(30)));
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -14,6 +18,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
+builder.Services.AddHostedService<Comercio.NET.Mobile.Server.Services.MemoryManagementService>();
 builder.Services.AddSingleton<ArqueoCajaService>();
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<IProductosService, ProductosService>();
@@ -31,7 +36,6 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
-builder.Logging.AddConsole();
 
 var app = builder.Build();
 
