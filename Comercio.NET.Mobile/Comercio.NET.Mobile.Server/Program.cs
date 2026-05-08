@@ -1,6 +1,12 @@
 ﻿using Comercio.NET.Mobile.Server.Controllers;
 using Comercio.NET.Mobile.Server.Services;
 
+// Configurar GC para entornos de contenedor (Railway/Linux).
+// GCConserveMemory (0-9): a mayor valor, el GC es más agresivo devolviendo
+// memoria al SO a costa de mayor frecuencia de recolección.
+System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.Batch;
+AppContext.SetData("GCConserveMemory", 5);
+
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";

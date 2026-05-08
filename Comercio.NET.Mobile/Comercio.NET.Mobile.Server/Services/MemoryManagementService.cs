@@ -8,7 +8,7 @@ namespace Comercio.NET.Mobile.Server.Services
     /// </summary>
     public class MemoryManagementService : BackgroundService
     {
-        private static readonly TimeSpan _interval = TimeSpan.FromHours(4);
+        private static readonly TimeSpan _interval = TimeSpan.FromHours(1);
         private readonly ILogger<MemoryManagementService> _logger;
 
         public MemoryManagementService(ILogger<MemoryManagementService> logger)
@@ -31,10 +31,14 @@ namespace Comercio.NET.Mobile.Server.Services
                 {
                     var antes = GC.GetTotalMemory(false);
 
+                    // Compactar el Large Object Heap antes del ciclo de GC
+                    System.Runtime.GCSettings.LargeObjectHeapCompactionMode =
+                        System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+
                     // Forzar recolección completa de todas las generaciones
-                    GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+                    GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
                     GC.WaitForPendingFinalizers();
-                    GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+                    GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 
                     var despues = GC.GetTotalMemory(false);
                     var liberados = antes - despues;

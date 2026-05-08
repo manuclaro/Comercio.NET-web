@@ -60,10 +60,10 @@ namespace Comercio.NET.Pizzeria.Server.Services
             var payload = new { query = sql, parameters };
 
             using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
+                var content = await response.Content.ReadAsStringAsync();
                 _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
@@ -325,10 +325,10 @@ namespace Comercio.NET.Pizzeria.Server.Services
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
             using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
+                var content = await response.Content.ReadAsStringAsync();
                 _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
@@ -386,10 +386,10 @@ namespace Comercio.NET.Pizzeria.Server.Services
 
             var payload  = new { query = sql, parameters };
             using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-            var content  = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
+                var content = await response.Content.ReadAsStringAsync();
                 _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
                 throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
             }
