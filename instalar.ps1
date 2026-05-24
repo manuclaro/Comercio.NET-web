@@ -1,61 +1,81 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Instalador de Comercio .NET
-    
+    Instalador de Comercio .NET (PostgreSQL)
+
 .DESCRIPTION
-    Descarga e instala Comercio .NET desde GitHub Releases.
-    Instala el .NET 8 Runtime si no esta presente.
-    Crea la carpeta de instalacion, un acceso directo en el escritorio
-    y genera un appsettings.json inicial listo para configurar.
+    Instala Comercio .NET en un equipo Windows nuevo.
+    - Instala .NET 8 Desktop Runtime si no esta presente.
+    - Instala PostgreSQL 16 si no esta presente.
+    - Configura PostgreSQL para conexiones remotas (listen_addresses = '*').
+    - Abre puerto 5432 en el Firewall de Windows.
+    - Restaura la BD desde comercio_inicial.dump (pg_restore)
+      o ejecuta init_comercio_pg.sql como fallback DDL.
+    - Descarga la ultima version desde GitHub Releases.
+    - Genera appsettings.json con la IP real del servidor.
+    - Crea acceso directo en el escritorio.
 
 .PARAMETER InstallDir
     Carpeta de instalacion. Por defecto: C:\Comercio.NET
 
 .PARAMETER GitHubRepo
-    Repositorio de GitHub en formato owner/repo.
+    Repositorio GitHub en formato owner/repo.
 
 .PARAMETER GitHubToken
-    Token de acceso personal para repositorios privados (opcional).
+    Token de acceso personal para repos privados (opcional).
+
+.PARAMETER PgPassword
+    Password del usuario postgres. Por defecto: michael
+
+.PARAMETER PgPort
+    Puerto de PostgreSQL. Por defecto: 5432
 
 .EXAMPLE
-irm https://raw.githubusercontent.com/manuclaro/Comercio.NET-web/master/instalar.ps1 | iex
+    irm https://raw.githubusercontent.com/manuclaro/Comercio.NET-web/master/instalar.ps1 | iex
 
 .EXAMPLE
-    .\instalar.ps1 -InstallDir "D:\MiComercio"
+    .\instalar.ps1 -InstallDir "D:\MiComercio" -PgPassword "MiClave"
 #>
 
 [CmdletBinding()]
 param(
-    [string]$InstallDir    = "C:\Comercio.NET",
-    [string]$GitHubRepo    = "manuclaro/Comercio.NET-web",
-    [string]$GitHubToken   = ""
+    [string]$InstallDir  = "C:\Comercio.NET",
+    [string]$GitHubRepo  = "manuclaro/Comercio.NET-web",
+    [string]$GitHubToken = "",
+    [string]$PgPassword  = "michael",
+    [int]   $PgPort      = 5432
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# =============================================================================
+# ---------------------------------------------------------------------------
 # CONSTANTES
-# =============================================================================
-$APP_NAME          = "Comercio .NET"
-$APP_EXE           = "Comercio .NET.exe"
-$DOTNET_VERSION    = "8.0"
-$DOTNET_RUNTIME_URL = "https://download.visualstudio.microsoft.com/download/pr/b6f19ef3-52d7-4b4b-98a7-84e9cdc82e8c/f4d27595d2b7c798d5eca2f0547f3d16/windowsdesktop-runtime-8.0.12-win-x64.exe"
-$DOTNET_RUNTIME_FILENAME = "windowsdesktop-runtime-8.0-win-x64.exe"
-$DB_INIT_SCRIPT    = "database\init_comercio.sql"
-$DB_NAME           = "comercio"
-# SQL Server Express 2022 RTM - SSEI fwlink especifico para SQL 2022 (no SQL 2025)
-$SQLEXPRESS_URL      = "https://go.microsoft.com/fwlink/p/?linkid=2215158&clcid=0x0409&culture=en-us&country=us"
-$SQLEXPRESS_FILENAME = "SQL2022-SSEI-Expr.exe"
-$SQL_INSTANCE_NAME   = "SQLEXPRESS"
-# SSMS 20.2 - URL oficial de descarga directa
-$SSMS_URL      = "https://aka.ms/ssmsfullsetup"
-$SSMS_FILENAME = "SSMS-Setup-ENU.exe"
+# ---------------------------------------------------------------------------
+$APP_NAME            = "Comercio .NET"
+$APP_EXE             = "Comercio .NET.exe"
+$DOTNET_VERSION      = "8.0"
+$DOTNET_RUNTIME_URL  = "https://download.visualstudio.microsoft.com/download/pr/b6f19ef3-52d7-4b4b-98a7-84e9cdc82e8c/f4d27595d2b7c798d5eca2f0547f3d16/windowsdesktop-runtime-8.0.12-win-x64.exe"
+$DOTNET_RUNTIME_FILE = "windowsdesktop-runtime-8.0-win-x64.exe"
 
-# =============================================================================
+$PG_VERSION          = "16"
+$PG_INSTALLER_URL    = "https://get.enterprisedb.com/postgresql/postgresql-16.6-1-windows-x64.exe"
+$PG_INSTALLER_FILE   = "postgresql-16-installer.exe"
+$PG_DEFAULT_DATA_DIR = "C:\Program Files\PostgreSQL\$PG_VERSION\data"
+$PG_BIN_CANDIDATES   = @(
+    "C:\Program Files\PostgreSQL\16\bin",
+    "C:\Program Files\PostgreSQL\15\bin",
+    "C:\Program Files\PostgreSQL\14\bin"
+)
+
+$DB_NAME        = "comercio"
+$DB_USER        = "postgres"
+$DB_DUMP_FILE   = "database\comercio_inicial.dump"
+$DB_INIT_SCRIPT = "database\init_comercio_pg.sql"
+
+# ---------------------------------------------------------------------------
 # HELPERS DE CONSOLA
-# =============================================================================
+# ---------------------------------------------------------------------------
 function Write-Header {
     param([string]$Text)
     Write-Host ""
@@ -64,515 +84,301 @@ function Write-Header {
     Write-Host ("=" * 60) -ForegroundColor Cyan
     Write-Host ""
 }
+function Write-Step { param([string]$N, [string]$T) Write-Host "[$N] $T" -ForegroundColor Yellow }
+function Write-OK   { param([string]$M) Write-Host "    OK  $M" -ForegroundColor Green  }
+function Write-Info { param([string]$M) Write-Host "    >>  $M" -ForegroundColor Gray   }
+function Write-Warn { param([string]$M) Write-Host "    !!  $M" -ForegroundColor Magenta }
+function Write-Fail { param([string]$M) Write-Host "    XX  $M" -ForegroundColor Red    }
 
-function Write-Step {
-    param([string]$Numero, [string]$Texto)
-    Write-Host "[$Numero] $Texto" -ForegroundColor Yellow
+# ---------------------------------------------------------------------------
+# HELPER: localizar binarios de PostgreSQL
+# ---------------------------------------------------------------------------
+function Find-PgBin {
+    foreach ($dir in $PG_BIN_CANDIDATES) {
+        if (Test-Path (Join-Path $dir "psql.exe")) { return $dir }
+    }
+    $found = Get-Command psql -ErrorAction SilentlyContinue
+    if ($found) { return (Split-Path $found.Source) }
+    return $null
 }
 
-function Write-OK   { param([string]$Msg) Write-Host "    OK  $Msg" -ForegroundColor Green  }
-function Write-Info { param([string]$Msg) Write-Host "    >>  $Msg" -ForegroundColor Gray   }
-function Write-Warn { param([string]$Msg) Write-Host "    !!  $Msg" -ForegroundColor Magenta }
-function Write-Fail { param([string]$Msg) Write-Host "    XX  $Msg" -ForegroundColor Red    }
-
-# =============================================================================
-# HELPERS DE DIAGNOSTICO SQL
-# =============================================================================
-function Get-SqlSetupLogSummary {
-    <#
-    .SYNOPSIS
-        Lee el log de instalacion de SQL Server y devuelve las lineas de error mas relevantes.
-    #>
-    $logRoot = "C:\Program Files\Microsoft SQL Server"
-    $bootstrapLog = $null
-
-    # Buscar el ultimo directorio de log de Bootstrap
-    $bootstrapDirs = @(
-        "$logRoot\160\Setup Bootstrap\Log",
-        "$logRoot\150\Setup Bootstrap\Log",
-        "$logRoot\140\Setup Bootstrap\Log"
-    )
-
-    foreach ($dir in $bootstrapDirs) {
-        if (Test-Path $dir) {
-            $latest = Get-ChildItem -Path $dir -Directory -ErrorAction SilentlyContinue |
-                      Sort-Object LastWriteTime -Descending |
-                      Select-Object -First 1
-            if ($latest) {
-                $summaryFile = Get-ChildItem -Path $latest.FullName -Filter "Summary*.txt" -ErrorAction SilentlyContinue |
-                               Select-Object -First 1
-                if ($summaryFile) {
-                    $bootstrapLog = $summaryFile.FullName
-                    break
-                }
-            }
-        }
-    }
-
-    if ($bootstrapLog -and (Test-Path $bootstrapLog)) {
-        Write-Warn "--- Extracto del log de instalacion SQL Server ---"
-        Write-Info "Archivo: $bootstrapLog"
-        # Mostrar lineas con errores o estado final
-        $lines = Get-Content $bootstrapLog -ErrorAction SilentlyContinue
-        $relevant = $lines | Where-Object {
-            $_ -match '(Failed|Error|Exception|Exit code|Overall summary|Passed|warning)' -and
-            $_ -notmatch '^\s*$'
-        } | Select-Object -Last 30
-        foreach ($line in $relevant) {
-            Write-Info $line
-        }
-        Write-Warn "--- Fin del extracto ---"
-        Write-Info "Log completo en: $bootstrapLog"
-    } else {
-        Write-Info "No se encontro log de Bootstrap de SQL Server en rutas estandar."
-    }
-}
-
-function Test-SqlPartialInstall {
-    <#
-    .SYNOPSIS
-        Detecta instalaciones parciales o pendientes de reinicio de SQL Server
-        que podrian causar el error 1603.
-    #>
-    $issues = @()
-
-    # 1. Verificar si hay un reinicio pendiente de una instalacion anterior
-    $rebootPending = $false
-    $rebootKeys = @(
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending",
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired",
-        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager"
-    )
-    if (Test-Path $rebootKeys[0]) { $rebootPending = $true }
-    if (Test-Path $rebootKeys[1]) { $rebootPending = $true }
-    try {
-        $pending = (Get-ItemProperty -Path $rebootKeys[2] -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations
-        if ($pending) { $rebootPending = $true }
-    } catch { }
-
-    if ($rebootPending) {
-        $issues += "REINICIO_PENDIENTE: El sistema tiene operaciones pendientes que requieren reinicio."
-    }
-
-    # 2. Verificar si existe la clave de instalacion parcial de SQL Server
-    $sqlPendingKey = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\SQLEXPRESS"
-    if (Test-Path $sqlPendingKey) {
-        $issues += "INSTANCIA_PREVIA: Se detectaron restos de una instalacion anterior de SQLEXPRESS."
-    }
-
-    # 3. Verificar si el servicio existe pero no esta corriendo (instalacion rota)
-    $svc = Get-Service -Name "MSSQL`$SQLEXPRESS" -ErrorAction SilentlyContinue
-    if ($svc -and $svc.Status -ne 'Running') {
-        $issues += "SERVICIO_DETENIDO: El servicio MSSQL`$SQLEXPRESS existe pero no esta corriendo (estado: $($svc.Status))."
-    }
-
-    return $issues
-}
-
-# =============================================================================
-# PASO 0 - VERIFICAR PRIVILEGIOS DE ADMINISTRADOR
-# =============================================================================
+# ---------------------------------------------------------------------------
+# PASO 0 - PRIVILEGIOS DE ADMINISTRADOR
+# ---------------------------------------------------------------------------
 function Test-Admin {
-    $current = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($current)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    $cur = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return (New-Object Security.Principal.WindowsPrincipal($cur)).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 if (-not (Test-Admin)) {
-    Write-Warn "El instalador necesita permisos de administrador."
-    Write-Warn "Reiniciando con elevacion..."
-    Start-Sleep -Seconds 2
-
-    $args = @(
-        "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
+    Write-Warn "Se necesitan permisos de administrador. Reiniciando elevado..."
+    $argList = @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass",
         "-File", "`"$PSCommandPath`"",
         "-InstallDir", "`"$InstallDir`"",
-        "-GitHubRepo", "`"$GitHubRepo`""
+        "-GitHubRepo", "`"$GitHubRepo`"",
+        "-PgPassword", "`"$PgPassword`"",
+        "-PgPort", $PgPort
     )
-    if ($GitHubToken) { $args += @("-GitHubToken", "`"$GitHubToken`"") }
-
-    Start-Process powershell -Verb RunAs -ArgumentList $args
+    if ($GitHubToken) { $argList += @("-GitHubToken", "`"$GitHubToken`"") }
+    Start-Process powershell -Verb RunAs -ArgumentList $argList
     exit
 }
 
-# =============================================================================
-# ENCABEZADO
-# =============================================================================
 Clear-Host
 Write-Header "INSTALADOR DE $APP_NAME"
 Write-Info "Repositorio : $GitHubRepo"
 Write-Info "Destino     : $InstallDir"
+Write-Info "BD          : PostgreSQL $PG_VERSION  puerto=$PgPort  db=$DB_NAME  usuario=$DB_USER"
 Write-Info "Fecha/Hora  : $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')"
 Write-Host ""
 
-# =============================================================================
-# PASO 1 - VERIFICAR / INSTALAR .NET 8 RUNTIME
-# =============================================================================
-Write-Step "1/10" "Verificando .NET $DOTNET_VERSION Runtime..."
+# ===========================================================================
+# PASO 1 - .NET 8 DESKTOP RUNTIME
+# ===========================================================================
+Write-Step "1/9" "Verificando .NET $DOTNET_VERSION Desktop Runtime..."
 
-$dotnetInstalled = $false
+$dotnetOk = $false
 try {
     $runtimes = & dotnet --list-runtimes 2>$null
-    if ($runtimes -match "Microsoft\.WindowsDesktop\.App $DOTNET_VERSION") {
-        $dotnetInstalled = $true
-        Write-OK ".NET $DOTNET_VERSION Desktop Runtime ya instalado."
-    }
+    if ($runtimes -match "Microsoft\.WindowsDesktop\.App $DOTNET_VERSION") { $dotnetOk = $true }
 } catch { }
 
-if (-not $dotnetInstalled) {
-    Write-Info ".NET $DOTNET_VERSION no encontrado. Descargando instalador (~56 MB)..."
-
-    $tempRuntime = Join-Path $env:TEMP $DOTNET_RUNTIME_FILENAME
+if ($dotnetOk) {
+    Write-OK ".NET $DOTNET_VERSION Desktop Runtime ya instalado."
+} else {
+    Write-Info "Descargando .NET $DOTNET_VERSION Runtime (~56 MB)..."
+    $tmpDotnet = Join-Path $env:TEMP $DOTNET_RUNTIME_FILE
     try {
-        $wc = New-Object System.Net.WebClient
-        $wc.DownloadFile($DOTNET_RUNTIME_URL, $tempRuntime)
+        (New-Object System.Net.WebClient).DownloadFile($DOTNET_RUNTIME_URL, $tmpDotnet)
         Write-OK "Descarga completada."
     } catch {
-        Write-Fail "Error descargando .NET runtime: $_"
-        Write-Warn "Instale manualmente desde: https://dotnet.microsoft.com/download/dotnet/8.0"
-        Read-Host "Presione ENTER para continuar o Ctrl+C para cancelar"
+        Write-Fail "Error descargando .NET Runtime: $_"
+        Write-Warn "Instale manualmente: https://dotnet.microsoft.com/download/dotnet/8.0"
+        Read-Host "ENTER para continuar de todos modos"
     }
-
-    if (Test-Path $tempRuntime) {
-        Write-Info "Instalando .NET $DOTNET_VERSION Runtime (puede tardar unos minutos)..."
-        $proc = Start-Process -FilePath $tempRuntime -ArgumentList "/quiet /norestart" -Wait -PassThru
-        if ($proc.ExitCode -eq 0) {
-            Write-OK ".NET $DOTNET_VERSION instalado correctamente."
+    if (Test-Path $tmpDotnet) {
+        $p = Start-Process -FilePath $tmpDotnet -ArgumentList "/quiet /norestart" -Wait -PassThru
+        if ($p.ExitCode -eq 0 -or $p.ExitCode -eq 3010) {
+            Write-OK ".NET $DOTNET_VERSION instalado."
         } else {
-            Write-Warn "Instalador .NET finalizo con codigo $($proc.ExitCode)."
+            Write-Warn "Instalador .NET codigo de salida: $($p.ExitCode)"
         }
-        Remove-Item $tempRuntime -Force -ErrorAction SilentlyContinue
-    }
-} else {
-    Write-OK ".NET $DOTNET_VERSION listo."
-}
-
-# =============================================================================
-# PASO 2 - VERIFICAR / INSTALAR SQL SERVER EXPRESS
-# =============================================================================
-Write-Step "2/10" "Verificando SQL Server..."
-
-$sqlInstalled    = $false
-$sqlInstanceName = $null
-
-$sqlRegPaths = @(
-    "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL",
-    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SQL Server\Instance Names\SQL"
-)
-foreach ($regPath in $sqlRegPaths) {
-    if (Test-Path $regPath) {
-        $instances = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
-        if ($instances) {
-            $firstInstance = ($instances.PSObject.Properties |
-                Where-Object { $_.Name -notmatch '^PS' } |
-                Select-Object -First 1).Name
-            if ($firstInstance) {
-                $sqlInstalled    = $true
-                $sqlInstanceName = $firstInstance
-                break
-            }
-        }
+        Remove-Item $tmpDotnet -Force -ErrorAction SilentlyContinue
     }
 }
 
-if ($sqlInstalled) {
-    Write-OK "SQL Server encontrado. Instancia: $sqlInstanceName"
-    $script:SqlServerConn = if ($sqlInstanceName -eq "MSSQLSERVER") {
-        "localhost"
-    } else {
-        "localhost\$sqlInstanceName"
-    }
+# ===========================================================================
+# PASO 2 - POSTGRESQL
+# ===========================================================================
+Write-Step "2/9" "Verificando PostgreSQL..."
+
+$pgBin = Find-PgBin
+
+if ($pgBin) {
+    Write-OK "PostgreSQL encontrado en: $pgBin"
 } else {
-    # -------------------------------------------------------------------------
-    # PRE-FLIGHT: Verificar condiciones que causan error 1603
-    # -------------------------------------------------------------------------
-    Write-Info "Verificando pre-requisitos de instalacion..."
-    $preflightIssues = Test-SqlPartialInstall
-
-    if ($preflightIssues.Count -gt 0) {
-        Write-Warn "Se detectaron problemas que pueden impedir la instalacion:"
-        foreach ($issue in $preflightIssues) {
-            Write-Warn "  - $issue"
-        }
-        if ($preflightIssues -match "REINICIO_PENDIENTE") {
-            Write-Warn "ACCION REQUERIDA: Reinicie el equipo y vuelva a ejecutar el instalador."
-            Read-Host "Presione ENTER para continuar de todos modos o Ctrl+C para cancelar"
-        }
-        if ($preflightIssues -match "INSTANCIA_PREVIA|SERVICIO_DETENIDO") {
-            Write-Warn "Se detectaron restos de una instalacion anterior de SQL Server."
-            Write-Warn "Se intentara la instalacion de todos modos."
-            Write-Warn "Si falla, desinstale manualmente SQL Server desde 'Agregar o quitar programas'"
-            Write-Warn "y vuelva a ejecutar el instalador."
-        }
-    } else {
-        Write-OK "Pre-requisitos verificados correctamente."
-    }
-
-    Write-Info "SQL Server no detectado. Descargando SQL Server 2022 Express..."
-    Write-Info "(Instalador web SSEI ~6 MB + descarga medio offline ~280 MB)"
-    Write-Warn "Este proceso puede tardar varios minutos segun la conexion."
-    Write-Host ""
-
-    $tempSsei = Join-Path $env:TEMP $SQLEXPRESS_FILENAME
-    $tempSqlMedia = Join-Path $env:TEMP "SqlExpressMedia"
-    Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
-    Remove-Item $tempSqlMedia -Recurse -Force -ErrorAction SilentlyContinue
-
+    Write-Info "PostgreSQL no detectado. Descargando instalador de EDB (~300 MB)..."
+    $tmpPg = Join-Path $env:TEMP $PG_INSTALLER_FILE
     try {
-        $wc2 = New-Object System.Net.WebClient
-        $wc2.DownloadFile($SQLEXPRESS_URL, $tempSsei)
-        Write-OK "Instalador SSEI descargado (~6 MB)."
+        (New-Object System.Net.WebClient).DownloadFile($PG_INSTALLER_URL, $tmpPg)
+        Write-OK "Descarga completada."
     } catch {
-        Write-Fail "Error descargando SQL Server Express: $_"
-        Write-Warn "Instale SQL Server Express manualmente desde:"
-        Write-Warn "https://www.microsoft.com/sql-server/sql-server-downloads"
-        Read-Host "Presione ENTER para continuar o Ctrl+C para cancelar"
+        Write-Fail "Error descargando PostgreSQL: $_"
+        Write-Warn "Descargue manualmente: https://www.postgresql.org/download/windows/"
+        Read-Host "ENTER para continuar o Ctrl+C para cancelar"
     }
 
-    if (Test-Path $tempSsei) {
-        # Paso A: Usar SSEI para descargar el medio offline completo
-        Write-Info "Descargando medio de instalacion offline (~280 MB, puede tardar)..."
-        New-Item -ItemType Directory -Path $tempSqlMedia -Force | Out-Null
+    if (Test-Path $tmpPg) {
+        Write-Info "Instalando PostgreSQL $PG_VERSION en modo silencioso (5-10 min)..."
+        $pgArgs = "--mode unattended --unattendedmodeui none " +
+                  "--superpassword `"$PgPassword`" " +
+                  "--serverport $PgPort " +
+                  "--servicename postgresql-$PG_VERSION " +
+                  "--enable-components server,commandlinetools"
 
-        $downloadArgs = "/Action=Download /MediaPath=`"$tempSqlMedia`" /MediaType=Core /Quiet"
-        $procDownload = Start-Process -FilePath $tempSsei -ArgumentList $downloadArgs -Wait -PassThru
+        $pPg = Start-Process -FilePath $tmpPg -ArgumentList $pgArgs -Wait -PassThru
+        Remove-Item $tmpPg -Force -ErrorAction SilentlyContinue
 
-        Remove-Item $tempSsei -Force -ErrorAction SilentlyContinue
-
-        if ($procDownload.ExitCode -ne 0) {
-            Write-Warn "SSEI finalizo descarga con codigo $($procDownload.ExitCode)."
+        switch ($pPg.ExitCode) {
+            0    { Write-OK "PostgreSQL $PG_VERSION instalado correctamente." }
+            3010 { Write-OK "PostgreSQL instalado. Reinicio requerido para completar." }
+            default { Write-Warn "Instalador PostgreSQL codigo: $($pPg.ExitCode)" }
         }
 
-        # Buscar el SQLEXPR_x64_ENU.exe descargado por SSEI
-        $setupExe = $null
-        $mediaExe = Get-ChildItem -Path $tempSqlMedia -Filter "SQLEXPR*" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        # Esperar a que el servicio inicie
+        $pgSvcName = "postgresql-x64-$PG_VERSION"
+        $intentos  = 0
+        do {
+            Start-Sleep -Seconds 3
+            $intentos++
+            $svc = Get-Service -Name $pgSvcName -ErrorAction SilentlyContinue
+        } while (($null -eq $svc -or $svc.Status -ne 'Running') -and $intentos -lt 20)
 
-        if ($mediaExe) {
-            # Es un exe autoextraible - extraerlo con timeout de 10 minutos
-            Write-Info "Extrayendo medio de instalacion (puede tardar varios minutos)..."
-            $extractDir = Join-Path $env:TEMP "SqlExpressExtracted"
-            Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
-            New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
-
-            $procExtract = Start-Process -FilePath $mediaExe.FullName -ArgumentList "/Q /x:`"$extractDir`"" -PassThru
-            $timeoutMs = 10 * 60 * 1000  # 10 minutos
-            $finished = $procExtract.WaitForExit($timeoutMs)
-
-            if (-not $finished) {
-                Write-Warn "Extraccion supero 10 minutos. Terminando proceso..."
-                $procExtract.Kill()
-            }
-
-            # Buscar setup.exe en el directorio extraido
-            # IMPORTANTE: Usar setup.exe, NUNCA los MSI internos directamente
-            $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue |
-                     Where-Object { $_.DirectoryName -notmatch '\\[xX]64\\[Ss]etup' } |
-                     Select-Object -First 1
-            # Si no lo encontro fuera de x64\Setup, buscar en cualquier lugar
-            if (-not $found) {
-                $found = Get-ChildItem -Path $extractDir -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue |
-                         Select-Object -First 1
-            }
-            if ($found) { $setupExe = $found.FullName }
-        }
-
-        if (-not $setupExe -or -not (Test-Path $setupExe)) {
-            # Buscar setup.exe directamente en la carpeta de media
-            $found = Get-ChildItem -Path $tempSqlMedia -Filter "setup.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) { $setupExe = $found.FullName }
-        }
-
-        if ($setupExe -and (Test-Path $setupExe)) {
-            Write-Info "Setup encontrado: $setupExe"
-
-            # Verificar que NO es un MSI (proteccion contra ruta incorrecta)
-            if ($setupExe -match '\.msi$') {
-                Write-Fail "ERROR CRITICO: Se intento usar un archivo .MSI directamente."
-                Write-Fail "Los archivos MSI internos de SQL Server NO pueden instalarse por separado."
-                Write-Fail "Se requiere el setup.exe principal. Abortando instalacion de SQL Server."
-                Write-Warn "Instale SQL Server Express manualmente desde:"
-                Write-Warn "https://www.microsoft.com/sql-server/sql-server-downloads"
-                $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
-            } else {
-                # Paso B: Ejecutar setup.exe en modo silencioso
-                Write-Info "Instalando SQL Server 2022 Express en modo silencioso..."
-                Write-Info "(Esto puede tardar entre 5 y 15 minutos, por favor espere)"
-                Write-Info "Usando: $setupExe"
-
-                $sqlLogPath = Join-Path $env:TEMP "sql_setup_$(Get-Date -Format 'yyyyMMddHHmmss').log"
-
-                $sqlArgs = "/Q /ACTION=Install /FEATURES=SQLEngine " +
-                           "/INSTANCENAME=SQLEXPRESS " +
-                           "/SQLSVCACCOUNT=`"NT AUTHORITY\NETWORK SERVICE`" " +
-                           "/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`" " +
-                           "/TCPENABLED=1 /NPENABLED=0 " +
-                           "/IACCEPTSQLSERVERLICENSETERMS"
-
-                $procSql = Start-Process -FilePath $setupExe -ArgumentList $sqlArgs -PassThru
-                Write-Info "Esperando que finalice la instalacion (timeout: 30 min)..."
-                $sqlFinished = $procSql.WaitForExit(30 * 60 * 1000)
-
-                if (-not $sqlFinished) {
-                    Write-Warn "La instalacion de SQL Server supero 30 minutos."
-                    Write-Warn "El proceso continua en segundo plano. Verifique el servicio MSSQL`$SQLEXPRESS manualmente."
-                    $procSql.Kill()
-                }
-
-                $exitCode = if ($sqlFinished) { $procSql.ExitCode } else { -1 }
-                Write-Info "Codigo de salida de setup.exe: $exitCode"
-
-                switch ($exitCode) {
-                    0     { Write-OK "SQL Server 2022 Express instalado correctamente." }
-                    3010  {
-                        Write-OK "SQL Server 2022 Express instalado correctamente."
-                        Write-Warn "Se requiere reiniciar el equipo para completar la instalacion."
-                    }
-                    1641  {
-                        Write-OK "SQL Server instalado. El sistema se reiniciara automaticamente."
-                    }
-                    -1    { Write-Warn "Timeout: la instalacion continua en segundo plano." }
-                    default {
-                        Write-Warn "setup.exe finalizo con codigo $exitCode."
-
-                        if ($exitCode -eq 1603) {
-                            Write-Fail "ERROR 1603: Fallo generico de instalacion MSI."
-                            Write-Warn "Causas mas comunes:"
-                            Write-Warn "  1. Reinicio pendiente del sistema (reinicie y vuelva a intentar)"
-                            Write-Warn "  2. Instalacion anterior de SQL Server incompleta o daniada"
-                            Write-Warn "  3. Visual C++ Redistributable faltante o corrupto"
-                            Write-Warn "  4. Permisos insuficientes en carpetas del sistema"
-                            Write-Warn ""
-                            Write-Warn "SOLUCION RECOMENDADA:"
-                            Write-Warn "  1. Reinicie el equipo"
-                            Write-Warn "  2. Vaya a 'Agregar o quitar programas' y desinstale cualquier"
-                            Write-Warn "     componente de 'Microsoft SQL Server' que aparezca"
-                            Write-Warn "  3. Vuelva a ejecutar este instalador"
-                        }
-
-                        # Mostrar extracto del log oficial de SQL Setup
-                        Get-SqlSetupLogSummary
-                    }
-                }
-
-                if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) {
-                    $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
-
-                    # Esperar a que el servicio SQL Server este disponible (hasta 60 segundos)
-                    Write-Info "Esperando que el servicio SQL Server inicie..."
-                    $sqlService = "MSSQL`$$SQL_INSTANCE_NAME"
-                    $intentos = 0
-                    do {
-                        Start-Sleep -Seconds 3
-                        $intentos++
-                        $svc = Get-Service -Name $sqlService -ErrorAction SilentlyContinue
-                    } while (($svc -eq $null -or $svc.Status -ne 'Running') -and ($intentos -lt 20))
-
-                    if ($svc -and $svc.Status -eq 'Running') {
-                        Write-OK "Servicio SQL Server listo."
-                    } else {
-                        Write-Warn "El servicio no respondio en 60 segundos. Se intentara continuar."
-                    }
-
-                    # Agregar la ruta del motor al PATH de esta sesion para que el paso 7 encuentre sqlcmd
-                    $sqlToolsPath = "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn"
-                    if (Test-Path $sqlToolsPath) {
-                        $env:PATH = "$sqlToolsPath;$env:PATH"
-                        Write-Info "Ruta de sqlcmd agregada al PATH de la sesion."
-                    }
-                } else {
-                    $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
-                }
-            }
+        if ($svc -and $svc.Status -eq 'Running') {
+            Write-OK "Servicio PostgreSQL listo."
         } else {
-            Write-Warn "No se encontro setup.exe en el medio descargado."
-            Write-Warn "Instale SQL Server Express manualmente desde:"
-            Write-Warn "https://www.microsoft.com/sql-server/sql-server-downloads"
-            $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+            Write-Warn "Servicio no respondio en 60 seg. Continuando de todos modos..."
         }
 
-        # Limpieza de archivos temporales de SQL
-        Remove-Item $tempSqlMedia -Recurse -Force -ErrorAction SilentlyContinue
-        $extractDir2 = Join-Path $env:TEMP "SqlExpressExtracted"
-        Remove-Item $extractDir2 -Recurse -Force -ErrorAction SilentlyContinue
-    } else {
-        Write-Warn "No se pudo descargar SQL Server Express. Continuando sin el."
-        $script:SqlServerConn = "localhost\$SQL_INSTANCE_NAME"
+        $pgBin = Find-PgBin
     }
 }
 
-# =============================================================================
-# PASO 3 - OBTENER ULTIMA VERSION DE GITHUB
-# =============================================================================
-Write-Step "3/10" "Consultando ultima version en GitHub..."
-
-$headers = @{
-    "User-Agent" = "ComercioNET-Installer/1.0"
-    "Accept"     = "application/vnd.github.v3+json"
-}
-if ($GitHubToken) {
-    $headers["Authorization"] = "Bearer $GitHubToken"
-}
-
-$apiUrl = "https://api.github.com/repos/$GitHubRepo/releases/latest"
-
-try {
-    $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -ErrorAction Stop
-} catch {
-    Write-Fail "No se pudo conectar a GitHub: $_"
-    Write-Warn "Verifique la conexion a internet y que el repositorio exista."
-    Read-Host "Presione ENTER para salir"
+if (-not $pgBin) {
+    Write-Fail "No se pudo localizar psql.exe. Instale PostgreSQL manualmente."
+    Read-Host "ENTER para salir"
     exit 1
 }
 
-$version    = $release.tag_name -replace '^v', ''
-$zipAsset   = $release.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
+# ===========================================================================
+# PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS
+# ===========================================================================
+Write-Step "3/9" "Configurando PostgreSQL para conexiones remotas..."
+
+# Detectar directorio de datos
+$pgDataDir = $null
+if (Test-Path $PG_DEFAULT_DATA_DIR) {
+    $pgDataDir = $PG_DEFAULT_DATA_DIR
+} else {
+    $pgSvcObj = Get-WmiObject Win32_Service -Filter "Name LIKE 'postgresql%'" `
+                -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pgSvcObj -and $pgSvcObj.PathName -match "-D\s+`"?([^`"]+)`"?") {
+        $pgDataDir = $Matches[1].Trim('"').Trim()
+    }
+}
+
+if ($pgDataDir -and (Test-Path $pgDataDir)) {
+
+    # postgresql.conf: listen_addresses = '*'
+    $pgConf = Join-Path $pgDataDir "postgresql.conf"
+    if (Test-Path $pgConf) {
+        $confContent = Get-Content $pgConf -Raw
+        if ($confContent -match "(?m)^\s*#?\s*listen_addresses\s*=") {
+            $confContent = $confContent -replace "(?m)^\s*#?\s*listen_addresses\s*=.*$",
+                           "listen_addresses = '*'"
+        } else {
+            $confContent += "`nlisten_addresses = '*'`n"
+        }
+        Set-Content -Path $pgConf -Value $confContent -Encoding UTF8
+        Write-OK "postgresql.conf: listen_addresses = '*'"
+    } else {
+        Write-Warn "No se encontro postgresql.conf en: $pgDataDir"
+    }
+
+    # pg_hba.conf: autenticacion md5 desde cualquier IP
+    $pgHba = Join-Path $pgDataDir "pg_hba.conf"
+    if (Test-Path $pgHba) {
+        $hbaContent = Get-Content $pgHba -Raw
+        $hbaLine    = "host    all             all             0.0.0.0/0               md5"
+        if ($hbaContent -notmatch [regex]::Escape($hbaLine)) {
+            $hbaContent += "`n# Comercio.NET - acceso remoto red local`n$hbaLine`n"
+            Set-Content -Path $pgHba -Value $hbaContent -Encoding UTF8
+            Write-OK "pg_hba.conf: md5 desde 0.0.0.0/0 agregado."
+        } else {
+            Write-OK "pg_hba.conf: regla remota ya existente."
+        }
+    } else {
+        Write-Warn "No se encontro pg_hba.conf en: $pgDataDir"
+    }
+
+    # Reiniciar servicio para aplicar cambios
+    $pgSvcName = (Get-WmiObject Win32_Service -Filter "Name LIKE 'postgresql%'" `
+                  -ErrorAction SilentlyContinue | Select-Object -First 1).Name
+    if ($pgSvcName) {
+        try {
+            Restart-Service -Name $pgSvcName -Force -ErrorAction Stop
+            Start-Sleep -Seconds 5
+            Write-OK "PostgreSQL reiniciado con nueva configuracion."
+        } catch {
+            Write-Warn "No se pudo reiniciar PostgreSQL: $_"
+            Write-Info "Reinicielo manualmente en services.msc"
+        }
+    }
+
+} else {
+    Write-Warn "No se encontro el directorio de datos de PostgreSQL."
+    Write-Warn "Configure manualmente:"
+    Write-Warn "  postgresql.conf  ->  listen_addresses = '*'"
+    Write-Warn "  pg_hba.conf      ->  host all all 0.0.0.0/0 md5"
+}
+
+# Abrir puerto en Firewall
+Write-Info "Configurando firewall (TCP $PgPort)..."
+try {
+    $existingRule = netsh advfirewall firewall show rule name="PostgreSQL $PgPort" 2>$null
+    if ($existingRule -notmatch "PostgreSQL $PgPort") {
+        netsh advfirewall firewall add rule `
+            name="PostgreSQL $PgPort" protocol=TCP dir=in `
+            localport=$PgPort action=allow | Out-Null
+        Write-OK "Regla de firewall creada: TCP $PgPort entrada permitida."
+    } else {
+        Write-OK "Regla de firewall para puerto $PgPort ya existe."
+    }
+} catch {
+    Write-Warn "No se pudo configurar el firewall: $_"
+    Write-Warn "Abra manualmente el puerto $PgPort TCP entrante."
+}
+
+# ===========================================================================
+# PASO 4 - OBTENER ULTIMA VERSION DE GITHUB
+# ===========================================================================
+Write-Step "4/9" "Consultando ultima version en GitHub..."
+
+$headers = @{
+    "User-Agent" = "ComercioNET-Installer/2.0"
+    "Accept"     = "application/vnd.github.v3+json"
+}
+if ($GitHubToken) { $headers["Authorization"] = "Bearer $GitHubToken" }
+
+try {
+    $release = Invoke-RestMethod `
+        -Uri "https://api.github.com/repos/$GitHubRepo/releases/latest" `
+        -Headers $headers -ErrorAction Stop
+} catch {
+    Write-Fail "No se pudo conectar a GitHub: $_"
+    Read-Host "ENTER para salir"
+    exit 1
+}
+
+$version  = $release.tag_name -replace '^v', ''
+$zipAsset = $release.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
 
 if (-not $zipAsset) {
-    Write-Fail "No se encontro un archivo .zip en el release $version."
-    Read-Host "Presione ENTER para salir"
+    Write-Fail "No se encontro un .zip en el release $version."
+    Read-Host "ENTER para salir"
     exit 1
 }
 
 $downloadUrl = if ($GitHubToken) { $zipAsset.url } else { $zipAsset.browser_download_url }
 $sizeMB      = [math]::Round($zipAsset.size / 1MB, 1)
+Write-OK "Version: $version  ($sizeMB MB)"
 
-Write-OK "Version encontrada : $version"
-Write-Info "Archivo            : $($zipAsset.name) ($sizeMB MB)"
-Write-Info "Publicado          : $($release.published_at)"
+# ===========================================================================
+# PASO 5 - DESCARGAR Y EXTRAER LA APLICACION
+# ===========================================================================
+Write-Step "5/9" "Descargando $APP_NAME v$version..."
 
-# =============================================================================
-# PASO 4 - DESCARGAR Y EXTRAER LA APLICACION
-# =============================================================================
-Write-Step "4/10" "Descargando $APP_NAME v$version..."
-
-$tempZip    = Join-Path $env:TEMP "ComercioNET_Install_$version.zip"
+$tempZip     = Join-Path $env:TEMP "ComercioNET_Install_$version.zip"
 $tempExtract = Join-Path $env:TEMP "ComercioNET_Install_$version"
-
 Remove-Item $tempZip     -Force -ErrorAction SilentlyContinue
 Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 
 try {
-    $downloadHeaders = $headers.Clone()
-    if ($GitHubToken -and $downloadUrl -match "api\.github\.com") {
-        $downloadHeaders["Accept"] = "application/octet-stream"
-    }
-
     $wc = New-Object System.Net.WebClient
-    foreach ($key in $downloadHeaders.Keys) {
-        $wc.Headers.Add($key, $downloadHeaders[$key])
+    foreach ($k in $headers.Keys) { $wc.Headers.Add($k, $headers[$k]) }
+    if ($GitHubToken -and $downloadUrl -match "api\.github\.com") {
+        $wc.Headers["Accept"] = "application/octet-stream"
     }
-
-    Write-Info "Descargando desde GitHub..."
     $wc.DownloadFile($downloadUrl, $tempZip)
     Write-OK "Descarga completada."
 } catch {
     Write-Fail "Error en la descarga: $_"
-    Read-Host "Presione ENTER para salir"
+    Read-Host "ENTER para salir"
     exit 1
 }
 
-Write-Info "Extrayendo archivos..."
 try {
     Expand-Archive -LiteralPath $tempZip -DestinationPath $tempExtract -Force
     Write-OK "Archivos extraidos."
@@ -581,47 +387,37 @@ try {
     exit 1
 }
 
-# =============================================================================
-# PASO 5 - CREAR CARPETA DE INSTALACION Y COPIAR ARCHIVOS
-# =============================================================================
-Write-Step "5/10" "Instalando en $InstallDir..."
+# ===========================================================================
+# PASO 6 - INSTALAR ARCHIVOS DE LA APLICACION
+# ===========================================================================
+Write-Step "6/9" "Instalando en $InstallDir..."
 
 $archivosProtegidos = @(
     "appsettings.json",
     "loginconfig.json",
     "afip_tokens.json",
-    "debug_auth.txt",
     "version.txt"
 )
 
 $backupDir = $null
 if (Test-Path $InstallDir) {
-    $backupDir = Join-Path $env:TEMP "ComercioNET_ConfigBackup_$(Get-Date -Format 'yyyyMMddHHmmss')"
+    $backupDir = Join-Path $env:TEMP "ComercioNET_Backup_$(Get-Date -Format 'yyyyMMddHHmmss')"
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-
-    foreach ($archivo in $archivosProtegidos) {
-        $origen = Join-Path $InstallDir $archivo
-        if (Test-Path $origen) {
-            Copy-Item $origen -Destination $backupDir -Force
-            Write-Info "Backup: $archivo"
+    foreach ($f in $archivosProtegidos) {
+        $src = Join-Path $InstallDir $f
+        if (Test-Path $src) {
+            Copy-Item $src -Destination $backupDir -Force
+            Write-Info "Backup: $f"
         }
     }
-
-    $certDir = Join-Path $InstallDir "Certificados FE"
-    if (Test-Path $certDir) {
-        $backupCertDir = Join-Path $backupDir "Certificados FE"
-        Copy-Item $certDir -Destination $backupCertDir -Recurse -Force
-        Write-Info "Backup: carpeta 'Certificados FE'"
+    foreach ($subdir in @("Certificados FE", "migrations")) {
+        $src = Join-Path $InstallDir $subdir
+        if (Test-Path $src) {
+            Copy-Item $src -Destination (Join-Path $backupDir $subdir) -Recurse -Force
+            Write-Info "Backup: $subdir"
+        }
     }
-
-    $migrDir = Join-Path $InstallDir "migrations"
-    if (Test-Path $migrDir) {
-        $backupMigrDir = Join-Path $backupDir "migrations"
-        Copy-Item $migrDir -Destination $backupMigrDir -Recurse -Force
-        Write-Info "Backup: carpeta 'migrations'"
-    }
-
-    Write-OK "Backup de configuracion guardado en $backupDir"
+    Write-OK "Backup guardado en: $backupDir"
 }
 
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
@@ -633,795 +429,282 @@ $sourceDir = if ($extractedItems.Count -eq 1 -and $extractedItems[0].PSIsContain
     $tempExtract
 }
 
-Write-Info "Copiando archivos de la aplicacion..."
 Copy-Item -Path "$sourceDir\*" -Destination $InstallDir -Recurse -Force
 Write-OK "Archivos copiados."
 
 if ($backupDir -and (Test-Path $backupDir)) {
-    Write-Info "Restaurando configuraciones anteriores..."
-
-    foreach ($archivo in $archivosProtegidos) {
-        $backupArchivo = Join-Path $backupDir $archivo
-        if (Test-Path $backupArchivo) {
-            Copy-Item $backupArchivo -Destination $InstallDir -Force
-            Write-Info "  Restaurado: $archivo"
+    foreach ($f in $archivosProtegidos) {
+        $src = Join-Path $backupDir $f
+        if (Test-Path $src) {
+            Copy-Item $src -Destination $InstallDir -Force
+            Write-Info "Restaurado: $f"
         }
     }
-
-    $backupCertDir = Join-Path $backupDir "Certificados FE"
-    if (Test-Path $backupCertDir) {
-        $destCertDir = Join-Path $InstallDir "Certificados FE"
-        New-Item -ItemType Directory -Path $destCertDir -Force | Out-Null
-        Copy-Item "$backupCertDir\*" -Destination $destCertDir -Recurse -Force
-        Write-Info "  Restaurados: certificados AFIP"
+    foreach ($subdir in @("Certificados FE", "migrations")) {
+        $src = Join-Path $backupDir $subdir
+        if (Test-Path $src) {
+            $dst = Join-Path $InstallDir $subdir
+            New-Item -ItemType Directory -Path $dst -Force | Out-Null
+            Copy-Item "$src\*" -Destination $dst -Recurse -Force
+            Write-Info "Restaurado: $subdir"
+        }
     }
-
-    $backupMigrDir = Join-Path $backupDir "migrations"
-    if (Test-Path $backupMigrDir) {
-        $destMigrDir = Join-Path $InstallDir "migrations"
-        New-Item -ItemType Directory -Path $destMigrDir -Force | Out-Null
-        Copy-Item "$backupMigrDir\*" -Destination $destMigrDir -Recurse -Force
-        Write-Info "  Restaurados: scripts de migrations"
-    }
-
-    Write-OK "Configuraciones anteriores restauradas."
     Remove-Item $backupDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Set-Content -Path (Join-Path $InstallDir "version.txt") -Value $version -Encoding UTF8
+
+# Crear carpetas complementarias si no existen
+foreach ($subdir in @(
+    "Certificados FE",
+    "Certificados FE\Testing",
+    "Certificados FE\Produccion",
+    "migrations"
+)) {
+    $p = Join-Path $InstallDir $subdir
+    if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null }
+}
+
 Write-OK "Version $version registrada."
 
-# =============================================================================
-# PASO 6 - CREAR appsettings.json SI NO EXISTE
-# =============================================================================
-Write-Step "6/10" "Verificando configuracion inicial..."
+# ===========================================================================
+# PASO 7 - INICIALIZAR BASE DE DATOS POSTGRESQL
+# ===========================================================================
+Write-Step "7/9" "Inicializando base de datos PostgreSQL..."
 
-$appSettingsPath = Join-Path $InstallDir "appsettings.json"
+$env:PGPASSWORD = $PgPassword
+$psqlExe        = Join-Path $pgBin "psql.exe"
+$pgRestoreExe   = Join-Path $pgBin "pg_restore.exe"
+$createdbExe    = Join-Path $pgBin "createdb.exe"
 
-if (-not (Test-Path $appSettingsPath)) {
-    Write-Info "Generando appsettings.json con valores de ejemplo..."
+# Crear la BD si no existe
+$dbCheck = (& $psqlExe -U $DB_USER -p $PgPort -d postgres -tAc `
+    "SELECT 1 FROM pg_database WHERE datname='$DB_NAME';" 2>&1) -join ""
+$dbCheck = $dbCheck.Trim()
 
-    $appsettingsTemplate = @'
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
-  },
-  "Comercio": {
-    "Nombre": "MI COMERCIO",
-    "Domicilio": "Calle 000 N 000 - Ciudad"
-  },
-  "Facturacion": {
-    "RazonSocial": "Nombre Apellido",
-    "CUIT": "00-00000000-0",
-    "IngBrutos": "00-00000000-0",
-    "DomicilioFiscal": "Calle 000 N 000 - Ciudad",
-    "CodigoPostal": "0000",
-    "InicioActividades": "2020-01-01",
-    "Condicion": "Monotributo",
-    "PermitirFacturaA": false,
-    "PermitirFacturaB": false,
-    "PermitirFacturaC": true
-  },
-  "Validaciones": {
-    "ValidarStockDisponible": false
-  },
-  "CuentasCorrientes": {
-    "NombresCtaCte": []
-  },
-  "AFIP": {
-    "AmbienteActivo": "Testing",
-    "Testing": {
-      "CUIT": "00-00000000-0",
-      "CondicionIVA": "Monotributo",
-      "PuntoVenta": 1,
-      "CertificadoPath": "C:\\Certificados FE\\Testing\\MiCertificadoTesting.p12",
-      "CertificadoPassword": "password_del_certificado",
-      "WSAAUrl": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
-      "WSFEUrl": "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
-      "Servicios": {
-        "Facturacion": "wsfe"
-      }
-    },
-    "Produccion": {
-      "CUIT": "00-00000000-0",
-      "CondicionIVA": "Monotributo",
-      "PuntoVenta": 1,
-      "CertificadoPath": "C:\\Certificados FE\\Produccion\\MiCertificado.p12",
-      "CertificadoPassword": "password_del_certificado",
-      "WSAAUrl": "https://wsaa.afip.gov.ar/ws/services/LoginCms",
-      "WSFEUrl": "https://servicios1.afip.gov.ar/wsfev1/service.asmx",
-      "Servicios": {
-        "Facturacion": "wsfe"
-      }
-    }
-  },
-  "RestriccionesImpresion": {
-    "RestringirRemitoPorPago": false,
-    "UsarVistaPrevia": true,
-    "LimitarFacturacion": false,
-    "MontoLimiteFacturacion": 0.00
-  },
-  "Descuentos": {
-    "OpcionesDisponibles": [ 5, 10, 15, 20 ],
-    "PorcentajeMaximo": 20,
-    "RestringirPorMetodoPago": false,
-    "MetodosPagoPermitidos": [ "Efectivo" ]
-  },
-  "BaseDatos": {
-    "AmbienteActivo": "Testing"
-  }
+if ($dbCheck -ne "1") {
+    Write-Info "Creando base de datos '$DB_NAME'..."
+    & $createdbExe -U $DB_USER -p $PgPort -E UTF8 $DB_NAME 2>&1 | ForEach-Object { Write-Info $_ }
+    Write-OK "Base de datos '$DB_NAME' creada."
+} else {
+    Write-OK "Base de datos '$DB_NAME' ya existe."
 }
-'@
 
-    Set-Content -Path $appSettingsPath -Value $appsettingsTemplate -Encoding UTF8
+# Restaurar desde dump o ejecutar DDL
+$dumpPath   = Join-Path $InstallDir $DB_DUMP_FILE
+$initScript = Join-Path $InstallDir $DB_INIT_SCRIPT
+
+if (Test-Path $dumpPath) {
+    Write-Info "Restaurando desde comercio_inicial.dump..."
+    $env:PGPASSWORD = $PgPassword
+    & $pgRestoreExe `
+        -U $DB_USER -p $PgPort -d $DB_NAME `
+        --no-owner --no-acl --if-exists -c `
+        $dumpPath 2>&1 | ForEach-Object { Write-Info $_ }
+    if ($LASTEXITCODE -eq 0) {
+        Write-OK "Base de datos restaurada desde dump."
+    } else {
+        Write-Warn "pg_restore codigo $LASTEXITCODE (puede ser normal en reinstalacion)."
+    }
+} elseif (Test-Path $initScript) {
+    Write-Info "Dump no encontrado. Ejecutando DDL init_comercio_pg.sql..."
+    $env:PGPASSWORD = $PgPassword
+    & $psqlExe -U $DB_USER -p $PgPort -d $DB_NAME -f $initScript 2>&1 |
+        ForEach-Object { Write-Info $_ }
+    if ($LASTEXITCODE -eq 0) {
+        Write-OK "Esquema creado correctamente."
+    } else {
+        Write-Warn "psql codigo $LASTEXITCODE. Revise los mensajes anteriores."
+    }
+} else {
+    Write-Warn "No se encontro dump ni script DDL en $InstallDir."
+    Write-Warn "Inicialice la BD manualmente:"
+    Write-Warn "  psql -U $DB_USER -p $PgPort -d $DB_NAME -f <ruta>\init_comercio_pg.sql"
+}
+
+Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
+
+# ===========================================================================
+# PASO 8 - GENERAR / ACTUALIZAR appsettings.json
+# ===========================================================================
+Write-Step "8/9" "Configurando appsettings.json..."
+
+# Detectar IP de red local del servidor
+$localIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object {
+        $_.InterfaceAlias -notlike '*Loopback*' -and
+        $_.IPAddress -notlike '169.254.*' -and
+        $_.IPAddress -notlike '127.*'
+    } |
+    Sort-Object {
+        [System.Net.IPAddress]::Parse($_.IPAddress).GetAddressBytes()[0]
+    } -Descending |
+    Select-Object -First 1).IPAddress
+
+if (-not $localIp) { $localIp = "localhost" }
+Write-Info "IP de red del servidor: $localIp"
+
+$connString  = "Host=$localIp;Port=$PgPort;Database=$DB_NAME;Username=$DB_USER;Password=$PgPassword;"
+$appSettings = Join-Path $InstallDir "appsettings.json"
+
+if (-not (Test-Path $appSettings)) {
+
+    $lines = @(
+        '{',
+        '  "ConnectionStrings": {',
+        "    `"DefaultConnection`": `"$connString`",",
+        "    `"Testing`": `"$connString`",",
+        "    `"Produccion`": `"$connString`"",
+        '  },',
+        '  "Comercio": {',
+        '    "Nombre": "MI COMERCIO",',
+        '    "Domicilio": "Calle 000 N 000 - Ciudad"',
+        '  },',
+        '  "Facturacion": {',
+        '    "RazonSocial": "Nombre Apellido",',
+        '    "CUIT": "00-00000000-0",',
+        '    "IngBrutos": "00-00000000-0",',
+        '    "DomicilioFiscal": "Calle 000 N 000 - Ciudad",',
+        '    "CodigoPostal": "0000",',
+        '    "InicioActividades": "2020-01-01",',
+        '    "Condicion": "Monotributo",',
+        '    "PermitirFacturaA": false,',
+        '    "PermitirFacturaB": false,',
+        '    "PermitirFacturaC": true',
+        '  },',
+        '  "Validaciones": {',
+        '    "ValidarStockDisponible": false',
+        '  },',
+        '  "CuentasCorrientes": {',
+        '    "NombresCtaCte": []',
+        '  },',
+        '  "AFIP": {',
+        '    "AmbienteActivo": "Testing",',
+        '    "Testing": {',
+        '      "CUIT": "00-00000000-0",',
+        '      "CondicionIVA": "Monotributo",',
+        '      "PuntoVenta": 1,',
+        '      "CertificadoPath": "C:\\\\Certificados FE\\\\Testing\\\\MiCertificadoTesting.p12",',
+        '      "CertificadoPassword": "password_del_certificado",',
+        '      "WSAAUrl": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",',
+        '      "WSFEUrl": "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",',
+        '      "Servicios": { "Facturacion": "wsfe" }',
+        '    },',
+        '    "Produccion": {',
+        '      "CUIT": "00-00000000-0",',
+        '      "CondicionIVA": "Monotributo",',
+        '      "PuntoVenta": 1,',
+        '      "CertificadoPath": "C:\\\\Certificados FE\\\\Produccion\\\\MiCertificado.p12",',
+        '      "CertificadoPassword": "password_del_certificado",',
+        '      "WSAAUrl": "https://wsaa.afip.gov.ar/ws/services/LoginCms",',
+        '      "WSFEUrl": "https://servicios1.afip.gov.ar/wsfev1/service.asmx",',
+        '      "Servicios": { "Facturacion": "wsfe" }',
+        '    }',
+        '  },',
+        '  "RestriccionesImpresion": {',
+        '    "RestringirRemitoPorPago": false,',
+        '    "UsarVistaPrevia": true,',
+        '    "LimitarFacturacion": false,',
+        '    "MontoLimiteFacturacion": 0.00',
+        '  },',
+        '  "Descuentos": {',
+        '    "OpcionesDisponibles": [ 5, 10, 15, 20 ],',
+        '    "PorcentajeMaximo": 20,',
+        '    "RestringirPorMetodoPago": false,',
+        '    "MetodosPagoPermitidos": [ "Efectivo" ]',
+        '  },',
+        '  "BaseDatos": {',
+        '    "AmbienteActivo": "Testing"',
+        '  }',
+        '}'
+    )
+
+    $lines | Set-Content -Path $appSettings -Encoding UTF8
     Write-OK "appsettings.json creado con valores de ejemplo."
-    Write-Warn "IMPORTANTE: Edite $appSettingsPath antes de usar la aplicacion."
-    Write-Warn "  - Cadena de conexion SQL Server"
-    Write-Warn "  - Datos del comercio (nombre, domicilio)"
-    Write-Warn "  - CUIT y certificados AFIP"
+    Write-Warn "IMPORTANTE: edite $appSettings antes de usar la aplicacion."
+
 } else {
-    Write-OK "appsettings.json existente conservado (no sobreescrito)."
-}
 
-$certFolder = Join-Path $InstallDir "Certificados FE"
-if (-not (Test-Path $certFolder)) {
-    New-Item -ItemType Directory -Path $certFolder -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $certFolder "Testing") -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $certFolder "Produccion") -Force | Out-Null
-    Write-OK "Carpeta 'Certificados FE' creada."
-}
-
-$migrFolder = Join-Path $InstallDir "migrations"
-if (-not (Test-Path $migrFolder)) {
-    New-Item -ItemType Directory -Path $migrFolder -Force | Out-Null
-    Write-OK "Carpeta 'migrations' creada."
-}
-
-# =============================================================================
-# PASO 7 - INICIALIZAR BASE DE DATOS
-# =============================================================================
-Write-Step "7/10" "Inicializando base de datos SQL Server..."
-
-$sqlcmdPath = $null
-$sqlcmdCandidates = @(
-    "sqlcmd",
-    "${env:ProgramFiles}\Microsoft SQL Server\160\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles}\Microsoft SQL Server\150\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles}\Microsoft SQL Server\140\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles}\Microsoft SQL Server\130\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles}\Microsoft SQL Server\Client SDK\ODBC\130\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles(x86)}\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
-    "${env:ProgramFiles(x86)}\Microsoft SQL Server\Client SDK\ODBC\160\Tools\Binn\sqlcmd.exe",
-    "${env:LOCALAPPDATA}\Microsoft\go-sqlcmd\sqlcmd.exe"
-)
-
-foreach ($candidate in $sqlcmdCandidates) {
     try {
-        $result = & $candidate -? 2>$null
-        if ($LASTEXITCODE -eq 0 -or $result) {
-            $sqlcmdPath = $candidate
-            break
-        }
-    } catch { }
-}
-
-$dbScriptDest = Join-Path $InstallDir $DB_INIT_SCRIPT
-
-$dbScriptSrc = Join-Path $sourceDir $DB_INIT_SCRIPT
-if (-not (Test-Path (Join-Path $InstallDir "database"))) {
-    New-Item -ItemType Directory -Path (Join-Path $InstallDir "database") -Force | Out-Null
-}
-if (Test-Path $dbScriptSrc) {
-    Copy-Item $dbScriptSrc -Destination $dbScriptDest -Force
-}
-
-if (-not $sqlcmdPath) {
-    Write-Warn "sqlcmd no encontrado en este equipo."
-    Write-Warn "La base de datos NO se inicializara automaticamente."
-    Write-Info "Para crearla manualmente, ejecute en SSMS o sqlcmd:"
-    Write-Info "  $dbScriptDest"
-    Write-Info "O instale las SQL Server Command Line Utilities desde:"
-    Write-Info "  https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-utility"
-} elseif (-not (Test-Path $dbScriptDest)) {
-    Write-Warn "Script SQL no encontrado en: $dbScriptDest"
-    Write-Warn "Asegurese de que el .zip del release incluya la carpeta database\"
-} else {
-    $sqlServer = if ($script:SqlServerConn) { $script:SqlServerConn } else { "localhost" }
-    Write-Info "sqlcmd encontrado  : $sqlcmdPath"
-    Write-Info "Servidor SQL target: $sqlServer"
-
-    # -------------------------------------------------------------------------
-    # HABILITAR SQL SERVER AUTHENTICATION (modo mixto) para conexiones remotas
-    # -------------------------------------------------------------------------
-    Write-Info "Habilitando autenticacion SQL Server (modo mixto)..."
-    try {
-        $enableMixedMode = @"
-USE [master]
-GO
--- Habilitar modo mixto (Windows + SQL Authentication)
-EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE',
-    N'Software\Microsoft\MSSQLServer\MSSQLServer',
-    N'LoginMode', REG_DWORD, 2
-GO
-"@
-        $tmpMixedScript = Join-Path $env:TEMP "enable_mixed_mode.sql"
-        Set-Content -Path $tmpMixedScript -Value $enableMixedMode -Encoding UTF8
-
-        & $sqlcmdPath -S $sqlServer -E -i $tmpMixedScript -b -l 30 2>&1 | Out-Null
-        Remove-Item $tmpMixedScript -Force -ErrorAction SilentlyContinue
-
-        # Reiniciar el servicio SQL para que el cambio de modo tome efecto
-        $sqlSvcName = "MSSQL`$$SQL_INSTANCE_NAME"
-        $svcCheck = Get-Service -Name $sqlSvcName -ErrorAction SilentlyContinue
-        if ($svcCheck) {
-            Write-Info "Reiniciando servicio SQL Server para aplicar modo mixto..."
-            Restart-Service -Name $sqlSvcName -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 8
-            # Esperar a que vuelva a estar en Running
-            $intentos = 0
-            do {
-                Start-Sleep -Seconds 3
-                $intentos++
-                $svcCheck = Get-Service -Name $sqlSvcName -ErrorAction SilentlyContinue
-            } while (($svcCheck -eq $null -or $svcCheck.Status -ne 'Running') -and ($intentos -lt 15))
-
-            if ($svcCheck -and $svcCheck.Status -eq 'Running') {
-                Write-OK "Servicio SQL Server reiniciado. Modo mixto habilitado."
-            } else {
-                Write-Warn "El servicio no respondio tras el reinicio. Verifique manualmente."
-            }
-        } else {
-            Write-Warn "No se encontro el servicio $sqlSvcName para reiniciar."
-        }
+        $json    = Get-Content $appSettings -Raw -Encoding UTF8
+        $escaped = $connString -replace '\\', '\\'
+        $json    = $json -replace '(?<="DefaultConnection"\s*:\s*")[^"]*(?=")', $escaped
+        Set-Content -Path $appSettings -Value $json -Encoding UTF8
+        Write-OK "appsettings.json actualizado con IP $localIp."
     } catch {
-        Write-Warn "No se pudo habilitar el modo mixto automaticamente: $_"
-        Write-Warn "Habilitelo manualmente en SSMS: propiedades del servidor > Seguridad > Modo mixto."
+        Write-Warn "No se pudo actualizar appsettings.json: $_"
+        Write-Info "Connection string: $connString"
     }
 
-    # -------------------------------------------------------------------------
-    # ABRIR PUERTO 1433 EN EL FIREWALL DE WINDOWS
-    # -------------------------------------------------------------------------
-    Write-Info "Configurando firewall de Windows para SQL Server (puerto 1433)..."
-    try {
-        $existingRule = netsh advfirewall firewall show rule name="SQL Server 1433" 2>$null
-        if ($existingRule -notmatch 'SQL Server 1433') {
-            netsh advfirewall firewall add rule name="SQL Server 1433" protocol=TCP dir=in localport=1433 action=allow | Out-Null
-            Write-OK "Regla de firewall creada: TCP 1433 entrada permitida."
-        } else {
-            Write-OK "Regla de firewall para puerto 1433 ya existe."
-        }
-    } catch {
-        Write-Warn "No se pudo configurar el firewall automaticamente: $_"
-        Write-Warn "Abra manualmente el puerto 1433 TCP entrante en el Firewall de Windows."
-    }
-
-    # -------------------------------------------------------------------------
-    # HABILITAR Y ARRANCAR SQL SERVER BROWSER
-    # -------------------------------------------------------------------------
-    Write-Info "Habilitando SQL Server Browser (necesario para conexiones remotas)..."
-    try {
-        $browserSvc = Get-Service -Name 'SQLBrowser' -ErrorAction SilentlyContinue
-        if ($browserSvc) {
-            Set-Service -Name 'SQLBrowser' -StartupType Automatic -ErrorAction SilentlyContinue
-            if ($browserSvc.Status -ne 'Running') {
-                Start-Service -Name 'SQLBrowser' -ErrorAction SilentlyContinue
-                Start-Sleep -Seconds 3
-            }
-            $browserSvc = Get-Service -Name 'SQLBrowser' -ErrorAction SilentlyContinue
-            if ($browserSvc.Status -eq 'Running') {
-                Write-OK "SQL Server Browser habilitado y corriendo."
-            } else {
-                Write-Warn "SQL Server Browser no pudo iniciarse. Las conexiones remotas pueden requerir el puerto 1433 explicito."
-            }
-        } else {
-            Write-Warn "Servicio SQLBrowser no encontrado. Las conexiones remotas usaran IP,1433 directamente."
-        }
-    } catch {
-        Write-Warn "No se pudo configurar SQL Server Browser: $_"
-    }
-
-    # -------------------------------------------------------------------------
-    # CREAR LOGIN SQL michael/michael (Windows Auth, siempre funciona)
-    # Se hace ANTES del script principal para garantizar que existe
-    # independientemente del estado del modo mixto durante el script
-    # -------------------------------------------------------------------------
-    Write-Info "Creando usuario SQL michael para conexiones remotas..."
-    try {
-        $createMichaelScript = @"
-USE [master]
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'michael')
-BEGIN
-    CREATE LOGIN [michael] WITH PASSWORD = 'michael',
-        DEFAULT_DATABASE = [comercio],
-        CHECK_EXPIRATION = OFF,
-        CHECK_POLICY = OFF
-    PRINT 'Login michael creado.'
-END
-ELSE
-    PRINT 'Login michael ya existe.'
-GO
-USE [comercio]
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'michael')
-BEGIN
-    CREATE USER [michael] FOR LOGIN [michael]
-    PRINT 'Usuario michael creado en base comercio.'
-END
-ELSE
-    PRINT 'Usuario michael ya existe en base comercio.'
-GO
-IF IS_ROLEMEMBER('db_owner', 'michael') = 0
-BEGIN
-    ALTER ROLE [db_owner] ADD MEMBER [michael]
-    PRINT 'Rol db_owner asignado a michael.'
-END
-ELSE
-    PRINT 'michael ya tiene rol db_owner.'
-GO
-"@
-        $tmpMichaelScript = Join-Path $env:TEMP "create_michael.sql"
-        Set-Content -Path $tmpMichaelScript -Value $createMichaelScript -Encoding UTF8
-
-        $michaelOutput = & $sqlcmdPath -S $sqlServer -E -i $tmpMichaelScript -b -l 30 2>&1
-        Remove-Item $tmpMichaelScript -Force -ErrorAction SilentlyContinue
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-OK "Usuario SQL michael creado/verificado correctamente."
-        } else {
-            Write-Warn "Advertencia al crear usuario michael (codigo $LASTEXITCODE)."
-            Write-Warn "Puede que la base 'comercio' aun no exista - se creara en el siguiente paso."
-        }
-    } catch {
-        Write-Warn "No se pudo crear el usuario michael en este paso: $_"
-        Write-Info "Se intentara nuevamente al final del script de inicializacion."
-    }
-
-    # -------------------------------------------------------------------------
-    # EJECUTAR SCRIPT DE INICIALIZACION DE BASE DE DATOS
-    # -------------------------------------------------------------------------
-    Write-Info "Ejecutando script de inicializacion de base de datos..."
-
-    $sqlLogPath = Join-Path $InstallDir "database\init_log.txt"
-
-    try {
-        $sqlOutput = & $sqlcmdPath `
-            -S $sqlServer `
-            -E `
-            -i $dbScriptDest `
-            -b `
-            -l 60 `
-            2>&1
-
-        $sqlOutput | Out-File -FilePath $sqlLogPath -Encoding UTF8
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-OK "Base de datos '$DB_NAME' inicializada correctamente."
-            Write-Info "  Usuario app creado: admin / password: 1506"
-            Write-Info "  Usuario SQL remoto: michael / password: michael"
-            Write-Warn "  Cambie las contrasenas desde la aplicacion."
-
-            # Obtener la IP de red local real (192.168.x.x) para conexiones remotas
-            $localIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-                Where-Object {
-                    $_.InterfaceAlias -notlike '*Loopback*' -and
-                    $_.IPAddress -notlike '169.254.*' -and
-                    $_.IPAddress -notlike '127.*'
-                } |
-                Sort-Object { [System.Net.IPAddress]::Parse($_.IPAddress).GetAddressBytes()[0] } -Descending |
-                Select-Object -First 1).IPAddress
-
-            if (-not $localIp) { $localIp = 'localhost' }
-            Write-Info "  IP de red detectada: $localIp"
-
-            # Cadena de conexion con IP real para que funcione tanto local como remoto
-            $connString = "Server=$localIp,1433;Database=$DB_NAME;User Id=michael;Password=michael;TrustServerCertificate=True;"
-            if (Test-Path $appSettingsPath) {
-                try {
-                    $json = Get-Content $appSettingsPath -Raw -Encoding UTF8
-                    $json = $json -replace '(?<="DefaultConnection"\s*:\s*")[^"]*(?=")', $connString
-                    Set-Content -Path $appSettingsPath -Value $json -Encoding UTF8
-                    Write-OK "appsettings.json actualizado con IP de red ($localIp)."
-                    Write-Info "  Cadena: $connString"
-                    Write-Info "  Usar esta misma cadena en las PCs clientes de la red."
-                } catch {
-                    Write-Warn "No se pudo actualizar appsettings.json: $_"
-                    Write-Info "Connection string: $connString"
-                }
-            }
-
-            # -----------------------------------------------------------------
-            # SEGUNDA PASADA: garantizar que michael existe ahora que la BD existe
-            # -----------------------------------------------------------------
-            Write-Info "Verificando usuario SQL michael (segunda pasada)..."
-            try {
-                $verifyMichael = @"
-USE [master]
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'michael')
-BEGIN
-    CREATE LOGIN [michael] WITH PASSWORD = 'michael',
-        DEFAULT_DATABASE = [comercio],
-        CHECK_EXPIRATION = OFF,
-        CHECK_POLICY = OFF
-    PRINT 'Login michael creado (segunda pasada).'
-END
-GO
-USE [comercio]
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'michael')
-BEGIN
-    CREATE USER [michael] FOR LOGIN [michael]
-    PRINT 'Usuario michael creado en comercio (segunda pasada).'
-END
-GO
-IF IS_ROLEMEMBER('db_owner', 'michael') = 0
-BEGIN
-    ALTER ROLE [db_owner] ADD MEMBER [michael]
-    PRINT 'Rol db_owner asignado a michael (segunda pasada).'
-END
-GO
-"@
-                $tmpVerify = Join-Path $env:TEMP "verify_michael.sql"
-                Set-Content -Path $tmpVerify -Value $verifyMichael -Encoding UTF8
-                & $sqlcmdPath -S $sqlServer -E -i $tmpVerify -b -l 30 2>&1 | Out-Null
-                Remove-Item $tmpVerify -Force -ErrorAction SilentlyContinue
-                Write-OK "Usuario SQL michael verificado."
-            } catch {
-                Write-Warn "No se pudo verificar usuario michael: $_"
-            }
-        } else {
-            Write-Warn "sqlcmd finalizo con codigo $LASTEXITCODE."
-            Write-Warn "Puede que la BD ya existiera (normal en reinstalacion) o haya un error."
-            Write-Info "Revise el log en: $sqlLogPath"
-        }
-    } catch {
-        Write-Fail "Error ejecutando sqlcmd: $_"
-        Write-Info "Ejecute manualmente el script: $dbScriptDest"
-    }
 }
 
-# =============================================================================
-# PASO 8 - IMPORTAR PRODUCTOS DESDE CSV (OPCIONAL)
-# =============================================================================
-Write-Step "8/10" "Importando productos desde CSV (si existe)..."
+Write-Host ""
+Write-Host "  +-- CADENA DE CONEXION PARA PCs CLIENTES --------------------+" -ForegroundColor Cyan
+Write-Host "  $connString" -ForegroundColor White
+Write-Host "  Copie esta linea en el appsettings.json de cada PC cliente." -ForegroundColor Gray
+Write-Host "  +-------------------------------------------------------------+" -ForegroundColor Cyan
+Write-Host ""
 
-# El instalador busca un archivo llamado 'productos_export.csv' en:
-#   1. La misma carpeta donde se ejecuta el script
-#   2. El escritorio del usuario
-#   3. La carpeta de instalacion destino
-$csvCandidates = @(
-    (Join-Path $PSScriptRoot          "productos_export.csv"),
-    (Join-Path ([Environment]::GetFolderPath("Desktop")) "productos_export.csv"),
-    (Join-Path $InstallDir            "productos_export.csv")
-)
-$csvProductos = $csvCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-if (-not $csvProductos) {
-    Write-Info "No se encontro 'productos_export.csv'. Se omite la importacion."
-    Write-Info "Para importar productos en el futuro, coloque el archivo CSV en:"
-    Write-Info "  $($csvCandidates[0])"
-    Write-Info "y vuelva a ejecutar el instalador, o use la funcion de importacion"
-    Write-Info "dentro de la aplicacion."
-} elseif (-not $sqlcmdPath) {
-    Write-Warn "sqlcmd no disponible. No se puede importar el CSV automaticamente."
-    Write-Info "Copie '$csvProductos' en $InstallDir y use la importacion desde la app."
-} else {
-    Write-Info "Archivo encontrado: $csvProductos"
-
-    try {
-        # Leer el CSV - acepta separador ; o ,
-        $rawContent = Get-Content $csvProductos -Encoding UTF8 -Raw
-        $separator  = if ($rawContent -match ';') { ';' } else { ',' }
-        $csvData    = Import-Csv -Path $csvProductos -Delimiter $separator -Encoding UTF8
-
-        if ($csvData.Count -eq 0) {
-            Write-Warn "El archivo CSV esta vacio. No hay productos para importar."
-        } else {
-            Write-Info "Filas encontradas en el CSV: $($csvData.Count)"
-
-            # Columnas que acepta la tabla productos (sin ID que es IDENTITY)
-            $colsTabla = @(
-                'codigo','descripcion','rubro','marca','precio','costo',
-                'porcentaje','cantidad','nini','vital','maxi','bultocosto',
-                'bultoventa','costoanterior','paquetes','proveedor','envase',
-                'modificado','contar','imprimir','StockAnterior',
-                'PermiteAcumular','EditarPrecio','iva','Activo'
-            )
-
-            # Detectar que columnas del CSV coinciden con las de la tabla
-            $colsCSV    = $csvData[0].PSObject.Properties.Name
-            $colsUsar   = $colsTabla | Where-Object { $colsCSV -contains $_ }
-            $colsInsert = $colsUsar -join ', '
-
-            if ($colsUsar.Count -eq 0) {
-                Write-Warn "El CSV no tiene columnas reconocidas de la tabla 'productos'."
-                Write-Warn "Columnas esperadas (al menos una): $($colsTabla -join ', ')"
-            } else {
-                Write-Info "Columnas que se importaran: $colsInsert"
-
-                # Helper para formatear valores de texto como literal SQL
-                $fmtStr = {
-                    param([string]$v)
-                    if ([string]::IsNullOrWhiteSpace($v)) { return 'NULL' }
-                    return "'" + ($v.Trim() -replace "'", "''") + "'"
-                }
-
-                # Columnas numericas (no van entre comillas)
-                $numCols = @('precio','costo','porcentaje','cantidad',
-                             'bultocosto','bultoventa','costoanterior',
-                             'paquetes','StockAnterior','iva',
-                             'PermiteAcumular','EditarPrecio','Activo')
-
-                $fmtVal = {
-                    param([string]$col, [string]$raw)
-                    if ($numCols -contains $col) {
-                        if ([string]::IsNullOrWhiteSpace($raw)) { return 'NULL' }
-                        $n = $raw.Trim() -replace ',', '.'
-                        if ($n -match '^-?[0-9]+(\.[0-9]+)?$') { return $n } else { return 'NULL' }
-                    }
-                    return & $fmtStr $raw
-                }
-
-                # Generar script SQL con MERGE (insert o update segun codigo)
-                $sqlLines = [System.Collections.Generic.List[string]]::new()
-                $sqlLines.Add("USE [comercio]")
-                $sqlLines.Add("GO")
-                $sqlLines.Add("SET NOCOUNT ON")
-                $sqlLines.Add("DECLARE @nuevos INT = 0, @actualizados INT = 0")
-                $sqlLines.Add("")
-
-                $filasSql = 0
-                foreach ($row in $csvData) {
-                    $codigoRaw = if ($colsCSV -contains 'codigo') { $row.codigo } else { '' }
-                    if ([string]::IsNullOrWhiteSpace($codigoRaw)) { continue }
-                    $codigoEsc = $codigoRaw.Trim() -replace "'", "''"
-
-                    # Valores para el INSERT (todas las columnas usadas)
-                    $insertVals = ($colsUsar | ForEach-Object {
-                        $raw = if ($colsCSV -contains $_) { $row.$_ } else { '' }
-                        & $fmtVal $_ $raw
-                    }) -join ', '
-
-                    # Partes del SET para el UPDATE (excluye codigo)
-                    $setParts = ($colsUsar | Where-Object { $_ -ne 'codigo' } | ForEach-Object {
-                        $raw = if ($colsCSV -contains $_) { $row.$_ } else { '' }
-                        "$_ = $(& $fmtVal $_ $raw)"
-                    }) -join ', '
-
-                    $sqlLines.Add("MERGE [dbo].[productos] AS tgt")
-                    $sqlLines.Add("USING (SELECT '$codigoEsc' AS codigo) AS src ON tgt.codigo = src.codigo")
-                    $sqlLines.Add("WHEN MATCHED THEN UPDATE SET $setParts")
-                    $sqlLines.Add("WHEN NOT MATCHED THEN INSERT ($colsInsert) VALUES ($insertVals);")
-                    $sqlLines.Add("IF @@ROWCOUNT > 0")
-                    $sqlLines.Add("BEGIN")
-                    $sqlLines.Add("    IF EXISTS (SELECT 1 FROM [dbo].[productos] WHERE codigo = '$codigoEsc')")
-                    $sqlLines.Add("        SET @actualizados = @actualizados + 1")
-                    $sqlLines.Add("    ELSE")
-                    $sqlLines.Add("        SET @nuevos = @nuevos + 1")
-                    $sqlLines.Add("END")
-                    $sqlLines.Add("")
-                    $filasSql++
-                }
-
-                $sqlLines.Add("PRINT 'Productos nuevos     : ' + CAST(@nuevos       AS NVARCHAR(10))")
-                $sqlLines.Add("PRINT 'Productos actualizados: ' + CAST(@actualizados AS NVARCHAR(10))")
-                $sqlLines.Add("GO")
-
-                $tmpImportSql = Join-Path $env:TEMP "import_productos_$(Get-Date -Format 'yyyyMMddHHmmss').sql"
-                $sqlLines | Set-Content -Path $tmpImportSql -Encoding UTF8
-
-                $sqlServer = if ($script:SqlServerConn) { $script:SqlServerConn } else { 'localhost' }
-                Write-Info "Ejecutando importacion en $sqlServer ($filasSql filas)..."
-
-                $importOutput = & $sqlcmdPath -S $sqlServer -E -i $tmpImportSql -b -l 120 2>&1
-                $importOutput | ForEach-Object { Write-Info $_ }
-                Remove-Item $tmpImportSql -Force -ErrorAction SilentlyContinue
-
-                if ($LASTEXITCODE -eq 0) {
-                    Write-OK "$filasSql producto(s) procesado(s) desde el CSV."
-                    # Guardar copia del CSV importado como respaldo
-                    $csvBackup = Join-Path $InstallDir "database\productos_importados_$(Get-Date -Format 'yyyyMMddHHmmss').csv"
-                    Copy-Item $csvProductos -Destination $csvBackup -Force -ErrorAction SilentlyContinue
-                    Write-Info "Copia del CSV guardada en: $csvBackup"
-                } else {
-                    Write-Warn "La importacion finalizo con codigo $LASTEXITCODE. Revise los mensajes anteriores."
-                }
-            }
-        }
-    } catch {
-        Write-Warn "Error durante la importacion de productos: $_"
-        Write-Info "Puede importar productos manualmente desde la aplicacion."
-    }
-}
-
-# =============================================================================
+# ===========================================================================
 # PASO 9 - ACCESO DIRECTO EN EL ESCRITORIO
-# =============================================================================
-Write-Step "9/10" "Creando acceso directo en el escritorio..."
+# ===========================================================================
+Write-Step "9/9" "Creando acceso directo en el escritorio..."
 
-$exePath       = Join-Path $InstallDir $APP_EXE
-$shortcutPath  = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "$APP_NAME.lnk"
+$exePath      = Join-Path $InstallDir $APP_EXE
+$shortcutPath = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "$APP_NAME.lnk"
 
 if (Test-Path $exePath) {
     try {
-        $wshell   = New-Object -ComObject WScript.Shell
-        $shortcut = $wshell.CreateShortcut($shortcutPath)
-        $shortcut.TargetPath       = $exePath
-        $shortcut.WorkingDirectory = $InstallDir
-        $shortcut.Description      = "$APP_NAME - Sistema de Gestion Comercial"
-        $shortcut.IconLocation = "$exePath, 0"
-        $shortcut.Save()
+        $wsh = New-Object -ComObject WScript.Shell
+        $sc  = $wsh.CreateShortcut($shortcutPath)
+        $sc.TargetPath       = $exePath
+        $sc.WorkingDirectory = $InstallDir
+        $sc.Description      = "$APP_NAME - Sistema de Gestion Comercial"
+        $sc.IconLocation     = "$exePath, 0"
+        $sc.Save()
         Write-OK "Acceso directo creado en el escritorio."
     } catch {
         Write-Warn "No se pudo crear el acceso directo: $_"
-        Write-Info "Puede crearlo manualmente desde: $exePath"
+        Write-Info "Creelo manualmente desde: $exePath"
     }
 } else {
     Write-Warn "No se encontro $APP_EXE en $InstallDir."
-    Write-Warn "Verifique que el .zip del release contenga el ejecutable."
 }
 
-# =============================================================================
-# PASO 9 - INSTALAR SQL SERVER MANAGEMENT STUDIO (SSMS) - OPCIONAL
-# =============================================================================
-Write-Step "10/10" "SQL Server Management Studio (SSMS)..."
-
-# Detectar si SSMS ya esta instalado buscando en el registro
-$ssmsInstalled = $false
-$ssmsRegPaths = @(
-    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
-)
-foreach ($regBase in $ssmsRegPaths) {
-    if (Test-Path $regBase) {
-        $found = Get-ChildItem -Path $regBase -ErrorAction SilentlyContinue |
-            Get-ItemProperty -ErrorAction SilentlyContinue |
-            Where-Object { $_ -ne $null -and $_.PSObject.Properties['DisplayName'] -ne $null -and $_.DisplayName -like "*SQL Server Management Studio*" } |
-            Select-Object -First 1
-        if ($found) {
-            $ssmsInstalled = $true
-            Write-OK "SSMS ya instalado: $($found.DisplayName) v$($found.DisplayVersion)"
-            break
-        }
-    }
-}
-
-if (-not $ssmsInstalled) {
-    Write-Info "SSMS no encontrado en este equipo."
-    Write-Host ""
-    Write-Host "  SQL Server Management Studio (SSMS) es una herramienta gratuita" -ForegroundColor White
-    Write-Host "  de Microsoft para administrar la base de datos visualmente:" -ForegroundColor White
-    Write-Host "    - Ver y editar tablas, datos y estructuras" -ForegroundColor Gray
-    Write-Host "    - Ejecutar consultas SQL" -ForegroundColor Gray
-    Write-Host "    - Hacer backups y restauraciones" -ForegroundColor Gray
-    Write-Host "    - Gestionar usuarios y permisos" -ForegroundColor Gray
-    Write-Host "  Tamanio de descarga: ~600 MB. Instalacion: ~5-10 minutos." -ForegroundColor Gray
-    Write-Host ""
-
-    $instalarSsms = Read-Host "  Desea instalar SSMS ahora? (S/N)"
-
-    if ($instalarSsms -match "^[sS]") {
-        $tempSsms = Join-Path $env:TEMP $SSMS_FILENAME
-        Remove-Item $tempSsms -Force -ErrorAction SilentlyContinue
-
-        Write-Info "Descargando SSMS (~600 MB, puede tardar varios minutos)..."
-        try {
-            $wcSsms = New-Object System.Net.WebClient
-            $wcSsms.DownloadFile($SSMS_URL, $tempSsms)
-            Write-OK "Descarga de SSMS completada."
-        } catch {
-            Write-Fail "Error descargando SSMS: $_"
-            Write-Warn "Descargue manualmente desde: https://aka.ms/ssms"
-            $tempSsms = $null
-        }
-
-        if ($tempSsms -and (Test-Path $tempSsms)) {
-            Write-Info "Instalando SSMS en modo silencioso (puede tardar 5-10 minutos)..."
-            try {
-                $procSsms = Start-Process -FilePath $tempSsms `
-                    -ArgumentList "/install /quiet /norestart" `
-                    -Wait -PassThru
-
-                switch ($procSsms.ExitCode) {
-                    0    { Write-OK "SSMS instalado correctamente." }
-                    3010 {
-                        Write-OK "SSMS instalado correctamente."
-                        Write-Warn "Se requiere reiniciar el equipo para completar la instalacion de SSMS."
-                    }
-                    default {
-                        Write-Warn "Instalador SSMS finalizo con codigo $($procSsms.ExitCode)."
-                        Write-Info "Si SSMS no aparece, descargue manualmente desde: https://aka.ms/ssms"
-                    }
-                }
-            } catch {
-                Write-Warn "Error al ejecutar el instalador de SSMS: $_"
-            } finally {
-                Remove-Item $tempSsms -Force -ErrorAction SilentlyContinue
-            }
-
-            # Crear acceso directo a SSMS en el escritorio si el exe existe
-            $ssmsPaths = @(
-                "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
-                "${env:ProgramFiles}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
-                "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe",
-                "${env:ProgramFiles}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe"
-            )
-            $ssmsExe = $ssmsPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
-            if ($ssmsExe) {
-                try {
-                    $ssmsShortcut = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "SQL Server Management Studio.lnk"
-                    $wshellSsms   = New-Object -ComObject WScript.Shell
-                    $scSsms       = $wshellSsms.CreateShortcut($ssmsShortcut)
-                    $scSsms.TargetPath  = $ssmsExe
-                    $scSsms.Description = "SQL Server Management Studio"
-                    $scSsms.IconLocation = "$ssmsExe, 0"
-                    $scSsms.Save()
-                    Write-OK "Acceso directo a SSMS creado en el escritorio."
-                } catch {
-                    Write-Warn "No se pudo crear el acceso directo de SSMS: $_"
-                }
-            }
-        }
-    } else {
-        Write-Info "Instalacion de SSMS omitida."
-        Write-Info "Puede instalarlo en cualquier momento desde: https://aka.ms/ssms"
-    }
-} else {
-    Write-OK "SSMS listo."
-}
-
-# =============================================================================
+# ===========================================================================
 # LIMPIEZA
-# =============================================================================
+# ===========================================================================
 Remove-Item $tempZip     -Force -ErrorAction SilentlyContinue
 Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 
-# =============================================================================
+# ===========================================================================
 # RESUMEN FINAL
-# =============================================================================
-Write-Header "INSTALACION COMPLETADA"
+# ===========================================================================
+Write-Header "INSTALACION COMPLETADA -- Comercio .NET v$version"
 
-Write-Host "  Version instalada : " -NoNewline
-Write-Host $version -ForegroundColor Green
-
-Write-Host "  Carpeta           : " -NoNewline
-Write-Host $InstallDir -ForegroundColor Cyan
-
-Write-Host "  Ejecutable        : " -NoNewline
-Write-Host (Join-Path $InstallDir $APP_EXE) -ForegroundColor Cyan
-
+Write-Host "  Carpeta     : $InstallDir" -ForegroundColor Cyan
+Write-Host "  Base datos  : PostgreSQL $PG_VERSION >> $DB_NAME en ${localIp}:$PgPort" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  PASOS OBLIGATORIOS ANTES DE USAR:" -ForegroundColor Yellow
-Write-Host "  ====================================================" -ForegroundColor Yellow
-Write-Host "  1. Editar appsettings.json con los datos del cliente:" -ForegroundColor White
-Write-Host "     $appSettingsPath" -ForegroundColor Gray
-Write-Host "     - ConnectionStrings: cadena de conexion SQL Server" -ForegroundColor Gray
+Write-Host "  1. Editar appsettings.json:" -ForegroundColor White
+Write-Host "     $appSettings" -ForegroundColor Gray
 Write-Host "     - Comercio.Nombre y Comercio.Domicilio" -ForegroundColor Gray
-Write-Host "     - Facturacion: CUIT, Razon Social, Condicion" -ForegroundColor Gray
+Write-Host "     - Facturacion: CUIT, RazonSocial, Condicion" -ForegroundColor Gray
 Write-Host "     - AFIP: CUIT, PuntoVenta, rutas de certificados" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  2. Copiar certificados AFIP (.p12 / .pfx) en:" -ForegroundColor White
-Write-Host "     $certFolder" -ForegroundColor Gray
+Write-Host "  2. Copiar certificados AFIP (.p12/.pfx) en:" -ForegroundColor White
+Write-Host "     $(Join-Path $InstallDir 'Certificados FE')" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  3. Verificar que SQL Server este corriendo" -ForegroundColor White
-Write-Host "     Si la BD no se creo, ejecute manualmente:" -ForegroundColor Gray
-Write-Host "     $(Join-Path $InstallDir $DB_INIT_SCRIPT)" -ForegroundColor Gray
+Write-Host "  CONEXION DESDE OTRAS PCs:" -ForegroundColor Yellow
+Write-Host "  $connString" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  USUARIO SQL PARA CONEXIONES REMOTAS:" -ForegroundColor Yellow
-Write-Host "     Usuario: michael  |  Password: michael" -ForegroundColor Gray
-Write-Host "     (Para acceso desde otras PCs en la red local)" -ForegroundColor Gray
+Write-Host "  USUARIO BD: $DB_USER  |  Password: $PgPassword" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  4. Ejecutar la aplicacion con el acceso directo" -ForegroundColor White
-Write-Host "     del escritorio o desde:" -ForegroundColor Gray
-Write-Host "     $exePath" -ForegroundColor Gray
-Write-Host ""
+Write-Host "  3. Iniciar la aplicacion desde el acceso directo del escritorio." -ForegroundColor White
 Write-Host ("=" * 60) -ForegroundColor Cyan
 Write-Host ""
 
-$respuesta = Read-Host "Desea abrir la carpeta de instalacion ahora? (S/N)"
-if ($respuesta -match "^[sS]") {
+$resp = Read-Host "Desea abrir la carpeta de instalacion ahora? (S/N)"
+if ($resp -match "^[sS]") {
     Start-Process explorer.exe -ArgumentList $InstallDir
 }
