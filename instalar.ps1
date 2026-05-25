@@ -263,7 +263,7 @@ if ($dotnetOk) {
 }
 
 # ===========================================================================
-# PASO 2 - POSTGRESQL
+# PASO 2 - POSTGRESQL (Inicialización Forzada y Limpia)
 # ===========================================================================
 Write-Step "2/10" "Verificando PostgreSQL..."
 
@@ -279,81 +279,77 @@ if ($pgBin) {
         Write-OK "Descarga completada."
     } catch {
         Write-Fail "Error descargando PostgreSQL: $_"
-        Write-Warn "Descargue manualmente: https://www.postgresql.org/download/windows/"
-        Read-Host "ENTER para continuar o Ctrl+C para cancelar"
+        Read-Host "ENTER para salir"
+        exit 1
     }
 
     if (Test-Path $tmpPg) {
-        Write-Info "Instalando PostgreSQL $PG_VERSION en modo silencioso (5-10 min)..."
+        Write-Info "Instalando binarios de PostgreSQL $PG_VERSION..."
         
-        # Agregamos parámetros explícitos para asegurar la creación del cluster de la BD
+        # IMPORTANTE: --create_database_cluster 0 evita que el instalador de EDB 
+        # intente crear el cluster y falle escribiendo un .conf corrupto.
         $pgArgs = "--mode unattended " +
                   "--unattendedmodeui none " +
-                  "--superpassword `"$PgPassword`" " +
                   "--serverport $PgPort " +
                   "--servicename postgresql-$PG_VERSION " +
+                  "--create_database_cluster 0 " + 
                   "--install_runtimes 1 " +
-                  "--create_database_cluster 1 " +
                   "--enable-components server,commandlinetools"
 
         $pPg = Start-Process -FilePath $tmpPg -ArgumentList $pgArgs -Wait -PassThru
         Remove-Item $tmpPg -Force -ErrorAction SilentlyContinue
 
-        switch ($pPg.ExitCode) {
-            0    { Write-OK "PostgreSQL $PG_VERSION instalado correctamente." }
-            3010 { Write-OK "PostgreSQL instalado. Reinicio requerido para completar." }
-            default { Write-Warn "Instalador PostgreSQL codigo: $($pPg.ExitCode)" }
+        # Localizar binarios recién instalados
+        $pgBin = Find-PgBin
+        if (-not $pgBin) {
+            Write-Fail "No se instaló correctamente PostgreSQL."
+            exit 1
         }
 
-        # ---------------------------------------------------------------------------
-        # CORRECCIÓN DE PERMISOS (Crucial para que el servicio pueda iniciar)
-        # ---------------------------------------------------------------------------
-        Write-Info "Ajustando permisos de seguridad en el directorio Data..."
-        if (Test-Path $PG_DEFAULT_DATA_DIR) {
-            # Conceder control total a NT AUTHORITY\Network Service y NT AUTHORITY\Local Service
-            # Se usan los nombres en inglés/SIDs universales para evitar fallas por idioma del SO (Español/Inglés)
-            & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
-            & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
-            Write-OK "Permisos asignados a las cuentas de servicio."
+        # 1. Crear el directorio Data si no existe y asegurar permisos limpitos
+        Write-Info "Preparando directorio de datos..."
+        if (-not (Test-Path $PG_DEFAULT_DATA_DIR)) {
+            New-Item -ItemType Directory -Path $PG_DEFAULT_DATA_DIR -Force | Out-Null
         }
+        # Otorgar control total a las cuentas de servicio (Network Service y Local Service) por SID universal
+        & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
+        & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
 
-        # Esperar a que el servicio inicie (o intentar levantarlo)
-        $intentos  = 0
-        do {
-            Start-Sleep -Seconds 3
-            $intentos++
+        # 2. Inicializar el clúster manualmente (initdb) asegurando codificación UTF8 limpia
+        Write-Info "Inicializando base de datos manualmente (initdb)..."
+        $initDbExe = Join-Path $pgBin "initdb.exe"
+        
+        # Pasamos la contraseña mediante un archivo temporal para evitar problemas de escape de caracteres
+        $pwFile = Join-Path $env:TEMP "pg_pw.txt"
+        $PgPassword | Out-File $pwFile -Encoding ascii
+        
+        # Forzamos encoding UTF8 y autenticación md5 nativa
+        & $initDbExe -D "$PG_DEFAULT_DATA_DIR" -U postgres -A md5 --pwfile="$pwFile" --E=UTF8 | Out-Null
+        Remove-Item $pwFile -Force -ErrorAction SilentlyContinue
+
+        # Re-aplicar permisos sobre los archivos recién creados por initdb
+        & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
+
+        # 3. Intentar arrancar el servicio por primera vez
+        Write-Info "Iniciando servicio por primera vez..."
+        $svc = Get-PgService
+        if ($svc) {
+            Start-Service -Name $svc.Name -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 5
             $svc = Get-PgService
-            if ($svc -and $svc.Status -ne 'Running') {
-                Start-Service -Name $svc.Name -ErrorAction SilentlyContinue
-            }
-        } while (($null -eq $svc -or $svc.Status -ne 'Running') -and $intentos -lt 20)
-
-        if ($svc -and $svc.Status -eq 'Running') {
-            Write-OK "Servicio PostgreSQL listo ($($svc.Name))."
-        } else {
-            Write-Warn "El servicio no inició solo. Forzando inicio con Ensure-PgServiceRunning..."
-            if (Ensure-PgServiceRunning -TimeoutSeconds 30) {
-                $svc = Get-PgService
+            if ($svc.Status -eq 'Running') {
                 Write-OK "Servicio PostgreSQL iniciado correctamente ($($svc.Name))."
             } else {
-                Write-Fail "No se pudo iniciar el servicio PostgreSQL. Revise el visor de eventos (Event Viewer)."
+                Write-Fail "El motor limpio no quiso iniciar. Revise el visor de eventos."
                 Read-Host "ENTER para salir"
                 exit 1
             }
         }
-
-        $pgBin = Find-PgBin
     }
 }
 
-if (-not $pgBin) {
-    Write-Fail "No se pudo localizar psql.exe. Instale PostgreSQL manualmente."
-    Read-Host "ENTER para salir"
-    exit 1
-}
-
 # ===========================================================================
-# PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS
+# PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS (Corregido)
 # ===========================================================================
 Write-Step "3/10" "Configurando PostgreSQL para conexiones remotas..."
 
@@ -362,7 +358,7 @@ $pgDataDir = $null
 if (Test-Path $PG_DEFAULT_DATA_DIR) {
     $pgDataDir = $PG_DEFAULT_DATA_DIR
 } else {
-    $pgSvcObj = Get-WmiObject Win32_Service -Filter "Name LIKE 'postgresql%'" `
+    $pgSvcObj = Get-CimInstance -ClassName Win32_Service -Filter "Name LIKE 'postgresql%'" `
                 -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($pgSvcObj -and $pgSvcObj.PathName -match "-D\s+`"?([^`"]+)`"?") {
         $pgDataDir = $Matches[1].Trim('"').Trim()
@@ -371,7 +367,6 @@ if (Test-Path $PG_DEFAULT_DATA_DIR) {
 
 if ($pgDataDir -and (Test-Path $pgDataDir)) {
 
-    # postgresql.conf: listen_addresses = '*'
     $pgConf = Join-Path $pgDataDir "postgresql.conf"
     $pgHba  = Join-Path $pgDataDir "pg_hba.conf"
     $pgConfBackup = "$pgConf.bak.comercionet"
@@ -384,25 +379,43 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
     }
 
     Copy-Item $pgConf $pgConfBackup -Force
-    Copy-Item $pgHba  $pgHbaBackup  -Force
+    Copy-Item $pgHba  $pgHbaBackup  = -Force
     Write-Info "Backups de configuracion creados (.bak.comercionet)."
 
-    $confContent = Get-Content $pgConf -Raw
-    if ($confContent -match "(?m)^\s*#?\s*listen_addresses\s*=") {
-        $confContent = $confContent -replace "(?m)^\s*#?\s*listen_addresses\s*=.*$",
-                        "listen_addresses = '*'"
-    } else {
-        $confContent += "`nlisten_addresses = '*'`n"
+    # ---------------------------------------------------------------------------
+    # MODIFICACIÓN DE POSTGRESQL.CONF (Evitando BOM y problemas de encoding)
+    # ---------------------------------------------------------------------------
+    # Leemos obligando a interpretar UTF8 limpio
+    $confLines = Get-Content $pgConf -Encoding UTF8
+    $hasListenArr = $false
+    $newConfLines = @()
+
+    foreach ($line in $confLines) {
+        if ($line -match "^\s*#?\s*listen_addresses\s*=") {
+            $newConfLines += "listen_addresses = '*'"
+            $hasListenArr = $true
+        } else {
+            $newConfLines += $line
+        }
     }
-    [System.IO.File]::WriteAllText($pgConf, $confContent, (New-Object System.Text.UTF8Encoding($false)))
+    if (-not $hasListenArr) {
+        $newConfLines += "listen_addresses = '*'"
+    }
+
+    # Guardar forzando UTF8 SIN BOM (Crucial para que Postgres no tire error FATAL)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($pgConf, $newConfLines, $utf8NoBom)
     Write-OK "postgresql.conf: listen_addresses = '*'"
 
-    # pg_hba.conf: autenticacion md5 desde cualquier IP
-    $hbaContent = Get-Content $pgHba -Raw
-    $hbaLine    = "host    all             all             0.0.0.0/0               md5"
-    if ($hbaContent -notmatch [regex]::Escape($hbaLine)) {
-        $hbaContent += "`n# Comercio.NET - acceso remoto red local`n$hbaLine`n"
-        [System.IO.File]::WriteAllText($pgHba, $hbaContent, (New-Object System.Text.UTF8Encoding($false)))
+    # ---------------------------------------------------------------------------
+    # MODIFICACIÓN DE PG_HBA.CONF
+    # ---------------------------------------------------------------------------
+    $hbaLines = Get-Content $pgHba -Encoding UTF8
+    $hbaLine  = "host    all             all             0.0.0.0/0               md5"
+    
+    if ($hbaLines -notcontains $hbaLine) {
+        $newHbaLines = $hbaLines + @("", "# Comercio.NET - acceso remoto red local", $hbaLine)
+        [System.IO.File]::WriteAllLines($pgHba, $newHbaLines, $utf8NoBom)
         Write-OK "pg_hba.conf: md5 desde 0.0.0.0/0 agregado."
     } else {
         Write-OK "pg_hba.conf: regla remota ya existente."
@@ -412,13 +425,6 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
     if (-not (Test-PgConfigSyntax -PgBin $pgBin -PgDataDir $pgDataDir)) {
         Write-Fail "La configuracion de PostgreSQL quedo con errores de sintaxis. Restaurando backups..."
         Restore-PgConfigBackups -PgConf $pgConf -PgHba $pgHba -PgConfBackup $pgConfBackup -PgHbaBackup $pgHbaBackup
-
-        if (-not (Test-PgConfigSyntax -PgBin $pgBin -PgDataDir $pgDataDir)) {
-            Write-Fail "No se pudo validar la configuracion de PostgreSQL aun despues de restaurar backups."
-        } else {
-            Write-OK "Backups restaurados correctamente."
-        }
-
         Read-Host "ENTER para salir"
         exit 1
     }
@@ -427,19 +433,17 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
     $svc = Get-PgService
     if ($svc) {
         try {
+            Write-Info "Reiniciando el servicio $($svc.Name)..."
             Restart-Service -Name $svc.Name -Force -ErrorAction Stop
             Start-Sleep -Seconds 5
             Write-OK "PostgreSQL reiniciado con nueva configuracion ($($svc.Name))."
         } catch {
-            Write-Warn "No se pudo reiniciar PostgreSQL: $($_.Exception.Message)"
-            Write-Info "Intentando iniciar servicio..."
+            Write-Warn "No se pudo reiniciar PostgreSQL de forma estandar: $($_.Exception.Message)"
             if (Ensure-PgServiceRunning -TimeoutSeconds 30) {
-                $svc = Get-PgService
-                Write-OK "Servicio PostgreSQL iniciado ($($svc.Name))."
+                Write-OK "Servicio PostgreSQL iniciado con exito tras reintento."
             } else {
-                Write-Fail "No pudo iniciarse el servicio PostgreSQL. Restaurando backups de configuracion..."
+                Write-Fail "No pudo iniciarse el servicio. Restaurando backups de configuracion..."
                 Restore-PgConfigBackups -PgConf $pgConf -PgHba $pgHba -PgConfBackup $pgConfBackup -PgHbaBackup $pgHbaBackup
-                Write-Warn "Backups restaurados. Revise permisos del servicio y logs de PostgreSQL."
                 Read-Host "ENTER para salir"
                 exit 1
             }
@@ -448,26 +452,6 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
 
 } else {
     Write-Warn "No se encontro el directorio de datos de PostgreSQL."
-    Write-Warn "Configure manualmente:"
-    Write-Warn "  postgresql.conf  ->  listen_addresses = '*'"
-    Write-Warn "  pg_hba.conf      ->  host all all 0.0.0.0/0 md5"
-}
-
-# Abrir puerto en Firewall
-Write-Info "Configurando firewall (TCP $PgPort)..."
-try {
-    $existingRule = netsh advfirewall firewall show rule name="PostgreSQL $PgPort" 2>$null
-    if ($existingRule -notmatch "PostgreSQL $PgPort") {
-        netsh advfirewall firewall add rule `
-            name="PostgreSQL $PgPort" protocol=TCP dir=in ``
-            localport=$PgPort action=allow | Out-Null
-        Write-OK "Regla de firewall creada: TCP $PgPort entrada permitida."
-    } else {
-        Write-OK "Regla de firewall para puerto $PgPort ya existe."
-    }
-} catch {
-    Write-Warn "No se pudo configurar el firewall: $_"
-    Write-Warn "Abra manualmente el puerto $PgPort TCP entrante."
 }
 
 # ===========================================================================
