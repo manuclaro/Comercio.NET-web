@@ -356,8 +356,8 @@ if ($pgBin) {
             Write-Fail "No se pudo registrar el servicio de Windows."
             exit 1
         }
-    }
-end
+    } # <--- Acá estaba el 'end' colado, ahora está la llave correspondiente
+}
 
 # ===========================================================================
 # PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS (Corregido)
