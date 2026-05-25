@@ -59,17 +59,12 @@ $DOTNET_VERSION      = "8.0"
 $DOTNET_RUNTIME_URL  = "https://download.visualstudio.microsoft.com/download/pr/b6f19ef3-52d7-4b4b-98a7-84e9cdc82e8c/f4d27595d2b7c798d5eca2f0547f3d16/windowsdesktop-runtime-8.0.12-win-x64.exe"
 $DOTNET_RUNTIME_FILE = "windowsdesktop-runtime-8.0-win-x64.exe"
 
-$PG_VERSION          = "16"
-$PG_INSTALLER_URL    = "https://get.enterprisedb.com/postgresql/postgresql-16.6-1-windows-x64.exe"
-$PG_INSTALLER_FILE   = "postgresql-16-installer.exe"
-$PG_DEFAULT_DATA_DIR = "C:\Program Files\PostgreSQL\$PG_VERSION\data"
-$PG_BIN_CANDIDATES   = @(
-    "C:\Program Files\PostgreSQL\18\bin",
-    "C:\Program Files\PostgreSQL\17\bin",
-    "C:\Program Files\PostgreSQL\16\bin",
-    "C:\Program Files\PostgreSQL\15\bin",
-    "C:\Program Files\PostgreSQL\14\bin"
-)
+$PG_VERSION          = "16.6"
+# URL directa al ZIP oficial de binarios para Windows x64
+$PG_INSTALLER_URL    = "https://sbp.enterprisedb.com/get/dbdownloads/postgresql-16.6-1-windows-x64-binaries.zip"
+$PG_INSTALLER_FILE   = "postgresql-16-binaries.zip"
+$PG_DEFAULT_DATA_DIR = "C:\Program Files\PostgreSQL\16\data"
+$PG_BIN_CANDIDATES   = @("C:\Program Files\PostgreSQL\16\bin")
 
 $DB_NAME        = "comercio"
 $DB_USER        = "postgres"
@@ -263,7 +258,7 @@ if ($dotnetOk) {
 }
 
 # ===========================================================================
-# PASO 2 - POSTGRESQL (Inicialización Forzada y Limpia)
+# PASO 2 - POSTGRESQL VIA BINARIOS ZIP (100% Controlable y Confiable)
 # ===========================================================================
 Write-Step "2/10" "Verificando PostgreSQL..."
 
@@ -272,81 +267,97 @@ $pgBin = Find-PgBin
 if ($pgBin) {
     Write-OK "PostgreSQL encontrado en: $pgBin"
 } else {
-    Write-Info "PostgreSQL no detectado. Descargando instalador de EDB (~300 MB)..."
+    Write-Info "PostgreSQL no detectado. Descargando binarios ZIP oficiales (~230 MB)..."
     $tmpPg = Join-Path $env:TEMP $PG_INSTALLER_FILE
     try {
         (New-Object System.Net.WebClient).DownloadFile($PG_INSTALLER_URL, $tmpPg)
         Write-OK "Descarga completada."
     } catch {
-        Write-Fail "Error descargando PostgreSQL: $_"
+        Write-Fail "Error descargando el ZIP de PostgreSQL: $_"
         Read-Host "ENTER para salir"
         exit 1
     }
 
     if (Test-Path $tmpPg) {
-        Write-Info "Instalando binarios de PostgreSQL $PG_VERSION..."
-        
-        # IMPORTANTE: --create_database_cluster 0 evita que el instalador de EDB 
-        # intente crear el cluster y falle escribiendo un .conf corrupto.
-        $pgArgs = "--mode unattended " +
-                  "--unattendedmodeui none " +
-                  "--serverport $PgPort " +
-                  "--servicename postgresql-$PG_VERSION " +
-                  "--create_database_cluster 0 " + 
-                  "--install_runtimes 1 " +
-                  "--enable-components server,commandlinetools"
+        $pgTargetRoot = "C:\Program Files\PostgreSQL"
+        if (-not (Test-Path $pgTargetRoot)) { New-Item -ItemType Directory -Path $pgTargetRoot -Force | Out-Null }
 
-        $pPg = Start-Process -FilePath $tmpPg -ArgumentList $pgArgs -Wait -PassThru
-        Remove-Item $tmpPg -Force -ErrorAction SilentlyContinue
+        Write-Info "Extrayendo binarios en $pgTargetRoot... (Puede demorar un minuto)"
+        try {
+            Expand-Archive -Path $tmpPg -DestinationPath $pgTargetRoot -Force
+            # El zip de Postgres extrae todo dentro de una carpeta llamada 'pgsql'
+            # La renombramos a '16' para mantener tu estructura original
+            if (Test-Path (Join-Path $pgTargetRoot "pgsql")) {
+                Rename-Item -Path (Join-Path $pgTargetRoot "pgsql") -NewName "16" -Force
+            }
+            Write-OK "Extracción completada."
+        } catch {
+            Write-Fail "Error al extraer los archivos: $_"
+            exit 1
+        } finally {
+            Remove-Item $tmpPg -Force -ErrorAction SilentlyContinue
+        }
 
-        # Localizar binarios recién instalados
         $pgBin = Find-PgBin
         if (-not $pgBin) {
-            Write-Fail "No se instaló correctamente PostgreSQL."
+            Write-Fail "No se pudieron localizar los binarios extraídos."
             exit 1
         }
 
-        # 1. Crear el directorio Data si no existe y asegurar permisos limpitos
-        Write-Info "Preparando directorio de datos..."
+        # 1. Crear directorio Data y forzar permisos correctos antes de inicializar
+        Write-Info "Configurando directorio de datos y permisos de Windows..."
         if (-not (Test-Path $PG_DEFAULT_DATA_DIR)) {
             New-Item -ItemType Directory -Path $PG_DEFAULT_DATA_DIR -Force | Out-Null
         }
-        # Otorgar control total a las cuentas de servicio (Network Service y Local Service) por SID universal
-        & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
-        & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
+        
+        # Otorgar Control Total a las cuentas de servicio de Windows usando SIDs universales
+        & icacls "C:\Program Files\PostgreSQL" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
+        & icacls "C:\Program Files\PostgreSQL" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
 
-        # 2. Inicializar el clúster manualmente (initdb) asegurando codificación UTF8 limpia
-        Write-Info "Inicializando base de datos manualmente (initdb)..."
+        # 2. Inicializar la base de datos de manera nativa (initdb)
+        Write-Info "Inicializando base de datos de forma limpia (initdb)..."
         $initDbExe = Join-Path $pgBin "initdb.exe"
         
-        # Pasamos la contraseña mediante un archivo temporal para evitar problemas de escape de caracteres
         $pwFile = Join-Path $env:TEMP "pg_pw.txt"
         $PgPassword | Out-File $pwFile -Encoding ascii
         
-        # Forzamos encoding UTF8 y autenticación md5 nativa
+        # Forzamos codificación UTF8 limpia desde el nacimiento del archivo
         & $initDbExe -D "$PG_DEFAULT_DATA_DIR" -U postgres -A md5 --pwfile="$pwFile" --E=UTF8 | Out-Null
         Remove-Item $pwFile -Force -ErrorAction SilentlyContinue
 
-        # Re-aplicar permisos sobre los archivos recién creados por initdb
+        # Re-aplicar permisos sobre la nueva estructura generada por initdb
         & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
 
-        # 3. Intentar arrancar el servicio por primera vez
+        # 3. Registrar PostgreSQL como Servicio de Windows
+        Write-Info "Registrando PostgreSQL como Servicio de Windows..."
+        $pgCtlExe = Join-Path $pgBin "pg_ctl.exe"
+        
+        # Registra el servicio mapeado a la cuenta Network Service de forma nativa
+        & $pgCtlExe register -N "postgresql-16" -D "$PG_DEFAULT_DATA_DIR" -w | Out-Null
+
+        # 4. Iniciar el servicio recién creado
         Write-Info "Iniciando servicio por primera vez..."
-        $svc = Get-PgService
+        $svc = Get-Service -Name "postgresql-16" -ErrorAction SilentlyContinue
         if ($svc) {
+            # Cambiar el inicio a Automático por las dudas
+            Set-Service -Name $svc.Name -StartupType Automatic
             Start-Service -Name $svc.Name -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 5
-            $svc = Get-PgService
+            
+            $svc = Get-Service -Name $svc.Name
             if ($svc.Status -eq 'Running') {
-                Write-OK "Servicio PostgreSQL iniciado correctamente ($($svc.Name))."
+                Write-OK "Servicio PostgreSQL levantado correctamente y corriendo."
             } else {
-                Write-Fail "El motor limpio no quiso iniciar. Revise el visor de eventos."
+                Write-Fail "El motor se creó pero no inició. Revise el Visor de Eventos."
                 Read-Host "ENTER para salir"
                 exit 1
             }
+        } else {
+            Write-Fail "No se pudo registrar el servicio de Windows."
+            exit 1
         }
     }
-}
+end
 
 # ===========================================================================
 # PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS (Corregido)
