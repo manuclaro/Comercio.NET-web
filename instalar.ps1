@@ -285,8 +285,6 @@ if ($pgBin) {
         Write-Info "Extrayendo binarios en $pgTargetRoot... (Puede demorar un minuto)"
         try {
             Expand-Archive -Path $tmpPg -DestinationPath $pgTargetRoot -Force
-            # El zip de Postgres extrae todo dentro de una carpeta llamada 'pgsql'
-            # La renombramos a '16' para mantener tu estructura original
             if (Test-Path (Join-Path $pgTargetRoot "pgsql")) {
                 Rename-Item -Path (Join-Path $pgTargetRoot "pgsql") -NewName "16" -Force
             }
@@ -310,7 +308,6 @@ if ($pgBin) {
             New-Item -ItemType Directory -Path $PG_DEFAULT_DATA_DIR -Force | Out-Null
         }
         
-        # Otorgar Control Total a las cuentas de servicio de Windows usando SIDs universales
         & icacls "C:\Program Files\PostgreSQL" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
         & icacls "C:\Program Files\PostgreSQL" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
 
@@ -321,25 +318,20 @@ if ($pgBin) {
         $pwFile = Join-Path $env:TEMP "pg_pw.txt"
         $PgPassword | Out-File $pwFile -Encoding ascii
         
-        # Forzamos codificación UTF8 limpia desde el nacimiento del archivo
         & $initDbExe -D "$PG_DEFAULT_DATA_DIR" -U postgres -A md5 --pwfile="$pwFile" --E=UTF8 | Out-Null
         Remove-Item $pwFile -Force -ErrorAction SilentlyContinue
 
-        # Re-aplicar permisos sobre la nueva estructura generada por initdb
         & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
 
         # 3. Registrar PostgreSQL como Servicio de Windows
         Write-Info "Registrando PostgreSQL como Servicio de Windows..."
         $pgCtlExe = Join-Path $pgBin "pg_ctl.exe"
-        
-        # Registra el servicio mapeado a la cuenta Network Service de forma nativa
         & $pgCtlExe register -N "postgresql-16" -D "$PG_DEFAULT_DATA_DIR" -w | Out-Null
 
         # 4. Iniciar el servicio recién creado
         Write-Info "Iniciando servicio por primera vez..."
         $svc = Get-Service -Name "postgresql-16" -ErrorAction SilentlyContinue
         if ($svc) {
-            # Cambiar el inicio a Automático por las dudas
             Set-Service -Name $svc.Name -StartupType Automatic
             Start-Service -Name $svc.Name -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 5
@@ -356,15 +348,14 @@ if ($pgBin) {
             Write-Fail "No se pudo registrar el servicio de Windows."
             exit 1
         }
-    } # <--- Acá estaba el 'end' colado, ahora está la llave correspondiente
+    }
 }
 
 # ===========================================================================
-# PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS (Corregido)
+# PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS
 # ===========================================================================
 Write-Step "3/10" "Configurando PostgreSQL para conexiones remotas..."
 
-# Detectar directorio de datos
 $pgDataDir = $null
 if (Test-Path $PG_DEFAULT_DATA_DIR) {
     $pgDataDir = $PG_DEFAULT_DATA_DIR
@@ -377,7 +368,6 @@ if (Test-Path $PG_DEFAULT_DATA_DIR) {
 }
 
 if ($pgDataDir -and (Test-Path $pgDataDir)) {
-
     $pgConf = Join-Path $pgDataDir "postgresql.conf"
     $pgHba  = Join-Path $pgDataDir "pg_hba.conf"
     $pgConfBackup = "$pgConf.bak.comercionet"
@@ -390,13 +380,10 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
     }
 
     Copy-Item $pgConf $pgConfBackup -Force
-    Copy-Item $pgHba  $pgHbaBackup  = -Force
+    Copy-Item $pgHba  $pgHbaBackup  -Force
     Write-Info "Backups de configuracion creados (.bak.comercionet)."
 
-    # ---------------------------------------------------------------------------
-    # MODIFICACIÓN DE POSTGRESQL.CONF (Evitando BOM y problemas de encoding)
-    # ---------------------------------------------------------------------------
-    # Leemos obligando a interpretar UTF8 limpio
+    # Modificación de postgresql.conf sin alterar encoding
     $confLines = Get-Content $pgConf -Encoding UTF8
     $hasListenArr = $false
     $newConfLines = @()
@@ -413,14 +400,11 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
         $newConfLines += "listen_addresses = '*'"
     }
 
-    # Guardar forzando UTF8 SIN BOM (Crucial para que Postgres no tire error FATAL)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllLines($pgConf, $newConfLines, $utf8NoBom)
     Write-OK "postgresql.conf: listen_addresses = '*'"
 
-    # ---------------------------------------------------------------------------
-    # MODIFICACIÓN DE PG_HBA.CONF
-    # ---------------------------------------------------------------------------
+    # Modificación de pg_hba.conf
     $hbaLines = Get-Content $pgHba -Encoding UTF8
     $hbaLine  = "host    all             all             0.0.0.0/0               md5"
     
@@ -460,9 +444,24 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
             }
         }
     }
-
 } else {
     Write-Warn "No se encontro el directorio de datos de PostgreSQL."
+}
+
+# Abrir puerto en Firewall
+Write-Info "Configurando firewall (TCP $PgPort)..."
+try {
+    $existingRule = netsh advfirewall firewall show rule name="PostgreSQL $PgPort" 2>$null
+    if ($existingRule -notmatch "PostgreSQL $PgPort") {
+        netsh advfirewall firewall add rule `
+            name="PostgreSQL $PgPort" protocol=TCP dir=in `
+            localport=$PgPort action=allow | Out-Null
+        Write-OK "Regla de firewall creada: TCP $PgPort entrada permitida."
+    } else {
+        Write-OK "Regla de firewall para puerto $PgPort ya existe."
+    }
+} catch {
+    Write-Warn "No se pudo configure el firewall: $_"
 }
 
 # ===========================================================================
