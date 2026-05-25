@@ -25,7 +25,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 var query = @"
                     SELECT DISTINCT Cajero
                     FROM Facturas
-                    WHERE ISNULL(Cajero, '') <> ''
+                    WHERE COALESCE(Cajero, '') <> ''
                     ORDER BY Cajero";
 
                 using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query });
@@ -70,7 +70,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 var query = @"
                     SELECT 
                         COUNT(DISTINCT NumeroRemito) as TotalVentas,
-                        SUM(CAST(ISNULL(ImporteFinal, 0) AS DECIMAL(18,2))) as TotalIngresos,
+                        SUM(CAST(COALESCE(ImporteFinal, 0) AS DECIMAL(18,2))) as TotalIngresos,
                         SUM(CASE WHEN FormadePago = 'DNI' 
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as DNI,
                         SUM(CASE WHEN FormadePago = 'Efectivo' 
@@ -81,7 +81,7 @@ namespace Comercio.NET.Mobile.Server.Services
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Otro,
                         SUM(CASE WHEN TipoFactura = 'FacturaC' OR TipoFactura = 'Factura C' OR TipoFactura = 'C'
                             THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as FacturaC,
-                        ISNULL((
+                        COALESCE((
                             SELECT SUM(CAST(Monto AS DECIMAL(18,2)))
                             FROM PagosProveedores
                             WHERE CAST(FechaPago AS DATE) = @fecha
@@ -91,7 +91,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     WHERE CAST(Fecha AS DATE) = @fecha
                     AND esctacte = 0
                     AND (@cajero IS NULL OR Cajero = @cajero)
-                    AND ISNULL(Cajero, '') <> ''";
+                    AND COALESCE(Cajero, '') <> ''";
 
                 var parameters = new Dictionary<string, object?>
                 {
@@ -147,16 +147,16 @@ namespace Comercio.NET.Mobile.Server.Services
                         pp.Proveedor,
                         pp.Monto,
                         pp.FechaPago,
-                        ISNULL(pp.Observaciones, '') as Observaciones,
-                        ISNULL(pp.UsuarioRegistro, '') as UsuarioRegistro,
+                        COALESCE(pp.Observaciones, '') as Observaciones,
+                        COALESCE(pp.UsuarioRegistro, '') as UsuarioRegistro,
                         pp.NumeroCajero,
                         pp.NumeroRemito,
-                        ISNULL(pp.NombreEquipo, '') as NombreEquipo,
+                        COALESCE(pp.NombreEquipo, '') as NombreEquipo,
                         pp.FechaRegistro,
                         pp.IdProveedor,
                         pp.CompraId,
                         pp.CtaCteId,
-                        ISNULL(pp.Origen, '') as Origen
+                        COALESCE(pp.Origen, '') as Origen
                     FROM PagosProveedores pp
                     WHERE CAST(pp.FechaPago AS DATE) = @fecha
                     AND (@cajero IS NULL OR pp.UsuarioRegistro = @cajero)

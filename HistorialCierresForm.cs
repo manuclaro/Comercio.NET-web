@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -385,17 +385,17 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
 
                 var query = @"
-                    SELECT DISTINCT NumeroCajero, 
-                           COALESCE(MIN(Nombre + ' ' + Apellido), 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
-                    FROM Usuarios
-                    WHERE Activo = 1
-                    GROUP BY NumeroCajero
-                    ORDER BY NumeroCajero";
+                    SELECT DISTINCT numerocajero, 
+                           COALESCE(MIN(nombre || ' ' || apellido), 'Cajero ' || numerocajero::TEXT) as nombrecajero
+                    FROM usuarios
+                    WHERE activo = B'1'
+                    GROUP BY numerocajero
+                    ORDER BY numerocajero";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 connection.Open();
 
                 cmbCajero.Items.Clear();
@@ -456,7 +456,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
@@ -467,26 +467,28 @@ namespace Comercio.NET.Formularios
 
                 var query = @"
                     SELECT 
-                        t.Id,
-                        t.NumeroCajero,
-                        t.Usuario,
-                        t.FechaApertura,
-                        t.FechaCierre,
-                        t.MontoInicial,
-                        COALESCE(SUM(c.TotalEsperado), 0) as TotalEsperado,
-                        COALESCE(SUM(c.TotalDeclarado), 0) as TotalDeclarado,
-                        COALESCE(SUM(c.Diferencia), 0) as Diferencia,
-                        t.Estado
-                    FROM TurnosCajero t
-                    LEFT JOIN CierreTurnoCajero c ON t.Id = c.IdTurno
-                    WHERE (@numeroCajero IS NULL OR t.NumeroCajero = @numeroCajero)
-                    AND (@estado = '' OR t.Estado = @estado)
-                    AND t.FechaApertura BETWEEN @fechaDesde AND @fechaHasta
-                    GROUP BY t.Id, t.NumeroCajero, t.Usuario, t.FechaApertura, t.FechaCierre, t.MontoInicial, t.Estado
-                    ORDER BY t.FechaApertura DESC";
+                        t.id,
+                        t.numerocajero,
+                        t.usuario,
+                        t.fechaapertura,
+                        t.fechacierre,
+                        t.montoinicial,
+                        COALESCE(SUM(c.totalesperado), 0) as totalesperado,
+                        COALESCE(SUM(c.totaldeclarado), 0) as totaldeclarado,
+                        COALESCE(SUM(c.diferencia), 0) as diferencia,
+                        t.estado
+                    FROM turnoscajero t
+                    LEFT JOIN cierreturnoscajero c ON t.id = c.idturno
+                    WHERE (@numeroCajero::INTEGER IS NULL OR t.numerocajero = @numeroCajero::INTEGER)
+                    AND (@estado = '' OR t.estado = @estado)
+                    AND t.fechaapertura BETWEEN @fechaDesde AND @fechaHasta
+                    GROUP BY t.id, t.numerocajero, t.usuario, t.fechaapertura, t.fechacierre, t.montoinicial, t.estado
+                    ORDER BY t.fechaapertura DESC";
 
-                using var cmd = new SqlCommand(query, connection);
-                cmd.Parameters.AddWithValue("@numeroCajero", (object)numeroCajero ?? DBNull.Value);
+                using var cmd = new NpgsqlCommand(query, connection);
+                var paramCajero = new NpgsqlParameter("@numeroCajero", NpgsqlTypes.NpgsqlDbType.Integer);
+                paramCajero.Value = (object)numeroCajero ?? DBNull.Value;
+                cmd.Parameters.Add(paramCajero);
                 cmd.Parameters.AddWithValue("@estado", estado);
                 cmd.Parameters.AddWithValue("@fechaDesde", dtpDesde.Value.Date);
                 cmd.Parameters.AddWithValue("@fechaHasta", dtpHasta.Value.Date.AddDays(1).AddSeconds(-1));
@@ -596,21 +598,21 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 var query = @"
                     SELECT 
-                        MedioPago,
-                        CantidadTransacciones,
-                        TotalEsperado,
-                        TotalDeclarado,
-                        Diferencia
-                    FROM CierreTurnoCajero
-                    WHERE IdTurno = @idTurno
-                    ORDER BY MedioPago";
+                        mediopago,
+                        cantidadtransacciones,
+                        totalesperado,
+                        totaldeclarado,
+                        diferencia
+                    FROM cierreturnoscajero
+                    WHERE idturno = @idTurno
+                    ORDER BY mediopago";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@idTurno", turnoId);
 
                 dgvDetalleCierre.Rows.Clear();

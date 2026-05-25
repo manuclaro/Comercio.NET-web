@@ -24,10 +24,11 @@ namespace Comercio.NET.Mobile.Server.Services
         public async Task<TurnoDto?> GetTurnoActivoAsync()
         {
             var sql = @"
-                SELECT TOP 1 Id, NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, ISNULL(Observaciones, '') as Observaciones
+                SELECT Id, NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, COALESCE(Observaciones, '') as Observaciones
                 FROM TurnosCajero
                 WHERE Estado = 'Abierto'
-                ORDER BY Id DESC";
+                ORDER BY Id DESC
+                LIMIT 1";
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
 
@@ -53,9 +54,8 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var sql = @"
                 INSERT INTO TurnosCajero (FechaApertura, Estado, MontoInicial)
-                OUTPUT INSERTED.Id, INSERTED.NumeroCajero, INSERTED.Usuario, INSERTED.FechaApertura,
-                       INSERTED.FechaCierre, INSERTED.MontoInicial, INSERTED.Estado, ISNULL(INSERTED.Observaciones, '') as Observaciones
-                VALUES (GETDATE(), 'Abierto', 0)";
+                VALUES (NOW(), 'Abierto', 0)
+                RETURNING Id, NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, COALESCE(Observaciones, '') as Observaciones";
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
 
@@ -76,13 +76,14 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var sql = @"
                 UPDATE TurnosCajero
-                SET FechaCierre = GETDATE(), Estado = 'Cerrado'
+                SET FechaCierre = NOW(), Estado = 'Cerrado'
                 WHERE Estado = 'Abierto';
 
-                SELECT TOP 1 Id, NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, ISNULL(Observaciones, '') as Observaciones
+                SELECT Id, NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, COALESCE(Observaciones, '') as Observaciones
                 FROM TurnosCajero
                 WHERE Estado = 'Cerrado'
-                ORDER BY Id DESC";
+                ORDER BY Id DESC
+                LIMIT 1";
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
 

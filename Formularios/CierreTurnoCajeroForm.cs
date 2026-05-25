@@ -1,9 +1,9 @@
-﻿using Comercio.NET.Services;
+using Comercio.NET.Services;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -477,17 +477,18 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 var query = @"
-            SELECT TOP 1 FechaApertura
-            FROM TurnosCajero 
-            WHERE NumeroCajero = @numeroCajero 
-            AND Estado = 'Abierto'
-            ORDER BY FechaApertura DESC";
+            SELECT fechaapertura
+            FROM turnoscajero 
+            WHERE numerocajero = @numeroCajero 
+            AND estado = 'Abierto'
+            ORDER BY fechaapertura DESC
+            LIMIT 1";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
                 var resultado = await cmd.ExecuteScalarAsync();
@@ -525,34 +526,34 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 // Verificar y crear tabla TurnosCajero
                 var queryVerificarTurnos = @"
                     SELECT COUNT(*) 
                     FROM INFORMATION_SCHEMA.TABLES 
-                    WHERE TABLE_NAME = 'TurnosCajero'";
+                    WHERE TABLE_NAME = 'turnoscajero'";
 
-                using (var cmd = new SqlCommand(queryVerificarTurnos, connection))
+                using (var cmd = new NpgsqlCommand(queryVerificarTurnos, connection))
                 {
-                    int existe = (int)await cmd.ExecuteScalarAsync();
+                    long existe = (long)await cmd.ExecuteScalarAsync();
 
                     if (existe == 0)
                     {
                         var queryCrearTurnos = @"
-                            CREATE TABLE TurnosCajero (
-                                Id INT IDENTITY(1,1) PRIMARY KEY,
-                                NumeroCajero INT NOT NULL,
-                                Usuario NVARCHAR(100) NOT NULL,
-                                FechaApertura DATETIME NOT NULL,
-                                FechaCierre DATETIME NULL,
-                                MontoInicial DECIMAL(18,2) NOT NULL DEFAULT 0,
-                                Estado NVARCHAR(20) NOT NULL DEFAULT 'Abierto',
-                                Observaciones NVARCHAR(500) NULL
+                            CREATE TABLE IF NOT EXISTS turnoscajero (
+                                id SERIAL PRIMARY KEY,
+                                numerocajero INT NOT NULL,
+                                usuario VARCHAR(100) NOT NULL,
+                                fechaapertura TIMESTAMP NOT NULL,
+                                fechacierre TIMESTAMP NULL,
+                                montoinicial DECIMAL(18,2) NOT NULL DEFAULT 0,
+                                estado VARCHAR(20) NOT NULL DEFAULT 'Abierto',
+                                observaciones VARCHAR(500) NULL
                             )";
 
-                        using var cmdCrear = new SqlCommand(queryCrearTurnos, connection);
+                        using var cmdCrear = new NpgsqlCommand(queryCrearTurnos, connection);
                         await cmdCrear.ExecuteNonQueryAsync();
                     }
                 }
@@ -561,28 +562,28 @@ namespace Comercio.NET.Formularios
                 var queryVerificarCierre = @"
                     SELECT COUNT(*) 
                     FROM INFORMATION_SCHEMA.TABLES 
-                    WHERE TABLE_NAME = 'CierreTurnoCajero'";
+                    WHERE TABLE_NAME = 'cierreturnoscajero'";
 
-                using (var cmd = new SqlCommand(queryVerificarCierre, connection))
+                using (var cmd = new NpgsqlCommand(queryVerificarCierre, connection))
                 {
-                    int existe = (int)await cmd.ExecuteScalarAsync();
+                    long existe = (long)await cmd.ExecuteScalarAsync();
 
                     if (existe == 0)
                     {
                         var queryCrearCierre = @"
-                            CREATE TABLE CierreTurnoCajero (
-                                Id INT IDENTITY(1,1) PRIMARY KEY,
-                                IdTurno INT NULL,
-                                MedioPago NVARCHAR(50) NOT NULL,
-                                TotalEsperado DECIMAL(18,2) NOT NULL,
-                                TotalDeclarado DECIMAL(18,2) NULL,
-                                Diferencia DECIMAL(18,2) NULL,
-                                CantidadTransacciones INT NOT NULL,
-                                FechaCierre DATETIME NOT NULL,
-                                UsuarioCierre NVARCHAR(100) NOT NULL
+                            CREATE TABLE IF NOT EXISTS cierreturnoscajero (
+                                id SERIAL PRIMARY KEY,
+                                idturno INT NULL,
+                                mediopago VARCHAR(50) NOT NULL,
+                                totalesperado DECIMAL(18,2) NOT NULL,
+                                totaldeclarado DECIMAL(18,2) NULL,
+                                diferencia DECIMAL(18,2) NULL,
+                                cantidadtransacciones INT NOT NULL,
+                                fechacierre TIMESTAMP NOT NULL,
+                                usuariocierre VARCHAR(100) NOT NULL
                             )";
 
-                        using var cmdCrear = new SqlCommand(queryCrearCierre, connection);
+                        using var cmdCrear = new NpgsqlCommand(queryCrearCierre, connection);
                         await cmdCrear.ExecuteNonQueryAsync();
                     }
                 }
@@ -605,21 +606,21 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
 
                 // ✅ MODIFICADO: Solo cargar cajeros con turnos abiertos
                 var query = @"
             SELECT DISTINCT 
-                t.NumeroCajero, 
-                COALESCE(MIN(u.Nombre + ' ' + u.Apellido), 'Cajero ' + CAST(t.NumeroCajero AS NVARCHAR)) as NombreCajero,
-                MIN(t.FechaApertura) as FechaApertura
-            FROM TurnosCajero t
-            LEFT JOIN Usuarios u ON t.NumeroCajero = u.NumeroCajero AND u.Activo = 1
-            WHERE t.Estado = 'Abierto'
-            GROUP BY t.NumeroCajero
-            ORDER BY t.NumeroCajero";
+                t.numerocajero, 
+                COALESCE(MIN(u.nombre || ' ' || u.apellido), 'Cajero ' || t.numerocajero::TEXT) as nombrecajero,
+                MIN(t.fechaapertura) as fechaapertura
+            FROM turnoscajero t
+            LEFT JOIN usuarios u ON t.numerocajero = u.numerocajero AND u.activo = B'1'
+            WHERE t.estado = 'Abierto'
+            GROUP BY t.numerocajero
+            ORDER BY t.numerocajero";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 connection.Open();
 
                 cmbCajero.Items.Clear();
@@ -689,7 +690,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 // ========================================
@@ -734,19 +735,19 @@ namespace Comercio.NET.Formularios
                 // ========================================
                 var queryIngresos = @"
                             SELECT 
-                        dp.MedioPago,
-                        SUM(dp.Importe) AS TotalIngresos,
-                        COUNT(*) AS CantidadIngresos
-                    FROM DetallesPagoFactura dp
-                    INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-                    INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-                    WHERE u.NumeroCajero = @numeroCajero
-                      AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-                      AND COALESCE(f.esCtaCte, 0) = 0
-                      AND dp.MedioPago NOT IN ('Multiple', 'Múltiples Medios')
-                    GROUP BY dp.MedioPago";
+                        dp.mediopago,
+                        SUM(dp.importe) AS totalingresos,
+                        COUNT(*) AS cantidadingresos
+                    FROM detallespagofactura dp
+                    INNER JOIN facturas f ON dp.idfactura = f.idfactura
+                    INNER JOIN usuarios u ON f.usuarioventa = u.nombreusuario
+                    WHERE u.numerocajero = @numeroCajero
+                      AND f.hora BETWEEN @fechaInicio AND @fechaFin
+                      AND COALESCE(f.esctacte, B'0') = B'0'
+                      AND dp.mediopago NOT IN ('Multiple', 'Múltiples Medios')
+                    GROUP BY dp.mediopago";
 
-                using (var cmd = new SqlCommand(queryIngresos, connection))
+                using (var cmd = new NpgsqlCommand(queryIngresos, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
@@ -757,7 +758,7 @@ namespace Comercio.NET.Formularios
                     {
                         string medioPago = reader.GetString(0);
                         decimal ingresos = reader.GetDecimal(1);
-                        int cantidad = reader.GetInt32(2);
+                        int cantidad = Convert.ToInt32(reader.GetValue(2));
 
                         if (!resumenPorMedio.ContainsKey(medioPago))
                             resumenPorMedio[medioPago] = (0m, 0m, 0, 0);
@@ -772,25 +773,25 @@ namespace Comercio.NET.Formularios
                 // ========================================
                 var queryPagosRapidos = @"
                                         SELECT 
-                                            SUM(Monto) AS TotalEgresos,
-                                            COUNT(*) AS CantidadEgresos
-                                        FROM PagosProveedores
-                                        WHERE NumeroCajero = @numeroCajero
-                                        AND FechaPago BETWEEN @fechaInicio AND @fechaFin
-                                        AND (Origen IS NULL OR Origen <> 'PagoGeneral')";
+                                            SUM(monto) AS totalegreesos,
+                                            COUNT(*) AS cantidadegresos
+                                        FROM pagosproveedores
+                                        WHERE numerocajero = @numeroCajero
+                                        AND fechapago BETWEEN @fechaInicio AND @fechaFin
+                                        AND (origen IS NULL OR origen <> 'PagoGeneral')";
 
-                using (var cmd = new SqlCommand(queryPagosRapidos, connection))
+                using (var cmd = new NpgsqlCommand(queryPagosRapidos, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
                     cmd.Parameters.AddWithValue("@fechaFin", dtpFechaFin.Value);
 
                     using var reader = await cmd.ExecuteReaderAsync();
-                    if (reader.Read() && reader["TotalEgresos"] != DBNull.Value)
+                    if (reader.Read() && reader["totalegreesos"] != DBNull.Value)
                     {
                         string medioPago = "Efectivo";  // ✅ SIEMPRE Efectivo
                         decimal egresos = reader.GetDecimal(0);
-                        int cantidad = reader.GetInt32(1);
+                        int cantidad = Convert.ToInt32(reader.GetValue(1));
 
                         if (!resumenPorMedio.ContainsKey(medioPago))
                             resumenPorMedio[medioPago] = (0m, 0m, 0, 0);
@@ -818,13 +819,13 @@ namespace Comercio.NET.Formularios
                 // ========================================
                 var queryRetiros = @"
             SELECT 
-                SUM(Monto) as TotalRetiros,
-                COUNT(*) as CantidadRetiros
-            FROM RetirosEfectivo
-            WHERE NumeroCajero = @numeroCajero
-            AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
+                SUM(monto) as totalretiros,
+                COUNT(*) as cantidadretiros
+            FROM retirosefectivo
+            WHERE numerocajero = @numeroCajero
+            AND fecharetiro BETWEEN @fechaInicio AND @fechaFin";
 
-                using (var cmd = new SqlCommand(queryRetiros, connection))
+                using (var cmd = new NpgsqlCommand(queryRetiros, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
@@ -833,11 +834,11 @@ namespace Comercio.NET.Formularios
                     using var reader = await cmd.ExecuteReaderAsync();
                     if (reader.Read())
                     {
-                        decimal totalRetiros = reader["TotalRetiros"] != DBNull.Value
+                        decimal totalRetiros = reader["totalretiros"] != DBNull.Value
                             ? reader.GetDecimal(0)
                             : 0m;
-                        int cantidadRetiros = reader["CantidadRetiros"] != DBNull.Value
-                            ? reader.GetInt32(1)
+                        int cantidadRetiros = reader["cantidadretiros"] != DBNull.Value
+                            ? Convert.ToInt32(reader.GetValue(1))
                             : 0;
 
                         // ✅ Registrar retiros como EGRESO de EFECTIVO
@@ -951,17 +952,18 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 var query = @"
-            SELECT TOP 1 MontoInicial
-            FROM TurnosCajero
-            WHERE NumeroCajero = @numeroCajero
-            AND Estado = 'Abierto'
-            ORDER BY FechaApertura DESC";
+            SELECT montoinicial
+            FROM turnoscajero
+            WHERE numerocajero = @numeroCajero
+            AND estado = 'Abierto'
+            ORDER BY fechaapertura DESC
+            LIMIT 1";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
                 var result = await cmd.ExecuteScalarAsync();
@@ -977,55 +979,55 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 var queryCombinada = @"
             WITH 
-            -- ✅ Ventas/Remitos - CORREGIDO: Convertir todo a NVARCHAR
+            -- ✅ Ventas/Remitos
             TransaccionesVentas AS (
                 SELECT 
                     v.fecha AS Fecha,
-                    CAST(v.NroFactura AS NVARCHAR) AS NumeroFactura,  -- ✅ CONVERTIR a NVARCHAR
-                    COALESCE(f.FormadePago, 'Efectivo') AS MedioPago,
-                    f.ImporteTotal AS Importe,
+                    CAST(v.nrofactura AS VARCHAR) AS NumeroFactura,
+                    COALESCE(f.formadepago, 'Efectivo') AS MedioPago,
+                    CAST(f.importetotal AS NUMERIC) AS Importe,
                     CASE 
-                        WHEN f.TipoFactura IS NULL OR f.TipoFactura = '' THEN 'Ingreso (Remito)'
+                        WHEN f.tipofactura IS NULL OR f.tipofactura = '' THEN 'Ingreso (Remito)'
                         ELSE 'Ingreso (Factura)'
                     END AS Tipo
-                FROM Ventas v
-                LEFT JOIN Facturas f ON v.NroFactura = f.NumeroRemito
+                FROM ventas v
+                LEFT JOIN facturas f ON v.nrofactura = f.numeroremito
                 WHERE v.fecha BETWEEN @fechaInicio AND @fechaFin
-                AND ISNULL(v.EsCtaCte, 0) = 0
-                GROUP BY v.fecha, v.NroFactura, f.FormadePago, f.ImporteTotal, f.TipoFactura
+                AND COALESCE(v.esctacte, B'0') = B'0'
+                GROUP BY v.fecha, v.nrofactura, f.formadepago, f.importetotal, f.tipofactura
             ),
-            
+
             -- ✅ CORREGIDO: Pagos a Proveedores SIN columna 'Metodo'
             TransaccionesPagosProveedores AS (
                 SELECT 
-                    pp.FechaPago AS Fecha,
-                    'Pago #' + CAST(pp.Id AS NVARCHAR) + ' - ' + pp.Proveedor AS NumeroFactura,
-                    'Efectivo' AS MedioPago,  -- ✅ HARDCODED
-                    pp.Monto AS Importe,
+                    pp.fechapago AS Fecha,
+                    'Pago #' || CAST(pp.id AS VARCHAR) || ' - ' || pp.proveedor AS NumeroFactura,
+                    'Efectivo' AS MedioPago,
+                    CAST(pp.monto AS NUMERIC) AS Importe,
                     'Egreso (Pago Prov.)' AS Tipo
-                FROM PagosProveedores pp
-                WHERE pp.NumeroCajero = @numeroCajero
-                AND pp.FechaPago BETWEEN @fechaInicio AND @fechaFin
+                FROM pagosproveedores pp
+                WHERE pp.numerocajero = @numeroCajero
+                AND pp.fechapago BETWEEN @fechaInicio AND @fechaFin
             ),
-            
+
             -- Retiros de efectivo
             TransaccionesRetiros AS (
                 SELECT 
-                    r.FechaRetiro AS Fecha,
-                    'Retiro #' + CAST(r.Id AS NVARCHAR) + ' - ' + r.Motivo AS NumeroFactura,
+                    r.fecharetiro AS Fecha,
+                    'Retiro #' || CAST(r.id AS VARCHAR) || ' - ' || r.motivo AS NumeroFactura,
                     'Efectivo' AS MedioPago,
-                    r.Monto AS Importe,
+                    CAST(r.monto AS NUMERIC) AS Importe,
                     'Egreso (Retiro)' AS Tipo
-                FROM RetirosEfectivo r
-                WHERE r.NumeroCajero = @numeroCajero
-                AND r.FechaRetiro BETWEEN @fechaInicio AND @fechaFin
+                FROM retirosefectivo r
+                WHERE r.numerocajero = @numeroCajero
+                AND r.fecharetiro BETWEEN @fechaInicio AND @fechaFin
             )
-            
+
             -- UNION de todas las transacciones
             SELECT * FROM TransaccionesVentas
             UNION ALL
@@ -1034,7 +1036,7 @@ namespace Comercio.NET.Formularios
             SELECT * FROM TransaccionesRetiros
             ORDER BY Fecha ASC";
 
-                using (var cmd = new SqlCommand(queryCombinada, connection))
+                using (var cmd = new NpgsqlCommand(queryCombinada, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaInicio.Value);
@@ -1157,7 +1159,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 dynamic cajeroSeleccionado = cmbCajero.SelectedItem;
@@ -1177,13 +1179,13 @@ namespace Comercio.NET.Formularios
                     {
                         // ✅ MEJORADO: Query optimizado sin concatenación
                         var queryActualizar = @"
-                    UPDATE TurnosCajero 
-                    SET FechaCierre = @fechaCierre, 
-                        Estado = 'Cerrado',
-                        Observaciones = @obs
-                    WHERE Id = @idTurno";
+                    UPDATE turnoscajero 
+                    SET fechacierre = @fechaCierre, 
+                        estado = 'Cerrado',
+                        observaciones = @obs
+                    WHERE id = @idTurno";
 
-                        using (var cmdActualizar = new SqlCommand(queryActualizar, connection, transaction))
+                        using (var cmdActualizar = new NpgsqlCommand(queryActualizar, connection, transaction))
                         {
                             cmdActualizar.CommandTimeout = 60; // ✅ Aumentar timeout a 60 segundos
                             cmdActualizar.Parameters.AddWithValue("@idTurno", turnoActualId);
@@ -1210,13 +1212,13 @@ namespace Comercio.NET.Formularios
                         if (idTurnoAbierto.HasValue)
                         {
                             var queryActualizar = @"
-                        UPDATE TurnosCajero 
-                        SET FechaCierre = @fechaCierre, 
-                            Estado = 'Cerrado',
-                            Observaciones = @obs
-                        WHERE Id = @idTurno";
+                        UPDATE turnoscajero 
+                        SET fechacierre = @fechaCierre, 
+                            estado = 'Cerrado',
+                            observaciones = @obs
+                        WHERE id = @idTurno";
 
-                            using (var cmdActualizar = new SqlCommand(queryActualizar, connection, transaction))
+                            using (var cmdActualizar = new NpgsqlCommand(queryActualizar, connection, transaction))
                             {
                                 cmdActualizar.CommandTimeout = 60; // ✅ Aumentar timeout
                                 cmdActualizar.Parameters.AddWithValue("@idTurno", idTurnoAbierto.Value);
@@ -1251,8 +1253,8 @@ namespace Comercio.NET.Formularios
 
                     // ✅ MEJORADO: INSERT batch optimizado
                     var queryCierre = @"
-                INSERT INTO CierreTurnoCajero 
-                (IdTurno, MedioPago, TotalEsperado, TotalDeclarado, Diferencia, CantidadTransacciones, FechaCierre, UsuarioCierre)
+                INSERT INTO cierreturnoscajero 
+                (idturno, mediopago, totalesperado, totaldeclarado, diferencia, cantidadtransacciones, fechacierre, usuariocierre)
                 VALUES 
                 (@idTurno, @medioPago, @esperado, @declarado, @diferencia, @cantidad, @fechaCierre, @usuarioCierre)";
 
@@ -1268,7 +1270,7 @@ namespace Comercio.NET.Formularios
                         decimal declarado = decimal.Parse(row.Cells["Declarado"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
                         decimal diferencia = decimal.Parse(row.Cells["Diferencia"].Value.ToString(), NumberStyles.Currency, CultureInfo.CurrentCulture);
 
-                        using var cmdCierre = new SqlCommand(queryCierre, connection, transaction);
+                        using var cmdCierre = new NpgsqlCommand(queryCierre, connection, transaction);
                         cmdCierre.CommandTimeout = 60; // ✅ Aumentar timeout
                         cmdCierre.Parameters.AddWithValue("@idTurno", idTurno);
                         cmdCierre.Parameters.AddWithValue("@medioPago", medioPago);
@@ -1310,13 +1312,13 @@ namespace Comercio.NET.Formularios
 
 
 // ✅ NUEVO MÉTODO: Obtener observaciones actuales sin bloqueos
-private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnection connection, SqlTransaction transaction)
+private async Task<string> ObtenerObservacionesActuales(int idTurno, NpgsqlConnection connection, NpgsqlTransaction transaction)
         {
             try
             {
-                var query = "SELECT Observaciones FROM TurnosCajero WITH (NOLOCK) WHERE Id = @idTurno";
+                var query = "SELECT observaciones FROM turnoscajero WHERE id = @idTurno";
 
-                using var cmd = new SqlCommand(query, connection, transaction);
+                using var cmd = new NpgsqlCommand(query, connection, transaction);
                 cmd.CommandTimeout = 30;
                 cmd.Parameters.AddWithValue("@idTurno", idTurno);
 
@@ -1371,19 +1373,20 @@ private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnecti
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 // 1. Obtener el último cierre del cajero
                 var queryUltimoCierre = @"
-            SELECT TOP 1 FechaCierre
-            FROM TurnosCajero 
-            WHERE NumeroCajero = @numeroCajero 
-            AND Estado = 'Cerrado'
-            AND FechaCierre IS NOT NULL
-            ORDER BY FechaCierre DESC";
+            SELECT fechacierre
+            FROM turnoscajero 
+            WHERE numerocajero = @numeroCajero 
+            AND estado = 'Cerrado'
+            AND fechacierre IS NOT NULL
+            ORDER BY fechacierre DESC
+            LIMIT 1";
 
-                using (var cmd = new SqlCommand(queryUltimoCierre, connection))
+                using (var cmd = new NpgsqlCommand(queryUltimoCierre, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     var resultado = await cmd.ExecuteScalarAsync();
@@ -1411,30 +1414,30 @@ private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnecti
                 // 3. Validar que no haya solapamiento con turnos cerrados
                 var querySolapamiento = @"
             SELECT COUNT(*) 
-            FROM TurnosCajero 
-            WHERE NumeroCajero = @numeroCajero 
-            AND Estado = 'Cerrado'
+            FROM turnoscajero 
+            WHERE numerocajero = @numeroCajero 
+            AND estado = 'Cerrado'
             AND (
                 -- El nuevo período está completamente dentro de un turno cerrado
-                (FechaApertura <= @fechaInicio AND FechaCierre >= @fechaFin)
+                (fechaapertura <= @fechaInicio AND fechacierre >= @fechaFin)
                 OR
                 -- El nuevo período comienza dentro de un turno cerrado
-                (@fechaInicio >= FechaApertura AND @fechaInicio < FechaCierre)
+                (@fechaInicio >= fechaapertura AND @fechaInicio < fechacierre)
                 OR
                 -- El nuevo período termina dentro de un turno cerrado
-                (@fechaFin > FechaApertura AND @fechaFin <= FechaCierre)
+                (@fechaFin > fechaapertura AND @fechaFin <= fechacierre)
                 OR
                 -- El nuevo período envuelve completamente un turno cerrado
-                (@fechaInicio <= FechaApertura AND @fechaFin >= FechaCierre)
+                (@fechaInicio <= fechaapertura AND @fechaFin >= fechacierre)
             )";
 
-                using (var cmd = new SqlCommand(querySolapamiento, connection))
+                using (var cmd = new NpgsqlCommand(querySolapamiento, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", fechaInicio);
                     cmd.Parameters.AddWithValue("@fechaFin", fechaFin);
 
-                    int count = (int)await cmd.ExecuteScalarAsync();
+                    long count = (long)await cmd.ExecuteScalarAsync();
 
                     if (count > 0)
                     {
@@ -1486,25 +1489,25 @@ private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnecti
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 // ✅ MEJORADO: Consulta más robusta con debugging completo
                 var query = @"
             SELECT 
-                Id,
-                NumeroCajero,
-                Usuario,
-                Estado,
-                '[' + Estado + ']' AS EstadoConCorchetes,
-                LEN(Estado) AS LongitudEstado,
-                FechaApertura
-            FROM TurnosCajero 
-            WHERE NumeroCajero = @numeroCajero 
-            AND LTRIM(RTRIM(UPPER(Estado))) = 'ABIERTO'
-            ORDER BY FechaApertura DESC";
+                id,
+                numerocajero,
+                usuario,
+                estado,
+                '[' || estado || ']' AS estadoconcorchetes,
+                LENGTH(estado) AS longitudestado,
+                fechaapertura
+            FROM turnoscajero 
+            WHERE numerocajero = @numeroCajero 
+            AND TRIM(UPPER(estado)) = 'ABIERTO'
+            ORDER BY fechaapertura DESC";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
                 int? turnoId = null;
@@ -1519,7 +1522,7 @@ private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnecti
                         string usuario = reader.GetString(2);
                         string estado = reader.GetString(3);
                         string estadoCorchetes = reader.GetString(4);
-                        int longitudEstado = reader.GetInt32(5);
+                        int longitudEstado = Convert.ToInt32(reader.GetValue(5));
                         DateTime fechaApertura = reader.GetDateTime(6);
 
                         // ✅ GUARDAR información para debug
@@ -1552,19 +1555,19 @@ private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnecti
                 // ✅ NUEVA CONSULTA: Verificar TODOS los turnos de este cajero
                 var queryDiagnostico = @"
             SELECT 
-                Id,
-                NumeroCajero,
-                Usuario,
-                Estado,
-                '[' + Estado + ']' AS EstadoConCorchetes,
-                LEN(Estado) AS LongitudEstado,
-                FechaApertura,
-                FechaCierre
-            FROM TurnosCajero 
-            WHERE NumeroCajero = @numeroCajero
-            ORDER BY FechaApertura DESC";
+                id,
+                numerocajero,
+                usuario,
+                estado,
+                '[' || estado || ']' AS estadoconcorchetes,
+                LENGTH(estado) AS longitudestado,
+                fechaapertura,
+                fechacierre
+            FROM turnoscajero 
+            WHERE numerocajero = @numeroCajero
+            ORDER BY fechaapertura DESC";
 
-                using var cmdDiag = new SqlCommand(queryDiagnostico, connection);
+                using var cmdDiag = new NpgsqlCommand(queryDiagnostico, connection);
                 cmdDiag.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
                 using (var readerDiag = await cmdDiag.ExecuteReaderAsync())
@@ -1580,7 +1583,7 @@ private async Task<string> ObtenerObservacionesActuales(int idTurno, SqlConnecti
                         string usuario = readerDiag.GetString(2);
                         string estado = readerDiag.GetString(3);
                         string estadoCorchetes = readerDiag.GetString(4);
-                        int longitudEstado = readerDiag.GetInt32(5);
+                        int longitudEstado = Convert.ToInt32(readerDiag.GetValue(5));
                         DateTime fechaApertura = readerDiag.GetDateTime(6);
                         string fechaCierre = readerDiag["FechaCierre"] != DBNull.Value
                             ? readerDiag.GetDateTime(7).ToString("dd/MM/yyyy HH:mm:ss")

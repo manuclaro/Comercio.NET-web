@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
 using System.Data.OleDb;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -535,7 +535,7 @@ namespace Comercio.NET.Formularios
             var culture = System.Globalization.CultureInfo.InvariantCulture;
             var numberStyle = System.Globalization.NumberStyles.Any;
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
@@ -569,7 +569,7 @@ namespace Comercio.NET.Formularios
 
                     // Buscar producto en BD
                     var query = "SELECT Descripcion, Costo, Porcentaje, Precio FROM Productos WHERE Codigo = @Codigo";
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@Codigo", codigo);
                         using (var reader = await cmd.ExecuteReaderAsync())
@@ -755,7 +755,7 @@ namespace Comercio.NET.Formularios
                 var erroresDetalle = new System.Text.StringBuilder();
                 int maxErroresAMostrar = 10; // Solo mostrar los primeros 10 errores
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
@@ -876,7 +876,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private async Task ActualizarProductoAsync(SqlConnection connection, DataRow row)
+        private async Task ActualizarProductoAsync(NpgsqlConnection connection, DataRow row)
         {
             string codigo = row["Codigo"].ToString();
             decimal costoNuevo = Convert.ToDecimal(row["Costo_Nuevo"]);
@@ -894,7 +894,7 @@ namespace Comercio.NET.Formularios
             Precio = @Precio
         WHERE Codigo = @Codigo";
 
-            using (var cmd = new SqlCommand(queryUpdate, connection))
+            using (var cmd = new NpgsqlCommand(queryUpdate, connection))
             {
                 cmd.Parameters.AddWithValue("@Codigo", codigo);
                 cmd.Parameters.AddWithValue("@Costo", costoNuevo);
@@ -915,7 +915,7 @@ namespace Comercio.NET.Formularios
                 precioAnterior, precioNuevo);
         }
 
-        private async Task InsertarProductoAsync(SqlConnection connection, DataRow row)
+        private async Task InsertarProductoAsync(NpgsqlConnection connection, DataRow row)
         {
             string codigo = row["Codigo"].ToString();
             decimal costoNuevo = Convert.ToDecimal(row["Costo_Nuevo"]);
@@ -959,7 +959,7 @@ namespace Comercio.NET.Formularios
             @PermiteAcumular, @EditarPrecio, @Cantidad
         )";
 
-            using (var cmd = new SqlCommand(queryInsert, connection))
+            using (var cmd = new NpgsqlCommand(queryInsert, connection))
             {
                 cmd.Parameters.AddWithValue("@Codigo", codigo);
                 cmd.Parameters.AddWithValue("@Descripcion", descripcion);
@@ -984,7 +984,7 @@ namespace Comercio.NET.Formularios
                 0, precioNuevo);
         }
 
-        private async Task RegistrarAuditoriaAsync(SqlConnection connection, string accion, string codigo,
+        private async Task RegistrarAuditoriaAsync(NpgsqlConnection connection, string accion, string codigo,
             decimal costoAnterior, decimal costoNuevo,
             decimal porcentajeAnterior, decimal porcentajeNuevo,
             decimal precioAnterior, decimal precioNuevo)
@@ -992,22 +992,22 @@ namespace Comercio.NET.Formularios
             try
             {
                 var queryAuditoria = @"
-                    INSERT INTO AuditoriaProductos (
-                        Codigo, Accion, 
-                        CostoAnterior, CostoNuevo, 
-                        PorcentajeAnterior, PorcentajeNuevo, 
-                        PrecioAnterior, PrecioNuevo, 
-                        Usuario, Fecha, Origen
+                    INSERT INTO auditoriaproductos (
+                        codigo, accion, 
+                        costoanterior, costonuevo, 
+                        porcentajeanterior, porcentajenuevo, 
+                        precioanterior, precionuevo, 
+                        usuario, fecha, origen
                     )
                     VALUES (
                         @Codigo, @Accion, 
                         @CostoAnterior, @CostoNuevo, 
                         @PorcentajeAnterior, @PorcentajeNuevo, 
                         @PrecioAnterior, @PrecioNuevo, 
-                        @Usuario, GETDATE(), 'ActualizacionExcel'
+                        @Usuario, NOW(), 'ActualizacionExcel'
                     )";
 
-                using (var cmd = new SqlCommand(queryAuditoria, connection))
+                using (var cmd = new NpgsqlCommand(queryAuditoria, connection))
                 {
                     cmd.Parameters.AddWithValue("@Codigo", codigo);
                     cmd.Parameters.AddWithValue("@Accion", accion);

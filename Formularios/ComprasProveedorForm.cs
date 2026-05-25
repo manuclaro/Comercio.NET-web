@@ -1,8 +1,8 @@
-﻿using Comercio.NET.Services;
+using Comercio.NET.Services;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -204,9 +204,9 @@ namespace Comercio.NET.Formularios
             dgvIva.Columns.Add(new DataGridViewTextBoxColumn { Name = "ImporteIva", HeaderText = "IVA $", Width = 120 });
 
             var lblAlicuota = new Label { Text = "Alícuota %", Left = 8, Top = dgvIva.Bottom + 10, Width = 70 };
-            txtAlicuota = new TextBox { Left = lblAlicuota.Right + 6, Top = lblAlicuota.Top - 2, Width = 60 };
+            txtAlicuota = new TextBox { Left = lblAlicuota.Right + 6, Top = lblAlicuota.Top - 2, Width = 60, Text = "0" };
 
-            var lblBase = new Label { Text = "Base", Left = txtAlicuota.Right + 12, Top = lblAlicuota.Top, Width = 40 };
+            var lblBase = new Label { Text = "Importe", Left = txtAlicuota.Right + 12, Top = lblAlicuota.Top, Width = 55 };
             txtBase = new TextBox { Left = lblBase.Right + 6, Top = lblAlicuota.Top - 2, Width = 140 };
 
             // Botones Agregar/Eliminar ubicados debajo de los controles Alicuota/Base (alineados)
@@ -376,6 +376,8 @@ namespace Comercio.NET.Formularios
                 txtCuit.Text = p.Cuit ?? "";
                 txtDomicilio.Text = p.Domicilio ?? "";
                 txtTelefono.Text = p.Telefono ?? "";
+                txtBase.Focus();
+                txtBase.SelectAll();
             }
             else
             {
@@ -452,10 +454,10 @@ namespace Comercio.NET.Formularios
                 proveedores.Clear();
 
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
-                    var sql = @"SELECT Id, Nombre, CUIT, Domicilio, Telefono FROM Proveedores WHERE Activo = 1 ORDER BY Nombre";
-                    using (var cmd = new SqlCommand(sql, conn))
+                    var sql = @"SELECT id, nombre, cuit, domicilio, telefono FROM proveedores WHERE activo::text IN ('true', '1', 't') ORDER BY nombre";
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         await conn.OpenAsync();
                         using (var reader = await cmd.ExecuteReaderAsync())
@@ -487,6 +489,7 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error cargando proveedores: {ex.Message}");
+                MessageBox.Show($"Error cargando proveedores: {ex.Message}\n\n{ex.GetType().Name}", "Error proveedores", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -561,7 +564,7 @@ namespace Comercio.NET.Formularios
 
             try
             {
-                using (var conn = new SqlConnection(connectionString))
+                using (var conn = new NpgsqlConnection(connectionString))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
@@ -572,12 +575,12 @@ namespace Comercio.NET.Formularios
                             int? proveedorId = ObtenerProveedorIdSeleccionado();
 
                             var insertSql = @"INSERT INTO ComprasProveedores
-    (NumeroFactura, Fecha, Proveedor, ProveedorId, CUIT, ImporteNeto, ImporteIVA, ImporteTotal, EsCtaCte, NombreCtaCte, Observaciones, Usuario, Cajero)
-    VALUES (@Numero, @Fecha, @Proveedor, @ProveedorId, @CUIT, @ImporteNeto, @ImporteIVA, @ImporteTotal, @EsCtaCte, @NombreCtaCte, @Observaciones, @Usuario, @Cajero);
-    SELECT CAST(SCOPE_IDENTITY() AS INT);";
+    (NumeroFactura, Fecha, Proveedor, ProveedorId, CUIT, ImporteNeto, ImporteIVA, ImporteTotal, EsCtaCte, NombreCtaCte, Observaciones, Usuario, Cajero, FechaCreacion)
+    VALUES (@Numero, @Fecha, @Proveedor, @ProveedorId, @CUIT, @ImporteNeto, @ImporteIVA, @ImporteTotal, @EsCtaCte, @NombreCtaCte, @Observaciones, @Usuario, @Cajero, @FechaCreacion)
+    RETURNING Id;";
 
                             int compraId;
-                            using (var cmd = new SqlCommand(insertSql, conn, tx))
+                            using (var cmd = new NpgsqlCommand(insertSql, conn, tx))
                             {
                                 cmd.Parameters.AddWithValue("@Numero", txtNumero.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Fecha", dtpFecha.Value.Date);
@@ -587,7 +590,7 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@ImporteNeto", sumaBase);
                                 cmd.Parameters.AddWithValue("@ImporteIVA", sumaIva);
                                 cmd.Parameters.AddWithValue("@ImporteTotal", total);
-                                cmd.Parameters.AddWithValue("@EsCtaCte", false);
+                                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
                                 cmd.Parameters.AddWithValue("@NombreCtaCte", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@Observaciones", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);
@@ -595,6 +598,7 @@ namespace Comercio.NET.Formularios
                                 // NUEVO: número de cajero del usuario logueado
                                 int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 0;
                                 cmd.Parameters.AddWithValue("@Cajero", numeroCajero);
+                                cmd.Parameters.AddWithValue("@FechaCreacion", DateTime.Now);
 
                                 var res = await cmd.ExecuteScalarAsync();
                                 compraId = res != null && int.TryParse(res.ToString(), out int id) ? id : 0;
@@ -612,7 +616,7 @@ namespace Comercio.NET.Formularios
                                 if (!decimal.TryParse(r.Cells["Base"].Value?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal baseVal)) continue;
                                 if (!decimal.TryParse(r.Cells["ImporteIva"].Value?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal ivaVal)) continue;
 
-                                using (var cmdDet = new SqlCommand(insertDet, conn, tx))
+                                using (var cmdDet = new NpgsqlCommand(insertDet, conn, tx))
                                 {
                                     cmdDet.Parameters.AddWithValue("@CompraId", compraId);
                                     cmdDet.Parameters.AddWithValue("@Alicuota", ali);
@@ -670,7 +674,7 @@ namespace Comercio.NET.Formularios
             var cs = GetConnectionString();
             try
             {
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
@@ -691,7 +695,7 @@ INSERT INTO CtaCteProveedores
 VALUES
     (@Proveedor, @Fecha, @Concepto, @Debe, @Haber, @IdPago, @IdCompra, @Usuario, @FechaRegistro);";
 
-                            using (var cmd = new SqlCommand(insertCtaCteSql, conn, tx))
+                            using (var cmd = new NpgsqlCommand(insertCtaCteSql, conn, tx))
                             {
                                 cmd.Parameters.AddWithValue("@Proveedor", cmbProveedor.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Fecha", fechaMovimiento);
@@ -713,7 +717,7 @@ VALUES
                             int pagoIndex = 1;
                             foreach (var p in pagos)
                             {
-                                using (var cmd = new SqlCommand(insertPagoSql, conn, tx))
+                                using (var cmd = new NpgsqlCommand(insertPagoSql, conn, tx))
                                 {
                                     cmd.Parameters.AddWithValue("@Proveedor", cmbProveedor.Text.Trim());
                                     cmd.Parameters.AddWithValue("@Monto", p.Monto);
@@ -733,9 +737,10 @@ VALUES
                             }
 
                             // Marcar compra como cuenta corriente si corresponde
-                            var updCompra = @"UPDATE ComprasProveedores SET EsCtaCte = 1, NombreCtaCte = @Nombre WHERE Id = @Id;";
-                            using (var cmd = new SqlCommand(updCompra, conn, tx))
+                            var updCompra = @"UPDATE ComprasProveedores SET EsCtaCte = @EsCtaCte, NombreCtaCte = @Nombre WHERE Id = @Id;";
+                            using (var cmd = new NpgsqlCommand(updCompra, conn, tx))
                             {
+                                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
                                 cmd.Parameters.AddWithValue("@Nombre", cmbProveedor.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Id", compraId);
                                 await cmd.ExecuteNonQueryAsync();

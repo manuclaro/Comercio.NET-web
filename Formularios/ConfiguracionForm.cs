@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Linq;
 using System.Collections.Generic;
 using System.Globalization;
@@ -257,9 +257,9 @@ namespace Comercio.NET.Formularios
             var lblEjemplo = new Label
             {
                 Text = "Ejemplo:\n" + (esTesting
-                    ? "Server=localhost;Database=comercio_dev;Trusted_Connection=True;"
-                    : "Server=192.168.1.100;Database=comercio;User Id=admin;Password=****;"),
-                Location = new Point(15, 205), // ✅ MOVIDO de 175 a 205
+                    ? "Host=localhost;Port=5433;Database=comercio_dev;Username=postgres;Password=****;"
+                    : "Host=192.168.1.100;Port=5433;Database=comercio;Username=postgres;Password=****;"),
+                Location = new Point(15, 205),
                 Size = new Size(ancho - 30, 40),
                 Font = new Font("Consolas", 7F),
                 ForeColor = Color.Gray
@@ -2267,9 +2267,9 @@ namespace Comercio.NET.Formularios
                 {
                     ["ConnectionStrings"] = new JObject
                     {
-                        ["Testing"] = "Server=localhost;Database=comercio_dev;Trusted_Connection=True;TrustServerCertificate=True;",
-                        ["Produccion"] = "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
-                        ["DefaultConnection"] = "Server=localhost;Database=comercio_dev;Trusted_Connection=True;TrustServerCertificate=True;"
+                        ["Testing"] = "Host=localhost;Port=5433;Database=comercio_dev;Username=postgres;Password=michael;",
+                        ["Produccion"] = "Host=localhost;Port=5433;Database=comercio;Username=postgres;Password=michael;",
+                        ["DefaultConnection"] = "Host=localhost;Port=5433;Database=comercio_dev;Username=postgres;Password=michael;"
                     },
                     ["BaseDatos"] = new JObject
                     {
@@ -2761,10 +2761,10 @@ namespace Comercio.NET.Formularios
         //        btnTestearConexion.Text = "🔄\n...";
         //        MostrarMensaje("Probando conexión...", Color.Blue);
 
-        //        using var connection = new SqlConnection(txtConnectionString.Text);
+        //        using var connection = new NpgsqlConnection(txtConnectionString.Text);
         //        await connection.OpenAsync();
                 
-        //        using var cmd = new SqlCommand("SELECT DB_NAME() AS DatabaseName", connection);
+        //        using var cmd = new NpgsqlCommand("SELECT DB_NAME() AS DatabaseName", connection);
         //        var dbName = await cmd.ExecuteScalarAsync();
 
         //        MostrarMensaje($"✅ Conexión exitosa a '{dbName}'", Color.Green);
@@ -2806,10 +2806,10 @@ namespace Comercio.NET.Formularios
                 btnActivo.Text = "🔄\n...";
                 MostrarMensaje($"Probando conexión {ambiente}...", Color.Blue);
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
                 
-                using var cmd = new SqlCommand("SELECT DB_NAME() AS DatabaseName", connection);
+                using var cmd = new NpgsqlCommand("SELECT current_database() AS DatabaseName", connection);
                 var dbName = await cmd.ExecuteScalarAsync();
 
                 MostrarMensaje($"✅ Conexión {ambiente} exitosa a '{dbName}'", Color.Green);

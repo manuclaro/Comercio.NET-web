@@ -43,7 +43,8 @@ param(
     [string]$GitHubRepo  = "manuclaro/Comercio.NET-web",
     [string]$GitHubToken = "",
     [string]$PgPassword  = "michael",
-    [int]   $PgPort      = 5432
+    [int]   $PgPort      = 5432,
+    [bool]  $InstallDBeaver = $true
 )
 
 Set-StrictMode -Version Latest
@@ -63,6 +64,8 @@ $PG_INSTALLER_URL    = "https://get.enterprisedb.com/postgresql/postgresql-16.6-
 $PG_INSTALLER_FILE   = "postgresql-16-installer.exe"
 $PG_DEFAULT_DATA_DIR = "C:\Program Files\PostgreSQL\$PG_VERSION\data"
 $PG_BIN_CANDIDATES   = @(
+    "C:\Program Files\PostgreSQL\18\bin",
+    "C:\Program Files\PostgreSQL\17\bin",
     "C:\Program Files\PostgreSQL\16\bin",
     "C:\Program Files\PostgreSQL\15\bin",
     "C:\Program Files\PostgreSQL\14\bin"
@@ -72,6 +75,12 @@ $DB_NAME        = "comercio"
 $DB_USER        = "postgres"
 $DB_DUMP_FILE   = "database\comercio_inicial.dump"
 $DB_INIT_SCRIPT = "database\init_comercio_pg.sql"
+
+$DBEAVER_WINGET_ID = "DBeaver.DBeaver"
+$DBEAVER_EXE_CANDIDATES = @(
+    "C:\Program Files\DBeaver\dbeaver.exe",
+    "C:\Program Files\DBeaver Community\dbeaver.exe"
+)
 
 # ---------------------------------------------------------------------------
 # HELPERS DE CONSOLA
@@ -102,6 +111,89 @@ function Find-PgBin {
     return $null
 }
 
+function Test-DBeaverInstalled {
+    foreach ($path in $DBEAVER_EXE_CANDIDATES) {
+        if (Test-Path $path) { return $true }
+    }
+
+    $uninstallRoots = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+    )
+
+    foreach ($root in $uninstallRoots) {
+        if (Test-Path $root) {
+            $match = Get-ChildItem $root -ErrorAction SilentlyContinue |
+                Get-ItemProperty -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -like "*DBeaver*" } |
+                Select-Object -First 1
+            if ($match) { return $true }
+        }
+    }
+
+    return $false
+}
+
+function Get-PgService {
+    return Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue |
+        Sort-Object Name |
+        Select-Object -First 1
+}
+
+function Ensure-PgServiceRunning {
+    param([int]$TimeoutSeconds = 45)
+
+    $svc = Get-PgService
+    if (-not $svc) { return $false }
+
+    if ($svc.Status -ne 'Running') {
+        try {
+            Start-Service -Name $svc.Name -ErrorAction Stop
+        } catch {
+            return $false
+        }
+    }
+
+    $elapsed = 0
+    while ($elapsed -lt $TimeoutSeconds) {
+        $svc = Get-Service -Name $svc.Name -ErrorAction SilentlyContinue
+        if ($svc -and $svc.Status -eq 'Running') { return $true }
+        Start-Sleep -Seconds 3
+        $elapsed += 3
+    }
+
+    return $false
+}
+
+function Test-PgConfigSyntax {
+    param(
+        [string]$PgBin,
+        [string]$PgDataDir
+    )
+
+    $postgresExe = Join-Path $PgBin "postgres.exe"
+    if (-not (Test-Path $postgresExe)) { return $true }
+
+    try {
+        & $postgresExe -D $PgDataDir -C data_directory 1>$null 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+function Restore-PgConfigBackups {
+    param(
+        [string]$PgConf,
+        [string]$PgHba,
+        [string]$PgConfBackup,
+        [string]$PgHbaBackup
+    )
+
+    if (Test-Path $PgConfBackup) { Copy-Item $PgConfBackup $PgConf -Force }
+    if (Test-Path $PgHbaBackup) { Copy-Item $PgHbaBackup $PgHba -Force }
+}
+
 # ---------------------------------------------------------------------------
 # PASO 0 - PRIVILEGIOS DE ADMINISTRADOR
 # ---------------------------------------------------------------------------
@@ -119,7 +211,8 @@ if (-not (Test-Admin)) {
         "-InstallDir", "`"$InstallDir`"",
         "-GitHubRepo", "`"$GitHubRepo`"",
         "-PgPassword", "`"$PgPassword`"",
-        "-PgPort", $PgPort
+        "-PgPort", $PgPort,
+        "-InstallDBeaver", $InstallDBeaver
     )
     if ($GitHubToken) { $argList += @("-GitHubToken", "`"$GitHubToken`"") }
     Start-Process powershell -Verb RunAs -ArgumentList $argList
@@ -137,7 +230,7 @@ Write-Host ""
 # ===========================================================================
 # PASO 1 - .NET 8 DESKTOP RUNTIME
 # ===========================================================================
-Write-Step "1/9" "Verificando .NET $DOTNET_VERSION Desktop Runtime..."
+Write-Step "1/10" "Verificando .NET $DOTNET_VERSION Desktop Runtime..."
 
 $dotnetOk = $false
 try {
@@ -172,7 +265,7 @@ if ($dotnetOk) {
 # ===========================================================================
 # PASO 2 - POSTGRESQL
 # ===========================================================================
-Write-Step "2/9" "Verificando PostgreSQL..."
+Write-Step "2/10" "Verificando PostgreSQL..."
 
 $pgBin = Find-PgBin
 
@@ -192,10 +285,15 @@ if ($pgBin) {
 
     if (Test-Path $tmpPg) {
         Write-Info "Instalando PostgreSQL $PG_VERSION en modo silencioso (5-10 min)..."
-        $pgArgs = "--mode unattended --unattendedmodeui none " +
+        
+        # Agregamos parámetros explícitos para asegurar la creación del cluster de la BD
+        $pgArgs = "--mode unattended " +
+                  "--unattendedmodeui none " +
                   "--superpassword `"$PgPassword`" " +
                   "--serverport $PgPort " +
                   "--servicename postgresql-$PG_VERSION " +
+                  "--install_runtimes 1 " +
+                  "--create_database_cluster 1 " +
                   "--enable-components server,commandlinetools"
 
         $pPg = Start-Process -FilePath $tmpPg -ArgumentList $pgArgs -Wait -PassThru
@@ -207,19 +305,41 @@ if ($pgBin) {
             default { Write-Warn "Instalador PostgreSQL codigo: $($pPg.ExitCode)" }
         }
 
-        # Esperar a que el servicio inicie
-        $pgSvcName = "postgresql-x64-$PG_VERSION"
+        # ---------------------------------------------------------------------------
+        # CORRECCIÓN DE PERMISOS (Crucial para que el servicio pueda iniciar)
+        # ---------------------------------------------------------------------------
+        Write-Info "Ajustando permisos de seguridad en el directorio Data..."
+        if (Test-Path $PG_DEFAULT_DATA_DIR) {
+            # Conceder control total a NT AUTHORITY\Network Service y NT AUTHORITY\Local Service
+            # Se usan los nombres en inglés/SIDs universales para evitar fallas por idioma del SO (Español/Inglés)
+            & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
+            & icacls "$PG_DEFAULT_DATA_DIR" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
+            Write-OK "Permisos asignados a las cuentas de servicio."
+        }
+
+        # Esperar a que el servicio inicie (o intentar levantarlo)
         $intentos  = 0
         do {
             Start-Sleep -Seconds 3
             $intentos++
-            $svc = Get-Service -Name $pgSvcName -ErrorAction SilentlyContinue
+            $svc = Get-PgService
+            if ($svc -and $svc.Status -ne 'Running') {
+                Start-Service -Name $svc.Name -ErrorAction SilentlyContinue
+            }
         } while (($null -eq $svc -or $svc.Status -ne 'Running') -and $intentos -lt 20)
 
         if ($svc -and $svc.Status -eq 'Running') {
-            Write-OK "Servicio PostgreSQL listo."
+            Write-OK "Servicio PostgreSQL listo ($($svc.Name))."
         } else {
-            Write-Warn "Servicio no respondio en 60 seg. Continuando de todos modos..."
+            Write-Warn "El servicio no inició solo. Forzando inicio con Ensure-PgServiceRunning..."
+            if (Ensure-PgServiceRunning -TimeoutSeconds 30) {
+                $svc = Get-PgService
+                Write-OK "Servicio PostgreSQL iniciado correctamente ($($svc.Name))."
+            } else {
+                Write-Fail "No se pudo iniciar el servicio PostgreSQL. Revise el visor de eventos (Event Viewer)."
+                Read-Host "ENTER para salir"
+                exit 1
+            }
         }
 
         $pgBin = Find-PgBin
@@ -235,7 +355,7 @@ if (-not $pgBin) {
 # ===========================================================================
 # PASO 3 - CONFIGURAR POSTGRESQL PARA CONEXIONES REMOTAS
 # ===========================================================================
-Write-Step "3/9" "Configurando PostgreSQL para conexiones remotas..."
+Write-Step "3/10" "Configurando PostgreSQL para conexiones remotas..."
 
 # Detectar directorio de datos
 $pgDataDir = $null
@@ -253,47 +373,76 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
 
     # postgresql.conf: listen_addresses = '*'
     $pgConf = Join-Path $pgDataDir "postgresql.conf"
-    if (Test-Path $pgConf) {
-        $confContent = Get-Content $pgConf -Raw
-        if ($confContent -match "(?m)^\s*#?\s*listen_addresses\s*=") {
-            $confContent = $confContent -replace "(?m)^\s*#?\s*listen_addresses\s*=.*$",
-                           "listen_addresses = '*'"
-        } else {
-            $confContent += "`nlisten_addresses = '*'`n"
-        }
-        Set-Content -Path $pgConf -Value $confContent -Encoding UTF8
-        Write-OK "postgresql.conf: listen_addresses = '*'"
-    } else {
-        Write-Warn "No se encontro postgresql.conf en: $pgDataDir"
+    $pgHba  = Join-Path $pgDataDir "pg_hba.conf"
+    $pgConfBackup = "$pgConf.bak.comercionet"
+    $pgHbaBackup  = "$pgHba.bak.comercionet"
+
+    if (-not (Test-Path $pgConf) -or -not (Test-Path $pgHba)) {
+        Write-Fail "No se encontraron archivos de configuracion de PostgreSQL en: $pgDataDir"
+        Read-Host "ENTER para salir"
+        exit 1
     }
 
-    # pg_hba.conf: autenticacion md5 desde cualquier IP
-    $pgHba = Join-Path $pgDataDir "pg_hba.conf"
-    if (Test-Path $pgHba) {
-        $hbaContent = Get-Content $pgHba -Raw
-        $hbaLine    = "host    all             all             0.0.0.0/0               md5"
-        if ($hbaContent -notmatch [regex]::Escape($hbaLine)) {
-            $hbaContent += "`n# Comercio.NET - acceso remoto red local`n$hbaLine`n"
-            Set-Content -Path $pgHba -Value $hbaContent -Encoding UTF8
-            Write-OK "pg_hba.conf: md5 desde 0.0.0.0/0 agregado."
-        } else {
-            Write-OK "pg_hba.conf: regla remota ya existente."
-        }
+    Copy-Item $pgConf $pgConfBackup -Force
+    Copy-Item $pgHba  $pgHbaBackup  -Force
+    Write-Info "Backups de configuracion creados (.bak.comercionet)."
+
+    $confContent = Get-Content $pgConf -Raw
+    if ($confContent -match "(?m)^\s*#?\s*listen_addresses\s*=") {
+        $confContent = $confContent -replace "(?m)^\s*#?\s*listen_addresses\s*=.*$",
+                        "listen_addresses = '*'"
     } else {
-        Write-Warn "No se encontro pg_hba.conf en: $pgDataDir"
+        $confContent += "`nlisten_addresses = '*'`n"
+    }
+    [System.IO.File]::WriteAllText($pgConf, $confContent, (New-Object System.Text.UTF8Encoding($false)))
+    Write-OK "postgresql.conf: listen_addresses = '*'"
+
+    # pg_hba.conf: autenticacion md5 desde cualquier IP
+    $hbaContent = Get-Content $pgHba -Raw
+    $hbaLine    = "host    all             all             0.0.0.0/0               md5"
+    if ($hbaContent -notmatch [regex]::Escape($hbaLine)) {
+        $hbaContent += "`n# Comercio.NET - acceso remoto red local`n$hbaLine`n"
+        [System.IO.File]::WriteAllText($pgHba, $hbaContent, (New-Object System.Text.UTF8Encoding($false)))
+        Write-OK "pg_hba.conf: md5 desde 0.0.0.0/0 agregado."
+    } else {
+        Write-OK "pg_hba.conf: regla remota ya existente."
+    }
+
+    # Validar sintaxis antes de reiniciar
+    if (-not (Test-PgConfigSyntax -PgBin $pgBin -PgDataDir $pgDataDir)) {
+        Write-Fail "La configuracion de PostgreSQL quedo con errores de sintaxis. Restaurando backups..."
+        Restore-PgConfigBackups -PgConf $pgConf -PgHba $pgHba -PgConfBackup $pgConfBackup -PgHbaBackup $pgHbaBackup
+
+        if (-not (Test-PgConfigSyntax -PgBin $pgBin -PgDataDir $pgDataDir)) {
+            Write-Fail "No se pudo validar la configuracion de PostgreSQL aun despues de restaurar backups."
+        } else {
+            Write-OK "Backups restaurados correctamente."
+        }
+
+        Read-Host "ENTER para salir"
+        exit 1
     }
 
     # Reiniciar servicio para aplicar cambios
-    $pgSvcName = (Get-WmiObject Win32_Service -Filter "Name LIKE 'postgresql%'" `
-                  -ErrorAction SilentlyContinue | Select-Object -First 1).Name
-    if ($pgSvcName) {
+    $svc = Get-PgService
+    if ($svc) {
         try {
-            Restart-Service -Name $pgSvcName -Force -ErrorAction Stop
+            Restart-Service -Name $svc.Name -Force -ErrorAction Stop
             Start-Sleep -Seconds 5
-            Write-OK "PostgreSQL reiniciado con nueva configuracion."
+            Write-OK "PostgreSQL reiniciado con nueva configuracion ($($svc.Name))."
         } catch {
-            Write-Warn "No se pudo reiniciar PostgreSQL: $_"
-            Write-Info "Reinicielo manualmente en services.msc"
+            Write-Warn "No se pudo reiniciar PostgreSQL: $($_.Exception.Message)"
+            Write-Info "Intentando iniciar servicio..."
+            if (Ensure-PgServiceRunning -TimeoutSeconds 30) {
+                $svc = Get-PgService
+                Write-OK "Servicio PostgreSQL iniciado ($($svc.Name))."
+            } else {
+                Write-Fail "No pudo iniciarse el servicio PostgreSQL. Restaurando backups de configuracion..."
+                Restore-PgConfigBackups -PgConf $pgConf -PgHba $pgHba -PgConfBackup $pgConfBackup -PgHbaBackup $pgHbaBackup
+                Write-Warn "Backups restaurados. Revise permisos del servicio y logs de PostgreSQL."
+                Read-Host "ENTER para salir"
+                exit 1
+            }
         }
     }
 
@@ -310,7 +459,7 @@ try {
     $existingRule = netsh advfirewall firewall show rule name="PostgreSQL $PgPort" 2>$null
     if ($existingRule -notmatch "PostgreSQL $PgPort") {
         netsh advfirewall firewall add rule `
-            name="PostgreSQL $PgPort" protocol=TCP dir=in `
+            name="PostgreSQL $PgPort" protocol=TCP dir=in ``
             localport=$PgPort action=allow | Out-Null
         Write-OK "Regla de firewall creada: TCP $PgPort entrada permitida."
     } else {
@@ -324,7 +473,7 @@ try {
 # ===========================================================================
 # PASO 4 - OBTENER ULTIMA VERSION DE GITHUB
 # ===========================================================================
-Write-Step "4/9" "Consultando ultima version en GitHub..."
+Write-Step "4/10" "Consultando ultima version en GitHub..."
 
 $headers = @{
     "User-Agent" = "ComercioNET-Installer/2.0"
@@ -358,7 +507,7 @@ Write-OK "Version: $version  ($sizeMB MB)"
 # ===========================================================================
 # PASO 5 - DESCARGAR Y EXTRAER LA APLICACION
 # ===========================================================================
-Write-Step "5/9" "Descargando $APP_NAME v$version..."
+Write-Step "5/10" "Descargando $APP_NAME v$version..."
 
 $tempZip     = Join-Path $env:TEMP "ComercioNET_Install_$version.zip"
 $tempExtract = Join-Path $env:TEMP "ComercioNET_Install_$version"
@@ -390,7 +539,7 @@ try {
 # ===========================================================================
 # PASO 6 - INSTALAR ARCHIVOS DE LA APLICACION
 # ===========================================================================
-Write-Step "6/9" "Instalando en $InstallDir..."
+Write-Step "6/10" "Instalando en $InstallDir..."
 
 $archivosProtegidos = @(
     "appsettings.json",
@@ -470,12 +619,19 @@ Write-OK "Version $version registrada."
 # ===========================================================================
 # PASO 7 - INICIALIZAR BASE DE DATOS POSTGRESQL
 # ===========================================================================
-Write-Step "7/9" "Inicializando base de datos PostgreSQL..."
+Write-Step "7/10" "Inicializando base de datos PostgreSQL..."
 
 $env:PGPASSWORD = $PgPassword
 $psqlExe        = Join-Path $pgBin "psql.exe"
 $pgRestoreExe   = Join-Path $pgBin "pg_restore.exe"
 $createdbExe    = Join-Path $pgBin "createdb.exe"
+
+if (-not (Ensure-PgServiceRunning -TimeoutSeconds 30)) {
+    Write-Fail "PostgreSQL no esta en ejecucion. No se puede inicializar la base de datos."
+    Write-Warn "Inicie el servicio PostgreSQL desde services.msc y reintente el instalador."
+    Read-Host "ENTER para salir"
+    exit 1
+}
 
 # Crear la BD si no existe
 $dbCheck = (& $psqlExe -U $DB_USER -p $PgPort -d postgres -tAc `
@@ -527,7 +683,7 @@ Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
 # ===========================================================================
 # PASO 8 - GENERAR / ACTUALIZAR appsettings.json
 # ===========================================================================
-Write-Step "8/9" "Configurando appsettings.json..."
+Write-Step "8/10" "Configurando appsettings.json..."
 
 # Detectar IP de red local del servidor
 $localIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
@@ -648,7 +804,7 @@ Write-Host ""
 # ===========================================================================
 # PASO 9 - ACCESO DIRECTO EN EL ESCRITORIO
 # ===========================================================================
-Write-Step "9/9" "Creando acceso directo en el escritorio..."
+Write-Step "9/10" "Creando acceso directo en el escritorio..."
 
 $exePath      = Join-Path $InstallDir $APP_EXE
 $shortcutPath = Join-Path ([Environment]::GetFolderPath("CommonDesktopDirectory")) "$APP_NAME.lnk"
@@ -669,6 +825,107 @@ if (Test-Path $exePath) {
     }
 } else {
     Write-Warn "No se encontro $APP_EXE en $InstallDir."
+}
+
+# ===========================================================================
+# PASO 10 - INSTALAR DBEAVER (OPCIONAL)
+# ===========================================================================
+Write-Step "10/10" "Instalando DBeaver (opcional)..."
+
+if (-not $InstallDBeaver) {
+    Write-Info "Instalacion de DBeaver omitida por parametro (-InstallDBeaver:$false)."
+} elseif (Test-DBeaverInstalled) {
+    Write-OK "DBeaver ya esta instalado."
+} else {
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if ($winget) {
+        Write-Info "Instalando DBeaver Community con winget..."
+        & winget install --id $DBEAVER_WINGET_ID --accept-package-agreements --accept-source-agreements --silent 2>&1 |
+            ForEach-Object { Write-Info $_ }
+
+        if ($LASTEXITCODE -eq 0 -or (Test-DBeaverInstalled)) {
+            Write-OK "DBeaver instalado correctamente."
+        } else {
+            Write-Warn "No se pudo instalar DBeaver automaticamente (codigo $LASTEXITCODE)."
+            Write-Info "Instalacion manual: https://dbeaver.io/download/"
+        }
+    } else {
+        Write-Warn "winget no disponible en este equipo."
+        Write-Info "Instale DBeaver manualmente desde: https://dbeaver.io/download/"
+    }
+}
+
+# ===========================================================================
+# VALIDACIONES AUTOMATICAS POST-INSTALACION
+# ===========================================================================
+Write-Step "VALIDACION" "Ejecutando validaciones post-instalacion..."
+
+$validacionesOk = $true
+
+# V1: Servicio PostgreSQL
+$svc = Get-PgService
+if ($svc -and $svc.Status -eq 'Running') {
+    Write-OK "V1 Servicio PostgreSQL en ejecucion ($($svc.Name))."
+} else {
+    Write-Fail "V1 Servicio PostgreSQL no esta en ejecucion."
+    $validacionesOk = $false
+}
+
+# V2: Conexion SQL a PostgreSQL
+$env:PGPASSWORD = $PgPassword
+$testQuery = (& $psqlExe -U $DB_USER -p $PgPort -d postgres -tAc "SELECT 1;" 2>&1) -join ""
+if (($LASTEXITCODE -eq 0) -and ($testQuery.Trim() -eq '1')) {
+    Write-OK "V2 Conexion PostgreSQL local correcta (SELECT 1)."
+} else {
+    Write-Fail "V2 Fallo de conexion PostgreSQL local en puerto $PgPort."
+    Write-Info "Detalle: $testQuery"
+    $validacionesOk = $false
+}
+
+# V3: Base de datos objetivo creada
+$dbExists = (& $psqlExe -U $DB_USER -p $PgPort -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME';" 2>&1) -join ""
+if (($LASTEXITCODE -eq 0) -and ($dbExists.Trim() -eq '1')) {
+    Write-OK "V3 Base de datos '$DB_NAME' existe."
+} else {
+    Write-Fail "V3 Base de datos '$DB_NAME' no encontrada."
+    Write-Info "Detalle: $dbExists"
+    $validacionesOk = $false
+}
+
+# V4: Regla de firewall
+try {
+    $fw = netsh advfirewall firewall show rule name="PostgreSQL $PgPort" 2>$null
+    if ($fw -match "PostgreSQL $PgPort") {
+        Write-OK "V4 Regla de firewall para puerto $PgPort presente."
+    } else {
+        Write-Fail "V4 Regla de firewall para puerto $PgPort no encontrada."
+        $validacionesOk = $false
+    }
+} catch {
+    Write-Fail "V4 No se pudo validar firewall: $($_.Exception.Message)"
+    $validacionesOk = $false
+}
+
+# V5: appsettings.json
+if (Test-Path $appSettings) {
+    $appSettingsRaw = Get-Content $appSettings -Raw -ErrorAction SilentlyContinue
+    if ($appSettingsRaw -match [regex]::Escape($connString)) {
+        Write-OK "V5 appsettings.json contiene la cadena de conexion esperada."
+    } else {
+        Write-Warn "V5 appsettings.json no coincide exactamente con la cadena generada."
+        Write-Info "Verificar manualmente: $appSettings"
+    }
+} else {
+    Write-Fail "V5 appsettings.json no encontrado en: $appSettings"
+    $validacionesOk = $false
+}
+
+Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
+
+if ($validacionesOk) {
+    Write-OK "Validaciones post-instalacion: COMPLETAS."
+} else {
+    Write-Warn "Validaciones post-instalacion: CON ERRORES. Revise mensajes anteriores."
 }
 
 # ===========================================================================
@@ -695,12 +952,19 @@ Write-Host ""
 Write-Host "  2. Copiar certificados AFIP (.p12/.pfx) en:" -ForegroundColor White
 Write-Host "     $(Join-Path $InstallDir 'Certificados FE')" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  CONEXION DESDE OTRAS PCs:" -ForegroundColor Yellow
+Write-Host "  CONEXION DESDE OTRAS PCS:" -ForegroundColor Yellow
 Write-Host "  $connString" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  USUARIO BD: $DB_USER  |  Password: $PgPassword" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  3. Iniciar la aplicacion desde el acceso directo del escritorio." -ForegroundColor White
+if ($InstallDBeaver) {
+    if (Test-DBeaverInstalled) {
+        Write-Host "  4. DBeaver instalado: use Host=$localIp, Port=$PgPort, Database=$DB_NAME" -ForegroundColor White
+    } else {
+        Write-Host "  4. DBeaver no instalado automaticamente. Descarga: https://dbeaver.io/download/" -ForegroundColor Yellow
+    }
+}
 Write-Host ("=" * 60) -ForegroundColor Cyan
 Write-Host ""
 

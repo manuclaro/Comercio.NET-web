@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -788,21 +788,21 @@ namespace Comercio.NET.Formularios
             {
                 string connectionString = GetConnectionString();
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
                 SELECT 
                     Id,
                     Nombre,
-                    TipoOferta AS 'Tipo',
-                    FechaInicio AS 'Inicio',
-                    FechaFin AS 'Fin',
-                    CASE WHEN Activo = 1 THEN 'Sí' ELSE 'No' END AS 'Activa',
-                    (SELECT COUNT(*) FROM DetalleOfertasProductos WHERE IdOferta = OfertasProductos.Id) AS 'Productos'
-                FROM OfertasProductos
+                    TipoOferta AS ""Tipo"",
+                    FechaInicio AS ""Inicio"",
+                    FechaFin AS ""Fin"",
+                    CASE WHEN Activo = B'1' THEN 'Sí' ELSE 'No' END AS ""Activa"",
+                    (SELECT COUNT(*) FROM detalleofertasproductos WHERE IdOferta = ofertasproductos.Id) AS ""Productos""
+                FROM ofertasproductos
                 ORDER BY Activo DESC, FechaInicio DESC";
 
-                    var adapter = new SqlDataAdapter(query, connection);
+                    var adapter = new NpgsqlDataAdapter(query, connection);
                     var dt = new DataTable();
                     adapter.Fill(dt);
 
@@ -895,7 +895,7 @@ namespace Comercio.NET.Formularios
             {
                 string connectionString = GetConnectionString();
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     connection.Open();
 
@@ -905,7 +905,7 @@ namespace Comercio.NET.Formularios
                         FROM OfertasProductos
                         WHERE Id = @Id";
 
-                    using (var cmd = new SqlCommand(queryOferta, connection))
+                    using (var cmd = new NpgsqlCommand(queryOferta, connection))
                     {
                         cmd.Parameters.AddWithValue("@Id", idOferta);
                         using (var reader = cmd.ExecuteReader())
@@ -957,7 +957,7 @@ namespace Comercio.NET.Formularios
 
                     dgvDetalleOferta.Rows.Clear();
 
-                    using (var cmd = new SqlCommand(queryDetalle, connection))
+                    using (var cmd = new NpgsqlCommand(queryDetalle, connection))
                     {
                         cmd.Parameters.AddWithValue("@Id", idOferta);
                         using (var reader = cmd.ExecuteReader())
@@ -1015,11 +1015,11 @@ namespace Comercio.NET.Formularios
             {
                 string connectionString = GetConnectionString();
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = "DELETE FROM OfertasProductos WHERE Id = @Id";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@Id", idOferta);
                         connection.Open();
@@ -1072,11 +1072,11 @@ namespace Comercio.NET.Formularios
                 {
                     string connectionString = GetConnectionString();
 
-                    using (var connection = new SqlConnection(connectionString))
+                    using (var connection = new NpgsqlConnection(connectionString))
                     {
                         var query = "SELECT ID, descripcion, precio FROM Productos WHERE codigo = @codigo";
 
-                        using (var cmd = new SqlCommand(query, connection))
+                        using (var cmd = new NpgsqlCommand(query, connection))
                         {
                             cmd.Parameters.AddWithValue("@codigo", codigo);
                             connection.Open();
@@ -1145,7 +1145,7 @@ namespace Comercio.NET.Formularios
                 string connectionString = GetConnectionString();
                 string tipoOferta = cboTipoOferta.SelectedItem.ToString();
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     connection.Open();
                     using (var transaction = connection.BeginTransaction())
@@ -1155,15 +1155,15 @@ namespace Comercio.NET.Formularios
                             if (ofertaSeleccionadaId == 0)
                             {
                                 var queryInsert = @"
-                                INSERT INTO OfertasProductos 
-                                    (Nombre, Descripcion, FechaInicio, FechaFin, Activo, TipoOferta, 
-                                     PrecioCombo, PorcentajeDescuentoGlobal, UsuarioCreacion, CantidadMinimaGrupo, PrecioGrupo)
+                                INSERT INTO ofertasproductos 
+                                    (nombre, descripcion, fechainicio, fechafin, activo, tipooferta, 
+                                     preciocombo, porcentajedescuentoglobal, usuariocreacion, cantidadminimagrupo, preciogrupo)
                                 VALUES 
                                     (@Nombre, @Descripcion, @FechaInicio, @FechaFin, @Activo, @TipoOferta,
-                                     @PrecioCombo, @PorcentajeDescuentoGlobal, @Usuario, @CantidadMinimaGrupo, @PrecioGrupo);
-                                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                                     @PrecioCombo, @PorcentajeDescuentoGlobal, @Usuario, @CantidadMinimaGrupo, @PrecioGrupo)
+                                RETURNING id";
 
-                                using (var cmd = new SqlCommand(queryInsert, connection, transaction))
+                                using (var cmd = new NpgsqlCommand(queryInsert, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@Nombre", txtNombreOferta.Text.Trim());
                                     cmd.Parameters.AddWithValue("@Descripcion", txtDescripcion.Text.Trim());
@@ -1172,7 +1172,7 @@ namespace Comercio.NET.Formularios
                                         dtpFechaFin.Value.Date > dtpFechaInicio.Value.Date
                                             ? (object)dtpFechaFin.Value.Date
                                             : DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
+                                    cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkActivo.Checked });
                                     cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
 
                                     cmd.Parameters.AddWithValue("@PrecioCombo",
@@ -1198,26 +1198,26 @@ namespace Comercio.NET.Formularios
                                     cmd.Parameters.AddWithValue("@Usuario",
                                         AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName);
 
-                                    ofertaSeleccionadaId = (int)cmd.ExecuteScalar();
+                                    ofertaSeleccionadaId = Convert.ToInt32(cmd.ExecuteScalar());
                                 }
                             }
                             else
                             {
                                 var queryUpdate = @"
-                                    UPDATE OfertasProductos
-                                    SET Nombre = @Nombre,
-                                        Descripcion = @Descripcion,
-                                        FechaInicio = @FechaInicio,
-                                        FechaFin = @FechaFin,
-                                        Activo = @Activo,
-                                        TipoOferta = @TipoOferta,
-                                        PrecioCombo = @PrecioCombo,
-                                        PorcentajeDescuentoGlobal = @PorcentajeDescuentoGlobal,
-                                        CantidadMinimaGrupo = @CantidadMinimaGrupo,
-                                        PrecioGrupo = @PrecioGrupo
-                                    WHERE Id = @Id";
+                                    UPDATE ofertasproductos
+                                    SET nombre = @Nombre,
+                                        descripcion = @Descripcion,
+                                        fechainicio = @FechaInicio,
+                                        fechafin = @FechaFin,
+                                        activo = @Activo,
+                                        tipooferta = @TipoOferta,
+                                        preciocombo = @PrecioCombo,
+                                        porcentajedescuentoglobal = @PorcentajeDescuentoGlobal,
+                                        cantidadminimagrupo = @CantidadMinimaGrupo,
+                                        preciogrupo = @PrecioGrupo
+                                    WHERE id = @Id";
 
-                                using (var cmd = new SqlCommand(queryUpdate, connection, transaction))
+                                using (var cmd = new NpgsqlCommand(queryUpdate, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@Id", ofertaSeleccionadaId);
                                     cmd.Parameters.AddWithValue("@Nombre", txtNombreOferta.Text.Trim());
@@ -1227,7 +1227,7 @@ namespace Comercio.NET.Formularios
                                         dtpFechaFin.Value.Date > dtpFechaInicio.Value.Date
                                             ? (object)dtpFechaFin.Value.Date
                                             : DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
+                                    cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkActivo.Checked });
                                     cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
 
                                     cmd.Parameters.AddWithValue("@PrecioCombo",
@@ -1253,8 +1253,8 @@ namespace Comercio.NET.Formularios
                                     cmd.ExecuteNonQuery();
                                 }
 
-                                var queryDeleteDetalle = "DELETE FROM DetalleOfertasProductos WHERE IdOferta = @IdOferta";
-                                using (var cmd = new SqlCommand(queryDeleteDetalle, connection, transaction))
+                                var queryDeleteDetalle = "DELETE FROM detalleofertasproductos WHERE idoferta = @IdOferta";
+                                using (var cmd = new NpgsqlCommand(queryDeleteDetalle, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@IdOferta", ofertaSeleccionadaId);
                                     cmd.ExecuteNonQuery();
@@ -1267,12 +1267,12 @@ namespace Comercio.NET.Formularios
                                     continue;
 
                                 var queryDetalle = @"
-                                    INSERT INTO DetalleOfertasProductos
-                                        (IdOferta, IdProducto, CantidadMinima, PrecioOferta, PorcentajeDescuento)
+                                    INSERT INTO detalleofertasproductos
+                                        (idoferta, idproducto, cantidadminima, preciooferta, porcentajedescuento)
                                     VALUES
                                         (@IdOferta, @IdProducto, @CantidadMinima, @PrecioOferta, @PorcentajeDescuento)";
 
-                                using (var cmd = new SqlCommand(queryDetalle, connection, transaction))
+                                using (var cmd = new NpgsqlCommand(queryDetalle, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@IdOferta", ofertaSeleccionadaId);
                                     cmd.Parameters.AddWithValue("@IdProducto",

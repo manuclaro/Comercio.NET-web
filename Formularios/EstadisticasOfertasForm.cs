@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Windows.Forms;
 using Microsoft.Extensions.Configuration;
@@ -236,35 +236,35 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     connection.Open();
 
                     var query = @"
                         SELECT 
-                            p.codigo as 'Código',
-                            p.descripcion as 'Producto',
-                            SUM(v.cantidad) as 'Cantidad Vendida',
-                            v.precio as 'Precio Unit.',
-                            CAST(SUM(ISNULL(v.DescuentoAplicado, 0) * v.cantidad) AS DECIMAL(18,2)) as 'Descuento Total',
-                            CAST(SUM(ISNULL(v.total, 0)) AS DECIMAL(18,2)) as 'Total Vendido',
-                            COUNT(DISTINCT v.NroFactura) as 'Nro Ventas'
-                        FROM Ventas v
-                        INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                        INNER JOIN Productos p ON v.codigo = p.codigo
-                        WHERE v.EsOferta = 1
-                        AND v.NombreOferta = @nombreOferta
-                        AND CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
+                            p.codigo as ""Código"",
+                            p.descripcion as ""Producto"",
+                            SUM(v.cantidad) as ""Cantidad Vendida"",
+                            v.precio as ""Precio Unit."",
+                            CAST(SUM(COALESCE(v.descuentoaplicado, 0) * v.cantidad) AS DECIMAL(18,2)) as ""Descuento Total"",
+                            CAST(SUM(COALESCE(v.total, 0)) AS DECIMAL(18,2)) as ""Total Vendido"",
+                            COUNT(DISTINCT v.nrofactura) as ""Nro Ventas""
+                        FROM ventas v
+                        INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+                        INNER JOIN productos p ON v.codigo = p.codigo
+                        WHERE v.esoferta = B'1'
+                        AND v.nombreoferta = @nombreOferta
+                        AND CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta
                         GROUP BY p.codigo, p.descripcion, v.precio
                         ORDER BY SUM(v.cantidad) DESC";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@nombreOferta", nombreOferta);
                         cmd.Parameters.AddWithValue("@desde", dtpDesde.Value.Date);
                         cmd.Parameters.AddWithValue("@hasta", dtpHasta.Value.Date);
 
-                        var adapter = new SqlDataAdapter(cmd);
+                        var adapter = new NpgsqlDataAdapter(cmd);
                         var dt = new DataTable();
                         adapter.Fill(dt);
 
@@ -497,31 +497,31 @@ namespace Comercio.NET.Formularios
                     throw new Exception("No se pudo obtener la cadena de conexión desde appsettings.json");
                 }
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     connection.Open();
                     System.Diagnostics.Debug.WriteLine("✅ Conexión establecida");
 
                     var query = @"
                         SELECT 
-                            ISNULL(v.NombreOferta, 'Sin nombre') as 'Oferta',
-                            COUNT(DISTINCT v.codigo) as 'Productos',
-                            CAST(SUM(v.cantidad) AS INT) as 'Cantidad',
-                            CAST(SUM(ISNULL(v.DescuentoAplicado, 0) * v.cantidad) AS DECIMAL(18,2)) as 'Descuento',
-                            CAST(SUM(ISNULL(v.total, 0)) AS DECIMAL(18,2)) as 'Total Vendido'
-                        FROM Ventas v
-                        INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                        WHERE v.EsOferta = 1
-                        AND CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                        GROUP BY v.NombreOferta
-                        ORDER BY SUM(ISNULL(v.total, 0)) DESC";
+                            COALESCE(v.nombreoferta, 'Sin nombre') as ""Oferta"",
+                            COUNT(DISTINCT v.codigo) as ""Productos"",
+                            CAST(SUM(v.cantidad) AS INT) as ""Cantidad"",
+                            CAST(SUM(COALESCE(v.descuentoaplicado, 0) * v.cantidad) AS DECIMAL(18,2)) as ""Descuento"",
+                            CAST(SUM(COALESCE(v.total, 0)) AS DECIMAL(18,2)) as ""Total Vendido""
+                        FROM ventas v
+                        INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+                  WHERE v.esoferta = B'1'
+                        AND CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta
+                        GROUP BY v.nombreoferta
+                        ORDER BY SUM(COALESCE(v.total, 0)) DESC";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@desde", dtpDesde.Value.Date);
                         cmd.Parameters.AddWithValue("@hasta", dtpHasta.Value.Date);
 
-                        var adapter = new SqlDataAdapter(cmd);
+                        var adapter = new NpgsqlDataAdapter(cmd);
                         var dt = new DataTable();
                         adapter.Fill(dt);
 
@@ -550,7 +550,7 @@ namespace Comercio.NET.Formularios
                     }
                 }
             }
-            catch (SqlException sqlEx)
+            catch (NpgsqlException sqlEx)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error SQL: {sqlEx.Message}");
                 MessageBox.Show(
@@ -609,21 +609,21 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private void ActualizarTotales(SqlConnection connection)
+        private void ActualizarTotales(NpgsqlConnection connection)
         {
             try
             {
                 var queryTotales = @"
                     SELECT 
-                        CAST(SUM(ISNULL(v.cantidad, 0)) AS INT) as TotalProductos,
-                        CAST(SUM(ISNULL(v.DescuentoAplicado, 0) * ISNULL(v.cantidad, 0)) AS DECIMAL(18,2)) as TotalDescuento,
-                        CAST(SUM(ISNULL(v.total, 0)) AS DECIMAL(18,2)) as TotalVentas
-                    FROM Ventas v
-                    INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                    WHERE v.EsOferta = 1
-                    AND CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta";
+                        CAST(SUM(COALESCE(v.cantidad, 0)) AS INT) as TotalProductos,
+                        CAST(SUM(COALESCE(v.descuentoaplicado, 0) * COALESCE(v.cantidad, 0)) AS DECIMAL(18,2)) as TotalDescuento,
+                        CAST(SUM(COALESCE(v.total, 0)) AS DECIMAL(18,2)) as TotalVentas
+                    FROM ventas v
+                    INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+                    WHERE v.esoferta = B'1'
+                    AND CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta";
 
-                using (var cmd = new SqlCommand(queryTotales, connection))
+                using (var cmd = new NpgsqlCommand(queryTotales, connection))
                 {
                     cmd.Parameters.AddWithValue("@desde", dtpDesde.Value.Date);
                     cmd.Parameters.AddWithValue("@hasta", dtpHasta.Value.Date);

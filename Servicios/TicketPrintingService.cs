@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -6,7 +6,7 @@ using System.Drawing.Printing;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Extensions.Configuration;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Threading.Tasks;
 
 namespace Comercio.NET.Servicios
@@ -210,7 +210,7 @@ namespace Comercio.NET.Servicios
 
                 System.Diagnostics.Debug.WriteLine($"📊 Procesando {datosTicket.Rows.Count} productos...");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
@@ -219,8 +219,8 @@ namespace Comercio.NET.Servicios
                         string codigo = row["codigo"]?.ToString();
                         if (string.IsNullOrEmpty(codigo)) continue;
 
-                        string query = "SELECT iva FROM Productos WHERE codigo = @codigo";
-                        using (var cmd = new SqlCommand(query, connection))
+                        string query = "SELECT iva FROM productos WHERE codigo = @codigo";
+                        using (var cmd = new NpgsqlCommand(query, connection))
                         {
                             cmd.Parameters.AddWithValue("@codigo", codigo);
                             var result = await cmd.ExecuteScalarAsync();

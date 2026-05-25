@@ -1,6 +1,6 @@
-﻿
+
 using System;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -113,7 +113,7 @@ namespace Comercio.NET.Formularios
             string cs = GetConnectionString();
             try
             {
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
 
@@ -125,7 +125,7 @@ namespace Comercio.NET.Formularios
                            OR (@compraId IS NULL AND @ctacteId IS NOT NULL AND CtaCteId = @ctacteId)
                         ORDER BY FechaPago;
                     ";
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         if (compraId.HasValue)
                         {
@@ -161,7 +161,7 @@ namespace Comercio.NET.Formularios
                     if (compraId.HasValue)
                     {
                         var sqlCompra = @"SELECT ImporteTotal FROM ComprasProveedores WHERE Id = @id;";
-                        using (var cmd2 = new SqlCommand(sqlCompra, conn))
+                        using (var cmd2 = new NpgsqlCommand(sqlCompra, conn))
                         {
                             cmd2.Parameters.AddWithValue("@id", compraId.Value);
                             var res = await cmd2.ExecuteScalarAsync();
@@ -173,7 +173,7 @@ namespace Comercio.NET.Formularios
                     else if (ctaCteId.HasValue)
                     {
                         var sqlCta = @"SELECT MontoTotal, Saldo FROM ProveedoresCtaCte WHERE Id = @id;";
-                        using (var cmd3 = new SqlCommand(sqlCta, conn))
+                        using (var cmd3 = new NpgsqlCommand(sqlCta, conn))
                         {
                             cmd3.Parameters.AddWithValue("@id", ctaCteId.Value);
                             using (var r = await cmd3.ExecuteReaderAsync())

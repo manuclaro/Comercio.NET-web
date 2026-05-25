@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -615,7 +615,7 @@ namespace Comercio.NET.Formularios
             {
                 DataTable dt = new DataTable();
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     // Incluir día completo: desde 00:00 hasta 23:59:59
                     var desdeFecha = desde.Date;
@@ -623,18 +623,18 @@ namespace Comercio.NET.Formularios
 
                     // OBTENER compras SIN FILTRO POR PROVEEDOR — necesitaremos la lista de proveedores desde estos registros
                     string sql = @"
-SELECT cp.Id, cp.NumeroFactura, cp.Fecha, ISNULL(p.Nombre, cp.Proveedor) AS Proveedor, 
-       cp.ImporteNeto, cp.ImporteIVA, cp.ImporteTotal, cp.Usuario, cp.Cajero
-FROM ComprasProveedores cp
-LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
-WHERE cp.Fecha BETWEEN @desde AND @hasta
-ORDER BY cp.Fecha DESC, cp.Id DESC;";
+SELECT cp.id AS ""Id"", cp.numerofactura AS ""NumeroFactura"", cp.fecha AS ""Fecha"", COALESCE(p.nombre, cp.proveedor) AS ""Proveedor"", 
+       cp.importeneto AS ""ImporteNeto"", cp.importeiva AS ""ImporteIVA"", cp.importetotal AS ""ImporteTotal"", cp.usuario AS ""Usuario"", cp.cajero AS ""Cajero""
+FROM comprasproveedores cp
+LEFT JOIN proveedores p ON cp.proveedorid = p.id
+WHERE cp.fecha BETWEEN @desde AND @hasta
+ORDER BY cp.fecha DESC, cp.id DESC;";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@desde", desdeFecha);
                         cmd.Parameters.AddWithValue("@hasta", hastaFecha);
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }
@@ -691,26 +691,26 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                     // Base SQL y, si hay proveedor seleccionado, se agrega condición de nombre de proveedor
                     string sqlAlicuotas = @"
                         SELECT d.Alicuota, SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
-                        FROM ComprasProveedoresIvaDetalle d
-                        INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
-                        LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+                        FROM comprasproveedoresivadetalle d
+                        INNER JOIN comprasproveedores cp ON d.CompraId = cp.Id
+                        LEFT JOIN proveedores p ON cp.ProveedorId = p.Id
                         WHERE cp.Fecha BETWEEN @desde AND @hasta
                         ";
                     if (!string.IsNullOrEmpty(proveedorSeleccionado))
                     {
-                        sqlAlicuotas += "  AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                        sqlAlicuotas += "  AND COALESCE(p.Nombre, cp.Proveedor) = @proveedorName\n";
                     }
                     sqlAlicuotas += @"
                         GROUP BY d.Alicuota
                         ORDER BY d.Alicuota DESC;";
 
-                    using (var cmdA = new SqlCommand(sqlAlicuotas, conn))
+                    using (var cmdA = new NpgsqlCommand(sqlAlicuotas, conn))
                     {
                         cmdA.Parameters.AddWithValue("@desde", desdeFecha);
                         cmdA.Parameters.AddWithValue("@hasta", hastaFecha);
                         if (!string.IsNullOrEmpty(proveedorSeleccionado))
                             cmdA.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
-                        using (var da2 = new SqlDataAdapter(cmdA))
+                        using (var da2 = new NpgsqlDataAdapter(cmdA))
                         {
                             await Task.Run(() => da2.Fill(dtAlicuotas));
                         }
@@ -907,18 +907,18 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                 int? proveedorId = null;
                 string proveedorNombre = "";
 
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
 
                     // Obtener importe total y proveedor
                     var sql = @"
-                SELECT cp.ImporteTotal, cp.ProveedorId, ISNULL(p.Nombre, cp.Proveedor) AS ProveedorNombre
-                FROM ComprasProveedores cp
-                LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+                SELECT cp.ImporteTotal, cp.ProveedorId, COALESCE(p.Nombre, cp.Proveedor) AS ProveedorNombre
+                FROM comprasproveedores cp
+                LEFT JOIN proveedores p ON cp.ProveedorId = p.Id
                 WHERE cp.Id = @id";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@id", compraId);
                         using (var reader = await cmd.ExecuteReaderAsync())
@@ -937,16 +937,22 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         }
                     }
 
-                    // ✅ CAMBIO: Calcular saldo desde ProveedoresCtaCte en lugar de ComprasProveedoresPagos
-                    var cmdCtaCte = new SqlCommand(@"
-                SELECT ISNULL(Saldo, 0) 
-                FROM ProveedoresCtaCte 
-                WHERE CompraId = @id", conn);
+                    // Calcular saldo desde proveedoresctacte
+                    var cmdCtaCte = new NpgsqlCommand(@"
+                SELECT id, COALESCE(saldo, 0) AS saldo
+                FROM proveedoresctacte
+                WHERE compraid = @id", conn);
                     cmdCtaCte.Parameters.AddWithValue("@id", compraId);
-                    var objCtaCte = await cmdCtaCte.ExecuteScalarAsync();
-
-                    // Si no hay registro en CtaCte, el saldo es el importe total de la compra
-                    decimal saldoActual = objCtaCte != null ? Convert.ToDecimal(objCtaCte) : importeTotal;
+                    int ctaCteId = 0;
+                    decimal saldoActual = importeTotal;
+                    using (var rdr = await cmdCtaCte.ExecuteReaderAsync())
+                    {
+                        if (await rdr.ReadAsync())
+                        {
+                            ctaCteId = rdr.GetInt32(0);
+                            saldoActual = rdr.GetDecimal(1);
+                        }
+                    }
 
                     if (saldoActual <= 0m)
                     {
@@ -972,7 +978,7 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         }
 
                         // Guardar pagos y actualizar CtaCte si corresponde
-                        await GuardarPagosYActualizarCtaCteAsync(compraId, proveedorId, pagos, importeTotal, proveedorNombre);
+                        await GuardarPagosYActualizarCtaCteAsync(compraId, ctaCteId, proveedorId, pagos, importeTotal, proveedorNombre);
 
                         // refrescar vista
                         await AplicarRangoYCargarAsync();
@@ -985,14 +991,16 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
             }
         }
 
-        // Guarda pagos asociados a una compra y mantiene/crea/actualiza registro en ProveedoresCtaCte si queda saldo.
-        private async Task GuardarPagosYActualizarCtaCteAsync(int compraId, int? proveedorId, List<PagoInfo> pagos, decimal importeTotal, string proveedorNombre)
+        // Guarda pagos y actualiza saldo en proveedoresctacte (misma logica que ProveedoresCtaCteControl)
+        private async Task GuardarPagosYActualizarCtaCteAsync(int compraId, int ctaCteId, int? proveedorId, List<PagoInfo> pagos, decimal importeTotal, string proveedorNombre)
         {
             try
             {
                 string connectionString = GetConnectionString();
+                string usuario = Comercio.NET.Services.AuthenticationService.SesionActual?.Usuario?.NombreCompleto ?? Environment.UserName;
+                int numeroCajero = Comercio.NET.Services.AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
                     using (var transaction = connection.BeginTransaction())
@@ -1000,73 +1008,73 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                         try
                         {
                             decimal totalPagado = pagos.Sum(p => p.Monto);
-                            decimal saldoPendiente = importeTotal - totalPagado;
+                            decimal nuevoSaldo = importeTotal - totalPagado;
+                            if (nuevoSaldo < 0) nuevoSaldo = 0;
 
                             // 1. Guardar cada pago en la tabla PagosProveedores
                             foreach (var pago in pagos)
                             {
                                 string insertPagoQuery = @"
-                            INSERT INTO PagosProveedores 
+                            INSERT INTO pagosproveedores 
                             (Proveedor, Monto, Observaciones, NumeroCajero, UsuarioRegistro, FechaPago, FechaRegistro, IdProveedor, CtaCteId)
                             VALUES 
                             (@Proveedor, @Monto, @Observaciones, @NumeroCajero, @UsuarioRegistro, @FechaPago, @FechaRegistro, @IdProveedor, @CtaCteId)";
 
-                                using (var cmdPago = new SqlCommand(insertPagoQuery, connection, transaction))
+                                using (var cmdPago = new NpgsqlCommand(insertPagoQuery, connection, transaction))
                                 {
                                     cmdPago.Parameters.AddWithValue("@Proveedor", proveedorNombre);
                                     cmdPago.Parameters.AddWithValue("@Monto", pago.Monto);
                                     cmdPago.Parameters.AddWithValue("@Observaciones",
                                         $"{pago.Metodo} - {pago.Referencia ?? "Sin referencia"} - Compra ID: {compraId}");
-                                    cmdPago.Parameters.AddWithValue("@NumeroCajero", 1); // Ajustar según tu lógica
-                                    cmdPago.Parameters.AddWithValue("@UsuarioRegistro",
-                                        Comercio.NET.Services.AuthenticationService.SesionActual?.Usuario?.NombreCompleto ?? "Sistema");
+                                    cmdPago.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
+                                    cmdPago.Parameters.AddWithValue("@UsuarioRegistro", usuario);
                                     cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
                                     cmdPago.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
                                     cmdPago.Parameters.AddWithValue("@IdProveedor",
                                         proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
-                                    cmdPago.Parameters.AddWithValue("@CtaCteId", DBNull.Value); // Ajustar según tu lógica
+                                    cmdPago.Parameters.AddWithValue("@CtaCteId",
+                                        ctaCteId > 0 ? (object)ctaCteId : DBNull.Value);
 
                                     await cmdPago.ExecuteNonQueryAsync();
                                 }
                             }
 
-                            // 2. Actualizar la cuenta corriente si hay saldo pendiente
-                            if (saldoPendiente > 0 && proveedorId.HasValue)
+                            // 2. Actualizar saldo en proveedoresctacte (igual que ProveedoresCtaCteControl)
+                            if (ctaCteId > 0)
                             {
-                                string updateCtaCteQuery = @"
-                            UPDATE ComprasProveedoresCtaCte
-                            SET Saldo = Saldo + @ImporteSaldo
-                            WHERE ProveedorId = @ProveedorId";
-
-                                using (var cmdCtaCte = new SqlCommand(updateCtaCteQuery, connection, transaction))
+                                var updateSql = @"
+                                    UPDATE proveedoresctacte
+                                    SET saldo = @nuevoSaldo, montoadeudado = @nuevoSaldo
+                                    WHERE id = @id";
+                                using (var cmdUpdate = new NpgsqlCommand(updateSql, connection, transaction))
                                 {
-                                    cmdCtaCte.Parameters.AddWithValue("@ImporteSaldo", saldoPendiente);
-                                    cmdCtaCte.Parameters.AddWithValue("@ProveedorId", proveedorId.Value);
-
-                                    int rowsAffected = await cmdCtaCte.ExecuteNonQueryAsync();
-
-                                    // Si no existe registro en CtaCte, crear uno
-                                    if (rowsAffected == 0)
-                                    {
-                                        string insertCtaCteQuery = @"
-                                    INSERT INTO ComprasProveedoresCtaCte (ProveedorId, NombreProveedor, Saldo, FechaUltimaActualizacion)
-                                    VALUES (@ProveedorId, @NombreProveedor, @Saldo, @FechaActualizacion)";
-
-                                        using (var cmdInsert = new SqlCommand(insertCtaCteQuery, connection, transaction))
-                                        {
-                                            cmdInsert.Parameters.AddWithValue("@ProveedorId", proveedorId.Value);
-                                            cmdInsert.Parameters.AddWithValue("@NombreProveedor", proveedorNombre);
-                                            cmdInsert.Parameters.AddWithValue("@Saldo", saldoPendiente);
-                                            cmdInsert.Parameters.AddWithValue("@FechaActualizacion", DateTime.Now);
-
-                                            await cmdInsert.ExecuteNonQueryAsync();
-                                        }
-                                    }
+                                    cmdUpdate.Parameters.AddWithValue("@nuevoSaldo", nuevoSaldo);
+                                    cmdUpdate.Parameters.AddWithValue("@id", ctaCteId);
+                                    await cmdUpdate.ExecuteNonQueryAsync();
+                                }
+                            }
+                            else
+                            {
+                                // Sin registro previo: insertar
+                                var insertSql = @"
+                                    INSERT INTO proveedoresctacte (proveedorid, compraid, fecha, montototal, montoadeudado, saldo, observaciones, usuario)
+                                    VALUES (@proveedorid, @compraid, @fecha, @montototal, @montoadeudado, @saldo, @observaciones, @usuario)";
+                                using (var cmdInsert = new NpgsqlCommand(insertSql, connection, transaction))
+                                {
+                                    cmdInsert.Parameters.AddWithValue("@proveedorid", proveedorId.HasValue ? (object)proveedorId.Value : DBNull.Value);
+                                    cmdInsert.Parameters.AddWithValue("@compraid", compraId);
+                                    cmdInsert.Parameters.AddWithValue("@fecha", DateTime.Now);
+                                    cmdInsert.Parameters.AddWithValue("@montototal", importeTotal);
+                                    cmdInsert.Parameters.AddWithValue("@montoadeudado", nuevoSaldo);
+                                    cmdInsert.Parameters.AddWithValue("@saldo", nuevoSaldo);
+                                    cmdInsert.Parameters.AddWithValue("@observaciones", (object)proveedorNombre ?? DBNull.Value);
+                                    cmdInsert.Parameters.AddWithValue("@usuario", usuario);
+                                    await cmdInsert.ExecuteNonQueryAsync();
                                 }
                             }
 
                             transaction.Commit();
-                            MessageBox.Show($"Pagos registrados correctamente.\nTotal pagado: {totalPagado:C2}\nSaldo pendiente: {saldoPendiente:C2}",
+                            MessageBox.Show($"Pagos registrados correctamente.\nTotal pagado: {totalPagado:C2}\nSaldo pendiente: {nuevoSaldo:C2}",
                                 "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         catch (Exception ex)
@@ -1138,13 +1146,13 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
                             .Build()
                             .GetConnectionString("DefaultConnection");
 
-                        using (var conn = new SqlConnection(cs))
+                        using (var conn = new NpgsqlConnection(cs))
                         {
-                            var sql = @"SELECT Alicuota, BaseImponible, ImporteIva FROM ComprasProveedoresIvaDetalle WHERE CompraId = @id";
-                            using (var cmd = new SqlCommand(sql, conn))
+                            var sql = @"SELECT Alicuota, BaseImponible, ImporteIva FROM comprasproveedoresivadetalle WHERE CompraId = @id";
+                            using (var cmd = new NpgsqlCommand(sql, conn))
                             {
                                 cmd.Parameters.AddWithValue("@id", compraId);
-                                using (var da = new SqlDataAdapter(cmd))
+                                using (var da = new NpgsqlDataAdapter(cmd))
                                 {
                                     await Task.Run(() => da.Fill(dt));
                                 }
@@ -1191,33 +1199,33 @@ ORDER BY cp.Fecha DESC, cp.Id DESC;";
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     var desdeFecha = desde.Date;
                     var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
 
                     string sql = @"
 SELECT CAST(cp.Fecha AS DATE) AS Fecha, d.Alicuota, SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
-FROM ComprasProveedoresIvaDetalle d
-INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
-LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+FROM comprasproveedoresivadetalle d
+INNER JOIN comprasproveedores cp ON d.CompraId = cp.Id
+LEFT JOIN proveedores p ON cp.ProveedorId = p.Id
 WHERE cp.Fecha BETWEEN @desde AND @hasta
 ";
                     if (!string.IsNullOrEmpty(proveedorSeleccionado))
                     {
-                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                        sql += " AND COALESCE(p.Nombre, cp.Proveedor) = @proveedorName\n";
                     }
                     sql += @"
 GROUP BY CAST(cp.Fecha AS DATE), d.Alicuota
 ORDER BY CAST(cp.Fecha AS DATE) DESC, d.Alicuota DESC;";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@desde", desdeFecha);
                         cmd.Parameters.AddWithValue("@hasta", hastaFecha);
                         if (!string.IsNullOrEmpty(proveedorSeleccionado))
                             cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }
@@ -1240,34 +1248,34 @@ ORDER BY CAST(cp.Fecha AS DATE) DESC, d.Alicuota DESC;";
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     var desdeFecha = desde.Date;
                     var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
 
                     string sql = @"
-SELECT YEAR(cp.Fecha) AS [Year], MONTH(cp.Fecha) AS [Month],
+SELECT EXTRACT(YEAR FROM cp.Fecha) AS ""Year"", EXTRACT(MONTH FROM cp.Fecha) AS ""Month"",
        SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
-FROM ComprasProveedoresIvaDetalle d
-INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
-LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+FROM comprasproveedoresivadetalle d
+INNER JOIN comprasproveedores cp ON d.CompraId = cp.Id
+LEFT JOIN proveedores p ON cp.ProveedorId = p.Id
 WHERE cp.Fecha BETWEEN @desde AND @hasta
 ";
                     if (!string.IsNullOrEmpty(proveedorSeleccionado))
                     {
-                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                        sql += " AND COALESCE(p.Nombre, cp.Proveedor) = @proveedorName\n";
                     }
                     sql += @"
-GROUP BY YEAR(cp.Fecha), MONTH(cp.Fecha)
-ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC;";
+GROUP BY EXTRACT(YEAR FROM cp.Fecha), EXTRACT(MONTH FROM cp.Fecha)
+ORDER BY EXTRACT(YEAR FROM cp.Fecha) DESC, EXTRACT(MONTH FROM cp.Fecha) DESC;";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@desde", desdeFecha);
                         cmd.Parameters.AddWithValue("@hasta", hastaFecha);
                         if (!string.IsNullOrEmpty(proveedorSeleccionado))
                             cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }
@@ -1290,34 +1298,34 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC;";
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     var desdeFecha = desde.Date;
                     var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
 
                     string sql = @"
-SELECT YEAR(cp.Fecha) AS [Year], MONTH(cp.Fecha) AS [Month], d.Alicuota, 
+SELECT EXTRACT(YEAR FROM cp.Fecha) AS ""Year"", EXTRACT(MONTH FROM cp.Fecha) AS ""Month"", d.Alicuota, 
        SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
-FROM ComprasProveedoresIvaDetalle d
-INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
-LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+FROM comprasproveedoresivadetalle d
+INNER JOIN comprasproveedores cp ON d.CompraId = cp.Id
+LEFT JOIN proveedores p ON cp.ProveedorId = p.Id
 WHERE cp.Fecha BETWEEN @desde AND @hasta
 ";
                     if (!string.IsNullOrEmpty(proveedorSeleccionado))
                     {
-                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                        sql += " AND COALESCE(p.Nombre, cp.Proveedor) = @proveedorName\n";
                     }
                     sql += @"
-GROUP BY YEAR(cp.Fecha), MONTH(cp.Fecha), d.Alicuota
-ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, d.Alicuota DESC;";
+GROUP BY EXTRACT(YEAR FROM cp.Fecha), EXTRACT(MONTH FROM cp.Fecha), d.Alicuota
+ORDER BY EXTRACT(YEAR FROM cp.Fecha) DESC, EXTRACT(MONTH FROM cp.Fecha) DESC, d.Alicuota DESC;";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@desde", desdeFecha);
                         cmd.Parameters.AddWithValue("@hasta", hastaFecha);
                         if (!string.IsNullOrEmpty(proveedorSeleccionado))
                             cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }
@@ -1340,34 +1348,34 @@ ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, d.Alicuota DESC;";
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     var desdeFecha = desde.Date;
                     var hastaFecha = hasta.Date.AddDays(1).AddTicks(-1);
 
                     string sql = @"
-SELECT YEAR(cp.Fecha) AS [Year], MONTH(cp.Fecha) AS [Month], ISNULL(p.Nombre, cp.Proveedor) AS Proveedor, d.Alicuota,
+SELECT EXTRACT(YEAR FROM cp.Fecha) AS ""Year"", EXTRACT(MONTH FROM cp.Fecha) AS ""Month"", COALESCE(p.Nombre, cp.Proveedor) AS Proveedor, d.Alicuota,
        SUM(d.BaseImponible) AS BaseSum, SUM(d.ImporteIva) AS IvaSum
-FROM ComprasProveedoresIvaDetalle d
-INNER JOIN ComprasProveedores cp ON d.CompraId = cp.Id
-LEFT JOIN Proveedores p ON cp.ProveedorId = p.Id
+FROM comprasproveedoresivadetalle d
+INNER JOIN comprasproveedores cp ON d.CompraId = cp.Id
+LEFT JOIN proveedores p ON cp.ProveedorId = p.Id
 WHERE cp.Fecha BETWEEN @desde AND @hasta
 ";
                     if (!string.IsNullOrEmpty(proveedorSeleccionado))
                     {
-                        sql += " AND ISNULL(p.Nombre, cp.Proveedor) = @proveedorName\n";
+                        sql += " AND COALESCE(p.Nombre, cp.Proveedor) = @proveedorName\n";
                     }
                     sql += @"
-GROUP BY YEAR(cp.Fecha), MONTH(cp.Fecha), ISNULL(p.Nombre, cp.Proveedor), d.Alicuota
-ORDER BY YEAR(cp.Fecha) DESC, MONTH(cp.Fecha) DESC, Proveedor ASC, d.Alicuota DESC;";
+GROUP BY EXTRACT(YEAR FROM cp.Fecha), EXTRACT(MONTH FROM cp.Fecha), COALESCE(p.Nombre, cp.Proveedor), d.Alicuota
+ORDER BY EXTRACT(YEAR FROM cp.Fecha) DESC, EXTRACT(MONTH FROM cp.Fecha) DESC, Proveedor ASC, d.Alicuota DESC;";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@desde", desdeFecha);
                         cmd.Parameters.AddWithValue("@hasta", hastaFecha);
                         if (!string.IsNullOrEmpty(proveedorSeleccionado))
                             cmd.Parameters.AddWithValue("@proveedorName", proveedorSeleccionado);
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }

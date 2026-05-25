@@ -51,6 +51,7 @@
             gestionUsuariosToolStripMenuItem = new ToolStripMenuItem();
             InformesToolStripMenuItem = new ToolStripMenuItem();
             compraProveedoresToolStripMenuItem = new ToolStripMenuItem();
+            estadisticasRubrosToolStripMenuItem = new ToolStripMenuItem();
             windowsMenu = new ToolStripMenuItem();
             newWindowToolStripMenuItem = new ToolStripMenuItem();
             cascadeToolStripMenuItem = new ToolStripMenuItem();
@@ -184,7 +185,7 @@
             // 
             // modulosToolStripMenuItem
             // 
-            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem, compraProveedoresToolStripMenuItem });
+            modulosToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { ventasToolStripMenuItem, controlFacturasToolStripMenuItem, cartelitosToolStripMenuItem, toolStripSeparator9, gestionUsuariosToolStripMenuItem, InformesToolStripMenuItem, compraProveedoresToolStripMenuItem, estadisticasRubrosToolStripMenuItem });
             modulosToolStripMenuItem.Name = "modulosToolStripMenuItem";
             modulosToolStripMenuItem.Size = new Size(66, 20);
             modulosToolStripMenuItem.Text = "Modulos";
@@ -235,6 +236,13 @@
             compraProveedoresToolStripMenuItem.Size = new Size(185, 22);
             compraProveedoresToolStripMenuItem.Text = "Compra Proveedores";
             compraProveedoresToolStripMenuItem.Click += compraProveedoresToolStripMenuItem_Click;
+            // 
+            // estadisticasRubrosToolStripMenuItem
+            // 
+            estadisticasRubrosToolStripMenuItem.Name = "estadisticasRubrosToolStripMenuItem";
+            estadisticasRubrosToolStripMenuItem.Size = new Size(185, 22);
+            estadisticasRubrosToolStripMenuItem.Text = "Compras vs Ventas";
+            estadisticasRubrosToolStripMenuItem.Click += estadisticasRubrosToolStripMenuItem_Click;
             // 
             // windowsMenu
             // 
@@ -500,6 +508,7 @@
         private ToolStripMenuItem gestionUsuariosToolStripMenuItem;
         private ToolStripButton toolBotonCompras;
         private ToolStripMenuItem compraProveedoresToolStripMenuItem;
+        private ToolStripMenuItem estadisticasRubrosToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator10;
         private ToolStripSeparator toolStripSeparator;
         //private ToolStripButton toolStripButton2;

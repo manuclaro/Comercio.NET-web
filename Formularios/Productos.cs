@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.Configuration;
 using System.Threading;
 using System.ComponentModel;
@@ -344,7 +344,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
                 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
@@ -352,20 +352,20 @@ namespace Comercio.NET.Formularios
                     string checkActivoQuery = @"
                                             SELECT COUNT(*) 
                                             FROM INFORMATION_SCHEMA.COLUMNS 
-                                            WHERE TABLE_NAME = 'Productos' 
+                                            WHERE TABLE_NAME = 'productos' 
                                             AND COLUMN_NAME = 'Activo'";
 
-                    using (var checkCmd = new SqlCommand(checkActivoQuery, connection))
+                    using (var checkCmd = new NpgsqlCommand(checkActivoQuery, connection))
                     {
-                        int columnExists = (int)await checkCmd.ExecuteScalarAsync();
+                        int columnExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
 
                         if (columnExists == 0)
                         {
                             string addColumnQuery = @"
-                                                ALTER TABLE Productos 
-                                                ADD Activo BIT NOT NULL DEFAULT 1";
+                                                ALTER TABLE productos 
+                                                ADD ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE";
 
-                            using (var addCmd = new SqlCommand(addColumnQuery, connection))
+                            using (var addCmd = new NpgsqlCommand(addColumnQuery, connection))
                             {
                                 await addCmd.ExecuteNonQueryAsync();
                                 System.Diagnostics.Debug.WriteLine("✅ Columna Activo creada exitosamente");
@@ -376,21 +376,21 @@ namespace Comercio.NET.Formularios
                     string checkColumnQuery = @"
                         SELECT COUNT(*) 
                         FROM INFORMATION_SCHEMA.COLUMNS 
-                        WHERE TABLE_NAME = 'Productos' 
+                        WHERE TABLE_NAME = 'productos' 
                         AND COLUMN_NAME = 'EditarPrecio'";
                     
-                    using (var checkCmd = new SqlCommand(checkColumnQuery, connection))
+                    using (var checkCmd = new NpgsqlCommand(checkColumnQuery, connection))
                     {
-                        int columnExists = (int)await checkCmd.ExecuteScalarAsync();
-                        
+                        int columnExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+
                         if (columnExists == 0)
                         {
                             // Crear la columna EditarPrecio
                             string addColumnQuery = @"
-                                ALTER TABLE Productos 
-                                ADD EditarPrecio BIT NOT NULL DEFAULT 0";
+                                ALTER TABLE productos 
+                                ADD ""EditarPrecio"" BOOLEAN NOT NULL DEFAULT FALSE";
                             
-                            using (var addCmd = new SqlCommand(addColumnQuery, connection))
+                            using (var addCmd = new NpgsqlCommand(addColumnQuery, connection))
                             {
                                 await addCmd.ExecuteNonQueryAsync();
                                 System.Diagnostics.Debug.WriteLine("✅ Columna EditarPrecio creada exitosamente");
@@ -402,21 +402,21 @@ namespace Comercio.NET.Formularios
                     string checkPermiteAcumularQuery = @"
                         SELECT COUNT(*) 
                         FROM INFORMATION_SCHEMA.COLUMNS 
-                        WHERE TABLE_NAME = 'Productos' 
+                        WHERE TABLE_NAME = 'productos' 
                         AND COLUMN_NAME = 'PermiteAcumular'";
                     
-                    using (var checkCmd2 = new SqlCommand(checkPermiteAcumularQuery, connection))
+                    using (var checkCmd2 = new NpgsqlCommand(checkPermiteAcumularQuery, connection))
                     {
-                        int columnExists2 = (int)await checkCmd2.ExecuteScalarAsync();
+                        int columnExists2 = Convert.ToInt32(await checkCmd2.ExecuteScalarAsync());
                         
                         if (columnExists2 == 0)
                         {
                             // Crear la columna PermiteAcumular
                             string addColumnQuery2 = @"
-                                ALTER TABLE Productos 
-                                ADD PermiteAcumular BIT NOT NULL DEFAULT 0";
+                                ALTER TABLE productos 
+                                ADD ""PermiteAcumular"" BOOLEAN NOT NULL DEFAULT FALSE";
                             
-                            using (var addCmd2 = new SqlCommand(addColumnQuery2, connection))
+                            using (var addCmd2 = new NpgsqlCommand(addColumnQuery2, connection))
                             {
                                 await addCmd2.ExecuteNonQueryAsync();
                                 System.Diagnostics.Debug.WriteLine("✅ Columna PermiteAcumular creada exitosamente");
@@ -556,48 +556,46 @@ namespace Comercio.NET.Formularios
             var dataTable = new DataTable();
             var productosConError = new List<string>();
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
-                // ✅ MODIFICADO: Query más robusta que maneja valores fuera de rango
+                // Query compatible con PostgreSQL
                 var query = @"SELECT 
                 codigo, 
                 descripcion, 
                 marca,
-                -- Validar y limitar valores que puedan causar overflow
                 CASE 
-                    WHEN ISNUMERIC(costo) = 1 AND ABS(CAST(costo AS DECIMAL(18,2))) <= 99999999.99 
+                    WHEN costo IS NOT NULL AND ABS(costo::numeric) <= 99999999.99 
                     THEN CAST(costo AS DECIMAL(10,2))
                     ELSE 0.00 
                 END as costo,
                 CASE 
-                    WHEN ISNUMERIC(porcentaje) = 1 AND ABS(CAST(porcentaje AS DECIMAL(7,2))) <= 999.99 
+                    WHEN porcentaje IS NOT NULL AND ABS(porcentaje::numeric) <= 999.99 
                     THEN CAST(porcentaje AS DECIMAL(5,2))
                     ELSE 0.00 
                 END as porcentaje,
                 CASE 
-                    WHEN ISNUMERIC(precio) = 1 AND ABS(CAST(precio AS DECIMAL(18,2))) <= 99999999.99 
+                    WHEN precio IS NOT NULL AND ABS(precio::numeric) <= 99999999.99 
                     THEN CAST(precio AS DECIMAL(10,2))
                     ELSE 0.00 
                 END as precio,
                 CAST(cantidad AS INT) as cantidad, 
-                CAST(ISNULL(iva, 21.00) AS DECIMAL(5,2)) as iva,
-                CAST(ISNULL(Activo, 1) AS BIT) as Activo,
-                CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular,
-                CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio,
-                -- Columna auxiliar para detectar errores
+                COALESCE(iva, 21.00) as iva,
+                COALESCE(activo::int, 1)::bit as activo,
+                COALESCE(permiteacumular::int, 0)::bit as permiteacumular,
+                COALESCE(editarprecio::int, 0)::bit as editarprecio,
                 CASE 
-                    WHEN (ISNUMERIC(costo) = 0 OR ABS(CAST(costo AS DECIMAL(18,2))) > 99999999.99)
-                      OR (ISNUMERIC(porcentaje) = 0 OR ABS(CAST(porcentaje AS DECIMAL(7,2))) > 999.99)
-                      OR (ISNUMERIC(precio) = 0 OR ABS(CAST(precio AS DECIMAL(18,2))) > 99999999.99)
+                    WHEN (costo IS NOT NULL AND ABS(costo::numeric) > 99999999.99)
+                      OR (porcentaje IS NOT NULL AND ABS(porcentaje::numeric) > 999.99)
+                      OR (precio IS NOT NULL AND ABS(precio::numeric) > 99999999.99)
                     THEN 1 
                     ELSE 0 
                 END as TieneError
-            FROM Productos 
-            ORDER BY descripcion";
+            FROM productos 
+            ORDER BY TieneError DESC, descripcion";
 
-                using (var adapter = new SqlDataAdapter(query, connection))
+                using (var adapter = new NpgsqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.CommandTimeout = 60;
                     await Task.Run(() => adapter.Fill(dataTable));
@@ -1513,20 +1511,23 @@ namespace Comercio.NET.Formularios
                     .Build();
 
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
-                
-                using (var connection = new SqlConnection(connectionString))
+
+                // Las columnas en PostgreSQL están en minúsculas
+                string campoDb = campo.ToLower();
+
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
-                    
+
                     string query = $@"UPDATE Productos 
-                                     SET {campo} = @valor 
+                                     SET {campoDb} = @valor::bit 
                                      WHERE codigo = @codigo";
-                    
-                    using (var cmd = new SqlCommand(query, connection))
+
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@valor", valor ? 1 : 0);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
-                        
+
                         await cmd.ExecuteNonQueryAsync();
                     }
                 }
@@ -1624,14 +1625,14 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
                     // ✅ ELIMINAR PERMANENTEMENTE el producto
                     string query = @"DELETE FROM Productos WHERE codigo = @codigo";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo);
                         int rowsAffected = await cmd.ExecuteNonQueryAsync();

@@ -16,7 +16,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
                 ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no est� configurada");
+                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
         }
@@ -24,31 +24,31 @@ namespace Comercio.NET.Mobile.Server.Services
         public async Task<IEnumerable<EstadisticaVentaDto>> ObtenerVentasPorRubroAsync(DateTime desde, DateTime hasta)
         {
             var query = @"
-                WITH VentasConTotal AS (
+                WITH ventascontotal AS (
                     SELECT
-                        v.NroFactura,
+                        v.nrofactura,
                         CASE
-                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%'   THEN 'CARNICERIA'
-                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
-                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%'
-                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%PASTEL%'  THEN 'PANADERIA'
-                            WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%'
-                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%QUESO%'
-                              OR UPPER(ISNULL(p.rubro, '')) LIKE '%EMBUT%'   THEN 'FIAMBRERIA'
+                            WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%CARNI%'   THEN 'CARNICERIA'
+                            WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
+                            WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%PANADE%'
+                              OR UPPER(COALESCE(p.rubro, '')) LIKE '%PASTEL%'  THEN 'PANADERIA'
+                            WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%FIAMB%'
+                              OR UPPER(COALESCE(p.rubro, '')) LIKE '%QUESO%'
+                              OR UPPER(COALESCE(p.rubro, '')) LIKE '%EMBUT%'   THEN 'FIAMBRERIA'
                             ELSE 'ALMACEN'
                         END AS Rubro,
                         CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                        SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                        CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                    FROM Ventas v
-                    INNER JOIN Productos p ON v.codigo = p.codigo
-                    INNER JOIN Facturas f  ON v.NroFactura = f.NumeroRemito
-                    WHERE f.Fecha >= CONVERT(datetime, @desde, 112)
-                      AND f.Fecha <  DATEADD(day, 1, CONVERT(datetime, @hasta, 112))
+                        SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.nrofactura) AS TotalFacturaVentas,
+                        CAST(f.importefinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                    FROM ventas v
+                    INNER JOIN productos p ON v.codigo = p.codigo
+                    INNER JOIN facturas f  ON v.nrofactura = f.numeroremito
+                    WHERE f.fecha >= @desde::date
+                      AND f.fecha <  @hasta::date + INTERVAL '1 day'
                 )
                 SELECT
                     Rubro,
-                    COUNT(DISTINCT NroFactura)  AS CantidadFacturas,
+                    COUNT(DISTINCT nrofactura)  AS CantidadFacturas,
                     COUNT(*)                    AS CantidadProductos,
                     CAST(SUM(
                         CASE
@@ -57,7 +57,7 @@ namespace Comercio.NET.Mobile.Server.Services
                             ELSE 0
                         END
                     ) AS DECIMAL(18,2))         AS TotalVentas
-                FROM VentasConTotal
+                FROM ventascontotal
                 GROUP BY Rubro
                 ORDER BY TotalVentas DESC";
 
@@ -100,12 +100,12 @@ namespace Comercio.NET.Mobile.Server.Services
                     }
                 }
 
-                _logger.LogInformation("Estad�sticas por rubro: {Count} rubro(s) desde {Desde} hasta {Hasta}",
+                _logger.LogInformation("Estadísticas por rubro: {Count} rubro(s) desde {Desde} hasta {Hasta}",
                     resultados.Count, desde, hasta);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo estad�sticas de ventas por rubro");
+                _logger.LogError(ex, "Error obteniendo estadísticas de ventas por rubro");
                 throw;
             }
 

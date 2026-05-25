@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.Linq;
@@ -237,7 +237,7 @@ namespace Comercio.NET.Formularios
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 // ✅ CORREGIDO: Contar productos por alícuota de IVA
                 var query = @"
@@ -247,21 +247,21 @@ namespace Comercio.NET.Formularios
                     WHEN p.iva BETWEEN 6 AND 7 THEN 'IVA (6.63%)'
                     WHEN p.iva BETWEEN 10 AND 11 THEN 'IVA (10.5%)'
                     WHEN p.iva BETWEEN 20 AND 22 THEN 'IVA (21%)'
-                    ELSE 'Otros (' + CAST(p.iva AS VARCHAR) + '%)'
+                    ELSE 'Otros (' || CAST(p.iva AS VARCHAR) || '%)'
                 END AS TipoIVA,
-                COUNT(*) as Cantidad, -- ✅ CAMBIO: Contar productos (no DISTINCT facturas)
+                COUNT(*) as Cantidad,
                 SUM(CAST(v.total AS DECIMAL(18,2))) as TotalVentasProductos,
                 SUM(CAST(v.total / (1 + (p.iva / 100.0)) AS DECIMAL(18,2))) as Subtotal,
                 SUM(CAST(v.total - (v.total / (1 + (p.iva / 100.0))) AS DECIMAL(18,2))) as TotalIVA,
                 SUM(CAST(v.total AS DECIMAL(18,2))) as Total
-            FROM Ventas v
-            INNER JOIN Productos p ON v.codigo = p.codigo
-            INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-            WHERE f.Fecha >= @desde AND f.Fecha <= @hasta
-            AND f.TipoFactura IN ('FacturaA', 'FacturaB')";
+            FROM ventas v
+            INNER JOIN productos p ON v.codigo = p.codigo
+            INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+            WHERE f.fecha >= @desde AND f.fecha <= @hasta
+            AND f.tipofactura IN ('FacturaA', 'FacturaB')";
 
                 if (_soloCtaCte)
-                    query += " AND f.esCtaCte = 1";
+                    query += " AND f.esctacte = B'1'";
 
                 query += @"
             GROUP BY 
@@ -270,11 +270,11 @@ namespace Comercio.NET.Formularios
                     WHEN p.iva BETWEEN 6 AND 7 THEN 'IVA (6.63%)'
                     WHEN p.iva BETWEEN 10 AND 11 THEN 'IVA (10.5%)'
                     WHEN p.iva BETWEEN 20 AND 22 THEN 'IVA (21%)'
-                    ELSE 'Otros (' + CAST(p.iva AS VARCHAR) + '%)'
+                    ELSE 'Otros (' || CAST(p.iva AS VARCHAR) || '%)'
                 END
             ORDER BY TotalIVA DESC";
 
-                using (var cmd = new SqlCommand(query, connection))
+                using (var cmd = new NpgsqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@desde", _fechaDesde);
                     cmd.Parameters.AddWithValue("@hasta", _fechaHasta);
@@ -297,7 +297,7 @@ namespace Comercio.NET.Formularios
                     };
 
                     var dtIVA = new DataTable();
-                    using (var adapter = new SqlDataAdapter(cmd))
+                    using (var adapter = new NpgsqlDataAdapter(cmd))
                     {
                         adapter.Fill(dtIVA);
                     }
@@ -332,34 +332,34 @@ namespace Comercio.NET.Formularios
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 // ✅ CORREGIDO: Contar productos por rubro
                 var query = @"
-            WITH VentasConTotal AS (
+            WITH ventascontotal AS (
                 SELECT 
-                    v.NroFactura,
+                    v.nrofactura,
                     CASE 
-                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
-                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
-                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
+                        WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
+                        WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
+                        WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(COALESCE(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
                         ELSE 'ALMACEN'
                     END AS Rubro,
                     CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                FROM Ventas v
-                INNER JOIN Productos p ON v.codigo = p.codigo
-                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta
-                AND f.TipoFactura IN ('FacturaA', 'FacturaB')";
+                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.nrofactura) AS TotalFacturaVentas,
+                    CAST(f.importefinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                FROM ventas v
+                INNER JOIN productos p ON v.codigo = p.codigo
+                INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+                WHERE f.fecha >= @desde AND f.fecha <= @hasta
+                AND f.tipofactura IN ('FacturaA', 'FacturaB')";
 
                 if (_soloCtaCte)
-                    query += " AND f.esCtaCte = 1";
+                    query += " AND f.esctacte = B'1'";
 
                 query += @"
             )
-            SELECT 
+            SELECT
                 Rubro,
                 COUNT(*) AS CantidadProductos, -- ✅ CAMBIO: Solo contar productos (no facturas)
                 CAST(SUM(
@@ -369,11 +369,11 @@ namespace Comercio.NET.Formularios
                         ELSE 0
                     END
                 ) AS DECIMAL(18,2)) AS MontoTotal
-            FROM VentasConTotal
+            FROM ventascontotal
             GROUP BY Rubro
             ORDER BY MontoTotal DESC";
 
-                using (var cmd = new SqlCommand(query, connection))
+                using (var cmd = new NpgsqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@desde", _fechaDesde);
                     cmd.Parameters.AddWithValue("@hasta", _fechaHasta);
@@ -396,7 +396,7 @@ namespace Comercio.NET.Formularios
                     };
 
                     var dtRubros = new DataTable();
-                    using (var adapter = new SqlDataAdapter(cmd))
+                    using (var adapter = new NpgsqlDataAdapter(cmd))
                     {
                         adapter.Fill(dtRubros);
                     }

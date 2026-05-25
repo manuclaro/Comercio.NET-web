@@ -27,7 +27,7 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 SELECT Id, NumeroMesa, Mozo, Estado, FechaApertura, FechaCierre,
-                       ISNULL((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total
+                       COALESCE((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total
                 FROM Mesas m
                 WHERE Estado = 'Abierta'
                 ORDER BY NumeroMesa";
@@ -39,7 +39,7 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 SELECT Id, NumeroMesa, Mozo, Estado, FechaApertura, FechaCierre,
-                       ISNULL((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total
+                       COALESCE((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total
                 FROM Mesas m
                 WHERE Id = @mesaId";
 
@@ -94,9 +94,9 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 INSERT INTO Mesas (NumeroMesa, Mozo, Estado, FechaApertura)
-                OUTPUT INSERTED.Id, INSERTED.NumeroMesa, INSERTED.Mozo, INSERTED.Estado,
-                       INSERTED.FechaApertura, INSERTED.FechaCierre, 0 AS Total
-                VALUES (@numeroMesa, @mozo, 'Abierta', GETDATE())";
+                VALUES (@numeroMesa, @mozo, 'Abierta', NOW())
+                RETURNING Id, NumeroMesa, Mozo, Estado,
+                          FechaApertura, FechaCierre, 0 AS Total";
 
             var parameters = new Dictionary<string, object?>
             {
@@ -156,11 +156,11 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 UPDATE Mesas
-                SET Estado = 'Cerrada', FechaCierre = GETDATE(), FormaPago = @formaPago
+                SET Estado = 'Cerrada', FechaCierre = NOW(), FormaPago = @formaPago
                 WHERE Id = @mesaId;
 
                 SELECT m.Id, m.NumeroMesa, m.Mozo, m.Estado, m.FechaApertura, m.FechaCierre,
-                       ISNULL((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total
+                       COALESCE((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total
                 FROM Mesas m
                 WHERE m.Id = @mesaId";
 
@@ -185,8 +185,8 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 INSERT INTO Mozos (Nombre, Activo)
-                OUTPUT INSERTED.Id, INSERTED.Nombre, INSERTED.Activo
-                VALUES (@nombre, 1)";
+                VALUES (@nombre, 1)
+                RETURNING Id, Nombre, Activo";
 
             var parameters = new Dictionary<string, object?> { { "@nombre", nombre } };
             var lista = await EjecutarListaMozosAsync(sql, parameters);
@@ -227,8 +227,8 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 INSERT INTO ProductosBar (Codigo, Descripcion, Precio, Activo)
-                OUTPUT INSERTED.Id, INSERTED.Codigo, INSERTED.Descripcion, INSERTED.Precio, INSERTED.Activo
-                VALUES (@codigo, @descripcion, @precio, 1)";
+                VALUES (@codigo, @descripcion, @precio, 1)
+                RETURNING Id, Codigo, Descripcion, Precio, Activo";
 
             var parameters = new Dictionary<string, object?>
             {
@@ -281,8 +281,8 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 INSERT INTO FormasPago (Descripcion, Activo)
-                OUTPUT INSERTED.Id, INSERTED.Descripcion, INSERTED.Activo
-                VALUES (@descripcion, 1)";
+                VALUES (@descripcion, 1)
+                RETURNING Id, Descripcion, Activo";
 
             var parameters = new Dictionary<string, object?> { { "@descripcion", descripcion } };
             var lista = await EjecutarListaFormasPagoAsync(sql, parameters);
@@ -317,10 +317,10 @@ namespace Comercio.NET.Pizzeria.Server.Services
         {
             var sql = @"
                 SELECT m.Id, m.NumeroMesa, m.Mozo, m.Estado, m.FechaApertura, m.FechaCierre,
-                       ISNULL((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total,
-                       ISNULL(m.FormaPago, '') AS FormaPago
+                       COALESCE((SELECT SUM(Subtotal) FROM MesasItems WHERE MesaId = m.Id), 0) AS Total,
+                       COALESCE(m.FormaPago, '') AS FormaPago
                 FROM Mesas m
-                WHERE CAST(m.FechaApertura AS DATE) = CAST(GETDATE() AS DATE)
+                WHERE CAST(m.FechaApertura AS DATE) = CURRENT_DATE
                 ORDER BY m.FechaApertura DESC";
 
             var payload = new { query = sql, parameters = new Dictionary<string, object?>() };
@@ -365,12 +365,12 @@ namespace Comercio.NET.Pizzeria.Server.Services
                 SELECT
                     mi.Codigo,
                     mi.Descripcion,
-                    ISNULL(pb.Tipo, '') AS TipoProducto,
+                    COALESCE(pb.Tipo, '') AS TipoProducto,
                     mi.Cantidad,
                     mi.PrecioUnitario,
                     mi.Subtotal,
-                    ISNULL(m.Mozo, '')      AS Mozo,
-                    ISNULL(m.FormaPago, '') AS FormaPago,
+                    COALESCE(m.Mozo, '')      AS Mozo,
+                    COALESCE(m.FormaPago, '') AS FormaPago,
                     m.FechaApertura
                 FROM MesasItems mi
                 INNER JOIN Mesas m ON m.Id = mi.MesaId

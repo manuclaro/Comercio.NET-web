@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -60,6 +60,13 @@ namespace Comercio.NET.Formularios
                     OrganizarControles();
                     ConfigurarTabIndex();
                     AsignarEventosControles();
+                    // Asegurar valor por defecto de IVA en modo Agregar
+                    if (Modo == ModoFormulario.Agregar)
+                    {
+                        var cmbIvaDefault = this.Controls.Find("cmbIva", true).FirstOrDefault() as ComboBox;
+                        if (cmbIvaDefault != null && string.IsNullOrWhiteSpace(cmbIvaDefault.Text))
+                            cmbIvaDefault.Text = "21.00";
+                    }
                 };
                 timer.Start();
             };
@@ -458,8 +465,13 @@ namespace Comercio.NET.Formularios
                     }
                     else if (control is ComboBox comboBox)
                     {
+                        string textoActual = comboBox.Text;
                         comboBox.BackColor = Color.FromArgb(250, 252, 254);
                         comboBox.ForeColor = Color.FromArgb(62, 80, 100);
+                        if (!string.IsNullOrEmpty(textoActual))
+                            comboBox.Text = textoActual;
+                        else if (comboBox.Name == "cmbIva")
+                            comboBox.Text = "21.00";
                     }
                 }
 
@@ -670,10 +682,10 @@ namespace Comercio.NET.Formularios
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 connection.Open();
-                SqlCommand cmd;
+                NpgsqlCommand cmd;
 
                 if (Modo == ModoFormulario.Modificar)
                 {
@@ -690,15 +702,15 @@ namespace Comercio.NET.Formularios
                                     PermiteAcumular = @PermiteAcumular,
                                     iva = @iva
                                   WHERE codigo = @codigoOriginal";
-                    cmd = new SqlCommand(query, connection);
-                    cmd.Parameters.Add("@codigoOriginal", SqlDbType.VarChar, 50).Value = CodigoOriginal ?? "";
+                    cmd = new NpgsqlCommand(query, connection);
+                    cmd.Parameters.Add("@codigoOriginal", NpgsqlTypes.NpgsqlDbType.Varchar, 50).Value = CodigoOriginal ?? "";
                 }
                 else
                 {
                     var query = @"INSERT INTO Productos 
                                 (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor, PermiteAcumular, iva)
                                 VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor, @PermiteAcumular, @iva)";
-                    cmd = new SqlCommand(query, connection);
+                    cmd = new NpgsqlCommand(query, connection);
                 }
 
                 // CORREGIDO: Especificar precisión y escala para parámetros decimales
@@ -710,33 +722,33 @@ namespace Comercio.NET.Formularios
                     decimal precio = decimal.Parse(txtPrecio.Text.Replace(".", ","), CultureInfo.CurrentCulture);
                     decimal costo = Math.Round(precio / 1.5m, 2);
                     
-                    cmd.Parameters.Add("@codigo", SqlDbType.VarChar, 50).Value = codigo;
-                    cmd.Parameters.Add("@descripcion", SqlDbType.VarChar, 255).Value = txtDescripcion.Text.Trim();
-                    cmd.Parameters.Add("@rubro", SqlDbType.VarChar, 100).Value = "Agregado en ventas";
-                    cmd.Parameters.Add("@marca", SqlDbType.VarChar, 100).Value = "Ventas";
+                    cmd.Parameters.Add("@codigo", NpgsqlTypes.NpgsqlDbType.Varchar, 50).Value = codigo;
+                    cmd.Parameters.Add("@descripcion", NpgsqlTypes.NpgsqlDbType.Varchar, 255).Value = txtDescripcion.Text.Trim();
+                    cmd.Parameters.Add("@rubro", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = "Agregado en ventas";
+                    cmd.Parameters.Add("@marca", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = "Ventas";
     
                     // CORREGIDO: Especificar precisión y escala para decimales
-                    var precioParam = cmd.Parameters.Add("@precio", SqlDbType.Decimal);
+                    var precioParam = cmd.Parameters.Add("@precio", NpgsqlTypes.NpgsqlDbType.Numeric);
                     precioParam.Precision = 18;
                     precioParam.Scale = 2;
                     precioParam.Value = precio;
     
-                    var costoParam = cmd.Parameters.Add("@costo", SqlDbType.Decimal);
+                    var costoParam = cmd.Parameters.Add("@costo", NpgsqlTypes.NpgsqlDbType.Numeric);
                     costoParam.Precision = 18;
                     costoParam.Scale = 2;
                     costoParam.Value = costo;
     
-                    var porcentajeParam = cmd.Parameters.Add("@porcentaje", SqlDbType.Decimal);
+                    var porcentajeParam = cmd.Parameters.Add("@porcentaje", NpgsqlTypes.NpgsqlDbType.Numeric);
                     porcentajeParam.Precision = 5;
                     porcentajeParam.Scale = 2;
                     porcentajeParam.Value = 50.00m;
     
-                    cmd.Parameters.Add("@cantidad", SqlDbType.Int).Value = 10;
-                    cmd.Parameters.Add("@proveedor", SqlDbType.VarChar, 100).Value = "Proveedor";
-                    cmd.Parameters.Add("@PermiteAcumular", SqlDbType.Int).Value = PermiteAcumular;
+                    cmd.Parameters.Add("@cantidad", NpgsqlTypes.NpgsqlDbType.Integer).Value = 10;
+                    cmd.Parameters.Add("@proveedor", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = "Proveedor";
+                    cmd.Parameters.Add("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Integer).Value = PermiteAcumular;
     
                     // CORREGIDO: IVA con precisión y escala correctas
-                    var ivaParam = cmd.Parameters.Add("@iva", SqlDbType.Decimal);
+                    var ivaParam = cmd.Parameters.Add("@iva", NpgsqlTypes.NpgsqlDbType.Numeric);
                     ivaParam.Precision = 5;
                     ivaParam.Scale = 2;
                     ivaParam.Value = 21.00m;
@@ -794,33 +806,33 @@ namespace Comercio.NET.Formularios
 
                     int cantidad = int.TryParse(txtCantidad?.Text, out var cant) ? cant : 0;
 
-                    cmd.Parameters.Add("@codigo", SqlDbType.VarChar, 50).Value = codigo;
-                    cmd.Parameters.Add("@descripcion", SqlDbType.VarChar, 255).Value = txtDescripcion.Text.Trim();
-                    cmd.Parameters.Add("@rubro", SqlDbType.VarChar, 100).Value = txtRubro?.Text?.Trim() ?? "";
-                    cmd.Parameters.Add("@marca", SqlDbType.VarChar, 100).Value = txtMarca?.Text?.Trim() ?? "";
+                    cmd.Parameters.Add("@codigo", NpgsqlTypes.NpgsqlDbType.Varchar, 50).Value = codigo;
+                    cmd.Parameters.Add("@descripcion", NpgsqlTypes.NpgsqlDbType.Varchar, 255).Value = txtDescripcion.Text.Trim();
+                    cmd.Parameters.Add("@rubro", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = txtRubro?.Text?.Trim() ?? "";
+                    cmd.Parameters.Add("@marca", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = txtMarca?.Text?.Trim() ?? "";
     
                     // CORREGIDO: Especificar precisión y escala para decimales
-                    var precioParam = cmd.Parameters.Add("@precio", SqlDbType.Decimal);
+                    var precioParam = cmd.Parameters.Add("@precio", NpgsqlTypes.NpgsqlDbType.Numeric);
                     precioParam.Precision = 18;
                     precioParam.Scale = 2;
                     precioParam.Value = precio;
     
-                    var costoParam = cmd.Parameters.Add("@costo", SqlDbType.Decimal);
+                    var costoParam = cmd.Parameters.Add("@costo", NpgsqlTypes.NpgsqlDbType.Numeric);
                     costoParam.Precision = 18;
                     costoParam.Scale = 2;
                     costoParam.Value = costo;
     
-                    var porcentajeParam = cmd.Parameters.Add("@porcentaje", SqlDbType.Decimal);
+                    var porcentajeParam = cmd.Parameters.Add("@porcentaje", NpgsqlTypes.NpgsqlDbType.Numeric);
                     porcentajeParam.Precision = 5;
                     porcentajeParam.Scale = 2;
                     porcentajeParam.Value = porcentaje;
     
-                    cmd.Parameters.Add("@cantidad", SqlDbType.Int).Value = cantidad;
-                    cmd.Parameters.Add("@proveedor", SqlDbType.VarChar, 100).Value = txtProveedor?.Text?.Trim() ?? "";
-                    cmd.Parameters.Add("@PermiteAcumular", SqlDbType.Int).Value = PermiteAcumular;
+                    cmd.Parameters.Add("@cantidad", NpgsqlTypes.NpgsqlDbType.Integer).Value = cantidad;
+                    cmd.Parameters.Add("@proveedor", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = txtProveedor?.Text?.Trim() ?? "";
+                    cmd.Parameters.Add("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Integer).Value = PermiteAcumular;
     
                     // CORREGIDO: IVA con precisión y escala correctas (5,2)
-                    var ivaParam = cmd.Parameters.Add("@iva", SqlDbType.Decimal);
+                    var ivaParam = cmd.Parameters.Add("@iva", NpgsqlTypes.NpgsqlDbType.Numeric);
                     ivaParam.Precision = 5;
                     ivaParam.Scale = 2;
                     ivaParam.Value = iva;
@@ -859,9 +871,9 @@ namespace Comercio.NET.Formularios
                         }
                     }
                 }
-                catch (SqlException ex)
+                catch (NpgsqlException ex)
                 {
-                    MessageBox.Show($"Error al guardar en la base de datos: {ex.Message}\n\nDetalles técnicos: {ex.Number}", 
+                    MessageBox.Show($"Error al guardar en la base de datos: {ex.Message}\n\nDetalles técnicos: {ex.SqlState}", 
                         "Error SQL", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch (Exception ex)

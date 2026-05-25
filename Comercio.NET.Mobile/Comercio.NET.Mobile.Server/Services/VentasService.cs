@@ -32,44 +32,44 @@ namespace Comercio.NET.Mobile.Server.Services
             var sql = @"
                 SELECT 
                     v.id, v.nrofactura, v.codigo, v.descripcion,
-                    v.precio, v.cantidad, v.total, v.PorcentajeIva,
-                    ISNULL(v.EsOferta, 0)            AS EsOferta,
-                    ISNULL(v.NombreOferta, '')        AS NombreOferta,
-                    ISNULL(f.FormadePago, '')         AS FormaPago,
-                    ISNULL(f.TipoFactura, '')         AS TipoFactura,
-                    ISNULL(CAST(v.fecha AS DATE), CAST(GETDATE() AS DATE)) AS Fecha,
-                    ISNULL(v.hora, '')                AS Hora,
-                    ISNULL(v.EsCtaCte, 0)             AS EsCtaCte,
-                    ISNULL(v.NombreCtaCte, '')        AS NombreCtaCte,
-                    ISNULL(f.UsuarioVenta, '')        AS UsuarioVenta,
-                    ISNULL(CAST(f.Cajero AS INT), 0)  AS NumeroCajero
-                FROM Ventas v
+                    v.precio, v.cantidad, v.total, v.porcentajeiva,
+                    COALESCE(v.esoferta, 0)                    AS EsOferta,
+                    COALESCE(v.nombreoferta, '')               AS NombreOferta,
+                    COALESCE(f.FormadePago, '')                AS FormaPago,
+                    COALESCE(f.TipoFactura, '')                AS TipoFactura,
+                    COALESCE(CAST(v.fecha AS DATE), CURRENT_DATE) AS Fecha,
+                    COALESCE(v.hora, '')                       AS Hora,
+                    COALESCE(v.esctacte, 0)                    AS EsCtaCte,
+                    COALESCE(v.nombrectacte, '')               AS NombreCtaCte,
+                    COALESCE(f.UsuarioVenta, '')               AS UsuarioVenta,
+                    COALESCE(CAST(f.Cajero AS INT), 0)         AS NumeroCajero
+                FROM ventas v
                 LEFT JOIN (
                     SELECT
-                        NumeroRemito,
-                        MIN(IdFactura)              AS IdFactura,
-                        MAX(FormadePago)            AS FormadePago,
-                        MAX(TipoFactura)            AS TipoFactura,
-                        MAX(Cajero)                 AS Cajero,
-                        MAX(UsuarioVenta)           AS UsuarioVenta,
-                        MAX(CAST(esCtaCte AS INT))  AS esCtaCte
-                    FROM Facturas
-                    WHERE CAST(Fecha AS DATE) BETWEEN @desde AND @hasta
-                    GROUP BY NumeroRemito
-                ) f ON f.NumeroRemito = v.nrofactura
+                        numeroremito,
+                        MIN(idfactura)              AS IdFactura,
+                        MAX(formadepago)            AS FormadePago,
+                        MAX(tipofactura)            AS TipoFactura,
+                        MAX(cajero)                 AS Cajero,
+                        MAX(usuarioventa)           AS UsuarioVenta,
+                        MAX(CAST(esctacte AS INT))  AS esCtaCte
+                    FROM facturas
+                    WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta
+                    GROUP BY numeroremito
+                ) f ON f.numeroremito = v.nrofactura
                 WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
 
             if (numeroCajero.HasValue)
-                sql += " AND CAST(f.Cajero AS INT) = @numeroCajero";
+                sql += " AND CAST(f.cajero AS INT) = @numeroCajero";
 
             if (!string.IsNullOrWhiteSpace(formaPago))
-                sql += " AND f.FormadePago = @formaPago";
+                sql += " AND f.formadepago = @formaPago";
 
             if (!string.IsNullOrWhiteSpace(tipoFactura))
             {
                 sql += string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase)
-                    ? " AND f.TipoFactura LIKE 'Factura%'"
-                    : " AND f.TipoFactura = @tipoFactura";
+                    ? " AND f.tipofactura LIKE 'Factura%'"
+                    : " AND f.tipofactura = @tipoFactura";
             }
 
             sql += " ORDER BY v.id DESC";
@@ -155,17 +155,17 @@ namespace Comercio.NET.Mobile.Server.Services
             var filtrosFactura = new System.Text.StringBuilder();
 
             if (numeroCajero.HasValue)
-                filtrosFactura.Append(" AND CAST(f.Cajero AS INT) = @numeroCajero");
+                filtrosFactura.Append(" AND CAST(f.cajero AS INT) = @numeroCajero");
 
             if (!string.IsNullOrWhiteSpace(formaPago))
-                filtrosFactura.Append(" AND f.FormadePago = @formaPago");
+                filtrosFactura.Append(" AND f.formadepago = @formaPago");
 
             if (!string.IsNullOrWhiteSpace(tipoFactura))
             {
                 filtrosFactura.Append(
                     string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase)
-                        ? " AND f.TipoFactura LIKE 'Factura%'"
-                        : " AND f.TipoFactura = @tipoFactura");
+                        ? " AND f.tipofactura LIKE 'Factura%'"
+                        : " AND f.tipofactura = @tipoFactura");
             }
 
             // Los totales monetarios se calculan directamente desde Facturas (1 fila por remito)
@@ -174,39 +174,39 @@ namespace Comercio.NET.Mobile.Server.Services
             // el ImporteFinal por la cantidad de productos de cada remito.
             var sql = $@"
                 SELECT
-                    ISNULL(SUM(CAST(f.ImporteFinal AS DECIMAL(18,2))), 0) AS TotalVendido,
-                    COUNT(DISTINCT f.NumeroRemito)                        AS CantidadTransacciones,
-                    ISNULL((
+                    COALESCE(SUM(CAST(f.importefinal AS DECIMAL(18,2))), 0) AS TotalVendido,
+                    COUNT(DISTINCT f.numeroremito)                          AS CantidadTransacciones,
+                    COALESCE((
                         SELECT SUM(v.cantidad)
-                        FROM Ventas v
+                        FROM ventas v
                         WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta
                           AND EXISTS (
-                              SELECT 1 FROM Facturas f2
-                              WHERE f2.NumeroRemito = v.nrofactura
-                                AND CAST(f2.Fecha AS DATE) BETWEEN @desde AND @hasta
-                                AND ISNULL(f2.Cajero, '') <> ''
-                                AND ISNULL(f2.esCtaCte, 0) = 0
+                              SELECT 1 FROM facturas f2
+                              WHERE f2.numeroremito = v.nrofactura
+                                AND CAST(f2.fecha AS DATE) BETWEEN @desde AND @hasta
+                                AND COALESCE(f2.cajero, '') <> ''
+                                AND COALESCE(f2.esctacte, 0) = 0
                           )
-                    ), 0)                                                  AS CantidadProductos,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'efectivo'
-                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalEfectivo,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) LIKE '%mercado%pago%'
-                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalMercadoPago,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) = 'dni'
-                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalDni,
-                    ISNULL((
-                        SELECT SUM(CAST(fc.ImporteFinal AS DECIMAL(18,2)))
-                        FROM Facturas fc
-                        WHERE CAST(fc.Fecha AS DATE) BETWEEN @desde AND @hasta
-                          AND ISNULL(fc.esCtaCte, 0) = 1
-                    ), 0)                                                  AS TotalCtaCte,
-                    ISNULL(SUM(CASE WHEN LOWER(f.FormadePago) NOT IN ('efectivo', 'dni')
-                                     AND LOWER(f.FormadePago) NOT LIKE '%mercado%pago%'
-                        THEN CAST(f.ImporteFinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalOtros
-                FROM Facturas f
-                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                  AND ISNULL(f.Cajero, '') <> ''
-                  AND ISNULL(f.esCtaCte, 0) = 0
+                    ), 0)                                                    AS CantidadProductos,
+                    COALESCE(SUM(CASE WHEN LOWER(f.formadepago) = 'efectivo'
+                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalEfectivo,
+                    COALESCE(SUM(CASE WHEN LOWER(f.formadepago) LIKE '%mercado%pago%'
+                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalMercadoPago,
+                    COALESCE(SUM(CASE WHEN LOWER(f.formadepago) = 'dni'
+                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalDni,
+                    COALESCE((
+                        SELECT SUM(CAST(fc.importefinal AS DECIMAL(18,2)))
+                        FROM facturas fc
+                        WHERE CAST(fc.fecha AS DATE) BETWEEN @desde AND @hasta
+                          AND COALESCE(fc.esctacte, 0) = 1
+                    ), 0)                                                    AS TotalCtaCte,
+                    COALESCE(SUM(CASE WHEN LOWER(f.formadepago) NOT IN ('efectivo', 'dni')
+                                     AND LOWER(f.formadepago) NOT LIKE '%mercado%pago%'
+                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalOtros
+                FROM facturas f
+                WHERE CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta
+                  AND COALESCE(f.cajero, '') <> ''
+                  AND COALESCE(f.esctacte, 0) = 0
                   {filtrosFactura}";
 
             var parameters = new Dictionary<string, object?>

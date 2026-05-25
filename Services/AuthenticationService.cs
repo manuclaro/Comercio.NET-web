@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -162,15 +162,15 @@ namespace Comercio.NET.Services
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new NpgsqlConnection(_connectionString);
                 var query = @"
                     SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.TABLES 
-                    WHERE TABLE_NAME = 'Usuarios'";
+                    FROM information_schema.tables 
+                    WHERE table_name = 'usuarios'";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 connection.Open();
-                int count = (int)await cmd.ExecuteScalarAsync();
+                long count = (long)await cmd.ExecuteScalarAsync();
                 return count > 0;
             }
             catch (Exception ex)
@@ -183,12 +183,13 @@ namespace Comercio.NET.Services
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-                var query = "SELECT COUNT(*) FROM Usuarios";
+                using var connection = new NpgsqlConnection(_connectionString);
+                var query = "SELECT COUNT(*) FROM usuarios";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 connection.Open();
-                return (int)await cmd.ExecuteScalarAsync();
+                var result = await cmd.ExecuteScalarAsync();
+                return Convert.ToInt32(result);
             }
             catch (Exception ex)
             {
@@ -254,15 +255,15 @@ namespace Comercio.NET.Services
             
             await File.AppendAllTextAsync(logFile, $"Hash calculado: {passwordHash}\n");
             
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new NpgsqlConnection(_connectionString);
             
             // Consulta de debugging para ver qué hay en la base de datos
             var debugQuery = @"
-                SELECT NombreUsuario, PasswordHash, Activo 
-                FROM Usuarios 
-                WHERE NombreUsuario = @nombreUsuario";
+                SELECT nombreusuario, passwordhash, activo 
+                FROM usuarios 
+                WHERE nombreusuario = @nombreUsuario";
 
-            using var debugCmd = new SqlCommand(debugQuery, connection);
+            using var debugCmd = new NpgsqlCommand(debugQuery, connection);
             debugCmd.Parameters.AddWithValue("@nombreUsuario", nombreUsuario);
 
             connection.Open();
@@ -272,7 +273,7 @@ namespace Comercio.NET.Services
             if (debugReader.Read())
             {
                 string hashEnBD = debugReader.GetString("PasswordHash");
-                bool activo = debugReader.GetBoolean("Activo");
+                bool activo = debugReader.GetValue(debugReader.GetOrdinal("Activo")).ToString() != "0";
                 bool coinciden = passwordHash == hashEnBD;
                 
                 // Log detallado (SOLO A ARCHIVO - SIN MESSAGEBOX)
@@ -292,14 +293,14 @@ namespace Comercio.NET.Services
 
             // Consulta original para autenticación
             var query = @"
-                SELECT IdUsuarios, NombreUsuario, Nombre, Apellido, Email, PasswordHash, 
-                       Nivel, NumeroCajero, Activo, FechaCreacion, UltimoAcceso,
-                       PuedeEliminarProductos, PuedeEditarPrecios, PuedeVerReportes, 
-                       PuedeGestionarUsuarios, PuedeAnularFacturas
-                FROM Usuarios 
-                WHERE NombreUsuario = @nombreUsuario AND PasswordHash = @passwordHash AND Activo = 1";
+                SELECT idusuarios, nombreusuario, nombre, apellido, email, passwordhash, 
+                       nivel, numerocajero, activo, fechacreacion, ultimoacceso,
+                       puedeeliminarproductos, puedeeditarprecios, puedeverreportes, 
+                       puedegestionarusuarios, puedeanularfacturas
+                FROM usuarios 
+                WHERE nombreusuario = @nombreUsuario AND passwordhash = @passwordHash AND activo = 1::bit";
 
-            using var cmd = new SqlCommand(query, connection);
+            using var cmd = new NpgsqlCommand(query, connection);
             cmd.Parameters.AddWithValue("@nombreUsuario", nombreUsuario);
             cmd.Parameters.AddWithValue("@passwordHash", passwordHash);
 
@@ -319,14 +320,14 @@ namespace Comercio.NET.Services
                     PasswordHash = reader.GetString("PasswordHash"),
                     Nivel = (NivelUsuario)reader.GetInt32("Nivel"),
                     NumeroCajero = reader.GetInt32("NumeroCajero"),
-                    Activo = reader.GetBoolean("Activo"),
+                    Activo = LeerBit(reader, "Activo"),
                     FechaCreacion = reader.GetDateTime("FechaCreacion"),
                     UltimoAcceso = reader.IsDBNull("UltimoAcceso") ? null : reader.GetDateTime("UltimoAcceso"),
-                    PuedeEliminarProductos = reader.GetBoolean("PuedeEliminarProductos"),
-                    PuedeEditarPrecios = reader.GetBoolean("PuedeEditarPrecios"),
-                    PuedeVerReportes = reader.GetBoolean("PuedeVerReportes"),
-                    PuedeGestionarUsuarios = reader.GetBoolean("PuedeGestionarUsuarios"),
-                    PuedeAnularFacturas = reader.GetBoolean("PuedeAnularFacturas")
+                    PuedeEliminarProductos = LeerBit(reader, "PuedeEliminarProductos"),
+                    PuedeEditarPrecios = LeerBit(reader, "PuedeEditarPrecios"),
+                    PuedeVerReportes = LeerBit(reader, "PuedeVerReportes"),
+                    PuedeGestionarUsuarios = LeerBit(reader, "PuedeGestionarUsuarios"),
+                    PuedeAnularFacturas = LeerBit(reader, "PuedeAnularFacturas")
                 };
 
                 // Actualizar último acceso
@@ -357,10 +358,10 @@ namespace Comercio.NET.Services
             {
                 string nuevoHash = ComputeHash(nuevaPassword);
                 
-                using var connection = new SqlConnection(_connectionString);
-                var query = "UPDATE Usuarios SET PasswordHash = @passwordHash WHERE NombreUsuario = @nombreUsuario";
+                using var connection = new NpgsqlConnection(_connectionString);
+                var query = "UPDATE usuarios SET passwordhash = @passwordHash WHERE nombreusuario = @nombreUsuario";
                 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@passwordHash", nuevoHash);
                 cmd.Parameters.AddWithValue("@nombreUsuario", nombreUsuario);
 
@@ -429,10 +430,10 @@ namespace Comercio.NET.Services
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-                var query = "UPDATE Usuarios SET UltimoAcceso = @ultimoAcceso WHERE IdUsuarios = @IdUsuarios";
+                using var connection = new NpgsqlConnection(_connectionString);
+                var query = "UPDATE usuarios SET ultimoacceso = @ultimoAcceso WHERE idusuarios = @IdUsuarios";
                 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@ultimoAcceso", DateTime.Now);
                 cmd.Parameters.AddWithValue("@IdUsuarios", userId);
 
@@ -452,6 +453,13 @@ namespace Comercio.NET.Services
             return Convert.ToBase64String(hashedBytes);
         }
 
+        private static bool LeerBit(NpgsqlDataReader reader, string columna)
+        {
+            var val = reader.GetValue(reader.GetOrdinal(columna));
+            if (val is bool b) return b;
+            return val?.ToString() != "0" && val?.ToString() != "";
+        }
+
         public async Task<bool> CrearUsuarioAsync(Usuario usuario, string password)
         {
             try
@@ -467,18 +475,18 @@ namespace Comercio.NET.Services
                 usuario.FechaCreacion = DateTime.Now;
                 usuario.Activo = true;
 
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new NpgsqlConnection(_connectionString);
                 var query = @"
-                    INSERT INTO Usuarios (NombreUsuario, Nombre, Apellido, Email, PasswordHash, 
-                                        Nivel, NumeroCajero, Activo, FechaCreacion,
-                                        PuedeEliminarProductos, PuedeEditarPrecios, PuedeVerReportes,
-                                        PuedeGestionarUsuarios, PuedeAnularFacturas)
+                    INSERT INTO usuarios (nombreusuario, nombre, apellido, email, passwordhash, 
+                                        nivel, numerocajero, activo, fechacreacion,
+                                        puedeeliminarproductos, puedeeditarprecios, puedeverreportes,
+                                        puedegestionarusuarios, puedeanularfacturas)
                     VALUES (@nombreUsuario, @nombre, @apellido, @email, @passwordHash,
-                           @nivel, @numeroCajero, @activo, @fechaCreacion,
-                           @puedeEliminarProductos, @puedeEditarPrecios, @puedeVerReportes,
-                           @puedeGestionarUsuarios, @puedeAnularFacturas)";
+                           @nivel, @numeroCajero, @activo::bit, @fechaCreacion,
+                           @puedeEliminarProductos::bit, @puedeEditarPrecios::bit, @puedeVerReportes::bit,
+                           @puedeGestionarUsuarios::bit, @puedeAnularFacturas::bit)";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@nombreUsuario", usuario.NombreUsuario);
                 cmd.Parameters.AddWithValue("@nombre", usuario.Nombre);
                 cmd.Parameters.AddWithValue("@apellido", usuario.Apellido);
@@ -486,13 +494,13 @@ namespace Comercio.NET.Services
                 cmd.Parameters.AddWithValue("@passwordHash", usuario.PasswordHash);
                 cmd.Parameters.AddWithValue("@nivel", (int)usuario.Nivel);
                 cmd.Parameters.AddWithValue("@numeroCajero", usuario.NumeroCajero);
-                cmd.Parameters.AddWithValue("@activo", usuario.Activo);
+                cmd.Parameters.AddWithValue("@activo", usuario.Activo ? 1 : 0);
                 cmd.Parameters.AddWithValue("@fechaCreacion", usuario.FechaCreacion);
-                cmd.Parameters.AddWithValue("@puedeEliminarProductos", usuario.PuedeEliminarProductos);
-                cmd.Parameters.AddWithValue("@puedeEditarPrecios", usuario.PuedeEditarPrecios);
-                cmd.Parameters.AddWithValue("@puedeVerReportes", usuario.PuedeVerReportes);
-                cmd.Parameters.AddWithValue("@puedeGestionarUsuarios", usuario.PuedeGestionarUsuarios);
-                cmd.Parameters.AddWithValue("@puedeAnularFacturas", usuario.PuedeAnularFacturas);
+                cmd.Parameters.AddWithValue("@puedeEliminarProductos", usuario.PuedeEliminarProductos ? 1 : 0);
+                cmd.Parameters.AddWithValue("@puedeEditarPrecios", usuario.PuedeEditarPrecios ? 1 : 0);
+                cmd.Parameters.AddWithValue("@puedeVerReportes", usuario.PuedeVerReportes ? 1 : 0);
+                cmd.Parameters.AddWithValue("@puedeGestionarUsuarios", usuario.PuedeGestionarUsuarios ? 1 : 0);
+                cmd.Parameters.AddWithValue("@puedeAnularFacturas", usuario.PuedeAnularFacturas ? 1 : 0);
 
                 connection.Open();
                 await cmd.ExecuteNonQueryAsync();
@@ -508,28 +516,28 @@ namespace Comercio.NET.Services
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new NpgsqlConnection(_connectionString);
                 var query = @"
-                    CREATE TABLE Usuarios (
-                        IdUsuarios INT IDENTITY(1,1) PRIMARY KEY,
-                        NombreUsuario NVARCHAR(50) NOT NULL UNIQUE,
-                        Nombre NVARCHAR(100) NOT NULL,
-                        Apellido NVARCHAR(100) NOT NULL,
-                        Email NVARCHAR(200),
-                        PasswordHash NVARCHAR(200) NOT NULL,
-                        Nivel INT NOT NULL DEFAULT 1,
-                        NumeroCajero INT NOT NULL DEFAULT 1,
-                        Activo BIT NOT NULL DEFAULT 1,
-                        FechaCreacion DATETIME NOT NULL DEFAULT GETDATE(),
-                        UltimoAcceso DATETIME,
-                        PuedeEliminarProductos BIT NOT NULL DEFAULT 0,
-                        PuedeEditarPrecios BIT NOT NULL DEFAULT 0,
-                        PuedeVerReportes BIT NOT NULL DEFAULT 1,
-                        PuedeGestionarUsuarios BIT NOT NULL DEFAULT 0,
-                        PuedeAnularFacturas BIT NOT NULL DEFAULT 0
+                    CREATE TABLE ""Usuarios"" (
+                        ""IdUsuarios"" SERIAL PRIMARY KEY,
+                        ""NombreUsuario"" VARCHAR(50) NOT NULL UNIQUE,
+                        ""Nombre"" VARCHAR(100) NOT NULL,
+                        ""Apellido"" VARCHAR(100) NOT NULL,
+                        ""Email"" VARCHAR(200),
+                        ""PasswordHash"" VARCHAR(200) NOT NULL,
+                        ""Nivel"" INT NOT NULL DEFAULT 1,
+                        ""NumeroCajero"" INT NOT NULL DEFAULT 1,
+                        ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
+                        ""FechaCreacion"" TIMESTAMP NOT NULL DEFAULT NOW(),
+                        ""UltimoAcceso"" TIMESTAMP,
+                        ""PuedeEliminarProductos"" BOOLEAN NOT NULL DEFAULT FALSE,
+                        ""PuedeEditarPrecios"" BOOLEAN NOT NULL DEFAULT FALSE,
+                        ""PuedeVerReportes"" BOOLEAN NOT NULL DEFAULT TRUE,
+                        ""PuedeGestionarUsuarios"" BOOLEAN NOT NULL DEFAULT FALSE,
+                        ""PuedeAnularFacturas"" BOOLEAN NOT NULL DEFAULT FALSE
                     )";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 connection.Open();
                 await cmd.ExecuteNonQueryAsync();
             }
