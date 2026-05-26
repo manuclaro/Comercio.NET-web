@@ -113,8 +113,21 @@ if errorlevel 1 (
     echo    !! Error generando el dump SQL plano.
     echo    !! Verifique que PostgreSQL este corriendo y que "%PG_DB%" exista.
     echo    !! Los clientes usaran init_comercio_pg.sql como fallback.
+    goto SKIP_DUMP
+)
+
+REM Limpiar comandos exclusivos de PG 17+ (incompatibles con PG 16)
+echo    >> Limpiando comandos incompatibles del dump...
+powershell -NoProfile -Command ^
+    "$f='%OUTPUT_DIR%\app\database\comercio_inicial.sql'; ^
+    $c=Get-Content $f; ^
+    $c=$c -notmatch '^\\s*\\(un)?restrict'; ^
+    [System.IO.File]::WriteAllLines($f,$c,(New-Object System.Text.UTF8Encoding($false)))"
+
+if errorlevel 1 (
+    echo    !! Advertencia: No se pudo limpiar el dump automaticamente.
 ) else (
-    echo       OK Dump SQL plano generado: database\comercio_inicial.sql
+    echo       OK Dump SQL generado y limpiado para compatibilidad PG 12-18+
 )
 
 :SKIP_DUMP
