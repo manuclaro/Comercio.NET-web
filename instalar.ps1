@@ -666,19 +666,30 @@ if ($dbCheck -ne "1") {
     Write-OK "Base de datos '$DB_NAME' ya existe."
 }
 
-# Restaurar desde dump o ejecutar DDL
-$dumpPath   = Join-Path $InstallDir $DB_DUMP_FILE
-$initScript = Join-Path $InstallDir $DB_INIT_SCRIPT
+# Restaurar desde dump o ejecutar DDL (prioridad a SQL plano por portabilidad)
+$dumpPathSQL   = Join-Path $InstallDir "database\comercio_inicial.sql"
+$dumpPath      = Join-Path $InstallDir $DB_DUMP_FILE
+$initScript    = Join-Path $InstallDir $DB_INIT_SCRIPT
 
-if (Test-Path $dumpPath) {
-    Write-Info "Restaurando desde comercio_inicial.dump..."
+if (Test-Path $dumpPathSQL) {
+    Write-Info "Restaurando desde comercio_inicial.sql (formato SQL plano)..."
+    $env:PGPASSWORD = $PgPassword
+    & $psqlExe -U $DB_USER -p $PgPort -d $DB_NAME -f $dumpPathSQL 2>&1 |
+        ForEach-Object { Write-Info $_ }
+    if ($LASTEXITCODE -eq 0) {
+        Write-OK "Base de datos restaurada desde dump SQL plano."
+    } else {
+        Write-Warn "psql codigo $LASTEXITCODE. Algunos errores pueden ser normales en reinstalacion."
+    }
+} elseif (Test-Path $dumpPath) {
+    Write-Info "Restaurando desde comercio_inicial.dump (formato custom)..."
     $env:PGPASSWORD = $PgPassword
     & $pgRestoreExe `
         -U $DB_USER -p $PgPort -d $DB_NAME `
         --no-owner --no-acl --if-exists -c `
         $dumpPath 2>&1 | ForEach-Object { Write-Info $_ }
     if ($LASTEXITCODE -eq 0) {
-        Write-OK "Base de datos restaurada desde dump."
+        Write-OK "Base de datos restaurada desde dump custom."
     } else {
         Write-Warn "pg_restore codigo $LASTEXITCODE (puede ser normal en reinstalacion)."
     }
