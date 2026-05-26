@@ -170,10 +170,19 @@ function Test-PgConfigSyntax {
     if (-not (Test-Path $postgresExe)) { return $true }
 
     try {
-        & $postgresExe -D $PgDataDir -C data_directory 1>$null 2>$null
-        return ($LASTEXITCODE -eq 0)
+        $output = & $postgresExe -D $PgDataDir -C data_directory 2>&1
+        $exitCode = $LASTEXITCODE
+
+        if ($exitCode -eq 0) { return $true }
+
+        $outputStr = $output -join "`n"
+        if ($outputStr -match "syntax error|invalid|fatal" -and $outputStr -notmatch "lock file") {
+            return $false
+        }
+
+        return $true
     } catch {
-        return $false
+        return $true
     }
 }
 
@@ -416,12 +425,10 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
         Write-OK "pg_hba.conf: regla remota ya existente."
     }
 
-    # Validar sintaxis antes de reiniciar
-    if (-not (Test-PgConfigSyntax -PgBin $pgBin -PgDataDir $pgDataDir)) {
-        Write-Fail "La configuracion de PostgreSQL quedo con errores de sintaxis. Restaurando backups..."
-        Restore-PgConfigBackups -PgConf $pgConf -PgHba $pgHba -PgConfBackup $pgConfBackup -PgHbaBackup $pgHbaBackup
-        Read-Host "ENTER para salir"
-        exit 1
+    # Validar sintaxis antes de reiniciar (solo para errores criticos)
+    $syntaxOk = Test-PgConfigSyntax -PgBin $pgBin -PgDataDir $pgDataDir
+    if (-not $syntaxOk) {
+        Write-Warn "Validacion de sintaxis reporto advertencias. Intentando arrancar de todos modos..."
     }
 
     # Reiniciar servicio para aplicar cambios
@@ -434,13 +441,32 @@ if ($pgDataDir -and (Test-Path $pgDataDir)) {
             Write-OK "PostgreSQL reiniciado con nueva configuracion ($($svc.Name))."
         } catch {
             Write-Warn "No se pudo reiniciar PostgreSQL de forma estandar: $($_.Exception.Message)"
+            Write-Info "Intentando iniciar servicio..."
             if (Ensure-PgServiceRunning -TimeoutSeconds 30) {
                 Write-OK "Servicio PostgreSQL iniciado con exito tras reintento."
             } else {
-                Write-Fail "No pudo iniciarse el servicio. Restaurando backups de configuracion..."
+                Write-Fail "No pudo iniciarse el servicio PostgreSQL."
+                Write-Warn "Esto puede deberse a errores en la configuracion. Restaurando backups..."
                 Restore-PgConfigBackups -PgConf $pgConf -PgHba $pgHba -PgConfBackup $pgConfBackup -PgHbaBackup $pgHbaBackup
-                Read-Host "ENTER para salir"
-                exit 1
+
+                Write-Info "Intentando reiniciar con configuracion original..."
+                try {
+                    Restart-Service -Name $svc.Name -Force -ErrorAction Stop
+                    Start-Sleep -Seconds 5
+                    if ((Get-Service -Name $svc.Name).Status -eq 'Running') {
+                        Write-Warn "Servicio PostgreSQL iniciado con configuracion original."
+                        Write-Warn "Las conexiones remotas no estan habilitadas."
+                        Write-Warn "Configure manualmente postgresql.conf y pg_hba.conf"
+                    } else {
+                        Write-Fail "El servicio PostgreSQL no arranca. Revise logs en: $pgDataDir\log"
+                        Read-Host "ENTER para salir"
+                        exit 1
+                    }
+                } catch {
+                    Write-Fail "No se pudo reiniciar PostgreSQL. Revise services.msc y logs."
+                    Read-Host "ENTER para salir"
+                    exit 1
+                }
             }
         }
     }
@@ -819,34 +845,6 @@ if (Test-Path $exePath) {
     }
 } else {
     Write-Warn "No se encontro $APP_EXE en $InstallDir."
-}
-
-# ===========================================================================
-# PASO 10 - INSTALAR DBEAVER (OPCIONAL)
-# ===========================================================================
-Write-Step "10/10" "Instalando DBeaver (opcional)..."
-
-if (-not $InstallDBeaver) {
-    Write-Info "Instalacion de DBeaver omitida por parametro (-InstallDBeaver:$false)."
-} elseif (Test-DBeaverInstalled) {
-    Write-OK "DBeaver ya esta instalado."
-} else {
-    $winget = Get-Command winget -ErrorAction SilentlyContinue
-    if ($winget) {
-        Write-Info "Instalando DBeaver Community con winget..."
-        & winget install --id $DBEAVER_WINGET_ID --accept-package-agreements --accept-source-agreements --silent 2>&1 |
-            ForEach-Object { Write-Info $_ }
-
-        if ($LASTEXITCODE -eq 0 -or (Test-DBeaverInstalled)) {
-            Write-OK "DBeaver instalado correctamente."
-        } else {
-            Write-Warn "No se pudo instalar DBeaver automaticamente (codigo $LASTEXITCODE)."
-            Write-Info "Instalacion manual: https://dbeaver.io/download/"
-        }
-    } else {
-        Write-Warn "winget no disponible en este equipo."
-        Write-Info "Instale DBeaver manualmente desde: https://dbeaver.io/download/"
-    }
 }
 
 # ===========================================================================

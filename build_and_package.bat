@@ -13,7 +13,7 @@ echo.
 REM ---------------------------------------------------------------------------
 REM Configuracion de PostgreSQL (ajustar si es necesario)
 REM ---------------------------------------------------------------------------
-set PG_BIN=C:\Program Files\PostgreSQL\16\bin
+set PG_BIN=C:\Program Files\PostgreSQL\18\bin
 set PG_USER=postgres
 set PG_PORT=5433
 set PG_DB=comercio
@@ -93,7 +93,7 @@ if exist "database\init_comercio_pg.sql" (
 echo       OK Archivos copiados
 echo.
 
-echo [3/5] Generando dump de PostgreSQL (comercio_inicial.dump)...
+echo [3/5] Generando dump de PostgreSQL...
 if not exist "%PG_BIN%\pg_dump.exe" (
     echo    !! pg_dump no encontrado en: %PG_BIN%
     echo    !! Ajuste la variable PG_BIN al inicio del script.
@@ -102,16 +102,18 @@ if not exist "%PG_BIN%\pg_dump.exe" (
     goto SKIP_DUMP
 )
 
+REM Generar dump en formato SQL plano (mas portable entre versiones)
+echo    >> Generando comercio_inicial.sql (formato SQL plano)...
 "%PG_BIN%\pg_dump.exe" -U %PG_USER% -p %PG_PORT% -d %PG_DB% ^
-    --format=custom --no-owner --no-acl ^
-    --file="%OUTPUT_DIR%\app\database\comercio_inicial.dump"
+    --format=plain --no-owner --no-acl ^
+    --file="%OUTPUT_DIR%\app\database\comercio_inicial.sql"
 
 if errorlevel 1 (
-    echo    !! Error generando el dump. Verifique que PostgreSQL este corriendo
-    echo    !! y que la base de datos "%PG_DB%" exista.
-    echo    !! El dump NO sera incluido. Se usara init_comercio_pg.sql como fallback.
+    echo    !! Error generando el dump SQL plano.
+    echo    !! Verifique que PostgreSQL este corriendo y que "%PG_DB%" exista.
+    echo    !! Los clientes usaran init_comercio_pg.sql como fallback.
 ) else (
-    echo       OK Dump generado: database\comercio_inicial.dump
+    echo       OK Dump SQL plano generado: database\comercio_inicial.sql
 )
 
 :SKIP_DUMP
@@ -161,7 +163,7 @@ echo 3. Subir version.json a GitHub Releases
 echo.
 echo CONTENIDO DEL ZIP:
 echo   - Ejecutable y DLLs de la aplicacion
-echo   - database\comercio_inicial.dump  (si pg_dump tuvo exito)
+echo   - database\comercio_inicial.sql   (SQL plano, compatible entre versiones PG)
 echo   - database\init_comercio_pg.sql   (DDL fallback)
 echo.
 pause
