@@ -6,12 +6,48 @@ Sistema distribuido de gestión de arqueos de caja con arquitectura de microserv
 [![Railway](https://img.shields.io/badge/Deploy-Railway-0B0D0E?logo=railway)](https://railway.app/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+---
+
+## 📚 Documentación de Instalación
+
+### 🚀 Guías Rápidas (Inicio Rápido)
+
+| Documento | Descripción | Tiempo | Cuándo Usar |
+|-----------|-------------|--------|-------------|
+| **[Guía Rápida: Subdominios](GUIA_RAPIDA_SUBDOMINIOS.md)** | Cómo crear subdominios en tpqsolutions.com.ar | 5 min | Primera vez creando subdominios |
+| **[Resumen: Config Victor](RESUMEN_CONFIGURACION_VICTOR.md)** | Pasos simplificados para PC del cliente | 5 min | Ya tienes tunnel, necesitas configurar PC |
+
+### 📖 Guías Completas
+
+| Documento | Descripción | Cuándo Usar |
+|-----------|-------------|-------------|
+| **[Guía Instalación Completa](GUIA_INSTALACION_CLIENTE_NUEVO.md)** | Instalación paso a paso desde cero | Primera instalación o referencia completa |
+| **[Configuración PC Victor](CONFIGURACION_PC_VICTOR.md)** | Pasos detallados específicos para Victor | Ya creaste tunnel, configurar PC cliente |
+| **[Arquitectura Multi-Cliente](ARQUITECTURA_MULTICLIENTE.md)** | Gestión de múltiples clientes | Entender arquitectura completa |
+| **[Arquitectura SQLBridge](ARQUITECTURA_SQLBRIDGE.md)** | Especificaciones técnicas del sistema | Desarrollo o troubleshooting avanzado |
+
+### 🎨 Diagramas y Visuales
+
+| Documento | Descripción |
+|-----------|-------------|
+| **[Diagrama Visual: Subdominios](DIAGRAMA_SUBDOMINIOS.txt)** | Diagrama ASCII completo del proceso |
+
+### 🔧 Scripts y Automatización
+
+| Script | Descripción | Uso |
+|--------|-------------|-----|
+| **[crear-subdominios-ejemplo.ps1](scripts/crear-subdominios-ejemplo.ps1)** | Crear múltiples subdominios automáticamente | `.\crear-subdominios-ejemplo.ps1` |
+| **[configurar-cliente.ps1](scripts/configurar-cliente.ps1)** | Configurar PC del cliente automáticamente | `.\configurar-cliente.ps1 -TunnelId "xxx" -ClienteName "victor"` |
+
+---
+
 ## 🌟 Características
 
 - ✅ **Consulta en tiempo real** de arqueos de caja
 - ✅ **Filtrado por cajero y fecha**
 - ✅ **Múltiples formas de pago** (Efectivo, MercadoPago, DNI, Otros)
 - ✅ **Arquitectura distribuida** con SQL Bridge
+- ✅ **Multi-cliente** con subdominios ilimitados
 - ✅ **Logging detallado** para diagnóstico
 - ✅ **Manejo robusto de errores**
 

@@ -6,6 +6,21 @@
 
 ---
 
+## ? Guías Rápidas
+
+¿Primera vez configurando? Consulta estas guías:
+
+| Guía | Descripción | Tiempo |
+|------|-------------|--------|
+| **[Crear Subdominios](GUIA_RAPIDA_SUBDOMINIOS.md)** | Cómo generar subdominios en tpqsolutions.com.ar | 2 min |
+| **[Diagrama Visual](DIAGRAMA_SUBDOMINIOS.txt)** | Diagrama completo del proceso | - |
+| **[Arquitectura Multi-Cliente](ARQUITECTURA_MULTICLIENTE.md)** | Gestión de múltiples clientes | - |
+| **[Script Automático](scripts/crear-subdominios-ejemplo.ps1)** | Script PowerShell para crear subdominios | - |
+
+**?? TIP:** Si solo necesitas crear un subdominio, ve directamente a [Guía Rápida Subdominios](GUIA_RAPIDA_SUBDOMINIOS.md)
+
+---
+
 ## ?? Índice
 
 1. [Requisitos Previos](#requisitos-previos)
@@ -36,7 +51,7 @@ Antes de comenzar, necesitas recopilar:
 1. **IP del SQL Server:** Ejemplo: `192.168.100.200`
 2. **Nombre de la base de datos:** Ejemplo: `Comercio`
 3. **Usuario y contraseña de SQL Server**
-4. **Subdominio deseado:** Ejemplo: `sql.nombrecliente.com.ar`
+4. **Nombre del cliente:** Para crear el subdominio (Ejemplo: `victor`, `pepe`, `cliente1`)
 
 ---
 
@@ -212,15 +227,52 @@ curl http://localhost:5000/health
 
 ## ?? Configuración de Cloudflare Tunnel
 
+### ?? Estrategia de Dominios
+
+Tienes dos opciones para configurar los subdominios:
+
+#### **Opción A: Subdominios de tpqsolutions.com.ar (RECOMENDADA)** ?
+
+Usar tu dominio centralizado para todos los clientes:
+- `victor.tpqsolutions.com.ar`
+- `pepe.tpqsolutions.com.ar`
+- `cliente1.tpqsolutions.com.ar`
+
+**Ventajas:**
+- ? Una sola cuenta de Cloudflare
+- ? Gestión centralizada de todos los tunnels
+- ? Sin costo adicional
+- ? Fácil mantenimiento
+- ? Escalable
+
+**Ideal para:** Aplicaciones internas, APIs, servicios técnicos
+
+#### **Opción B: Dominio del cliente**
+
+Usar el dominio propio del cliente (si lo tiene en Cloudflare):
+- `sql.nombrecliente.com.ar`
+
+**Ventajas:**
+- ? URL personalizada con marca del cliente
+- ? Más profesional para servicios públicos
+
+**Desventajas:**
+- ?? Requiere que el cliente tenga su dominio en Cloudflare
+- ?? Gestión distribuida en múltiples cuentas
+
+---
+
 ### Paso 1: Autenticarse en Cloudflare
+
+**?? IMPORTANTE:** Solo necesitas hacer este paso **UNA VEZ** por PC del cliente. Si ya tienes el certificado de una instalación anterior, **sáltate al Paso 2**.
 
 ```powershell
 # Ejecutar cloudflared
 C:\cloudflared\cloudflared.exe tunnel login
 
 # Se abrirá un navegador
-# Iniciar sesión con la cuenta de Cloudflare
-# Seleccionar el dominio (ejemplo: comerciopele.com.ar)
+# Iniciar sesión con tu cuenta de Cloudflare (manuclaro@gmail.com)
+# Seleccionar el dominio: tpqsolutions.com.ar
 ```
 
 **Resultado:** Se creará un archivo de certificado en:
@@ -228,34 +280,56 @@ C:\cloudflared\cloudflared.exe tunnel login
 C:\Users\<Usuario>\.cloudflared\cert.pem
 ```
 
+**?? Nota:** Este certificado es válido para crear múltiples tunnels en el mismo dominio.
+
 ### Paso 2: Crear un Tunnel
 
 ```powershell
-# Crear el tunnel con un nombre descriptivo
-C:\cloudflared\cloudflared.exe tunnel create sqlbridge-nombrecliente
+# Crear el tunnel con un nombre descriptivo (usar el nombre del cliente)
+C:\cloudflared\cloudflared.exe tunnel create sqlbridge-victor
 
 # Ejemplo de respuesta:
 # Tunnel credentials written to C:\Users\<Usuario>\.cloudflared\<TUNNEL_ID>.json
-# {"AccountTag":"xxxxx","TunnelID":"yyyy-zzzz-...","TunnelName":"sqlbridge-nombrecliente"}
+# {"AccountTag":"xxxxx","TunnelID":"yyyy-zzzz-...","TunnelName":"sqlbridge-victor"}
 ```
 
 **?? Importante:** Anota el **TUNNEL_ID** que aparece en la respuesta.
 
+**?? Convención de nombres sugerida:**
+- `sqlbridge-victor` para el cliente Victor
+- `sqlbridge-pepe` para el cliente Pepe
+- `sqlbridge-cliente1` para Cliente1
+- etc.
+
 ### Paso 3: Configurar el DNS
 
+#### Opción A: Usando tpqsolutions.com.ar (RECOMENDADA)
+
 ```powershell
-# Asociar un subdominio al tunnel
-C:\cloudflared\cloudflared.exe tunnel route dns sqlbridge-nombrecliente sql.nombrecliente.com.ar
+# Asociar un subdominio de tpqsolutions.com.ar al tunnel
+C:\cloudflared\cloudflared.exe tunnel route dns sqlbridge-victor victor.tpqsolutions.com.ar
 
 # Ejemplo de respuesta:
-# Successfully routed tunnel sqlbridge-nombrecliente to sql.nombrecliente.com.ar
+# Successfully routed tunnel sqlbridge-victor to victor.tpqsolutions.com.ar
 ```
 
 **Verificar en Cloudflare Dashboard:**
 - Ir a: https://dash.cloudflare.com
-- Seleccionar el dominio
+- Seleccionar el dominio **tpqsolutions.com.ar**
 - Ir a **DNS** ? **Records**
-- Debe aparecer un registro CNAME: `sql` ? `TUNNEL_ID.cfargotunnel.com`
+- Debe aparecer un registro CNAME: `victor` ? `TUNNEL_ID.cfargotunnel.com`
+
+#### Opción B: Usando dominio del cliente
+
+```powershell
+# Si el cliente tiene su propio dominio en Cloudflare
+C:\cloudflared\cloudflared.exe tunnel route dns sqlbridge-cliente sql.dominiodelcliente.com.ar
+
+# Ejemplo de respuesta:
+# Successfully routed tunnel sqlbridge-cliente to sql.dominiodelcliente.com.ar
+```
+
+**?? Nota:** Esta opción requiere que el dominio del cliente esté en tu cuenta de Cloudflare o que tengas acceso a su cuenta.
 
 ### Paso 4: Crear Archivo de Configuración del Tunnel
 
@@ -270,6 +344,19 @@ C:\cloudflared\cloudflared.exe tunnel route dns sqlbridge-nombrecliente sql.nomb
    ```
 
 3. **Agregar la siguiente configuración:**
+
+   **Opción A: Con tpqsolutions.com.ar**
+   ```yaml
+   tunnel: TUNNEL_ID
+   credentials-file: C:\Users\<Usuario>\.cloudflared\TUNNEL_ID.json
+
+   ingress:
+     - hostname: victor.tpqsolutions.com.ar
+       service: http://localhost:5000
+     - service: http_status:404
+   ```
+
+   **Opción B: Con dominio del cliente**
    ```yaml
    tunnel: TUNNEL_ID
    credentials-file: C:\Users\<Usuario>\.cloudflared\TUNNEL_ID.json
@@ -283,7 +370,7 @@ C:\cloudflared\cloudflared.exe tunnel route dns sqlbridge-nombrecliente sql.nomb
    **?? Reemplazar:**
    - `TUNNEL_ID` ? El ID del tunnel creado en el Paso 2
    - `<Usuario>` ? Nombre del usuario de Windows
-   - `sql.nombrecliente.com.ar` ? El subdominio configurado
+   - `victor.tpqsolutions.com.ar` ? El subdominio que configuraste en el Paso 3
 
 4. **Guardar el archivo**
 
@@ -306,10 +393,15 @@ C:\cloudflared\cloudflared.exe tunnel --config C:\cloudflared\config.yml run
 
 Desde cualquier navegador (incluso desde tu teléfono con datos móviles):
 ```
-https://sql.nombrecliente.com.ar/health
+https://victor.tpqsolutions.com.ar/health
 ```
 
 **Debe responder:** `{"status":"ok","timestamp":"..."}`
+
+**?? Si usas el dominio del cliente, la URL sería:**
+```
+https://sql.nombrecliente.com.ar/health
+```
 
 **Si funciona, presionar CTRL+C en ambas terminales y continuar.**
 
@@ -400,13 +492,15 @@ curl http://localhost:5000/health
 
 Desde un navegador externo (o el móvil):
 ```
-https://sql.nombrecliente.com.ar/health
+https://victor.tpqsolutions.com.ar/health
 ```
 
 **Resultado esperado:**
 ```json
 {"status":"ok","timestamp":"2026-02-10T23:45:00"}
 ```
+
+**?? Recuerda:** Si usas el dominio del cliente, reemplaza `victor.tpqsolutions.com.ar` con `sql.nombrecliente.com.ar`
 
 ### Prueba 3: Query SQL
 
@@ -427,10 +521,12 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:5000/query" -Body $body -C
 
 ```powershell
 # Mismo query pero a través del tunnel
-Invoke-RestMethod -Method Post -Uri "https://sql.nombrecliente.com.ar/query" -Body $body -ContentType "application/json"
+Invoke-RestMethod -Method Post -Uri "https://victor.tpqsolutions.com.ar/query" -Body $body -ContentType "application/json"
 ```
 
 **Resultado esperado:** Mismo JSON con datos
+
+**?? Nota:** Reemplaza `victor.tpqsolutions.com.ar` con el subdominio de tu cliente
 
 ### Prueba 5: Verificar Logs
 
@@ -544,11 +640,12 @@ cmd.CommandTimeout = 60; // segundos (default: 30)
 
 3. ? Health check público funcionando:
    ```
-   https://sql.nombrecliente.com.ar/health
+   https://victor.tpqsolutions.com.ar/health
    ```
 
 4. ? Configuración en la API Mobile Server (Railway):
-   - Variable de entorno: `SQL_BRIDGE_URL=https://sql.nombrecliente.com.ar`
+   - Variable de entorno: `SQL_BRIDGE_URL=https://victor.tpqsolutions.com.ar`
+   - (O el subdominio correspondiente al cliente)
 
 ---
 
@@ -570,14 +667,14 @@ cmd.CommandTimeout = 60; // segundos (default: 30)
 - [ ] Logs creándose en `C:\SqlBridge\logs\`
 
 ### Cloudflare Tunnel
-- [ ] cloudflared autenticado (`tunnel login`)
-- [ ] Tunnel creado (`tunnel create`)
-- [ ] DNS configurado (`tunnel route dns`)
+- [ ] cloudflared autenticado (`tunnel login`) - **Solo primera vez**
+- [ ] Tunnel creado con nombre descriptivo (`tunnel create sqlbridge-nombrecliente`)
+- [ ] DNS configurado (`tunnel route dns`) - Subdominio de tpqsolutions.com.ar
 - [ ] `config.yml` creado con configuración correcta
 - [ ] Tunnel probado manualmente (health check público funciona)
 - [ ] Servicio `cloudflared` instalado
 - [ ] Servicio `cloudflared` iniciado y corriendo
-- [ ] Health check público accesible: `https://sql.nombrecliente.com.ar/health`
+- [ ] Health check público accesible: `https://nombrecliente.tpqsolutions.com.ar/health`
 
 ### Pruebas
 - [ ] Health check local: `http://localhost:5000/health` ?
@@ -587,7 +684,8 @@ cmd.CommandTimeout = 60; // segundos (default: 30)
 - [ ] Logs se están generando correctamente
 
 ### Configuración App Móvil
-- [ ] Variable `SQL_BRIDGE_URL` configurada en Railway
+- [ ] Variable `SQL_BRIDGE_URL` configurada en Railway con el subdominio del cliente
+- [ ] Ejemplo: `SQL_BRIDGE_URL=https://victor.tpqsolutions.com.ar`
 - [ ] App móvil probada con el nuevo cliente
 - [ ] Arqueos de caja visibles en la app
 
@@ -614,12 +712,13 @@ Puerto SQL: 1433
 
 === CLOUDFLARE ===
 Tunnel ID: _________________________________
-Tunnel Name: _______________________________
-Subdominio: ________________________________
-DNS CNAME: sql ? ___________.cfargotunnel.com
+Tunnel Name: sqlbridge-_____________________
+Subdominio: ____________.tpqsolutions.com.ar
+DNS CNAME: ________ ? ___________.cfargotunnel.com
 
 === URLs ===
-Health Check: https://sql.__________________.com.ar/health
+Health Check: https://________.tpqsolutions.com.ar/health
+Query Endpoint: https://________.tpqsolutions.com.ar/query
 API Mobile: https://comercio-net-web-production.up.railway.app
 
 === SERVICIOS WINDOWS ===
@@ -703,6 +802,150 @@ curl http://localhost:5000/health
 
 ---
 
+## ?? Gestión de Múltiples Clientes con tpqsolutions.com.ar
+
+### Dashboard de Cloudflare
+
+Todos tus clientes estarán centralizados en tu cuenta de Cloudflare:
+
+**Ver todos los tunnels:**
+```powershell
+C:\cloudflared\cloudflared.exe tunnel list
+```
+
+**Resultado esperado:**
+```
+ID                                   NAME                   CREATED
+aaaa-bbbb-cccc-dddd-eeee            sqlbridge-victor       2026-02-10T10:30:00Z
+ffff-gggg-hhhh-iiii-jjjj            sqlbridge-pepe         2026-02-11T14:20:00Z
+kkkk-llll-mmmm-nnnn-oooo            sqlbridge-cliente1     2026-02-12T09:15:00Z
+```
+
+### Ejemplo: Tres Clientes Configurados
+
+#### Cliente 1: Victor
+- **Tunnel Name:** `sqlbridge-victor`
+- **Subdominio:** `victor.tpqsolutions.com.ar`
+- **Health Check:** https://victor.tpqsolutions.com.ar/health
+- **SQL Server:** 192.168.1.100:1433
+
+#### Cliente 2: Pepe
+- **Tunnel Name:** `sqlbridge-pepe`
+- **Subdominio:** `pepe.tpqsolutions.com.ar`
+- **Health Check:** https://pepe.tpqsolutions.com.ar/health
+- **SQL Server:** 192.168.0.50:1433
+
+#### Cliente 3: Comercio ABC
+- **Tunnel Name:** `sqlbridge-abc`
+- **Subdominio:** `abc.tpqsolutions.com.ar`
+- **Health Check:** https://abc.tpqsolutions.com.ar/health
+- **SQL Server:** 10.0.0.10:1433
+
+### Vista en Cloudflare DNS
+
+En tu panel de Cloudflare (https://dash.cloudflare.com), dominio **tpqsolutions.com.ar**, sección **DNS**, verás:
+
+| Type  | Name    | Content                                    |
+|-------|---------|-------------------------------------------|
+| CNAME | victor  | aaaa-bbbb-cccc-dddd.cfargotunnel.com     |
+| CNAME | pepe    | ffff-gggg-hhhh-iiii.cfargotunnel.com     |
+| CNAME | abc     | kkkk-llll-mmmm-nnnn.cfargotunnel.com     |
+
+### Configuración en Railway (API Mobile)
+
+Para cada cliente, crea una instancia separada de la API o usa variables de entorno dinámicas:
+
+**Opción A: Una instancia por cliente**
+- `comercio-victor` ? `SQL_BRIDGE_URL=https://victor.tpqsolutions.com.ar`
+- `comercio-pepe` ? `SQL_BRIDGE_URL=https://pepe.tpqsolutions.com.ar`
+- `comercio-abc` ? `SQL_BRIDGE_URL=https://abc.tpqsolutions.com.ar`
+
+**Opción B: Una sola API con parámetros**
+- Enviar el subdominio como parámetro en cada request
+
+### Monitoreo Centralizado
+
+```powershell
+# Script para verificar todos los clientes
+$clientes = @(
+    @{Nombre="Victor"; URL="https://victor.tpqsolutions.com.ar/health"},
+    @{Nombre="Pepe"; URL="https://pepe.tpqsolutions.com.ar/health"},
+    @{Nombre="ABC"; URL="https://abc.tpqsolutions.com.ar/health"}
+)
+
+foreach ($cliente in $clientes) {
+    try {
+        $response = Invoke-RestMethod -Uri $cliente.URL -TimeoutSec 5
+        Write-Host "? $($cliente.Nombre): OK" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "? $($cliente.Nombre): ERROR" -ForegroundColor Red
+    }
+}
+```
+
+### Ventajas de esta Arquitectura
+
+1. **Administración Centralizada**
+   - Un solo dashboard de Cloudflare
+   - Todas las métricas en un lugar
+   - Fácil seguimiento de todos los clientes
+
+2. **Escalabilidad**
+   - Agregar nuevos clientes es simple: crear tunnel + configurar DNS
+   - Sin límite de subdominios
+   - Sin costos adicionales
+
+3. **Mantenimiento Simplificado**
+   - Actualizaciones de certificados automáticas
+   - Monitoreo unificado
+   - Troubleshooting más rápido
+
+4. **Seguridad**
+   - Cada cliente tiene su propio tunnel (aislamiento)
+   - Tráfico encriptado por Cloudflare
+   - Logs separados por tunnel
+
+### Límites de Cloudflare (Plan Free)
+
+- ? Tunnels ilimitados
+- ? Subdominios ilimitados
+- ? Tráfico ilimitado
+- ?? 1 zona DNS (dominio) - En tu caso: `tpqsolutions.com.ar`
+
+**Conclusión:** Puedes tener **todos los clientes que necesites** usando subdominios de `tpqsolutions.com.ar` sin ningún costo adicional.
+
+---
+
+## ?? Plantilla de Registro Múltiples Clientes
+
+```
+=== REGISTRO DE CLIENTES SQLBRIDGE ===
+Dominio Base: tpqsolutions.com.ar
+Cuenta Cloudflare: manuclaro@gmail.com
+
+??????????????????????????????????????????????????????????????????????????????????????????
+? Cliente     ? Tunnel Name      ? Subdominio                          ? SQL Server IP   ?
+??????????????????????????????????????????????????????????????????????????????????????????
+? Victor      ? sqlbridge-victor ? victor.tpqsolutions.com.ar          ? 192.168.1.100   ?
+??????????????????????????????????????????????????????????????????????????????????????????
+? Pepe        ? sqlbridge-pepe   ? pepe.tpqsolutions.com.ar            ? 192.168.0.50    ?
+??????????????????????????????????????????????????????????????????????????????????????????
+? ABC         ? sqlbridge-abc    ? abc.tpqsolutions.com.ar             ? 10.0.0.10       ?
+??????????????????????????????????????????????????????????????????????????????????????????
+?             ?                  ?                                     ?                 ?
+??????????????????????????????????????????????????????????????????????????????????????????
+
+NOTAS:
+- Todos los tunnels usan el mismo certificado: C:\Users\<Usuario>\.cloudflared\cert.pem
+- Cada PC del cliente tiene su propio config.yml con su tunnel ID específico
+- Railway: Una instancia de API por cliente (o una compartida con parámetros)
+```
+
+---
+
 **? ¡Instalación Completa!**
 
 Ahora el cliente puede usar la aplicación móvil de Comercio.NET para consultar los arqueos de caja en tiempo real desde cualquier lugar.
+
+Con la estrategia de subdominios de `tpqsolutions.com.ar`, puedes escalar fácilmente a decenas o cientos de clientes sin preocuparte por gestionar múltiples cuentas o dominios.
