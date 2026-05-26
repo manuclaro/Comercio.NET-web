@@ -120,7 +120,7 @@ function Test-DBeaverInstalled {
         if (Test-Path $root) {
             $match = Get-ChildItem $root -ErrorAction SilentlyContinue |
                 Get-ItemProperty -ErrorAction SilentlyContinue |
-                Where-Object { $_.DisplayName -like "*DBeaver*" } |
+                Where-Object { $null -ne $_.DisplayName -and $_.DisplayName -like "*DBeaver*" } |
                 Select-Object -First 1
             if ($match) { return $true }
         }
