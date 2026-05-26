@@ -44,7 +44,7 @@ param(
     [string]$GitHubToken = "",
     [string]$PgPassword  = "michael",
     [int]   $PgPort      = 5432,
-    [bool]  $InstallDBeaver = $true
+    [bool]  $InstallDBeaver = $false
 )
 
 Set-StrictMode -Version Latest
