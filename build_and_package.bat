@@ -103,9 +103,10 @@ if not exist "%PG_BIN%\pg_dump.exe" (
 )
 
 REM Generar dump en formato SQL plano (mas portable entre versiones)
-echo    >> Generando comercio_inicial.sql (formato SQL plano)...
+echo    >> Generando comercio_inicial.sql (formato SQL plano compatible)...
 "%PG_BIN%\pg_dump.exe" -U %PG_USER% -p %PG_PORT% -d %PG_DB% ^
-    --format=plain --no-owner --no-acl ^
+    --format=plain --no-owner --no-acl --no-table-access-method ^
+    --no-tablespaces --no-comments ^
     --file="%OUTPUT_DIR%\app\database\comercio_inicial.sql"
 
 if errorlevel 1 (

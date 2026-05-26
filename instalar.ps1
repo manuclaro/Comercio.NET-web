@@ -653,7 +653,12 @@ if (-not (Ensure-PgServiceRunning -TimeoutSeconds 30)) {
     exit 1
 }
 
-# Crear la BD si no existe
+# Verificar si existe dump SQL para decidir si recrear la BD
+$dumpPathSQL   = Join-Path $InstallDir "database\comercio_inicial.sql"
+$dumpPath      = Join-Path $InstallDir $DB_DUMP_FILE
+$hasDumpData   = (Test-Path $dumpPathSQL) -or (Test-Path $dumpPath)
+
+# Crear la BD si no existe, o recrearla si hay dump completo
 $dbCheck = (& $psqlExe -U $DB_USER -p $PgPort -d postgres -tAc `
     "SELECT 1 FROM pg_database WHERE datname='$DB_NAME';" 2>&1) -join ""
 $dbCheck = $dbCheck.Trim()
@@ -663,12 +668,17 @@ if ($dbCheck -ne "1") {
     & $createdbExe -U $DB_USER -p $PgPort -E UTF8 $DB_NAME 2>&1 | ForEach-Object { Write-Info $_ }
     Write-OK "Base de datos '$DB_NAME' creada."
 } else {
-    Write-OK "Base de datos '$DB_NAME' ya existe."
+    if ($hasDumpData) {
+        Write-Info "Base de datos '$DB_NAME' ya existe. Recreando para restauracion limpia..."
+        & $psqlExe -U $DB_USER -p $PgPort -d postgres -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>&1 | Out-Null
+        & $createdbExe -U $DB_USER -p $PgPort -E UTF8 $DB_NAME 2>&1 | ForEach-Object { Write-Info $_ }
+        Write-OK "Base de datos '$DB_NAME' recreada."
+    } else {
+        Write-OK "Base de datos '$DB_NAME' ya existe."
+    }
 }
 
 # Restaurar desde dump o ejecutar DDL (prioridad a SQL plano por portabilidad)
-$dumpPathSQL   = Join-Path $InstallDir "database\comercio_inicial.sql"
-$dumpPath      = Join-Path $InstallDir $DB_DUMP_FILE
 $initScript    = Join-Path $InstallDir $DB_INIT_SCRIPT
 
 if (Test-Path $dumpPathSQL) {
