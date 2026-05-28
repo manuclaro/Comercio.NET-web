@@ -1060,6 +1060,28 @@ namespace Comercio.NET
             }
         }
 
+        private void estadisticasRubrosToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is Comercio.NET.Formularios.EstadisticasRubrosForm)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                var f = new Comercio.NET.Formularios.EstadisticasRubrosForm();
+                f.MdiParent = this;
+                f.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo Estadísticas Compras vs Ventas: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
 
         // ✅ MODIFICAR el handler para abrir CtaCte con el Form contenedor correcto:

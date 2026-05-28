@@ -239,10 +239,35 @@ namespace Comercio.NET.Formularios
                 string cs = GetConnectionString();
                 using (var conn = new SqlConnection(cs))
                 {
-                    var sql = @"SELECT Id, Nombre, CUIT, Domicilio, Telefono, Email, CondicionIVA, Activo
+                    // Intentar con la columna Rubro; si no existe en la BD caer al SELECT sin ella
+                    string sql;
+                    bool tieneRubro = false;
+                    try
+                    {
+                        await conn.OpenAsync();
+                        using (var chk = new SqlCommand(
+                            "SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Proveedores') AND name = 'Rubro'", conn))
+                        {
+                            var res = await chk.ExecuteScalarAsync();
+                            tieneRubro = res != null;
+                        }
+                    }
+                    catch { /* si falla la comprobación, continuar sin Rubro */ }
+
+                    if (tieneRubro)
+                        sql = @"SELECT Id, Nombre, CUIT, Rubro, Domicilio, Telefono, Email, CondicionIVA, Activo
                                 FROM Proveedores
                                 WHERE (@filtro = '' OR Nombre LIKE '%' + @filtro + '%' OR CUIT LIKE '%' + @filtro + '%')
                                 ORDER BY Nombre";
+                    else
+                        sql = @"SELECT Id, Nombre, CUIT, Domicilio, Telefono, Email, CondicionIVA, Activo
+                                FROM Proveedores
+                                WHERE (@filtro = '' OR Nombre LIKE '%' + @filtro + '%' OR CUIT LIKE '%' + @filtro + '%')
+                                ORDER BY Nombre";
+
+                    if (conn.State != System.Data.ConnectionState.Open)
+                        await conn.OpenAsync();
+
                     using (var da = new SqlDataAdapter(sql, conn))
                     {
                         da.SelectCommand.Parameters.AddWithValue("@filtro", filtro ?? "");
@@ -252,6 +277,7 @@ namespace Comercio.NET.Formularios
                         if (dgv.Columns["Id"] != null) dgv.Columns["Id"].Visible = false;
                         if (dgv.Columns["Nombre"] != null) dgv.Columns["Nombre"].HeaderText = "Nombre";
                         if (dgv.Columns["CUIT"] != null) dgv.Columns["CUIT"].HeaderText = "CUIT";
+                        if (dgv.Columns["Rubro"] != null) dgv.Columns["Rubro"].HeaderText = "Rubro";
                         if (dgv.Columns["Domicilio"] != null) dgv.Columns["Domicilio"].HeaderText = "Domicilio";
                         if (dgv.Columns["Telefono"] != null) dgv.Columns["Telefono"].HeaderText = "Teléfono";
                         if (dgv.Columns["Email"] != null) dgv.Columns["Email"].HeaderText = "Email";
@@ -288,26 +314,33 @@ namespace Comercio.NET.Formularios
                 return;
             }
 
-            var row = dgv.SelectedRows[0];
-            int id = Convert.ToInt32(row.Cells["Id"].Value);
-            string nombre = row.Cells["Nombre"].Value?.ToString();
-            string cuit = row.Cells["CUIT"]?.Value?.ToString();
-            string domicilio = row.Cells["Domicilio"]?.Value?.ToString();
-            string telefono = row.Cells["Telefono"]?.Value?.ToString();
-            // Corregido: leer Value en lugar de ToString() de la celda
-            string email = row.Cells["Email"]?.Value?.ToString();
-            string condicion = row.Cells["CondicionIVA"]?.Value?.ToString();
-            bool activo = row.Cells["Activo"] != null && Convert.ToBoolean(row.Cells["Activo"].Value);
-
-            using (var dlg = new ProveedorEditForm(id, nombre, cuit, domicilio, telefono, email, condicion, activo))
+            try
             {
-                var res = dlg.ShowDialog(this);
-                if (res == DialogResult.OK)
+                var row = dgv.SelectedRows[0];
+                int id = Convert.ToInt32(row.Cells["Id"].Value);
+                string nombre    = row.Cells["Nombre"].Value?.ToString();
+                string cuit      = row.Cells["CUIT"]?.Value?.ToString();
+                string domicilio = row.Cells["Domicilio"]?.Value?.ToString();
+                string telefono  = row.Cells["Telefono"]?.Value?.ToString();
+                string email     = row.Cells["Email"]?.Value?.ToString();
+                string condicion = row.Cells["CondicionIVA"]?.Value?.ToString();
+                // Rubro puede no existir aún en la BD — acceso seguro por nombre de columna
+                string rubro = dgv.Columns.Contains("Rubro") ? row.Cells["Rubro"]?.Value?.ToString() : "";
+                bool activo  = row.Cells["Activo"] != null && Convert.ToBoolean(row.Cells["Activo"].Value);
+
+                using (var dlg = new ProveedorEditForm(id, nombre, cuit, domicilio, telefono, email, condicion, activo, rubro))
                 {
-                    // Capturar Id editado y recargar
-                    LastSavedProveedorId = dlg.ProveedorIdResult ?? id;
-                    await CargarProveedoresAsync(txtBuscar.Text.Trim());
+                    var res = dlg.ShowDialog(this);
+                    if (res == DialogResult.OK)
+                    {
+                        LastSavedProveedorId = dlg.ProveedorIdResult ?? id;
+                        await CargarProveedoresAsync(txtBuscar.Text.Trim());
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al editar proveedor: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

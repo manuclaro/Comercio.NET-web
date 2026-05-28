@@ -15,6 +15,7 @@ namespace Comercio.NET.Formularios
         private TextBox txtTelefono;
         private TextBox txtEmail;
         private TextBox txtCondicion;
+        private ComboBox cboRubro;
         private CheckBox chkActivo;
         private Button btnAceptar;
         private Button btnCancelar;
@@ -28,7 +29,7 @@ namespace Comercio.NET.Formularios
         private Panel pnlHeader;
         private Panel pnlContent;
 
-        public ProveedorEditForm(int? id = null, string nombre = "", string cuit = "", string domicilio = "", string telefono = "", string email = "", string condicion = "", bool activo = true)
+        public ProveedorEditForm(int? id = null, string nombre = "", string cuit = "", string domicilio = "", string telefono = "", string email = "", string condicion = "", bool activo = true, string rubro = "")
         {
             proveedorId = id;
             InitializeComponent();
@@ -38,8 +39,9 @@ namespace Comercio.NET.Formularios
             txtDomicilio.Text = domicilio;
             txtTelefono.Text = telefono;
             txtEmail.Text = email;
-            txtCondicion.Text = condicion;
+            txtCondicion.Text = string.IsNullOrEmpty(condicion) && !id.HasValue ? "0" : condicion;
             chkActivo.Checked = activo;
+            cboRubro.Text = rubro;
 
             this.Text = id.HasValue ? "Editar Proveedor" : "Agregar Proveedor";
         }
@@ -47,7 +49,7 @@ namespace Comercio.NET.Formularios
         private void InitializeComponent()
         {
             // Form general y estilo coherente
-            this.ClientSize = new Size(520, 400);
+            this.ClientSize = new Size(520, 440);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.StartPosition = FormStartPosition.CenterParent;
             this.MaximizeBox = false;
@@ -132,7 +134,21 @@ namespace Comercio.NET.Formularios
             var lblCond = new Label { Text = "Condición IVA", Left = 12, Top = lblEmail.Bottom + 12, Width = 100 };
             txtCondicion = new TextBox { Left = 120, Top = lblCond.Top - 2, Width = 200 };
 
-            chkActivo = new CheckBox { Text = "Activo", Left = 120, Top = txtCondicion.Bottom + 12, Checked = true };
+            var lblRubro = new Label { Text = "Rubro", Left = 12, Top = txtCondicion.Bottom + 12, Width = 100 };
+            cboRubro = new ComboBox
+            {
+                Left = 120,
+                Top = lblRubro.Top - 2,
+                Width = 250,
+                DropDownStyle = ComboBoxStyle.DropDown
+            };
+            cboRubro.Items.AddRange(new object[] {
+                "", "Almacén", "Verdulería", "Carnicería", "Fiambrería", "Panadería",
+                "Galletitas", "Golosinas", "Bebidas", "Limpieza", "Perfumería",
+                "Quesos y Lácteos", "Congelados", "Frutas", "Varios"
+            });
+
+            chkActivo = new CheckBox { Text = "Activo", Left = 120, Top = cboRubro.Bottom + 12, Checked = true };
 
             // Botones estilo plano y colores coherentes
             btnAceptar = new Button
@@ -170,7 +186,7 @@ namespace Comercio.NET.Formularios
             pnlContent.Controls.AddRange(new Control[] {
                 lblNombre, txtNombre, lblCuit, txtCuit, lblDomicilio, txtDomicilio,
                 lblTelefono, txtTelefono, lblEmail, txtEmail, lblCond, txtCondicion,
-                chkActivo, btnAceptar, btnCancelar
+                lblRubro, cboRubro, chkActivo, btnAceptar, btnCancelar
             });
 
             // Añadir panels al form
@@ -229,7 +245,8 @@ namespace Comercio.NET.Formularios
                             {
                                 var cmd = new SqlCommand(@"UPDATE Proveedores
                                                            SET Nombre = @Nombre, CUIT = @CUIT, Domicilio = @Domicilio,
-                                                               Telefono = @Telefono, Email = @Email, CondicionIVA = @Condicion, Activo = @Activo
+                                                               Telefono = @Telefono, Email = @Email, CondicionIVA = @Condicion,
+                                                               Rubro = @Rubro, Activo = @Activo
                                                            WHERE Id = @Id", conn, tx);
                                 cmd.Parameters.AddWithValue("@Nombre", txtNombre.Text.Trim());
                                 cmd.Parameters.AddWithValue("@CUIT", string.IsNullOrWhiteSpace(txtCuit.Text) ? (object)DBNull.Value : txtCuit.Text.Trim());
@@ -237,6 +254,7 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@Telefono", string.IsNullOrWhiteSpace(txtTelefono.Text) ? (object)DBNull.Value : txtTelefono.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Email", string.IsNullOrWhiteSpace(txtEmail.Text) ? (object)DBNull.Value : txtEmail.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Condicion", string.IsNullOrWhiteSpace(txtCondicion.Text) ? (object)DBNull.Value : txtCondicion.Text.Trim());
+                                cmd.Parameters.AddWithValue("@Rubro", string.IsNullOrWhiteSpace(cboRubro.Text) ? (object)DBNull.Value : cboRubro.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
                                 cmd.Parameters.AddWithValue("@Id", proveedorId.Value);
                                 await cmd.ExecuteNonQueryAsync();
@@ -247,8 +265,8 @@ namespace Comercio.NET.Formularios
                             else
                             {
                                 var cmd = new SqlCommand(@"INSERT INTO Proveedores
-                                                           (Nombre, CUIT, Domicilio, Telefono, Email, CondicionIVA, Activo, FechaCreacion, UsuarioCreacion)
-                                                           VALUES (@Nombre, @CUIT, @Domicilio, @Telefono, @Email, @Condicion, @Activo, SYSUTCDATETIME(), @Usuario);
+                                                           (Nombre, CUIT, Domicilio, Telefono, Email, CondicionIVA, Rubro, Activo, FechaCreacion, UsuarioCreacion)
+                                                           VALUES (@Nombre, @CUIT, @Domicilio, @Telefono, @Email, @Condicion, @Rubro, @Activo, SYSUTCDATETIME(), @Usuario);
                                                            SELECT CAST(SCOPE_IDENTITY() AS INT);", conn, tx);
                                 cmd.Parameters.AddWithValue("@Nombre", txtNombre.Text.Trim());
                                 cmd.Parameters.AddWithValue("@CUIT", string.IsNullOrWhiteSpace(txtCuit.Text) ? (object)DBNull.Value : txtCuit.Text.Trim());
@@ -256,6 +274,7 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@Telefono", string.IsNullOrWhiteSpace(txtTelefono.Text) ? (object)DBNull.Value : txtTelefono.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Email", string.IsNullOrWhiteSpace(txtEmail.Text) ? (object)DBNull.Value : txtEmail.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Condicion", string.IsNullOrWhiteSpace(txtCondicion.Text) ? (object)DBNull.Value : txtCondicion.Text.Trim());
+                                cmd.Parameters.AddWithValue("@Rubro", string.IsNullOrWhiteSpace(cboRubro.Text) ? (object)DBNull.Value : cboRubro.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Activo", chkActivo.Checked);
                                 cmd.Parameters.AddWithValue("@Usuario", Environment.UserName ?? "Sistema");
 

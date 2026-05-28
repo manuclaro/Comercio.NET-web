@@ -326,6 +326,7 @@ namespace Comercio.NET.Formularios
                 int xIvaLabel = xControl + 80;
                 int xIvaControl = xIvaLabel + 50;
                 cmbIva = CrearComboBox(xIvaControl, yPos - 2, 80, new[] { "0.00", "10.50", "21.00", "27.00" });
+                cmbIva.Text = "21.00";
                 CrearLabelSecundario("IVA %:", xIvaLabel, yPos, 45);
                 panelContenido.Controls.Add(cmbIva);
                 yPos += margenCampo;
@@ -1310,6 +1311,9 @@ namespace Comercio.NET.Formularios
                 else if (control is CheckBox checkBox)
                     checkBox.Checked = checkBox.Name == "chkActivo"; // ✅ Activo por defecto
             }
+
+            if (cmbIva != null)
+                cmbIva.Text = "21.00";
 
             _datosOriginales = null;
             _precioModificadoManualmente = false;

@@ -204,7 +204,7 @@ namespace Comercio.NET.Formularios
             dgvIva.Columns.Add(new DataGridViewTextBoxColumn { Name = "ImporteIva", HeaderText = "IVA $", Width = 120 });
 
             var lblAlicuota = new Label { Text = "Alícuota %", Left = 8, Top = dgvIva.Bottom + 10, Width = 70 };
-            txtAlicuota = new TextBox { Left = lblAlicuota.Right + 6, Top = lblAlicuota.Top - 2, Width = 60 };
+            txtAlicuota = new TextBox { Left = lblAlicuota.Right + 6, Top = lblAlicuota.Top - 2, Width = 60, Text = "0" };
 
             var lblBase = new Label { Text = "Base", Left = txtAlicuota.Right + 12, Top = lblAlicuota.Top, Width = 40 };
             txtBase = new TextBox { Left = lblBase.Right + 6, Top = lblAlicuota.Top - 2, Width = 140 };
@@ -376,6 +376,7 @@ namespace Comercio.NET.Formularios
                 txtCuit.Text = p.Cuit ?? "";
                 txtDomicilio.Text = p.Domicilio ?? "";
                 txtTelefono.Text = p.Telefono ?? "";
+                txtBase.Focus();
             }
             else
             {

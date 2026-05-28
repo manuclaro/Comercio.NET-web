@@ -578,6 +578,7 @@ BEGIN
         [Telefono]         [nvarchar](80)   NULL,
         [Email]            [nvarchar](150)  NULL,
         [CondicionIVA]     [nvarchar](50)   NULL,
+        [Rubro]            [nvarchar](100)  NULL,
         [Observaciones]    [nvarchar](1000) NULL,
         [Activo]           [bit]            NOT NULL DEFAULT (1),
         [FechaCreacion]    [datetime2](7)   NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -588,6 +589,17 @@ BEGIN
 END
 ELSE
     PRINT 'Tabla Proveedores ya existe.'
+GO
+
+-- Migraci?n: agregar columna Rubro si no existe (para bases ya creadas)
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Proveedores' AND COLUMN_NAME = 'Rubro'
+)
+BEGIN
+    ALTER TABLE [dbo].[Proveedores] ADD [Rubro] [nvarchar](100) NULL
+    PRINT 'Columna Rubro agregada a Proveedores.'
+END
 GO
 
 -- ?????????????????????????????????????????????????????????????
