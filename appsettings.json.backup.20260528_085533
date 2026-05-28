@@ -1,8 +1,8 @@
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5433;Database=comercio;Username=postgres;Password=michael;",
-    "Testing": "Host=localhost;Port=5433;Database=comercio;Username=postgres;Password=michael;",
-    "Produccion": "Host=localhost;Port=5433;Database=comercio;Username=postgres;Password=michael;"
+    "DefaultConnection": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
+    "Testing": "Server=localhost;Database=comercio;Trusted_Connection=True;TrustServerCertificate=True;",
+    "Produccion": "Server=10.198.179.155,1433;Database=comercio;User Id=michael;Password=michael;TrustServerCertificate=True;"
   },
   "Comercio": {
     "Nombre": "Comercio",
@@ -66,7 +66,7 @@
     "RestringirRemitoPorPago": false,
     "UsarVistaPrevia": true,
     "LimitarFacturacion": true,
-    "MontoLimiteFacturacion": 25000.0
+    "MontoLimiteFacturacion": 25000.00
   },
   "Descuentos": {
     "OpcionesDisponibles": [
@@ -91,7 +91,7 @@
     "PosicionInicioProducto": 0,
     "LongitudCodigoProducto": 6,
     "PosicionInicioImporte": 6,
-    "LongitudParteEntera": 4,
-    "LongitudDecimales": 2
+    "LongitudParteEntera": 5,
+    "LongitudDecimales": 0
   }
 }

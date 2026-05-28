@@ -104,6 +104,14 @@ namespace Comercio.NET.Formularios
         private TextBox txtConnectionStringTesting, txtConnectionStringProduccion;
         private Button btnTestearConexionTesting, btnTestearConexionProduccion;
 
+        // NUEVO: Controles para configuración de códigos de barras de balanza
+        private Panel panelCodigosBarraBalanza;
+        private Button btnColapsarCodigosBarraBalanza;
+        private bool _codigosBarraBalanzaColapsado = false;
+        private CheckBox chkHabilitarCodigosBalanza;
+        private TextBox txtPrefijoInicio, txtLongitudTotal, txtLongitudCodigoProducto;
+        private TextBox txtLongitudParteEntera, txtLongitudDecimales;
+
         public ConfiguracionForm()
         {
             System.Diagnostics.Debug.WriteLine("[CONFIG] Iniciando ConfiguracionForm");
@@ -545,7 +553,7 @@ namespace Comercio.NET.Formularios
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new Size(650, 530); // AUMENTADO: Aumentar altura para la nueva sección
+            this.ClientSize = new Size(650, 650); // AUMENTADO: De 530 a 650 para la sección de códigos de barras
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -627,7 +635,7 @@ namespace Comercio.NET.Formularios
             panelPrincipal = new Panel
             {
                 Location = new Point(margin, currentY),
-                Size = new Size(panelWidth, 400), // AUMENTADO: más altura para la nueva sección
+                Size = new Size(panelWidth, 500), // AUMENTADO: De 400 a 500 para mostrar códigos de barras completo
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 AutoScroll = true
@@ -637,7 +645,7 @@ namespace Comercio.NET.Formularios
             // === CREAR TODAS LAS SECCIONES SIN POSICIONAMIENTO FIJO ===
             CrearTodasLasSecciones(panelWidth - 30);
 
-            currentY += 400; // AUMENTADO: Ajustar para el panel más grande
+            currentY += 500; // AUMENTADO: De 400 a 500 para ajustar al nuevo tamaño
 
             // Mensaje de estado
             lblMensaje = new Label
@@ -726,6 +734,10 @@ namespace Comercio.NET.Formularios
             // === SECCIÓN CUENTAS CORRIENTES ===
             panelCuentasCorrientes = CrearSeccionCuentasCorrientesColapsable("💳 CUENTAS CORRIENTES", 0, ancho);
             panelPrincipal.Controls.Add(panelCuentasCorrientes);
+
+            // === SECCIÓN CÓDIGOS DE BARRAS DE BALANZA ===
+            panelCodigosBarraBalanza = CrearSeccionCodigosBarraBalanzaColapsable("📊 CÓDIGOS DE BARRA DE BALANZA", 0, ancho);
+            panelPrincipal.Controls.Add(panelCodigosBarraBalanza);
 
             // === SECCIÓN BASE DE DATOS ===
             panelBaseDatos = CrearSeccionBaseDatos("🗄️ BASE DE DATOS", 0, ancho);
@@ -2188,6 +2200,20 @@ namespace Comercio.NET.Formularios
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Nombres CtaCte: {lstNombresCtaCte.Items.Count}");
                 System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Restringir Remito: {chkRestringirRemitoPorPago.Checked}");
 
+                // Cargar configuración de códigos de barras de balanza
+                var codigosBarraBalanza = _configuracionOriginal["CodigosBarraBalanza"];
+                if (codigosBarraBalanza != null)
+                {
+                    chkHabilitarCodigosBalanza.Checked = codigosBarraBalanza["Habilitado"]?.ToObject<bool>() ?? true;
+                    txtPrefijoInicio.Text = codigosBarraBalanza["PrefijoInicio"]?.ToString() ?? "50";
+                    txtLongitudTotal.Text = codigosBarraBalanza["LongitudTotal"]?.ToString() ?? "13";
+                    txtLongitudCodigoProducto.Text = codigosBarraBalanza["LongitudCodigoProducto"]?.ToString() ?? "6";
+                    txtLongitudParteEntera.Text = codigosBarraBalanza["LongitudParteEntera"]?.ToString() ?? "4";
+                    txtLongitudDecimales.Text = codigosBarraBalanza["LongitudDecimales"]?.ToString() ?? "2";
+
+                    System.Diagnostics.Debug.WriteLine($"[CONFIG] Cargado - Códigos Balanza Habilitado: {chkHabilitarCodigosBalanza.Checked}");
+                }
+
                 MostrarMensaje("✅ Configuración cargada correctamente", Color.Green);
                 
                 var timer = new System.Windows.Forms.Timer { Interval = 2000 };
@@ -2522,6 +2548,33 @@ namespace Comercio.NET.Formularios
 
                 // Cuentas corrientes
                 GuardarNombresCuentasCorrientes(nuevaConfiguracion);
+
+                // Códigos de barras de balanza
+                if (nuevaConfiguracion["CodigosBarraBalanza"] == null)
+                    nuevaConfiguracion["CodigosBarraBalanza"] = new JObject();
+
+                nuevaConfiguracion["CodigosBarraBalanza"]["Habilitado"] = chkHabilitarCodigosBalanza.Checked;
+                nuevaConfiguracion["CodigosBarraBalanza"]["PrefijoInicio"] = txtPrefijoInicio.Text.Trim();
+
+                if (int.TryParse(txtLongitudTotal.Text.Trim(), out int longitudTotal))
+                    nuevaConfiguracion["CodigosBarraBalanza"]["LongitudTotal"] = longitudTotal;
+
+                nuevaConfiguracion["CodigosBarraBalanza"]["PosicionInicioProducto"] = 0; // Siempre desde el inicio
+
+                if (int.TryParse(txtLongitudCodigoProducto.Text.Trim(), out int longitudProducto))
+                    nuevaConfiguracion["CodigosBarraBalanza"]["LongitudCodigoProducto"] = longitudProducto;
+
+                // La posición de inicio del importe es después del código del producto
+                nuevaConfiguracion["CodigosBarraBalanza"]["PosicionInicioImporte"] = longitudProducto;
+
+                if (int.TryParse(txtLongitudParteEntera.Text.Trim(), out int longitudEntera))
+                    nuevaConfiguracion["CodigosBarraBalanza"]["LongitudParteEntera"] = longitudEntera;
+
+                if (int.TryParse(txtLongitudDecimales.Text.Trim(), out int longitudDecimales))
+                    nuevaConfiguracion["CodigosBarraBalanza"]["LongitudDecimales"] = longitudDecimales;
+
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Códigos Balanza - Habilitado: {chkHabilitarCodigosBalanza.Checked}");
+                System.Diagnostics.Debug.WriteLine($"[SAVE] Códigos Balanza - Prefijo: {txtPrefijoInicio.Text.Trim()}");
 
                 // Connection string (si está habilitada la edición)
                 if (_edicionBaseDatosHabilitada)
@@ -3165,6 +3218,14 @@ namespace Comercio.NET.Formularios
             ActualizarPosicionesTodasLasSecciones();
         }
 
+        private void ToggleColapsarCodigosBarraBalanza()
+        {
+            _codigosBarraBalanzaColapsado = !_codigosBarraBalanzaColapsado;
+            ActualizarEstadoSeccion(panelCodigosBarraBalanza, "panelContenidoCodigosBarraBalanza",
+                _codigosBarraBalanzaColapsado, btnColapsarCodigosBarraBalanza, 35, 350);
+            ActualizarPosicionesTodasLasSecciones();
+        }
+
         private void ActualizarEstadoSeccion(Panel panel, string nombrePanelContenido, bool colapsado, Button botonColapsar, int alturaColapsada, int alturaExpandida)
         {
             var panelContenido = panel.Controls[nombrePanelContenido];
@@ -3277,6 +3338,10 @@ namespace Comercio.NET.Formularios
             // Sección Cuentas Corrientes
             panelCuentasCorrientes.Location = new Point(10, currentY);
             currentY += panelCuentasCorrientes.Height + spacing;
+
+            // Sección Códigos de Barras de Balanza
+            panelCodigosBarraBalanza.Location = new Point(10, currentY);
+            currentY += panelCodigosBarraBalanza.Height + spacing;
 
             // Sección Base de Datos
             panelBaseDatos.Location = new Point(10, currentY);
@@ -3861,6 +3926,270 @@ namespace Comercio.NET.Formularios
 
             // Configurar eventos
             EventHandler clickHandler = (s, e) => ToggleColapsarCuentasCorrientes();
+            panelHeader.Click += clickHandler;
+            lblTitulo.Click += clickHandler;
+
+            return panel;
+        }
+
+        // NUEVO: Método para crear la sección de códigos de barras de balanza
+        private Panel CrearSeccionCodigosBarraBalanzaColapsable(string titulo, int y, int ancho)
+        {
+            var panel = new Panel
+            {
+                Location = new Point(10, y),
+                Size = new Size(ancho, 35),
+                BackColor = Color.FromArgb(248, 250, 252),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // Header con título y botón colapsar
+            var panelHeader = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(ancho, 30),
+                BackColor = Color.FromArgb(230, 235, 240),
+                Cursor = Cursors.Hand
+            };
+            panel.Controls.Add(panelHeader);
+
+            var lblTitulo = new Label
+            {
+                Text = titulo,
+                Location = new Point(10, 6),
+                Size = new Size(ancho - 50, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(63, 81, 181),
+                Cursor = Cursors.Hand
+            };
+            panelHeader.Controls.Add(lblTitulo);
+
+            // Botón colapsar/expandir
+            btnColapsarCodigosBarraBalanza = new Button
+            {
+                Text = "▼",
+                Location = new Point(ancho - 35, 3),
+                Size = new Size(25, 24),
+                BackColor = Color.FromArgb(200, 200, 200),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseVisualStyleBackColor = false
+            };
+            btnColapsarCodigosBarraBalanza.FlatAppearance.BorderSize = 0;
+            panelHeader.Controls.Add(btnColapsarCodigosBarraBalanza);
+
+            // Contenido colapsable
+            var panelContenido = new Panel
+            {
+                Name = "panelContenidoCodigosBarraBalanza",
+                Location = new Point(0, 30),
+                Size = new Size(ancho, 320),
+                BackColor = Color.FromArgb(248, 250, 252),
+                Visible = true
+            };
+            panel.Controls.Add(panelContenido);
+
+            // === CHECKBOX HABILITAR ===
+            chkHabilitarCodigosBalanza = new CheckBox
+            {
+                Text = "Habilitar procesamiento de códigos de barras de balanza",
+                Location = new Point(15, 10),
+                Size = new Size(400, 25),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(62, 80, 100),
+                Checked = true
+            };
+            panelContenido.Controls.Add(chkHabilitarCodigosBalanza);
+
+            // Descripción
+            var lblDescripcion = new Label
+            {
+                Text = "Configure cómo se procesan los códigos de barras especiales generados por balanzas.",
+                Location = new Point(15, 40),
+                Size = new Size(550, 20),
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.Gray
+            };
+            panelContenido.Controls.Add(lblDescripcion);
+
+            int currentY = 70;
+
+            // === PREFIJO DE INICIO ===
+            var lblPrefijo = new Label
+            {
+                Text = "Prefijo de inicio:",
+                Location = new Point(15, currentY),
+                Size = new Size(150, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblPrefijo);
+
+            txtPrefijoInicio = new TextBox
+            {
+                Location = new Point(170, currentY - 2),
+                Size = new Size(80, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "50",
+                MaxLength = 3
+            };
+            panelContenido.Controls.Add(txtPrefijoInicio);
+
+            var lblPrefijoInfo = new Label
+            {
+                Text = "(Ej: \"50\" para códigos que comienzan con 50)",
+                Location = new Point(260, currentY),
+                Size = new Size(300, 20),
+                Font = new Font("Segoe UI", 7F, FontStyle.Italic),
+                ForeColor = Color.Gray
+            };
+            panelContenido.Controls.Add(lblPrefijoInfo);
+            currentY += 35;
+
+            // === LONGITUD TOTAL ===
+            var lblLongitudTotal = new Label
+            {
+                Text = "Longitud total del código:",
+                Location = new Point(15, currentY),
+                Size = new Size(150, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblLongitudTotal);
+
+            txtLongitudTotal = new TextBox
+            {
+                Location = new Point(170, currentY - 2),
+                Size = new Size(80, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "13",
+                MaxLength = 2
+            };
+            panelContenido.Controls.Add(txtLongitudTotal);
+            currentY += 35;
+
+            // === LONGITUD CÓDIGO PRODUCTO ===
+            var lblLongitudProducto = new Label
+            {
+                Text = "Long. código producto:",
+                Location = new Point(15, currentY),
+                Size = new Size(150, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblLongitudProducto);
+
+            txtLongitudCodigoProducto = new TextBox
+            {
+                Location = new Point(170, currentY - 2),
+                Size = new Size(80, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "6",
+                MaxLength = 2
+            };
+            panelContenido.Controls.Add(txtLongitudCodigoProducto);
+
+            var lblProductoInfo = new Label
+            {
+                Text = "(Dígitos para el código del producto desde el inicio)",
+                Location = new Point(260, currentY),
+                Size = new Size(300, 20),
+                Font = new Font("Segoe UI", 7F, FontStyle.Italic),
+                ForeColor = Color.Gray
+            };
+            panelContenido.Controls.Add(lblProductoInfo);
+            currentY += 35;
+
+            // === LONGITUD PARTE ENTERA PRECIO ===
+            var lblLongitudEntera = new Label
+            {
+                Text = "Long. parte entera precio:",
+                Location = new Point(15, currentY),
+                Size = new Size(150, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblLongitudEntera);
+
+            txtLongitudParteEntera = new TextBox
+            {
+                Location = new Point(170, currentY - 2),
+                Size = new Size(80, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "4",
+                MaxLength = 2
+            };
+            panelContenido.Controls.Add(txtLongitudParteEntera);
+            currentY += 35;
+
+            // === LONGITUD DECIMALES ===
+            var lblLongitudDecimales = new Label
+            {
+                Text = "Long. decimales precio:",
+                Location = new Point(15, currentY),
+                Size = new Size(150, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelContenido.Controls.Add(lblLongitudDecimales);
+
+            txtLongitudDecimales = new TextBox
+            {
+                Location = new Point(170, currentY - 2),
+                Size = new Size(80, 22),
+                Font = new Font("Segoe UI", 9F),
+                PlaceholderText = "2",
+                MaxLength = 1
+            };
+            panelContenido.Controls.Add(txtLongitudDecimales);
+
+            var lblDecimalesInfo = new Label
+            {
+                Text = "(Dígitos decimales después de la parte entera)",
+                Location = new Point(260, currentY),
+                Size = new Size(300, 20),
+                Font = new Font("Segoe UI", 7F, FontStyle.Italic),
+                ForeColor = Color.Gray
+            };
+            panelContenido.Controls.Add(lblDecimalesInfo);
+            currentY += 35;
+
+            // Ejemplo visual
+            var panelEjemplo = new Panel
+            {
+                Location = new Point(15, currentY),
+                Size = new Size(550, 75),
+                BackColor = Color.FromArgb(232, 245, 233),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            panelContenido.Controls.Add(panelEjemplo);
+
+            var lblEjemploTitulo = new Label
+            {
+                Text = "📝 Ejemplo con configuración actual:",
+                Location = new Point(10, 5),
+                Size = new Size(530, 15),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(76, 175, 80)
+            };
+            panelEjemplo.Controls.Add(lblEjemploTitulo);
+
+            var lblEjemplo = new Label
+            {
+                Text = "Código: 5099971710006 → Producto: 509997 | Precio: $1.710,00\n" +
+                       "Desglose: [509997] [1710] [00] [6(desc.)]\n" +
+                       "           Código   Entero Decimal Control",
+                Location = new Point(10, 25),
+                Size = new Size(530, 45),
+                Font = new Font("Consolas", 7.5F),
+                ForeColor = Color.FromArgb(62, 80, 100)
+            };
+            panelEjemplo.Controls.Add(lblEjemplo);
+
+            // Configurar eventos
+            EventHandler clickHandler = (s, e) => ToggleColapsarCodigosBarraBalanza();
             panelHeader.Click += clickHandler;
             lblTitulo.Click += clickHandler;
 

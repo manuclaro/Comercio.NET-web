@@ -1,4 +1,4 @@
-using ArcaWS;
+﻿using ArcaWS;
 using Comercio.NET.Controles;
 using Comercio.NET.Formularios;
 using Comercio.NET.Models;
@@ -10,7 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using Npgsql;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.Globalization;
@@ -450,16 +450,16 @@ namespace Comercio.NET
                         try
                         {
                             string connectionString = GetConnectionString();
-                            using (var connection = new NpgsqlConnection(connectionString))
+                            using (var connection = new SqlConnection(connectionString))
                             {
                                 await connection.OpenAsync();
 
                                 var query = @"
-                                            INSERT INTO ctacteproveedores
-                                                (Fecha, Proveedor, Debe, Haber, Concepto, Usuario, FechaRegistro)
+                                            INSERT INTO CtaCteProveedores
+                                                (Fecha, Proveedor, Debe, Haber, Concepto, Usuario)
                                             VALUES
-                                                (@Fecha, @Proveedor, @Debe, @Haber, @Concepto, @Usuario, @FechaRegistro)";
-                                using (var cmd = new NpgsqlCommand(query, connection))
+                                                (@Fecha, @Proveedor, @Debe, @Haber, @Concepto, @Usuario)";
+                                using (var cmd = new SqlCommand(query, connection))
                                 {
                                     cmd.Parameters.AddWithValue("@Fecha", DateTime.Now);
                                     cmd.Parameters.AddWithValue("@Proveedor", dialogoPago.ProveedorSeleccionado ?? "");
@@ -467,7 +467,6 @@ namespace Comercio.NET
                                     cmd.Parameters.AddWithValue("@Haber", dialogoPago.Monto); // Haber=importe pagado
                                     cmd.Parameters.AddWithValue("@Concepto", $"Pago proveedor - {dialogoPago.MetodoPago} - {dialogoPago.Referencia}");
                                     cmd.Parameters.AddWithValue("@Usuario", ObtenerUsuarioActual());
-                                    cmd.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
                                     await cmd.ExecuteNonQueryAsync();
                                 }
                             }
@@ -503,21 +502,21 @@ namespace Comercio.NET
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
 
                     var query = @"
                         SELECT COUNT(*) 
-                        FROM turnoscajero 
-                        WHERE numerocajero = @numeroCajero 
-                        AND estado = 'Abierto'";
+                        FROM TurnosCajero 
+                        WHERE NumeroCajero = @numeroCajero 
+                        AND Estado = 'Abierto'";
 
-                    using (var cmd = new NpgsqlCommand(query, connection))
+                    using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
-                        long count = (long)cmd.ExecuteScalar();
+                        int count = (int)cmd.ExecuteScalar();
                         return count > 0;
                     }
                 }
@@ -624,12 +623,12 @@ namespace Comercio.NET
             {
                 string connectionString = GetConnectionString();
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     var query = @"SELECT rubro, marca, proveedor, costo, cantidad as stock, iva 
-                                  FROM productos WHERE codigo = @codigo";
+                                  FROM Productos WHERE codigo = @codigo";
 
-                    using (var cmd = new NpgsqlCommand(query, connection))
+                    using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo ?? "");
                         connection.Open();
@@ -742,11 +741,15 @@ namespace Comercio.NET
 
             string connectionString = GetConnectionString();
 
-            using (var connection = new NpgsqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
-                // PostgreSQL no requiere SET ARITHABORT
+                // ✅✅✅ CRÍTICO: Configurar ARITHABORT ANTES de cualquier operación
+                using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                {
+                    await cmdConfig.ExecuteNonQueryAsync();
+                }
 
                 using (var transaction = connection.BeginTransaction())
                 {
@@ -760,11 +763,11 @@ namespace Comercio.NET
 
                         var queryObtenerDatos = @"
                     SELECT v.codigo, v.descripcion, v.cantidad, p.precio as precio_producto 
-                    FROM ventas v
+                    FROM Ventas v
                     INNER JOIN Productos p ON v.codigo = p.codigo
                     WHERE v.id = @idVenta";
 
-                        using (var cmd = new NpgsqlCommand(queryObtenerDatos, connection, transaction))
+                        using (var cmd = new SqlCommand(queryObtenerDatos, connection, transaction))
                         {
                             cmd.Parameters.AddWithValue("@idVenta", idVenta);
 
@@ -793,18 +796,18 @@ namespace Comercio.NET
                             int numeroCajero = obtenerNumeroCajero();
 
                             string queryAuditoria = @"
-INSERT INTO auditoriaproductoseliminados 
-     (codigoproducto, descripcionproducto, preciounitario, cantidad, 
-      totaleliminado, numerofactura, fechahoraventaoriginal, fechaeliminacion, 
-      motivoeliminacion, esctacte, nombrectacte, usuarioeliminacion, 
-      numerocajero, nombreequipo, eseliminacioncompleta, cantidadoriginal)
-VALUES 
-    (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
-     @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
-     @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
-     @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
+                INSERT INTO AuditoriaProductosEliminados 
+                    (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+                     TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+                     MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+                     NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
+                VALUES 
+                    (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
+                     @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
+                     @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
+                     @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
 
-                            using (var cmdAudit = new NpgsqlCommand(queryAuditoria, connection, transaction))
+                            using (var cmdAudit = new SqlCommand(queryAuditoria, connection, transaction))
                             {
                                 cmdAudit.Parameters.AddWithValue("@CodigoProducto", codigo);
                                 cmdAudit.Parameters.AddWithValue("@DescripcionProducto", descripcion);
@@ -815,12 +818,12 @@ VALUES
                                 cmdAudit.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
                                 cmdAudit.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
                                 cmdAudit.Parameters.AddWithValue("@MotivoEliminacion", "REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL");
-                                cmdAudit.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                                cmdAudit.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte?.Checked ?? false);
                                 cmdAudit.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
                                 cmdAudit.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
                                 cmdAudit.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
                                 cmdAudit.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-                                cmdAudit.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                                cmdAudit.Parameters.AddWithValue("@EsEliminacionCompleta", false);
                                 cmdAudit.Parameters.AddWithValue("@CantidadOriginal", cantidadActual);
 
                                 await cmdAudit.ExecuteNonQueryAsync();
@@ -932,7 +935,7 @@ VALUES
                         }
 
                         // ✅✅✅ CRÍTICO: UPDATE COMPLETO incluyendo campos de oferta
-                        var query = @"UPDATE ventas 
+                        var query = @"UPDATE Ventas 
                       SET cantidad = @nuevaCantidad, 
                           precio = @precio,
                           total = @nuevaCantidad * @precio,
@@ -944,7 +947,7 @@ VALUES
                           EsOferta = @EsOferta
                       WHERE id = @idVenta";
 
-                        using (var cmd = new NpgsqlCommand(query, connection, transaction))
+                        using (var cmd = new SqlCommand(query, connection, transaction))
                         {
                             cmd.Parameters.AddWithValue("@nuevaCantidad", nuevaCantidad);
                             cmd.Parameters.AddWithValue("@precio", precioFinal);
@@ -957,7 +960,7 @@ VALUES
                                 cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
                                 cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
                                 cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioFinal, 2));
-                                cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                                cmd.Parameters.AddWithValue("@EsOferta", 1);
                             }
                             else
                             {
@@ -966,7 +969,7 @@ VALUES
                                 cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                                cmd.Parameters.AddWithValue("@EsOferta", 0);
                             }
 
                             await cmd.ExecuteNonQueryAsync();
@@ -1174,11 +1177,15 @@ VALUES
             string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? Environment.UserName;
             int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
 
-            using (var connection = new NpgsqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
-                // PostgreSQL no requiere SET ARITHABORT
+                // ✅ CRÍTICO: Configurar ARITHABORT ANTES de la transacción
+                using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                {
+                    await cmdConfig.ExecuteNonQueryAsync();
+                }
 
                 using (var transaction = connection.BeginTransaction())
                 {
@@ -1192,10 +1199,10 @@ VALUES
 
                         var queryObtenerDatos = @"
                     SELECT codigo, descripcion, precio, cantidad, total
-                    FROM ventas 
+                    FROM Ventas 
                     WHERE id = @idVenta";
 
-                        using (var cmdDatos = new NpgsqlCommand(queryObtenerDatos, connection, transaction))
+                        using (var cmdDatos = new SqlCommand(queryObtenerDatos, connection, transaction))
                         {
                             cmdDatos.Parameters.AddWithValue("@idVenta", idVenta);
 
@@ -1231,9 +1238,9 @@ VALUES
                         if (eliminarCompleto)
                         {
                             // Eliminar la línea completa
-                            var queryEliminar = @"DELETE FROM ventas WHERE id = @idVenta";
+                            var queryEliminar = @"DELETE FROM Ventas WHERE id = @idVenta";
 
-                            using (var cmd = new NpgsqlCommand(queryEliminar, connection, transaction))
+                            using (var cmd = new SqlCommand(queryEliminar, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@idVenta", idVenta);
                                 int filasEliminadas = await cmd.ExecuteNonQueryAsync();
@@ -1256,10 +1263,10 @@ VALUES
                             decimal precioOriginal = 0m;
                             var queryPrecioOriginal = @"
                         SELECT p.precio 
-                        FROM productos p 
+                        FROM Productos p 
                         WHERE p.codigo = @codigo";
 
-                            using (var cmd = new NpgsqlCommand(queryPrecioOriginal, connection, transaction))
+                            using (var cmd = new SqlCommand(queryPrecioOriginal, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@codigo", codigoReal);
                                 var result = await cmd.ExecuteScalarAsync();
@@ -1325,7 +1332,7 @@ VALUES
 
                             // ✅ UPDATE de cantidad
                             var queryActualizar = @"
-                        UPDATE ventas 
+                        UPDATE Ventas 
                         SET cantidad = @cantidadRestante,
                             precio = @precioFinal,
                             total = @cantidadRestante * @precioFinal,
@@ -1337,7 +1344,7 @@ VALUES
                             EsOferta = @EsOferta
                         WHERE id = @idVenta";
 
-                            using (var cmd = new NpgsqlCommand(queryActualizar, connection, transaction))
+                            using (var cmd = new SqlCommand(queryActualizar, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@cantidadRestante", cantidadRestante);
                                 cmd.Parameters.AddWithValue("@precioFinal", precioFinal);
@@ -1350,7 +1357,7 @@ VALUES
                                     cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
                                     cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
                                     cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioFinal, 2));
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                                    cmd.Parameters.AddWithValue("@EsOferta", 1);
                                 }
                                 else
                                 {
@@ -1359,7 +1366,7 @@ VALUES
                                     cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                     cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                     cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                                    cmd.Parameters.AddWithValue("@EsOferta", 0);
                                 }
 
                                 int filasActualizadas = await cmd.ExecuteNonQueryAsync();
@@ -1427,8 +1434,8 @@ VALUES
 
         // ✅ NUEVO: Método helper para registrar auditoría (evita duplicación de código)
         private async Task RegistrarAuditoriaEliminacion(
-            NpgsqlConnection connection,
-            NpgsqlTransaction transaction,
+            SqlConnection connection,
+            SqlTransaction transaction,
             string codigo,
             string descripcion,
             decimal precio,
@@ -1438,18 +1445,18 @@ VALUES
             string motivo)
         {
             var queryAuditoria = @"
-        INSERT INTO auditoriaproductoseliminados 
-            (codigoproducto, descripcionproducto, preciounitario, cantidad, 
-             totaleliminado, numerofactura, fechahoraventaoriginal, fechaeliminacion, 
-             motivoeliminacion, esctacte, nombrectacte, usuarioeliminacion, 
-             numerocajero, nombreequipo, eseliminacioncompleta, cantidadoriginal)
+        INSERT INTO AuditoriaProductosEliminados 
+            (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+             TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+             MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+             NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
         VALUES 
             (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
              @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
              @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
              @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
 
-            using (var cmd = new NpgsqlCommand(queryAuditoria, connection, transaction))
+            using (var cmd = new SqlCommand(queryAuditoria, connection, transaction))
             {
                 // ✅ CRÍTICO: Calcular el total correctamente
                 decimal totalEliminado = precio * cantidadEliminada;
@@ -1463,7 +1470,7 @@ VALUES
                 cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
                 cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
                 cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
-                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte?.Checked ?? false);
                 cmd.Parameters.AddWithValue("@NombreCtaCte",
                     chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
                 cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
@@ -1472,7 +1479,7 @@ VALUES
 
                 // ✅ CRÍTICO: Determinar si es eliminación completa comparando con cantidad original
                 // Como no tenemos cantidadOriginal aquí, lo dejamos en NULL
-                cmd.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = DBNull.Value });
+                cmd.Parameters.AddWithValue("@EsEliminacionCompleta", DBNull.Value);
                 cmd.Parameters.AddWithValue("@CantidadOriginal", DBNull.Value);
 
                 int filasAuditoria = await cmd.ExecuteNonQueryAsync();
@@ -2019,18 +2026,58 @@ VALUES
         // NUEVO: Implementar método ProcesarCodigo
         private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
         {
-            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+            // Cargar configuración de códigos de barras de balanza
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            bool habilitado = config.GetSection("CodigosBarraBalanza:Habilitado").Get<bool>();
+            string prefijoInicio = config.GetSection("CodigosBarraBalanza:PrefijoInicio").Value ?? "50";
+            int longitudTotal = config.GetSection("CodigosBarraBalanza:LongitudTotal").Get<int>();
+            int posicionInicioProducto = config.GetSection("CodigosBarraBalanza:PosicionInicioProducto").Get<int>();
+            int longitudCodigoProducto = config.GetSection("CodigosBarraBalanza:LongitudCodigoProducto").Get<int>();
+            int posicionInicioImporte = config.GetSection("CodigosBarraBalanza:PosicionInicioImporte").Get<int>();
+            int longitudParteEntera = config.GetSection("CodigosBarraBalanza:LongitudParteEntera").Get<int>();
+            int longitudDecimales = config.GetSection("CodigosBarraBalanza:LongitudDecimales").Get<int>();
+
+            if (habilitado && textoIngresado.StartsWith(prefijoInicio) && textoIngresado.Length == longitudTotal)
             {
                 // Código especial de balanza
-                // ✅ CORREGIDO: Extraer desde posición 0 para incluir el "50"
-                string codigoProducto = textoIngresado.Substring(0, 7); // Posiciones 0-6 = "50" + 5 dígitos
+                string codigoProducto = textoIngresado.Substring(posicionInicioProducto, longitudCodigoProducto);
                 codigoProducto = codigoProducto.TrimStart('0');
                 if (string.IsNullOrEmpty(codigoProducto))
                     codigoProducto = "0";
 
-                // El precio sigue estando en las posiciones 7-11
-                string parteEntera = textoIngresado.Substring(7, 5);
-                decimal precio = decimal.Parse(parteEntera);
+                // Extraer el precio según configuración
+                decimal precio;
+
+                if (longitudDecimales == 0)
+                {
+                    // Modo centavos: el número completo representa centavos
+                    // Ejemplo: "17100" = 171.00
+                    string valorCentavos = textoIngresado.Substring(posicionInicioImporte, longitudParteEntera);
+                    if (decimal.TryParse(valorCentavos, out decimal centavos))
+                    {
+                        precio = centavos / 100m; // Convertir centavos a pesos
+                    }
+                    else
+                    {
+                        precio = 0m;
+                    }
+                }
+                else
+                {
+                    // Modo tradicional: parte entera + decimales
+                    string parteEntera = textoIngresado.Substring(posicionInicioImporte, longitudParteEntera);
+                    string parteDecimal = textoIngresado.Substring(posicionInicioImporte + longitudParteEntera, longitudDecimales);
+
+                    // DEBUG: Verificar los valores extraídos
+                    System.Diagnostics.Debug.WriteLine($"[BALANZA] Parte entera: '{parteEntera}', Decimales: '{parteDecimal}'");
+
+                    // Parsear solo la parte entera, ignorando los decimales
+                    precio = decimal.Parse(parteEntera);
+                }
 
                 return (codigoProducto, precio, true);
             }
@@ -2182,11 +2229,11 @@ VALUES
 
                 string connectionString = GetConnectionString();
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     // CORREGIDO: Usar el ID único en lugar del código + nrofactura
-                    var query = "DELETE FROM ventas WHERE id = @idVenta";
-                    using (var cmd = new NpgsqlCommand(query, connection))
+                    var query = "DELETE FROM Ventas WHERE id = @idVenta";
+                    using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@idVenta", idVenta);
 
@@ -2495,15 +2542,15 @@ VALUES
             {
                 string connectionString = GetConnectionString();
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     // ✅ CRÍTICO: Actualizar el precio SOLO para productos con EditarPrecio = true
-                    var query = @"UPDATE productos 
+                    var query = @"UPDATE Productos 
                           SET precio = @precio 
                           WHERE codigo = @codigo 
-                          AND editarprecio = B'1'";
+                          AND EditarPrecio = 1";
 
-                    using (var cmd = new NpgsqlCommand(query, connection))
+                    using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
@@ -3038,7 +3085,7 @@ VALUES
         {
             string connectionString = GetConnectionString();
 
-            using (var connection = new NpgsqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"
             INSERT INTO RetirosEfectivo 
@@ -3048,7 +3095,7 @@ VALUES
                 (@Monto, @Motivo, @Responsable, @NumeroCajero, @UsuarioRegistro,
                  @FechaRetiro, @NumeroRemito, @NombreEquipo)";
 
-                using (var cmd = new NpgsqlCommand(query, connection))
+                using (var cmd = new SqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@Monto", monto);
                     cmd.Parameters.AddWithValue("@Motivo", motivo);
@@ -3110,12 +3157,12 @@ VALUES
 
             if (precioPersonalizado.HasValue)
             {
-                txtPrecio.Text = precioPersonalizado.Value.ToString("F0");
+                txtPrecio.Text = precioPersonalizado.Value.ToString("0"); // Solo número entero sin decimales
                 lbDescripcionProducto.Text += " (Precio Balanza)";
             }
             else
             {
-                txtPrecio.Text = Convert.ToDecimal(producto["precio"]).ToString("N2");
+                txtPrecio.Text = Convert.ToDecimal(producto["precio"]).ToString("0.00"); // Sin separador de miles
             }
 
             txtPrecio.Enabled = editarPrecio;
@@ -3127,7 +3174,7 @@ VALUES
                 try
                 {
                     decimal precioActualEnBD = Convert.ToDecimal(producto["precio"]);
-                    if (decimal.TryParse(txtPrecio.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal precioMostrado))
+                    if (decimal.TryParse(txtPrecio.Text.Replace(".", ","), NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioMostrado))
                     {
                         // ✅ MEJORADO: Comparar con tolerancia de 0.01 centavos
                         if (Math.Abs(precioMostrado - precioActualEnBD) > 0.01m)
@@ -3160,17 +3207,17 @@ VALUES
 
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using var connection = new NpgsqlConnection(connectionString);
+            using var connection = new SqlConnection(connectionString);
 
             // ✅ MODIFICADO: Agregar validación del campo Activo
             var query = @"SELECT codigo, descripcion, precio, cantidad, marca, rubro, costo, proveedor, 
-                         COALESCE(activo, B'1') = B'1' as activo,
-                         COALESCE(permiteacumular, B'0') = B'1' as permiteacumular,
-                         COALESCE(editarprecio, B'0') = B'1' as editarprecio
-                  FROM productos 
-                  WHERE codigo = @codigo AND COALESCE(activo, B'1') = B'1'";
+                         CAST(ISNULL(Activo, 1) AS BIT) as Activo,
+                         CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular,
+                         CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio
+                  FROM Productos 
+                  WHERE codigo = @codigo AND ISNULL(Activo, 1) = 1";  // ✅ VALIDAR QUE ESTÉ ACTIVO
 
-            using var adapter = new NpgsqlDataAdapter(query, connection);
+            using var adapter = new SqlDataAdapter(query, connection);
             adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
 
             var dt = new DataTable();
@@ -3184,10 +3231,10 @@ VALUES
             {
                 // ✅ NUEVO: Verificar si el producto existe pero está inactivo
                 var queryInactivo = @"SELECT codigo, descripcion 
-                              FROM productos 
-                              WHERE codigo = @codigo AND COALESCE(activo, B'1') = B'0'";
+                              FROM Productos 
+                              WHERE codigo = @codigo AND ISNULL(Activo, 1) = 0";
 
-                using var adapterInactivo = new NpgsqlDataAdapter(queryInactivo, connection);
+                using var adapterInactivo = new SqlDataAdapter(queryInactivo, connection);
                 adapterInactivo.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
 
                 var dtInactivo = new DataTable();
@@ -3363,8 +3410,8 @@ VALUES
             int idOferta,
             decimal precioGrupo,
             string nombreOferta,
-            NpgsqlConnection connection,
-            NpgsqlTransaction transaction)
+            SqlConnection connection,
+            SqlTransaction transaction)
         {
             try
             {
@@ -3375,14 +3422,14 @@ VALUES
 
                 // Obtener todos los códigos del grupo
                 var queryCodigosGrupo = @"
-                    SELECT p.codigo, p.precio AS preciooriginal
-                    FROM detalleofertasproductos d
-                    INNER JOIN productos p ON d.idproducto = p.id
-                    WHERE d.idoferta = @IdOferta";
+                    SELECT p.codigo, p.precio AS PrecioOriginal
+                    FROM DetalleOfertasProductos d
+                    INNER JOIN productos p ON d.IdProducto = p.ID
+                    WHERE d.IdOferta = @IdOferta";
 
                 var productosGrupo = new List<(string codigo, decimal precioOriginal)>();
 
-                using (var cmd = new NpgsqlCommand(queryCodigosGrupo, connection, transaction))
+                using (var cmd = new SqlCommand(queryCodigosGrupo, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@IdOferta", idOferta);
                     using (var reader = await cmd.ExecuteReaderAsync())
@@ -3391,7 +3438,7 @@ VALUES
                         {
                             productosGrupo.Add((
                                 reader["codigo"].ToString(),
-                                Convert.ToDecimal(reader["preciooriginal"])
+                                Convert.ToDecimal(reader["PrecioOriginal"])
                             ));
                         }
                     }
@@ -3407,24 +3454,23 @@ VALUES
                 foreach (var (codigo, precioOriginal) in productosGrupo)
                 {
                     var queryUpdate = @"
-                        UPDATE ventas
-                        SET precio            = @PrecioGrupo,
-                            total             = cantidad * @PrecioGrupo,
-                            idoferta          = @IdOferta,
-                            nombreoferta      = @NombreOferta,
-                            esoferta          = @EsOferta,
-                            preciooriginal    = @PrecioOriginal,
-                            precioconoferta   = @PrecioGrupo,
-                            descuentoaplicado = @PrecioOriginal - @PrecioGrupo
+                        UPDATE Ventas
+                        SET precio          = @PrecioGrupo,
+                            total           = cantidad * @PrecioGrupo,
+                            IdOferta        = @IdOferta,
+                            NombreOferta    = @NombreOferta,
+                            EsOferta        = 1,
+                            PrecioOriginal  = @PrecioOriginal,
+                            PrecioConOferta = @PrecioGrupo,
+                            DescuentoAplicado = @PrecioOriginal - @PrecioGrupo
                         WHERE nrofactura = @nrofactura
                           AND codigo     = @codigo";
 
-                    using (var cmd = new NpgsqlCommand(queryUpdate, connection, transaction))
+                    using (var cmd = new SqlCommand(queryUpdate, connection, transaction))
                     {
                         cmd.Parameters.AddWithValue("@PrecioGrupo", precioGrupo);
                         cmd.Parameters.AddWithValue("@IdOferta", idOferta);
                         cmd.Parameters.AddWithValue("@NombreOferta", nombreOferta);
-                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
                         cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
                         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
@@ -3487,12 +3533,12 @@ VALUES
 
                 // ── 1. Buscar producto en BD ──────────────────────────────────────────
                 DataRow producto = null;
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     var query = @"SELECT codigo, descripcion, precio, rubro, marca, proveedor, costo,
                                          PermiteAcumular, cantidad, EditarPrecio, iva
-                                  FROM productos WHERE codigo = @codigo";
-                    using (var adapter = new NpgsqlDataAdapter(query, connection))
+                                  FROM Productos WHERE codigo = @codigo";
+                    using (var adapter = new SqlDataAdapter(query, connection))
                     {
                         adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigoBuscado);
                         var dt = new DataTable();
@@ -3549,17 +3595,17 @@ VALUES
                 // ── 3. Incrementar número de remito (solo una vez por venta) ─────────
                 if (!remitoIncrementado)
                 {
-                    using (var connection = new NpgsqlConnection(connectionString))
+                    using (var connection = new SqlConnection(connectionString))
                     {
                         connection.Open();
-                        using (var cmd = new NpgsqlCommand("UPDATE numeroremito SET nroremito = nroremito + 1", connection))
+                        using (var cmd = new SqlCommand("UPDATE numeroremito SET nroremito = nroremito + 1", connection))
                             cmd.ExecuteNonQuery();
                     }
 
-                    using (var connection = new NpgsqlConnection(connectionString))
+                    using (var connection = new SqlConnection(connectionString))
                     {
                         connection.Open();
-                        using (var cmd = new NpgsqlCommand("SELECT nroremito FROM numeroremito", connection))
+                        using (var cmd = new SqlCommand("SELECT nroremito FROM numeroremito", connection))
                         {
                             var result = cmd.ExecuteScalar();
                             if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
@@ -3590,7 +3636,7 @@ VALUES
                 }
                 else if (editarPrecio && !string.IsNullOrWhiteSpace(txtPrecio.Text))
                 {
-                    if (decimal.TryParse(txtPrecio.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal precioManual))
+                    if (decimal.TryParse(txtPrecio.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal precioManual))
                     {
                         precioUnitario = precioManual;
 
@@ -3639,9 +3685,11 @@ VALUES
                         bool comboYaCompleto = false;
                         decimal precioProrrateadoPreexistente = 0m;
 
-                        using (var connection = new NpgsqlConnection(connectionString))
+                        using (var connection = new SqlConnection(connectionString))
                         {
                             await connection.OpenAsync();
+                            using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                                await cmdConfig.ExecuteNonQueryAsync();
 
                             using (var transaction = connection.BeginTransaction())
                             {
@@ -3687,10 +3735,10 @@ VALUES
 
                 // ── 6. Obtener IVA del producto ───────────────────────────────────────
                 decimal porcentajeIva = 0m;
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
-                    using (var cmd = new NpgsqlCommand("SELECT iva FROM productos WHERE codigo = @codigo", connection))
+                    using (var cmd = new SqlCommand("SELECT iva FROM Productos WHERE codigo = @codigo", connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigoBuscado ?? "");
                         var result = await cmd.ExecuteScalarAsync();
@@ -3711,14 +3759,13 @@ VALUES
                 int cantidadActual = 0;
                 int idVentaExistente = 0;
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    var query = @"SELECT id, cantidad FROM ventas
+                    var query = @"SELECT TOP 1 id, cantidad FROM Ventas
                                   WHERE nrofactura = @nrofactura AND codigo = @codigo
-                                  ORDER BY id DESC
-                                  LIMIT 1";
-                    using (var cmd = new NpgsqlCommand(query, connection))
+                                  ORDER BY id DESC";
+                    using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
@@ -3737,11 +3784,12 @@ VALUES
                 }
 
                 // ── 8. INSERT / UPDATE en la tabla Ventas ────────────────────────────
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
-
+                    using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                        await cmdConfig.ExecuteNonQueryAsync();
 
                     using (var transaction = connection.BeginTransaction())
                     {
@@ -3771,26 +3819,26 @@ VALUES
                                 }
 
                                 // Eliminar fila existente y re-insertar al principio (ORDER BY id DESC)
-                                using (var cmdEliminar = new NpgsqlCommand(
-                                    "DELETE FROM ventas WHERE id = @idVenta", connection, transaction))
+                                using (var cmdEliminar = new SqlCommand(
+                                    "DELETE FROM Ventas WHERE id = @idVenta", connection, transaction))
                                 {
                                     cmdEliminar.Parameters.AddWithValue("@idVenta", idVentaExistente);
                                     await cmdEliminar.ExecuteNonQueryAsync();
                                     System.Diagnostics.Debug.WriteLine($"🗑️ Fila existente ELIMINADA - ID: {idVentaExistente}");
                                 }
 
-                                var queryInsert = @"INSERT INTO ventas
-                                    (nrofactura, codigo, descripcion, cantidad, precio, total,
-                                     ivacalculado, porcentajeiva,
-                                     idoferta, nombreoferta, preciooriginal, precioconoferta, descuentoaplicado, esoferta,
-                                     rubro, marca, proveedor, costo, fecha, hora, esctacte, nombrectacte)
+                                var queryInsert = @"INSERT INTO Ventas
+                                    (NroFactura, codigo, descripcion, cantidad, precio, total,
+                                     IvaCalculado, PorcentajeIva,
+                                     IdOferta, NombreOferta, PrecioOriginal, PrecioConOferta, DescuentoAplicado, EsOferta,
+                                     rubro, marca, proveedor, costo, fecha, hora, EsCtaCte, NombreCtaCte)
                                 VALUES
                                     (@NroFactura, @codigo, @descripcion, @cantidad, @precio, @total,
                                      @ivaCalculado, @porcentajeIva,
                                      @IdOferta, @NombreOferta, @PrecioOriginal, @PrecioConOferta, @DescuentoAplicado, @EsOferta,
                                      @rubro, @marca, @proveedor, @costo, @fecha, @hora, @EsCtaCte, @NombreCtaCte)";
 
-                                using (var cmd = new NpgsqlCommand(queryInsert, connection, transaction))
+                                using (var cmd = new SqlCommand(queryInsert, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@NroFactura", nroRemitoActual);
                                     cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
@@ -3806,8 +3854,8 @@ VALUES
                                     cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
                                     cmd.Parameters.AddWithValue("@costo", producto["costo"]);
                                     cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
-                                    cmd.Parameters.AddWithValue("@hora", DateTime.Now);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte.Checked });
+                                    cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
+                                    cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
                                     cmd.Parameters.AddWithValue("@NombreCtaCte",
                                         chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
@@ -3819,7 +3867,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado",
                                             Math.Round(precioOriginal - precioFinal, 2));
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                                        cmd.Parameters.AddWithValue("@EsOferta", 1);
                                     }
                                     else
                                     {
@@ -3828,7 +3876,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                                        cmd.Parameters.AddWithValue("@EsOferta", 0);
                                     }
 
                                     await cmd.ExecuteNonQueryAsync();
@@ -3855,18 +3903,18 @@ VALUES
                                 // ── 8b. Producto nuevo ────────────────────────────────
                                 decimal precioOriginal = Convert.ToDecimal(producto["precio"]);
 
-                                var query = @"INSERT INTO ventas
-                                    (nrofactura, codigo, descripcion, cantidad, precio, total,
-                                     ivacalculado, porcentajeiva,
-                                     idoferta, nombreoferta, preciooriginal, precioconoferta, descuentoaplicado, esoferta,
-                                     rubro, marca, proveedor, costo, fecha, hora, esctacte, nombrectacte)
+                                var query = @"INSERT INTO Ventas
+                                    (NroFactura, codigo, descripcion, cantidad, precio, total,
+                                     IvaCalculado, PorcentajeIva,
+                                     IdOferta, NombreOferta, PrecioOriginal, PrecioConOferta, DescuentoAplicado, EsOferta,
+                                     rubro, marca, proveedor, costo, fecha, hora, EsCtaCte, NombreCtaCte)
                                 VALUES
                                     (@NroFactura, @codigo, @descripcion, @cantidad, @precio, @total,
                                      @ivaCalculado, @porcentajeIva,
                                      @IdOferta, @NombreOferta, @PrecioOriginal, @PrecioConOferta, @DescuentoAplicado, @EsOferta,
                                      @rubro, @marca, @proveedor, @costo, @fecha, @hora, @EsCtaCte, @NombreCtaCte)";
 
-                                using (var cmd = new NpgsqlCommand(query, connection, transaction))
+                                using (var cmd = new SqlCommand(query, connection, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@NroFactura", nroRemitoActual);
                                     cmd.Parameters.AddWithValue("@codigo", producto["codigo"]);
@@ -3881,8 +3929,8 @@ VALUES
                                     cmd.Parameters.AddWithValue("@proveedor", producto["proveedor"]);
                                     cmd.Parameters.AddWithValue("@costo", producto["costo"]);
                                     cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
-                                    cmd.Parameters.AddWithValue("@hora", DateTime.Now);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte.Checked });
+                                    cmd.Parameters.AddWithValue("@hora", DateTime.Now.ToString("HH:mm:ss"));
+                                    cmd.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte.Checked);
                                     cmd.Parameters.AddWithValue("@NombreCtaCte",
                                         chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
@@ -3894,7 +3942,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", precioUnitario);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado",
                                             Math.Round(precioOriginal - precioUnitario, 2));
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                                        cmd.Parameters.AddWithValue("@EsOferta", 1);
                                     }
                                     else
                                     {
@@ -3903,7 +3951,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                                        cmd.Parameters.AddWithValue("@EsOferta", 0);
                                     }
 
                                     await cmd.ExecuteNonQueryAsync();
@@ -4052,10 +4100,10 @@ VALUES
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new NpgsqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))
             {
                 var query = "SELECT nroremito FROM numeroremito";
-                using (var cmd = new NpgsqlCommand(query, connection))
+                using (var cmd = new SqlCommand(query, connection))
                 {
                     connection.Open();
                     var result = cmd.ExecuteScalar();
@@ -4187,16 +4235,16 @@ VALUES
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new NpgsqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, 
-                 porcentajeiva, ivacalculado, 
-                 COALESCE(esoferta, B'0') = B'1' AS esoferta,
-                 nombreoferta
-          FROM ventas
+                 PorcentajeIva, IvaCalculado, 
+                 ISNULL(EsOferta, 0) AS EsOferta,
+                 NombreOferta
+          FROM Ventas
           WHERE nrofactura = @nrofactura
           ORDER BY id DESC";
-                using (var adapter = new NpgsqlDataAdapter(query, connection))
+                using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                     DataTable dt = new DataTable();
@@ -4261,7 +4309,7 @@ VALUES
                 colTotal.DefaultCellStyle.BackColor = dataGridView1.DefaultCellStyle.BackColor;
                 colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
                 colTotal.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                colTotal.Width = 180;
+                colTotal.Width = 140;
             }
 
             // IVA%: ancho fijo
@@ -4334,17 +4382,17 @@ VALUES
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new NpgsqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))
             {
                 var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, 
-                 porcentajeiva, ivacalculado, 
-                 COALESCE(esoferta, B'0') = B'1' AS esoferta,
-                 nombreoferta
-          FROM ventas
+                 PorcentajeIva, IvaCalculado, 
+                 ISNULL(EsOferta, 0) AS EsOferta,
+                 NombreOferta
+          FROM Ventas
           WHERE nrofactura = @nrofactura
           ORDER BY id DESC";
 
-                using (var adapter = new NpgsqlDataAdapter(query, connection))
+                using (var adapter = new SqlDataAdapter(query, connection))
                 {
                     adapter.SelectCommand.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
 
@@ -4419,7 +4467,7 @@ VALUES
                 colTotal.DefaultCellStyle.BackColor = dataGridView1.DefaultCellStyle.BackColor;
                 colTotal.DefaultCellStyle.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
                 colTotal.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                colTotal.Width = 180;
+                colTotal.Width = 140;
             }
 
             if (dataGridView1.Columns["PorcentajeIva"] != null)
@@ -4754,11 +4802,15 @@ VALUES
 
                 string connectionString = GetConnectionString();
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
-                    // PostgreSQL no requiere SET ARITHABORT
+                    // ✅✅✅ CRÍTICO: Configurar ARITHABORT ANTES de abrir la transacción
+                    using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection))
+                    {
+                        await cmdConfig.ExecuteNonQueryAsync();
+                    }
 
                     using (var transaction = connection.BeginTransaction())
                     {
@@ -4780,18 +4832,18 @@ VALUES
 
                                 // Insertar en AuditoriaProductosEliminados
                                 string queryAuditoria = @"
-                            INSERT INTO auditoriaproductoseliminados 
-                                (codigoproducto, descripcionproducto, preciounitario, cantidad, 
-                                 totaleliminado, numerofactura, fechahoraventaoriginal, fechaeliminacion, 
-                                 motivoeliminacion, esctacte, nombrectacte, usuarioeliminacion, 
-                                 numerocajero, nombreequipo, eseliminacioncompleta, cantidadoriginal)
+                            INSERT INTO AuditoriaProductosEliminados 
+                                (CodigoProducto, DescripcionProducto, PrecioUnitario, Cantidad, 
+                                 TotalEliminado, NumeroFactura, FechaHoraVentaOriginal, FechaEliminacion, 
+                                 MotivoEliminacion, EsCtaCte, NombreCtaCte, UsuarioEliminacion, 
+                                 NumeroCajero, NombreEquipo, EsEliminacionCompleta, CantidadOriginal)
                             VALUES 
                                 (@CodigoProducto, @DescripcionProducto, @PrecioUnitario, @Cantidad,
                                  @TotalEliminado, @NumeroFactura, @FechaHoraVentaOriginal, @FechaEliminacion,
                                  @MotivoEliminacion, @EsCtaCte, @NombreCtaCte, @UsuarioEliminacion,
                                  @NumeroCajero, @NombreEquipo, @EsEliminacionCompleta, @CantidadOriginal)";
 
-                                using (var cmdAudit = new NpgsqlCommand(queryAuditoria, connection, transaction))
+                                using (var cmdAudit = new SqlCommand(queryAuditoria, connection, transaction))
                                 {
                                     cmdAudit.Parameters.AddWithValue("@CodigoProducto", codigo ?? "");
                                     cmdAudit.Parameters.AddWithValue("@DescripcionProducto", descripcion ?? "");
@@ -4802,12 +4854,12 @@ VALUES
                                     cmdAudit.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
                                     cmdAudit.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
                                     cmdAudit.Parameters.AddWithValue("@MotivoEliminacion", motivo); // ✅ Motivo automático
-                                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                                    cmdAudit.Parameters.AddWithValue("@EsCtaCte", chkEsCtaCte?.Checked ?? false);
                                     cmdAudit.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
                                     cmdAudit.Parameters.AddWithValue("@UsuarioEliminacion", usuarioActual);
                                     cmdAudit.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
                                     cmdAudit.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-                                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                                    cmdAudit.Parameters.AddWithValue("@EsEliminacionCompleta", true);
                                     cmdAudit.Parameters.AddWithValue("@CantidadOriginal", cantidad);
 
                                     await cmdAudit.ExecuteNonQueryAsync();
@@ -4815,16 +4867,16 @@ VALUES
                             }
 
                             // Eliminar de la tabla Ventas
-                            string queryEliminarVentas = "DELETE FROM ventas WHERE nrofactura = @nroRemito";
-                            using (var cmdVentas = new NpgsqlCommand(queryEliminarVentas, connection, transaction))
+                            string queryEliminarVentas = "DELETE FROM Ventas WHERE nrofactura = @nroRemito";
+                            using (var cmdVentas = new SqlCommand(queryEliminarVentas, connection, transaction))
                             {
                                 cmdVentas.Parameters.AddWithValue("@nroRemito", nroRemitoActual);
                                 await cmdVentas.ExecuteNonQueryAsync();
                             }
 
                             // Eliminar de la tabla Facturas
-                            string queryEliminarFacturas = "DELETE FROM facturas WHERE numeroremito = @nroRemito";
-                            using (var cmdFacturas = new NpgsqlCommand(queryEliminarFacturas, connection, transaction))
+                            string queryEliminarFacturas = "DELETE FROM Facturas WHERE NumeroRemito = @nroRemito";
+                            using (var cmdFacturas = new SqlCommand(queryEliminarFacturas, connection, transaction))
                             {
                                 cmdFacturas.Parameters.AddWithValue("@nroRemito", nroRemitoActual);
                                 await cmdFacturas.ExecuteNonQueryAsync();
@@ -4939,7 +4991,7 @@ VALUES
 
             try
             {
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
                     using (var transaction = connection.BeginTransaction())
@@ -4948,12 +5000,12 @@ VALUES
                         {
                             // ✅ CRÍTICO: Verificar si ya existe una factura con este NumeroRemito
                             // Esto previene duplicados incluso si el código falla en bloquear la doble llamada
-                            using (var cmdCheck = new NpgsqlCommand(
-                                "SELECT COUNT(*) FROM facturas WHERE numeroremito = @NumeroRemito",
+                            using (var cmdCheck = new SqlCommand(
+                                "SELECT COUNT(*) FROM Facturas WHERE NumeroRemito = @NumeroRemito",
                                 connection, transaction))
                             {
                                 cmdCheck.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
-                                int existentes = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+                                int existentes = (int)await cmdCheck.ExecuteScalarAsync();
 
                                 if (existentes > 0)
                                 {
@@ -4973,28 +5025,28 @@ VALUES
                             int numeroCajero = obtenerNumeroCajero();
 
                             string queryFactura = @"
-                INSERT INTO facturas 
-                    (numeroremito, fecha, hora, importetotal, 
-                     formadepago, esctacte, ctactenombre, cajero,
-                     tipofactura, caenumero, caevencimiento, cuitcliente,
-                     nrofactura, usuarioventa, iva,
-                     porcentajedescuento, importedescuento, importefinal)
+                INSERT INTO Facturas 
+                    ([NumeroRemito], [Fecha], [Hora], [ImporteTotal], 
+                     [FormadePago], [esCtaCte], [CtaCteNombre], [Cajero],
+                     [TipoFactura], [CAENumero], [CAEVencimiento], [CUITCliente],
+                     [NroFactura], [UsuarioVenta], [IVA],
+                     [PorcentajeDescuento], [ImporteDescuento], [ImporteFinal])
                 VALUES 
                     (@NumeroRemito, @Fecha, @Hora, @ImporteTotal,
                      @FormadePago, @esCtaCte, @CtaCteNombre, @Cajero,
                      @TipoFactura, @CAENumero, @CAEVencimiento, @CUITCliente,
                      @NroFactura, @UsuarioVenta, @IVA,
-                     @PorcentajeDescuento, @ImporteDescuento, @ImporteFinal)
-                RETURNING idfactura";
+                     @PorcentajeDescuento, @ImporteDescuento, @ImporteFinal);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-                            using (var cmdFactura = new NpgsqlCommand(queryFactura, connection, transaction))
+                            using (var cmdFactura = new SqlCommand(queryFactura, connection, transaction))
                             {
                                 cmdFactura.Parameters.AddWithValue("@NumeroRemito", nroRemitoActual);
                                 cmdFactura.Parameters.AddWithValue("@Fecha", DateTime.Now.Date);
                                 cmdFactura.Parameters.AddWithValue("@Hora", DateTime.Now);
                                 cmdFactura.Parameters.AddWithValue("@ImporteTotal", importeTotal);
                                 cmdFactura.Parameters.AddWithValue("@FormadePago", formaPago ?? "");
-                                cmdFactura.Parameters.Add(new NpgsqlParameter("@esCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                                cmdFactura.Parameters.AddWithValue("@esCtaCte", chkEsCtaCte?.Checked ?? false);
                                 cmdFactura.Parameters.AddWithValue("@CtaCteNombre", (object)nombreCtaCte ?? DBNull.Value);
                                 cmdFactura.Parameters.AddWithValue("@Cajero", numeroCajero.ToString());
                                 cmdFactura.Parameters.AddWithValue("@TipoFactura", tipoFactura ?? "");
@@ -5008,7 +5060,7 @@ VALUES
                                 cmdFactura.Parameters.AddWithValue("@ImporteDescuento", importeDescuento);
                                 cmdFactura.Parameters.AddWithValue("@ImporteFinal", importeFinal);
 
-                                idFactura = Convert.ToInt32(await cmdFactura.ExecuteScalarAsync());
+                                idFactura = (int)await cmdFactura.ExecuteScalarAsync();
                                 System.Diagnostics.Debug.WriteLine($"[FACTURA BD] ✅ Factura guardada con ID: {idFactura}");
                             }
 
@@ -5055,14 +5107,14 @@ VALUES
                                         motivoRetiro = $"Efectivo empleado - {nombrePersonaCtaCte}";
 
                                     var insertRetirosSql = @"
-                        INSERT INTO retirosefectivo 
-                            (monto, motivo, responsable, numerocajero, usuarioregistro, 
-                             fecharetiro, numeroremito, nombreequipo)
+                        INSERT INTO RetirosEfectivo 
+                            (Monto, Motivo, Responsable, NumeroCajero, UsuarioRegistro, 
+                             FechaRetiro, NumeroRemito, NombreEquipo)
                         VALUES 
                             (@Monto, @Motivo, @Responsable, @NumeroCajero, @UsuarioRegistro, 
                              @FechaRetiro, @NumeroRemito, @NombreEquipo);";
 
-                                    using (var cmdRet = new NpgsqlCommand(insertRetirosSql, connection, transaction))
+                                    using (var cmdRet = new SqlCommand(insertRetirosSql, connection, transaction))
                                     {
                                         cmdRet.Parameters.AddWithValue("@Monto", sumaRetiros);
                                         cmdRet.Parameters.AddWithValue("@Motivo", motivoRetiro ?? "");
@@ -5084,8 +5136,8 @@ VALUES
 
                             // --- DetallesPagoFactura ---
                             var insertDetalleSql = @"
-                INSERT INTO detallespagofactura
-                    (idfactura, mediopago, importe, observaciones, fechapago, usuario, numeroremito)
+                INSERT INTO DetallesPagoFactura
+                    (IdFactura, MedioPago, Importe, Observaciones, FechaPago, Usuario, NumeroRemito)
                 VALUES
                     (@IdFactura, @MedioPago, @Importe, @Observaciones, @FechaPago, @Usuario, @NumeroRemito);";
 
@@ -5093,7 +5145,7 @@ VALUES
                             {
                                 foreach (var pago in pagosMultiples)
                                 {
-                                    using (var cmdPago = new NpgsqlCommand(insertDetalleSql, connection, transaction))
+                                    using (var cmdPago = new SqlCommand(insertDetalleSql, connection, transaction))
                                     {
                                         cmdPago.Parameters.AddWithValue("@IdFactura", idFactura);
                                         cmdPago.Parameters.AddWithValue("@MedioPago", pago.MedioPago ?? "");
@@ -5108,7 +5160,7 @@ VALUES
                             }
                             else
                             {
-                                using (var cmdPago = new NpgsqlCommand(insertDetalleSql, connection, transaction))
+                                using (var cmdPago = new SqlCommand(insertDetalleSql, connection, transaction))
                                 {
                                     cmdPago.Parameters.AddWithValue("@IdFactura", idFactura);
                                     cmdPago.Parameters.AddWithValue("@MedioPago", string.IsNullOrEmpty(formaPago) ? "Desconocido" : formaPago);
@@ -5382,42 +5434,41 @@ VALUES
             {
                 string connectionString = GetConnectionString();
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
                     // ✅ Buscar oferta normal (PorCantidad, Combo, Descuento)
                     var query = @"
-                SELECT
-                    o.id,
-                    o.nombre AS nombreoferta,
-                    o.tipooferta,
-                    o.preciocombo,
-                    o.porcentajedescuentoglobal,
-                    o.cantidadminimagrupo,
-                    d.cantidadminima,
-                    d.preciooferta,
-                    d.porcentajedescuento
-                FROM detalleofertasproductos d
-                INNER JOIN ofertasproductos o ON d.idoferta = o.id
-                INNER JOIN productos p ON d.idproducto = p.id
+                SELECT TOP 1
+                    o.Id,
+                    o.Nombre AS NombreOferta,
+                    o.TipoOferta,
+                    o.PrecioCombo,
+                    o.PorcentajeDescuentoGlobal,
+                    o.CantidadMinimaGrupo,
+                    d.CantidadMinima,
+                    d.PrecioOferta,
+                    d.PorcentajeDescuento
+                FROM DetalleOfertasProductos d
+                INNER JOIN OfertasProductos o ON d.IdOferta = o.Id
+                INNER JOIN productos p ON d.IdProducto = p.ID
                 WHERE p.codigo = @CodigoProducto
-                    AND o.tipooferta <> 'PorGrupo'
-                    AND o.activo = B'1'
-                    AND NOW() >= o.fechainicio
-                    AND (o.fechafin IS NULL OR NOW() <= o.fechafin)
-                    AND @Cantidad >= d.cantidadminima
+                    AND o.TipoOferta <> 'PorGrupo'
+                    AND o.Activo = 1
+                    AND GETDATE() >= o.FechaInicio
+                    AND (o.FechaFin IS NULL OR GETDATE() <= o.FechaFin)
+                    AND @Cantidad >= d.CantidadMinima
                 ORDER BY 
                     CASE 
-                        WHEN o.tipooferta = 'Combo' THEN o.preciocombo
-                        WHEN o.tipooferta = 'Descuento' THEN p.precio * (1 - o.porcentajedescuentoglobal / 100)
-                        ELSE d.preciooferta
-                    END ASC
-                LIMIT 1";
+                        WHEN o.TipoOferta = 'Combo' THEN o.PrecioCombo
+                        WHEN o.TipoOferta = 'Descuento' THEN p.precio * (1 - o.PorcentajeDescuentoGlobal / 100)
+                        ELSE d.PrecioOferta
+                    END ASC";
 
                     OfertaProducto oferta = null;
 
-                    using (var cmd = new NpgsqlCommand(query, connection))
+                    using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
                         cmd.Parameters.AddWithValue("@Cantidad", cantidad);
@@ -5428,28 +5479,28 @@ VALUES
                             {
                                 oferta = new OfertaProducto
                                 {
-                                    Id = Convert.ToInt32(reader["id"]),
-                                    NombreOferta = reader["nombreoferta"].ToString(),
-                                    TipoOferta = reader["tipooferta"].ToString(),
-                                    CantidadMinima = Convert.ToInt32(reader["cantidadminima"]),
-                                    PorcentajeDescuento = reader["porcentajedescuento"] != DBNull.Value
-                                        ? Convert.ToDecimal(reader["porcentajedescuento"])
+                                    Id = Convert.ToInt32(reader["Id"]),
+                                    NombreOferta = reader["NombreOferta"].ToString(),
+                                    TipoOferta = reader["TipoOferta"].ToString(),
+                                    CantidadMinima = Convert.ToInt32(reader["CantidadMinima"]),
+                                    PorcentajeDescuento = reader["PorcentajeDescuento"] != DBNull.Value
+                                        ? Convert.ToDecimal(reader["PorcentajeDescuento"])
                                         : 0m
                                 };
 
                                 switch (oferta.TipoOferta)
                                 {
                                     case "Combo":
-                                        oferta.PrecioCombo = reader["preciocombo"] != DBNull.Value
-                                            ? Convert.ToDecimal(reader["preciocombo"])
+                                        oferta.PrecioCombo = reader["PrecioCombo"] != DBNull.Value
+                                            ? Convert.ToDecimal(reader["PrecioCombo"])
                                             : 0m;
                                         oferta.PrecioOferta = await ObtenerPrecioProducto(codigoProducto);
                                         return oferta;
 
                                     case "Descuento":
                                         decimal precioOriginalDesc = await ObtenerPrecioProducto(codigoProducto);
-                                        decimal porcentajeGlobal = reader["porcentajedescuentoglobal"] != DBNull.Value
-                                            ? Convert.ToDecimal(reader["porcentajedescuentoglobal"])
+                                        decimal porcentajeGlobal = reader["PorcentajeDescuentoGlobal"] != DBNull.Value
+                                            ? Convert.ToDecimal(reader["PorcentajeDescuentoGlobal"])
                                             : 0m;
                                         oferta.PrecioOferta = precioOriginalDesc * (1 - porcentajeGlobal / 100);
                                         oferta.PorcentajeDescuento = porcentajeGlobal;
@@ -5457,8 +5508,8 @@ VALUES
 
                                     case "PorCantidad":
                                     default:
-                                        oferta.PrecioOferta = reader["preciooferta"] != DBNull.Value
-                                            ? Convert.ToDecimal(reader["preciooferta"])
+                                        oferta.PrecioOferta = reader["PrecioOferta"] != DBNull.Value
+                                            ? Convert.ToDecimal(reader["PrecioOferta"])
                                             : 0m;
                                         break;
                                 }
@@ -5470,23 +5521,22 @@ VALUES
 
                     // ✅ NUEVO: Si no hay oferta normal, buscar oferta PorGrupo
                     var queryGrupo = @"
-                SELECT
-                    o.id,
-                    o.nombre AS nombreoferta,
-                    o.preciogrupo,
-                    o.cantidadminimagrupo
-                FROM detalleofertasproductos d
-                INNER JOIN ofertasproductos o ON d.idoferta = o.id
-                INNER JOIN productos p ON d.idproducto = p.id
+                SELECT TOP 1
+                    o.Id,
+                    o.Nombre AS NombreOferta,
+                    o.PrecioGrupo,
+                    o.CantidadMinimaGrupo
+                FROM DetalleOfertasProductos d
+                INNER JOIN OfertasProductos o ON d.IdOferta = o.Id
+                INNER JOIN productos p ON d.IdProducto = p.ID
                 WHERE p.codigo = @CodigoProducto
-                    AND o.tipooferta = 'PorGrupo'
-                    AND o.activo = B'1'
-                    AND NOW() >= o.fechainicio
-                    AND (o.fechafin IS NULL OR NOW() <= o.fechafin)
-                ORDER BY o.preciogrupo ASC
-                LIMIT 1";
+                    AND o.TipoOferta = 'PorGrupo'
+                    AND o.Activo = 1
+                    AND GETDATE() >= o.FechaInicio
+                    AND (o.FechaFin IS NULL OR GETDATE() <= o.FechaFin)
+                ORDER BY o.PrecioGrupo ASC";
 
-                    using (var cmdGrupo = new NpgsqlCommand(queryGrupo, connection))
+                    using (var cmdGrupo = new SqlCommand(queryGrupo, connection))
                     {
                         cmdGrupo.Parameters.AddWithValue("@CodigoProducto", codigoProducto);
 
@@ -5495,15 +5545,15 @@ VALUES
                             if (!await reader.ReadAsync())
                                 return null;
 
-                            int idOfertaGrupo = Convert.ToInt32(reader["id"]);
-                            string nombreOfertaGrupo = reader["nombreoferta"].ToString();
+                            int idOfertaGrupo = Convert.ToInt32(reader["Id"]);
+                            string nombreOfertaGrupo = reader["NombreOferta"].ToString();
 
                             // ✅ CAMBIADO: precio fijo en lugar de porcentaje
-                            decimal precioGrupo = reader["preciogrupo"] != DBNull.Value
-                                ? Convert.ToDecimal(reader["preciogrupo"])
+                            decimal precioGrupo = reader["PrecioGrupo"] != DBNull.Value
+                                ? Convert.ToDecimal(reader["PrecioGrupo"])
                                 : 0m;
-                            int cantidadMinimaGrupo = reader["cantidadminimagrupo"] != DBNull.Value
-                                ? Convert.ToInt32(reader["cantidadminimagrupo"])
+                            int cantidadMinimaGrupo = reader["CantidadMinimaGrupo"] != DBNull.Value
+                                ? Convert.ToInt32(reader["CantidadMinimaGrupo"])
                                 : 1;
 
                             reader.Close();
@@ -5512,11 +5562,11 @@ VALUES
                             var codigosGrupoParams = new List<string>();
                             var queryCodigosGrupo = @"
                         SELECT p.codigo
-                        FROM detalleofertasproductos d
-                        INNER JOIN productos p ON d.idproducto = p.id
-                        WHERE d.idoferta = @IdOferta";
+                        FROM DetalleOfertasProductos d
+                        INNER JOIN productos p ON d.IdProducto = p.ID
+                        WHERE d.IdOferta = @IdOferta";
 
-                            using (var cmdCodigos = new NpgsqlCommand(queryCodigosGrupo, connection))
+                            using (var cmdCodigos = new SqlCommand(queryCodigosGrupo, connection))
                             {
                                 cmdCodigos.Parameters.AddWithValue("@IdOferta", idOfertaGrupo);
                                 using (var readerCodigos = await cmdCodigos.ExecuteReaderAsync())
@@ -5532,13 +5582,13 @@ VALUES
                             // Sumar cantidades ya en venta para todos los productos del grupo
                             var parametrosCods = string.Join(",", codigosGrupoParams.Select((_, i) => $"@cg{i}"));
                             var querySuma = $@"
-                        SELECT COALESCE(SUM(cantidad), 0)
-                        FROM ventas
+                        SELECT ISNULL(SUM(cantidad), 0)
+                        FROM Ventas
                         WHERE nrofactura = @nrofactura
                         AND codigo IN ({parametrosCods})";
 
                             int cantidadEnVenta = 0;
-                            using (var cmdSuma = new NpgsqlCommand(querySuma, connection))
+                            using (var cmdSuma = new SqlCommand(querySuma, connection))
                             {
                                 cmdSuma.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                                 for (int i = 0; i < codigosGrupoParams.Count; i++)
@@ -5611,8 +5661,8 @@ VALUES
             int idOferta,
             string codigoProductoActual,
             int cantidadActual,
-            NpgsqlConnection connection,
-            NpgsqlTransaction transaction)
+            SqlConnection connection,
+            SqlTransaction transaction)
         {
             try
             {
@@ -5622,14 +5672,14 @@ VALUES
                 var queryCombo = @"
             SELECT 
                 p.codigo,
-                d.cantidadminima
-            FROM detalleofertasproductos d
-            INNER JOIN productos p ON d.idproducto = p.id
-            WHERE d.idoferta = @IdOferta";
+                d.CantidadMinima
+            FROM DetalleOfertasProductos d
+            INNER JOIN productos p ON d.IdProducto = p.ID
+            WHERE d.IdOferta = @IdOferta";
 
                 var productosCombo = new Dictionary<string, int>(); // codigo -> cantidad mínima
 
-                using (var cmd = new NpgsqlCommand(queryCombo, connection, transaction))
+                using (var cmd = new SqlCommand(queryCombo, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@IdOferta", idOferta);
 
@@ -5638,7 +5688,7 @@ VALUES
                         while (await reader.ReadAsync())
                         {
                             string codigo = reader["codigo"].ToString();
-                            int cantidadMinima = Convert.ToInt32(reader["cantidadminima"]);
+                            int cantidadMinima = Convert.ToInt32(reader["CantidadMinima"]);
                             productosCombo[codigo] = cantidadMinima;
 
                             System.Diagnostics.Debug.WriteLine(
@@ -5660,14 +5710,14 @@ VALUES
 
                 var queryVenta = $@"
                     SELECT codigo, SUM(cantidad) as cantidadTotal
-                    FROM ventas
+                    FROM Ventas
                     WHERE nrofactura = @nrofactura
                     AND codigo IN ({parametrosCodigos})
                     GROUP BY codigo";
 
                 var productosEnVenta = new Dictionary<string, int>(); // codigo -> cantidad en venta
 
-                using (var cmd = new NpgsqlCommand(queryVenta, connection, transaction))
+                using (var cmd = new SqlCommand(queryVenta, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
 
@@ -5788,14 +5838,18 @@ VALUES
         // ✅ CORREGIDO: Actualizar precios de todos los productos del combo cuando se completa
         private async Task ActualizarPreciosComboCompleto(
             int idOferta,
-            NpgsqlConnection connection,
-            NpgsqlTransaction transaction)
+            SqlConnection connection,
+            SqlTransaction transaction)
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine($"🔥 INICIANDO ActualizarPreciosComboCompleto - IdOferta: {idOferta}");
 
-                // PostgreSQL no requiere SET ARITHABORT
+                // ✅ CRÍTICO: Configurar ARITHABORT
+                using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_WARNINGS ON;", connection, transaction))
+                {
+                    await cmdConfig.ExecuteNonQueryAsync();
+                }
 
                 // ✅ PASO 1: Obtener precio combo y todos los productos DEL COMBO
                 decimal precioCombo = 0m;
@@ -5803,13 +5857,13 @@ VALUES
                 var productosCombo = new List<(string codigo, int cantidadMinima, decimal precioOriginal)>();
 
                 var queryOferta = @"
-            SELECT o.preciocombo, o.nombre, p.codigo, p.precio, d.cantidadminima
-            FROM ofertasproductos o
-            INNER JOIN detalleofertasproductos d ON d.idoferta = o.id
-            INNER JOIN productos p ON d.idproducto = p.id
-            WHERE o.id = @IdOferta";
+            SELECT o.PrecioCombo, o.Nombre, p.codigo, p.precio, d.CantidadMinima
+            FROM OfertasProductos o
+            INNER JOIN DetalleOfertasProductos d ON d.IdOferta = o.Id
+            INNER JOIN productos p ON d.IdProducto = p.ID
+            WHERE o.Id = @IdOferta";
 
-                using (var cmd = new NpgsqlCommand(queryOferta, connection, transaction))
+                using (var cmd = new SqlCommand(queryOferta, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@IdOferta", idOferta);
 
@@ -5819,8 +5873,8 @@ VALUES
                         {
                             if (precioCombo == 0m)
                             {
-                                precioCombo = Convert.ToDecimal(reader["preciocombo"]);
-                                nombreOferta = reader["nombre"].ToString();
+                                precioCombo = Convert.ToDecimal(reader["PrecioCombo"]);
+                                nombreOferta = reader["Nombre"].ToString();
 
                                 System.Diagnostics.Debug.WriteLine(
                                     $"📦 Combo detectado:\n" +
@@ -5829,7 +5883,7 @@ VALUES
                             }
 
                             var codigo = reader["codigo"].ToString();
-                            var cantidad = Convert.ToInt32(reader["cantidadminima"]);
+                            var cantidad = Convert.ToInt32(reader["CantidadMinima"]);
                             var precioOriginal = Convert.ToDecimal(reader["precio"]);
 
                             productosCombo.Add((codigo, cantidad, precioOriginal));
@@ -5854,12 +5908,12 @@ VALUES
 
                 var queryVerificar = $@"
             SELECT codigo, SUM(cantidad) as cantidadTotal
-            FROM ventas
+            FROM Ventas
             WHERE nrofactura = @nrofactura
             AND codigo IN ({parametrosCodigos})
             GROUP BY codigo";
 
-                using (var cmdVerif = new NpgsqlCommand(queryVerificar, connection, transaction))
+                using (var cmdVerif = new SqlCommand(queryVerificar, connection, transaction))
                 {
                     cmdVerif.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
 
@@ -5904,10 +5958,10 @@ VALUES
 
                     var queryObtenerCantidad = @"
                 SELECT SUM(cantidad) as cantidadTotal
-                FROM ventas
+                FROM Ventas
                 WHERE nrofactura = @nrofactura AND codigo = @codigo";
 
-                    using (var cmdCant = new NpgsqlCommand(queryObtenerCantidad, connection, transaction))
+                    using (var cmdCant = new SqlCommand(queryObtenerCantidad, connection, transaction))
                     {
                         cmdCant.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmdCant.Parameters.AddWithValue("@codigo", producto.codigo);
@@ -5937,24 +5991,23 @@ VALUES
                     if (unidadesSinDescuento == 0)
                     {
                         var queryUpdate = @"
-                    UPDATE ventas
-                    SET precio            = @precioProrrateado,
-                        total             = cantidad * @precioProrrateado,
-                        idoferta          = @IdOferta,
-                        nombreoferta      = @NombreOferta,
-                        esoferta          = @EsOferta,
-                        preciooriginal    = @PrecioOriginal,
-                        precioconoferta   = @precioProrrateado,
-                        descuentoaplicado = @PrecioOriginal - @precioProrrateado
+                    UPDATE Ventas
+                    SET precio = @precioProrrateado,
+                        total = cantidad * @precioProrrateado,
+                        IdOferta = @IdOferta,
+                        NombreOferta = @NombreOferta,
+                        EsOferta = 1,
+                        PrecioOriginal = @PrecioOriginal,
+                        PrecioConOferta = @precioProrrateado,
+                        DescuentoAplicado = @PrecioOriginal - @precioProrrateado
                     WHERE nrofactura = @nrofactura 
                     AND codigo = @codigo";
 
-                        using (var cmd = new NpgsqlCommand(queryUpdate, connection, transaction))
+                        using (var cmd = new SqlCommand(queryUpdate, connection, transaction))
                         {
                             cmd.Parameters.AddWithValue("@precioProrrateado", precioProrrateado);
                             cmd.Parameters.AddWithValue("@IdOferta", idOferta);
                             cmd.Parameters.AddWithValue("@NombreOferta", nombreOferta);
-                            cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
                             cmd.Parameters.AddWithValue("@PrecioOriginal", producto.precioOriginal);
                             cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                             cmd.Parameters.AddWithValue("@codigo", producto.codigo);
@@ -5992,11 +6045,11 @@ VALUES
             {
                 string connectionString = GetConnectionString();
 
-                using (var connection = new NpgsqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     var query = "SELECT precio FROM productos WHERE codigo = @codigo";
 
-                    using (var cmd = new NpgsqlCommand(query, connection))
+                    using (var cmd = new SqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigoProducto);
                         await connection.OpenAsync();
@@ -6022,8 +6075,8 @@ VALUES
             int idOferta,
             string codigoProducto,
             decimal precioComboTotal,
-            NpgsqlConnection connection,
-            NpgsqlTransaction transaction)
+            SqlConnection connection,
+            SqlTransaction transaction)
         {
             try
             {
@@ -6032,17 +6085,17 @@ VALUES
                 var query = @"
             SELECT 
                 p.codigo,
-                p.precio AS preciooriginal,
-                d.cantidadminima
-            FROM detalleofertasproductos d
-            INNER JOIN productos p ON d.idproducto = p.id
-            WHERE d.idoferta = @IdOferta";
+                p.precio AS PrecioOriginal,
+                d.CantidadMinima
+            FROM DetalleOfertasProductos d
+            INNER JOIN productos p ON d.IdProducto = p.ID
+            WHERE d.IdOferta = @IdOferta";
 
                 decimal sumaPreciosOriginales = 0m;
                 decimal precioOriginalProductoActual = 0m;
                 int cantidadProductoActual = 1;
 
-                using (var cmd = new NpgsqlCommand(query, connection, transaction))
+                using (var cmd = new SqlCommand(query, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@IdOferta", idOferta);
 
@@ -6051,7 +6104,7 @@ VALUES
                         while (await reader.ReadAsync())
                         {
                             string codigo = reader["codigo"].ToString();
-                            decimal precioOriginal = Convert.ToDecimal(reader["preciooriginal"]);
+                            decimal precioOriginal = Convert.ToDecimal(reader["PrecioOriginal"]);
                             int cantidad = Convert.ToInt32(reader["CantidadMinima"]);
 
                             decimal subtotalProducto = precioOriginal * cantidad;
