@@ -37,12 +37,6 @@ namespace Comercio.NET
         private static readonly int MAXIMO_INSTANCIAS = 2;
         private static readonly object lockObject = new object();
 
-        private const string PREFIJO_CODIGO_ESPECIAL = "50";
-        private const int LONGITUD_CODIGO_ESPECIAL = 13;
-        private const int POSICION_CODIGO_PRODUCTO = 2;
-        private const int LONGITUD_CODIGO_PRODUCTO = 5;
-        private const int POSICION_PRECIO = 7;
-        private const int LONGITUD_PRECIO = 5;
 
         private int nroRemitoActual = 0;
         private bool remitoIncrementado = false;
@@ -2016,21 +2010,61 @@ VALUES
             return config.GetConnectionString("DefaultConnection");
         }
 
-        // NUEVO: Implementar método ProcesarCodigo
+        // NUEVO: Implementar método ProcesarCodigo usando parámetros de appsettings.json
         private (string codigoBuscado, decimal? precioPersonalizado, bool esEspecial) ProcesarCodigo(string textoIngresado)
         {
-            if (textoIngresado.StartsWith("50") && textoIngresado.Length == 13)
+            // Cargar configuración de códigos de barras de balanza
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            bool habilitado = config.GetSection("CodigosBarraBalanza:Habilitado").Get<bool>();
+            string prefijoInicio = config.GetSection("CodigosBarraBalanza:PrefijoInicio").Value ?? "50";
+            int longitudTotal = config.GetSection("CodigosBarraBalanza:LongitudTotal").Get<int>();
+            int posicionInicioProducto = config.GetSection("CodigosBarraBalanza:PosicionInicioProducto").Get<int>();
+            int longitudCodigoProducto = config.GetSection("CodigosBarraBalanza:LongitudCodigoProducto").Get<int>();
+            int posicionInicioImporte = config.GetSection("CodigosBarraBalanza:PosicionInicioImporte").Get<int>();
+            int longitudParteEntera = config.GetSection("CodigosBarraBalanza:LongitudParteEntera").Get<int>();
+            int longitudDecimales = config.GetSection("CodigosBarraBalanza:LongitudDecimales").Get<int>();
+
+            if (habilitado && textoIngresado.StartsWith(prefijoInicio) && textoIngresado.Length == longitudTotal)
             {
                 // Código especial de balanza
-                // ✅ CORREGIDO: Extraer desde posición 0 para incluir el "50"
-                string codigoProducto = textoIngresado.Substring(0, 7); // Posiciones 0-6 = "50" + 5 dígitos
+                string codigoProducto = textoIngresado.Substring(posicionInicioProducto, longitudCodigoProducto);
                 codigoProducto = codigoProducto.TrimStart('0');
                 if (string.IsNullOrEmpty(codigoProducto))
                     codigoProducto = "0";
 
-                // El precio sigue estando en las posiciones 7-11
-                string parteEntera = textoIngresado.Substring(7, 5);
-                decimal precio = decimal.Parse(parteEntera);
+                // Extraer el precio según configuración
+                decimal precio;
+
+                if (longitudDecimales == 0)
+                {
+                    // Modo centavos: el número completo representa centavos
+                    // Ejemplo: "17100" = 171.00
+                    string valorCentavos = textoIngresado.Substring(posicionInicioImporte, longitudParteEntera);
+                    if (decimal.TryParse(valorCentavos, out decimal centavos))
+                    {
+                        precio = centavos / 100m; // Convertir centavos a pesos
+                    }
+                    else
+                    {
+                        precio = 0m;
+                    }
+                }
+                else
+                {
+                    // Modo tradicional: parte entera + decimales
+                    string parteEntera = textoIngresado.Substring(posicionInicioImporte, longitudParteEntera);
+                    string parteDecimal = textoIngresado.Substring(posicionInicioImporte + longitudParteEntera, longitudDecimales);
+
+                    // DEBUG: Verificar los valores extraídos
+                    System.Diagnostics.Debug.WriteLine($"[BALANZA] Parte entera: '{parteEntera}', Decimales: '{parteDecimal}'");
+
+                    // Parsear solo la parte entera, ignorando los decimales
+                    precio = decimal.Parse(parteEntera);
+                }
 
                 return (codigoProducto, precio, true);
             }

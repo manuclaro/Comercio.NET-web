@@ -1,51 +1,26 @@
-﻿using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
 {
     public class AuditoriaService : IAuditoriaService
     {
-        private readonly string _sqlBridgeUrl;
+        private readonly DbService _db;
         private readonly ILogger<AuditoriaService> _logger;
-        private readonly HttpClient _httpClient;
 
-        public AuditoriaService(
-            IConfiguration configuration,
-            ILogger<AuditoriaService> logger,
-            IHttpClientFactory httpClientFactory)
+        public AuditoriaService(DbService db, ILogger<AuditoriaService> logger)
         {
-            _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
-                ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+            _db = db;
             _logger = logger;
-            _httpClient = httpClientFactory.CreateClient();
         }
 
         public async Task<IEnumerable<AuditoriaDto>> GetAuditoriaAsync(DateTime desde, DateTime hasta, string usuario = null, int? numeroCajero = null)
         {
             var registros = new List<AuditoriaDto>();
 
-            // Columnas en orden:
-            //  0  IdAuditoriaProductosEliminados
-            //  1  CodigoProducto
-            //  2  DescripcionProducto
-            //  3  PrecioUnitario
-            //  4  Cantidad
-            //  5  TotalEliminado
-            //  6  NumeroFactura
-            //  7  FechaEliminacion
-            //  8  UsuarioEliminacion
-            //  9  MotivoEliminacion
-            // 10  EsCtaCte
-            // 11  NombreCtaCte
-            // 12  IPUsuario
-            // 13  NombreEquipo
-            // 14  FechaHoraVentaOriginal
-            // 15  NumeroCajero
-            // 16  IvaEliminado
-            // 17  CantidadOriginal
-            // 18  EsEliminacionCompleta
-            var sql = @"
+            var esCtaCteCoalesce = _db.UsaPostgres ? "COALESCE(EsCtaCte, 0::bit)" : "COALESCE(EsCtaCte, 0)";
+
+            var sql = $@"
                 SELECT
                     IdAuditoriaProductosEliminados,
                     CodigoProducto,
@@ -57,7 +32,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     FechaEliminacion,
                     COALESCE(UsuarioEliminacion, '')       AS UsuarioEliminacion,
                     COALESCE(MotivoEliminacion, '')        AS MotivoEliminacion,
-                    COALESCE(EsCtaCte, 0)                 AS EsCtaCte,
+                    {esCtaCteCoalesce}                     AS EsCtaCte,
                     COALESCE(NombreCtaCte, '')             AS NombreCtaCte,
                     COALESCE(IPUsuario, '')                AS IPUsuario,
                     COALESCE(NombreEquipo, '')             AS NombreEquipo,
@@ -79,8 +54,8 @@ namespace Comercio.NET.Mobile.Server.Services
 
             var parameters = new Dictionary<string, object?>
             {
-                { "@desde", desde.Date.ToString("yyyy-MM-dd") },
-                { "@hasta", hasta.Date.ToString("yyyy-MM-dd") }
+                { "@desde", desde.Date },
+                { "@hasta", hasta.Date }
             };
 
             if (!string.IsNullOrWhiteSpace(usuario))
@@ -89,146 +64,115 @@ namespace Comercio.NET.Mobile.Server.Services
             if (numeroCajero.HasValue)
                 parameters["@numeroCajero"] = numeroCajero.Value;
 
-            var payload = new { query = sql, parameters };
-
             try
             {
-                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                var rows = await _db.QueryAsync(sql, parameters);
 
-                if (!response.IsSuccessStatusCode)
+                foreach (var row in rows)
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
-                    throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
-                }
-
-                var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
-
-                if (resultado?.Data != null)
-                {
-                    foreach (var row in resultado.Data)
+                    registros.Add(new AuditoriaDto
                     {
-                        registros.Add(new AuditoriaDto
-                        {
-                            Id                     = ConvertToInt32(row.Count > 0  ? row[0]  : null),  // IdAuditoriaProductosEliminados
-                            CodigoProducto         = ConvertToString(row.Count > 1  ? row[1]  : null),  // CodigoProducto
-                            DescripcionProducto    = ConvertToString(row.Count > 2  ? row[2]  : null),  // DescripcionProducto
-                            PrecioUnitario         = ConvertToDecimal(row.Count > 3  ? row[3]  : null),  // PrecioUnitario
-                            Cantidad               = ConvertToInt32(row.Count > 4  ? row[4]  : null),   // Cantidad
-                            TotalEliminado         = ConvertToDecimal(row.Count > 5  ? row[5]  : null),  // TotalEliminado
-                            NumeroFactura          = ConvertToInt32(row.Count > 6  ? row[6]  : null),   // NumeroFactura
-                            FechaEliminacion       = ConvertToDateTime(row.Count > 7  ? row[7]  : null), // FechaEliminacion
-                            UsuarioEliminacion     = ConvertToString(row.Count > 8  ? row[8]  : null),  // UsuarioEliminacion  ← corregido
-                            MotivoEliminacion      = ConvertToString(row.Count > 9  ? row[9]  : null),  // MotivoEliminacion   ← corregido
-                            EsCtaCte               = ConvertToBoolean(row.Count > 10 ? row[10] : null), // EsCtaCte            ← corregido
-                            NombreCtaCte           = ConvertToString(row.Count > 11 ? row[11] : null),  // NombreCtaCte        ← corregido
-                            IPUsuario              = ConvertToString(row.Count > 12 ? row[12] : null),  // IPUsuario           ← corregido
-                            NombreEquipo           = ConvertToString(row.Count > 13 ? row[13] : null),  // NombreEquipo        ← corregido
-                            FechaHoraVentaOriginal = ConvertToNullableDateTime(row.Count > 14 ? row[14] : null), // FechaHoraVentaOriginal ← corregido
-                            NumeroCajero           = ConvertToInt32(row.Count > 15 ? row[15] : null),   // NumeroCajero        ← corregido
-                            IvaEliminado           = ConvertToNullableDecimal(row.Count > 16 ? row[16] : null),  // IvaEliminado
-                            CantidadOriginal       = ConvertToNullableInt32(row.Count > 17 ? row[17] : null),    // CantidadOriginal
-                            EsEliminacionCompleta  = ConvertToNullableBoolean(row.Count > 18 ? row[18] : null),  // EsEliminacionCompleta
-                        });
-                    }
+                        Id                     = ConvertToInt32(row.Count > 0  ? row[0]  : default),
+                        CodigoProducto         = ConvertToString(row.Count > 1  ? row[1]  : default),
+                        DescripcionProducto    = ConvertToString(row.Count > 2  ? row[2]  : default),
+                        PrecioUnitario         = ConvertToDecimal(row.Count > 3  ? row[3]  : default),
+                        Cantidad               = ConvertToInt32(row.Count > 4  ? row[4]  : default),
+                        TotalEliminado         = ConvertToDecimal(row.Count > 5  ? row[5]  : default),
+                        NumeroFactura          = ConvertToInt32(row.Count > 6  ? row[6]  : default),
+                        FechaEliminacion       = ConvertToDateTime(row.Count > 7  ? row[7]  : default),
+                        UsuarioEliminacion     = ConvertToString(row.Count > 8  ? row[8]  : default),
+                        MotivoEliminacion      = ConvertToString(row.Count > 9  ? row[9]  : default),
+                        EsCtaCte               = ConvertToBoolean(row.Count > 10 ? row[10] : default),
+                        NombreCtaCte           = ConvertToString(row.Count > 11 ? row[11] : default),
+                        IPUsuario              = ConvertToString(row.Count > 12 ? row[12] : default),
+                        NombreEquipo           = ConvertToString(row.Count > 13 ? row[13] : default),
+                        FechaHoraVentaOriginal = ConvertToNullableDateTime(row.Count > 14 ? row[14] : default),
+                        NumeroCajero           = ConvertToInt32(row.Count > 15 ? row[15] : default),
+                        IvaEliminado           = ConvertToNullableDecimal(row.Count > 16 ? row[16] : default),
+                        CantidadOriginal       = ConvertToNullableInt32(row.Count > 17 ? row[17] : default),
+                        EsEliminacionCompleta  = ConvertToNullableBoolean(row.Count > 18 ? row[18] : default),
+                    });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo auditoría desde {Desde} hasta {Hasta}", desde, hasta);
+                _logger.LogError(ex, "Error obteniendo auditor�a desde {Desde} hasta {Hasta}", desde, hasta);
                 throw;
             }
 
             return registros;
         }
 
-        private static int ConvertToInt32(object? value)
+        private static int ConvertToInt32(JsonElement value)
         {
-            if (value is null) return 0;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.Number => j.GetInt32(),
-                    JsonValueKind.String => int.TryParse(j.GetString(), out var r) ? r : 0,
-                    _ => 0
-                };
-            return Convert.ToInt32(value);
+            return value.ValueKind switch
+            {
+                JsonValueKind.Number => value.GetInt32(),
+                JsonValueKind.String => int.TryParse(value.GetString(), out var r) ? r : 0,
+                _ => 0
+            };
         }
 
-        private static int? ConvertToNullableInt32(object? value)
+        private static int? ConvertToNullableInt32(JsonElement value)
         {
-            if (value is null) return null;
-            if (value is JsonElement j && j.ValueKind == JsonValueKind.Null) return null;
+            if (value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.Undefined) return null;
             return ConvertToInt32(value);
         }
 
-        private static decimal ConvertToDecimal(object? value)
+        private static decimal ConvertToDecimal(JsonElement value)
         {
-            if (value is null) return 0m;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.Number => j.GetDecimal(),
-                    JsonValueKind.String => decimal.TryParse(j.GetString(), out var r) ? r : 0m,
-                    _ => 0m
-                };
-            return Convert.ToDecimal(value);
+            return value.ValueKind switch
+            {
+                JsonValueKind.Number => value.GetDecimal(),
+                JsonValueKind.String => decimal.TryParse(value.GetString(), out var r) ? r : 0m,
+                _ => 0m
+            };
         }
 
-        private static decimal? ConvertToNullableDecimal(object? value)
+        private static decimal? ConvertToNullableDecimal(JsonElement value)
         {
-            if (value is null) return null;
-            if (value is JsonElement j && j.ValueKind == JsonValueKind.Null) return null;
+            if (value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.Undefined) return null;
             return ConvertToDecimal(value);
         }
 
-        private static bool ConvertToBoolean(object? value)
+        private static bool ConvertToBoolean(JsonElement value)
         {
-            if (value is null) return false;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.True   => true,
-                    JsonValueKind.False  => false,
-                    JsonValueKind.Number => j.GetInt32() != 0,
-                    JsonValueKind.String => j.GetString() is "1" or "true" or "True",
-                    _ => false
-                };
-            return Convert.ToBoolean(value);
+            return value.ValueKind switch
+            {
+                JsonValueKind.True   => true,
+                JsonValueKind.False  => false,
+                JsonValueKind.Number => value.GetInt32() != 0,
+                JsonValueKind.String => value.GetString() is "1" or "true" or "True",
+                _ => false
+            };
         }
 
-        private static bool? ConvertToNullableBoolean(object? value)
+        private static bool? ConvertToNullableBoolean(JsonElement value)
         {
-            if (value is null) return null;
-            if (value is JsonElement j && j.ValueKind == JsonValueKind.Null) return null;
+            if (value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.Undefined) return null;
             return ConvertToBoolean(value);
         }
 
-        private static string ConvertToString(object? value)
+        private static string ConvertToString(JsonElement value)
         {
-            if (value is null) return string.Empty;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.String => j.GetString() ?? string.Empty,
-                    JsonValueKind.Null   => string.Empty,
-                    _                   => j.ToString()
-                };
-            return value.ToString() ?? string.Empty;
+            return value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString() ?? string.Empty,
+                JsonValueKind.Null   => string.Empty,
+                _                   => value.ToString()
+            };
         }
 
-        private static DateTime ConvertToDateTime(object? value)
+        private static DateTime ConvertToDateTime(JsonElement value)
         {
-            if (value is null) return DateTime.MinValue;
-            if (value is JsonElement j && j.ValueKind == JsonValueKind.String)
-                return DateTime.TryParse(j.GetString(), out var d) ? d : DateTime.MinValue;
-            return Convert.ToDateTime(value);
+            if (value.ValueKind == JsonValueKind.String)
+                return DateTime.TryParse(value.GetString(), out var d) ? d : DateTime.MinValue;
+            return DateTime.MinValue;
         }
 
-        private static DateTime? ConvertToNullableDateTime(object? value)
+        private static DateTime? ConvertToNullableDateTime(JsonElement value)
         {
-            if (value is null) return null;
-            if (value is JsonElement j && j.ValueKind == JsonValueKind.Null) return null;
+            if (value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.Undefined) return null;
             return ConvertToDateTime(value);
         }
     }

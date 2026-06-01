@@ -1,4 +1,6 @@
 using Comercio.NET.Mobile.Server.Services;
+using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Mobile.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Comercio.NET.Mobile.Server.Controllers
@@ -33,11 +35,14 @@ namespace Comercio.NET.Mobile.Server.Controllers
         }
 
         [HttpPost("abrir")]
-        public async Task<IActionResult> Abrir()
+        public async Task<IActionResult> Abrir([FromBody] AbrirTurnoRequest? request)
         {
             try
             {
-                var turno = await _turnoService.AbrirTurnoAsync();
+                var monto = request?.MontoInicial ?? 0;
+                var cajero = request?.NumeroCajero ?? 1;
+                var usuario = request?.Usuario ?? "";
+                var turno = await _turnoService.AbrirTurnoAsync(monto, cajero, usuario);
                 return Ok(turno);
             }
             catch (Exception ex)
@@ -62,6 +67,100 @@ namespace Comercio.NET.Mobile.Server.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error en CerrarTurno");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("resumen")]
+        public async Task<IActionResult> GetResumen([FromQuery] int? id = null)
+        {
+            try
+            {
+                var resumen = await _turnoService.GetResumenTurnoAsync(id);
+                if (resumen == null) return Ok(new { error = "No hay turno abierto" });
+                return Ok(resumen);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetResumenTurno");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("abiertos")]
+        public async Task<IActionResult> GetAbiertos()
+        {
+            try
+            {
+                var turnos = await _turnoService.GetTurnosAbiertosAsync();
+                return Ok(turnos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetTurnosAbiertos");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("del-dia")]
+        public async Task<IActionResult> GetDelDia([FromQuery] string? fecha = null)
+        {
+            try
+            {
+                var dia = string.IsNullOrEmpty(fecha) ? DateTime.Today : DateTime.Parse(fecha);
+                var turnos = await _turnoService.GetTurnosDelDiaAsync(dia);
+                return Ok(turnos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetTurnosDelDia");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("cerrar/{id}")]
+        public async Task<IActionResult> CerrarPorId(int id, [FromBody] CerrarTurnoRequest? request)
+        {
+            try
+            {
+                var turno = await _turnoService.CerrarTurnoPorIdAsync(id, request?.Declaraciones, request?.CantidadVentas ?? 0);
+                return Ok(turno);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en CerrarTurnoPorId");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("historial-cierres")]
+        public async Task<IActionResult> GetHistorialCierres([FromQuery] string desde, [FromQuery] string hasta, [FromQuery] string? cajero = null)
+        {
+            try
+            {
+                var fechaDesde = DateTime.Parse(desde);
+                var fechaHasta = DateTime.Parse(hasta).AddDays(1).AddSeconds(-1);
+                var historial = await _turnoService.GetHistorialCierresAsync(fechaDesde, fechaHasta, cajero);
+                return Ok(historial);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetHistorialCierres");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("cajeros")]
+        public async Task<IActionResult> GetCajeros()
+        {
+            try
+            {
+                var cajeros = await _turnoService.GetCajerosAsync();
+                return Ok(cajeros);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetCajeros");
                 return StatusCode(500, new { error = ex.Message });
             }
         }

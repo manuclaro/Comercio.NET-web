@@ -6,168 +6,95 @@ namespace Comercio.NET.Mobile.Server.Services
 {
     public class ProductosService : IProductosService
     {
-        private readonly string _sqlBridgeUrl;
+        private readonly DbService _db;
         private readonly ILogger<ProductosService> _logger;
-        private readonly HttpClient _httpClient;
 
-        public ProductosService(
-            IConfiguration configuration,
-            ILogger<ProductosService> logger,
-            IHttpClientFactory httpClientFactory)
+        public ProductosService(DbService db, ILogger<ProductosService> logger)
         {
-            _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
-                ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+            _db = db;
             _logger = logger;
-            _httpClient = httpClientFactory.CreateClient();
         }
 
         public async Task<IEnumerable<ProductoDto>> BuscarProductosAsync(string termino)
         {
-            var productos = new List<ProductoDto>();
+            if (string.IsNullOrWhiteSpace(termino))
+                return Enumerable.Empty<ProductoDto>();
 
-            var query = @"
-                SELECT codigo, descripcion, costo, precio, cantidad, rubro, marca
-                FROM Productos
-                WHERE Activo = 1
-                  AND (
-                        codigo      LIKE @termino
-                     OR descripcion LIKE @termino
-                     OR rubro       LIKE @termino
-                     OR marca       LIKE @termino
-                  )
-                ORDER BY descripcion";
-
-            var payload = new
+            var likeOp = _db.UsaPostgres ? "ILIKE" : "LIKE";
+            var activoVal = _db.UsaPostgres ? "1::bit" : "1";
+            string sql;
+            var trimmed = termino.Trim();
+            // Si el termino es corto (1-3 chars) y numerico, buscar solo por codigo exacto
+            if (trimmed.Length <= 3 && trimmed.All(char.IsDigit))
             {
-                query,
-                parameters = new Dictionary<string, object?>
+                sql = string.Format(@"SELECT codigo, descripcion, costo, precio, cantidad, rubro, marca, editarprecio FROM productos WHERE activo = {0} AND codigo = @termino", activoVal);
+                try
                 {
-                    { "@termino", $"%{termino}%" }
+                    var rows = await _db.QueryAsync(sql, new Dictionary<string, object?> { { "@termino", trimmed } });
+                    var productos = rows.Select(row => new ProductoDto { Codigo = GetString(row,0), Descripcion = GetString(row,1), Costo = GetDecimal(row,2), Precio = GetDecimal(row,3), Stock = GetInt(row,4), Rubro = GetString(row,5), Marca = GetString(row,6), EditarPrecio = GetBool(row,7) }).ToList();
+                    _logger.LogInformation("Busqueda exacta: {C} resultado(s)", productos.Count);
+                    return productos;
                 }
-            };
+                catch (Exception ex) { _logger.LogError(ex, "Error buscando productos"); throw; }
+            }
 
+            // Separar por espacios: cada palabra debe coincidir en descripcion o marca
+            var palabras = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var condiciones = new List<string>();
+            var parametros = new Dictionary<string, object?>();
+
+            for (int i = 0; i < palabras.Length; i++)
+            {
+                var paramName = $"@p{i}";
+                parametros[paramName] = $"%{palabras[i]}%";
+                // Si la palabra es numerica, buscar solo en descripcion (no en codigo de barras)
+                if (palabras[i].All(char.IsDigit))
+                    condiciones.Add($"(descripcion {likeOp} {paramName})");
+                else
+                    condiciones.Add($"(descripcion {likeOp} {paramName} OR marca {likeOp} {paramName} OR rubro {likeOp} {paramName})");
+            }
+
+            var whereWords = string.Join(" AND ", condiciones);
+            if (_db.UsaPostgres)
+                sql = $"SELECT codigo, descripcion, costo, precio, cantidad, rubro, marca, editarprecio FROM productos WHERE activo = {activoVal} AND {whereWords} ORDER BY descripcion LIMIT 50";
+            else
+                sql = $"SELECT TOP 50 codigo, descripcion, costo, precio, cantidad, rubro, marca, editarprecio FROM productos WHERE activo = {activoVal} AND {whereWords} ORDER BY descripcion";
             try
             {
-                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, responseContent);
-                    throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
-                }
-
-                var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
-
-                if (resultado?.Data != null)
-                {
-                    foreach (var row in resultado.Data)
-                    {
-                        productos.Add(new ProductoDto
-                        {
-                            Codigo      = ConvertToString(row.Count > 0 ? row[0] : null),
-                            Descripcion = ConvertToString(row.Count > 1 ? row[1] : null),
-                            Costo       = ConvertToDecimal(row.Count > 2 ? row[2] : null),
-                            Precio      = ConvertToDecimal(row.Count > 3 ? row[3] : null),
-                            Stock       = ConvertToInt32(row.Count > 4 ? row[4] : null),
-                            Rubro       = ConvertToString(row.Count > 5 ? row[5] : null),
-                            Marca       = ConvertToString(row.Count > 6 ? row[6] : null),
-                        });
-                    }
-                }
-
-                _logger.LogInformation("Búsqueda '{Termino}': {Count} producto(s) encontrado(s)", termino, productos.Count);
+                var rows = await _db.QueryAsync(sql, parametros);
+                var productos = rows.Select(row => new ProductoDto { Codigo = GetString(row,0), Descripcion = GetString(row,1), Costo = GetDecimal(row,2), Precio = GetDecimal(row,3), Stock = GetInt(row,4), Rubro = GetString(row,5), Marca = GetString(row,6), EditarPrecio = GetBool(row,7) }).ToList();
+                _logger.LogInformation("Busqueda: {C} resultado(s)", productos.Count);
+                return productos;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error buscando productos con término '{Termino}'", termino);
-                throw;
-            }
-
-            return productos;
+            catch (Exception ex) { _logger.LogError(ex, "Error buscando productos"); throw; }
         }
 
         public async Task ActualizarProductoAsync(string codigo, ActualizarProductoDto datos)
         {
-            var query = @"
-                UPDATE Productos
-                SET costo    = @costo,
-                    precio   = @precio,
-                    cantidad = @cantidad
-                WHERE codigo = @codigo";
-
-            var payload = new
-            {
-                query,
-                parameters = new Dictionary<string, object?>
-                {
-                    { "@costo",    datos.Costo },
-                    { "@precio",   datos.Precio },
-                    { "@cantidad", datos.Stock },
-                    { "@codigo",   codigo }
-                }
-            };
-
+            var sql = "UPDATE productos SET costo=@costo, precio=@precio, cantidad=@cantidad WHERE codigo=@codigo";
             try
             {
-                // ✅ Usar /query en lugar de /execute (el bridge no expone /execute)
-                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("SQL Bridge error al actualizar: {StatusCode} - {Content}", response.StatusCode, responseContent);
-                    throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
-                }
-
-                _logger.LogInformation("Producto '{Codigo}' actualizado — Costo: {Costo}, Precio: {Precio}, Stock: {Stock}",
-                    codigo, datos.Costo, datos.Precio, datos.Stock);
+                await _db.ExecuteAsync(sql, new Dictionary<string, object?> { {"@costo",datos.Costo},{"@precio",datos.Precio},{"@cantidad",datos.Stock},{"@codigo",codigo} });
+                _logger.LogInformation("Producto actualizado: {C}", codigo);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error actualizando producto '{Codigo}'", codigo);
-                throw;
-            }
+            catch (Exception ex) { _logger.LogError(ex, "Error actualizando producto"); throw; }
         }
 
-        private static int ConvertToInt32(object? value)
+        private static string GetString(List<JsonElement> row, int i) =>
+            row.Count > i ? (row[i].ValueKind == JsonValueKind.String ? row[i].GetString() ?? "" : row[i].ToString()) : "";
+        private static decimal GetDecimal(List<JsonElement> row, int i) =>
+            row.Count > i && row[i].ValueKind == JsonValueKind.Number ? row[i].GetDecimal() : 0m;
+        private static int GetInt(List<JsonElement> row, int i) =>
+            row.Count > i && row[i].ValueKind == JsonValueKind.Number ? row[i].GetInt32() : 0;
+        private static bool GetBool(List<JsonElement> row, int i)
         {
-            if (value == null) return 0;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.Number => j.GetInt32(),
-                    JsonValueKind.String => int.TryParse(j.GetString(), out var r) ? r : 0,
-                    _ => 0
-                };
-            return Convert.ToInt32(value);
-        }
-
-        private static decimal ConvertToDecimal(object? value)
-        {
-            if (value == null) return 0;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.Number => j.GetDecimal(),
-                    JsonValueKind.String => decimal.TryParse(j.GetString(), out var r) ? r : 0,
-                    _ => 0
-                };
-            return Convert.ToDecimal(value);
-        }
-
-        private static string ConvertToString(object? value)
-        {
-            if (value == null) return string.Empty;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.String => j.GetString() ?? string.Empty,
-                    JsonValueKind.Null   => string.Empty,
-                    _                   => j.ToString()
-                };
-            return value.ToString() ?? string.Empty;
+            if (row.Count <= i) return false;
+            var el = row[i];
+            if (el.ValueKind == JsonValueKind.True) return true;
+            if (el.ValueKind == JsonValueKind.False) return false;
+            if (el.ValueKind == JsonValueKind.Number) return el.GetInt32() != 0;
+            if (el.ValueKind == JsonValueKind.String) return el.GetString() == "1" || el.GetString()?.ToLower() == "true";
+            return false;
         }
     }
 }

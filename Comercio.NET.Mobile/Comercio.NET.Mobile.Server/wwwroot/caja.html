@@ -1,0 +1,195 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caja &mdash; Comercio.NET</title>
+    <link rel="stylesheet" href="/css/caja.css" />
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <a href="/dashboard.html" class="btn-volver">&larr; Volver</a>
+        <div class="header-title">&#x1F3EA; Comercio.NET &mdash; Caja</div>
+        <div class="header-info" id="header-info">Cargando...</div>
+        <button class="btn-logout" id="btn-logout">Cerrar Sesi&oacute;n</button>
+    </header>
+
+    <!-- Alerta de turno cerrado -->
+    <div class="turno-alerta" id="turno-alerta" style="display:none">
+        <span>&#x26A0;&#xFE0F; No hay un turno abierto. No se puede operar la caja.</span>
+        <button class="btn-abrir-turno" id="btn-abrir-turno">Abrir turno ahora</button>
+    </div>
+
+    <!-- Layout principal -->
+    <div class="layout" id="layout-caja">
+
+        <!-- Panel izquierdo: busqueda -->
+        <div class="panel-busqueda">
+
+            <div class="search-bar">
+                <input id="input-busqueda"
+                       type="text"
+                       placeholder="&#x1F50D;  Codigo de barras o descripcion..."
+                       autocomplete="off"
+                       autofocus />
+                <button class="btn-buscar" id="btn-buscar">Buscar</button>
+            </div>
+
+            <div class="cantidad-bar">
+                <label for="input-cantidad">Cantidad:</label>
+                <input id="input-cantidad" type="number" value="1" min="1" />
+                <span class="cantidad-hint">&#x21B5; Enter para agregar &middot; F2 foco busqueda &middot; F10 cobrar</span>
+            </div>
+
+            <div class="resultados-lista" id="resultados-lista">
+                <div class="sin-resultados">Escanea o busca un producto para comenzar</div>
+            </div>
+
+        </div>
+
+        <!-- Panel derecho: ticket -->
+        <div class="panel-ticket">
+
+            <div class="ticket-header">
+                <div class="ticket-nro">Ticket: <span id="ticket-nro">&mdash;</span></div>
+                <button class="btn-cancelar-ticket" id="btn-cancelar-ticket">&#x1F5D1; Cancelar ticket</button>
+            </div>
+
+            <div class="ticket-items" id="ticket-items">
+                <div class="ticket-vacio">Sin productos en el ticket</div>
+            </div>
+
+            <div class="ticket-footer">
+                <div class="ticket-total-row">
+                    <span class="ticket-total-label">TOTAL</span>
+                    <span class="ticket-total-value" id="ticket-total">$0,00</span>
+                </div>
+                <button class="btn-cobrar" id="btn-cobrar" disabled>&#x1F4B3;  COBRAR</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal: Editar precio de producto -->
+    <div class="modal-overlay" id="modal-editar-precio">
+        <div class="modal modal-sm">
+            <div class="modal-title">Ingresar precio</div>
+            <div class="modal-producto-desc" id="precio-desc"></div>
+            <div class="field-group" style="margin-top:16px">
+                <label for="precio-input">Precio ($)</label>
+                <input id="precio-input" type="number" min="0" step="any" />
+            </div>
+            <div class="modal-actions" style="margin-top:16px">
+                <button class="btn-modal-cancelar" id="btn-precio-cancelar">Cancelar</button>
+                <button class="btn-modal-confirmar" id="btn-precio-confirmar">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Editar cantidad de item -->
+    <div class="modal-overlay" id="modal-editar-cantidad">
+        <div class="modal modal-sm">
+            <div class="modal-title">Editar cantidad</div>
+            <div class="modal-producto-desc" id="editar-desc"></div>
+            <div class="field-group" style="margin-top:16px">
+                <label for="editar-cantidad-input">Nueva cantidad</label>
+                <input id="editar-cantidad-input" type="number" min="1" value="1" />
+            </div>
+            <div class="modal-actions" style="margin-top:16px">
+                <button class="btn-modal-cancelar" id="btn-editar-cancelar">Cancelar</button>
+                <button class="btn-modal-confirmar" id="btn-editar-confirmar">Actualizar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de pago -->
+    <div class="modal-overlay" id="modal-pago">
+        <div class="modal">
+            <div class="modal-title">Registrar cobro</div>
+            <div class="modal-total" id="modal-total">$0,00</div>
+
+            <!-- Aviso de factura electronica -->
+            <div class="fe-aviso" id="fe-aviso" style="display:none">
+                <span id="fe-aviso-texto">&#x26A1; Esta forma de pago requiere Factura Electronica</span>
+            </div>
+
+            <!-- Tipo de comprobante (visible solo cuando hay FE) -->
+            <div class="fe-tipo" id="fe-tipo" style="display:none">
+                <label style="font-size:.85rem;color:var(--color-muted)">Tipo de comprobante</label>
+                <select id="fe-tipo-select">
+                    <option value="FacturaB">Factura B (consumidor final)</option>
+                    <option value="FacturaC">Factura C (monotributo)</option>
+                    <option value="FacturaA">Factura A (requiere CUIT)</option>
+                </select>
+                <input id="fe-cuit-input" type="text" placeholder="CUIT del cliente (solo Factura A)"
+                       style="display:none;margin-top:8px" maxlength="13" />
+            </div>
+
+            <div class="formas-pago" id="formas-pago"></div>
+
+            <!-- Descuento -->
+            <div id="descuento-section" style="display:none; margin: 12px 0; padding: 10px; border: 1px solid #28a745; border-radius: 8px; background: #f0fff4;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="chk-descuento" />
+                    <label for="chk-descuento" style="font-weight:600; cursor:pointer; color:#28a745;">Aplicar descuento</label>
+                    <select id="descuento-select" style="padding:4px 8px; border-radius:4px; border:1px solid #ccc; display:none;">
+                    </select>
+                </div>
+                <div id="descuento-detalle" style="display:none; margin-top:8px; font-size:13px; color:#155724; font-style:italic;"></div>
+            </div>
+
+            <!-- Cta. Cte. -->
+            <div id="ctacte-section" style="display:none; margin: 12px 0; padding: 10px; border: 1px solid #ffc107; border-radius: 8px; background: #fff8e1;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <input type="checkbox" id="chk-ctacte" />
+                    <label for="chk-ctacte" style="font-weight:600; cursor:pointer;">Venta a Cta. Cte.</label>
+                </div>
+                <div id="ctacte-cliente-box" style="display:none;">
+                    <select id="ctacte-select" style="width:100%; padding:6px 10px; border-radius:4px; border:1px solid #ccc;">
+                        <option value="">-- Seleccionar cliente --</option>
+                    </select>
+                    <div style="display:flex; gap:6px; margin-top:6px;">
+                        <input id="ctacte-nuevo" type="text" placeholder="Nuevo cliente..." style="flex:1; padding:5px 8px; border-radius:4px; border:1px solid #ccc;" />
+                        <button type="button" id="btn-ctacte-agregar" style="padding:5px 12px; background:#28a745; color:#fff; border:none; border-radius:4px; cursor:pointer;">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campos extra solo para efectivo -->
+            <div class="efectivo-fields" id="efectivo-fields">
+                <div class="field-group">
+                    <label for="input-recibido">Monto recibido ($)</label>
+                    <input id="input-recibido" type="number" min="0" step="0.01" placeholder="0,00" />
+                </div>
+                <div class="vuelto-row">
+                    <span>Vuelto:</span>
+                    <span class="vuelto-valor" id="vuelto-valor">$0,00</span>
+                </div>
+            </div>
+
+            <!-- FE opcional (cuando la forma de pago no lo obliga) -->
+            <div id="fe-opcional-section" style="margin: 8px 0; display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="chk-fe-opcional">
+                <label for="chk-fe-opcional" style="font-size:13px; cursor:pointer;">Generar Factura Electr&oacute;nica</label>
+            </div>
+
+            <div style="margin: 8px 0; display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="chk-imprimir" checked>
+                <label for="chk-imprimir" style="font-size:13px; cursor:pointer;">Imprimir comprobante</label>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-modal-cancelar" id="btn-modal-cancelar">Cancelar</button>
+                <button class="btn-modal-confirmar" id="btn-modal-confirmar">Confirmar cobro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/js/caja.js"></script>
+</body>
+</html>

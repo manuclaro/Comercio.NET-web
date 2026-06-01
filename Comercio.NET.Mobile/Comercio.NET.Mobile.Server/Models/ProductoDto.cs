@@ -9,6 +9,7 @@ namespace Comercio.NET.Mobile.Server.Models
         public int Stock { get; set; }
         public string Rubro { get; set; }
         public string Marca { get; set; }
+        public bool EditarPrecio { get; set; }
     }
 
     public class ActualizarProductoDto

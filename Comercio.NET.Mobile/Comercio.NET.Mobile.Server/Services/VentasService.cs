@@ -1,48 +1,47 @@
-﻿using Comercio.NET.Mobile.Server.Models;
+using Comercio.NET.Mobile.Server.Models;
 using System.Text.Json;
 
 namespace Comercio.NET.Mobile.Server.Services
 {
     public class VentasService : IVentasService
     {
-        private readonly string _sqlBridgeUrl;
+        private readonly DbService _db;
         private readonly ILogger<VentasService> _logger;
-        private readonly HttpClient _httpClient;
 
-        public VentasService(
-            IConfiguration configuration,
-            ILogger<VentasService> logger,
-            IHttpClientFactory httpClientFactory)
+        public VentasService(DbService db, ILogger<VentasService> logger)
         {
-            _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
-                ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+            _db = db;
             _logger = logger;
-            _httpClient = httpClientFactory.CreateClient();
         }
 
         public async Task<IEnumerable<VentaDto>> GetVentasDelDiaAsync(DateTime desde, DateTime hasta, int? numeroCajero = null, string formaPago = null, string tipoFactura = null)
         {
             var ventas = new List<VentaDto>();
 
-            // La subconsulta agrupa Facturas por NumeroRemito para evitar el producto
-            // cartesiano (Facturas tiene una fila por venta, no por producto).
-            // Se filtra Facturas por fecha para evitar traer remitos antiguos con el mismo número.
-            // El filtro de fecha real se aplica sobre Ventas.fecha en el WHERE principal.
-            var sql = @"
+            var esOfertaCoalesce = _db.UsaPostgres ? "COALESCE(v.esoferta, 0::bit)" : "COALESCE(v.esoferta, 0)";
+            var esCtaCteCoalesceV = _db.UsaPostgres ? "COALESCE(v.esctacte, 0::bit)" : "COALESCE(v.esctacte, 0)";
+            var esCtaCteCastF = _db.UsaPostgres ? "MAX(esctacte::int)" : "MAX(CAST(esctacte AS INT))";
+            var cajeroIntCast = _db.UsaPostgres
+                ? "COALESCE(NULLIF(f.Cajero, '')::int, 0)"
+                : "COALESCE(CAST(f.Cajero AS INT), 0)";
+            var horaExpr = _db.UsaPostgres
+                ? "COALESCE(CAST(v.hora AS TEXT), '')"
+                : "COALESCE(v.hora, '')";
+
+            var sql = $@"
                 SELECT 
                     v.id, v.nrofactura, v.codigo, v.descripcion,
                     v.precio, v.cantidad, v.total, v.porcentajeiva,
-                    COALESCE(v.esoferta, 0)                    AS EsOferta,
+                    {esOfertaCoalesce}                          AS EsOferta,
                     COALESCE(v.nombreoferta, '')               AS NombreOferta,
                     COALESCE(f.FormadePago, '')                AS FormaPago,
                     COALESCE(f.TipoFactura, '')                AS TipoFactura,
                     COALESCE(CAST(v.fecha AS DATE), CURRENT_DATE) AS Fecha,
-                    COALESCE(v.hora, '')                       AS Hora,
-                    COALESCE(v.esctacte, 0)                    AS EsCtaCte,
+                    {horaExpr}                                 AS Hora,
+                    {esCtaCteCoalesceV}                         AS EsCtaCte,
                     COALESCE(v.nombrectacte, '')               AS NombreCtaCte,
                     COALESCE(f.UsuarioVenta, '')               AS UsuarioVenta,
-                    COALESCE(CAST(f.Cajero AS INT), 0)         AS NumeroCajero
+                    {cajeroIntCast}                             AS NumeroCajero
                 FROM ventas v
                 LEFT JOIN (
                     SELECT
@@ -52,7 +51,7 @@ namespace Comercio.NET.Mobile.Server.Services
                         MAX(tipofactura)            AS TipoFactura,
                         MAX(cajero)                 AS Cajero,
                         MAX(usuarioventa)           AS UsuarioVenta,
-                        MAX(CAST(esctacte AS INT))  AS esCtaCte
+                        {esCtaCteCastF}             AS esCtaCte
                     FROM facturas
                     WHERE CAST(fecha AS DATE) BETWEEN @desde AND @hasta
                     GROUP BY numeroremito
@@ -60,7 +59,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta";
 
             if (numeroCajero.HasValue)
-                sql += " AND CAST(f.cajero AS INT) = @numeroCajero";
+                sql += _db.UsaPostgres ? " AND NULLIF(f.cajero, '')::int = @numeroCajero" : " AND CAST(f.cajero AS INT) = @numeroCajero";
 
             if (!string.IsNullOrWhiteSpace(formaPago))
                 sql += " AND f.formadepago = @formaPago";
@@ -76,8 +75,8 @@ namespace Comercio.NET.Mobile.Server.Services
 
             var parameters = new Dictionary<string, object?>
             {
-                { "@desde", desde.Date.ToString("yyyy-MM-dd") },
-                { "@hasta", hasta.Date.ToString("yyyy-MM-dd") }
+                { "@desde", desde.Date },
+                { "@hasta", hasta.Date }
             };
 
             if (numeroCajero.HasValue)
@@ -90,55 +89,38 @@ namespace Comercio.NET.Mobile.Server.Services
                 !string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase))
                 parameters["@tipoFactura"] = tipoFactura;
 
-            var payload = new { query = sql, parameters };
-
             try
             {
-                _logger.LogInformation("GetVentasDelDiaAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
+                _logger.LogInformation("GetVentasDelDiaAsync -> desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
-                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                var rows = await _db.QueryAsync(sql, parameters);
 
-                _logger.LogInformation("GetVentasDelDiaAsync → StatusCode={StatusCode}", response.StatusCode);
+                _logger.LogInformation("GetVentasDelDiaAsync ? Filas recibidas: {Count}", rows.Count);
 
-                if (!response.IsSuccessStatusCode)
+                foreach (var row in rows)
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
-                    throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
-                }
-
-                var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
-
-                _logger.LogInformation("GetVentasDelDiaAsync → Filas recibidas: {Count}",
-                    resultado?.Data?.Count ?? 0);
-
-                if (resultado?.Data != null)
-                {
-                    foreach (var row in resultado.Data)
+                    ventas.Add(new VentaDto
                     {
-                        ventas.Add(new VentaDto
-                        {
-                            Id            = ConvertToInt32(row.Count > 0  ? row[0]  : null),
-                            NroFactura    = ConvertToInt32(row.Count > 1  ? row[1]  : null),
-                            Codigo        = ConvertToString(row.Count > 2  ? row[2]  : null),
-                            Descripcion   = ConvertToString(row.Count > 3  ? row[3]  : null),
-                            Precio        = ConvertToDecimal(row.Count > 4  ? row[4]  : null),
-                            Cantidad      = ConvertToInt32(row.Count > 5  ? row[5]  : null),
-                            Total         = ConvertToDecimal(row.Count > 6  ? row[6]  : null),
-                            PorcentajeIva = ConvertToDecimal(row.Count > 7  ? row[7]  : null),
-                            EsOferta      = ConvertToBoolean(row.Count > 8  ? row[8]  : null),
-                            NombreOferta  = ConvertToString(row.Count > 9  ? row[9]  : null),
-                            FormaPago     = ConvertToString(row.Count > 10 ? row[10] : null),
-                            TipoFactura   = ConvertToString(row.Count > 11 ? row[11] : null),
-                            Fecha         = ConvertToDateTime(row.Count > 12 ? row[12] : null),
-                            Hora          = ConvertToString(row.Count > 13 ? row[13] : null),
-                            EsCtaCte      = ConvertToBoolean(row.Count > 14 ? row[14] : null),
-                            NombreCtaCte  = ConvertToString(row.Count > 15 ? row[15] : null),
-                            UsuarioVenta  = ConvertToString(row.Count > 16 ? row[16] : null),
-                            NumeroCajero  = ConvertToInt32(row.Count > 17 ? row[17] : null),
-                        });
-                    }
+                        Id            = ConvertToInt32(row.Count > 0  ? row[0]  : default),
+                        NroFactura    = ConvertToInt32(row.Count > 1  ? row[1]  : default),
+                        Codigo        = ConvertToString(row.Count > 2  ? row[2]  : default),
+                        Descripcion   = ConvertToString(row.Count > 3  ? row[3]  : default),
+                        Precio        = ConvertToDecimal(row.Count > 4  ? row[4]  : default),
+                        Cantidad      = ConvertToInt32(row.Count > 5  ? row[5]  : default),
+                        Total         = ConvertToDecimal(row.Count > 6  ? row[6]  : default),
+                        PorcentajeIva = ConvertToDecimal(row.Count > 7  ? row[7]  : default),
+                        EsOferta      = ConvertToBoolean(row.Count > 8  ? row[8]  : default),
+                        NombreOferta  = ConvertToString(row.Count > 9  ? row[9]  : default),
+                        FormaPago     = ConvertToString(row.Count > 10 ? row[10] : default),
+                        TipoFactura   = ConvertToString(row.Count > 11 ? row[11] : default),
+                        Fecha         = ConvertToDateTime(row.Count > 12 ? row[12] : default),
+                        Hora          = ConvertToString(row.Count > 13 ? row[13] : default),
+                        EsCtaCte      = ConvertToBoolean(row.Count > 14 ? row[14] : default),
+                        NombreCtaCte  = ConvertToString(row.Count > 15 ? row[15] : default),
+                        UsuarioVenta  = ConvertToString(row.Count > 16 ? row[16] : default),
+                        NumeroCajero  = ConvertToInt32(row.Count > 17 ? row[17] : default),
+                    });
                 }
             }
             catch (Exception ex)
@@ -155,7 +137,7 @@ namespace Comercio.NET.Mobile.Server.Services
             var filtrosFactura = new System.Text.StringBuilder();
 
             if (numeroCajero.HasValue)
-                filtrosFactura.Append(" AND CAST(f.cajero AS INT) = @numeroCajero");
+                filtrosFactura.Append(_db.UsaPostgres ? " AND NULLIF(f.cajero, '')::int = @numeroCajero" : " AND CAST(f.cajero AS INT) = @numeroCajero");
 
             if (!string.IsNullOrWhiteSpace(formaPago))
                 filtrosFactura.Append(" AND f.formadepago = @formaPago");
@@ -168,13 +150,13 @@ namespace Comercio.NET.Mobile.Server.Services
                         : " AND f.tipofactura = @tipoFactura");
             }
 
-            // Los totales monetarios se calculan directamente desde Facturas (1 fila por remito)
-            // filtrando por Facturas.Fecha, igual que ArqueoCajaService.
-            // La cantidad de productos se obtiene por separado desde Ventas para no multiplicar
-            // el ImporteFinal por la cantidad de productos de cada remito.
+            var esCtaCteZero = _db.UsaPostgres ? "esctacte = 0::bit" : "COALESCE(esctacte, 0) = 0";
+            var esCtaCteOne = _db.UsaPostgres ? "esctacte = 1::bit" : "COALESCE(esctacte, 0) = 1";
+            var castDec = _db.UsaPostgres ? "NUMERIC(18,2)" : "DECIMAL(18,2)";
+
             var sql = $@"
                 SELECT
-                    COALESCE(SUM(CAST(f.importefinal AS DECIMAL(18,2))), 0) AS TotalVendido,
+                    COALESCE(SUM(CAST(f.importefinal AS {castDec})), 0) AS TotalVendido,
                     COUNT(DISTINCT f.numeroremito)                          AS CantidadTransacciones,
                     COALESCE((
                         SELECT SUM(v.cantidad)
@@ -185,34 +167,36 @@ namespace Comercio.NET.Mobile.Server.Services
                               WHERE f2.numeroremito = v.nrofactura
                                 AND CAST(f2.fecha AS DATE) BETWEEN @desde AND @hasta
                                 AND COALESCE(f2.cajero, '') <> ''
-                                AND COALESCE(f2.esctacte, 0) = 0
+                                AND f2.{esCtaCteZero}
                           )
                     ), 0)                                                    AS CantidadProductos,
                     COALESCE(SUM(CASE WHEN LOWER(f.formadepago) = 'efectivo'
-                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalEfectivo,
+                        THEN CAST(f.importefinal AS {castDec}) ELSE 0 END), 0) AS TotalEfectivo,
                     COALESCE(SUM(CASE WHEN LOWER(f.formadepago) LIKE '%mercado%pago%'
-                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalMercadoPago,
+                        THEN CAST(f.importefinal AS {castDec}) ELSE 0 END), 0) AS TotalMercadoPago,
                     COALESCE(SUM(CASE WHEN LOWER(f.formadepago) = 'dni'
-                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalDni,
+                        THEN CAST(f.importefinal AS {castDec}) ELSE 0 END), 0) AS TotalDni,
                     COALESCE((
-                        SELECT SUM(CAST(fc.importefinal AS DECIMAL(18,2)))
+                        SELECT SUM(CAST(fc.importefinal AS {castDec}))
                         FROM facturas fc
                         WHERE CAST(fc.fecha AS DATE) BETWEEN @desde AND @hasta
-                          AND COALESCE(fc.esctacte, 0) = 1
+                          AND fc.{esCtaCteOne}
                     ), 0)                                                    AS TotalCtaCte,
                     COALESCE(SUM(CASE WHEN LOWER(f.formadepago) NOT IN ('efectivo', 'dni')
                                      AND LOWER(f.formadepago) NOT LIKE '%mercado%pago%'
-                        THEN CAST(f.importefinal AS DECIMAL(18,2)) ELSE 0 END), 0) AS TotalOtros
+                        THEN CAST(f.importefinal AS {castDec}) ELSE 0 END), 0) AS TotalOtros,
+                    COALESCE(SUM(CASE WHEN f.tipofactura IN ('FacturaA','FacturaB','FacturaC')
+                        THEN CAST(f.importefinal AS {castDec}) ELSE 0 END), 0) AS TotalFacturasElectronicas
                 FROM facturas f
                 WHERE CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta
                   AND COALESCE(f.cajero, '') <> ''
-                  AND COALESCE(f.esctacte, 0) = 0
+                  AND f.{esCtaCteZero}
                   {filtrosFactura}";
 
             var parameters = new Dictionary<string, object?>
             {
-                { "@desde", desde.Date.ToString("yyyy-MM-dd") },
-                { "@hasta", hasta.Date.ToString("yyyy-MM-dd") }
+                { "@desde", desde.Date },
+                { "@hasta", hasta.Date }
             };
 
             if (numeroCajero.HasValue)
@@ -225,47 +209,34 @@ namespace Comercio.NET.Mobile.Server.Services
                 !string.Equals(tipoFactura, "Factura", StringComparison.OrdinalIgnoreCase))
                 parameters["@tipoFactura"] = tipoFactura;
 
-            var payload = new { query = sql, parameters };
-
             try
             {
-                _logger.LogInformation("GetResumenAsync → desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
+                _logger.LogInformation("GetResumenAsync -> desde={Desde}, hasta={Hasta}, cajero={Cajero}, pago={Pago}, tipo={Tipo}",
                     desde, hasta, numeroCajero, formaPago, tipoFactura);
 
-                using var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", payload);
+                var rows = await _db.QueryAsync(sql, parameters);
 
-                _logger.LogInformation("GetResumenAsync → StatusCode={StatusCode}", response.StatusCode);
+                _logger.LogInformation("GetResumenAsync ? Data rows: {Count}, First row columns: {Cols}",
+                    rows.Count, rows.FirstOrDefault()?.Count ?? 0);
 
-                if (!response.IsSuccessStatusCode)
+                if (rows.Count > 0)
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, content);
-                    throw new Exception($"Error en SQL Bridge: {response.StatusCode}");
-                }
+                    var row = rows[0];
 
-                var resultado = await response.Content.ReadFromJsonAsync<QueryResult>(JsonSerializerDefaults.CaseInsensitive);
-
-                _logger.LogInformation("GetResumenAsync → Data rows: {Count}, First row columns: {Cols}",
-                    resultado?.Data?.Count ?? 0,
-                    resultado?.Data?.FirstOrDefault()?.Count ?? 0);
-
-                if (resultado?.Data != null && resultado.Data.Count > 0)
-                {
-                    var row = resultado.Data[0];
-
-                    _logger.LogInformation("GetResumenAsync → Raw values: [{V}]",
-                        string.Join(", ", row.Select(v => v?.ToString() ?? "null")));
+                    _logger.LogInformation("GetResumenAsync ? Raw values: [{V}]",
+                        string.Join(", ", row.Select(v => v.ToString())));
 
                     return new ResumenVentasDto
                     {
-                        TotalVendido          = ConvertToDecimal(row.Count > 0 ? row[0] : null),
-                        CantidadTransacciones = ConvertToInt32(row.Count > 1  ? row[1] : null),
-                        CantidadProductos     = ConvertToInt32(row.Count > 2  ? row[2] : null),
-                        TotalEfectivo         = ConvertToDecimal(row.Count > 3 ? row[3] : null),
-                        TotalMercadoPago      = ConvertToDecimal(row.Count > 4 ? row[4] : null),
-                        TotalDni              = ConvertToDecimal(row.Count > 5 ? row[5] : null),
-                        TotalCtaCte           = ConvertToDecimal(row.Count > 6 ? row[6] : null),
-                        TotalOtros            = ConvertToDecimal(row.Count > 7 ? row[7] : null),
+                        TotalVendido          = ConvertToDecimal(row.Count > 0 ? row[0] : default),
+                        CantidadTransacciones = ConvertToInt32(row.Count > 1  ? row[1] : default),
+                        CantidadProductos     = ConvertToInt32(row.Count > 2  ? row[2] : default),
+                        TotalEfectivo         = ConvertToDecimal(row.Count > 3 ? row[3] : default),
+                        TotalMercadoPago      = ConvertToDecimal(row.Count > 4 ? row[4] : default),
+                        TotalDni              = ConvertToDecimal(row.Count > 5 ? row[5] : default),
+                        TotalCtaCte           = ConvertToDecimal(row.Count > 6 ? row[6] : default),
+                        TotalOtros            = ConvertToDecimal(row.Count > 7 ? row[7] : default),
+                        TotalFacturasElectronicas = ConvertToDecimal(row.Count > 8 ? row[8] : default),
                     };
                 }
             }
@@ -286,67 +257,53 @@ namespace Comercio.NET.Mobile.Server.Services
             DateTime desde, int? numeroCajero = null, string? formaPago = null, string? tipoFactura = null)
             => GetResumenAsync(desde, DateTime.Now, numeroCajero, formaPago, tipoFactura);
 
-        private static int ConvertToInt32(object? value)
+        private static int ConvertToInt32(JsonElement value)
         {
-            if (value is null) return 0;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.Number => j.GetInt32(),
-                    JsonValueKind.String => int.TryParse(j.GetString(), out var r) ? r : 0,
-                    _ => 0
-                };
-            return Convert.ToInt32(value);
+            return value.ValueKind switch
+            {
+                JsonValueKind.Number => value.GetInt32(),
+                JsonValueKind.String => int.TryParse(value.GetString(), out var r) ? r : 0,
+                _ => 0
+            };
         }
 
-        private static decimal ConvertToDecimal(object? value)
+        private static decimal ConvertToDecimal(JsonElement value)
         {
-            if (value is null) return 0m;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.Number => j.GetDecimal(),
-                    JsonValueKind.String => decimal.TryParse(j.GetString(), out var r) ? r : 0m,
-                    _ => 0m
-                };
-            return Convert.ToDecimal(value);
+            return value.ValueKind switch
+            {
+                JsonValueKind.Number => value.GetDecimal(),
+                JsonValueKind.String => decimal.TryParse(value.GetString(), out var r) ? r : 0m,
+                _ => 0m
+            };
         }
 
-        private static bool ConvertToBoolean(object? value)
+        private static bool ConvertToBoolean(JsonElement value)
         {
-            if (value is null) return false;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.True   => true,
-                    JsonValueKind.False  => false,
-                    JsonValueKind.Number => j.GetInt32() != 0,
-                    JsonValueKind.String => j.GetString() is "1" or "true" or "True",
-                    _ => false
-                };
-            return Convert.ToBoolean(value);
+            return value.ValueKind switch
+            {
+                JsonValueKind.True   => true,
+                JsonValueKind.False  => false,
+                JsonValueKind.Number => value.GetInt32() != 0,
+                JsonValueKind.String => value.GetString() is "1" or "true" or "True",
+                _ => false
+            };
         }
 
-        private static string ConvertToString(object? value)
+        private static string ConvertToString(JsonElement value)
         {
-            if (value is null) return string.Empty;
-            if (value is JsonElement j)
-                return j.ValueKind switch
-                {
-                    JsonValueKind.String => j.GetString() ?? string.Empty,
-                    JsonValueKind.Null   => string.Empty,
-                    _                   => j.ToString()
-                };
-            return value.ToString() ?? string.Empty;
+            return value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString() ?? string.Empty,
+                JsonValueKind.Null   => string.Empty,
+                _                   => value.ToString()
+            };
         }
 
-        private static DateTime ConvertToDateTime(object? value)
+        private static DateTime ConvertToDateTime(JsonElement value)
         {
-            if (value is null) return DateTime.MinValue;
-            if (value is JsonElement j && j.ValueKind == JsonValueKind.String)
-                return DateTime.TryParse(j.GetString(), out var d) ? d : DateTime.MinValue;
-            return Convert.ToDateTime(value);
+            if (value.ValueKind == JsonValueKind.String)
+                return DateTime.TryParse(value.GetString(), out var d) ? d : DateTime.MinValue;
+            return DateTime.MinValue;
         }
     }
 }
-

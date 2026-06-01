@@ -700,6 +700,7 @@ namespace Comercio.NET.Formularios
                                     cantidad = @cantidad,
                                     proveedor = @proveedor,
                                     PermiteAcumular = @PermiteAcumular,
+                                    activo = @activo,
                                     iva = @iva
                                   WHERE codigo = @codigoOriginal";
                     cmd = new NpgsqlCommand(query, connection);
@@ -708,8 +709,8 @@ namespace Comercio.NET.Formularios
                 else
                 {
                     var query = @"INSERT INTO Productos 
-                                (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor, PermiteAcumular, iva)
-                                VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor, @PermiteAcumular, @iva)";
+                                (codigo, descripcion, rubro, marca, precio, costo, porcentaje, cantidad, proveedor, PermiteAcumular, activo, iva)
+                                VALUES (@codigo, @descripcion, @rubro, @marca, @precio, @costo, @porcentaje, @cantidad, @proveedor, @PermiteAcumular, @activo, @iva)";
                     cmd = new NpgsqlCommand(query, connection);
                 }
 
@@ -745,8 +746,9 @@ namespace Comercio.NET.Formularios
     
                     cmd.Parameters.Add("@cantidad", NpgsqlTypes.NpgsqlDbType.Integer).Value = 10;
                     cmd.Parameters.Add("@proveedor", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = "Proveedor";
-                    cmd.Parameters.Add("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Integer).Value = PermiteAcumular;
-    
+                    cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Bit) { Value = PermiteAcumular == 1 });
+                    cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+
                     // CORREGIDO: IVA con precisión y escala correctas
                     var ivaParam = cmd.Parameters.Add("@iva", NpgsqlTypes.NpgsqlDbType.Numeric);
                     ivaParam.Precision = 5;
@@ -829,8 +831,9 @@ namespace Comercio.NET.Formularios
     
                     cmd.Parameters.Add("@cantidad", NpgsqlTypes.NpgsqlDbType.Integer).Value = cantidad;
                     cmd.Parameters.Add("@proveedor", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = txtProveedor?.Text?.Trim() ?? "";
-                    cmd.Parameters.Add("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Integer).Value = PermiteAcumular;
-    
+                    cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Bit) { Value = PermiteAcumular == 1 });
+                    cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+
                     // CORREGIDO: IVA con precisión y escala correctas (5,2)
                     var ivaParam = cmd.Parameters.Add("@iva", NpgsqlTypes.NpgsqlDbType.Numeric);
                     ivaParam.Precision = 5;

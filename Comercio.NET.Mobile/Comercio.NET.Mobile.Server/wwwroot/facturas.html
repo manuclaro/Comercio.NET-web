@@ -1,0 +1,140 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0078d7">
+    <title>Control de Facturas - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/ventas.css" />
+</head>
+<body>
+
+    <header class="page-header">
+        <a href="/dashboard.html" class="btn-back">&larr; Volver</a>
+        <div class="header-title">
+            <div>
+                <h1>Control de Facturas</h1>
+                <p>Detalle por factura</p>
+            </div>
+        </div>
+        <div class="header-user">
+            <span id="nombreUsuario"></span>
+            <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesion</button>
+        </div>
+    </header>
+
+    <main class="page-main" style="max-width: 1200px;">
+
+        <div class="filtro-box">
+            <div class="filtro-grupo">
+                <label for="fechaDesde">Desde</label>
+                <input type="date" id="fechaDesde" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="fechaHasta">Hasta</label>
+                <input type="date" id="fechaHasta" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="cajeroFacturas">Cajero</label>
+                <input type="text" id="cajeroFacturas" placeholder="Todos" style="width:100px;" />
+            </div>
+            <div class="filtro-grupo">
+                <label for="formaPagoFacturas">Forma de pago</label>
+                <select id="formaPagoFacturas">
+                    <option value="">Todas</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="MercadoPago">Mercado Pago</option>
+                    <option value="DNI">DNI</option>
+                    <option value="Otro">Otros</option>
+                </select>
+            </div>
+            <div class="filtro-grupo">
+                <label for="tipoFacturaFiltro">Tipo</label>
+                <select id="tipoFacturaFiltro">
+                    <option value="">Todos</option>
+                    <option value="Remito">Remito</option>
+                    <option value="FacturaB">Factura B</option>
+                    <option value="FacturaC">Factura C</option>
+                    <option value="FacturaA">Factura A</option>
+                </select>
+            </div>
+            <button class="btn-consultar" onclick="cargarFacturas()">Buscar</button>
+            <button class="btn-consultar" style="background:#6c757d;" onclick="cargarAyer()">Ayer</button>
+        </div>
+
+        <div class="resumen-cards" id="resumenCards"></div>
+
+        <div class="tabla-ventas-container">
+            <table id="tablaFacturas">
+                <thead>
+                    <tr>
+                        <th>Remito</th>
+                        <th>Nro Factura</th>
+                        <th>Importe Final</th>
+                        <th>Pago</th>
+                        <th>Tipo</th>
+                        <th>Cajero</th>
+                        <th>Usuario</th>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>CAE</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyFacturas"></tbody>
+            </table>
+            <p id="mensajeFacturas" class="no-data" style="display:none">No hay facturas para los filtros seleccionados.</p>
+        </div>
+
+    </main>
+
+    <!-- Modal Detalle Factura -->
+    <div id="modalDetalle" class="modal-overlay" style="display:none">
+        <div class="modal-content" style="max-width:700px;width:95%;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h2 id="modalTitulo" style="margin:0;font-size:1.2rem;">Detalle de Factura</h2>
+                <button onclick="cerrarModal()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+
+            <div id="modalInfo" style="margin-bottom:12px;font-size:0.9rem;color:#555;"></div>
+
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:16px;">
+                <thead>
+                    <tr style="background:#f0f0f0;">
+                        <th style="padding:6px;text-align:left;">Codigo</th>
+                        <th style="padding:6px;text-align:left;">Descripcion</th>
+                        <th style="padding:6px;text-align:right;">Precio</th>
+                        <th style="padding:6px;text-align:center;">Cant.</th>
+                        <th style="padding:6px;text-align:right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="modalDetalleBody"></tbody>
+            </table>
+
+            <div style="border-top:1px solid #ddd;padding-top:12px;">
+                <div style="margin-bottom:12px;">
+                    <label style="font-weight:600;font-size:0.9rem;">Forma de pago:</label>
+                    <select id="modalFormaPago" style="margin-left:8px;padding:4px 8px;">
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="MercadoPago">Mercado Pago</option>
+                        <option value="DNI">DNI</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                    <button onclick="guardarFormaPago()" class="btn-consultar" style="margin-left:8px;padding:6px 14px;font-size:0.85rem;">Guardar</button>
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button onclick="generarFE()" id="btnGenerarFE" class="btn-consultar" style="background:#28a745;padding:8px 16px;">Generar Factura Electronica</button>
+                    <button onclick="reimprimir()" class="btn-consultar" style="background:#17a2b8;padding:8px 16px;">Reimprimir</button>
+                </div>
+                <p id="modalMensaje" style="margin-top:10px;font-size:0.85rem;color:#28a745;display:none;"></p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="page-footer">
+        <p>Comercio.NET Mobile - v1.4.0 - 2026 - <span class="footer-brand">TPQ Solutions</span></p>
+    </footer>
+
+    <script src="/js/facturas.js"></script>
+</body>
+</html>

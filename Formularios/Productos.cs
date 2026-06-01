@@ -18,17 +18,18 @@ namespace Comercio.NET.Formularios
         private string lastSearchText = "";
         private bool isInitialized = false;
 
-        // Sistema de cache para datos
-        private static DataTable? _cacheProductos = null;
-        private static DateTime _ultimaActualizacionCache = DateTime.MinValue;
-        private static readonly TimeSpan DURACION_CACHE = TimeSpan.FromMinutes(5);
-        
+        // Carga inicial limitada
+        private const int CARGA_INICIAL = 50;
+
         // Control de carga
         private bool _cargandoDatos = false;
 
         // Sistema de filtro
         private CancellationTokenSource? _filtroTokenSource;
         private readonly object _filtroLock = new object();
+
+        // Filtro de activos
+        private bool _verInactivos = false;
 
         public ProductosOptimizado()
         {
@@ -259,10 +260,8 @@ namespace Comercio.NET.Formularios
             {
                 System.Diagnostics.Debug.WriteLine("🔄 Actualizando datos de productos desde BD");
 
-                // Guardar el filtro actual
                 string filtroActual = txtFiltroDescripcion?.Text?.Trim() ?? "";
 
-                // Guardar la selección actual (si existe)
                 string codigoSeleccionado = "";
                 if (GrillaProductos?.SelectedRows?.Count > 0)
                 {
@@ -270,7 +269,6 @@ namespace Comercio.NET.Formularios
                     codigoSeleccionado = filaSeleccionada.Cells["codigo"]?.Value?.ToString() ?? "";
                 }
 
-                // Deshabilitar el botón temporalmente
                 if (sender is Button btn)
                 {
                     btn.Enabled = false;
@@ -281,35 +279,17 @@ namespace Comercio.NET.Formularios
                 lblContador.Text = "🔄 Actualizando datos desde la base de datos...";
                 lblContador.ForeColor = Color.FromArgb(33, 150, 243);
 
-                // Limpiar caché para forzar recarga desde BD
-                LimpiarCache();
+                lastSearchText = "";
+                await AplicarFiltro(filtroActual);
 
-                // Recargar productos
-                await CargarProductosAsync();
-
-                // Reaplicar filtro si existía
-                if (!string.IsNullOrEmpty(filtroActual))
-                {
-                    txtFiltroDescripcion.TextChanged -= TxtFiltroDescripcion_TextChanged;
-                    txtFiltroDescripcion.Text = filtroActual;
-                    await AplicarFiltro(filtroActual);
-                    txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
-                    lastSearchText = filtroActual;
-                }
-
-                // Restaurar selección si existía
                 if (!string.IsNullOrEmpty(codigoSeleccionado))
-                {
                     await SeleccionarProductoEnGrilla(codigoSeleccionado);
-                }
 
                 System.Diagnostics.Debug.WriteLine("✅ Datos actualizados exitosamente");
 
-                // Feedback visual temporal
-                lblContador.ForeColor = Color.FromArgb(76, 175, 80); // Verde
-                await Task.Delay(2000); // Mostrar mensaje 2 segundos
-                ActualizarContador(); // Restaurar contador normal
-
+                lblContador.ForeColor = Color.FromArgb(76, 175, 80);
+                await Task.Delay(2000);
+                ActualizarContador();
             }
             catch (Exception ex)
             {
@@ -324,7 +304,6 @@ namespace Comercio.NET.Formularios
             {
                 this.Cursor = Cursors.Default;
 
-                // Restaurar el botón
                 if (sender is Button btn)
                 {
                     btn.Enabled = true;
@@ -493,44 +472,25 @@ namespace Comercio.NET.Formularios
         {
             if (_cargandoDatos) return;
             _cargandoDatos = true;
-            
+
             try
             {
                 this.Cursor = Cursors.WaitCursor;
-                lblContador.Text = "🔄 Cargando productos...";
-                
-                // Verificar cache
-                if (_cacheProductos != null && 
-                    DateTime.Now - _ultimaActualizacionCache < DURACION_CACHE)
-                {
-                    System.Diagnostics.Debug.WriteLine("📦 Usando cache de productos");
-                    productosTable = _cacheProductos.Copy();
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("🔄 Cargando datos frescos");
-                    productosTable = await CargarProductosDesdeBDAsync();
-                    
-                    // Actualizar cache
-                    if (productosTable != null)
-                    {
-                        _cacheProductos?.Dispose();
-                        _cacheProductos = productosTable.Copy();
-                        _ultimaActualizacionCache = DateTime.Now;
-                    }
-                }
-                
+                lblContador.Text = $"🔄 Cargando primeros {CARGA_INICIAL} productos...";
+
+                productosTable = await CargarProductosDesdeBDAsync(textoBuscar: "", soloInicial: true);
+
                 // Asignar datos a la grilla
                 if (GrillaProductos != null && productosTable != null)
                 {
                     GrillaProductos.DataSource = productosTable;
                     ConfigurarColumnas();
-                    AplicarFormatoStock();
+                    AplicarFormatoFilas();
                     ActualizarContador();
                 }
-                
-                this.Text = $"Gestión de Productos ({productosTable?.Rows?.Count ?? 0:N0} productos) - ✓ Primeras columnas editables";
-                
+
+                this.Text = $"Gestión de Productos - ✓ Primeras columnas editables";
+
             }
             catch (Exception ex)
             {
@@ -545,7 +505,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private async Task<DataTable> CargarProductosDesdeBDAsync()
+        private async Task<DataTable> CargarProductosDesdeBDAsync(string textoBuscar = "", bool soloInicial = false)
         {
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -560,8 +520,35 @@ namespace Comercio.NET.Formularios
             {
                 await connection.OpenAsync();
 
-                // Query compatible con PostgreSQL
-                var query = @"SELECT 
+                // Construir cláusula WHERE
+                var condiciones = new List<string>();
+
+                // Filtro de activos (columna es tipo bit en PostgreSQL)
+                if (!_verInactivos)
+                    condiciones.Add("activo = B'1'");
+
+                // Filtro de búsqueda por texto
+                if (!string.IsNullOrWhiteSpace(textoBuscar))
+                {
+                    string[] palabras = textoBuscar.Trim()
+                        .Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Take(4)
+                        .Select(p => p.Replace("'", "''"))
+                        .ToArray();
+
+                    foreach (string palabra in palabras)
+                    {
+                        if (palabra.Length <= 3)
+                            condiciones.Add($"(codigo ILIKE '{palabra}%' OR descripcion ILIKE '%{palabra}%')");
+                        else
+                            condiciones.Add($"(descripcion ILIKE '%{palabra}%' OR codigo ILIKE '%{palabra}%' OR marca ILIKE '%{palabra}%')");
+                    }
+                }
+
+                string whereClause = condiciones.Count > 0 ? "WHERE " + string.Join(" AND ", condiciones) : "";
+                string limitClause = soloInicial ? $"LIMIT {CARGA_INICIAL}" : "";
+
+                var query = $@"SELECT 
                 codigo, 
                 descripcion, 
                 marca,
@@ -593,7 +580,9 @@ namespace Comercio.NET.Formularios
                     ELSE 0 
                 END as TieneError
             FROM productos 
-            ORDER BY TieneError DESC, descripcion";
+            {whereClause}
+            ORDER BY TieneError DESC, descripcion
+            {limitClause}";
 
                 using (var adapter = new NpgsqlDataAdapter(query, connection))
                 {
@@ -621,15 +610,12 @@ namespace Comercio.NET.Formularios
                                 string.Join("\n", productosConError.Take(10));
 
                 if (productosConError.Count > 10)
-                {
                     mensaje += $"\n... y {productosConError.Count - 10} más.";
-                }
 
                 mensaje += "\n\n⚠️ Por favor, edite estos productos para corregir los valores.";
 
                 System.Diagnostics.Debug.WriteLine($"⚠️ Productos con error detectados: {productosConError.Count}");
 
-                // Mostrar mensaje sin bloquear la carga
                 MessageBox.Show(mensaje,
                     "⚠️ Productos con Valores Inválidos Detectados",
                     MessageBoxButtons.OK,
@@ -858,7 +844,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private void AplicarFormatoStock()
+        private void AplicarFormatoFilas()
         {
             if (GrillaProductos?.Rows == null) return;
 
@@ -866,27 +852,41 @@ namespace Comercio.NET.Formularios
             {
                 foreach (DataGridViewRow row in GrillaProductos.Rows)
                 {
-                    // ✅ NUEVO: Detectar y resaltar productos con errores
+                    // Detectar y resaltar productos con errores
                     bool tieneError = false;
                     if (row.Cells["TieneError"]?.Value != DBNull.Value)
                     {
                         tieneError = Convert.ToInt32(row.Cells["TieneError"].Value) == 1;
                     }
 
+                    // Detectar productos inactivos
+                    bool esInactivo = false;
+                    if (row.Cells["Activo"]?.Value != null)
+                    {
+                        var val = row.Cells["Activo"].Value;
+                        esInactivo = val is bool b ? !b : Convert.ToInt32(val) == 0;
+                    }
+
                     if (tieneError)
                     {
-                        // ⚠️ Resaltar TODA LA FILA en rojo si tiene error
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 235, 238);
                         row.DefaultCellStyle.ForeColor = Color.FromArgb(183, 28, 28);
                         row.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
-                        // Agregar tooltip explicativo
                         row.Cells["codigo"].ToolTipText = "⚠️ PRODUCTO CON ERROR: Valores fuera de rango. Haga doble clic para editar.";
                         row.Cells["descripcion"].ToolTipText = "⚠️ PRODUCTO CON ERROR: Valores fuera de rango. Haga doble clic para editar.";
                     }
+                    else if (esInactivo)
+                    {
+                        // Producto inactivo: fondo gris y texto gris oscuro para identificarlo claramente
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220);
+                        row.DefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 100);
+                        row.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+                        row.Cells["descripcion"].ToolTipText = "⚠️ Producto INACTIVO - no visible en el sistema.";
+                    }
                     else
                     {
-                        // Formato normal de stock (solo si no hay error)
+                        // Formato normal de stock
                         var cantidadCell = row.Cells["cantidad"];
                         if (cantidadCell?.Value != null && decimal.TryParse(cantidadCell.Value.ToString(), out decimal stock))
                         {
@@ -908,7 +908,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error aplicando formato de stock: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error aplicando formato de filas: {ex.Message}");
             }
         }
 
@@ -919,56 +919,23 @@ namespace Comercio.NET.Formularios
                 if (lblContador != null && productosTable != null)
                 {
                     int total = productosTable.Rows.Count;
-                    int filtrados = productosTable.DefaultView.Count;
-                    
-                    // CORREGIDO: Obtener texto de manera segura
-                    string textoFiltro = "";
-                    if (txtFiltroDescripcion?.Text != null)
-                    {
-                        textoFiltro = txtFiltroDescripcion.Text.Trim();
-                    }
-                    
+                    string textoFiltro = txtFiltroDescripcion?.Text?.Trim() ?? "";
+
+                    string sufijo = _verInactivos ? " (activos + inactivos)" : " (activos)";
+
                     if (string.IsNullOrEmpty(textoFiltro))
                     {
-                        // Sin filtro - mostrar todos los registros
-                        lblContador.Text = $"Registros: {total:N0} (todos)";
-                        lblContador.ForeColor = Color.FromArgb(62, 80, 100); // Color normal
+                        lblContador.Text = $"Mostrando {total:N0} productos{sufijo} - Escriba para buscar en el universo completo";
+                        lblContador.ForeColor = Color.FromArgb(62, 80, 100);
                     }
                     else
                     {
-                        // Con filtro - mostrar información de filtrado
-                        string[] palabras = textoFiltro.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                                                      .Take(4)
-                                                      .ToArray();
-                        
-                        string infoFiltro = "";
-                        if (palabras.Length > 1)
-                        {
-                            infoFiltro = $" (Filtro: {palabras.Length} palabras - Todos deben coincidir)";
-                        }
-                        else if (palabras.Length == 1)
-                        {
-                            infoFiltro = $" (Filtro: '{palabras[0]}')";
-                        }
-                        
-                        lblContador.Text = $"Registros: {filtrados:N0} de {total:N0}{infoFiltro}";
-                        
-                        // Cambiar color según resultados
-                        if (filtrados == 0)
-                        {
-                            lblContador.ForeColor = Color.FromArgb(183, 28, 28); // Rojo si no hay resultados
-                        }
-                        else if (filtrados < total)
-                        {
-                            lblContador.ForeColor = Color.FromArgb(255, 111, 0); // Naranja si hay filtro aplicado
-                        }
-                        else
-                        {
-                            lblContador.ForeColor = Color.FromArgb(62, 80, 100); // Color normal
-                        }
-                        
-                        // Debug: mostrar las palabras que se están buscando
-                        System.Diagnostics.Debug.WriteLine($"🔍 Buscando: [{string.Join(", ", palabras)}] - Resultados: {filtrados}");
+                        lblContador.Text = $"Resultados: {total:N0} productos{sufijo} para \"{textoFiltro}\"";
+                        lblContador.ForeColor = total == 0
+                            ? Color.FromArgb(183, 28, 28)
+                            : Color.FromArgb(255, 111, 0);
+
+                        System.Diagnostics.Debug.WriteLine($"🔍 Resultados BD para '{textoFiltro}': {total}");
                     }
                 }
             }
@@ -984,7 +951,6 @@ namespace Comercio.NET.Formularios
             {
                 if (!isInitialized) return;
 
-                // ✅ RESTAURAR: Reiniciar timer en cada cambio de texto
                 searchTimer?.Stop();
                 searchTimer?.Start();
             }
@@ -1199,129 +1165,71 @@ namespace Comercio.NET.Formularios
             try
             {
                 System.Diagnostics.Debug.WriteLine($"🔄 Actualizando datos manteniendo filtro: '{filtroAMantener}'");
-                
-                // Limpiar cache para forzar recarga desde BD
-                LimpiarCache();
-                
-                // Cargar datos frescos
-                await CargarProductosAsync();
-                
-                // Si había un filtro aplicado, reaplicarlo
-                if (!string.IsNullOrEmpty(filtroAMantener))
-                {
-                    // Temporalmente limpiar el textbox para evitar eventos duplicados
-                    txtFiltroDescripcion.TextChanged -= TxtFiltroDescripcion_TextChanged;
-                    
-                    // Restaurar el texto del filtro
-                    txtFiltroDescripcion.Text = filtroAMantener;
-                    
-                    // Reaplicar el filtro inmediatamente
-                    await AplicarFiltro(filtroAMantener);
-                    
-                    // Restaurar el evento
-                    txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
-                    
-                    // Actualizar la variable de seguimiento
-                    lastSearchText = filtroAMantener;
-                    
-                    System.Diagnostics.Debug.WriteLine($"✅ Filtro '{filtroAMantener}' reaplicado exitosamente");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("✅ Datos actualizados sin filtro");
-                }
+
+                lastSearchText = "";
+
+                txtFiltroDescripcion.TextChanged -= TxtFiltroDescripcion_TextChanged;
+                txtFiltroDescripcion.Text = filtroAMantener;
+                txtFiltroDescripcion.TextChanged += TxtFiltroDescripcion_TextChanged;
+
+                await AplicarFiltro(filtroAMantener);
+                lastSearchText = filtroAMantener;
+
+                System.Diagnostics.Debug.WriteLine($"✅ Datos actualizados con filtro '{filtroAMantener}'");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error actualizando datos con filtro: {ex.Message}");
-                MessageBox.Show($"Error al actualizar datos: {ex.Message}", "Error", 
+                MessageBox.Show($"Error al actualizar datos: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private async Task AplicarFiltro(string texto)
         {
-            if (productosTable == null) return;
-
             _filtroTokenSource?.Cancel();
             _filtroTokenSource = new CancellationTokenSource();
+            var token = _filtroTokenSource.Token;
 
             try
             {
-                // Limpiar texto de espacios al inicio y final
                 texto = texto?.Trim() ?? "";
+
+                if (token.IsCancellationRequested) return;
 
                 if (string.IsNullOrEmpty(texto))
                 {
-                    // Si no hay texto, mostrar todos los registros
-                    productosTable.DefaultView.RowFilter = "";
-                    System.Diagnostics.Debug.WriteLine("🔍 Filtro limpiado - mostrando todos los registros");
+                    // Sin texto → volver a los 50 productos iniciales
+                    System.Diagnostics.Debug.WriteLine("🔍 Buscador vacío - recargando vista inicial");
+                    lblContador.Text = $"🔄 Cargando...";
+                    productosTable = await CargarProductosDesdeBDAsync(textoBuscar: "", soloInicial: true);
                 }
                 else
                 {
-                    // Dividir el texto en palabras (máximo 4)
-                    string[] palabras = texto.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                                             .Take(4)
-                                             .ToArray();
-
-                    // Escapar comillas simples en cada palabra
-                    for (int i = 0; i < palabras.Length; i++)
-                    {
-                        palabras[i] = palabras[i].Replace("'", "''");
-                    }
-
-                    string filtro = "";
-
-                    if (palabras.Length == 1)
-                    {
-                        // ✅ MODIFICADO: Eliminado 'rubro' de la búsqueda
-                        string palabra = palabras[0];
-                        if (palabra.Length <= 3)
-                        {
-                            filtro = $"codigo LIKE '{palabra}%'";
-                        }
-                        else
-                        {
-                            filtro = $"(descripcion LIKE '%{palabra}%' OR codigo LIKE '%{palabra}%' OR marca LIKE '%{palabra}%')";
-                        }
-                    }
-                    else
-                    {
-                        // ✅ MODIFICADO: Eliminado 'rubro' de la búsqueda con múltiples palabras
-                        var condicionesPalabras = new List<string>();
-
-                        foreach (string palabra in palabras)
-                        {
-                            string condicionPalabra = $"(descripcion LIKE '%{palabra}%' OR marca LIKE '%{palabra}%')";
-                            condicionesPalabras.Add($"({condicionPalabra})");
-                        }
-
-                        filtro = string.Join(" AND ", condicionesPalabras);
-                    }
-
-                    System.Diagnostics.Debug.WriteLine($"🔍 Filtro aplicado: {filtro}");
-                    productosTable.DefaultView.RowFilter = filtro;
+                    // Con texto → buscar en el universo completo
+                    System.Diagnostics.Debug.WriteLine($"🔍 Buscando en BD: '{texto}'");
+                    lblContador.Text = "🔄 Buscando...";
+                    productosTable = await CargarProductosDesdeBDAsync(textoBuscar: texto, soloInicial: false);
                 }
 
-                // Actualizar contador y formato
+                if (token.IsCancellationRequested) return;
+
+                if (GrillaProductos != null && productosTable != null)
+                {
+                    GrillaProductos.DataSource = productosTable;
+                    ConfigurarColumnas();
+                    AplicarFormatoFilas();
+                }
+
                 ActualizarContador();
-
-                // Solo aplicar formato de stock si hay pocos registros para mejor rendimiento
-                if (productosTable.DefaultView.Count <= 100)
-                {
-                    AplicarFormatoStock();
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"⚡ Omitiendo formato de stock para {productosTable.DefaultView.Count} registros (optimización de rendimiento)");
-                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error aplicando filtro: {ex.Message}");
-                // En caso de error, limpiar filtro para mostrar todos los registros
-                productosTable.DefaultView.RowFilter = "";
-                ActualizarContador();
+                if (!token.IsCancellationRequested)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error aplicando filtro: {ex.Message}");
+                    ActualizarContador();
+                }
             }
         }
 
@@ -1367,6 +1275,13 @@ namespace Comercio.NET.Formularios
             }
         }
 
+        private async void ChkVerInactivos_CheckedChanged(object sender, EventArgs e)
+        {
+            _verInactivos = chkVerInactivos.Checked;
+            lastSearchText = "";
+            await AplicarFiltro(txtFiltroDescripcion.Text.Trim());
+        }
+
         #region Eventos de Grilla
 
         private void GrillaProductos_SelectionChanged(object sender, EventArgs e)
@@ -1378,7 +1293,7 @@ namespace Comercio.NET.Formularios
         {
             if (e.ListChangedType == ListChangedType.Reset)
             {
-                AplicarFormatoStock();
+                AplicarFormatoFilas();
                 ConfigurarColumnasCheckbox();
             }
         }
@@ -1657,19 +1572,8 @@ namespace Comercio.NET.Formularios
 
         public static void LimpiarCache()
         {
-            try
-            {
-                // Limpiar cache de productos
-                _cacheProductos?.Dispose();
-                _cacheProductos = null;
-                _ultimaActualizacionCache = DateTime.MinValue;
-                
-                System.Diagnostics.Debug.WriteLine("🧹 Cache de productos limpiado");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error limpiando cache: {ex.Message}");
-            }
+            // Cache eliminado - los datos se cargan directamente desde la BD con límite
+            System.Diagnostics.Debug.WriteLine("🧹 LimpiarCache llamado (sin caché estático)");
         }
         #endregion
     }

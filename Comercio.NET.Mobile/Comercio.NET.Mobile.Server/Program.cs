@@ -32,6 +32,10 @@ builder.Services.AddSingleton<EstadisticasService>();
 builder.Services.AddSingleton<IVentasService, VentasService>();
 builder.Services.AddSingleton<IAuditoriaService, AuditoriaService>();
 builder.Services.AddSingleton<ITurnoService, TurnoService>();
+builder.Services.AddSingleton<DbService>();
+builder.Services.AddSingleton<AfipService>();
+builder.Services.AddSingleton<ICajaService, CajaService>();
+builder.Services.AddSingleton<FacturasService>();
 
 builder.Services.AddCors(options =>
 {

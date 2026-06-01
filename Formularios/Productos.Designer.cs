@@ -21,6 +21,7 @@
             this.btnAgregarProducto = new System.Windows.Forms.Button();
             this.btnModificarProducto = new System.Windows.Forms.Button();
             this.lblContador = new System.Windows.Forms.Label();
+            this.chkVerInactivos = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.GrillaProductos)).BeginInit();
             this.SuspendLayout();
             // 
@@ -55,11 +56,23 @@
             this.txtFiltroDescripcion.TextChanged += new System.EventHandler(this.TxtFiltroDescripcion_TextChanged);
             this.txtFiltroDescripcion.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TxtFiltroDescripcion_KeyDown);
             // 
+            // chkVerInactivos
+            // 
+            this.chkVerInactivos.AutoSize = true;
+            this.chkVerInactivos.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.chkVerInactivos.Location = new System.Drawing.Point(15, 15);
+            this.chkVerInactivos.Name = "chkVerInactivos";
+            this.chkVerInactivos.Size = new System.Drawing.Size(150, 19);
+            this.chkVerInactivos.TabIndex = 7;
+            this.chkVerInactivos.Text = "Ver inactivos";
+            this.chkVerInactivos.UseVisualStyleBackColor = true;
+            this.chkVerInactivos.CheckedChanged += new System.EventHandler(this.ChkVerInactivos_CheckedChanged);
+            // 
             // lblFiltro
             // 
             this.lblFiltro.AutoSize = true;
             this.lblFiltro.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.lblFiltro.Location = new System.Drawing.Point(15, 15);
+            this.lblFiltro.Location = new System.Drawing.Point(170, 15);
             this.lblFiltro.Name = "lblFiltro";
             this.lblFiltro.Size = new System.Drawing.Size(115, 15);
             this.lblFiltro.TabIndex = 2;
@@ -107,6 +120,7 @@
             this.Controls.Add(this.btnAgregarProducto);
             this.Controls.Add(this.lblFiltro);
             this.Controls.Add(this.txtFiltroDescripcion);
+            this.Controls.Add(this.chkVerInactivos);
             this.Controls.Add(this.GrillaProductos);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.MinimumSize = new System.Drawing.Size(1000, 600);
@@ -126,5 +140,6 @@
         private System.Windows.Forms.Button btnAgregarProducto;
         private System.Windows.Forms.Button btnModificarProducto;
         private System.Windows.Forms.Label lblContador;
+        private System.Windows.Forms.CheckBox chkVerInactivos;
     }
 }
