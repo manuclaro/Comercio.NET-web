@@ -1,4 +1,3 @@
-using Microsoft.Data.SqlClient;
 using Npgsql;
 using System.Data;
 using System.Data.Common;
@@ -35,10 +34,8 @@ namespace Comercio.NET.Mobile.Server.Services
             {
                 _modo             = Modo.Directo;
                 _connectionString = connStr;
-                // Detectar si es Postgres por el formato del connection string
-                UsaPostgres = connStr.Contains("Host=", StringComparison.OrdinalIgnoreCase)
-                           || connStr.Contains("Port=5432", StringComparison.OrdinalIgnoreCase);
-                logger.LogInformation("[DbService] Modo: DIRECTO ({Motor})", UsaPostgres ? "PostgreSQL" : "SQL Server");
+                UsaPostgres = true;
+                logger.LogInformation("[DbService] Modo: DIRECTO (PostgreSQL)");
                 return;
             }
 
@@ -56,10 +53,8 @@ namespace Comercio.NET.Mobile.Server.Services
             _sqlBridgeUrl = bridgeUrl;
             // En modo SqlBridge el motor se configura en el SqlBridge mismo.
             // Leemos DbEngine de la config local de la API para adaptar las queries.
-            var engineCfg = (configuration["DbEngine"] ?? "").ToLowerInvariant();
-            UsaPostgres   = engineCfg is "postgres" or "postgresql";
-            logger.LogInformation("[DbService] Modo: SQLBRIDGE ({Url}) Motor: {Motor}",
-                _sqlBridgeUrl, UsaPostgres ? "PostgreSQL" : "SQL Server");
+            UsaPostgres = true;
+            logger.LogInformation("[DbService] Modo: SQLBRIDGE ({Url}) Motor: PostgreSQL", _sqlBridgeUrl);
         }
 
         /// <summary>
@@ -97,9 +92,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
         private DbConnection CrearConexionDirecta()
         {
-            if (UsaPostgres)
-                return new NpgsqlConnection(_connectionString);
-            return new SqlConnection(_connectionString);
+            return new NpgsqlConnection(_connectionString);
         }
 
         private static DbCommand BuildCommand(DbConnection conn, string sql, Dictionary<string, object?> parameters)

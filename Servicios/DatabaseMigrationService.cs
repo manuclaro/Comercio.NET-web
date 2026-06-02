@@ -293,7 +293,7 @@ IF NOT EXISTS (SELECT 1 FROM [{MIGRATIONS_TABLE}] WHERE NombreArchivo = @nombre)
 
         public override string ToString() =>
             Exitoso
-                ? $"? {NombreArchivo} � OK"
-                : $"? {NombreArchivo} � Error: {Error}";
+                ? $"? {NombreArchivo}  OK"
+                : $"? {NombreArchivo}  Error: {Error}";
     }
 }

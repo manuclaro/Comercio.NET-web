@@ -5,13 +5,14 @@
 
 -- Tabla de usuarios del sistema
 CREATE TABLE IF NOT EXISTS usuarios (
-    idusuario SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    usuario VARCHAR(50) NOT NULL UNIQUE,
-    clave VARCHAR(255) NOT NULL,
-    rol VARCHAR(50) DEFAULT 'Cajero',
-    activo BOOLEAN DEFAULT true,
-    numerocajero INTEGER DEFAULT 1
+    idusuarios SERIAL PRIMARY KEY,
+    nombreusuario VARCHAR(50) NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL DEFAULT '',
+    apellido VARCHAR(100) NOT NULL DEFAULT '',
+    passwordhash VARCHAR(255) NOT NULL,
+    nivel INTEGER DEFAULT 1,
+    numerocajero INTEGER DEFAULT 1,
+    activo BIT DEFAULT B'1'
 );
 
 -- Tabla de productos
@@ -148,9 +149,10 @@ CREATE INDEX IF NOT EXISTS idx_turnoscajero_activo ON turnoscajero(activo);
 -- Usuario administrador por defecto
 -- Contrasena: admin (cambiar despues del primer inicio)
 -- ============================================================
-INSERT INTO usuarios (nombre, usuario, clave, rol, activo, numerocajero)
-SELECT 'Administrador', 'admin', 'admin', 'Administrador', true, 1
-WHERE NOT EXISTS (SELECT 1 FROM usuarios WHERE usuario = 'admin');
+-- passwordhash = SHA256('admin' + 'ComercioNET_Salt') en Base64
+INSERT INTO usuarios (nombreusuario, nombre, apellido, passwordhash, nivel, numerocajero, activo)
+SELECT 'admin', 'Administrador', '', '5nfB2FE7FcuJhUbVIfULjMxVw5S2KL529WRnpwOrjX0=', 4, 1, B'1'
+WHERE NOT EXISTS (SELECT 1 FROM usuarios WHERE nombreusuario = 'admin');
 
 -- ============================================================
 -- FIN DEL ESQUEMA

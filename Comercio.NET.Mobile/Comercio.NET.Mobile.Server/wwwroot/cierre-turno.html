@@ -265,7 +265,7 @@
             const efectivoDeclarado = parseFloat(document.getElementById('decl-efectivo').value) || 0;
             const difEfectivo = efectivoDeclarado - efectivoEsperado;
 
-            let msg = '¿Está seguro que desea cerrar este turno?';
+            let msg = 'ï¿½Estï¿½ seguro que desea cerrar este turno?';
             msg += `\nEfectivo declarado: ${formatMoney(efectivoDeclarado)}`;
             if (difEfectivo !== 0) msg += `\nDiferencia: ${formatMoney(difEfectivo)}`;
             if (!confirm(msg)) return;
