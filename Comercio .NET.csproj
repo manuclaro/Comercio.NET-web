@@ -31,6 +31,7 @@
     <None Include="Comercio.NET.Mobile\Instalacion\instalar-manual.ps1" />
     <None Include="Comercio.NET.Mobile\Instalacion\instalar.ps1" />
     <None Include="Comercio.NET.Mobile\Instalacion\LEEME.md" />
+    <None Include="Comercio.NET.Mobile\Instalacion\publicar-github.ps1" />
     <None Include="Comercio.NET.Mobile\Instalacion\publicar.ps1" />
     <None Include="Comercio.NET.Pizzeria\Comercio.NET.Pizzeria.Server\Comercio.NET.Pizzeria.Server.csproj" />
     <None Include="DebugAfip.csproj" />
