@@ -35,11 +35,12 @@ $ErrorActionPreference = "Stop"
 # ---------------------------------------------------------------------------
 # CONSTANTES FIJAS - No requieren configuracion
 # ---------------------------------------------------------------------------
-$PG_VERSION      = "16"
-$PG_SERVICE_NAME = "postgresql-16"
-$PG_DATA_DIR     = "C:\Program Files\PostgreSQL\16\data"
-$PG_BIN_DIR      = "C:\Program Files\PostgreSQL\16\bin"
-$PG_ZIP_URL      = "https://sbp.enterprisedb.com/get/dbdownloads/postgresql-16.6-1-windows-x64-binaries.zip"
+$PG_VERSION      = "18"
+$PG_SERVICE_NAME = "postgresql-18"
+$PG_ROOT_DIR     = "C:\PostgreSQL\18"
+$PG_DATA_DIR     = "C:\PostgreSQL\18\data"
+$PG_BIN_DIR      = "C:\PostgreSQL\18\bin"
+$PG_ZIP_URL      = "https://get.enterprisedb.com/postgresql/postgresql-18.1-1-windows-x64-binaries.zip"
 
 $DB_HOST         = "localhost"
 $DB_PORT         = "5432"
@@ -95,7 +96,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Clear-Host
 Write-Header "INSTALADOR COMERCIO.NET WEB"
 Write-Host "  Destino   : $RutaInstalacion" -ForegroundColor White
-Write-Host "  Base datos: $DB_NAME @ $DB_HOST:$DB_PORT  usuario=$DB_USER" -ForegroundColor White
+Write-Host "  Base datos: $DB_NAME @ ${DB_HOST}:${DB_PORT}  usuario=$DB_USER" -ForegroundColor White
 Write-Host "  Puerto web: $APP_PORT" -ForegroundColor White
 Write-Host "  Fecha/Hora: $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')" -ForegroundColor White
 Write-Host ""
@@ -117,8 +118,8 @@ while ([string]::IsNullOrWhiteSpace($nombreComercio)) {
 $domicilio = Read-Host "  Domicilio"
 if ([string]::IsNullOrWhiteSpace($domicilio)) { $domicilio = "" }
 
-$cuit = Read-Host "  CUIT (Enter para 20-280694739)"
-if ([string]::IsNullOrWhiteSpace($cuit)) { $cuit = "20-280694739" }
+$cuit = Read-Host "  CUIT (Enter para 20-28069473-9)"
+if ([string]::IsNullOrWhiteSpace($cuit)) { $cuit = "20-28069473-9" }
 
 $ingBrutos = Read-Host "  Ingresos Brutos (Enter para usar CUIT)"
 if ([string]::IsNullOrWhiteSpace($ingBrutos)) { $ingBrutos = $cuit }
@@ -174,9 +175,10 @@ if ($dotnetOk) {
 Write-Paso "2/6" "Verificando PostgreSQL $PG_VERSION..."
 
 function Find-PgBin {
+    # Buscar primero en ruta propia (sin restricciones de permisos)
     if (Test-Path (Join-Path $PG_BIN_DIR "psql.exe")) { return $PG_BIN_DIR }
-    # Busqueda fallback en otras versiones
-    foreach ($v in @("17","15","14","13")) {
+    # Fallback: rutas estandar de instaladores oficiales
+    foreach ($v in @("18","17","16","15","14","13")) {
         $p = "C:\Program Files\PostgreSQL\$v\bin"
         if (Test-Path (Join-Path $p "psql.exe")) { return $p }
     }
@@ -201,14 +203,15 @@ if ($pgBin) {
         Detener-Script "Error descargando PostgreSQL: $_"
     }
 
-    $pgRootDir = "C:\Program Files\PostgreSQL"
-    if (-not (Test-Path $pgRootDir)) { New-Item -ItemType Directory -Path $pgRootDir -Force | Out-Null }
+    # Usar C:\PostgreSQL para evitar restricciones de permisos de C:\Program Files
+    $pgExtractBase = "C:\PostgreSQL"
+    if (-not (Test-Path $pgExtractBase)) { New-Item -ItemType Directory -Path $pgExtractBase -Force | Out-Null }
 
-    Write-Info "Extrayendo archivos (puede demorar 1-2 minutos)..."
+    Write-Info "Extrayendo archivos en $pgExtractBase (puede demorar 1-2 minutos)..."
     try {
-        Expand-Archive -Path $tmpPg -DestinationPath $pgRootDir -Force
+        Expand-Archive -Path $tmpPg -DestinationPath $pgExtractBase -Force
         # El ZIP extrae como "pgsql", renombrar a "16"
-        $pgsqlDir = Join-Path $pgRootDir "pgsql"
+        $pgsqlDir = Join-Path $pgExtractBase "pgsql"
         if (Test-Path $pgsqlDir) {
             Rename-Item -Path $pgsqlDir -NewName $PG_VERSION -Force
         }
@@ -222,15 +225,19 @@ if ($pgBin) {
     $pgBin = Find-PgBin
     if (-not $pgBin) { Detener-Script "No se pudieron localizar los binarios de PostgreSQL." }
 
-    # Configurar permisos del directorio
+    # Dar permisos completos a la cuenta de servicio de Windows (Network Service)
     Write-Info "Configurando permisos..."
-    & icacls "C:\Program Files\PostgreSQL" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
-    & icacls "C:\Program Files\PostgreSQL" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
+    & icacls $pgExtractBase /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
+    & icacls $pgExtractBase /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
+    & icacls $pgExtractBase /grant "Todos:(OI)(CI)F" /T /C /Q | Out-Null
 
-    # Crear directorio de datos
+    # Crear directorio de datos con permisos correctos desde el inicio
     if (-not (Test-Path $PG_DATA_DIR)) {
         New-Item -ItemType Directory -Path $PG_DATA_DIR -Force | Out-Null
     }
+    & icacls $PG_DATA_DIR /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
+    & icacls $PG_DATA_DIR /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
+    & icacls $PG_DATA_DIR /grant "Todos:(OI)(CI)F" /T /C /Q | Out-Null
 
     # Inicializar cluster (initdb)
     Write-Info "Inicializando base de datos (initdb)..."
@@ -238,7 +245,7 @@ if ($pgBin) {
     $pwFile    = Join-Path $env:TEMP "pg_pw_temp.txt"
     $DB_PASSWORD | Out-File $pwFile -Encoding ascii -NoNewline
 
-    & $initDbExe -D "$PG_DATA_DIR" -U $DB_USER -A md5 --pwfile="$pwFile" --encoding=UTF8 | Out-Null
+    & $initDbExe -D "$PG_DATA_DIR" -U $DB_USER -A md5 --pwfile="$pwFile" --encoding=UTF8
     Remove-Item $pwFile -Force -ErrorAction SilentlyContinue
 
     & icacls $PG_DATA_DIR /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
@@ -295,14 +302,30 @@ if ($existe -ne "1") {
 }
 
 # Restaurar backup
-$backupFile = Join-Path $scriptDir "backup-comercio.dump"
-if (Test-Path $backupFile) {
-    Write-Info "Restaurando backup (estructura + datos + productos)..."
-    & "$pgrestore" -h $DB_HOST -p $DB_PORT -U $DB_USER --no-owner --no-privileges -d $DB_NAME $backupFile
-    Write-OK "Backup restaurado correctamente."
+$backupDump = Join-Path $scriptDir "backup-comercio.dump"
+$backupSql  = Join-Path $scriptDir "backup-comercio.sql"
+
+if (Test-Path $backupSql) {
+    Write-Info "Restaurando backup SQL (compatible con cualquier version)..."
+    & "$psql" -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $backupSql
+    if ($LASTEXITCODE -ne 0) {
+        Write-Aviso "psql reporto advertencias al restaurar (codigo $LASTEXITCODE)."
+        Write-Aviso "Puede continuar, pero verifique que los datos esten correctos."
+    } else {
+        Write-OK "Backup restaurado correctamente."
+    }
+} elseif (Test-Path $backupDump) {
+    Write-Info "Restaurando backup .dump..."
+    & "$pgrestore" -h $DB_HOST -p $DB_PORT -U $DB_USER --no-owner --no-privileges -d $DB_NAME $backupDump
+    if ($LASTEXITCODE -ne 0) {
+        Write-Aviso "pg_restore reporto errores (codigo $LASTEXITCODE)."
+        Write-Aviso "Puede haber incompatibilidad de versiones. Use generar-backup.ps1 para regenerar."
+    } else {
+        Write-OK "Backup restaurado correctamente."
+    }
 } else {
-    Write-Aviso "No se encontro backup-comercio.dump. La base quedara vacia."
-    Write-Aviso "Copie el archivo backup-comercio.dump junto a este script y ejecute de nuevo."
+    Write-Aviso "No se encontro backup-comercio.sql ni backup-comercio.dump."
+    Write-Aviso "La base de datos quedara vacia."
 }
 
 $env:PGPASSWORD = ""
@@ -340,6 +363,15 @@ if ($certOrigen) {
     $certPath = "$RutaInstalacion\Certificados\Testing\certificado.p12"
 }
 
+# Detener el servicio si ya existe (para liberar archivos bloqueados)
+$svcPrevia = Get-Service -Name $SERVICE_NAME -ErrorAction SilentlyContinue
+if ($svcPrevia -and $svcPrevia.Status -eq 'Running') {
+    Write-Info "Deteniendo servicio anterior para liberar archivos..."
+    Stop-Service $SERVICE_NAME -Force
+    Start-Sleep -Seconds 3
+    Write-OK "Servicio detenido."
+}
+
 # Copiar archivos publicados de la aplicacion
 $publishDir = Join-Path $scriptDir "publish"
 if (Test-Path $publishDir) {
@@ -349,6 +381,11 @@ if (Test-Path $publishDir) {
 } else {
     Detener-Script "No se encontro la carpeta 'publish' junto al script. Es necesaria para continuar."
 }
+
+$certPassword    = "Micertificado"
+$codigoPostal    = "7303"
+$inicioActividades = "2010-10-01"
+$condicionIVA    = "Monotributo"
 
 # Generar appsettings.json
 $certPathJson = $certPath -replace '\\', '\\\\'
@@ -375,9 +412,9 @@ $appsettings = @"
     "CUIT": "$cuit",
     "IngBrutos": "$ingBrutos",
     "DomicilioFiscal": "$domicilio",
-    "CodigoPostal": "",
-    "InicioActividades": "",
-    "Condicion": "Responsable Inscripto"
+    "CodigoPostal": "$codigoPostal",
+    "InicioActividades": "$inicioActividades",
+    "Condicion": "$condicionIVA"
   },
   "Caja": {
     "ObligarFacturaElectronica": true,
@@ -396,10 +433,10 @@ $appsettings = @"
     "AmbienteActivo": "Testing",
     "Testing": {
       "CUIT": "$cuit",
-      "CondicionIVA": "Responsable Inscripto",
+      "CondicionIVA": "$condicionIVA",
       "PuntoVenta": 7,
       "CertificadoPath": "$certPathJson",
-      "CertificadoPassword": "",
+      "CertificadoPassword": "$certPassword",
       "WSAAUrl": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
       "WSFEUrl": "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
       "Servicios": {

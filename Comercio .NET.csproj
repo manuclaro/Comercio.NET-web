@@ -26,6 +26,7 @@
   <ItemGroup>
     <None Include=".dockerignore Comercio.NET.Mobile\Comercio.NET.Mobile.Server\.dockerignore" />
     <None Include="Comercio.NET.Mobile\Instalacion\crear-base-datos.sql" />
+    <None Include="Comercio.NET.Mobile\Instalacion\generar-backup.ps1" />
     <None Include="Comercio.NET.Mobile\Instalacion\instalar-comercio-web.ps1" />
     <None Include="Comercio.NET.Mobile\Instalacion\instalar-manual.ps1" />
     <None Include="Comercio.NET.Mobile\Instalacion\instalar.ps1" />

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1p7adjsnQOFrCJh4wcBMHUnL6FFtqFJ4ICjbX0qxiZcWoPe6U9zZJ9aWebFgshh
+\restrict Eap1cVWCQJEcp3mDtNCNplmjfpIbajhHT1PssZg8LO57sRVwHUhwcaO7Xs0bM3R
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -23471,6 +23471,18 @@ COPY public.turnoscajero (id, numerocajero, usuario, fechaapertura, fechacierre,
 
 
 --
+-- Data for Name: usuarios; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.usuarios (idusuarios, nombreusuario, nombre, apellido, email, passwordhash, nivel, numerocajero, activo, fechacreacion, ultimoacceso, puedeeliminarproductos, puedeeditarprecios, puedeverreportes, puedegestionarusuarios, puedeanularfacturas) FROM stdin;
+3	Cajero	cajero	cajero		VkkG+DgXkKeqUrU65/TE2Oce7hah+fYdn/PZiCAo1gU=	3	2	1	2026-02-25 20:22:55.63	2026-02-25 20:23:11.377	1	1	0	0	1
+2	manu	Manuel	Claro		VkkG+DgXkKeqUrU65/TE2Oce7hah+fYdn/PZiCAo1gU=	3	1	1	2025-09-27 00:41:41.18	2026-05-28 09:51:27.556282	1	1	1	0	1
+1	admin	Administrador	Sistema		cMD5IcAxPdC7Lbcg7DPZtg/2npUEww3yXkdoQsR5Q4g=	1	3	1	2025-09-27 00:41:04.927	2026-05-30 20:41:21.012597	1	1	1	1	1
+4	prueba	usuario	apellido		VkkG+DgXkKeqUrU65/TE2Oce7hah+fYdn/PZiCAo1gU=	3	4	1	2026-05-23 20:00:59.493994	\N	1	1	0	1	1
+\.
+
+
+--
 -- Data for Name: ventas; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -31201,5 +31213,5 @@ CREATE UNIQUE INDEX uq_usuarios_nombreusuario ON public.usuarios USING btree (no
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1p7adjsnQOFrCJh4wcBMHUnL6FFtqFJ4ICjbX0qxiZcWoPe6U9zZJ9aWebFgshh
+\unrestrict Eap1cVWCQJEcp3mDtNCNplmjfpIbajhHT1PssZg8LO57sRVwHUhwcaO7Xs0bM3R
 
