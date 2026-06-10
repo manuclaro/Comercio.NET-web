@@ -17,7 +17,7 @@ namespace Comercio.NET.Mobile.Server.Services
         public async Task<List<FacturaDto>> ObtenerFacturasAsync(DateTime desde, DateTime hasta, string? cajero = null, string? formaPago = null, string? tipoFactura = null)
         {
             var castType = _db.UsaPostgres ? "NUMERIC(18,2)" : "DECIMAL(18,2)";
-            var esCtaCteFilter = _db.UsaPostgres ? "f.esctacte = 0::bit" : "f.esctacte = 0";
+            var esCtaCteFilter = _db.UsaPostgres ? "COALESCE(f.esctacte, FALSE) IS FALSE" : "f.esctacte = 0";
 
             var filtros = "";
             var parameters = new Dictionary<string, object?>
@@ -111,7 +111,7 @@ namespace Comercio.NET.Mobile.Server.Services
         public async Task<ResumenFacturasDto> ObtenerResumenAsync(DateTime desde, DateTime hasta, string? cajero = null, string? formaPago = null, string? tipoFactura = null)
         {
             var castType = _db.UsaPostgres ? "NUMERIC(18,2)" : "DECIMAL(18,2)";
-            var esCtaCteFilter = _db.UsaPostgres ? "f.esctacte = 0::bit" : "f.esctacte = 0";
+            var esCtaCteFilter = _db.UsaPostgres ? "COALESCE(f.esctacte, FALSE) IS FALSE" : "f.esctacte = 0";
 
             var filtros = "";
             var parameters = new Dictionary<string, object?>
@@ -136,7 +136,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 parameters["@tipoFactura"] = tipoFactura;
             }
 
-            var esCtaCteTrue = _db.UsaPostgres ? "f.esctacte = 1::bit" : "COALESCE(f.esctacte, 0) = 1";
+            var esCtaCteTrue = _db.UsaPostgres ? "COALESCE(f.esctacte, FALSE) IS TRUE" : "COALESCE(f.esctacte, 0) = 1";
 
             var sql = $@"
                 SELECT

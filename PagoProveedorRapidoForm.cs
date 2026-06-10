@@ -620,7 +620,7 @@ namespace Comercio.NET.Formularios
                     var query = @"
                         SELECT id, nombre 
                         FROM proveedores 
-                        WHERE activo = B'1'
+                        WHERE COALESCE(activo, FALSE) IS TRUE
                         ORDER BY nombre";
 
                     using (var cmd = new NpgsqlCommand(query, connection))

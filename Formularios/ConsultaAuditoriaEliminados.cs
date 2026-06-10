@@ -879,7 +879,7 @@ namespace Comercio.NET.Formularios
                         FechaHoraVentaOriginal AS ""Fecha Factura"",
                         FechaEliminacion AS ""Fecha Eliminación"",
                         MotivoEliminacion AS ""Motivo de Eliminación"",
-                        CASE WHEN EsCtaCte = B'1' THEN 'Sí' ELSE 'No' END AS ""CtaCte"",
+                        CASE WHEN COALESCE(EsCtaCte, FALSE) IS TRUE THEN 'Sí' ELSE 'No' END AS ""CtaCte"",
                         UsuarioEliminacion AS ""Usuario"",
                         NumeroCajero AS ""Cajero"",
                         NombreEquipo AS ""Equipo""

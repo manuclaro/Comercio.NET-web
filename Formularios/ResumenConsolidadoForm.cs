@@ -261,7 +261,7 @@ namespace Comercio.NET.Formularios
             AND f.tipofactura IN ('FacturaA', 'FacturaB')";
 
                 if (_soloCtaCte)
-                    query += " AND f.esctacte = B'1'";
+                    query += " AND COALESCE(f.esctacte, FALSE) IS TRUE";
 
                 query += @"
             GROUP BY 
@@ -355,7 +355,7 @@ namespace Comercio.NET.Formularios
                 AND f.tipofactura IN ('FacturaA', 'FacturaB')";
 
                 if (_soloCtaCte)
-                    query += " AND f.esctacte = B'1'";
+                    query += " AND COALESCE(f.esctacte, FALSE) IS TRUE";
 
                 query += @"
             )

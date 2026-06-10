@@ -386,6 +386,7 @@
 
         let precio = p.precio;
         const esEditable = !!p.editarPrecio;
+        const permiteAcumular = p.permiteAcumular !== false; // default true si no está definido
 
         if (esEditable) {
             const nuevoPrecio = await pedirPrecioModal(p.descripcion, p.precio);
@@ -413,19 +414,23 @@
             porcentajeIva: p.porcentajeIva || 21,
             esCtaCte:      false,
             nombreCtaCte:  '',
-            editarPrecio:  esEditable
+            editarPrecio:  esEditable,
+            permiteAcumular: permiteAcumular
         };
 
         try {
             const res  = await apiFetch('/api/caja/agregar-item', { method: 'POST', body: JSON.stringify(body) });
             const item = await res.json();
 
-            if (esEditable) {
-                // Productos de precio editable no se acumulan, siempre nueva linea
-                state.items.unshift(item);
-            } else {
+            // Si permiteAcumular=true → acumular cantidad en el ítem existente
+            // Si permiteAcumular=false → siempre nueva línea (aunque el código exista)
+            if (permiteAcumular) {
+                // Acumular cantidad si el código ya existe
                 const idx = state.items.findIndex(i => i.codigo === item.codigo);
                 if (idx >= 0) state.items[idx] = item; else state.items.unshift(item);
+            } else {
+                // No acumular: siempre nueva línea
+                state.items.unshift(item);
             }
             recalcularTotal();
             renderTicket();

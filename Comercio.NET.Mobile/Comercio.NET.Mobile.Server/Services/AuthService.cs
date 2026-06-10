@@ -35,9 +35,9 @@ namespace Comercio.NET.Mobile.Server.Services
                       AND passwordhash = @hash
                       AND activo = true";
 
-                // SQL Server usa activo = 1; Postgres usa activo = 1::bit (columna tipo bit)
+                // SQL Server usa activo = 1; Postgres usa activo = true (columna booleana)
                 var sqlAdaptado = _db.UsaPostgres
-                    ? sql.Replace("AND activo = true", "AND activo = 1::bit")
+                    ? sql
                     : sql.Replace("AND activo = true", "AND activo = 1");
 
                 var rows = await _db.QueryAsync(sqlAdaptado, new()

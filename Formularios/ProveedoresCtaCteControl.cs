@@ -1405,7 +1405,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                             if (nuevoSaldo == 0 && compraId.HasValue)
                             {
                                 var updateCompra = new NpgsqlCommand(
-                                    "UPDATE ComprasProveedores SET EsCtaCte = 0::bit WHERE Id = @id;", conn, tx);
+                                    "UPDATE ComprasProveedores SET EsCtaCte = FALSE WHERE Id = @id;", conn, tx);
                                 updateCompra.Parameters.AddWithValue("@id", compraId.Value);
                                 await updateCompra.ExecuteNonQueryAsync();
                             }
@@ -1706,7 +1706,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                                 if (nuevoSaldo == 0 && factura.CompraId.HasValue)
                                 {
                                     var updateCompra = new NpgsqlCommand(
-                                        "UPDATE ComprasProveedores SET EsCtaCte = 0::bit WHERE Id = @id;", conn, tx);
+                                        "UPDATE ComprasProveedores SET EsCtaCte = FALSE WHERE Id = @id;", conn, tx);
                                     updateCompra.Parameters.AddWithValue("@id", factura.CompraId.Value);
                                     await updateCompra.ExecuteNonQueryAsync();
                                 }

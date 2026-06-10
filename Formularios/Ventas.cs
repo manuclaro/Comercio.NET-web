@@ -809,12 +809,12 @@ VALUES
                                 cmdAudit.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
                                 cmdAudit.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
                                 cmdAudit.Parameters.AddWithValue("@MotivoEliminacion", "REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL");
-                                cmdAudit.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkEsCtaCte?.Checked ?? false });
                                 cmdAudit.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
                                 cmdAudit.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
                                 cmdAudit.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
                                 cmdAudit.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-                                cmdAudit.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                                 cmdAudit.Parameters.AddWithValue("@CantidadOriginal", cantidadActual);
 
                                 await cmdAudit.ExecuteNonQueryAsync();
@@ -951,7 +951,7 @@ VALUES
                                 cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
                                 cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
                                 cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioFinal, 2));
-                                cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                             }
                             else
                             {
@@ -960,7 +960,7 @@ VALUES
                                 cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                             }
 
                             await cmd.ExecuteNonQueryAsync();
@@ -1344,7 +1344,7 @@ VALUES
                                     cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
                                     cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
                                     cmd.Parameters.AddWithValue("@DescuentoAplicado", Math.Round(precioOriginal - precioFinal, 2));
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                                 }
                                 else
                                 {
@@ -1353,7 +1353,7 @@ VALUES
                                     cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                     cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                     cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                                 }
 
                                 int filasActualizadas = await cmd.ExecuteNonQueryAsync();
@@ -1457,7 +1457,7 @@ VALUES
                 cmd.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
                 cmd.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
                 cmd.Parameters.AddWithValue("@MotivoEliminacion", motivo);
-                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                    cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkEsCtaCte?.Checked ?? false });
                 cmd.Parameters.AddWithValue("@NombreCtaCte",
                     chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
                 cmd.Parameters.AddWithValue("@UsuarioEliminacion", usuario);
@@ -1466,7 +1466,7 @@ VALUES
 
                 // ✅ CRÍTICO: Determinar si es eliminación completa comparando con cantidad original
                 // Como no tenemos cantidadOriginal aquí, lo dejamos en NULL
-                cmd.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = DBNull.Value });
+                    cmd.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = DBNull.Value });
                 cmd.Parameters.AddWithValue("@CantidadOriginal", DBNull.Value);
 
                 int filasAuditoria = await cmd.ExecuteNonQueryAsync();
@@ -2535,7 +2535,7 @@ VALUES
                     var query = @"UPDATE productos 
                           SET precio = @precio 
                           WHERE codigo = @codigo 
-                          AND editarprecio = B'1'";
+                          AND COALESCE(editarprecio, FALSE) IS TRUE";
 
                     using (var cmd = new NpgsqlCommand(query, connection))
                     {
@@ -3198,11 +3198,11 @@ VALUES
 
             // ✅ MODIFICADO: Agregar validación del campo Activo
             var query = @"SELECT codigo, descripcion, precio, cantidad, marca, rubro, costo, proveedor, 
-                         COALESCE(activo, B'1') = B'1' as activo,
-                         COALESCE(permiteacumular, B'0') = B'1' as permiteacumular,
-                         COALESCE(editarprecio, B'0') = B'1' as editarprecio
+                         COALESCE(activo, TRUE) as activo,
+                         COALESCE(permiteacumular, FALSE) as permiteacumular,
+                         COALESCE(editarprecio, FALSE) as editarprecio
                   FROM productos 
-                  WHERE codigo = @codigo AND COALESCE(activo, B'1') = B'1'";
+                  WHERE codigo = @codigo AND COALESCE(activo, TRUE) IS TRUE";
 
             using var adapter = new NpgsqlDataAdapter(query, connection);
             adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
@@ -3219,7 +3219,7 @@ VALUES
                 // ✅ NUEVO: Verificar si el producto existe pero está inactivo
                 var queryInactivo = @"SELECT codigo, descripcion 
                               FROM productos 
-                              WHERE codigo = @codigo AND COALESCE(activo, B'1') = B'0'";
+                              WHERE codigo = @codigo AND COALESCE(activo, TRUE) IS FALSE";
 
                 using var adapterInactivo = new NpgsqlDataAdapter(queryInactivo, connection);
                 adapterInactivo.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
@@ -3458,7 +3458,7 @@ VALUES
                         cmd.Parameters.AddWithValue("@PrecioGrupo", precioGrupo);
                         cmd.Parameters.AddWithValue("@IdOferta", idOferta);
                         cmd.Parameters.AddWithValue("@NombreOferta", nombreOferta);
-                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                         cmd.Parameters.AddWithValue("@PrecioOriginal", precioOriginal);
                         cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
@@ -3841,7 +3841,7 @@ VALUES
                                     cmd.Parameters.AddWithValue("@costo", producto["costo"]);
                                     cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
                                     cmd.Parameters.AddWithValue("@hora", DateTime.Now);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte.Checked });
+                                    cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkEsCtaCte.Checked });
                                     cmd.Parameters.AddWithValue("@NombreCtaCte",
                                         chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
@@ -3853,7 +3853,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", precioFinal);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado",
                                             Math.Round(precioOriginal - precioFinal, 2));
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                                     }
                                     else
                                     {
@@ -3862,7 +3862,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                                     }
 
                                     await cmd.ExecuteNonQueryAsync();
@@ -3916,7 +3916,7 @@ VALUES
                                     cmd.Parameters.AddWithValue("@costo", producto["costo"]);
                                     cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
                                     cmd.Parameters.AddWithValue("@hora", DateTime.Now);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte.Checked });
+                                    cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkEsCtaCte.Checked });
                                     cmd.Parameters.AddWithValue("@NombreCtaCte",
                                         chkEsCtaCte.Checked ? (object)cbnombreCtaCte.Text : DBNull.Value);
 
@@ -3928,7 +3928,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", precioUnitario);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado",
                                             Math.Round(precioOriginal - precioUnitario, 2));
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                                     }
                                     else
                                     {
@@ -3937,7 +3937,7 @@ VALUES
                                         cmd.Parameters.AddWithValue("@PrecioOriginal", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@PrecioConOferta", DBNull.Value);
                                         cmd.Parameters.AddWithValue("@DescuentoAplicado", DBNull.Value);
-                                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                        cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                                     }
 
                                     await cmd.ExecuteNonQueryAsync();
@@ -4225,7 +4225,7 @@ VALUES
             {
                 var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, 
                  porcentajeiva, ivacalculado, 
-                 COALESCE(esoferta, B'0') = B'1' AS esoferta,
+                 COALESCE(esoferta, FALSE) AS esoferta,
                  nombreoferta
           FROM ventas
           WHERE nrofactura = @nrofactura
@@ -4372,7 +4372,7 @@ VALUES
             {
                 var query = @"SELECT id, codigo, descripcion, precio, cantidad, total, 
                  porcentajeiva, ivacalculado, 
-                 COALESCE(esoferta, B'0') = B'1' AS esoferta,
+                 COALESCE(esoferta, FALSE) AS esoferta,
                  nombreoferta
           FROM ventas
           WHERE nrofactura = @nrofactura
@@ -4836,12 +4836,12 @@ VALUES
                                     cmdAudit.Parameters.AddWithValue("@FechaHoraVentaOriginal", DateTime.Now);
                                     cmdAudit.Parameters.AddWithValue("@FechaEliminacion", DateTime.Now);
                                     cmdAudit.Parameters.AddWithValue("@MotivoEliminacion", motivo); // ✅ Motivo automático
-                                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkEsCtaCte?.Checked ?? false });
                                     cmdAudit.Parameters.AddWithValue("@NombreCtaCte", chkEsCtaCte?.Checked == true ? (object)cbnombreCtaCte?.Text : DBNull.Value);
                                     cmdAudit.Parameters.AddWithValue("@UsuarioEliminacion", usuarioActual);
                                     cmdAudit.Parameters.AddWithValue("@NumeroCajero", numeroCajero);
                                     cmdAudit.Parameters.AddWithValue("@NombreEquipo", Environment.MachineName);
-                                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                    cmdAudit.Parameters.Add(new NpgsqlParameter("@EsEliminacionCompleta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                                     cmdAudit.Parameters.AddWithValue("@CantidadOriginal", cantidad);
 
                                     await cmdAudit.ExecuteNonQueryAsync();
@@ -5028,7 +5028,7 @@ VALUES
                                 cmdFactura.Parameters.AddWithValue("@Hora", DateTime.Now);
                                 cmdFactura.Parameters.AddWithValue("@ImporteTotal", importeTotal);
                                 cmdFactura.Parameters.AddWithValue("@FormadePago", formaPago ?? "");
-                                cmdFactura.Parameters.Add(new NpgsqlParameter("@esCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkEsCtaCte?.Checked ?? false });
+                    cmdFactura.Parameters.Add(new NpgsqlParameter("@esCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkEsCtaCte?.Checked ?? false });
                                 cmdFactura.Parameters.AddWithValue("@CtaCteNombre", (object)nombreCtaCte ?? DBNull.Value);
                                 cmdFactura.Parameters.AddWithValue("@Cajero", numeroCajero.ToString());
                                 cmdFactura.Parameters.AddWithValue("@TipoFactura", tipoFactura ?? "");
@@ -5437,7 +5437,7 @@ VALUES
                 INNER JOIN productos p ON d.idproducto = p.id
                 WHERE p.codigo = @CodigoProducto
                     AND o.tipooferta <> 'PorGrupo'
-                    AND o.activo = B'1'
+                    AND COALESCE(o.activo, FALSE) IS TRUE
                     AND NOW() >= o.fechainicio
                     AND (o.fechafin IS NULL OR NOW() <= o.fechafin)
                     AND @Cantidad >= d.cantidadminima
@@ -5514,7 +5514,7 @@ VALUES
                 INNER JOIN productos p ON d.idproducto = p.id
                 WHERE p.codigo = @CodigoProducto
                     AND o.tipooferta = 'PorGrupo'
-                    AND o.activo = B'1'
+                    AND COALESCE(o.activo, FALSE) IS TRUE
                     AND NOW() >= o.fechainicio
                     AND (o.fechafin IS NULL OR NOW() <= o.fechafin)
                 ORDER BY o.preciogrupo ASC
@@ -5988,7 +5988,7 @@ VALUES
                             cmd.Parameters.AddWithValue("@precioProrrateado", precioProrrateado);
                             cmd.Parameters.AddWithValue("@IdOferta", idOferta);
                             cmd.Parameters.AddWithValue("@NombreOferta", nombreOferta);
-                            cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                    cmd.Parameters.Add(new NpgsqlParameter("@EsOferta", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                             cmd.Parameters.AddWithValue("@PrecioOriginal", producto.precioOriginal);
                             cmd.Parameters.AddWithValue("@nrofactura", nroRemitoActual);
                             cmd.Parameters.AddWithValue("@codigo", producto.codigo);

@@ -615,7 +615,7 @@ namespace Comercio.NET.Formularios
                 COALESCE(MIN(u.nombre || ' ' || u.apellido), 'Cajero ' || t.numerocajero::TEXT) as nombrecajero,
                 MIN(t.fechaapertura) as fechaapertura
             FROM turnoscajero t
-            LEFT JOIN usuarios u ON t.numerocajero = u.numerocajero AND u.activo = B'1'
+            LEFT JOIN usuarios u ON t.numerocajero = u.numerocajero AND COALESCE(u.activo, FALSE) IS TRUE
             WHERE t.estado = 'Abierto'
             GROUP BY t.numerocajero
             ORDER BY t.numerocajero";
@@ -743,7 +743,7 @@ namespace Comercio.NET.Formularios
                     INNER JOIN usuarios u ON f.usuarioventa = u.nombreusuario
                     WHERE u.numerocajero = @numeroCajero
                       AND f.hora BETWEEN @fechaInicio AND @fechaFin
-                      AND COALESCE(f.esctacte, B'0') = B'0'
+                      AND COALESCE(f.esctacte, FALSE) IS FALSE
                       AND dp.mediopago NOT IN ('Multiple', 'Múltiples Medios')
                     GROUP BY dp.mediopago";
 
@@ -998,7 +998,7 @@ namespace Comercio.NET.Formularios
                 FROM ventas v
                 LEFT JOIN facturas f ON v.nrofactura = f.numeroremito
                 WHERE v.fecha BETWEEN @fechaInicio AND @fechaFin
-                AND COALESCE(v.esctacte, B'0') = B'0'
+                AND COALESCE(v.esctacte, FALSE) IS FALSE
                 GROUP BY v.fecha, v.nrofactura, f.formadepago, f.importetotal, f.tipofactura
             ),
 

@@ -252,7 +252,7 @@ namespace Comercio.NET.Formularios
                         FROM ventas v
                         INNER JOIN facturas f ON v.nrofactura = f.numeroremito
                         INNER JOIN productos p ON v.codigo = p.codigo
-                        WHERE v.esoferta = B'1'
+                        WHERE COALESCE(v.esoferta, FALSE) IS TRUE
                         AND v.nombreoferta = @nombreOferta
                         AND CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta
                         GROUP BY p.codigo, p.descripcion, v.precio
@@ -511,7 +511,7 @@ namespace Comercio.NET.Formularios
                             CAST(SUM(COALESCE(v.total, 0)) AS DECIMAL(18,2)) as ""Total Vendido""
                         FROM ventas v
                         INNER JOIN facturas f ON v.nrofactura = f.numeroremito
-                  WHERE v.esoferta = B'1'
+                  WHERE COALESCE(v.esoferta, FALSE) IS TRUE
                         AND CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta
                         GROUP BY v.nombreoferta
                         ORDER BY SUM(COALESCE(v.total, 0)) DESC";
@@ -620,7 +620,7 @@ namespace Comercio.NET.Formularios
                         CAST(SUM(COALESCE(v.total, 0)) AS DECIMAL(18,2)) as TotalVentas
                     FROM ventas v
                     INNER JOIN facturas f ON v.nrofactura = f.numeroremito
-                    WHERE v.esoferta = B'1'
+                    WHERE COALESCE(v.esoferta, FALSE) IS TRUE
                     AND CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta";
 
                 using (var cmd = new NpgsqlCommand(queryTotales, connection))

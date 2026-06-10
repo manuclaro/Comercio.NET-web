@@ -18,7 +18,7 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var registros = new List<AuditoriaDto>();
 
-            var esCtaCteCoalesce = _db.UsaPostgres ? "COALESCE(EsCtaCte, 0::bit)" : "COALESCE(EsCtaCte, 0)";
+            var esCtaCteCoalesce = _db.UsaPostgres ? "COALESCE(EsCtaCte, FALSE)" : "COALESCE(EsCtaCte, 0)";
 
             var sql = $@"
                 SELECT

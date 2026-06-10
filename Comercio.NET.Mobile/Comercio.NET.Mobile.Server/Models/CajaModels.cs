@@ -16,6 +16,7 @@ namespace Comercio.NET.Mobile.Server.Models
         public bool   EsCtaCte    { get; set; }
         public string NombreCtaCte { get; set; } = "";
         public bool   EditarPrecio { get; set; }
+        public bool   PermiteAcumular { get; set; } = true;
     }
 
     // ??? Request: confirmar y cerrar el ticket (cobro) ?????????????????????????

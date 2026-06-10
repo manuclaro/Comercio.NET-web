@@ -523,9 +523,9 @@ namespace Comercio.NET.Formularios
                 // Construir cláusula WHERE
                 var condiciones = new List<string>();
 
-                // Filtro de activos (columna es tipo bit en PostgreSQL)
+                // Filtro de activos
                 if (!_verInactivos)
-                    condiciones.Add("activo = B'1'");
+                    condiciones.Add("COALESCE(activo, TRUE) IS TRUE");
 
                 // Filtro de búsqueda por texto
                 if (!string.IsNullOrWhiteSpace(textoBuscar))
@@ -569,9 +569,9 @@ namespace Comercio.NET.Formularios
                 END as precio,
                 CAST(cantidad AS INT) as cantidad, 
                 COALESCE(iva, 21.00) as iva,
-                COALESCE(activo::int, 1)::bit as activo,
-                COALESCE(permiteacumular::int, 0)::bit as permiteacumular,
-                COALESCE(editarprecio::int, 0)::bit as editarprecio,
+                COALESCE(activo, TRUE) as activo,
+                COALESCE(permiteacumular, FALSE) as permiteacumular,
+                COALESCE(editarprecio, FALSE) as editarprecio,
                 CASE 
                     WHEN (costo IS NOT NULL AND ABS(costo::numeric) > 99999999.99)
                       OR (porcentaje IS NOT NULL AND ABS(porcentaje::numeric) > 999.99)
@@ -1435,12 +1435,12 @@ namespace Comercio.NET.Formularios
                     await connection.OpenAsync();
 
                     string query = $@"UPDATE Productos 
-                                     SET {campoDb} = @valor::bit 
+                                     SET {campoDb} = @valor 
                                      WHERE codigo = @codigo";
 
                     using (var cmd = new NpgsqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@valor", valor ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@valor", valor);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
 
                         await cmd.ExecuteNonQueryAsync();

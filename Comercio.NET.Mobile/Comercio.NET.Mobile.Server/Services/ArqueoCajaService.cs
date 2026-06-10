@@ -50,7 +50,7 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                var esCtaCteFilter = _db.UsaPostgres ? "esctacte = 0::bit" : "esctacte = 0";
+                var esCtaCteFilter = _db.UsaPostgres ? "COALESCE(esctacte, FALSE) IS FALSE" : "esctacte = 0";
                 var cajeroFilter = string.IsNullOrEmpty(cajero) ? "" : "AND Cajero = @cajero";
                 var cajeroFilterPP = string.IsNullOrEmpty(cajero) ? "" : "AND UsuarioRegistro = @cajero";
                 var castType = _db.UsaPostgres ? "NUMERIC(18,2)" : "DECIMAL(18,2)";

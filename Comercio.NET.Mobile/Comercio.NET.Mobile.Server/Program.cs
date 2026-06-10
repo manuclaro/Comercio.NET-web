@@ -36,6 +36,9 @@ builder.Services.AddSingleton<DbService>();
 builder.Services.AddSingleton<AfipService>();
 builder.Services.AddSingleton<ICajaService, CajaService>();
 builder.Services.AddSingleton<FacturasService>();
+builder.Services.AddSingleton<ProveedoresService>();
+builder.Services.AddSingleton<UsuariosAdminService>();
+builder.Services.AddSingleton<CtaCteClienteService>();
 
 builder.Services.AddCors(options =>
 {

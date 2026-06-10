@@ -856,9 +856,9 @@ namespace Comercio.NET.Formularios
                     // ✅ MODIFICADO: Incluir campo Activo en la consulta
                     string query = @"SELECT codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, precio, 
                                           cantidad, iva, 
-                                          COALESCE(permiteacumular, B'0') = B'1' as permiteacumular, 
-                                          COALESCE(editarprecio, B'0') = B'1' as editarprecio,
-                                          COALESCE(activo, B'1') = B'1' as activo
+                                          COALESCE(permiteacumular, FALSE) as permiteacumular, 
+                                          COALESCE(editarprecio, FALSE) as editarprecio,
+                                          COALESCE(activo, TRUE) as activo
                                    FROM productos WHERE codigo = @codigo";
 
                     using (var cmd = new NpgsqlCommand(query, connection))

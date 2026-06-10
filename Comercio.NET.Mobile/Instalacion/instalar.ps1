@@ -35,12 +35,12 @@ $ErrorActionPreference = "Stop"
 # ---------------------------------------------------------------------------
 # CONSTANTES FIJAS - No requieren configuracion
 # ---------------------------------------------------------------------------
-$PG_VERSION      = "18"
-$PG_SERVICE_NAME = "postgresql-18"
-$PG_ROOT_DIR     = "C:\PostgreSQL\18"
-$PG_DATA_DIR     = "C:\PostgreSQL\18\data"
-$PG_BIN_DIR      = "C:\PostgreSQL\18\bin"
-$PG_ZIP_URL      = "https://get.enterprisedb.com/postgresql/postgresql-18.1-1-windows-x64-binaries.zip"
+$PG_VERSION      = "16"
+$PG_SERVICE_NAME = "postgresql-16"
+$PG_ROOT_DIR     = "C:\PostgreSQL\16"
+$PG_DATA_DIR     = "C:\PostgreSQL\16\data"
+$PG_BIN_DIR      = "C:\PostgreSQL\16\bin"
+$PG_ZIP_URL      = "https://get.enterprisedb.com/postgresql/postgresql-16.6-1-windows-x64-binaries.zip"
 
 $DB_HOST         = "localhost"
 $DB_PORT         = "5432"
@@ -51,7 +51,9 @@ $DB_PASSWORD     = "michael"
 $APP_PORT        = "8080"
 $SERVICE_NAME    = "ComercioNETWeb"
 
-$DOTNET_URL      = "https://download.visualstudio.microsoft.com/download/pr/aspnetcore-runtime-8.0.15-win-x64.exe"
+$DOTNET_MIN_VERSION = [version]"8.0.27"
+$DOTNET_CORE_URL    = "https://aka.ms/dotnet/8.0/dotnet-runtime-win-x64.exe"
+$DOTNET_ASPNET_URL  = "https://aka.ms/dotnet/8.0/aspnetcore-runtime-win-x64.exe"
 
 # ---------------------------------------------------------------------------
 # HELPERS
@@ -127,45 +129,80 @@ if ([string]::IsNullOrWhiteSpace($ingBrutos)) { $ingBrutos = $cuit }
 Write-Host ""
 
 # ===========================================================================
-# PASO 1 - .NET 8 ASP.NET CORE RUNTIME
+# PASO 1 - .NET 8 RUNTIME (Core + ASP.NET)
 # ===========================================================================
-Write-Paso "1/6" "Verificando .NET 8 ASP.NET Core Runtime..."
+Write-Paso "1/6" "Verificando .NET 8 Runtime requerido ($DOTNET_MIN_VERSION)..."
 
-$dotnetOk = $false
-try {
-    $runtimes = & dotnet --list-runtimes 2>$null
-    if ($runtimes -match "Microsoft\.AspNetCore\.App 8\.") { $dotnetOk = $true }
-} catch { }
+function Test-DotNetMinVersion {
+    param([version]$MinVersion)
+
+    $coreOk = $false
+    $aspNetOk = $false
+
+    try {
+        $runtimes = & dotnet --list-runtimes 2>$null
+
+        foreach ($line in $runtimes) {
+            if ($line -match '^Microsoft\.NETCore\.App\s+([0-9]+\.[0-9]+\.[0-9]+)') {
+                if ([version]$Matches[1] -ge $MinVersion) { $coreOk = $true }
+            }
+            if ($line -match '^Microsoft\.AspNetCore\.App\s+([0-9]+\.[0-9]+\.[0-9]+)') {
+                if ([version]$Matches[1] -ge $MinVersion) { $aspNetOk = $true }
+            }
+        }
+    } catch {
+        return $false
+    }
+
+    return ($coreOk -and $aspNetOk)
+}
+
+function Install-DotNetPackage {
+    param(
+        [string]$Nombre,
+        [string]$LocalPattern,
+        [string]$Url,
+        [string]$TmpFileName
+    )
+
+    $localInstaller = Get-ChildItem $scriptDir -Filter $LocalPattern -ErrorAction SilentlyContinue | Select-Object -First 1
+
+    if ($localInstaller) {
+        Write-Info "Instalando $Nombre desde archivo local: $($localInstaller.Name)"
+        $p = Start-Process -FilePath $localInstaller.FullName -ArgumentList "/quiet /norestart" -Wait -PassThru
+        if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
+            Detener-Script "La instalacion de $Nombre fallo (codigo $($p.ExitCode))."
+        }
+        return
+    }
+
+    Write-Info "Instalador local de $Nombre no encontrado. Descargando..."
+    $tmpDotnet = Join-Path $env:TEMP $TmpFileName
+    try {
+        (New-Object System.Net.WebClient).DownloadFile($Url, $tmpDotnet)
+        $p = Start-Process -FilePath $tmpDotnet -ArgumentList "/quiet /norestart" -Wait -PassThru
+        Remove-Item $tmpDotnet -Force -ErrorAction SilentlyContinue
+        if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
+            Detener-Script "La instalacion de $Nombre fallo (codigo $($p.ExitCode))."
+        }
+    } catch {
+        Detener-Script "No se pudo descargar/instalar ${Nombre}: $_"
+    }
+}
+
+$dotnetOk = Test-DotNetMinVersion -MinVersion $DOTNET_MIN_VERSION
 
 if ($dotnetOk) {
-    Write-OK ".NET 8 ASP.NET Core Runtime ya esta instalado."
+    Write-OK ".NET Runtime compatible ya esta instalado."
 } else {
-    # Buscar instalador local primero
-    $dotnetLocal = Get-ChildItem $scriptDir -Filter "aspnetcore-runtime-8*win-x64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    Install-DotNetPackage -Nombre ".NET Runtime" -LocalPattern "dotnet-runtime-8*win-x64.exe" -Url $DOTNET_CORE_URL -TmpFileName "dotnet-runtime-8-win-x64.exe"
+    Install-DotNetPackage -Nombre "ASP.NET Core Runtime" -LocalPattern "aspnetcore-runtime-8*win-x64.exe" -Url $DOTNET_ASPNET_URL -TmpFileName "aspnetcore-runtime-8-win-x64.exe"
 
-    if ($dotnetLocal) {
-        Write-Info "Instalando .NET 8 desde archivo local: $($dotnetLocal.Name)"
-        $p = Start-Process -FilePath $dotnetLocal.FullName -ArgumentList "/quiet /norestart" -Wait -PassThru
-        if ($p.ExitCode -eq 0 -or $p.ExitCode -eq 3010) {
-            Write-OK ".NET 8 instalado correctamente."
-        } else {
-            Detener-Script "La instalacion de .NET 8 fallo (codigo $($p.ExitCode)). Verifique el archivo."
-        }
+    # Revalidar version efectiva
+    if (Test-DotNetMinVersion -MinVersion $DOTNET_MIN_VERSION) {
+        Write-OK ".NET Runtime actualizado correctamente."
     } else {
-        Write-Info "Archivo local no encontrado. Descargando .NET 8 (~10 MB)..."
-        $tmpDotnet = Join-Path $env:TEMP "aspnetcore-runtime-8-win-x64.exe"
-        try {
-            (New-Object System.Net.WebClient).DownloadFile($DOTNET_URL, $tmpDotnet)
-            $p = Start-Process -FilePath $tmpDotnet -ArgumentList "/quiet /norestart" -Wait -PassThru
-            Remove-Item $tmpDotnet -Force -ErrorAction SilentlyContinue
-            if ($p.ExitCode -eq 0 -or $p.ExitCode -eq 3010) {
-                Write-OK ".NET 8 instalado correctamente."
-            } else {
-                Detener-Script "La instalacion de .NET 8 fallo (codigo $($p.ExitCode))."
-            }
-        } catch {
-            Detener-Script "No se pudo descargar .NET 8: $_"
-        }
+        Detener-Script "No se detecto la version minima requerida de .NET ($DOTNET_MIN_VERSION) luego de instalar."
     }
 }
 
@@ -178,7 +215,7 @@ function Find-PgBin {
     # Buscar primero en ruta propia (sin restricciones de permisos)
     if (Test-Path (Join-Path $PG_BIN_DIR "psql.exe")) { return $PG_BIN_DIR }
     # Fallback: rutas estandar de instaladores oficiales
-    foreach ($v in @("18","17","16","15","14","13")) {
+    foreach ($v in @("16","17","15","14","13","18")) {
         $p = "C:\Program Files\PostgreSQL\$v\bin"
         if (Test-Path (Join-Path $p "psql.exe")) { return $p }
     }
@@ -245,7 +282,7 @@ if ($pgBin) {
     $pwFile    = Join-Path $env:TEMP "pg_pw_temp.txt"
     $DB_PASSWORD | Out-File $pwFile -Encoding ascii -NoNewline
 
-    & $initDbExe -D "$PG_DATA_DIR" -U $DB_USER -A md5 --pwfile="$pwFile" --encoding=UTF8
+    & $initDbExe -D "$PG_DATA_DIR" -U $DB_USER -A scram-sha-256 --pwfile="$pwFile" --encoding=UTF8
     Remove-Item $pwFile -Force -ErrorAction SilentlyContinue
 
     & icacls $PG_DATA_DIR /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
@@ -277,8 +314,47 @@ if ($pgBin) {
 $pgSvc = Get-Service -Name $PG_SERVICE_NAME -ErrorAction SilentlyContinue
 if ($pgSvc -and $pgSvc.Status -ne 'Running') {
     Write-Info "Iniciando servicio PostgreSQL..."
-    Start-Service -Name $PG_SERVICE_NAME
-    Start-Sleep -Seconds 4
+
+    # Reforzar permisos por si quedaron incompletos
+    if (Test-Path "C:\PostgreSQL") {
+        & icacls "C:\PostgreSQL" /grant "*S-1-5-20:(OI)(CI)F" /T /C /Q | Out-Null
+        & icacls "C:\PostgreSQL" /grant "*S-1-5-19:(OI)(CI)F" /T /C /Q | Out-Null
+        & icacls "C:\PostgreSQL" /grant "Todos:(OI)(CI)F" /T /C /Q | Out-Null
+    }
+
+    try {
+        Start-Service -Name $PG_SERVICE_NAME -ErrorAction Stop
+        Start-Sleep -Seconds 4
+    } catch {
+        Write-Aviso "No se pudo iniciar el servicio PostgreSQL al primer intento. Reintentando..."
+
+        # Si quedo un lock file de una ejecucion anterior, eliminarlo
+        $pidFile = Join-Path $PG_DATA_DIR "postmaster.pid"
+        $pgProc = Get-Process postgres -ErrorAction SilentlyContinue
+        if ((Test-Path $pidFile) -and (-not $pgProc)) {
+            Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+            Write-Info "Se elimino lock file stale: postmaster.pid"
+        }
+
+        try {
+            Start-Service -Name $PG_SERVICE_NAME -ErrorAction Stop
+            Start-Sleep -Seconds 4
+        } catch {
+            # Reparar registro del servicio y volver a intentar
+            $pgCtlExe = Join-Path $pgBin "pg_ctl.exe"
+            Write-Aviso "Reparando registro del servicio PostgreSQL..."
+            & $pgCtlExe unregister -N $PG_SERVICE_NAME | Out-Null
+            & $pgCtlExe register -N $PG_SERVICE_NAME -D "$PG_DATA_DIR" -w | Out-Null
+            Start-Sleep -Seconds 2
+            Start-Service -Name $PG_SERVICE_NAME -ErrorAction Stop
+            Start-Sleep -Seconds 4
+        }
+    }
+
+    $pgSvc = Get-Service -Name $PG_SERVICE_NAME -ErrorAction SilentlyContinue
+    if (-not $pgSvc -or $pgSvc.Status -ne 'Running') {
+        Detener-Script "No se pudo iniciar PostgreSQL. Revise el Visor de Eventos y el log en C:\PostgreSQL\16\data\log."
+    }
 }
 
 # ===========================================================================
@@ -288,18 +364,20 @@ Write-Paso "3/6" "Configurando base de datos '$DB_NAME'..."
 
 $psql      = Join-Path $pgBin "psql.exe"
 $createdb  = Join-Path $pgBin "createdb.exe"
+$dropdb    = Join-Path $pgBin "dropdb.exe"
 $pgrestore = Join-Path $pgBin "pg_restore.exe"
 $env:PGPASSWORD = $DB_PASSWORD
 
-# Crear la base si no existe
+# Crear base limpia para evitar conflictos al reinstalar
 $existe = & "$psql" -h $DB_HOST -p $DB_PORT -U $DB_USER -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>$null
-if ($existe -ne "1") {
-    Write-Info "Creando base de datos '$DB_NAME'..."
-    & "$createdb" -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME
-    Write-OK "Base de datos '$DB_NAME' creada."
-} else {
-    Write-OK "Base de datos '$DB_NAME' ya existe."
+if ($existe -eq "1") {
+    Write-Info "La base '$DB_NAME' ya existe. Se recreara para una restauracion limpia..."
+    & "$dropdb" -h $DB_HOST -p $DB_PORT -U $DB_USER --if-exists $DB_NAME
 }
+
+Write-Info "Creando base de datos '$DB_NAME'..."
+& "$createdb" -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME
+Write-OK "Base de datos '$DB_NAME' creada."
 
 # Restaurar backup
 $backupDump = Join-Path $scriptDir "backup-comercio.dump"
@@ -307,13 +385,30 @@ $backupSql  = Join-Path $scriptDir "backup-comercio.sql"
 
 if (Test-Path $backupSql) {
     Write-Info "Restaurando backup SQL (compatible con cualquier version)..."
-    & "$psql" -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $backupSql
+
+    # Algunos backups generados con pg_dump nuevo incluyen metacomandos \restrict/\unrestrict
+    # que psql de versiones anteriores no entiende. Se filtran antes de restaurar.
+    $backupSqlLimpio = Join-Path $env:TEMP "backup-comercio-limpio.sql"
+    $lineasLimpias = Get-Content -Path $backupSql |
+        ForEach-Object { $_ -replace "^`uFEFF", "" } |
+        Where-Object {
+            $_ -notmatch '^\\(un)?restrict\b' -and
+            $_ -notmatch '^SET\s+transaction_timeout\s*=\s*' -and
+            $_ -notmatch '^SET\s+idle_in_transaction_session_timeout\s*=\s*' -and
+            $_ -notmatch '^SET\s+default_table_access_method\s*=\s*'
+        }
+    $utf8SinBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($backupSqlLimpio, $lineasLimpias, $utf8SinBom)
+
+    & "$psql" -v ON_ERROR_STOP=1 -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $backupSqlLimpio
     if ($LASTEXITCODE -ne 0) {
-        Write-Aviso "psql reporto advertencias al restaurar (codigo $LASTEXITCODE)."
-        Write-Aviso "Puede continuar, pero verifique que los datos esten correctos."
+        Write-Aviso "psql reporto errores al restaurar (codigo $LASTEXITCODE)."
+        Detener-Script "La restauracion de base de datos fallo. Verifique el archivo backup-comercio.sql."
     } else {
         Write-OK "Backup restaurado correctamente."
     }
+
+    Remove-Item $backupSqlLimpio -Force -ErrorAction SilentlyContinue
 } elseif (Test-Path $backupDump) {
     Write-Info "Restaurando backup .dump..."
     & "$pgrestore" -h $DB_HOST -p $DB_PORT -U $DB_USER --no-owner --no-privileges -d $DB_NAME $backupDump
@@ -490,8 +585,16 @@ $nssmLocal = Join-Path $scriptDir "nssm.exe"
 $nssmExe   = "$RutaInstalacion\nssm.exe"
 
 if (Test-Path $nssmLocal) {
-    Copy-Item $nssmLocal $nssmExe -Force
-    Write-OK "nssm.exe copiado a $RutaInstalacion"
+    try {
+        Copy-Item $nssmLocal $nssmExe -Force -ErrorAction Stop
+        Write-OK "nssm.exe copiado a $RutaInstalacion"
+    } catch {
+        if (Test-Path $nssmExe) {
+            Write-Aviso "No se pudo sobrescribir nssm.exe porque esta en uso. Se utilizara el existente."
+        } else {
+            Detener-Script "No se pudo copiar nssm.exe y no existe uno previo en destino. $_"
+        }
+    }
 } elseif (-not (Test-Path $nssmExe)) {
     # Fallback: descargar si no esta en ninguna parte
     Write-Info "nssm.exe no encontrado localmente. Descargando..."

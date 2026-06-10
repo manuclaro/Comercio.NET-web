@@ -3,7 +3,7 @@
 ## Requisitos previos
 
 - PC de desarrollo con Visual Studio y el proyecto `Comercio.NET` abierto
-- PostgreSQL 18 instalado localmente
+- PostgreSQL instalado localmente (idealmente 16 o 18)
 - Acceso a internet
 - Cuenta GitHub `manuclaro` con Personal Access Token
 
@@ -42,7 +42,8 @@ Genera `backup-comercio.sql` en formato SQL plano (compatible con cualquier vers
 | `publish\` | Archivos compilados de la aplicación |
 | `backup-comercio.sql` | Backup de la base de datos |
 | `nssm.exe` | Herramienta para registrar el servicio de Windows |
-| `aspnetcore-runtime-8-win-x64.exe` | Instalador de .NET 8 |
+| `dotnet-runtime-8-win-x64.exe` | Instalador de .NET Runtime 8 |
+| `aspnetcore-runtime-8-win-x64.exe` | Instalador de ASP.NET Core Runtime 8 |
 | `FETesting.p12` | Certificado AFIP de Testing |
 
 ### Paso 4 — Subir el instalador a GitHub
@@ -96,7 +97,7 @@ El resto es **completamente automático**.
 | Componente | Detalle |
 |---|---|
 | .NET 8 Runtime | Desde archivo local incluido en el ZIP |
-| PostgreSQL 18 | Descarga ~230 MB, instala en `C:\PostgreSQL\18\` |
+| PostgreSQL 16 | Descarga ~230 MB, instala en `C:\PostgreSQL\16\` |
 | Base de datos | Crea BD `comercio` y restaura el backup con productos y usuario |
 | Certificado AFIP | Copia `FETesting.p12` a `C:\ComercioWeb\Certificados\Testing\` |
 | Aplicación web | Copia archivos a `C:\ComercioWeb\` y genera `appsettings.json` |
@@ -153,7 +154,7 @@ Restart-Service ComercioNETWeb
 |---|---|
 | Error `ejecución de scripts deshabilitada` | Usar `PowerShell -ExecutionPolicy Bypass -File ...` |
 | No se puede acceder desde otro dispositivo | Verificar que estén en la misma red WiFi/LAN |
-| Error de base de datos al ingresar | Verificar `appsettings.json` y que el servicio `postgresql-18` esté corriendo |
+| Error de base de datos al ingresar | Verificar `appsettings.json` y que el servicio `postgresql-16` esté corriendo |
 | El servicio no inicia | Ejecutar `dotnet C:\ComercioWeb\Comercio.NET.Mobile.Server.dll` para ver el error exacto |
 | PostgreSQL no inicia | Ejecutar `icacls C:\PostgreSQL /grant "Todos:(OI)(CI)F" /T` |
 | ZIP no descarga | Descargar manualmente desde `https://github.com/manuclaro/Comercio.NET-web/releases` |
@@ -190,7 +191,7 @@ C:\ComercioWeb\
     │   └── FETesting.p12            <- certificado AFIP testing
     └── Produccion\                  <- para cuando pase a producción
 
-C:\PostgreSQL\18\
+C:\PostgreSQL\16\
 ├── bin\                             <- herramientas PostgreSQL (psql, pg_dump, etc.)
 └── data\                            <- datos de la base de datos
 ```

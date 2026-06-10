@@ -805,12 +805,12 @@ namespace Comercio.NET.Formularios
                         email = @email,
                         nivel = @nivel,
                         numerocajero = @numeroCajero,
-                        activo = @activo::bit,
-                        puedeeliminarproductos = @puedeEliminarProductos::bit,
-                        puedeeditarprecios = @puedeEditarPrecios::bit,
-                        puedeverreportes = @puedeVerReportes::bit,
-                        puedegestionarusuarios = @puedeGestionarUsuarios::bit,
-                        puedeanularfacturas = @puedeAnularFacturas::bit
+                        activo = @activo,
+                        puedeeliminarproductos = @puedeEliminarProductos,
+                        puedeeditarprecios = @puedeEditarPrecios,
+                        puedeverreportes = @puedeVerReportes,
+                        puedegestionarusuarios = @puedeGestionarUsuarios,
+                        puedeanularfacturas = @puedeAnularFacturas
                     WHERE nombreusuario = @nombreUsuario";
 
                 using var cmd = new NpgsqlCommand(query, connection);
@@ -819,12 +819,12 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@email", usuario.Email ?? "");
                 cmd.Parameters.AddWithValue("@nivel", (int)usuario.Nivel);
                 cmd.Parameters.AddWithValue("@numeroCajero", usuario.NumeroCajero);
-                cmd.Parameters.AddWithValue("@activo", usuario.Activo ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeEliminarProductos", usuario.PuedeEliminarProductos ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeEditarPrecios", usuario.PuedeEditarPrecios ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeVerReportes", usuario.PuedeVerReportes ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeGestionarUsuarios", usuario.PuedeGestionarUsuarios ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeAnularFacturas", usuario.PuedeAnularFacturas ? 1 : 0);
+                cmd.Parameters.AddWithValue("@activo", usuario.Activo);
+                cmd.Parameters.AddWithValue("@puedeEliminarProductos", usuario.PuedeEliminarProductos);
+                cmd.Parameters.AddWithValue("@puedeEditarPrecios", usuario.PuedeEditarPrecios);
+                cmd.Parameters.AddWithValue("@puedeVerReportes", usuario.PuedeVerReportes);
+                cmd.Parameters.AddWithValue("@puedeGestionarUsuarios", usuario.PuedeGestionarUsuarios);
+                cmd.Parameters.AddWithValue("@puedeAnularFacturas", usuario.PuedeAnularFacturas);
                 cmd.Parameters.AddWithValue("@nombreUsuario", _nombreUsuarioOriginal);
 
                 await connection.OpenAsync();

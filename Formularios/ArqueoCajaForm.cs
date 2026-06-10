@@ -545,7 +545,7 @@ namespace Comercio.NET.Formularios
                 COALESCE(MIN(u.nombre || ' ' || u.apellido), 'Cajero ' || t.numerocajero::TEXT) as nombrecajero,
                 MIN(t.fechaapertura) as fechaapertura
             FROM turnoscajero t
-            LEFT JOIN usuarios u ON t.numerocajero = u.numerocajero AND u.activo = B'1'
+            LEFT JOIN usuarios u ON t.numerocajero = u.numerocajero AND COALESCE(u.activo, FALSE) IS TRUE
             WHERE t.estado = 'Abierto'
             GROUP BY t.numerocajero
             ORDER BY t.numerocajero";
@@ -751,7 +751,7 @@ namespace Comercio.NET.Formularios
     INNER JOIN usuarios u ON f.usuarioventa = u.nombreusuario
     WHERE u.numerocajero = @numeroCajero
       AND f.hora BETWEEN @fechaInicio AND @fechaFin
-      AND COALESCE(f.esctacte, B'0') = B'0'
+      AND COALESCE(f.esctacte, FALSE) IS FALSE
       AND dp.mediopago NOT IN ('Multiple', 'Múltiples Medios')
     GROUP BY dp.mediopago";
 
@@ -905,7 +905,7 @@ namespace Comercio.NET.Formularios
             WHERE u.numerocajero = @numeroCajero
             AND f.hora BETWEEN @fechaInicio AND @fechaFin
             AND COALESCE(f.formadepago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
-            AND COALESCE(f.esctacte, B'0') = B'0'
+            AND COALESCE(f.esctacte, FALSE) IS FALSE
         ),
         -- Ventas con múltiples medios de pago
         TransaccionesVentasMultiples AS (
@@ -921,7 +921,7 @@ namespace Comercio.NET.Formularios
             WHERE u.numerocajero = @numeroCajero
             AND f.hora BETWEEN @fechaInicio AND @fechaFin
             AND COALESCE(f.formadepago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-            AND COALESCE(f.esctacte, B'0') = B'0'
+            AND COALESCE(f.esctacte, FALSE) IS FALSE
         ),
         TransaccionesPagosProveedores AS (
             SELECT 

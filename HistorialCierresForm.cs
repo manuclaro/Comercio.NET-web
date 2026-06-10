@@ -391,7 +391,7 @@ namespace Comercio.NET.Formularios
                     SELECT DISTINCT numerocajero, 
                            COALESCE(MIN(nombre || ' ' || apellido), 'Cajero ' || numerocajero::TEXT) as nombrecajero
                     FROM usuarios
-                    WHERE activo = B'1'
+                    WHERE COALESCE(activo, FALSE) IS TRUE
                     GROUP BY numerocajero
                     ORDER BY numerocajero";
 

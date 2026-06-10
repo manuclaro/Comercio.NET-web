@@ -660,7 +660,7 @@ namespace Comercio.NET.Formularios
                         INNER JOIN ventas v ON f.numeroremito = v.NroFactura
                         INNER JOIN productos p ON v.codigo = p.codigo
                         WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                        AND (@esCtaCte = FALSE OR f.esCtaCte = B'1')
+                        AND (@esCtaCte = FALSE OR COALESCE(f.esCtaCte, FALSE) IS TRUE)
                         AND f.TipoFactura IN ('FacturaA', 'FacturaB') -- <--- FILTRO SOLO FACTURAS A Y B
                         GROUP BY p.iva
                         HAVING SUM(v.total) > 0

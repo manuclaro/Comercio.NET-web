@@ -18,8 +18,8 @@ namespace Comercio.NET.Mobile.Server.Services
         {
             var ventas = new List<VentaDto>();
 
-            var esOfertaCoalesce = _db.UsaPostgres ? "COALESCE(v.esoferta, 0::bit)" : "COALESCE(v.esoferta, 0)";
-            var esCtaCteCoalesceV = _db.UsaPostgres ? "COALESCE(v.esctacte, 0::bit)" : "COALESCE(v.esctacte, 0)";
+            var esOfertaCoalesce = _db.UsaPostgres ? "COALESCE(v.esoferta, FALSE)" : "COALESCE(v.esoferta, 0)";
+            var esCtaCteCoalesceV = _db.UsaPostgres ? "COALESCE(v.esctacte, FALSE)" : "COALESCE(v.esctacte, 0)";
             var esCtaCteCastF = _db.UsaPostgres ? "MAX(esctacte::int)" : "MAX(CAST(esctacte AS INT))";
             var cajeroIntCast = _db.UsaPostgres
                 ? "COALESCE(NULLIF(f.Cajero, '')::int, 0)"
@@ -150,8 +150,8 @@ namespace Comercio.NET.Mobile.Server.Services
                         : " AND f.tipofactura = @tipoFactura");
             }
 
-            var esCtaCteZero = _db.UsaPostgres ? "esctacte = 0::bit" : "COALESCE(esctacte, 0) = 0";
-            var esCtaCteOne = _db.UsaPostgres ? "esctacte = 1::bit" : "COALESCE(esctacte, 0) = 1";
+            var esCtaCteZero = _db.UsaPostgres ? "esctacte = FALSE" : "COALESCE(esctacte, 0) = 0";
+            var esCtaCteOne = _db.UsaPostgres ? "esctacte = TRUE" : "COALESCE(esctacte, 0) = 1";
             var castDec = _db.UsaPostgres ? "NUMERIC(18,2)" : "DECIMAL(18,2)";
 
             var sql = $@"

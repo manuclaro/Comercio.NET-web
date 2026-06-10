@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Usuarios - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .page-header { background:linear-gradient(135deg,#6a1b9a,#4a148c); }
+        .admin-toolbar { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+        .btn-nuevo { background:#6a1b9a; color:#fff; border:none; padding:.55rem 1.2rem; border-radius:6px; cursor:pointer; font-size:.95rem; font-weight:600; }
+        .btn-nuevo:hover { background:#4a148c; }
+        .table-wrapper { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:.88rem; }
+        th { background:#6a1b9a; color:#fff; padding:.6rem .8rem; text-align:left; white-space:nowrap; }
+        td { padding:.55rem .8rem; border-bottom:1px solid #e0e0e0; }
+        tr:hover td { background:#f5f5f5; }
+        .badge { padding:.2rem .55rem; border-radius:12px; font-size:.78rem; font-weight:600; }
+        .badge-admin { background:#e8eaf6; color:#4a148c; }
+        .badge-supervisor { background:#e3f2fd; color:#0d47a1; }
+        .badge-cajero { background:#f3e5f5; color:#6a1b9a; }
+        .badge-activo { background:#e8f5e9; color:#2e7d32; }
+        .badge-inactivo { background:#ffebee; color:#c62828; }
+        .row-actions { display:flex; gap:.4rem; flex-wrap:wrap; justify-content:center; }
+        .btn-edit { background:#1565c0; color:#fff; border:none; padding:.3rem .7rem; border-radius:5px; cursor:pointer; font-size:.78rem; }
+        .btn-pwd  { background:#e65100; color:#fff; border:none; padding:.3rem .7rem; border-radius:5px; cursor:pointer; font-size:.78rem; }
+        .btn-toggle-activo { background:#37474f; color:#fff; border:none; padding:.3rem .7rem; border-radius:5px; cursor:pointer; font-size:.78rem; }
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:1000; padding:1rem; }
+        .modal-box { background:#fff; border-radius:10px; width:100%; max-width:480px; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+        .modal-header { background:linear-gradient(135deg,#6a1b9a,#4a148c); color:#fff; padding:1rem 1.2rem; border-radius:10px 10px 0 0; display:flex; justify-content:space-between; align-items:center; }
+        .modal-header h3 { margin:0; font-size:1.1rem; }
+        .modal-body { padding:1.2rem; display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+        .modal-body .full { grid-column:1/-1; }
+        .form-grupo label { display:block; font-size:.82rem; font-weight:600; color:#555; margin-bottom:.25rem; }
+        .form-grupo input, .form-grupo select { width:100%; padding:.5rem .7rem; border:1px solid #ccc; border-radius:6px; font-size:.92rem; }
+        .modal-footer { padding:1rem 1.2rem; display:flex; justify-content:flex-end; gap:.7rem; border-top:1px solid #eee; }
+        .btn-cancel { background:#fff; border:1px solid #ccc; padding:.5rem 1.1rem; border-radius:6px; cursor:pointer; }
+        .btn-save   { background:#6a1b9a; color:#fff; border:none; padding:.5rem 1.3rem; border-radius:6px; cursor:pointer; font-weight:600; }
+        .btn-close-modal { background:transparent; border:none; color:#fff; font-size:1.3rem; cursor:pointer; }
+        .msg-ok  { background:#e8f5e9; color:#2e7d32; padding:.6rem 1rem; border-radius:6px; margin-bottom:.8rem; }
+        .msg-err { background:#ffebee; color:#c62828; padding:.6rem 1rem; border-radius:6px; margin-bottom:.8rem; }
+        .search-box { display:flex; gap:.5rem; flex:1; }
+        .search-box input { flex:1; padding:.5rem .8rem; border:1px solid #ccc; border-radius:6px; font-size:.95rem; }
+        .btn-search { background:#6a1b9a; color:#fff; border:none; padding:.5rem 1rem; border-radius:6px; cursor:pointer; }
+        .hint-pwd { font-size:.78rem; color:#777; margin-top:.2rem; }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <header class="page-header">
+        <a href="/dashboard.html" class="btn-back">? Volver</a>
+        <div class="header-title">
+            <span>??</span>
+            <div><h1>Gestión de Usuarios</h1><p>Roles y permisos</p></div>
+        </div>
+        <div class="header-user">
+            <span id="nombreUsuario"></span>
+            <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <main class="page-main">
+        <div class="admin-toolbar">
+            <div class="search-box">
+                <input type="text" id="txtBuscar" placeholder="?? Buscar usuario..." />
+                <button id="btnBuscar" class="btn-search">Buscar</button>
+            </div>
+            <button id="btnNuevo" class="btn-nuevo">? Nuevo Usuario</button>
+        </div>
+
+        <div id="loading" style="display:none;text-align:center;padding:2rem;color:#666;">Cargando...</div>
+        <div id="msgGlobal" style="display:none;"></div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead><tr>
+                    <th>Usuario</th><th>Nombre Completo</th><th>Rol</th>
+                    <th class="text-center">Cajero #</th><th class="text-center">Estado</th>
+                    <th class="text-center">Acciones</th>
+                </tr></thead>
+                <tbody id="tbodyUsuarios"></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- MODAL USUARIO -->
+<div id="modalUsuario" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="modalTitulo">Usuario</h3>
+            <button class="btn-close-modal" id="btnCerrarModal">?</button>
+        </div>
+        <div class="modal-body">
+            <div id="modalMsg" class="full" style="display:none;"></div>
+            <div class="form-grupo full">
+                <label>Nombre de usuario *</label>
+                <input type="text" id="fUsuario" placeholder="ej: admin, cajero1..." maxlength="50" autocomplete="off" />
+            </div>
+            <div class="form-grupo">
+                <label>Nombre</label>
+                <input type="text" id="fNombre" placeholder="Nombre" maxlength="100" />
+            </div>
+            <div class="form-grupo">
+                <label>Apellido</label>
+                <input type="text" id="fApellido" placeholder="Apellido" maxlength="100" />
+            </div>
+            <div class="form-grupo">
+                <label>Rol / Nivel</label>
+                <select id="fNivel">
+                    <option value="1">Cajero (1)</option>
+                    <option value="2">Cajero+ (2)</option>
+                    <option value="3">Supervisor (3)</option>
+                    <option value="4">Admin (4)</option>
+                </select>
+            </div>
+            <div class="form-grupo">
+                <label>Número de Cajero</label>
+                <input type="number" id="fCajero" min="1" max="99" value="1" />
+            </div>
+            <div class="form-grupo full" id="grupoPwd">
+                <label>Contraseña <span id="pwdHint" class="hint-pwd">(requerida para usuarios nuevos)</span></label>
+                <input type="password" id="fPassword" placeholder="Nueva contraseña..." maxlength="100" autocomplete="new-password" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btnCancelar">Cancelar</button>
+            <button class="btn-save" id="btnGuardar">?? Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CAMBIAR PASSWORD -->
+<div id="modalPwd" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>?? Cambiar Contraseña</h3>
+            <button class="btn-close-modal" id="btnCerrarModalPwd">?</button>
+        </div>
+        <div class="modal-body" style="grid-template-columns:1fr;">
+            <div id="modalPwdMsg" style="display:none;"></div>
+            <div class="form-grupo">
+                <label>Nueva contraseña *</label>
+                <input type="password" id="fNuevaPwd" placeholder="Nueva contraseña..." maxlength="100" autocomplete="new-password" />
+            </div>
+            <div class="form-grupo">
+                <label>Confirmar contraseña *</label>
+                <input type="password" id="fConfirmPwd" placeholder="Repetir contraseña..." maxlength="100" autocomplete="new-password" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btnCancelarPwd">Cancelar</button>
+            <button class="btn-save" id="btnGuardarPwd">?? Cambiar</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/usuarios.js"></script>
+</body>
+</html>

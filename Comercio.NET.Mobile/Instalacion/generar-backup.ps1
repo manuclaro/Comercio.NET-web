@@ -69,6 +69,18 @@ $exitCode = $LASTEXITCODE
 $env:PGPASSWORD = ""
 
 if ($exitCode -eq 0 -and (Test-Path $outputFile)) {
+    # Limpiar metacomandos y parametros que rompen en psql de versiones mas viejas
+    $lineasLimpias = Get-Content -Path $outputFile |
+        ForEach-Object { $_ -replace "^`uFEFF", "" } |
+        Where-Object {
+            $_ -notmatch '^\\(un)?restrict\b' -and
+            $_ -notmatch '^SET\s+transaction_timeout\s*=\s*' -and
+            $_ -notmatch '^SET\s+idle_in_transaction_session_timeout\s*=\s*' -and
+            $_ -notmatch '^SET\s+default_table_access_method\s*=\s*'
+        }
+    $utf8SinBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($outputFile, $lineasLimpias, $utf8SinBom)
+
     $size = [math]::Round((Get-Item $outputFile).Length / 1KB)
     Write-Host ""
     Write-Host "  OK  Backup generado correctamente ($size KB)" -ForegroundColor Green

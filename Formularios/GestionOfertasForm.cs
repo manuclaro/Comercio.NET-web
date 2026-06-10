@@ -797,7 +797,7 @@ namespace Comercio.NET.Formularios
                     TipoOferta AS ""Tipo"",
                     FechaInicio AS ""Inicio"",
                     FechaFin AS ""Fin"",
-                    CASE WHEN Activo = B'1' THEN 'Sí' ELSE 'No' END AS ""Activa"",
+                    CASE WHEN COALESCE(Activo, FALSE) IS TRUE THEN 'Sí' ELSE 'No' END AS ""Activa"",
                     (SELECT COUNT(*) FROM detalleofertasproductos WHERE IdOferta = ofertasproductos.Id) AS ""Productos""
                 FROM ofertasproductos
                 ORDER BY Activo DESC, FechaInicio DESC";
@@ -1172,7 +1172,7 @@ namespace Comercio.NET.Formularios
                                         dtpFechaFin.Value.Date > dtpFechaInicio.Value.Date
                                             ? (object)dtpFechaFin.Value.Date
                                             : DBNull.Value);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkActivo.Checked });
+                                    cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkActivo.Checked });
                                     cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
 
                                     cmd.Parameters.AddWithValue("@PrecioCombo",
@@ -1227,7 +1227,7 @@ namespace Comercio.NET.Formularios
                                         dtpFechaFin.Value.Date > dtpFechaInicio.Value.Date
                                             ? (object)dtpFechaFin.Value.Date
                                             : DBNull.Value);
-                                    cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkActivo.Checked });
+                                    cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkActivo.Checked });
                                     cmd.Parameters.AddWithValue("@TipoOferta", tipoOferta);
 
                                     cmd.Parameters.AddWithValue("@PrecioCombo",

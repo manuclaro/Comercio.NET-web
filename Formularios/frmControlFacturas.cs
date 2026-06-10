@@ -1759,7 +1759,7 @@ namespace Comercio.NET.Formularios
                     {
                         adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
                         adapter.SelectCommand.Parameters.AddWithValue("@hasta", hasta.Date);
-                        adapter.SelectCommand.Parameters.Add(new NpgsqlParameter("@esCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkCtaCte.Checked });
+                        adapter.SelectCommand.Parameters.Add(new NpgsqlParameter("@esCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkCtaCte.Checked });
 
                         DataTable dt = new DataTable();
 

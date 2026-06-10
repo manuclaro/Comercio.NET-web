@@ -292,13 +292,13 @@ namespace Comercio.NET.Services
             debugReader.Close();
 
             // Consulta original para autenticación
-            var query = @"
+                var query = @"
                 SELECT idusuarios, nombreusuario, nombre, apellido, email, passwordhash, 
                        nivel, numerocajero, activo, fechacreacion, ultimoacceso,
                        puedeeliminarproductos, puedeeditarprecios, puedeverreportes, 
                        puedegestionarusuarios, puedeanularfacturas
                 FROM usuarios 
-                WHERE nombreusuario = @nombreUsuario AND passwordhash = @passwordHash AND activo = 1::bit";
+                WHERE nombreusuario = @nombreUsuario AND passwordhash = @passwordHash AND activo = TRUE";
 
             using var cmd = new NpgsqlCommand(query, connection);
             cmd.Parameters.AddWithValue("@nombreUsuario", nombreUsuario);
@@ -482,9 +482,9 @@ namespace Comercio.NET.Services
                                         puedeeliminarproductos, puedeeditarprecios, puedeverreportes,
                                         puedegestionarusuarios, puedeanularfacturas)
                     VALUES (@nombreUsuario, @nombre, @apellido, @email, @passwordHash,
-                           @nivel, @numeroCajero, @activo::bit, @fechaCreacion,
-                           @puedeEliminarProductos::bit, @puedeEditarPrecios::bit, @puedeVerReportes::bit,
-                           @puedeGestionarUsuarios::bit, @puedeAnularFacturas::bit)";
+                           @nivel, @numeroCajero, @activo, @fechaCreacion,
+                           @puedeEliminarProductos, @puedeEditarPrecios, @puedeVerReportes,
+                           @puedeGestionarUsuarios, @puedeAnularFacturas)";
 
                 using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@nombreUsuario", usuario.NombreUsuario);
@@ -494,13 +494,13 @@ namespace Comercio.NET.Services
                 cmd.Parameters.AddWithValue("@passwordHash", usuario.PasswordHash);
                 cmd.Parameters.AddWithValue("@nivel", (int)usuario.Nivel);
                 cmd.Parameters.AddWithValue("@numeroCajero", usuario.NumeroCajero);
-                cmd.Parameters.AddWithValue("@activo", usuario.Activo ? 1 : 0);
+                cmd.Parameters.AddWithValue("@activo", usuario.Activo);
                 cmd.Parameters.AddWithValue("@fechaCreacion", usuario.FechaCreacion);
-                cmd.Parameters.AddWithValue("@puedeEliminarProductos", usuario.PuedeEliminarProductos ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeEditarPrecios", usuario.PuedeEditarPrecios ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeVerReportes", usuario.PuedeVerReportes ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeGestionarUsuarios", usuario.PuedeGestionarUsuarios ? 1 : 0);
-                cmd.Parameters.AddWithValue("@puedeAnularFacturas", usuario.PuedeAnularFacturas ? 1 : 0);
+                cmd.Parameters.AddWithValue("@puedeEliminarProductos", usuario.PuedeEliminarProductos);
+                cmd.Parameters.AddWithValue("@puedeEditarPrecios", usuario.PuedeEditarPrecios);
+                cmd.Parameters.AddWithValue("@puedeVerReportes", usuario.PuedeVerReportes);
+                cmd.Parameters.AddWithValue("@puedeGestionarUsuarios", usuario.PuedeGestionarUsuarios);
+                cmd.Parameters.AddWithValue("@puedeAnularFacturas", usuario.PuedeAnularFacturas);
 
                 connection.Open();
                 await cmd.ExecuteNonQueryAsync();

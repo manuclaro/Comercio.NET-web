@@ -2,15 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict Eap1cVWCQJEcp3mDtNCNplmjfpIbajhHT1PssZg8LO57sRVwHUhwcaO7Xs0bM3R
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -53,7 +50,6 @@ $$;
 
 SET default_tablespace = '';
 
-SET default_table_access_method = heap;
 
 --
 -- Name: __migracionesaplicadas; Type: TABLE; Schema: public; Owner: -
@@ -346,6 +342,55 @@ CREATE SEQUENCE public.comprasproveedoresivadetalle_id_seq
 --
 
 ALTER SEQUENCE public.comprasproveedoresivadetalle_id_seq OWNED BY public.comprasproveedoresivadetalle.id;
+
+
+--
+-- Name: ctacte; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ctacte (
+    id integer NOT NULL,
+    nombre character varying(200) NOT NULL,
+    dni character varying(20),
+    telefono character varying(50),
+    email character varying(200),
+    activo bit(1) DEFAULT '1'::"bit" NOT NULL,
+    fechaalta timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE ctacte; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.ctacte IS 'Clientes habilitados para comprar en cuenta corriente';
+
+
+--
+-- Name: COLUMN ctacte.activo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.ctacte.activo IS 'B''1'' = activo, B''0'' = dado de baja';
+
+
+--
+-- Name: ctacte_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.ctacte_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: ctacte_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.ctacte_id_seq OWNED BY public.ctacte.id;
 
 
 --
@@ -806,6 +851,71 @@ ALTER SEQUENCE public.pagos_id_seq OWNED BY public.pagos.id;
 
 
 --
+-- Name: pagosctacte; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pagosctacte (
+    id integer NOT NULL,
+    cliente_id integer NOT NULL,
+    monto numeric(18,2) NOT NULL,
+    mediopago character varying(50) DEFAULT 'Efectivo'::character varying NOT NULL,
+    referencia character varying(500),
+    usuario character varying(100),
+    fecha timestamp without time zone DEFAULT now() NOT NULL,
+    fecharegistro timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT pagosctacte_monto_check CHECK ((monto > (0)::numeric))
+);
+
+
+--
+-- Name: TABLE pagosctacte; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.pagosctacte IS 'Pagos realizados por clientes de cuenta corriente';
+
+
+--
+-- Name: COLUMN pagosctacte.monto; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.pagosctacte.monto IS 'Monto abonado (siempre positivo)';
+
+
+--
+-- Name: COLUMN pagosctacte.mediopago; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.pagosctacte.mediopago IS 'Efectivo, Transferencia, DÃ©bito, CrÃ©dito, Cheque, Otro';
+
+
+--
+-- Name: COLUMN pagosctacte.referencia; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.pagosctacte.referencia IS 'NÃºmero de transferencia, cheque, etc.';
+
+
+--
+-- Name: pagosctacte_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.pagosctacte_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: pagosctacte_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.pagosctacte_id_seq OWNED BY public.pagosctacte.id;
+
+
+--
 -- Name: pagosproveedores; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -970,8 +1080,23 @@ CREATE TABLE public.proveedores (
     activo bit(1) NOT NULL,
     fechacreacion timestamp without time zone NOT NULL,
     usuariocreacion character varying(100),
-    rubro character varying(100)
+    rubro character varying(100),
+    contacto character varying(200)
 );
+
+
+--
+-- Name: COLUMN proveedores.email; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.proveedores.email IS 'Email de contacto del proveedor';
+
+
+--
+-- Name: COLUMN proveedores.contacto; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.proveedores.contacto IS 'Nombre del contacto en el proveedor';
 
 
 --
@@ -1373,6 +1498,13 @@ ALTER TABLE ONLY public.comprasproveedoresivadetalle ALTER COLUMN id SET DEFAULT
 
 
 --
+-- Name: ctacte id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ctacte ALTER COLUMN id SET DEFAULT nextval('public.ctacte_id_seq'::regclass);
+
+
+--
 -- Name: ctacteproveedores id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1461,6 +1593,13 @@ ALTER TABLE ONLY public.ofertasproductos ALTER COLUMN id SET DEFAULT nextval('pu
 --
 
 ALTER TABLE ONLY public.pagos ALTER COLUMN id SET DEFAULT nextval('public.pagos_id_seq'::regclass);
+
+
+--
+-- Name: pagosctacte id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagosctacte ALTER COLUMN id SET DEFAULT nextval('public.pagosctacte_id_seq'::regclass);
 
 
 --
@@ -4119,72 +4258,72 @@ COPY public.auditoriaproductoseliminados (idauditoriaproductoseliminados, codigo
 43	3	fiambre :)	2000.00	1	2000.00	312	2025-10-17 15:59:02.12	admin	holaa	0	\N	\N	MANUELC	2025-10-17 15:59:02.12	5	0.00	6	0
 44	1	articulos de almacen	125.00	1	125.00	312	2025-10-17 15:59:09.373	admin	asdasd	0	\N	\N	MANUELC	2025-10-17 15:59:09.373	5	0.00	1	1
 45	1	articulos de almacen	125.00	3	375.00	414	2025-10-22 18:43:59.517	admin	asdasdas	0	\N	\N	MANUELC	2025-10-22 18:43:59.517	5	0.00	6	0
-46	6	facturas	5275.00	1	5275.00	452	2025-10-24 19:23:58.207	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.207	5	0.00	1	1
-47	5	Carniceria	5000.00	1	5000.00	452	2025-10-24 19:23:58.247	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.247	5	0.00	1	1
-48	4	verduleria	3700.00	1	3700.00	452	2025-10-24 19:23:58.253	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.253	5	0.00	1	1
-49	3	fiambre :)	2000.00	1	2000.00	452	2025-10-24 19:23:58.257	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.257	5	0.00	1	1
-50	2	Panaderia y confiteria	3500.00	1	3500.00	452	2025-10-24 19:23:58.26	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.26	5	0.00	1	1
-51	1	articulos de almacen	1500.00	1	1500.00	452	2025-10-24 19:23:58.267	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.267	5	0.00	1	1
-52	1	articulos de almacen	1500.00	1	1500.00	453	2025-10-24 19:24:35.527	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 19:24:35.527	5	0.00	1	1
+46	6	facturas	5275.00	1	5275.00	452	2025-10-24 19:23:58.207	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.207	5	0.00	1	1
+47	5	Carniceria	5000.00	1	5000.00	452	2025-10-24 19:23:58.247	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.247	5	0.00	1	1
+48	4	verduleria	3700.00	1	3700.00	452	2025-10-24 19:23:58.253	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.253	5	0.00	1	1
+49	3	fiambre :)	2000.00	1	2000.00	452	2025-10-24 19:23:58.257	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.257	5	0.00	1	1
+50	2	Panaderia y confiteria	3500.00	1	3500.00	452	2025-10-24 19:23:58.26	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.26	5	0.00	1	1
+51	1	articulos de almacen	1500.00	1	1500.00	452	2025-10-24 19:23:58.267	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 19:23:58.267	5	0.00	1	1
+52	1	articulos de almacen	1500.00	1	1500.00	453	2025-10-24 19:24:35.527	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 19:24:35.527	5	0.00	1	1
 53	3	fiambre :)	2000.00	4	8000.00	463	2025-10-24 20:06:49.277	admin	algo para poner	0	\N	\N	MANUELC	2025-10-24 20:06:49.277	5	0.00	6	0
 54	5	Carniceria	5000.00	2	10000.00	463	2025-10-24 20:07:19.047	admin	borrar	0	\N	\N	MANUELC	2025-10-24 20:07:19.047	5	0.00	6	0
-55	8	golosinas	900.00	1	900.00	463	2025-10-24 20:07:37.987	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:37.987	5	0.00	1	1
-56	4	verduleria	3700.00	1	3700.00	463	2025-10-24 20:07:38.007	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.007	5	0.00	1	1
-57	6	facturas	5275.00	1	5275.00	463	2025-10-24 20:07:38.013	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.013	5	0.00	1	1
-58	5	Carniceria	5000.00	4	20000.00	463	2025-10-24 20:07:38.017	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.017	5	0.00	4	1
-59	3	fiambre :)	2000.00	2	4000.00	463	2025-10-24 20:07:38.023	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.023	5	0.00	2	1
-60	2	Panaderia y confiteria	3500.00	1	3500.00	463	2025-10-24 20:07:38.03	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.03	5	0.00	1	1
-61	1	articulos de almacen	1500.00	1	1500.00	463	2025-10-24 20:07:38.037	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.037	5	0.00	1	1
+55	8	golosinas	900.00	1	900.00	463	2025-10-24 20:07:37.987	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:37.987	5	0.00	1	1
+56	4	verduleria	3700.00	1	3700.00	463	2025-10-24 20:07:38.007	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.007	5	0.00	1	1
+57	6	facturas	5275.00	1	5275.00	463	2025-10-24 20:07:38.013	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.013	5	0.00	1	1
+58	5	Carniceria	5000.00	4	20000.00	463	2025-10-24 20:07:38.017	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.017	5	0.00	4	1
+59	3	fiambre :)	2000.00	2	4000.00	463	2025-10-24 20:07:38.023	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.023	5	0.00	2	1
+60	2	Panaderia y confiteria	3500.00	1	3500.00	463	2025-10-24 20:07:38.03	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.03	5	0.00	1	1
+61	1	articulos de almacen	1500.00	1	1500.00	463	2025-10-24 20:07:38.037	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-24 20:07:38.037	5	0.00	1	1
 62	1	articulos de almacen	2750.00	2	5500.00	465	2025-10-28 20:02:49.52	admin	eliminar	0	\N	\N	MANUELC	2025-10-28 20:02:49.52	5	0.00	6	0
-64	2	Panaderia y confiteria	3500.00	1	3500.00	471	2025-10-28 20:58:58.38	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-28 20:58:58.38	5	0.00	1	1
-65	1	articulos de almacen	2750.00	1	2750.00	471	2025-10-28 20:58:58.39	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-28 20:58:58.39	5	0.00	1	1
-66	2	Panaderia y confiteria	3500.00	1	3500.00	473	2025-10-29 14:47:02.543	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-29 14:47:02.543	5	0.00	1	1
-67	1	articulos de almacen	2750.00	1	2750.00	473	2025-10-29 14:47:02.57	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-29 14:47:02.57	5	0.00	1	1
-68	3	fiambre :)	6860.00	1	6860.00	474	2025-10-29 14:57:31.107	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-29 14:57:31.107	5	0.00	1	1
-69	2	Panaderia y confiteria	3500.00	1	3500.00	474	2025-10-29 14:57:31.117	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-29 14:57:31.117	5	0.00	1	1
-70	1	articulos de almacen	2750.00	1	2750.00	474	2025-10-29 14:57:31.127	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-10-29 14:57:31.127	5	0.00	1	1
+64	2	Panaderia y confiteria	3500.00	1	3500.00	471	2025-10-28 20:58:58.38	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-28 20:58:58.38	5	0.00	1	1
+65	1	articulos de almacen	2750.00	1	2750.00	471	2025-10-28 20:58:58.39	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-28 20:58:58.39	5	0.00	1	1
+66	2	Panaderia y confiteria	3500.00	1	3500.00	473	2025-10-29 14:47:02.543	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-29 14:47:02.543	5	0.00	1	1
+67	1	articulos de almacen	2750.00	1	2750.00	473	2025-10-29 14:47:02.57	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-29 14:47:02.57	5	0.00	1	1
+68	3	fiambre :)	6860.00	1	6860.00	474	2025-10-29 14:57:31.107	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-29 14:57:31.107	5	0.00	1	1
+69	2	Panaderia y confiteria	3500.00	1	3500.00	474	2025-10-29 14:57:31.117	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-29 14:57:31.117	5	0.00	1	1
+70	1	articulos de almacen	2750.00	1	2750.00	474	2025-10-29 14:57:31.127	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-10-29 14:57:31.127	5	0.00	1	1
 71	1	articulos de almacen	250000.00	1	250000.00	487	2025-11-04 23:41:45.593	admin	sdfsdfsdf	0	\N	\N	MANUELC	2025-11-04 23:41:45.593	5	0.00	1	1
 72	7622201736033	Cerealitas 	1700.00	1	1700.00	532	2025-11-08 19:04:09.487	admin	no lo lleva	0	\N	\N	MANUELC	2025-11-08 19:04:09.487	5	0.00	1	1
 73	2	Panaderia y confiteria	3500.00	1	3500.00	533	2025-11-08 19:09:48.763	admin	lo dejo	0	\N	\N	MANUELC	2025-11-08 19:09:48.763	5	0.00	1	1
 74	7622201736033	Cerealitas 	1700.00	1	1700.00	533	2025-11-08 19:10:20.477	admin	lleva solo 4	0	\N	\N	MANUELC	2025-11-08 19:10:20.477	5	0.00	5	0
-75	5	Carniceria	5000.00	1	5000.00	534	2025-11-08 19:14:24.933	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:24.933	5	0.00	1	1
-76	4	verduleria	3700.00	1	3700.00	534	2025-11-08 19:14:24.97	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:24.97	5	0.00	1	1
-77	3	fiambre :)	7200.00	1	7200.00	534	2025-11-08 19:14:24.977	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:24.977	5	0.00	1	1
-78	2	Panaderia y confiteria	3500.00	1	3500.00	534	2025-11-08 19:14:25	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:25	5	0.00	1	1
-79	1	articulos de almacen	13500.00	1	13500.00	534	2025-11-08 19:14:25.01	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:25.01	5	0.00	1	1
-80	3	fiambre :)	7200.00	1	7200.00	537	2025-11-08 19:23:04.353	Manuel	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:23:04.353	1	0.00	1	1
-81	2	Panaderia y confiteria	3500.00	1	3500.00	537	2025-11-08 19:23:04.417	Manuel	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:23:04.417	1	0.00	1	1
-82	1	articulos de almacen	13500.00	1	13500.00	537	2025-11-08 19:23:04.427	Manuel	Anulación factura completa	0	\N	\N	MANUELC	2025-11-08 19:23:04.427	1	0.00	1	1
-83	5	Carniceria	8.00	1	8.00	557	2025-11-12 15:31:45.163	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.163	5	0.00	1	1
-84	3	fiambre :)	7200.00	1	7200.00	557	2025-11-12 15:31:45.19	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.19	5	0.00	1	1
-85	2	Panaderia y confiteria	3500.00	1	3500.00	557	2025-11-12 15:31:45.217	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.217	5	0.00	1	1
-86	1	articulos de almacen	13500.00	1	13500.00	557	2025-11-12 15:31:45.227	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.227	5	0.00	1	1
-87	3	fiambre :)	7200.00	1	7200.00	558	2025-11-12 15:33:39.993	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:33:39.993	5	0.00	1	1
-88	2	Panaderia y confiteria	3500.00	1	3500.00	558	2025-11-12 15:33:40.057	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:33:40.057	5	0.00	1	1
-89	1	articulos de almacen	13500.00	1	13500.00	558	2025-11-12 15:33:40.063	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:33:40.063	5	0.00	1	1
-90	3	fiambre :)	7200.00	1	7200.00	559	2025-11-12 15:39:16.833	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:39:16.833	5	0.00	1	1
-91	2	Panaderia y confiteria	3500.00	1	3500.00	559	2025-11-12 15:39:16.877	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:39:16.877	5	0.00	1	1
-92	1	articulos de almacen	13500.00	1	13500.00	559	2025-11-12 15:39:16.883	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 15:39:16.883	5	0.00	1	1
-93	3	fiambre :)	7200.00	1	7200.00	563	2025-11-12 17:10:58.4	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 17:10:58.4	5	0.00	1	1
-94	2	Panaderia y confiteria	3500.00	1	3500.00	563	2025-11-12 17:10:58.467	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 17:10:58.467	5	0.00	1	1
-95	1	articulos de almacen	13500.00	1	13500.00	563	2025-11-12 17:10:58.477	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 17:10:58.477	5	0.00	1	1
+75	5	Carniceria	5000.00	1	5000.00	534	2025-11-08 19:14:24.933	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:24.933	5	0.00	1	1
+76	4	verduleria	3700.00	1	3700.00	534	2025-11-08 19:14:24.97	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:24.97	5	0.00	1	1
+77	3	fiambre :)	7200.00	1	7200.00	534	2025-11-08 19:14:24.977	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:24.977	5	0.00	1	1
+78	2	Panaderia y confiteria	3500.00	1	3500.00	534	2025-11-08 19:14:25	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:25	5	0.00	1	1
+79	1	articulos de almacen	13500.00	1	13500.00	534	2025-11-08 19:14:25.01	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:14:25.01	5	0.00	1	1
+80	3	fiambre :)	7200.00	1	7200.00	537	2025-11-08 19:23:04.353	Manuel	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:23:04.353	1	0.00	1	1
+81	2	Panaderia y confiteria	3500.00	1	3500.00	537	2025-11-08 19:23:04.417	Manuel	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:23:04.417	1	0.00	1	1
+82	1	articulos de almacen	13500.00	1	13500.00	537	2025-11-08 19:23:04.427	Manuel	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-08 19:23:04.427	1	0.00	1	1
+83	5	Carniceria	8.00	1	8.00	557	2025-11-12 15:31:45.163	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.163	5	0.00	1	1
+84	3	fiambre :)	7200.00	1	7200.00	557	2025-11-12 15:31:45.19	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.19	5	0.00	1	1
+85	2	Panaderia y confiteria	3500.00	1	3500.00	557	2025-11-12 15:31:45.217	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.217	5	0.00	1	1
+86	1	articulos de almacen	13500.00	1	13500.00	557	2025-11-12 15:31:45.227	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:31:45.227	5	0.00	1	1
+87	3	fiambre :)	7200.00	1	7200.00	558	2025-11-12 15:33:39.993	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:33:39.993	5	0.00	1	1
+88	2	Panaderia y confiteria	3500.00	1	3500.00	558	2025-11-12 15:33:40.057	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:33:40.057	5	0.00	1	1
+89	1	articulos de almacen	13500.00	1	13500.00	558	2025-11-12 15:33:40.063	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:33:40.063	5	0.00	1	1
+90	3	fiambre :)	7200.00	1	7200.00	559	2025-11-12 15:39:16.833	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:39:16.833	5	0.00	1	1
+91	2	Panaderia y confiteria	3500.00	1	3500.00	559	2025-11-12 15:39:16.877	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:39:16.877	5	0.00	1	1
+92	1	articulos de almacen	13500.00	1	13500.00	559	2025-11-12 15:39:16.883	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 15:39:16.883	5	0.00	1	1
+93	3	fiambre :)	7200.00	1	7200.00	563	2025-11-12 17:10:58.4	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 17:10:58.4	5	0.00	1	1
+94	2	Panaderia y confiteria	3500.00	1	3500.00	563	2025-11-12 17:10:58.467	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 17:10:58.467	5	0.00	1	1
+95	1	articulos de almacen	13500.00	1	13500.00	563	2025-11-12 17:10:58.477	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 17:10:58.477	5	0.00	1	1
 96	3	fiambre :)	7200.00	1	7200.00	564	2025-11-12 17:12:37.6	admin	asdasd	0	\N	\N	MANUELC	2025-11-12 17:12:37.6	5	0.00	1	1
 97	8	golosinas	900.00	1	900.00	564	2025-11-12 17:12:41.45	admin	asdasda	0	\N	\N	MANUELC	2025-11-12 17:12:41.45	5	0.00	1	1
-98	4	verduleria	5.00	1	5.00	564	2025-11-12 17:13:08.473	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 17:13:08.473	5	0.00	1	1
+98	4	verduleria	5.00	1	5.00	564	2025-11-12 17:13:08.473	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 17:13:08.473	5	0.00	1	1
 99	2	Panaderia y confiteria	3500.00	1	3500.00	565	2025-11-12 17:13:29.61	admin	ghjgfhjfghj	0	\N	\N	MANUELC	2025-11-12 17:13:29.61	5	0.00	1	1
 100	1	articulos de almacen	13500.00	1	13500.00	565	2025-11-12 17:13:35.357	admin	asdasd	0	\N	\N	MANUELC	2025-11-12 17:13:35.357	5	0.00	1	1
-101	4	verduleria	5.00	1	5.00	565	2025-11-12 17:14:09.85	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 17:14:09.85	5	0.00	1	1
-102	4	verduleria	15.00	1	15.00	574	2025-11-12 18:37:00.943	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 18:37:00.943	5	0.00	1	1
-103	4	verduleria	15.00	1	15.00	576	2025-11-12 18:49:29.407	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 18:49:29.407	5	0.00	1	1
-104	2	Panaderia y confiteria	3500.00	1	3500.00	578	2025-11-12 18:54:43.66	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 18:54:43.66	5	0.00	1	1
-105	1	articulos de almacen	13500.00	1	13500.00	578	2025-11-12 18:54:43.693	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-12 18:54:43.693	5	0.00	1	1
-106	1	articulos de almacen	6400.00	1	6400.00	585	2025-11-21 21:27:27.577	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-21 21:27:27.577	5	0.00	1	1
-107	1	articulos de almacen	6400.00	1	6400.00	590	2025-11-21 21:39:16.093	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-21 21:39:16.093	5	0.00	1	1
-108	1	articulos de almacen	6400.00	1	6400.00	592	2025-11-21 21:54:10.51	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-21 21:54:10.51	1	0.00	1	1
-109	1	articulos de almacen	6400.00	1	6400.00	598	2025-11-21 23:23:12.56	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-21 23:23:12.56	5	0.00	1	1
-110	1	articulos de almacen	6400.00	1	6400.00	607	2025-11-22 00:40:41.517	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-22 00:40:41.517	5	0.00	1	1
-111	1	articulos de almacen	6400.00	1	6400.00	608	2025-11-22 00:41:39.477	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-22 00:41:39.477	5	0.00	1	1
-112	1	articulos de almacen	6400.00	1	6400.00	617	2025-11-22 01:06:58.14	admin	Anulación factura completa	0	\N	\N	MANUELC	2025-11-22 01:06:58.14	5	0.00	1	1
+101	4	verduleria	5.00	1	5.00	565	2025-11-12 17:14:09.85	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 17:14:09.85	5	0.00	1	1
+102	4	verduleria	15.00	1	15.00	574	2025-11-12 18:37:00.943	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 18:37:00.943	5	0.00	1	1
+103	4	verduleria	15.00	1	15.00	576	2025-11-12 18:49:29.407	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 18:49:29.407	5	0.00	1	1
+104	2	Panaderia y confiteria	3500.00	1	3500.00	578	2025-11-12 18:54:43.66	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 18:54:43.66	5	0.00	1	1
+105	1	articulos de almacen	13500.00	1	13500.00	578	2025-11-12 18:54:43.693	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-12 18:54:43.693	5	0.00	1	1
+106	1	articulos de almacen	6400.00	1	6400.00	585	2025-11-21 21:27:27.577	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-21 21:27:27.577	5	0.00	1	1
+107	1	articulos de almacen	6400.00	1	6400.00	590	2025-11-21 21:39:16.093	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-21 21:39:16.093	5	0.00	1	1
+108	1	articulos de almacen	6400.00	1	6400.00	592	2025-11-21 21:54:10.51	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-21 21:54:10.51	1	0.00	1	1
+109	1	articulos de almacen	6400.00	1	6400.00	598	2025-11-21 23:23:12.56	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-21 23:23:12.56	5	0.00	1	1
+110	1	articulos de almacen	6400.00	1	6400.00	607	2025-11-22 00:40:41.517	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-22 00:40:41.517	5	0.00	1	1
+111	1	articulos de almacen	6400.00	1	6400.00	608	2025-11-22 00:41:39.477	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-22 00:41:39.477	5	0.00	1	1
+112	1	articulos de almacen	6400.00	1	6400.00	617	2025-11-22 01:06:58.14	admin	AnulaciÃ³n factura completa	0	\N	\N	MANUELC	2025-11-22 01:06:58.14	5	0.00	1	1
 113	1	articulos de almacen	99999.00	1	99999.00	627	2025-11-28 15:04:40.05	admin	casdasad	0	\N	\N	MANUELC	2025-11-28 15:04:40.05	5	0.00	1	1
 117	7790064001701	algodon x 100	1000.00	1	1000.00	637	2025-12-03 17:42:28.927	admin	sdasdasd	0	\N	\N	MANUELC	2025-12-03 17:42:28.927	5	0.00	1	1
 118	7790064001701	algodon x 100	1000.00	1	1000.00	638	2025-12-03 17:51:53.67	admin	asdasdsa	0	\N	\N	MANUELC	2025-12-03 17:51:53.67	5	0.00	2	0
@@ -4210,39 +4349,39 @@ COPY public.auditoriaproductoseliminados (idauditoriaproductoseliminados, codigo
 152	7790990003022	det limon 300 ml	2000.00	3	6000.00	794	2025-12-17 20:47:35.237	admin	motivo de borrado	0	\N	\N	MANUELC	2025-12-17 20:47:35.237	5	0.00	6	0
 153	7794417224861	Rollo de aluminio	2500.00	1	2500.00	823	2025-12-21 18:47:50.893	admin	porque agarro 2 sin querer	0	\N	\N	MANUELC	2025-12-21 18:47:50.893	5	0.00	2	0
 154	7798163520482	Cerveza rubia 500 ml	2000.00	1	2000.00	823	2025-12-21 18:48:30.853	admin	porque no lo quiere llevar	0	\N	\N	MANUELC	2025-12-21 18:48:30.853	5	0.00	1	1
-167	4	verduleria	900.00	1	900.00	838	2026-01-02 22:17:33.213	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.213	5	0.00	1	1
-168	3	fiambre :)	3088.00	1	3088.00	838	2026-01-02 22:17:33.26	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.26	5	0.00	1	1
-169	1	articulos de almacen	5200.00	1	5200.00	838	2026-01-02 22:17:33.26	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.26	5	0.00	1	1
-170	2	Panaderia y confiteria	2500.00	1	2500.00	838	2026-01-02 22:17:33.27	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.27	5	0.00	1	1
-171	1	articulos de almacen	5200.00	1	5200.00	838	2026-01-02 22:17:33.273	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.273	5	0.00	1	1
-172	2	Panaderia y confiteria	2500.00	1	2500.00	839	2026-01-02 22:18:57.573	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:18:57.573	5	0.00	1	1
-173	1	articulos de almacen	5200.00	1	5200.00	839	2026-01-02 22:18:57.577	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:18:57.577	5	0.00	1	1
-174	7798031151862	Fideos Bavettines 500g	500.00	2	1000.00	840	2026-01-02 22:24:47.927	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-01-02 22:24:47.927	5	0.00	5	0
-175	3	fiambre :)	3088.00	1	3088.00	841	2026-01-02 22:25:41.04	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:25:41.04	5	0.00	1	1
-176	2	Panaderia y confiteria	2500.00	1	2500.00	841	2026-01-02 22:25:41.05	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:25:41.05	5	0.00	1	1
-177	1	articulos de almacen	5200.00	1	5200.00	841	2026-01-02 22:25:41.053	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:25:41.053	5	0.00	1	1
+167	4	verduleria	900.00	1	900.00	838	2026-01-02 22:17:33.213	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.213	5	0.00	1	1
+168	3	fiambre :)	3088.00	1	3088.00	838	2026-01-02 22:17:33.26	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.26	5	0.00	1	1
+169	1	articulos de almacen	5200.00	1	5200.00	838	2026-01-02 22:17:33.26	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.26	5	0.00	1	1
+170	2	Panaderia y confiteria	2500.00	1	2500.00	838	2026-01-02 22:17:33.27	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.27	5	0.00	1	1
+171	1	articulos de almacen	5200.00	1	5200.00	838	2026-01-02 22:17:33.273	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:17:33.273	5	0.00	1	1
+172	2	Panaderia y confiteria	2500.00	1	2500.00	839	2026-01-02 22:18:57.573	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:18:57.573	5	0.00	1	1
+173	1	articulos de almacen	5200.00	1	5200.00	839	2026-01-02 22:18:57.577	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:18:57.577	5	0.00	1	1
+174	7798031151862	Fideos Bavettines 500g	500.00	2	1000.00	840	2026-01-02 22:24:47.927	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-01-02 22:24:47.927	5	0.00	5	0
+175	3	fiambre :)	3088.00	1	3088.00	841	2026-01-02 22:25:41.04	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:25:41.04	5	0.00	1	1
+176	2	Panaderia y confiteria	2500.00	1	2500.00	841	2026-01-02 22:25:41.05	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:25:41.05	5	0.00	1	1
+177	1	articulos de almacen	5200.00	1	5200.00	841	2026-01-02 22:25:41.053	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-02 22:25:41.053	5	0.00	1	1
 178	3	fiambre :)	5.00	1	5.00	846	2026-01-02 23:36:38.073	admin	asdasdsad	0	\N	\N	MANUELC	2026-01-02 23:36:38.073	5	0.00	1	1
 179	5000202	barra  maffia	8250.00	2	16500.00	848	2026-01-03 00:14:49.6	admin	csdfsdf	0	\N	\N	MANUELC	2026-01-03 00:14:49.6	5	0.00	2	1
 180	7790580146870	chicle	1800.00	2	3600.00	852	2026-01-07 11:26:28.227	admin	porque no le alcanza la plata	0	\N	\N	MANUELC	2026-01-07 11:26:28.227	5	0.00	5	0
-181	7790580146870	chicle	1800.00	1	1800.00	852	2026-01-07 11:26:51.433	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-01-07 11:26:51.433	5	0.00	3	0
-182	2	Panaderia y confiteria	6800.00	1	6800.00	854	2026-01-07 11:43:23.773	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-07 11:43:23.773	5	0.00	1	1
-183	1	articulos de almacen	5200.00	1	5200.00	854	2026-01-07 11:43:23.817	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-07 11:43:23.817	5	0.00	1	1
-184	7795735000342	Bizco Negritos  200g	1000.00	1	1000.00	861	2026-01-07 12:53:23.787	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-01-07 12:53:23.787	5	0.00	3	0
+181	7790580146870	chicle	1800.00	1	1800.00	852	2026-01-07 11:26:51.433	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-01-07 11:26:51.433	5	0.00	3	0
+182	2	Panaderia y confiteria	6800.00	1	6800.00	854	2026-01-07 11:43:23.773	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-07 11:43:23.773	5	0.00	1	1
+183	1	articulos de almacen	5200.00	1	5200.00	854	2026-01-07 11:43:23.817	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-07 11:43:23.817	5	0.00	1	1
+184	7795735000342	Bizco Negritos  200g	1000.00	1	1000.00	861	2026-01-07 12:53:23.787	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-01-07 12:53:23.787	5	0.00	3	0
 185	7791866001364	Mayon, doypack 500 cm	3000.00	1	3000.00	861	2026-01-07 12:55:52.47	admin	sin plata	0	\N	\N	MANUELC	2026-01-07 12:55:52.47	5	0.00	1	1
-186	7794626010941	huggies tri protec m	3000.00	1	3000.00	877	2026-01-09 17:46:33.413	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.413	5	0.00	1	1
-187	3	fiambre :)	3000.00	1	3000.00	877	2026-01-09 17:46:33.42	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.42	5	0.00	1	1
-188	2	Panaderia y confiteria	6300.00	1	6300.00	877	2026-01-09 17:46:33.423	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.423	5	0.00	1	1
-189	1	articulos de almacen	6222.00	1	6222.00	877	2026-01-09 17:46:33.423	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.423	5	0.00	1	1
-190	3	fiambre :)	5.00	1	5.00	878	2026-01-09 17:55:04.497	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:55:04.497	5	0.00	1	1
-191	2	Panaderia y confiteria	6300.00	1	6300.00	878	2026-01-09 17:55:04.5	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:55:04.5	5	0.00	1	1
-192	1	articulos de almacen	6222.00	1	6222.00	878	2026-01-09 17:55:04.5	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:55:04.5	5	0.00	1	1
-193	7613032770426	Nesquik x 180 g.	26.00	1	26.00	879	2026-01-09 17:58:24.433	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.433	5	0.00	1	1
-194	3	fiambre :)	5.00	1	5.00	879	2026-01-09 17:58:24.433	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.433	5	0.00	1	1
-195	2	Panaderia y confiteria	6300.00	1	6300.00	879	2026-01-09 17:58:24.437	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.437	5	0.00	1	1
-196	1	articulos de almacen	6222.00	1	6222.00	879	2026-01-09 17:58:24.437	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.437	5	0.00	1	1
-197	3	fiambre :)	5.00	1	5.00	881	2026-01-09 18:16:55.267	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 18:16:55.267	5	0.00	1	1
-198	2	Panaderia y confiteria	6300.00	1	6300.00	881	2026-01-09 18:16:55.267	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 18:16:55.267	5	0.00	1	1
-199	1	articulos de almacen	6222.00	1	6222.00	881	2026-01-09 18:16:55.267	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 18:16:55.267	5	0.00	1	1
+186	7794626010941	huggies tri protec m	3000.00	1	3000.00	877	2026-01-09 17:46:33.413	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.413	5	0.00	1	1
+187	3	fiambre :)	3000.00	1	3000.00	877	2026-01-09 17:46:33.42	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.42	5	0.00	1	1
+188	2	Panaderia y confiteria	6300.00	1	6300.00	877	2026-01-09 17:46:33.423	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.423	5	0.00	1	1
+189	1	articulos de almacen	6222.00	1	6222.00	877	2026-01-09 17:46:33.423	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:46:33.423	5	0.00	1	1
+190	3	fiambre :)	5.00	1	5.00	878	2026-01-09 17:55:04.497	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:55:04.497	5	0.00	1	1
+191	2	Panaderia y confiteria	6300.00	1	6300.00	878	2026-01-09 17:55:04.5	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:55:04.5	5	0.00	1	1
+192	1	articulos de almacen	6222.00	1	6222.00	878	2026-01-09 17:55:04.5	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:55:04.5	5	0.00	1	1
+193	7613032770426	Nesquik x 180 g.	26.00	1	26.00	879	2026-01-09 17:58:24.433	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.433	5	0.00	1	1
+194	3	fiambre :)	5.00	1	5.00	879	2026-01-09 17:58:24.433	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.433	5	0.00	1	1
+195	2	Panaderia y confiteria	6300.00	1	6300.00	879	2026-01-09 17:58:24.437	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.437	5	0.00	1	1
+196	1	articulos de almacen	6222.00	1	6222.00	879	2026-01-09 17:58:24.437	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 17:58:24.437	5	0.00	1	1
+197	3	fiambre :)	5.00	1	5.00	881	2026-01-09 18:16:55.267	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 18:16:55.267	5	0.00	1	1
+198	2	Panaderia y confiteria	6300.00	1	6300.00	881	2026-01-09 18:16:55.267	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 18:16:55.267	5	0.00	1	1
+199	1	articulos de almacen	6222.00	1	6222.00	881	2026-01-09 18:16:55.267	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-09 18:16:55.267	5	0.00	1	1
 200	5	Carniceria	10.00	1	10.00	885	2026-01-12 12:54:52.86	admin	asdasdasd	0	\N	\N	MANUELC	2026-01-12 12:54:52.86	5	0.00	1	1
 201	1	articulos de almacen	5.00	1	5.00	887	2026-01-12 12:56:19.61	admin	ssdfsdfs	0	\N	\N	MANUELC	2026-01-12 12:56:19.61	5	0.00	1	1
 202	3	fiambre :)	5.00	1	5.00	890	2026-01-14 20:38:44.363	admin	cascasc	0	\N	\N	MANUELC	2026-01-14 20:38:44.363	5	0.00	1	1
@@ -4251,32 +4390,32 @@ COPY public.auditoriaproductoseliminados (idauditoriaproductoseliminados, codigo
 205	3	fiambre :)	100.00	0	0.00	914	2026-01-26 21:59:08.127	admin	asdadsasdad	0	\N	\N	MANUELC	2026-01-26 21:59:08.127	5	0.00	1	0
 206	3	fiambre :)	100.00	0	0.00	914	2026-01-26 21:59:31.163	admin	asdasdasdadssad	0	\N	\N	MANUELC	2026-01-26 21:59:31.163	5	0.00	1	0
 207	2	Panaderia y confiteria	2000.00	0	0.00	914	2026-01-26 21:59:41.983	admin	32132132132132	0	\N	\N	MANUELC	2026-01-26 21:59:41.983	5	0.00	1	0
-211	1	articulos de almacen	5000.00	1	5000.00	913	2026-01-26 23:07:52.873	admin	Eliminación remito completo: Eliminar remito	0	\N	\N	\N	\N	\N	0.00	\N	\N
-212	2	Panaderia y confiteria	2000.00	1	2000.00	913	2026-01-26 23:07:52.923	admin	Eliminación remito completo: Eliminar remito	0	\N	\N	\N	\N	\N	0.00	\N	\N
-213	3	fiambre :)	100.00	1	100.00	913	2026-01-26 23:07:52.973	admin	Eliminación remito completo: Eliminar remito	0	\N	\N	\N	\N	\N	0.00	\N	\N
+211	1	articulos de almacen	5000.00	1	5000.00	913	2026-01-26 23:07:52.873	admin	EliminaciÃ³n remito completo: Eliminar remito	0	\N	\N	\N	\N	\N	0.00	\N	\N
+212	2	Panaderia y confiteria	2000.00	1	2000.00	913	2026-01-26 23:07:52.923	admin	EliminaciÃ³n remito completo: Eliminar remito	0	\N	\N	\N	\N	\N	0.00	\N	\N
+213	3	fiambre :)	100.00	1	100.00	913	2026-01-26 23:07:52.973	admin	EliminaciÃ³n remito completo: Eliminar remito	0	\N	\N	\N	\N	\N	0.00	\N	\N
 214	1	articulos de almacen	5000.00	0	0.00	915	2026-01-26 23:09:03.543	admin	borrar desde ventas	0	\N	\N	MANUELC	2026-01-26 23:09:03.543	5	0.00	1	0
 215	3	fiambre :)	100.00	0	0.00	917	2026-01-26 23:12:57.873	admin	desde ventas	0	\N	\N	MANUELC	2026-01-26 23:12:57.873	5	0.00	1	0
 216	4	verduleria	2600.00	0	0.00	917	2026-01-26 23:13:06.697	admin	ventas	0	\N	\N	MANUELC	2026-01-26 23:13:06.697	5	0.00	1	0
 217	5	Carniceria	43000.00	0	0.00	918	2026-01-26 23:25:31.87	admin	asdasdasdad	0	\N	\N	MANUELC	2026-01-26 23:25:31.87	5	0.00	\N	\N
-218	5	Carniceria	43000.00	1	43000.00	918	2026-01-26 23:25:47.16	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.16	5	0.00	1	1
-219	4	verduleria	2600.00	1	2600.00	918	2026-01-26 23:25:47.163	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.163	5	0.00	1	1
-220	3	fiambre :)	100.00	1	100.00	918	2026-01-26 23:25:47.167	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.167	5	0.00	1	1
-221	2	Panaderia y confiteria	2000.00	1	2000.00	918	2026-01-26 23:25:47.17	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.17	5	0.00	1	1
+218	5	Carniceria	43000.00	1	43000.00	918	2026-01-26 23:25:47.16	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.16	5	0.00	1	1
+219	4	verduleria	2600.00	1	2600.00	918	2026-01-26 23:25:47.163	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.163	5	0.00	1	1
+220	3	fiambre :)	100.00	1	100.00	918	2026-01-26 23:25:47.167	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.167	5	0.00	1	1
+221	2	Panaderia y confiteria	2000.00	1	2000.00	918	2026-01-26 23:25:47.17	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:25:47.17	5	0.00	1	1
 222	2	Panaderia y confiteria	2000.00	0	0.00	919	2026-01-26 23:29:39.067	admin	ventas	0	\N	\N	MANUELC	2026-01-26 23:29:39.067	5	0.00	\N	\N
-223	3	fiambre :)	100.00	1	100.00	919	2026-01-26 23:30:12.837	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:30:12.837	5	0.00	1	1
-224	2	Panaderia y confiteria	2000.00	1	2000.00	919	2026-01-26 23:30:12.85	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:30:12.85	5	0.00	1	1
-225	1	articulos de almacen	5000.00	1	5000.00	919	2026-01-26 23:30:12.85	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:30:12.85	5	0.00	1	1
+223	3	fiambre :)	100.00	1	100.00	919	2026-01-26 23:30:12.837	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:30:12.837	5	0.00	1	1
+224	2	Panaderia y confiteria	2000.00	1	2000.00	919	2026-01-26 23:30:12.85	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:30:12.85	5	0.00	1	1
+225	1	articulos de almacen	5000.00	1	5000.00	919	2026-01-26 23:30:12.85	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:30:12.85	5	0.00	1	1
 226	1	articulos de almacen	5000.00	0	0.00	920	2026-01-26 23:34:22.777	admin	scascasca	0	\N	\N	MANUELC	2026-01-26 23:34:22.777	5	0.00	\N	\N
 227	2	Panaderia y confiteria	2000.00	0	0.00	920	2026-01-26 23:34:44.993	admin	eliminar desde ventas	0	\N	\N	MANUELC	2026-01-26 23:34:44.993	5	0.00	\N	\N
-228	3	fiambre :)	100.00	1	100.00	920	2026-01-26 23:34:54.79	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:34:54.79	5	0.00	1	1
-229	2	Panaderia y confiteria	2000.00	1	2000.00	920	2026-01-26 23:34:54.79	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:34:54.79	5	0.00	1	1
-230	1	articulos de almacen	5000.00	1	5000.00	920	2026-01-26 23:34:54.793	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:34:54.793	5	0.00	1	1
+228	3	fiambre :)	100.00	1	100.00	920	2026-01-26 23:34:54.79	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:34:54.79	5	0.00	1	1
+229	2	Panaderia y confiteria	2000.00	1	2000.00	920	2026-01-26 23:34:54.79	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:34:54.79	5	0.00	1	1
+230	1	articulos de almacen	5000.00	1	5000.00	920	2026-01-26 23:34:54.793	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:34:54.793	5	0.00	1	1
 231	3	fiambre :)	100.00	1	100.00	922	2026-01-26 23:44:21.187	admin	borrar desde ventas	0	\N	\N	MANUELC	2026-01-26 23:44:21.187	5	0.00	\N	\N
-232	2	Panaderia y confiteria	2000.00	2	4000.00	922	2026-01-26 23:44:56.593	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-01-26 23:44:56.593	5	0.00	3	0
-233	2	Panaderia y confiteria	2000.00	1	2000.00	922	2026-01-26 23:45:12.353	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:45:12.353	5	0.00	1	1
-234	1	articulos de almacen	5000.00	1	5000.00	922	2026-01-26 23:45:12.357	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:45:12.357	5	0.00	1	1
-235	1	articulos de almacen	5000.00	1	5000.00	921	2026-01-26 23:45:42.41	admin	Eliminación remito completo: borrar desde el control de facturas	0	\N	\N	\N	\N	\N	0.00	\N	\N
-236	2	Panaderia y confiteria	2000.00	1	2000.00	921	2026-01-26 23:45:42.423	admin	Eliminación remito completo: borrar desde el control de facturas	0	\N	\N	\N	\N	\N	0.00	\N	\N
+232	2	Panaderia y confiteria	2000.00	2	4000.00	922	2026-01-26 23:44:56.593	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-01-26 23:44:56.593	5	0.00	3	0
+233	2	Panaderia y confiteria	2000.00	1	2000.00	922	2026-01-26 23:45:12.353	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:45:12.353	5	0.00	1	1
+234	1	articulos de almacen	5000.00	1	5000.00	922	2026-01-26 23:45:12.357	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-01-26 23:45:12.357	5	0.00	1	1
+235	1	articulos de almacen	5000.00	1	5000.00	921	2026-01-26 23:45:42.41	admin	EliminaciÃ³n remito completo: borrar desde el control de facturas	0	\N	\N	\N	\N	\N	0.00	\N	\N
+236	2	Panaderia y confiteria	2000.00	1	2000.00	921	2026-01-26 23:45:42.423	admin	EliminaciÃ³n remito completo: borrar desde el control de facturas	0	\N	\N	\N	\N	\N	0.00	\N	\N
 237	3	fiambre :)	100.00	1	100.00	925	2026-01-27 10:43:02.54	admin	borrado	0	\N	\N	MANUELC	2026-01-27 10:43:02.54	5	0.00	\N	\N
 238	5	Carniceria	43000.00	1	43000.00	927	2026-01-28 17:12:00.583	admin	zxczxczc	0	\N	\N	MANUELC	2026-01-28 17:12:00.583	5	0.00	\N	\N
 239	7	bolsas	50.00	1	50.00	928	2026-01-28 17:17:38.787	admin	dscsdcscd	0	\N	\N	MANUELC	2026-01-28 17:17:38.787	5	0.00	\N	\N
@@ -4287,43 +4426,79 @@ COPY public.auditoriaproductoseliminados (idauditoriaproductoseliminados, codigo
 244	3	fiambre :)	3500.00	1	3500.00	932	2026-01-28 18:00:58.057	admin	2321321	0	\N	\N	MANUELC	2026-01-28 18:00:58.057	5	0.00	\N	\N
 245	2	Panaderia y confiteria	2800.00	1	2800.00	951	2026-02-07 00:18:08.303	admin	no lo lleva	0	\N	\N	MANUELC	2026-02-07 00:18:08.303	5	0.00	\N	\N
 246	7798370511204	encendedores fuegolandia	300.00	2	600.00	957	2026-02-13 09:33:28.907	admin	prueba de stock	0	\N	\N	MANUELC	2026-02-13 09:33:28.907	5	0.00	\N	\N
-247	7798370511204	encendedores fuegolandia	300.00	3	900.00	957	2026-02-13 09:33:59.183	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-13 09:33:59.183	5	0.00	3	1
-248	7798370511204	encendedores fuegolandia	300.00	3	900.00	956	2026-02-13 09:34:56.337	admin	Eliminación remito completo: asdasdasd	0	\N	\N	\N	\N	\N	0.00	\N	\N
-249	7797453971751	alimentos gato	3500.00	2	7000.00	965	2026-02-13 14:33:53.763	admin	Eliminación remito completo: cascascsa	0	\N	\N	\N	\N	\N	0.00	\N	\N
+247	7798370511204	encendedores fuegolandia	300.00	3	900.00	957	2026-02-13 09:33:59.183	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-13 09:33:59.183	5	0.00	3	1
+248	7798370511204	encendedores fuegolandia	300.00	3	900.00	956	2026-02-13 09:34:56.337	admin	EliminaciÃ³n remito completo: asdasdasd	0	\N	\N	\N	\N	\N	0.00	\N	\N
+249	7797453971751	alimentos gato	3500.00	2	7000.00	965	2026-02-13 14:33:53.763	admin	EliminaciÃ³n remito completo: cascascsa	0	\N	\N	\N	\N	\N	0.00	\N	\N
 250	7797453971751	alimentos gato	3500.00	1	3500.00	971	2026-02-13 17:48:47.63	admin	dcsdfsdf	0	\N	\N	MANUELC	2026-02-13 17:48:47.63	5	0.00	\N	\N
 251	600	efectivoooo	24985.00	1	24985.00	972	2026-02-18 17:20:57.61	admin	asasdsad	0	\N	\N	MANUELC	2026-02-18 17:20:57.61	5	0.00	\N	\N
-252	600	efectivoooo	-5000.00	1	-5000.00	973	2026-02-18 17:33:06.567	admin	asdasdasd	1	María García	\N	MANUELC	2026-02-18 17:33:06.567	5	0.00	\N	\N
-253	7790064001701	algodon x 100	1300.00	1	1300.00	982	2026-02-20 20:54:52.42	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-02-20 20:54:52.42	5	0.00	2	0
+252	600	efectivoooo	-5000.00	1	-5000.00	973	2026-02-18 17:33:06.567	admin	asdasdasd	1	MarÃ­a GarcÃ­a	\N	MANUELC	2026-02-18 17:33:06.567	5	0.00	\N	\N
+253	7790064001701	algodon x 100	1300.00	1	1300.00	982	2026-02-20 20:54:52.42	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-02-20 20:54:52.42	5	0.00	2	0
 254	7790064001701	algodon x 100	1300.00	1	1300.00	982	2026-02-20 20:55:07.527	admin	asdasdasd	0	\N	\N	MANUELC	2026-02-20 20:55:07.527	5	0.00	\N	\N
-255	7790696000011	Tomate Botella x950	2000.00	2	4000.00	986	2026-02-20 23:46:04.263	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-02-20 23:46:04.263	5	0.00	3	0
+255	7790696000011	Tomate Botella x950	2000.00	2	4000.00	986	2026-02-20 23:46:04.263	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-02-20 23:46:04.263	5	0.00	3	0
 256	7793440700366	santa isabel malbec	2000.00	1	2000.00	987	2026-02-20 23:46:49.37	admin	ascasdasd	0	\N	\N	MANUELC	2026-02-20 23:46:49.37	5	0.00	\N	\N
-257	7790150430392	alicante bicarbonato 	700.00	3	2100.00	994	2026-02-25 19:51:51.52	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-02-25 19:51:51.52	5	0.00	6	0
+257	7790150430392	alicante bicarbonato 	700.00	3	2100.00	994	2026-02-25 19:51:51.52	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-02-25 19:51:51.52	5	0.00	6	0
 258	1	articulos de almacen	5000.00	1	5000.00	1002	2026-02-25 20:25:50.467	admin	porque no lo lleva	0	\N	\N	MANUELC	2026-02-25 20:25:50.467	5	0.00	\N	\N
-259	5	Carniceria	150000.00	1	150000.00	1003	2026-02-25 20:27:40.977	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.977	5	0.00	1	1
-260	3	fiambre :)	3000.00	1	3000.00	1003	2026-02-25 20:27:40.983	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.983	5	0.00	1	1
-261	2	Panaderia y confiteria	1100.00	1	1100.00	1003	2026-02-25 20:27:40.99	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.99	5	0.00	1	1
-262	1	articulos de almacen	5000.00	1	5000.00	1003	2026-02-25 20:27:40.997	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.997	5	0.00	1	1
-263	1	articulos de almacen	5000.00	1	5000.00	1044	2026-05-22 16:31:19.594556	admin	Eliminación remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
-264	2	Panaderia y confiteria	1200.00	1	1200.00	1046	2026-05-23 18:50:08.748579	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-05-23 18:50:08.748578	3	\N	2	0
+259	5	Carniceria	150000.00	1	150000.00	1003	2026-02-25 20:27:40.977	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.977	5	0.00	1	1
+260	3	fiambre :)	3000.00	1	3000.00	1003	2026-02-25 20:27:40.983	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.983	5	0.00	1	1
+261	2	Panaderia y confiteria	1100.00	1	1100.00	1003	2026-02-25 20:27:40.99	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.99	5	0.00	1	1
+262	1	articulos de almacen	5000.00	1	5000.00	1003	2026-02-25 20:27:40.997	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-02-25 20:27:40.997	5	0.00	1	1
+263	1	articulos de almacen	5000.00	1	5000.00	1044	2026-05-22 16:31:19.594556	admin	EliminaciÃ³n remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
+264	2	Panaderia y confiteria	1200.00	1	1200.00	1046	2026-05-23 18:50:08.748579	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-05-23 18:50:08.748578	3	\N	2	0
 265	2	Panaderia y confiteria	1200.00	1	1200.00	1046	2026-05-23 18:50:16.717663	admin	borrar	0	\N	\N	MANUELC	2026-05-23 18:50:16.717662	3	\N	\N	\N
-266	2	Panaderia y confiteria	1200.00	1	1200.00	1047	2026-05-23 18:51:24.473362	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-05-23 18:51:24.473361	3	\N	1	1
-267	1	articulos de almacen	2000.00	1	2000.00	1047	2026-05-23 18:51:24.474457	admin	ANULACIÓN FACTURA COMPLETA	0	\N	\N	MANUELC	2026-05-23 18:51:24.474456	3	\N	1	1
-268	7790150540183	alicante oregano x 25 g	1100.00	1	1100.00	1051	2026-05-23 18:58:02.447659	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-05-23 18:58:02.447658	3	\N	4	0
-269	7790150540183	alicante oregano x 25 g	1000.00	1	1000.00	1053	2026-05-23 19:09:45.746776	admin	REDUCCIÓN DE CANTIDAD - EDICIÓN MANUAL	0	\N	\N	MANUELC	2026-05-23 19:09:45.746774	3	\N	2	0
-270	1	articulos de almacen	2.00	1	2.00	1057	2026-05-23 19:31:49.038784	admin	Eliminación remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
-271	1	articulos de almacen	2000.00	1	2000.00	1057	2026-05-23 19:31:49.047157	admin	Eliminación remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
-272	3	fiambre :)	3000.00	1	3000.00	1057	2026-05-23 19:31:49.052405	admin	Eliminación remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
-273	5	Carniceria	150000.00	1	150000.00	1057	2026-05-23 19:31:49.056331	admin	Eliminación remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
+266	2	Panaderia y confiteria	1200.00	1	1200.00	1047	2026-05-23 18:51:24.473362	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-05-23 18:51:24.473361	3	\N	1	1
+267	1	articulos de almacen	2000.00	1	2000.00	1047	2026-05-23 18:51:24.474457	admin	ANULACIÃ“N FACTURA COMPLETA	0	\N	\N	MANUELC	2026-05-23 18:51:24.474456	3	\N	1	1
+268	7790150540183	alicante oregano x 25 g	1100.00	1	1100.00	1051	2026-05-23 18:58:02.447659	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-05-23 18:58:02.447658	3	\N	4	0
+269	7790150540183	alicante oregano x 25 g	1000.00	1	1000.00	1053	2026-05-23 19:09:45.746776	admin	REDUCCIÃ“N DE CANTIDAD - EDICIÃ“N MANUAL	0	\N	\N	MANUELC	2026-05-23 19:09:45.746774	3	\N	2	0
+270	1	articulos de almacen	2.00	1	2.00	1057	2026-05-23 19:31:49.038784	admin	EliminaciÃ³n remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
+271	1	articulos de almacen	2000.00	1	2000.00	1057	2026-05-23 19:31:49.047157	admin	EliminaciÃ³n remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
+272	3	fiambre :)	3000.00	1	3000.00	1057	2026-05-23 19:31:49.052405	admin	EliminaciÃ³n remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
+273	5	Carniceria	150000.00	1	150000.00	1057	2026-05-23 19:31:49.056331	admin	EliminaciÃ³n remito completo: borrar	\N	\N	\N	\N	\N	\N	\N	\N	\N
 274	509997	Fiambreria	1710.00	1	1710.00	1063	2026-05-28 13:16:26.967088	admin	xcvxcvxcv	0	\N	\N	MANUELC	2026-05-28 13:16:26.967087	3	\N	\N	\N
 275	509997	Fiambreria	1710.00	1	1710.00	1063	2026-05-28 13:16:30.557825	admin	xcvxcvxcv	0	\N	\N	MANUELC	2026-05-28 13:16:30.557823	3	\N	\N	\N
-276	5	Carniceria	45000.00	1	45000.00	1092	2026-05-30 23:43:23.840519	admin	ELIMINACIÓN PRODUCTO - WEB	0	\N	\N	Web	2026-05-30 23:43:23.840515	0	\N	1	1
-277	1	articulos de almacen	6300.00	1	6300.00	1092	2026-05-30 23:43:45.874672	admin	ANULACIÓN FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.874668	0	\N	1	1
-278	2	Panaderia y confiteria	2300.00	1	2300.00	1092	2026-05-30 23:43:45.880494	admin	ANULACIÓN FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.880492	0	\N	1	1
-279	3	fiambre :)	3500.00	1	3500.00	1092	2026-05-30 23:43:45.881758	admin	ANULACIÓN FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.881757	0	\N	1	1
-280	4	verduleria	2800.00	1	2800.00	1092	2026-05-30 23:43:45.883023	admin	ANULACIÓN FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.883021	0	\N	1	1
-281	6	facturas	4900.00	1	4900.00	1092	2026-05-30 23:43:45.884179	admin	ANULACIÓN FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.884178	0	\N	1	1
-282	1	articulos de almacen	6300.00	1	6300.00	1093	2026-05-30 23:55:20.235718	admin	ELIMINACIÓN PRODUCTO - WEB	0	\N	\N	Web	2026-05-30 23:55:20.235715	0	\N	1	1
-283	1	articulos de almacen	2700.00	1	2700.00	1109	2026-05-31 19:18:54.980724	admin	ANULACIÓN FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-31 19:18:54.980387	0	\N	1	1
+276	5	Carniceria	45000.00	1	45000.00	1092	2026-05-30 23:43:23.840519	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-05-30 23:43:23.840515	0	\N	1	1
+277	1	articulos de almacen	6300.00	1	6300.00	1092	2026-05-30 23:43:45.874672	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.874668	0	\N	1	1
+278	2	Panaderia y confiteria	2300.00	1	2300.00	1092	2026-05-30 23:43:45.880494	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.880492	0	\N	1	1
+279	3	fiambre :)	3500.00	1	3500.00	1092	2026-05-30 23:43:45.881758	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.881757	0	\N	1	1
+280	4	verduleria	2800.00	1	2800.00	1092	2026-05-30 23:43:45.883023	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.883021	0	\N	1	1
+281	6	facturas	4900.00	1	4900.00	1092	2026-05-30 23:43:45.884179	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-30 23:43:45.884178	0	\N	1	1
+282	1	articulos de almacen	6300.00	1	6300.00	1093	2026-05-30 23:55:20.235718	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-05-30 23:55:20.235715	0	\N	1	1
+283	1	articulos de almacen	2700.00	1	2700.00	1109	2026-05-31 19:18:54.980724	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-05-31 19:18:54.980387	0	\N	1	1
+284	2	Panaderia y confiteria	2100.00	5	10500.00	1123	2026-06-03 22:14:35.513104	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:14:35.5131	0	\N	5	1
+285	1	articulos de almacen	2700.00	9	24300.00	1123	2026-06-03 22:20:04.666119	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:20:04.665735	0	\N	9	1
+286	123124	Prueba WEB2	3100.00	3	9300.00	1123	2026-06-03 22:20:05.110151	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:20:05.110148	0	\N	3	1
+287	7790070509079	cruz  manzanilla x 500 kg	2000.00	4	8000.00	1123	2026-06-03 22:20:08.620017	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:20:08.620014	0	\N	4	1
+288	5	Carniceria	45000.00	1	45000.00	1123	2026-06-03 22:22:25.782406	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:22:25.782403	0	\N	1	1
+289	7790070509079	cruz  manzanilla x 500 kg	2000.00	1	2000.00	1123	2026-06-03 22:26:47.456878	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:47.452889	0	\N	1	1
+290	4	verduleria	2800.00	1	2800.00	1123	2026-06-03 22:26:52.21334	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:52.213338	0	\N	1	1
+291	4	verduleria	2800.00	1	2800.00	1123	2026-06-03 22:26:52.628454	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:52.628451	0	\N	1	1
+292	3	fiambre :)	3500.00	1	3500.00	1123	2026-06-03 22:26:52.837022	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:52.837019	0	\N	1	1
+293	1	articulos de almacen	2700.00	1	2700.00	1123	2026-06-03 22:26:52.999689	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:52.999687	0	\N	1	1
+294	1	articulos de almacen	2700.00	1	2700.00	1123	2026-06-03 22:26:53.162269	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:53.162267	0	\N	1	1
+295	1	articulos de almacen	2700.00	1	2700.00	1123	2026-06-03 22:26:53.296175	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:53.296172	0	\N	1	1
+296	7790070509079	cruz  manzanilla x 500 kg	2000.00	1	2000.00	1123	2026-06-03 22:26:53.442448	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:26:53.442445	0	\N	1	1
+297	3	fiambre :)	3500.00	1	3500.00	1123	2026-06-03 22:27:28.107369	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:27:28.107071	0	\N	1	1
+298	2	Panaderia y confiteria	2100.00	1	2100.00	1123	2026-06-03 22:27:28.307995	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:27:28.307991	0	\N	1	1
+299	1	articulos de almacen	2700.00	1	2700.00	1123	2026-06-03 22:27:28.466275	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:27:28.466271	0	\N	1	1
+300	7790070509079	cruz  manzanilla x 500 kg	2000.00	1	2000.00	1123	2026-06-03 22:27:28.615298	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:27:28.615295	0	\N	1	1
+301	7790070509079	cruz  manzanilla x 500 kg	2000.00	1	2000.00	1123	2026-06-03 22:27:28.773719	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:27:28.773717	0	\N	1	1
+302	7790070509079	cruz  manzanilla x 500 kg	2000.00	1	2000.00	1123	2026-06-03 22:27:28.917698	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:27:28.917695	0	\N	1	1
+303	7790070509079	cruz  manzanilla x 500 kg	2000.00	3	6000.00	1123	2026-06-03 22:29:22.455097	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:22.455091	0	\N	3	1
+304	7790070509079	cruz  manzanilla x 500 kg	2000.00	2	4000.00	1123	2026-06-03 22:29:22.951857	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:22.951856	0	\N	2	1
+305	1	articulos de almacen	2100.00	1	2100.00	1123	2026-06-03 22:29:23.156557	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:23.156556	0	\N	1	1
+306	1	articulos de almacen	2500.00	1	2500.00	1123	2026-06-03 22:29:23.306743	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:23.306741	0	\N	1	1
+307	2	Panaderia y confiteria	2100.00	1	2100.00	1123	2026-06-03 22:29:23.447831	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:23.44783	0	\N	1	1
+308	1	articulos de almacen	2700.00	1	2700.00	1123	2026-06-03 22:29:23.574926	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:23.574852	0	\N	1	1
+309	7790070509079	cruz  manzanilla x 500 kg	2000.00	3	6000.00	1123	2026-06-03 22:29:23.703519	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:23.703518	0	\N	3	1
+310	1	articulos de almacen	2700.00	1	2700.00	1123	2026-06-03 22:29:23.833088	admin	ELIMINACIÃ“N PRODUCTO - WEB	0	\N	\N	Web	2026-06-03 22:29:23.833087	0	\N	1	1
+311	7790070509079	cruz  manzanilla x 500 kg	2000.00	7	14000.00	1123	2026-06-03 22:30:10.837569	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.837567	0	\N	7	1
+312	1	articulos de almacen	2100.00	1	2100.00	1123	2026-06-03 22:30:10.843916	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.843914	0	\N	1	1
+313	1	articulos de almacen	2100.00	1	2100.00	1123	2026-06-03 22:30:10.845132	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.845131	0	\N	1	1
+314	1	articulos de almacen	2100.00	1	2100.00	1123	2026-06-03 22:30:10.846136	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.846135	0	\N	1	1
+315	2	Panaderia y confiteria	2100.00	1	2100.00	1123	2026-06-03 22:30:10.847106	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.847106	0	\N	1	1
+316	2	Panaderia y confiteria	2100.00	1	2100.00	1123	2026-06-03 22:30:10.853269	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.853267	0	\N	1	1
+317	2	Panaderia y confiteria	2100.00	1	2100.00	1123	2026-06-03 22:30:10.854687	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.854686	0	\N	1	1
+318	2	Panaderia y confiteria	2100.00	1	2100.00	1123	2026-06-03 22:30:10.855898	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.855897	0	\N	1	1
+319	3	fiambre :)	3500.00	1	3500.00	1123	2026-06-03 22:30:10.85682	admin	ANULACIÃ“N FACTURA COMPLETA - WEB	0	\N	\N	Web	2026-06-03 22:30:10.85682	0	\N	1	1
 \.
 
 
@@ -4352,7 +4527,7 @@ COPY public.cierreturnocajero (id, idturno, mediopago, totalesperado, totaldecla
 18	15	Efectivo	152474.00	150000.00	-2474.00	6	2025-11-12 15:41:28.113	admin
 19	15	DNI	92058.00	92058.00	0.00	3	2025-11-12 15:41:28.117	admin
 20	15	MercadoPago	64383.00	64383.00	0.00	3	2025-11-12 15:41:28.12	admin
-21	15	Múltiple	57391.00	57391.00	0.00	2	2025-11-12 15:41:28.123	admin
+21	15	MÃºltiple	57391.00	57391.00	0.00	2	2025-11-12 15:41:28.123	admin
 22	16	Efectivo	52908.00	52908.00	0.00	1	2025-11-12 15:44:13.5	admin
 23	16	DNI	15983.00	15983.00	0.00	1	2025-11-12 15:44:13.5	admin
 24	17	Efectivo	-21000.00	-21000.00	0.00	2	2025-11-21 14:37:31.613	admin
@@ -4361,7 +4536,7 @@ COPY public.cierreturnocajero (id, idturno, mediopago, totalesperado, totaldecla
 27	17	MercadoPago	24200.00	24200.00	0.00	1	2025-11-21 14:37:31.623	admin
 28	17	Otro	24208.00	24208.00	0.00	1	2025-11-21 14:37:31.627	admin
 29	14	DNI	-36117.00	-36117.00	0.00	2	2025-11-21 14:37:55.623	admin
-30	14	Múltiple	48200.00	48200.00	0.00	1	2025-11-21 14:37:55.643	admin
+30	14	MÃºltiple	48200.00	48200.00	0.00	1	2025-11-21 14:37:55.643	admin
 31	14	Transferencia	-2550.00	-2550.00	0.00	1	2025-11-21 14:37:55.647	admin
 32	18	DNI	12100.00	12100.00	0.00	1	2025-11-21 14:56:22.627	admin
 33	18	MercadoPago	12100.00	12100.00	0.00	1	2025-11-21 14:56:22.63	admin
@@ -4404,7 +4579,7 @@ COPY public.cierreturnocajero (id, idturno, mediopago, totalesperado, totaldecla
 70	31	Otro	21900.00	21900.00	0.00	1	2026-01-20 14:44:05.71	admin
 71	21	Efectivo	17550.00	17550.00	0.00	3	2026-01-20 14:46:44.01	admin
 72	21	DNI	7891.00	7891.00	0.00	1	2026-01-20 14:46:44.013	admin
-73	21	Múltiple	18850.00	18850.00	0.00	1	2026-01-20 14:46:44.017	admin
+73	21	MÃºltiple	18850.00	18850.00	0.00	1	2026-01-20 14:46:44.017	admin
 74	34	Efectivo	-1461534.00	-1461534.00	0.00	35	2026-02-01 02:44:09.673	admin
 75	34	DNI	22300.00	22300.00	0.00	2	2026-02-01 02:44:09.673	admin
 76	34	MercadoPago	80600.00	80600.00	0.00	2	2026-02-01 02:44:09.673	admin
@@ -4491,40 +4666,48 @@ COPY public.comprasproveedoresivadetalle (id, compraid, alicuota, baseimponible,
 
 
 --
+-- Data for Name: ctacte; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.ctacte (id, nombre, dni, telefono, email, activo, fechaalta) FROM stdin;
+\.
+
+
+--
 -- Data for Name: ctacteproveedores; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.ctacteproveedores (id, proveedor, fecha, concepto, debe, haber, idpago, idcompra, usuario, fecharegistro) FROM stdin;
-1	Coca Cola	2026-02-01 01:30:44.333	Compra y pago inmediato. Métodos: Efectivo. Referencias: 	100000.00	125000.00	\N	37	Manuel	2026-02-01 01:30:44.333
+1	Coca Cola	2026-02-01 01:30:44.333	Compra y pago inmediato. MÃ©todos: Efectivo. Referencias: 	100000.00	125000.00	\N	37	Manuel	2026-02-01 01:30:44.333
 2	Coca Cola	2026-02-01 01:59:15.443	Pago general	0.00	50000.00	\N	\N	\N	2026-02-01 01:59:15.45
 4	Coca Cola	2026-01-14 20:46:43.83	Deuda generada por compra parcialmente pagada	242000.00	0.00	\N	31	Manuel	2026-01-14 20:46:43.83
 5	Coca Cola	2026-01-29 23:23:18.62	Deuda generada por compra parcialmente pagada	150000.00	0.00	\N	32	Manuel	2026-01-29 23:23:18.62
 6	Coca Cola	2026-02-01 00:58:56.84	Compra pagada con saldo a favor ($ 50.000,00)	100000.00	0.00	\N	34	Manuel	2026-02-01 00:58:56.84
 7	Coca Cola	2026-02-01 01:05:46.253	Compra registrada el 1/2/2026 01:05:46	200000.00	0.00	\N	35	Manuel	2026-02-01 01:05:46.253
 8	Coca Cola	2026-01-14 20:46:43.83	Sin pago - Compra sin pago inmediato - Compra ID: 31	0.00	0.00	25	\N	Administrador Sistema	2026-01-14 20:46:43.83
-9	Coca Cola	2026-01-14 20:49:28.147	Compra #31 | Método: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 242.000,00	0.00	2000.00	26	\N	admin	2026-01-14 20:49:28.147
-10	Coca Cola	2026-01-14 20:50:35.883	Método: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 240.000,00	0.00	30000.00	27	31	admin	2026-01-14 20:50:35.883
+9	Coca Cola	2026-01-14 20:49:28.147	Compra #31 | MÃ©todo: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 242.000,00	0.00	2000.00	26	\N	admin	2026-01-14 20:49:28.147
+10	Coca Cola	2026-01-14 20:50:35.883	MÃ©todo: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 240.000,00	0.00	30000.00	27	31	admin	2026-01-14 20:50:35.883
 11	Coca Cola	2026-01-29 23:23:18.597	Sin pago - Compra sin pago inmediato - Compra ID: 32	0.00	0.00	28	\N	Administrador Sistema	2026-01-29 23:23:18.597
-12	Coca Cola	2026-01-29 23:24:19.877	Método: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 210.000,00	0.00	110000.00	29	31	admin	2026-01-29 23:24:19.877
+12	Coca Cola	2026-01-29 23:24:19.877	MÃ©todo: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 210.000,00	0.00	110000.00	29	31	admin	2026-01-29 23:24:19.877
 13	Coca Cola	2026-02-01 00:52:24.547	Efectivo -  - Compra ID: 33	0.00	200000.00	30	\N	Administrador Sistema	2026-02-01 00:52:24.547
 14	Coca Cola	2026-02-01 00:58:56.827	Efectivo -  - Compra ID: 34	0.00	150000.00	31	\N	Administrador Sistema	2026-02-01 00:58:56.827
 15	Coca Cola	2026-02-01 01:05:46.253	Efectivo -  - Compra ID: 35	0.00	300000.00	32	\N	Administrador Sistema	2026-02-01 01:05:46.253
 16	Coca Cola	2026-02-01 01:30:44.333	Efectivo -  - Compra ID: 37	0.00	125000.00	33	\N	Administrador Sistema	2026-02-01 01:30:44.333
-17	Coca Cola	2026-02-01 01:45:41.673	Compra #31 | Método: Efectivo | Ref: pago - 14/01/2026 - Saldo: $ 100.000,00	0.00	50000.00	34	\N	admin	2026-02-01 01:45:41.673
-18	Coca Cola	2026-02-01 01:59:15.43	Compra #31 | Método: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 50.000,00	0.00	50000.00	38	\N	admin	2026-02-01 01:59:15.43
+17	Coca Cola	2026-02-01 01:45:41.673	Compra #31 | MÃ©todo: Efectivo | Ref: pago - 14/01/2026 - Saldo: $ 100.000,00	0.00	50000.00	34	\N	admin	2026-02-01 01:45:41.673
+18	Coca Cola	2026-02-01 01:59:15.43	Compra #31 | MÃ©todo: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 50.000,00	0.00	50000.00	38	\N	admin	2026-02-01 01:59:15.43
 19	Coca Cola	2026-02-01 01:59:54.243	Sin pago - Compra sin pago inmediato - Compra ID: 38	0.00	0.00	39	\N	Administrador Sistema	2026-02-01 01:59:54.243
-20	Coca Cola	2026-02-01 02:11:52.243	Compra y pago inmediato. Métodos: Efectivo. Referencias: 	500000.00	200000.00	\N	39	Manuel	2026-02-01 02:11:52.243
-21	Coca Cola	2026-02-01 02:13:57.373	Compra y pago inmediato. Métodos: Efectivo. Referencias: 	100000.00	150000.00	\N	40	Manuel	2026-02-01 02:13:57.373
+20	Coca Cola	2026-02-01 02:11:52.243	Compra y pago inmediato. MÃ©todos: Efectivo. Referencias: 	500000.00	200000.00	\N	39	Manuel	2026-02-01 02:11:52.243
+21	Coca Cola	2026-02-01 02:13:57.373	Compra y pago inmediato. MÃ©todos: Efectivo. Referencias: 	100000.00	150000.00	\N	40	Manuel	2026-02-01 02:13:57.373
 22	Coca Cola	2026-02-01 02:26:20.993	Pago proveedor - Efectivo - Sin vincular	0.00	100000.00	\N	\N	admin	2026-02-01 02:26:20.997
 25	Coca Cola	2026-02-11 12:13:19.693	Pago proveedor - Efectivo - Sin vincular	0.00	2000.00	\N	\N	admin	2026-02-11 12:13:19.697
 26	Quilmes	2026-02-11 21:21:10.427	Pago proveedor - Efectivo - Sin vincular	0.00	25000.00	\N	\N	admin	2026-02-11 21:21:10.437
 27	Coca Cola	2026-02-25 20:10:41.637	Pago proveedor - Efectivo - Sin vincular	0.00	20000.00	\N	\N	admin	2026-02-25 20:10:41.647
-28	Carne	2026-05-18 20:31:00.027	Compra y pago inmediato. Métodos: Sin pago. Referencias: Compra sin pago inmediato	121000.00	0.00	\N	41	Manuel	2026-05-18 20:31:00.027
-29	Fiambre	2026-05-18 20:32:21.13	Compra y pago inmediato. Métodos: Efectivo. Referencias: 	6050.00	1.00	\N	42	Manuel	2026-05-18 20:32:21.13
-30	Fiambreria	2026-05-18 20:35:10.537	Compra y pago inmediato. Métodos: Efectivo. Referencias: 	6050.00	5000.00	\N	43	Manuel	2026-05-18 20:35:10.537
+28	Carne	2026-05-18 20:31:00.027	Compra y pago inmediato. MÃ©todos: Sin pago. Referencias: Compra sin pago inmediato	121000.00	0.00	\N	41	Manuel	2026-05-18 20:31:00.027
+29	Fiambre	2026-05-18 20:32:21.13	Compra y pago inmediato. MÃ©todos: Efectivo. Referencias: 	6050.00	1.00	\N	42	Manuel	2026-05-18 20:32:21.13
+30	Fiambreria	2026-05-18 20:35:10.537	Compra y pago inmediato. MÃ©todos: Efectivo. Referencias: 	6050.00	5000.00	\N	43	Manuel	2026-05-18 20:35:10.537
 32	Carniceria	2026-05-22 11:31:23.205543	Pago proveedor - Efectivo - Sin vincular	0.00	100.00	\N	\N	admin	2026-05-22 11:31:23.205678
 33	Verduleria	2026-05-23 18:51:03.823369	Pago proveedor - DNI - Sin vincular	0.00	1000.00	\N	\N	admin	2026-05-23 18:51:03.823376
-35	Fiambreria	2026-05-23 19:59:01.180819	Compra y pago inmediato. Métodos: Efectivo. Referencias: 	150000.00	100000.00	\N	46	Manuel	2026-05-23 19:59:01.180819
+35	Fiambreria	2026-05-23 19:59:01.180819	Compra y pago inmediato. MÃ©todos: Efectivo. Referencias: 	150000.00	100000.00	\N	46	Manuel	2026-05-23 19:59:01.180819
 38	Fiambreria	2026-05-23 22:30:26.728181	Pago a cuenta	0.00	1050.00	\N	\N	\N	2026-05-23 22:30:26.728185
 39	Carniceria	2026-05-28 13:17:21.732383	Pago proveedor - Efectivo - 123 - 23/05/2026 - Saldo: $ 100.000,00	0.00	50000.00	\N	\N	admin	2026-05-28 13:17:21.732391
 \.
@@ -4551,11 +4734,11 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 1	84	Efectivo	13700.00	Pago simple	2025-10-07 21:40:08.58	admin	0
 2	85	DNI	7700.00	Pago simple	2025-10-07 21:40:37.983	admin	0
 3	86	DNI	10000.00		2025-10-07 21:41:01.65	admin	0
-4	86	Efectivo	3275.00	Completado automáticamente	2025-10-07 21:41:04.597	admin	0
-5	87	Efectivo	3000.00	Completado automáticamente	2025-10-07 21:54:30.977	admin	0
-6	87	Efectivo	7000.00	Completado automáticamente	2025-10-07 21:54:52.413	admin	0
-7	88	Efectivo	4445.00	Completado automáticamente	2025-10-07 22:00:36.297	admin	0
-8	88	Efectivo	5555.00	Completado automáticamente	2025-10-07 22:01:03.757	admin	0
+4	86	Efectivo	3275.00	Completado automÃ¡ticamente	2025-10-07 21:41:04.597	admin	0
+5	87	Efectivo	3000.00	Completado automÃ¡ticamente	2025-10-07 21:54:30.977	admin	0
+6	87	Efectivo	7000.00	Completado automÃ¡ticamente	2025-10-07 21:54:52.413	admin	0
+7	88	Efectivo	4445.00	Completado automÃ¡ticamente	2025-10-07 22:00:36.297	admin	0
+8	88	Efectivo	5555.00	Completado automÃ¡ticamente	2025-10-07 22:01:03.757	admin	0
 9	89	Efectivo	16175.00	Pago simple	2025-10-07 23:20:54.07	admin	0
 10	90	Efectivo	26975.00	Pago simple	2025-10-08 00:03:35.677	admin	0
 11	91	Efectivo	20275.00	Pago simple	2025-10-08 00:20:42.81	admin	0
@@ -4584,14 +4767,14 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 128	208	Efectivo	9201.00	\N	2025-10-22 21:12:52.433	admin	426
 129	209	DNI	977.00	\N	2025-10-22 21:17:16.453	admin	427
 130	209	MercadoPago	976.00	\N	2025-10-22 21:17:19.343	admin	427
-131	209	Efectivo	977.00	Completado automáticamente	2025-10-22 21:17:20.96	admin	427
+131	209	Efectivo	977.00	Completado automÃ¡ticamente	2025-10-22 21:17:20.96	admin	427
 132	210	Efectivo	4925.00	\N	2025-10-22 21:34:53.193	admin	433
 133	211	Efectivo	3406.00	\N	2025-10-23 09:38:10.37	admin	434
 134	212	DNI	12495.00	\N	2025-10-23 09:40:38.36	admin	435
 135	213	MercadoPago	5000.00	\N	2025-10-23 09:41:07.427	admin	436
 136	214	DNI	1667.00	\N	2025-10-23 19:36:50.107	admin	437
 137	214	MercadoPago	1666.00	\N	2025-10-23 19:36:53.233	admin	437
-138	214	Efectivo	1667.00	Completado automáticamente	2025-10-23 19:36:55.143	admin	437
+138	214	Efectivo	1667.00	Completado automÃ¡ticamente	2025-10-23 19:36:55.143	admin	437
 139	215	DNI	7000.00	\N	2025-10-24 12:26:56.363	admin	441
 140	216	Efectivo	7000.00	\N	2025-10-24 12:27:30.17	admin	442
 141	217	Efectivo	7000.00	\N	2025-10-24 12:39:38.613	admin	444
@@ -4671,7 +4854,7 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 215	290	DNI	43883.00	\N	2025-11-08 19:27:52.437	manu	540
 216	291	DNI	24100.00	\N	2025-11-08 19:39:54.033	manu	541
 217	291	MercadoPago	20000.00	\N	2025-11-08 19:40:09.943	manu	541
-218	291	Efectivo	4100.00	Completado automáticamente	2025-11-08 19:40:23.503	manu	541
+218	291	Efectivo	4100.00	Completado automÃ¡ticamente	2025-11-08 19:40:23.503	manu	541
 219	292	Efectivo	33183.00	\N	2025-11-11 17:12:18.08	admin	542
 220	293	DNI	47158.00	\N	2025-11-11 17:19:55.94	admin	543
 221	294	MercadoPago	29483.00	\N	2025-11-11 17:26:37.197	admin	544
@@ -4687,7 +4870,7 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 231	303	MercadoPago	16591.00	\N	2025-11-12 15:29:22.523	admin	554
 232	304	MercadoPago	17000.00	\N	2025-11-12 15:29:46.48	admin	555
 233	305	MercadoPago	10000.00	\N	2025-11-12 15:30:22.697	admin	556
-234	305	Efectivo	14208.00	Completado automáticamente	2025-11-12 15:30:27.487	admin	556
+234	305	Efectivo	14208.00	Completado automÃ¡ticamente	2025-11-12 15:30:27.487	admin	556
 235	306	Efectivo	27908.00	\N	2025-11-12 15:42:57.707	admin	560
 236	307	DNI	15983.00	\N	2025-11-12 15:43:10.113	admin	561
 237	308	MercadoPago	24200.00	\N	2025-11-12 16:07:35.257	admin	562
@@ -4707,7 +4890,7 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 251	321	MercadoPago	12100.00	\N	2025-11-21 14:54:54.267	admin	582
 252	322	DNI	15110.00	\N	2025-11-21 14:59:16.003	admin	583
 253	322	MercadoPago	15110.00	\N	2025-11-21 14:59:21.167	admin	583
-254	322	Efectivo	15111.00	Completado automáticamente	2025-11-21 14:59:23.06	admin	583
+254	322	Efectivo	15111.00	Completado automÃ¡ticamente	2025-11-21 14:59:23.06	admin	583
 255	323	Efectivo	6400.00	\N	2025-11-21 21:08:36.027	admin	584
 256	324	DNI	6400.00	\N	2025-11-21 21:32:44.763	admin	586
 257	325	Efectivo	6400.00	\N	2025-11-21 21:33:08.08	admin	587
@@ -4730,7 +4913,7 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 274	342	Efectivo	6400.00	\N	2025-11-22 00:44:22.377	admin	609
 275	343	Efectivo	6400.00	\N	2025-11-22 00:44:56.22	admin	610
 276	344	DNI	11750.00	\N	2025-11-22 00:45:33.01	admin	611
-277	344	Efectivo	11750.00	Completado automáticamente	2025-11-22 00:45:35.087	admin	611
+277	344	Efectivo	11750.00	Completado automÃ¡ticamente	2025-11-22 00:45:35.087	admin	611
 278	345	Efectivo	6400.00	\N	2025-11-22 00:48:42.853	admin	612
 279	346	Efectivo	6400.00	\N	2025-11-22 00:50:27.72	admin	613
 280	347	Efectivo	6400.00	\N	2025-11-22 00:51:28.9	admin	614
@@ -4791,7 +4974,7 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 335	402	Efectivo	11900.00	\N	2025-12-09 19:55:53.293	admin	700
 336	403	MercadoPago	19100.00	\N	2025-12-09 20:00:16.83	admin	701
 337	404	DNI	10000.00	\N	2025-12-09 20:29:07.067	admin	703
-338	404	Efectivo	4100.00	Completado automáticamente	2025-12-09 20:29:13.463	admin	703
+338	404	Efectivo	4100.00	Completado automÃ¡ticamente	2025-12-09 20:29:13.463	admin	703
 339	404	MercadoPago	5000.00	\N	2025-12-09 20:29:45.71	admin	703
 340	405	Efectivo	19100.00	\N	2025-12-09 20:30:06.787	admin	704
 341	406	Efectivo	11900.00	\N	2025-12-09 20:30:25.113	admin	705
@@ -5011,7 +5194,7 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 562	631	DNI	2900.00	\N	2026-02-20 18:38:33.24	admin	980
 563	631	MercadoPago	2900.00	\N	2026-02-20 18:38:37.447	admin	980
 564	632	DNI	2500.00	\N	2026-02-20 19:15:53.363	admin	981
-565	632	Efectivo	2500.00	Completado automáticamente	2026-02-20 19:15:55.813	admin	981
+565	632	Efectivo	2500.00	Completado automÃ¡ticamente	2026-02-20 19:15:55.813	admin	981
 566	633	Efectivo	3330.00	\N	2026-02-20 20:55:50.773	admin	982
 567	634	Efectivo	2045.50	\N	2026-02-20 20:57:33.333	admin	983
 568	635	Efectivo	7500.00	\N	2026-02-20 23:34:31.843	admin	984
@@ -5120,6 +5303,7 @@ COPY public.detallespagofactura (id, idfactura, mediopago, importe, observacione
 678	741	Mercado Pago	3500.00	\N	2026-05-31 20:45:03.308717	admin	1117
 679	742	DNI	2700.00	\N	2026-05-31 22:09:02.522167	admin	1119
 680	743	Efectivo	4800.00	\N	2026-06-01 09:02:38.714512	admin	1118
+683	746	DNI	8300.00	\N	2026-06-03 22:05:04.958341	admin	1122
 \.
 
 
@@ -5342,9 +5526,9 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 83	152	2025-10-07 00:00:00	2025-10-07 19:52:29.707	15275.00	MercadoPago	0	\N	1         	FacturaA	75409284165531 	2025-10-17 00:00:00	20221124643    	A 0001-00000050	admin	2258.38	0.00	0.00	0.00
 84	157	2025-10-07 00:00:00	2025-10-07 21:40:08.543	13700.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	1694.46	0.00	0.00	0.00
 85	158	2025-10-07 00:00:00	2025-10-07 21:40:37.977	7700.00	DNI	0	\N	5         	FacturaB	\N	\N	\N	\N	admin	1045.80	0.00	0.00	0.00
-86	159	2025-10-07 00:00:00	2025-10-07 21:41:45.42	13275.00	Múltiple	0	\N	5         	FacturaA	\N	\N	20002307554    	\N	admin	1911.27	0.00	0.00	0.00
-87	161	2025-10-07 00:00:00	2025-10-07 21:54:53.617	10000.00	Múltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	1342.88	0.00	0.00	0.00
-88	163	2025-10-07 00:00:00	2025-10-07 22:01:12.46	10000.00	Múltiple	0	\N	1         	FacturaB	\N	\N	\N	\N	admin	1342.88	0.00	0.00	0.00
+86	159	2025-10-07 00:00:00	2025-10-07 21:41:45.42	13275.00	MÃºltiple	0	\N	5         	FacturaA	\N	\N	20002307554    	\N	admin	1911.27	0.00	0.00	0.00
+87	161	2025-10-07 00:00:00	2025-10-07 21:54:53.617	10000.00	MÃºltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	1342.88	0.00	0.00	0.00
+88	163	2025-10-07 00:00:00	2025-10-07 22:01:12.46	10000.00	MÃºltiple	0	\N	1         	FacturaB	\N	\N	\N	\N	admin	1342.88	0.00	0.00	0.00
 92	178	2025-10-08 00:00:00	2025-10-08 08:11:33.097	15275.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	2258.38	0.00	0.00	0.00
 93	179	2025-10-08 00:00:00	2025-10-08 08:11:55.923	5000.00	Efectivo	0	\N	5         	FacturaB	\N	\N	\N	\N	admin	867.77	0.00	0.00	0.00
 94	180	2025-10-08 00:00:00	2025-10-08 08:12:28.237	15275.00	Efectivo	0	\N	5         	FacturaA	\N	\N	20002307554    	\N	admin	2258.38	0.00	0.00	0.00
@@ -5361,9 +5545,9 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 106	197	2025-10-08 00:00:00	2025-10-08 10:57:13.73	10000.00	DNI	0	\N	5         	FacturaB	75419284188389 	2025-10-18 00:00:00	\N	B 0001-00000113	admin	1342.88	0.00	0.00	0.00
 107	199	2025-10-08 00:00:00	2025-10-08 13:11:14.97	15275.00	Efectivo	0	\N	5         	FacturaB	75419284288959 	2025-10-18 00:00:00	\N	B 0001-00000114	admin	2258.38	0.00	0.00	0.00
 109	207	2025-10-08 00:00:00	2025-10-08 14:01:03.713	7200.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	856.93	0.00	0.00	0.00
-110	209	2025-10-08 00:00:00	2025-10-08 15:16:15.94	10000.00	Múltiple	0	\N	1         	FacturaA	75419284360185 	2025-10-18 00:00:00	27270733145    	A 0001-00000053	admin	1342.88	0.00	0.00	0.00
+110	209	2025-10-08 00:00:00	2025-10-08 15:16:15.94	10000.00	MÃºltiple	0	\N	1         	FacturaA	75419284360185 	2025-10-18 00:00:00	27270733145    	A 0001-00000053	admin	1342.88	0.00	0.00	0.00
 111	211	2025-10-08 00:00:00	2025-10-08 16:18:15.253	10475.00	Efectivo	0	\N	1         	FacturaB	75419284368609 	2025-10-18 00:00:00	\N	B 0001-00000115	admin	1425.32	0.00	0.00	0.00
-112	212	2025-10-08 00:00:00	2025-10-08 16:18:57.327	7000.00	Múltiple	0	\N	1         	FacturaA	75419284368803 	2025-10-18 00:00:00	27270733145    	A 0001-00000054	admin	822.22	0.00	0.00	0.00
+112	212	2025-10-08 00:00:00	2025-10-08 16:18:57.327	7000.00	MÃºltiple	0	\N	1         	FacturaA	75419284368803 	2025-10-18 00:00:00	27270733145    	A 0001-00000054	admin	822.22	0.00	0.00	0.00
 113	213	2025-10-08 00:00:00	2025-10-08 16:20:28.75	10275.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	1390.61	0.00	0.00	0.00
 114	214	2025-10-08 00:00:00	2025-10-08 16:27:14.823	5602.00	Efectivo	0	\N	1         	FacturaB	75419284370696 	2025-10-18 00:00:00	\N	B 0001-00000116	admin	972.25	0.00	0.00	0.00
 115	217	2025-10-08 00:00:00	2025-10-08 16:40:18.37	5500.00	DNI	0	\N	1         	FacturaB	75419284371684 	2025-10-18 00:00:00	\N	B 0001-00000117	admin	954.54	0.00	0.00	0.00
@@ -5394,7 +5578,7 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 140	288	2025-10-14 00:00:00	2025-10-14 19:51:05.13	43425.00	DNI	0	\N	5         	FacturaB	75419286261843 	2025-10-24 00:00:00	\N	B 0001-00000136	admin	5317.27	0.00	0.00	0.00
 141	289	2025-10-14 00:00:00	2025-10-14 19:52:44.62	4925.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
 142	290	2025-10-14 00:00:00	2025-10-14 19:59:58.917	4925.00	Efectivo	1		5         	Remito	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
-143	291	2025-10-14 00:00:00	2025-10-14 20:50:01.563	9925.00	Efectivo	1	Carlos López	5         	Remito	\N	\N	\N	\N	admin	1329.86	0.00	0.00	0.00
+143	291	2025-10-14 00:00:00	2025-10-14 20:50:01.563	9925.00	Efectivo	1	Carlos LÃ³pez	5         	Remito	\N	\N	\N	\N	admin	1329.86	0.00	0.00	0.00
 144	292	2025-10-14 00:00:00	2025-10-14 22:07:27.99	9925.00	Efectivo	1	Diego Hoyos	5         	Remito	\N	\N	\N	\N	admin	1329.86	0.00	0.00	0.00
 145	293	2025-10-14 00:00:00	2025-10-14 22:25:57.567	5400.00	DNI	0	\N	5         	FacturaB	75419286265716 	2025-10-24 00:00:00	\N	B 0001-00000137	admin	937.19	0.00	0.00	0.00
 146	301	2025-10-15 00:00:00	2025-10-15 09:11:12.897	5675.00	Efectivo	0	\N	5         	FacturaB	75429286281481 	2025-10-25 00:00:00	\N	B 0001-00000138	admin	984.91	0.00	0.00	0.00
@@ -5406,8 +5590,8 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 152	313	2025-10-17 00:00:00	2025-10-17 19:44:58.09	4925.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
 153	315	2025-10-17 00:00:00	2025-10-17 19:50:51.93	13625.00	MercadoPago	0	\N	5         	Remito	\N	\N	\N	\N	admin	1681.44	0.00	0.00	0.00
 154	316	2025-10-17 00:00:00	2025-10-17 19:53:00.847	4925.00	DNI	0	\N	5         	FacturaB	75429287633694 	2025-10-27 00:00:00	\N	B 0001-00000142	admin	854.75	0.00	0.00	0.00
-155	317	2025-10-17 00:00:00	2025-10-17 19:54:00.1	7400.00	Múltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	1284.30	0.00	0.00	0.00
-156	319	2025-10-17 00:00:00	2025-10-17 19:59:07.287	958.00	Múltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	166.27	0.00	0.00	0.00
+155	317	2025-10-17 00:00:00	2025-10-17 19:54:00.1	7400.00	MÃºltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	1284.30	0.00	0.00	0.00
+156	319	2025-10-17 00:00:00	2025-10-17 19:59:07.287	958.00	MÃºltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	166.27	0.00	0.00	0.00
 157	325	2025-10-17 00:00:00	2025-10-17 20:26:42.97	7636.00	Efectivo	0	\N	5         	FacturaB	75429287634831 	2025-10-27 00:00:00	\N	B 0001-00000143	admin	1325.25	0.00	0.00	0.00
 158	333	2025-10-17 00:00:00	2025-10-17 23:09:55.053	4925.00	Efectivo	0	\N	5         	FacturaB	75429287638128 	2025-10-27 00:00:00	\N	B 0001-00000144	admin	854.75	0.00	0.00	0.00
 159	341	2025-10-18 00:00:00	2025-10-18 00:13:49.433	4925.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
@@ -5423,7 +5607,7 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 168	369	2025-10-21 00:00:00	2025-10-21 20:33:25.623	4925.00	DNI	0	\N	5         	FacturaB	75429288035001 	2025-10-31 00:00:00	\N	B 0001-00000148	admin	854.75	0.00	0.00	0.00
 169	370	2025-10-21 00:00:00	2025-10-21 20:42:22.98	4925.00	Efectivo	0	\N	5         	FacturaA	75429288035310 	2025-10-31 00:00:00	27-27073314-5  	A 0001-00000061	admin	854.75	0.00	0.00	0.00
 170	372	2025-10-21 00:00:00	2025-10-21 20:59:36.903	4925.00	MercadoPago	0	\N	5         	FacturaB	75429288035734 	2025-10-31 00:00:00	\N	B 0001-00000149	admin	854.75	0.00	0.00	0.00
-171	373	2025-10-21 00:00:00	2025-10-21 21:06:17.357	4925.00	Múltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
+171	373	2025-10-21 00:00:00	2025-10-21 21:06:17.357	4925.00	MÃºltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
 172	374	2025-10-22 00:00:00	2025-10-22 11:28:22.633	6050.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	1050.00	0.00	0.00	0.00
 173	374	2025-10-22 00:00:00	2025-10-22 11:28:28.793	0.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	0.00	0.00	0.00	0.00
 174	375	2025-10-22 00:00:00	2025-10-22 11:28:35.87	4925.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
@@ -5459,13 +5643,13 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 205	422	2025-10-22 00:00:00	2025-10-22 21:05:12.92	11175.00	Efectivo	0	\N	5         	FacturaB	75439288270819 	2025-11-01 00:00:00	\N	B 0001-00000162	admin	1546.81	0.00	0.00	0.00
 206	423	2025-10-22 00:00:00	2025-10-22 21:06:10.44	17300.00	MercadoPago	0	\N	5         	FacturaA	75439288270848 	2025-11-01 00:00:00	27-27073314-5  	A 0001-00000064	admin	2609.82	0.00	0.00	0.00
 207	424	2025-10-22 00:00:00	2025-10-22 21:06:59.297	4925.00	DNI	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
-208	426	2025-10-22 00:00:00	2025-10-22 21:13:06.497	27604.00	Múltiple	0	\N	5         	FacturaB	75439288271072 	2025-11-01 00:00:00	\N	B 0001-00000163	admin	3424.32	0.00	0.00	0.00
-209	427	2025-10-22 00:00:00	2025-10-22 21:17:31.393	2930.00	Múltiple	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	508.51	0.00	0.00	0.00
+208	426	2025-10-22 00:00:00	2025-10-22 21:13:06.497	27604.00	MÃºltiple	0	\N	5         	FacturaB	75439288271072 	2025-11-01 00:00:00	\N	B 0001-00000163	admin	3424.32	0.00	0.00	0.00
+209	427	2025-10-22 00:00:00	2025-10-22 21:17:31.393	2930.00	MÃºltiple	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	508.51	0.00	0.00	0.00
 210	433	2025-10-22 00:00:00	2025-10-22 21:34:53.187	4925.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	854.75	0.00	0.00	0.00
 211	434	2025-10-23 00:00:00	2025-10-23 09:38:10.363	3406.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	591.12	0.00	0.00	0.00
 212	435	2025-10-23 00:00:00	2025-10-23 09:40:38.353	12495.00	DNI	0	\N	5         	FacturaB	75439288307537 	2025-11-02 00:00:00	\N	B 0001-00000164	admin	2168.54	0.00	0.00	0.00
 213	436	2025-10-23 00:00:00	2025-10-23 09:41:07.423	5000.00	MercadoPago	0	\N	5         	FacturaB	75439288308729 	2025-11-02 00:00:00	\N	B 0001-00000165	admin	867.77	0.00	0.00	0.00
-214	437	2025-10-23 00:00:00	2025-10-23 19:37:00.74	5000.00	Múltiple	0	\N	5         	FacturaB	75439288600400 	2025-11-02 00:00:00	\N	B 0001-00000166	admin	867.77	0.00	0.00	0.00
+214	437	2025-10-23 00:00:00	2025-10-23 19:37:00.74	5000.00	MÃºltiple	0	\N	5         	FacturaB	75439288600400 	2025-11-02 00:00:00	\N	B 0001-00000166	admin	867.77	0.00	0.00	0.00
 215	441	2025-10-24 00:00:00	2025-10-24 12:26:56.353	7000.00	DNI	0	\N	5         	FacturaB	75439288686675 	2025-11-03 00:00:00	\N	B 0001-00000167	admin	1214.88	0.00	0.00	0.00
 216	442	2025-10-24 00:00:00	2025-10-24 12:27:30.163	7000.00	Efectivo	0	\N	5         	FacturaA	75439288686777 	2025-11-03 00:00:00	27-27073314-5  	A 0001-00000065	admin	1214.88	0.00	0.00	0.00
 217	444	2025-10-24 00:00:00	2025-10-24 12:39:38.607	7000.00	Efectivo	0	\N	5         	FacturaB	75439288689296 	2025-11-03 00:00:00	\N	B 0001-00000168	admin	1214.88	0.00	0.00	0.00
@@ -5476,13 +5660,13 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 222	467	2025-10-28 00:00:00	2025-10-28 20:04:49.293	13116.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	2276.33	0.00	0.00	0.00
 223	468	2025-10-28 00:00:00	2025-10-28 20:20:33.613	14470.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	2511.31	0.00	0.00	0.00
 224	469	2025-10-28 00:00:00	2025-10-28 20:55:12.94	18385.00	MercadoPago	0	\N	5         	Remito	\N	\N	\N	\N	admin	3190.79	0.00	0.00	0.00
-225	472	2025-10-28 00:00:00	2025-10-28 21:00:23.55	6250.00	Múltiple	0	\N	5         	FacturaB	75439289110129 	2025-11-07 00:00:00	\N	B 0001-00000171	admin	1084.71	0.00	0.00	0.00
+225	472	2025-10-28 00:00:00	2025-10-28 21:00:23.55	6250.00	MÃºltiple	0	\N	5         	FacturaB	75439289110129 	2025-11-07 00:00:00	\N	B 0001-00000171	admin	1084.71	0.00	0.00	0.00
 226	475	2025-10-29 00:00:00	2025-10-29 15:58:56.653	18110.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	2750.40	0.00	0.00	0.00
 227	476	2025-10-30 00:00:00	2025-10-30 08:17:05.753	13110.00	DNI	0	\N	5         	Remito	\N	\N	\N	\N	admin	2275.29	0.00	0.00	0.00
 228	477	2025-10-30 00:00:00	2025-10-30 08:18:32.627	8025.00	MercadoPago	0	\N	5         	FacturaB	75449289272873 	2025-11-09 00:00:00	\N	B 0001-00000172	admin	1392.77	0.00	0.00	0.00
-229	478	2025-10-30 00:00:00	2025-10-30 08:19:52.3	13110.00	Efectivo	1	Carlos López	5         	SinImpresion	\N	\N	\N	\N	admin	2275.29	0.00	0.00	0.00
+229	478	2025-10-30 00:00:00	2025-10-30 08:19:52.3	13110.00	Efectivo	1	Carlos LÃ³pez	5         	SinImpresion	\N	\N	\N	\N	admin	2275.29	0.00	0.00	0.00
 230	479	2025-10-30 00:00:00	2025-10-30 08:21:50.793	13110.00	Efectivo	1	Ana Marta	5         	Remito	\N	\N	\N	\N	admin	2275.29	0.00	0.00	0.00
-231	480	2025-10-30 00:00:00	2025-10-30 08:25:30.267	8025.00	Efectivo	1	María García	5         	Remito	\N	\N	\N	\N	admin	1392.77	0.00	0.00	0.00
+231	480	2025-10-30 00:00:00	2025-10-30 08:25:30.267	8025.00	Efectivo	1	MarÃ­a GarcÃ­a	5         	Remito	\N	\N	\N	\N	admin	1392.77	0.00	0.00	0.00
 232	481	2025-11-04 00:00:00	2025-11-04 22:11:23.1	13110.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	2275.29	0.00	0.00	0.00
 233	482	2025-11-04 00:00:00	2025-11-04 22:11:39.483	17135.00	Efectivo	0	\N	5         	FacturaB	75449290852854 	2025-11-14 00:00:00	\N	B 0001-00000173	admin	2581.19	0.00	0.00	0.00
 234	483	2025-11-04 00:00:00	2025-11-04 22:11:48.8	10175.00	DNI	0	\N	5         	FacturaB	75449290852883 	2025-11-14 00:00:00	\N	B 0001-00000174	admin	1765.91	0.00	0.00	0.00
@@ -5537,12 +5721,12 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 283	531	2025-11-08 00:00:00	2025-11-08 18:59:51.39	17000.00	MercadoPago	0	\N	5         	Remito	\N	\N	\N	\N	admin	2950.42	0.00	0.00	0.00
 284	532	2025-11-08 00:00:00	2025-11-08 19:04:24.667	14500.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	2516.53	0.00	0.00	0.00
 285	533	2025-11-08 00:00:00	2025-11-08 19:10:29.81	27500.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	5067.78	0.00	0.00	0.00
-286	535	2025-11-08 00:00:00	2025-11-08 19:18:46.753	24200.00	Efectivo	1	Carlos López	5         	Remito	\N	\N	\N	\N	admin	4200.01	0.00	0.00	0.00
-287	536	2025-11-08 00:00:00	2025-11-08 19:19:39.48	25025.00	Efectivo	1	Juan Pérez	5         	Remito	\N	\N	\N	\N	admin	3950.53	0.00	0.00	0.00
+286	535	2025-11-08 00:00:00	2025-11-08 19:18:46.753	24200.00	Efectivo	1	Carlos LÃ³pez	5         	Remito	\N	\N	\N	\N	admin	4200.01	0.00	0.00	0.00
+287	536	2025-11-08 00:00:00	2025-11-08 19:19:39.48	25025.00	Efectivo	1	Juan PÃ©rez	5         	Remito	\N	\N	\N	\N	admin	3950.53	0.00	0.00	0.00
 288	538	2025-11-08 00:00:00	2025-11-08 19:20:56.11	19983.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	3467.50	0.00	0.00	0.00
 289	539	2025-11-08 00:00:00	2025-11-08 19:25:43.237	29483.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	5116.27	0.00	0.00	0.00
 290	540	2025-11-08 00:00:00	2025-11-08 19:27:52.387	43883.00	DNI	0	\N	1         	Remito	\N	\N	\N	\N	manu	7324.87	0.00	0.00	0.00
-291	541	2025-11-08 00:00:00	2025-11-08 19:40:34.083	48200.00	Múltiple	0	\N	1         	FacturaB	75459291358639 	2025-11-18 00:00:00	\N	B 0001-00000194	manu	4200.01	0.00	0.00	0.00
+291	541	2025-11-08 00:00:00	2025-11-08 19:40:34.083	48200.00	MÃºltiple	0	\N	1         	FacturaB	75459291358639 	2025-11-18 00:00:00	\N	B 0001-00000194	manu	4200.01	0.00	0.00	0.00
 292	542	2025-11-11 00:00:00	2025-11-11 17:12:18.067	33183.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	5467.85	0.00	0.00	0.00
 293	543	2025-11-11 00:00:00	2025-11-11 17:19:55.933	47158.00	DNI	0	\N	5         	FacturaB	75459291547118 	2025-11-21 00:00:00	\N	B 0001-00000195	admin	8183.84	0.00	0.00	0.00
 294	544	2025-11-11 00:00:00	2025-11-11 17:26:37.193	29483.00	MercadoPago	0	\N	5         	Remito	\N	\N	\N	\N	admin	5116.27	0.00	0.00	0.00
@@ -5554,9 +5738,9 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 300	551	2025-11-11 00:00:00	2025-11-11 18:07:42.67	17000.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	2950.42	0.00	0.00	0.00
 301	552	2025-11-11 00:00:00	2025-11-11 18:11:24.493	17900.00	MercadoPago	0	\N	5         	Remito	\N	\N	\N	\N	admin	3106.61	0.00	0.00	0.00
 302	553	2025-11-12 00:00:00	2025-11-12 15:28:19.357	33183.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	5467.85	0.00	0.00	0.00
-303	554	2025-11-12 00:00:00	2025-11-12 15:29:28.587	33183.00	Múltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	5467.85	0.00	0.00	0.00
+303	554	2025-11-12 00:00:00	2025-11-12 15:29:28.587	33183.00	MÃºltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	5467.85	0.00	0.00	0.00
 304	555	2025-11-12 00:00:00	2025-11-12 15:29:46.473	17000.00	MercadoPago	0	\N	5         	FacturaB	75469291641659 	2025-11-22 00:00:00	\N	B 0001-00000198	admin	2950.42	0.00	0.00	0.00
-305	556	2025-11-12 00:00:00	2025-11-12 15:31:04.093	24208.00	Múltiple	0	\N	5         	FacturaB	75469291641837 	2025-11-22 00:00:00	\N	B 0001-00000199	admin	4200.77	0.00	0.00	0.00
+305	556	2025-11-12 00:00:00	2025-11-12 15:31:04.093	24208.00	MÃºltiple	0	\N	5         	FacturaB	75469291641837 	2025-11-22 00:00:00	\N	B 0001-00000199	admin	4200.77	0.00	0.00	0.00
 306	560	2025-11-12 00:00:00	2025-11-12 15:42:57.703	27908.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	4552.35	0.00	0.00	0.00
 307	561	2025-11-12 00:00:00	2025-11-12 15:43:10.11	15983.00	DNI	0	\N	5         	FacturaB	75469291643135 	2025-11-22 00:00:00	\N	B 0001-00000200	admin	2773.29	0.00	0.00	0.00
 308	562	2025-11-12 00:00:00	2025-11-12 16:07:35.253	24200.00	MercadoPago	0	\N	5         	FacturaB	75469291645593 	2025-11-22 00:00:00	\N	B 0001-00000201	admin	4200.01	0.00	0.00	0.00
@@ -5572,8 +5756,8 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 318	579	2025-11-21 00:00:00	2025-11-21 13:58:16.32	17000.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	2950.42	0.00	0.00	0.00
 319	580	2025-11-21 00:00:00	2025-11-21 14:07:16.093	24208.00	Otro	0	\N	5         	Remito	\N	\N	\N	\N	admin	4200.77	0.00	0.00	0.00
 320	581	2025-11-21 00:00:00	2025-11-21 14:09:34.867	24200.00	DNI	0	\N	5         	FacturaB	75479293508615 	2025-12-01 00:00:00	\N	B 0001-00000204	admin	4200.01	0.00	0.00	0.00
-321	582	2025-11-21 00:00:00	2025-11-21 14:54:55.903	24200.00	Múltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	4200.01	0.00	0.00	0.00
-322	583	2025-11-21 00:00:00	2025-11-21 14:59:25.407	45331.00	Múltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	6207.94	0.00	0.00	0.00
+321	582	2025-11-21 00:00:00	2025-11-21 14:54:55.903	24200.00	MÃºltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	4200.01	0.00	0.00	0.00
+322	583	2025-11-21 00:00:00	2025-11-21 14:59:25.407	45331.00	MÃºltiple	0	\N	5         	Remito	\N	\N	\N	\N	admin	6207.94	0.00	0.00	0.00
 323	584	2025-11-21 00:00:00	2025-11-21 21:08:36.017	6400.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 324	586	2025-11-21 00:00:00	2025-11-21 21:32:44.76	6400.00	DNI	0	\N	5         	Remito	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 325	587	2025-11-21 00:00:00	2025-11-21 21:33:08.077	6400.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
@@ -5594,16 +5778,16 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 341	606	2025-11-22 00:00:00	2025-11-22 00:39:59.263	6400.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 342	609	2025-11-22 00:00:00	2025-11-22 00:44:22.373	6400.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 343	610	2025-11-22 00:00:00	2025-11-22 00:44:56.217	6400.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
-344	611	2025-11-22 00:00:00	2025-11-22 00:45:36.03	23500.00	Múltiple	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	4078.51	0.00	0.00	0.00
+344	611	2025-11-22 00:00:00	2025-11-22 00:45:36.03	23500.00	MÃºltiple	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	4078.51	0.00	0.00	0.00
 345	612	2025-11-22 00:00:00	2025-11-22 00:48:42.85	6400.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 346	613	2025-11-22 00:00:00	2025-11-22 00:50:27.713	6400.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 347	614	2025-11-22 00:00:00	2025-11-22 00:51:28.893	6400.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 348	615	2025-11-22 00:00:00	2025-11-22 01:02:23.123	6400.00	Efectivo	0	\N	1         	Remito	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 349	616	2025-11-22 00:00:00	2025-11-22 01:02:50.66	6400.00	Efectivo	0	\N	1         	SinImpresion	\N	\N	\N	\N	admin	1110.74	0.00	0.00	0.00
 350	618	2025-11-22 00:00:00	2025-11-22 01:10:07.76	6400.00	Efectivo	0	\N	5         	FacturaB	75479293539092 	2025-12-02 00:00:00	\N	B 0001-00000206	admin	1110.74	0.00	0.00	0.00
-351	619	2025-11-25 00:00:00	2025-11-25 16:31:48.563	17100.00	Efectivo	1	Juan Pérez	5         	FacturaB	75479293889331 	2025-12-05 00:00:00	\N	B 0001-00000207	admin	2967.77	0.00	0.00	0.00
+351	619	2025-11-25 00:00:00	2025-11-25 16:31:48.563	17100.00	Efectivo	1	Juan PÃ©rez	5         	FacturaB	75479293889331 	2025-12-05 00:00:00	\N	B 0001-00000207	admin	2967.77	0.00	0.00	0.00
 352	620	2025-11-25 00:00:00	2025-11-25 16:32:15.833	-10000.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	-1735.54	0.00	0.00	0.00
-353	621	2025-11-25 00:00:00	2025-11-25 16:32:45.4	-10000.00	Efectivo	1	Juan Pérez	5         	SinImpresion	\N	\N	\N	\N	admin	-1735.54	0.00	0.00	0.00
+353	621	2025-11-25 00:00:00	2025-11-25 16:32:45.4	-10000.00	Efectivo	1	Juan PÃ©rez	5         	SinImpresion	\N	\N	\N	\N	admin	-1735.54	0.00	0.00	0.00
 354	622	2025-11-26 00:00:00	2025-11-26 15:09:41.62	3900.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	676.86	0.00	0.00	0.00
 355	623	2025-11-26 00:00:00	2025-11-26 15:38:42.707	11100.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	1926.45	0.00	0.00	0.00
 356	624	2025-11-26 00:00:00	2025-11-26 16:00:30.713	1300.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	225.62	0.00	0.00	0.00
@@ -5654,7 +5838,7 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 401	699	2025-12-09 00:00:00	2025-12-09 19:55:44.617	19100.00	Efectivo	0	\N	5         	Remito	\N	\N	\N	\N	admin	3314.88	0.00	0.00	0.00
 402	700	2025-12-09 00:00:00	2025-12-09 19:55:53.29	11900.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	2065.29	0.00	0.00	0.00
 403	701	2025-12-09 00:00:00	2025-12-09 20:00:16.82	19100.00	MercadoPago	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	3314.88	0.00	0.00	0.00
-404	703	2025-12-09 00:00:00	2025-12-09 20:29:48.89	19100.00	Múltiple	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	3314.88	0.00	0.00	0.00
+404	703	2025-12-09 00:00:00	2025-12-09 20:29:48.89	19100.00	MÃºltiple	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	3314.88	0.00	0.00	0.00
 405	704	2025-12-09 00:00:00	2025-12-09 20:30:06.783	19100.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	3314.88	0.00	0.00	0.00
 406	705	2025-12-09 00:00:00	2025-12-09 20:30:25.107	11900.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	2065.29	0.00	0.00	0.00
 407	706	2025-12-12 00:00:00	2025-12-12 09:36:15.26	5600.00	Efectivo	0	\N	5         	SinImpresion	\N	\N	\N	\N	admin	971.90	0.00	0.00	0.00
@@ -5722,8 +5906,8 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 468	796	2025-12-17 00:00:00	2025-12-17 20:52:20.763	20425.00	DNI	0	\N	5         	FacturaC	75519301599407 	2025-12-27 00:00:00	               	C 0001-00000014	admin	3010.82	0.00	0.00	20425.00
 469	797	2025-12-17 00:00:00	2025-12-17 21:02:54.717	7490.95	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	1363.43	0.00	0.00	7490.95
 470	798	2025-12-17 00:00:00	2025-12-17 21:08:54.05	4200.00	Efectivo	0	\N	1         	Remito	               	\N	               		manu	728.92	0.00	0.00	4200.00
-471	799	2025-12-17 00:00:00	2025-12-17 21:11:01.223	11350.00	Efectivo	1	Carlos López	1         	SinImpresion	               	\N	               		manu	1969.83	0.00	0.00	11350.00
-472	800	2025-12-17 00:00:00	2025-12-17 21:14:07.033	18850.00	Múltiple	0	\N	1         	SinImpresion	               	\N	               		manu	2682.50	0.00	0.00	18850.00
+471	799	2025-12-17 00:00:00	2025-12-17 21:11:01.223	11350.00	Efectivo	1	Carlos LÃ³pez	1         	SinImpresion	               	\N	               		manu	1969.83	0.00	0.00	11350.00
+472	800	2025-12-17 00:00:00	2025-12-17 21:14:07.033	18850.00	MÃºltiple	0	\N	1         	SinImpresion	               	\N	               		manu	2682.50	0.00	0.00	18850.00
 473	802	2025-12-17 00:00:00	2025-12-17 21:16:25.107	2000.00	Efectivo	0	\N	1         	SinImpresion	               	\N	               		manu	347.11	0.00	0.00	2000.00
 474	804	2025-12-17 00:00:00	2025-12-17 21:23:49.547	650.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	112.81	0.00	0.00	650.00
 475	807	2025-12-17 00:00:00	2025-12-17 21:48:45.087	4200.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	728.92	0.00	0.00	4200.00
@@ -5743,7 +5927,7 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 489	825	2025-12-21 00:00:00	2025-12-21 18:58:34.587	1000.00	Otro	0	\N	5         	SinImpresion	               	\N	               		admin	236.90	0.00	0.00	1000.00
 490	826	2025-12-21 00:00:00	2025-12-21 18:59:34.91	96.75	Efectivo	0	\N	5         	FacturaC	75519302118104 	2025-12-31 00:00:00	               	C 0001-00000022	admin	16.80	0.00	0.00	96.75
 491	827	2025-12-21 00:00:00	2025-12-21 19:02:28.937	10000.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	1617.73	10.00	1000.00	9000.00
-492	828	2025-12-21 00:00:00	2025-12-21 19:04:53.957	41708.00	Múltiple	0	\N	5         	FacturaC	75519302118162 	2025-12-31 00:00:00	               	C 0001-00000023	admin	5016.14	0.00	0.00	41708.00
+492	828	2025-12-21 00:00:00	2025-12-21 19:04:53.957	41708.00	MÃºltiple	0	\N	5         	FacturaC	75519302118162 	2025-12-31 00:00:00	               	C 0001-00000023	admin	5016.14	0.00	0.00	41708.00
 493	829	2025-12-21 00:00:00	2025-12-21 19:09:20.497	1860.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	322.81	0.00	0.00	1860.00
 494	830	2025-12-21 00:00:00	2025-12-21 19:18:35.66	9960.00	DNI	0	\N	5         	Remito	               	\N	               		admin	1728.59	0.00	0.00	9960.00
 495	831	2025-12-21 00:00:00	2025-12-21 19:31:34.983	8700.00	DNI	0	\N	5         	Remito	               	\N	               		admin	1509.91	0.00	0.00	8700.00
@@ -5770,7 +5954,7 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 515	859	2026-01-07 00:00:00	2026-01-07 12:09:23.273	1200.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	269.01	0.00	0.00	1200.00
 516	860	2026-01-07 00:00:00	2026-01-07 12:13:43.383	1980.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	343.64	0.00	0.00	1980.00
 517	861	2026-01-07 00:00:00	2026-01-07 12:59:14.28	4000.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	867.77	10.00	400.00	3600.00
-518	862	2026-01-07 00:00:00	2026-01-07 13:03:04.37	16000.00	Efectivo	1	María García	5         	SinImpresion	               	\N	               		admin	2776.86	0.00	0.00	16000.00
+518	862	2026-01-07 00:00:00	2026-01-07 13:03:04.37	16000.00	Efectivo	1	MarÃ­a GarcÃ­a	5         	SinImpresion	               	\N	               		admin	2776.86	0.00	0.00	16000.00
 519	864	2026-01-07 00:00:00	2026-01-07 13:15:58.04	3000.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	520.66	0.00	0.00	3000.00
 520	863	2026-01-07 00:00:00	2026-01-07 13:16:14.257	6000.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	1041.32	0.00	0.00	6000.00
 521	865	2026-01-07 00:00:00	2026-01-07 13:19:13.037	45822.00	DNI	0	\N	5         	Remito	               	\N	               		admin	5777.27	0.00	0.00	45822.00
@@ -5834,8 +6018,8 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 582	930	2026-01-28 00:00:00	2026-01-28 17:26:22.91	62450.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	7257.41	0.00	0.00	62450.00
 583	931	2026-01-28 00:00:00	2026-01-28 17:37:15.737	64550.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	7621.87	0.00	0.00	64550.00
 584	932	2026-01-28 00:00:00	2026-01-28 18:54:55.297	17300.00	DNI	0	\N	5         	Remito	               	\N	               		admin	2798.30	0.00	0.00	17300.00
-585	933	2026-01-28 00:00:00	2026-01-28 18:59:30.823	8200.00	Efectivo	1	María García	5         	SinImpresion	               	\N	               		admin	1423.14	0.00	0.00	8200.00
-586	934	2026-01-28 00:00:00	2026-01-28 20:38:50.457	50500.00	Efectivo	1	Carlos López	5         	SinImpresion	               	\N	               		admin	5183.44	0.00	0.00	50500.00
+585	933	2026-01-28 00:00:00	2026-01-28 18:59:30.823	8200.00	Efectivo	1	MarÃ­a GarcÃ­a	5         	SinImpresion	               	\N	               		admin	1423.14	0.00	0.00	8200.00
+586	934	2026-01-28 00:00:00	2026-01-28 20:38:50.457	50500.00	Efectivo	1	Carlos LÃ³pez	5         	SinImpresion	               	\N	               		admin	5183.44	0.00	0.00	50500.00
 587	935	2026-02-01 00:00:00	2026-02-01 20:38:47.197	7500.00	Efectivo	0	\N	5         	FacturaC	86050003503780 	2026-02-11 00:00:00	               	C 0007-00000005	admin	1301.65	0.00	0.00	7500.00
 588	936	2026-02-01 00:00:00	2026-02-01 20:51:48.74	1200.00	DNI	0	\N	5         	FacturaB	86052179752108 	2026-02-11 00:00:00	               	B 0005-00000001	admin	208.26	0.00	0.00	1200.00
 589	937	2026-02-02 00:00:00	2026-02-02 16:39:27.953	4000.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	694.21	0.00	0.00	4000.00
@@ -5870,15 +6054,15 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 620	969	2026-02-13 00:00:00	2026-02-13 17:22:23.527	3500.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	607.44	0.00	0.00	3500.00
 621	970	2026-02-13 00:00:00	2026-02-13 17:39:06.883	3500.00	DNI	0	\N	5         	FacturaC	86080010747189 	2026-03-02 00:00:00	               	C 0007-00000016	admin	607.44	0.00	0.00	3500.00
 622	971	2026-02-13 00:00:00	2026-02-13 17:49:00.593	10500.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	1822.31	0.00	0.00	10500.00
-623	973	2026-02-18 00:00:00	2026-02-18 17:33:31.08	29800.00	Efectivo	1	María García	5         	SinImpresion	               	\N	               		admin	5171.90	0.00	0.00	29800.00
-624	974	2026-02-18 00:00:00	2026-02-18 17:36:10.68	-15000.00	Efectivo	1	María García	5         	Remito	               	\N	               		admin	-2603.31	0.00	0.00	-15000.00
-625	975	2026-02-18 00:00:00	2026-02-18 17:42:03.593	-10000.00	Efectivo	1	María García	5         	SinImpresion	               	\N	               		admin	-1735.54	0.00	0.00	-10000.00
+623	973	2026-02-18 00:00:00	2026-02-18 17:33:31.08	29800.00	Efectivo	1	MarÃ­a GarcÃ­a	5         	SinImpresion	               	\N	               		admin	5171.90	0.00	0.00	29800.00
+624	974	2026-02-18 00:00:00	2026-02-18 17:36:10.68	-15000.00	Efectivo	1	MarÃ­a GarcÃ­a	5         	Remito	               	\N	               		admin	-2603.31	0.00	0.00	-15000.00
+625	975	2026-02-18 00:00:00	2026-02-18 17:42:03.593	-10000.00	Efectivo	1	MarÃ­a GarcÃ­a	5         	SinImpresion	               	\N	               		admin	-1735.54	0.00	0.00	-10000.00
 626	976	2026-02-20 00:00:00	1900-01-01 11:10:52.92	3500.00	DNI	0	\N	\N	FacturaC	86080010747189 	2026-03-02 00:00:00	               	C 0007-00000016	\N	0.00	0.00	0.00	3500.00
 628	977	2026-02-20 00:00:00	1900-01-01 17:46:11.873	\N	Efectivo	0	\N	admin     	FacturaC	86080010838765 	2026-03-02 00:00:00	               	C 0007-00000020	\N	0.00	0.00	0.00	100.00
 629	978	2026-02-20 00:00:00	2026-02-20 18:24:12.41	5000.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	867.77	0.00	0.00	5000.00
 630	979	2026-02-20 00:00:00	1900-01-01 18:24:41.687	\N	Efectivo	0	\N	admin     	FacturaC	86080010844832 	2026-03-02 00:00:00	               	C 0007-00000021	\N	0.00	0.00	0.00	200.00
-631	980	2026-02-20 00:00:00	2026-02-20 18:38:40.357	5800.00	Múltiple	0	\N	5         	Remito	               	\N	               		admin	786.72	0.00	0.00	5800.00
-632	981	2026-02-20 00:00:00	2026-02-20 19:15:56.937	5000.00	Múltiple	0	\N	5         	SinImpresion	               	\N	               		admin	867.77	0.00	0.00	5000.00
+631	980	2026-02-20 00:00:00	2026-02-20 18:38:40.357	5800.00	MÃºltiple	0	\N	5         	Remito	               	\N	               		admin	786.72	0.00	0.00	5800.00
+632	981	2026-02-20 00:00:00	2026-02-20 19:15:56.937	5000.00	MÃºltiple	0	\N	5         	SinImpresion	               	\N	               		admin	867.77	0.00	0.00	5000.00
 633	982	2026-02-20 00:00:00	2026-02-20 20:55:50.76	3330.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	577.94	0.00	0.00	3330.00
 634	983	2026-02-20 00:00:00	2026-02-20 20:57:33.32	2045.50	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	355.01	0.00	0.00	2045.50
 635	984	2026-02-20 00:00:00	2026-02-20 23:34:31.837	7500.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	1301.65	0.00	0.00	7500.00
@@ -5907,7 +6091,7 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 658	1007	2026-02-25 00:00:00	2026-02-25 20:40:18.69	178660.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	19007.54	0.00	0.00	178660.00
 659	1009	2026-02-25 00:00:00	2026-02-25 20:42:44.57	3000.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	0.00	0.00	0.00	3000.00
 660	1010	2026-02-25 00:00:00	2026-02-25 20:43:45.487	3200.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	0.00	0.00	0.00	3200.00
-661	1011	2026-03-11 00:00:00	2026-03-11 16:25:46.947	9100.00	Efectivo	1	Juan Pérez	5         	SinImpresion	               	\N	               		admin	1579.34	0.00	0.00	9100.00
+661	1011	2026-03-11 00:00:00	2026-03-11 16:25:46.947	9100.00	Efectivo	1	Juan PÃ©rez	5         	SinImpresion	               	\N	               		admin	1579.34	0.00	0.00	9100.00
 662	1012	2026-03-11 00:00:00	2026-03-11 16:29:23.703	5000.00	Efectivo	0	\N	5         	Remito	               	\N	               		admin	867.77	0.00	0.00	5000.00
 663	1013	2026-03-11 00:00:00	2026-03-11 16:31:57.833	5000.00	Efectivo	0	\N	5         	FacturaB	86100017828979 	2026-03-21 00:00:00	               	B 0007-00000013	admin	867.77	0.00	0.00	5000.00
 664	1014	2026-03-11 00:00:00	2026-03-11 22:20:46.793	5000.00	Efectivo	0	\N	5         	SinImpresion	               	\N	               		admin	867.77	0.00	0.00	5000.00
@@ -5929,11 +6113,11 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 688	1053	2026-05-23 00:00:00	2026-05-23 19:10:43.911608	157300.00	Efectivo	0	\N	3	SinImpresion		\N			admin	15126.89	0.00	0.00	157300.00
 689	1054	2026-05-23 00:00:00	2026-05-23 19:18:23.715674	152000.00	Efectivo	0	\N	3	Remito		\N			admin	14600.50	0.00	0.00	152000.00
 680	1043	2026-05-22 00:00:00	2026-05-22 15:42:31.165136	10750.00	DNI	0	\N	3	FacturaC	86210181525253	2026-06-01 00:00:00		C 0007-00000037	admin	1865.70	0.00	0.00	10750.00
-682	1045	2026-05-23 00:00:00	2026-05-23 18:43:02.270097	19550.00	Efectivo	1	María García	3	Remito		\N			admin	3392.97	0.00	0.00	19550.00
+682	1045	2026-05-23 00:00:00	2026-05-23 18:43:02.270097	19550.00	Efectivo	1	MarÃ­a GarcÃ­a	3	Remito		\N			admin	3392.97	0.00	0.00	19550.00
 683	1046	2026-05-23 00:00:00	2026-05-23 18:51:16.508627	10700.00	MercadoPago	0	\N	3	SinImpresion		\N			admin	1162.81	0.00	0.00	10700.00
 684	1048	2026-05-23 00:00:00	2026-05-23 18:51:36.268357	6200.00	Efectivo	0	\N	3	SinImpresion		\N			admin	1076.03	10.00	620.00	5580.00
 685	1049	2026-05-23 00:00:00	2026-05-23 18:51:47.486434	3450.00	Efectivo	0	\N	3	Remito		\N			admin	598.76	10.00	345.00	3105.00
-686	1050	2026-05-23 00:00:00	2026-05-23 18:53:09.012105	159000.00	Múltiple	0	\N	3	FacturaC	86210206986885	2026-06-02 00:00:00		C 0007-00000038	admin	15595.48	0.00	0.00	159000.00
+686	1050	2026-05-23 00:00:00	2026-05-23 18:53:09.012105	159000.00	MÃºltiple	0	\N	3	FacturaC	86210206986885	2026-06-02 00:00:00		C 0007-00000038	admin	15595.48	0.00	0.00	159000.00
 687	1051	2026-05-23 00:00:00	2026-05-23 18:58:09.219367	3300.00	Efectivo	0	\N	3	SinImpresion		\N			admin	763.64	0.00	0.00	3300.00
 690	1055	2026-05-23 00:00:00	2026-05-23 19:23:09.382369	156000.00	Efectivo	0	\N	3	FacturaC	86210206988638	2026-06-02 00:00:00		C 0007-00000039	admin	15074.82	0.00	0.00	156000.00
 691	1056	2026-05-23 00:00:00	2026-05-23 19:27:16.274705	152000.00	DNI	0	\N	3	SinImpresion		\N			admin	14600.50	0.00	0.00	152000.00
@@ -5986,6 +6170,7 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 741	1117	2026-05-31 00:00:00	2026-05-31 20:45:03.306394	3500.00	Mercado Pago	0	\N	3	FacturaB	86220212236827	2026-06-10 00:00:00	\N	B 0007-00000022	admin	735.00	0.00	0.00	3500.00
 742	1119	2026-05-31 00:00:00	2026-05-31 22:09:02.519567	2700.00	DNI	0	\N	3	FacturaB	86220212242787	2026-06-10 00:00:00	\N	B 0007-00000023	admin	567.00	0.00	0.00	2700.00
 743	1118	2026-06-01 00:00:00	2026-06-01 09:02:38.707973	4800.00	Efectivo	0	\N	3	FacturaB	86220212298872	2026-06-11 00:00:00	\N	B 0007-00000024	admin	1008.00	0.00	0.00	4800.00
+746	1122	2026-06-03 00:00:00	2026-06-03 22:05:04.952842	8300.00	DNI	0	\N	3	FacturaB	86220218262425	2026-06-13 00:00:00	\N	B 0007-00000026	admin	1743.00	0.00	0.00	8300.00
 \.
 
 
@@ -5996,8 +6181,8 @@ COPY public.facturas (idfactura, numeroremito, fecha, hora, importetotal, formad
 COPY public.formaspago (id, descripcion, activo) FROM stdin;
 1	Efectivo	1
 2	Mercado Pago	1
-3	Débito	1
-4	Crédito	1
+3	DÃ©bito	1
+4	CrÃ©dito	1
 5	Cuenta Corriente	1
 \.
 
@@ -6023,7 +6208,7 @@ COPY public.horarios (id, hora, nombre, registro, descripcion, fecha, codigo, to
 --
 
 COPY public.numeroremito (idnumero, nroremito, nrofacturaa, nrofacturab) FROM stdin;
-1	1121	0	0
+1	1124	0	0
 \.
 
 
@@ -6047,44 +6232,52 @@ COPY public.pagos (proveedor, monto, fecha, hora, cajero, id) FROM stdin;
 
 
 --
+-- Data for Name: pagosctacte; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.pagosctacte (id, cliente_id, monto, mediopago, referencia, usuario, fecha, fecharegistro) FROM stdin;
+\.
+
+
+--
 -- Data for Name: pagosproveedores; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.pagosproveedores (id, proveedor, monto, observaciones, numerocajero, usuarioregistro, fechapago, numeroremito, nombreequipo, fecharegistro, idproveedor, compraid, ctacteid, origen) FROM stdin;
 25	Coca Cola	0.00	Sin pago - Compra sin pago inmediato - Compra ID: 31	5	Administrador Sistema	2026-01-14 20:46:43.83	\N	\N	2026-01-14 20:46:43.83	1	\N	\N	\N
-26	Coca Cola	2000.00	Compra #31 | Método: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 242.000,00	5	admin	2026-01-14 20:49:28.147	\N	MANUELC	2026-01-14 20:49:28.147	1	\N	\N	\N
-27	Coca Cola	30000.00	Método: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 240.000,00	5	admin	2026-01-14 20:50:35.883	\N	MANUELC	2026-01-14 20:50:35.883	1	31	\N	\N
+26	Coca Cola	2000.00	Compra #31 | MÃ©todo: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 242.000,00	5	admin	2026-01-14 20:49:28.147	\N	MANUELC	2026-01-14 20:49:28.147	1	\N	\N	\N
+27	Coca Cola	30000.00	MÃ©todo: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 240.000,00	5	admin	2026-01-14 20:50:35.883	\N	MANUELC	2026-01-14 20:50:35.883	1	31	\N	\N
 28	Coca Cola	0.00	Sin pago - Compra sin pago inmediato - Compra ID: 32	5	Administrador Sistema	2026-01-29 23:23:18.597	\N	\N	2026-01-29 23:23:18.597	1	\N	\N	\N
-29	Coca Cola	110000.00	Método: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 210.000,00	5	admin	2026-01-29 23:24:19.877	\N	MANUELC	2026-01-29 23:24:19.877	1	31	\N	\N
+29	Coca Cola	110000.00	MÃ©todo: Efectivo | Compra #31 | Ref: 0001-00005865 - 14/01/2026 - Saldo: $ 210.000,00	5	admin	2026-01-29 23:24:19.877	\N	MANUELC	2026-01-29 23:24:19.877	1	31	\N	\N
 30	Coca Cola	200000.00	Efectivo -  - Compra ID: 33	5	Administrador Sistema	2026-02-01 00:52:24.547	\N	\N	2026-02-01 00:52:24.547	1	\N	\N	\N
 31	Coca Cola	150000.00	Efectivo -  - Compra ID: 34	5	Administrador Sistema	2026-02-01 00:58:56.827	\N	\N	2026-02-01 00:58:56.827	1	\N	\N	\N
 32	Coca Cola	300000.00	Efectivo -  - Compra ID: 35	5	Administrador Sistema	2026-02-01 01:05:46.253	\N	\N	2026-02-01 01:05:46.253	1	\N	\N	\N
 33	Coca Cola	125000.00	Efectivo -  - Compra ID: 37	5	Administrador Sistema	2026-02-01 01:30:44.333	\N	\N	2026-02-01 01:30:44.333	1	\N	\N	\N
-34	Coca Cola	50000.00	Compra #31 | Método: Efectivo | Ref: pago - 14/01/2026 - Saldo: $ 100.000,00	5	admin	2026-02-01 01:45:41.673	\N	MANUELC	2026-02-01 01:45:41.673	1	\N	\N	\N
-38	Coca Cola	50000.00	Compra #31 | Método: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 50.000,00	5	admin	2026-02-01 01:59:15.43	\N	MANUELC	2026-02-01 01:59:15.43	1	\N	\N	\N
+34	Coca Cola	50000.00	Compra #31 | MÃ©todo: Efectivo | Ref: pago - 14/01/2026 - Saldo: $ 100.000,00	5	admin	2026-02-01 01:45:41.673	\N	MANUELC	2026-02-01 01:45:41.673	1	\N	\N	\N
+38	Coca Cola	50000.00	Compra #31 | MÃ©todo: Efectivo | Ref:  - 14/01/2026 - Saldo: $ 50.000,00	5	admin	2026-02-01 01:59:15.43	\N	MANUELC	2026-02-01 01:59:15.43	1	\N	\N	\N
 39	Coca Cola	0.00	Sin pago - Compra sin pago inmediato - Compra ID: 38	5	Administrador Sistema	2026-02-01 01:59:54.243	\N	\N	2026-02-01 01:59:54.243	1	\N	\N	\N
 40	Coca Cola	200000.00	Efectivo -  - Compra ID: 39	5	Administrador Sistema	2026-02-01 02:11:52.247	\N	\N	2026-02-01 02:11:52.247	1	\N	\N	\N
 41	Coca Cola	150000.00	Efectivo -  - Compra ID: 40	5	Administrador Sistema	2026-02-01 02:13:57.373	\N	\N	2026-02-01 02:13:57.373	1	\N	\N	\N
-42	Coca Cola	150000.00	Método: Efectivo | Compra #32 | Ref: 1 - 29/01/2026 - Saldo: $ 150.000,00	5	admin	2026-02-01 02:16:18.597	\N	MANUELC	2026-02-01 02:16:18.597	1	32	\N	\N
-43	Coca Cola	200000.00	Método: Efectivo | Compra #35 | Ref: 789 - 01/02/2026 - Saldo: $ 200.000,00	5	admin	2026-02-01 02:18:05.533	\N	MANUELC	2026-02-01 02:18:05.533	1	35	\N	\N
-44	Coca Cola	100000.00	Método: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:22:32.817	\N	MANUELC	2026-02-01 02:22:32.817	1	\N	\N	\N
-45	Coca Cola	100000.00	Método: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:24:48.317	\N	MANUELC	2026-02-01 02:24:48.317	1	\N	\N	\N
-46	Coca Cola	100000.00	Método: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:26:17.787	\N	MANUELC	2026-02-01 02:26:17.787	1	\N	\N	\N
-47	Coca Cola	100.00	Método: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:44:43.89	\N	MANUELC	2026-02-01 02:44:43.89	1	\N	\N	\N
+42	Coca Cola	150000.00	MÃ©todo: Efectivo | Compra #32 | Ref: 1 - 29/01/2026 - Saldo: $ 150.000,00	5	admin	2026-02-01 02:16:18.597	\N	MANUELC	2026-02-01 02:16:18.597	1	32	\N	\N
+43	Coca Cola	200000.00	MÃ©todo: Efectivo | Compra #35 | Ref: 789 - 01/02/2026 - Saldo: $ 200.000,00	5	admin	2026-02-01 02:18:05.533	\N	MANUELC	2026-02-01 02:18:05.533	1	35	\N	\N
+44	Coca Cola	100000.00	MÃ©todo: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:22:32.817	\N	MANUELC	2026-02-01 02:22:32.817	1	\N	\N	\N
+45	Coca Cola	100000.00	MÃ©todo: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:24:48.317	\N	MANUELC	2026-02-01 02:24:48.317	1	\N	\N	\N
+46	Coca Cola	100000.00	MÃ©todo: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:26:17.787	\N	MANUELC	2026-02-01 02:26:17.787	1	\N	\N	\N
+47	Coca Cola	100.00	MÃ©todo: Efectivo | Ref: Sin vincular	5	admin	2026-02-01 02:44:43.89	\N	MANUELC	2026-02-01 02:44:43.89	1	\N	\N	\N
 48	Coca Cola	1000.00	Pago a cuenta (sin facturas pendientes)	5	admin	2026-02-01 02:54:07.927	\N	MANUELC	2026-02-01 02:54:07.927	1	\N	\N	PagoGeneral
-49	Coca Cola	2000.00	Método: Efectivo | Ref: Sin vincular	5	admin	2026-02-11 12:13:17.843	\N	MANUELC	2026-02-11 12:13:17.843	1	\N	\N	\N
-50	Quilmes	25000.00	Método: Efectivo | Ref: Sin vincular	5	admin	2026-02-11 21:21:07.553	\N	MANUELC	2026-02-11 21:21:07.553	2	\N	\N	\N
-51	Coca Cola	20000.00	Método: Efectivo | Ref: Sin vincular	5	admin	2026-02-25 20:10:39.09	\N	MANUELC	2026-02-25 20:10:39.09	1	\N	\N	\N
+49	Coca Cola	2000.00	MÃ©todo: Efectivo | Ref: Sin vincular	5	admin	2026-02-11 12:13:17.843	\N	MANUELC	2026-02-11 12:13:17.843	1	\N	\N	\N
+50	Quilmes	25000.00	MÃ©todo: Efectivo | Ref: Sin vincular	5	admin	2026-02-11 21:21:07.553	\N	MANUELC	2026-02-11 21:21:07.553	2	\N	\N	\N
+51	Coca Cola	20000.00	MÃ©todo: Efectivo | Ref: Sin vincular	5	admin	2026-02-25 20:10:39.09	\N	MANUELC	2026-02-25 20:10:39.09	1	\N	\N	\N
 52	Carne	0.00	Sin pago - Compra sin pago inmediato - Compra ID: 41	5	Administrador Sistema	2026-05-18 20:31:00.027	\N	\N	2026-05-18 20:31:00.027	5	\N	\N	\N
 53	Fiambre	1.00	Efectivo -  - Compra ID: 42	5	Administrador Sistema	2026-05-18 20:32:21.13	\N	\N	2026-05-18 20:32:21.13	3	\N	\N	\N
 54	Fiambreria	5000.00	Efectivo -  - Compra ID: 43	5	Administrador Sistema	2026-05-18 20:35:10.537	\N	\N	2026-05-18 20:35:10.537	3	\N	\N	\N
-55	Quilmes	500.00	Método: Efectivo | Ref: Sin vincular	3	admin	2026-05-22 08:49:59.648048	\N	MANUELC	2026-05-22 08:49:59.648089	2	\N	\N	\N
-56	Carniceria	100.00	Método: Efectivo | Ref: Sin vincular	3	admin	2026-05-22 11:31:20.831144	\N	MANUELC	2026-05-22 11:31:20.83119	5	\N	\N	\N
-57	Verduleria	1000.00	Método: DNI | Ref: Sin vincular | pago de mercado	3	admin	2026-05-23 18:51:01.664527	\N	MANUELC	2026-05-23 18:51:01.664537	4	\N	\N	\N
+55	Quilmes	500.00	MÃ©todo: Efectivo | Ref: Sin vincular	3	admin	2026-05-22 08:49:59.648048	\N	MANUELC	2026-05-22 08:49:59.648089	2	\N	\N	\N
+56	Carniceria	100.00	MÃ©todo: Efectivo | Ref: Sin vincular	3	admin	2026-05-22 11:31:20.831144	\N	MANUELC	2026-05-22 11:31:20.83119	5	\N	\N	\N
+57	Verduleria	1000.00	MÃ©todo: DNI | Ref: Sin vincular | pago de mercado	3	admin	2026-05-23 18:51:01.664527	\N	MANUELC	2026-05-23 18:51:01.664537	4	\N	\N	\N
 59	Fiambreria	100000.00	Efectivo -  - Compra ID: 46	3	Administrador Sistema	2026-05-23 19:59:01.181819	\N	\N	2026-05-23 19:59:01.181819	3	\N	\N	\N
 62	Carniceria	100000.00	MercadoPago -  - Compra ID: 45	3	Administrador Sistema	2026-05-23 22:26:09.246409	\N	\N	2026-05-23 22:26:09.246415	5	\N	\N	\N
 65	Fiambreria	1050.00	Pago a cuenta (sin facturas pendientes)	3	admin	2026-05-23 22:30:26.721335	\N	MANUELC	2026-05-23 22:30:26.721462	3	\N	\N	PagoGeneral
-66	Carniceria	50000.00	Método: Efectivo | Compra #45 | Ref: 123 - 23/05/2026 - Saldo: $ 100.000,00	3	admin	2026-05-28 13:17:19.923391	\N	MANUELC	2026-05-28 13:17:19.923397	5	45	\N	\N
+66	Carniceria	50000.00	MÃ©todo: Efectivo | Compra #45 | Ref: 123 - 23/05/2026 - Saldo: $ 100.000,00	3	admin	2026-05-28 13:17:19.923391	\N	MANUELC	2026-05-28 13:17:19.923397	5	45	\N	\N
 \.
 
 
@@ -6161,7 +6354,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792579019042	escurrepatos plasitico	Dentrifico	plasitico	1100.00	913.00	20	-8	3325083	1	12062	2.43	2.79	2.59	1	nini	0	2010-04-03 00:00:00	S	0	\N	1	0	7	21.00	1	t	f	f
 7798107412606	etnia merlot 750 	Vinos	etnia	2200.00	1826.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8	21.00	1	t	f	f
 7613032770426	Nesquik x 180 g.	cacao	Nestle	26.00	18.98	30	-1	1	1	1	0.00	0.00	1.39	1	1	0	\N	S	\N	\N	1	0	9	21.00	1	t	f	f
-7790236000334	Ravioles cuatro quesos	Pasta	la salteña	69.00	50.37	30	-25	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	10	21.00	1	t	f	f
+7790236000334	Ravioles cuatro quesos	Pasta	la salteÃ±a	69.00	50.37	30	-25	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	10	21.00	1	t	f	f
 7798138291249	vauquita alfajor	Almacen	vauquita	1000.00	830.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11	21.00	1	t	f	f
 7790035088113	SWEET ESPON CERA EN LATA	Perfumeria	sweet espon	350.00	273.00	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13	21.00	1	t	f	f
 7794000004450	knorr rinde mas 3 en 1 	Almacen	knorr	80.00	66.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14	21.00	1	t	f	f
@@ -6185,11 +6378,11 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791905001652	jabon lavado a mano 800	Limpieza	querubin	28.00	23.24	20	-135	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	40	21.00	1	t	f	f
 7798080660599	biscochuelo 3 capaz	Almacen	valido	250.00	207.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	41	21.00	1	t	f	f
 7796953215211	mortadeita calchaqui	Almacen	calchaqui	3000.00	2200.00	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	42	21.00	1	t	f	f
-7793360986208	la campañola jardinera x 300g	Almacen	la campañola	160.00	132.80	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	44	21.00	1	t	f	f
+7793360986208	la campaÃ±ola jardinera x 300g	Almacen	la campaÃ±ola	160.00	132.80	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	44	21.00	1	t	f	f
 7793522000056	c/chips 500g	Almacen	valente	77.00	63.91	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	45	21.00	1	t	f	f
 7795930000307	nestle awafrut durazno naranja 1.65	Jugos	awafrut	180.00	149.40	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	46	21.00	1	t	f	f
 7795930000345	nestle awafrut 1.65 limonda	Jugos	awafrut	180.00	149.40	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	47	21.00	1	t	f	f
-7798096031055	doña pupa arvejas caja	Almacen	Doña pupa	800.00	49.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	48	21.00	1	t	f	f
+7798096031055	doÃ±a pupa arvejas caja	Almacen	DoÃ±a pupa	800.00	49.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	48	21.00	1	t	f	f
 7790036000565	baggio naranja  200 	Almacen	baggio	500.00	415.00	20	-60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	49	21.00	1	t	f	f
 7896004009438	pringles bife chorizo 	Almacen	pringles	3500.00	2905.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	50	21.00	1	t	f	f
 7791337008281	serenisina gran compra vainilla 900	Lacteos	serenisima	1800.00	1411.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	51	21.00	1	t	f	f
@@ -6216,11 +6409,11 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798054510134	sabio toma 910  g 	Almacen	sabio	1700.00	913.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	74	21.00	1	t	f	f
 7790480000418	la tranquera mate cocido naranja	Almacen	la tranquera	45.00	37.35	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	76	21.00	1	t	f	f
 7790244009114	san ignacio repostero dulce de leche	Almacen	san ignacio	40.00	33.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	80	21.00	1	t	f	f
-7794626012525	Kimbies toallitas 487 u	Pañales	Kimbies	2300.00	284.70	30	-4	1	1	1	3.99	4.59	3.64	1	1	0	\N	S	0	\N	1	0	81	21.00	1	t	f	f
+7794626012525	Kimbies toallitas 487 u	PaÃ±ales	Kimbies	2300.00	284.70	30	-4	1	1	1	3.99	4.59	3.64	1	1	0	\N	S	0	\N	1	0	81	21.00	1	t	f	f
 7790040133693	lia media tarde clasica x 3	Galletitas	lia	900.00	116.80	30	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	84	21.00	1	t	f	f
 7798162670409	Red blend tinto	Vinos	red blend	2800.00	2324.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	87	21.00	1	t	f	f
 7791290794955	lavandina en gel 700 origin	Limpieza	vim	2000.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	89	21.00	1	t	f	f
-7794000999947	Hellmann´s x250 casera	Mayonesas	Hellmann´s	75.00	54.75	30	0	1	0107891	1	0.71	0.82	0.95	1	1	0	2010-03-27 00:00:00	S	\N	\N	1	0	90	21.00	1	t	f	f
+7794000999947	HellmannÂ´s x250 casera	Mayonesas	HellmannÂ´s	75.00	54.75	30	0	1	0107891	1	0.71	0.82	0.95	1	1	0	2010-03-27 00:00:00	S	\N	\N	1	0	90	21.00	1	t	f	f
 7795930000567	glaciar  limonada 750ml	Almacen	glaciar  	1300.00	66.40	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	91	21.00	1	t	f	f
 7790206515363	HUEVO JACK	Dulce	JACK	150.00	124.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	92	21.00	1	t	f	f
 5000189	pategras maffia	fiambreria	fiambreria	23.00	16.79	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	93	21.00	1	t	f	f
@@ -6232,7 +6425,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790748235347	FILETES  DE ANCHOAITAS	Almacen	PUGLISI	25.00	20.75	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	101	21.00	1	t	f	f
 7791290795471	cif 400 ml superdi	Limpieza	cif	3000.00	2490.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	102	21.00	1	t	f	f
 7798148380568	Mani pelado 	Almacen	JL	1000.00	249.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	104	21.00	1	t	f	f
-7790070621290	la salteña ravioles jamon queso	Almacen	la salteña	2700.00	2241.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	105	21.00	1	t	f	f
+7790070621290	la salteÃ±a ravioles jamon queso	Almacen	la salteÃ±a	2700.00	2241.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	105	21.00	1	t	f	f
 7790580138851	Pure 530 g	Pure	Noel	1000.00	830.00	20	33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	106	21.00	1	t	f	f
 7791290787537	vim lavandina con gel floral 300	Limpieza	VIM	240.00	199.20	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	107	21.00	1	t	f	f
 7790040143821	Cofler obleas choc 87 g 	golosina	cofler	800.00	584.00	30	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	108	21.00	1	t	f	f
@@ -6257,7 +6450,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790580660000	Polenta inst.1min x500g	Polenta	Presto pronta	1300.00	124.10	30	-22	33065	6600	1168	2.13	2.45	3.15	1	Arcor	0	2010-05-19 00:00:00	S	0	\N	1	0	131	21.00	1	t	f	f
 7622201705169	Postre Royalino chocolate x65g	Flan	Royal	1000.00	255.50	30	-3	3963420	1	15617	11.97	13.77	1.25	6	Nini	0	\N	S	0	\N	1	0	132	21.00	1	t	f	f
 7791337009400	Activia ciru 900 	Lacteos	Activia	5800.00	3071.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	134	21.00	1	t	f	f
-7790070621276	la salteñia  ravioles de pollo y berdura	Almacen	la salteñia 	1000.00	464.80	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	135	21.00	1	t	f	f
+7790070621276	la salteÃ±ia  ravioles de pollo y berdura	Almacen	la salteÃ±ia 	1000.00	464.80	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	135	21.00	1	t	f	f
 7790310986813	lays provoleta 77 g 	Gaseosa	lays	3000.00	2075.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	136	21.00	1	t	f	f
 7798094340555	Mentitas Frutal x25g	Golosina	LaCasa	400.00	318.00	50	-2	1	1	1	1.00	1.10	0.29	1	1	0	\N	S	0	\N	1	0	139	21.00	1	t	f	f
 7791293031934	Jabon Cool Breeze x 125g	javon tocador	Rexona	80.00	58.40	30	1	3991148	0131188	7221	1.40	1.61	1.53	1	1	0	2009-04-29 00:00:00	S	0	\N	1	0	140	21.00	1	t	f	f
@@ -6295,7 +6488,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790990001387	suave bambu  zoro 400ml	Limpieza	zoro 	350.00	255.50	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	182	21.00	1	t	f	f
 7798106150011	pure de tomate 520	Almacen	mora	800.00	74.70	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	183	21.00	1	t	f	f
 7790206509805	tivis cubanito relleno	Dulce	fel fort	1200.00	58.10	20	-43	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	184	21.00	1	t	f	f
-7794564000202	Tallarines Morron N°2	Fideos	Badaloni	600.00	438.00	30	8	210064	1	1	2.66	3.05	2.57	1	Nini	0	2009-09-29 00:00:00	S	0	\N	1	0	186	21.00	1	t	f	f
+7794564000202	Tallarines Morron NÂ°2	Fideos	Badaloni	600.00	438.00	30	8	210064	1	1	2.66	3.05	2.57	1	Nini	0	2009-09-29 00:00:00	S	0	\N	1	0	186	21.00	1	t	f	f
 7791337965713	Yogurisimo CremixVainilla	Lacteos	la serenisima	40.00	33.20	20	73	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	187	21.00	1	t	f	f
 7791130004503	limp. pino 900ml 3-1	Desodorante piso	Procenex	15.00	10.95	30	-7	3837785	1	6717	1.94	2.23	2.60	1	1	0	2009-06-13 00:00:00	S	\N	\N	1	0	188	21.00	1	t	f	f
 7793253004231	Aeros. bosq/bambu x360	Aerosol	Poett	3200.00	233.60	30	-1	3867030	0129945	1	4.35	5.00	6.34	1	1	0	2010-09-03 00:00:00	S	0	\N	1	0	189	21.00	1	t	f	f
@@ -6305,7 +6498,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 807	Queso barra	Fiambreria	Punta de agua	22.82	16.30	40	0	1	1	1	16.30	18.75	13.99	1	Rama	0	2009-11-05 00:00:00	N	\N	\N	1	0	194	21.00	1	t	f	f
 808	Panceta ahumada	Fiambreria	214	27.00	19.30	40	0	1	1	1	19.30	21.23	19.30	1	Rama	0	\N	N	\N	\N	1	0	195	21.00	1	t	f	f
 809	Cremoso	Fiambreria	Punta de agua	15.40	10.99	40	0	1	1	1	10.99	12.09	10.99	1	Rama	0	\N	N	\N	\N	1	0	196	21.00	1	t	f	f
-7790040136083	sésamo	Almacen	hogareñas	1000.00	830.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	197	21.00	1	t	f	f
+7790040136083	sÃ©samo	Almacen	hogareÃ±as	1000.00	830.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	197	21.00	1	t	f	f
 7798113301031	fernandito chico	Vinos	fernandito	17.00	14.11	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	198	21.00	1	t	f	f
 7797453971850	pedigree rodeo carne	Almacen	pedrigree	30.00	24.90	20	-76	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	200	21.00	1	t	f	f
 7798186032993	D.R.F. pastilla menta	Almacen	D.R.F	100.00	24.90	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	201	21.00	1	t	f	f
@@ -6348,7 +6541,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792410008006	Cusenier Dce/leche 700c.c	Licores	Cusenier	6000.00	438.00	30	6	1	1	1	9.03	10.38	10.45	1	1	0	2010-04-24 00:00:00	S	0	\N	1	0	249	21.00	1	t	f	f
 7790064001046	oleo calcareo 500ml	Almacen	estrella	20.00	16.60	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	250	21.00	1	t	f	f
 736684226671	guardian 2k	Prod.Altos	guardian	1100.00	1023.00	10	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	530	21.00	1	t	f	f
-7791670026591	Champaña. Brut 750ml	Licores	Federico de Alvear	500.00	365.00	30	0	1	1	702	11.49	13.22	8.72	1	1	0	2008-11-21 00:00:00	S	0	\N	1	0	251	21.00	1	t	f	f
+7791670026591	ChampaÃ±a. Brut 750ml	Licores	Federico de Alvear	500.00	365.00	30	0	1	1	702	11.49	13.22	8.72	1	1	0	2008-11-21 00:00:00	S	0	\N	1	0	251	21.00	1	t	f	f
 7790070035400	Lucchetti med pollo 280 g 	congelados	Lucchetti	700.00	511.00	30	-2	2412420	0101156	1270	3.74	4.30	3.93	1	1	0	2010-08-24 00:00:00	S	0	\N	1	0	252	21.00	1	t	f	f
 7791672000827	yayita con pepitas	Almacen	fantoche	1500.00	315.40	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	253	21.00	1	t	f	f
 7790950004724	Amargo. serrano 1.5lt	Aperitivo	Monferrato	50.00	36.50	30	2	2626446	0116165	2908	3.10	3.57	3.10	1	1	0	2010-09-21 00:00:00	S	0	\N	1	0	254	21.00	1	t	f	f
@@ -6367,7 +6560,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790036020204	Edulcorante 250 ml	edulcorante	Si diet	1700.00	131.40	30	-4	2675463	1	2255	2.87	3.30	2.87	1	1	0	2010-09-03 00:00:00	S	0	\N	1	0	267	21.00	1	t	f	f
 7798064780183	pan de mesa x 500 g 	Panaderia	Tio guis	2100.00	1494.00	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	268	21.00	1	t	f	f
 7792684001628	solitas legendarias choco 500	Galletitas	Solitas	2000.00	1095.00	30	-2	10871	1	1	23.10	26.57	1.74	12	Michael	0	\N	S	0	\N	1	0	270	21.00	1	t	f	f
-7791070000764	La campanita BOX PAÑUELO	Almacen	La campanita	35.00	25.55	30	-124	767859	1	1	2.96	3.25	4.15	1	Nini	0	2010-05-24 00:00:00	S	0	\N	1	0	272	21.00	1	t	f	f
+7791070000764	La campanita BOX PAÃ‘UELO	Almacen	La campanita	35.00	25.55	30	-124	767859	1	1	2.96	3.25	4.15	1	Nini	0	2010-05-24 00:00:00	S	0	\N	1	0	272	21.00	1	t	f	f
 7791070002102	campanita Soft 30 m x6	Higienico	La campanita	2200.00	94.90	30	97	2130637	1	1	3.14	3.61	3.14	1	Nini	0	\N	S	0	\N	1	0	273	21.00	1	t	f	f
 7791250003295	Suter extra brut  750 ml	Vinos	Suter	7500.00	3650.00	30	2	3427412	1	1	4.71	5.42	4.15	1	Nini	0	2009-07-25 00:00:00	S	0	\N	1	0	279	21.00	1	t	f	f
 7793147570316	imperial ipa 330 	Almacen	imperial	50.00	41.50	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	280	21.00	1	t	f	f
@@ -6399,7 +6592,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790895648854	benedictino c/g 2.25	Aguas	benedictino	1500.00	788.50	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	310	21.00	1	t	f	f
 731199047315	Pan de papa Queso	Almacen	Boogies	2600.00	1909.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	311	21.00	1	t	f	f
 731199047292	Pan de papa Clasico	Almacen	Boogies	2400.00	1992.00	20	-38	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	312	21.00	1	t	f	f
-731199047308	Pan de papa Sésamo	Almacen	Boogies	2500.00	1743.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	313	21.00	1	t	f	f
+731199047308	Pan de papa SÃ©samo	Almacen	Boogies	2500.00	1743.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	313	21.00	1	t	f	f
 7790903001367	Pan chico  330g	Panificados	La perla 	2600.00	2158.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	314	21.00	1	t	f	f
 7790520996985	lysoform orig 420 cm	Limpieza	lysoform	999.99	829.99	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	315	21.00	1	t	f	f
 7790250016182	fresh 30 mts 	Limpieza	higienol	1400.00	664.00	20	-75	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	316	21.00	1	t	f	f
@@ -6530,7 +6723,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7794671206054	liss m.uso 200 p	Limpieza	liss	600.00	498.00	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	441	21.00	1	t	f	f
 7791854000065	family gran 60 mt	Limpieza	family	200.00	141.10	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	442	21.00	1	t	f	f
 0790457894662	vrienden gin rose	Vinos	vrienden 	3500.00	2905.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	443	21.00	1	t	f	f
-7790070621849	La Salteña rav ric 450 g 	Almacen	La Salteña	3000.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	444	21.00	1	t	f	f
+7790070621849	La SalteÃ±a rav ric 450 g 	Almacen	La SalteÃ±a	3000.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	444	21.00	1	t	f	f
 7794820902813	Milkaut dur.yog.ce.150g	Lacteos	milkaut	1500.00	332.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	445	21.00	1	t	f	f
 7794820902097	Milkaut fru.yog.ce.190g	Lacteos	milkault	850.00	581.00	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	446	21.00	1	t	f	f
 7794820902103	Milkaut vai.yog.ce.190g	Lacteos	milkaut	1200.00	415.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	447	21.00	1	t	f	f
@@ -6589,7 +6782,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790742331304	Lech polvo 800	Lacteos	armonia	7500.00	2241.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	500	21.00	1	t	f	f
 7500435206464	h&s sham 180 ml	Perfumeria	h&s 	4000.00	3744.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	501	21.00	1	t	f	f
 7791337008656	danonino vainilla 80 g	Yogures	danonino	1300.00	1245.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	502	21.00	1	t	f	f
-7798350081253	Duffy xxg 17 pañ	Perfumeria	Duffy	6700.00	5226.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	503	21.00	1	t	f	f
+7798350081253	Duffy xxg 17 paÃ±	Perfumeria	Duffy	6700.00	5226.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	503	21.00	1	t	f	f
 7790380002826	FLIP PAF	Gaseosa	FLIMPAF	200.00	166.00	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	504	21.00	1	t	f	f
 7790391005205	CARTAS	Gaseosa	CARTAS	200.00	166.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	505	21.00	1	t	f	f
 7790770601097	calipso  toallita verde	Gaseosa	calipso 	200.00	166.00	20	-43	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	506	21.00	1	t	f	f
@@ -6597,7 +6790,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790770600540	nosotras p.diarios multiestilo 20 inid	Perfumeria	nosotras 	130.00	101.40	25	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	508	21.00	1	t	f	f
 7790310002735	 lays ketchups 85	Gaseosa	lays	1150.00	664.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	509	21.00	1	t	f	f
 7793147572587	salta cautiva blend ipa litro 	cerveza	salta 	390.00	284.70	30	-51	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	510	21.00	1	t	f	f
-7792180137258	Cañuela int pur 1 k 	Almacen	Cañuela	1700.00	332.00	20	21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	511	21.00	1	t	f	f
+7792180137258	CaÃ±uela int pur 1 k 	Almacen	CaÃ±uela	1700.00	332.00	20	21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	511	21.00	1	t	f	f
 7798161722192	organico ju manz 330	Jugos	las brisas	900.00	747.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	512	21.00	1	t	f	f
 7798161722116	organico manz jug 330	Jugos	las brisas	900.00	747.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	513	21.00	1	t	f	f
 7798161722147	organico fruti jug 330 	Jugos	las brisas	900.00	747.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	514	21.00	1	t	f	f
@@ -6641,7 +6834,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7794297110018	yesi vasos p`lasticos	Prod.Altos	yesi	17.00	15.81	10	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	563	21.00	1	t	f	f
 7798334584619	guiso lenteja 400 g 	Almacen	mole	2500.00	2075.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	564	21.00	1	t	f	f
 7798021691064	ravioles ricota	Almacen	via vespucci	16.00	13.28	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	565	21.00	1	t	f	f
-7798021690272	ñoquis	Almacen	via vespucci	16.00	13.28	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	566	21.00	1	t	f	f
+7798021690272	Ã±oquis	Almacen	via vespucci	16.00	13.28	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	566	21.00	1	t	f	f
 7790010989060	baby la vanda y manzanilla	Perfumeria	gohnsons	14.00	10.92	25	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	567	21.00	1	t	f	f
 7613287236456	pure de papas 180g	Almacen	maggi	120.00	99.60	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	568	21.00	1	t	f	f
 7791293041247	fijador definicion y control lord cheseline	Perfumeria	suave	18.50	14.43	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	569	21.00	1	t	f	f
@@ -6725,7 +6918,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793404203087	Torta helada frutilla 800g	helados	Los alpes	36.00	27.90	30	1	1	1	1	27.90	30.69	27.90	1	mc cream	1	2008-12-22 00:00:00	S	\N	\N	1	0	664	21.00	1	t	f	f
 7791957000030	lomas pionono dulces 	Galletitas	el tetu	37.00	27.01	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	665	21.00	1	t	f	f
 7791813777021	7 up 354 lata	Gaseosa	7 up	1300.00	996.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	666	21.00	1	t	f	f
-7790704070357	suter champaña extra dulce	Vinos	suter	650.00	146.00	30	0	4774	1	1	4.97	5.47	4.97	1	1	1	2009-05-04 00:00:00	S	0	\N	1	0	667	21.00	1	t	f	f
+7790704070357	suter champaÃ±a extra dulce	Vinos	suter	650.00	146.00	30	0	4774	1	1	4.97	5.47	4.97	1	1	1	2009-05-04 00:00:00	S	0	\N	1	0	667	21.00	1	t	f	f
 7798092968768	sopapa negra plastico	Limpieza	make	2500.00	415.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	668	21.00	1	t	f	f
 7790773009593	lince palillero	Prod.Altos	lince	500.00	465.00	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	670	21.00	1	t	f	f
 7798048730265	edra mini merida chocolate	Galletitas	edra	12.00	8.76	30	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	671	21.00	1	t	f	f
@@ -6744,16 +6937,16 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000193	REGGIANO	Gaseosa	FIAMBRERIA	90.75	830.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	687	21.00	1	t	f	f
 7798066080878	sol & frutas 5 frutas 	Jugos	sol & frutas	85.00	70.55	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	688	21.00	1	t	f	f
 7790080043174	Leche entera en polvo 800g	leche en polvo	Sancor	39.00	32.37	20	-2	4317	1	1	12.87	14.16	13.13	1	Sancor	1	2009-10-29 00:00:00	S	0	\N	1	0	689	21.00	1	t	f	f
-7798176009752	bebe de 1 a 3 años 800g	leche en polvo	sancor	10500.00	5395.00	20	-3	5344	1	1	17.79	20.46	19.20	1	Sancor	1	2010-02-09 00:00:00	S	0	\N	1	0	690	21.00	1	t	f	f
+7798176009752	bebe de 1 a 3 aÃ±os 800g	leche en polvo	sancor	10500.00	5395.00	20	-3	5344	1	1	17.79	20.46	19.20	1	Sancor	1	2010-02-09 00:00:00	S	0	\N	1	0	690	21.00	1	t	f	f
 7790260013256	Licor limoncello x700ml	Licor	Tre Plumas	12.74	9.80	30	0	1	1	1	8.91	9.80	8.91	1	1	1	2009-01-12 00:00:00	S	\N	\N	1	0	691	21.00	1	t	f	f
-7791130081689	espadol gatillo baño	Limpieza	espadol	120.00	99.60	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	692	21.00	1	t	f	f
+7791130081689	espadol gatillo baÃ±o	Limpieza	espadol	120.00	99.60	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	692	21.00	1	t	f	f
 7891035051081	Vanish poder o2 420g	Limpieza	vanish	35.00	25.55	30	9	1	0124157	1	5.92	6.51	5.92	1	vital 	1	2009-01-13 00:00:00	S	0	\N	1	0	693	21.00	1	t	f	f
 7790520993045	Limp. p/p/plastif 800ml	Limpieza	blem	4500.00	3285.00	30	0	3764400	0116369	1	5.68	6.25	6.78	1	vital	1	2010-07-02 00:00:00	S	0	\N	1	0	695	21.00	1	t	f	f
 7791290785335	cif limp.vidrio 500ml	Limpieza	cif	30.00	21.90	30	-13	1	0104202	1	4.35	4.79	4.35	1	vital	1	2009-01-13 00:00:00	S	0	\N	1	0	696	21.00	1	t	f	f
 7798333920319	malu ham comun	Almacen	malu	2000.00	1245.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	697	21.00	1	t	f	f
 7793360986307	jardinera con  choclo	Almacen	la campagnola	190.00	157.70	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	698	21.00	1	t	f	f
 7798151770325	tremblay por salud lig 190	Lacteos	tremblay	1600.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	700	21.00	1	t	f	f
-7791290792401	cif gatillo  baño x500	Limpieza	Cif	450.00	328.50	30	0	1	1	1	6.71	7.38	6.71	1	nini	1	2009-01-14 00:00:00	S	0	\N	1	0	701	21.00	1	t	f	f
+7791290792401	cif gatillo  baÃ±o x500	Limpieza	Cif	450.00	328.50	30	0	1	1	1	6.71	7.38	6.71	1	nini	1	2009-01-14 00:00:00	S	0	\N	1	0	701	21.00	1	t	f	f
 7798187212257	Nachos con sal 82gr	Snacks	QUENTO	2200.00	1460.00	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	702	21.00	1	t	f	f
 7798067780104	Gaseosa  cimes 2.25	Gaseosa	Cimes	65.00	47.45	30	-33	1	1	1	1.55	1.78	1.58	1	1	1	2009-12-05 00:00:00	S	0	\N	1	0	703	21.00	1	t	f	f
 7796854000237	pascualina hojaldre	pascualina\r\n	romero	1200.00	94.90	30	4	9086	1	1	3.05	3.51	3.03	1	sancor	1	2009-08-08 00:00:00	S	0	\N	1	0	704	21.00	1	t	f	f
@@ -6764,7 +6957,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791813000433	7up lata 	Gaseosa	7up	600.00	498.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	711	21.00	1	t	f	f
 7798092966054	make colador plastico	Limpieza	make	250.00	207.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	712	21.00	1	t	f	f
 7791708001408	veneziana grisines zigrinato 	Almacen	veneziana	48.00	39.84	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	713	21.00	1	t	f	f
-7794417006207	Escobin/baño c/resipiente	limpieza	Siña	15.00	10.95	30	-20	1	1	1	6.50	7.48	6.00	1	1	1	2010-09-21 00:00:00	S	\N	\N	1	0	714	21.00	1	t	f	f
+7794417006207	Escobin/baÃ±o c/resipiente	limpieza	SiÃ±a	15.00	10.95	30	-20	1	1	1	6.50	7.48	6.00	1	1	1	2010-09-21 00:00:00	S	\N	\N	1	0	714	21.00	1	t	f	f
 7790580138547	Topline mentol	Golosina	Topline	700.00	371.00	50	16	1	1	1	0.50	0.55	0.50	1	1	1	2009-01-12 00:00:00	S	0	\N	1	0	716	21.00	1	t	f	f
 7798144510358	salsas pomarola 	Vinos	inca	20.00	14.60	30	0	1840980	1	1	5.81	6.68	5.80	1	nini	1	2009-07-27 00:00:00	S	0	\N	1	0	717	21.00	1	t	f	f
 7798312320284	manteca 200	Lacteos	santa clara	3200.00	2656.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	719	21.00	1	t	f	f
@@ -6918,7 +7111,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790236018179	don celedonio	Gaseosa	don seledonio	26.00	21.58	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	897	21.00	1	t	f	f
 7790236018247	ravioles	Gaseosa	don celedonio	45.00	37.35	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	898	21.00	1	t	f	f
 7798260050233	coco neutro 180 ml 	Almacen	chia grall	4700.00	3486.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	899	21.00	1	t	f	f
-7790236018117	la salteña ravioles 	Almacen	la salteña	170.00	141.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	900	21.00	1	t	f	f
+7790236018117	la salteÃ±a ravioles 	Almacen	la salteÃ±a	170.00	141.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	900	21.00	1	t	f	f
 7797154000835	mask helado carita 	Gaseosa	new crem	25.00	20.75	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	901	21.00	1	t	f	f
 7798023696098	s&p vinagre de alcohol	Almacen	s&p	32.00	26.56	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	902	21.00	1	t	f	f
 7798023696067	s&p vinagre de alcohol 500	Almacen	s&p	40.00	33.20	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	903	21.00	1	t	f	f
@@ -7001,7 +7194,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791664000873	Ravioles J Y Muzza 1kg	pastas	La Italiana	4700.00	897.90	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	985	21.00	1	t	f	f
 7791664000163	tallarine al huevo	Licores	la italiana	2800.00	197.10	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	986	21.00	1	t	f	f
 7791664000248	la italiana noquis de papa 	Licores	la italiana	3500.00	2482.00	30	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	987	21.00	1	t	f	f
-7791664000453	Ñoquis de papa 500gr	Pastas	La Italiana	2500.00	1314.00	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	988	21.00	1	t	f	f
+7791664000453	Ã‘oquis de papa 500gr	Pastas	La Italiana	2500.00	1314.00	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	988	21.00	1	t	f	f
 7791664000644	pollo y verdura la italiana	pastas	la italiana	2700.00	747.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	989	21.00	1	t	f	f
 7791664000156	carne y verdura la italiana	Lacteos	la italiana	2700.00	423.30	20	-41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	990	10.50	1	t	f	f
 7793147573515	isenbeck lata x 473	Almacen	isenbeck	1500.00	1245.00	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	991	21.00	1	t	f	f
@@ -7014,7 +7207,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790070321435	favorita DEDALITO	Almacen	FAVORITA	1000.00	62.25	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	998	21.00	1	t	f	f
 7790070321442	cabello de angel	Almacen	favorita	12.00	9.96	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	999	21.00	1	t	f	f
 7622300724306	miniciones	Almacen	terrabusi	120.00	99.60	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1000	21.00	1	t	f	f
-7790202001280	cañuela de marisco	Almacen	mellino	55.00	45.65	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1001	21.00	1	t	f	f
+7790202001280	caÃ±uela de marisco	Almacen	mellino	55.00	45.65	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1001	21.00	1	t	f	f
 7798092964043	esponja  make	Almacen	make	500.00	49.80	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1002	21.00	1	t	f	f
 7798187211311	quento papas clasicas 100 g	snacks	quento	2000.00	1079.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1003	21.00	1	t	f	f
 7790310981610	chetos   94 g g	Gaseosa	chetos	160.00	132.80	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1004	21.00	1	t	f	f
@@ -7154,7 +7347,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798031154450	fideos spaghetti cica	fideos	cica	70.00	58.10	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1140	21.00	1	t	f	f
 7790250015536	papel higenico plus 4 x 30 m	Limpieza	higienol	2700.00	1826.00	20	-45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1141	21.00	1	t	f	f
 7790250014911	papel higienico plus 30mts	Limpieza	higienol	130.00	107.90	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1142	21.00	1	t	f	f
-7790070318350	lucchetti moños 500g 	Almacen	lucchetti	2200.00	52.29	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1143	21.00	1	t	f	f
+7790070318350	lucchetti moÃ±os 500g 	Almacen	lucchetti	2200.00	52.29	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1143	21.00	1	t	f	f
 4006584664825	luz blanca de dia 	Almacen	la buena luz	50.00	41.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1144	21.00	1	t	f	f
 7790360000132	swift salchi x6 uni	Almacen	swift	2000.00	249.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1145	21.00	1	t	f	f
 7791337005020	danonino handball botellita	Lacteos	danonino	2200.00	498.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1146	21.00	1	t	f	f
@@ -7233,9 +7426,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790606000391	PAN LACTAL	Almacen	NOLY	50.00	41.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1219	21.00	1	t	f	f
 7790606000414	PAN SALVADO ligth	Almacen	NOLY	37.00	30.71	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1220	21.00	1	t	f	f
 7793102305588	HAMBURGURSAS	Almacen	LE TETU	18.00	14.94	20	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1221	21.00	1	t	f	f
-7790070621887	ricotta mozzarella danbo parmesano	Almacen	la salteña 	1000.00	830.00	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1223	21.00	1	t	f	f
-7790070622020	Tapa criolla 330gr	Almacen	La Salteña	1500.00	1245.00	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1224	21.00	1	t	f	f
-7790236001478	MINI RAVIOLITOS	Almacen	LA  SALTEÑA	120.00	99.60	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1225	21.00	1	t	f	f
+7790070621887	ricotta mozzarella danbo parmesano	Almacen	la salteÃ±a 	1000.00	830.00	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1223	21.00	1	t	f	f
+7790070622020	Tapa criolla 330gr	Almacen	La SalteÃ±a	1500.00	1245.00	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1224	21.00	1	t	f	f
+7790236001478	MINI RAVIOLITOS	Almacen	LA  SALTEÃ‘A	120.00	99.60	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1225	21.00	1	t	f	f
 7791957000528	PIONONO	Almacen	PIONONO	25.00	20.75	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1227	21.00	1	t	f	f
 7790310006306	LAYS	Almacen	LASY	30.00	24.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1228	21.00	1	t	f	f
 7790080026764	tholem tentacion salame de milan	Lacteos	sancor	2000.00	415.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1229	21.00	1	t	f	f
@@ -7250,12 +7443,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790315100184	levite manz cero 500	Jugos	levite	600.00	415.00	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1238	21.00	1	t	f	f
 7792316000265	la victoria anana fizz	Licores	la victoria	17000.00	1022.00	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1239	21.00	1	t	f	f
 7798092965392	HERVIDO N 14 	Limpieza	MAKE	3300.00	996.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1242	21.00	1	t	f	f
-7798092963534	paño multiuso	Limpieza	make	25.00	20.75	20	-12				1.45	1.60	1.45	1		1	2011-12-14 00:00:00	S	\N	\N	1	0	1244	21.00	1	t	f	f
+7798092963534	paÃ±o multiuso	Limpieza	make	25.00	20.75	20	-12				1.45	1.60	1.45	1		1	2011-12-14 00:00:00	S	\N	\N	1	0	1244	21.00	1	t	f	f
 4050300815213	osram 11 w lampara bajo cons	Limpieza	osram	12.00	9.96	20	2	1	1	1	8.30	9.13	8.30	1	1	1	2011-12-14 00:00:00	S	\N	\N	1	0	1245	21.00	1	t	f	f
 7792180006776	mama cocina noquis calabaza 400g	Almacen	mama cocina	55.00	45.65	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1246	21.00	1	t	f	f
 7790670001669	icb salchichas de 6 unid	salchicha	icb	1300.00	174.30	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1247	21.00	1	t	f	f
 7798060852044	cotampo manteca x 200 g	Lacteos	cotampo	130.00	107.90	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1248	21.00	1	t	f	f
-7793806000628	la santiagueña capelettti 	Almacen	la santiagueña	12.50	10.38	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1250	21.00	1	t	f	f
+7793806000628	la santiagueÃ±a capelettti 	Almacen	la santiagueÃ±a	12.50	10.38	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1250	21.00	1	t	f	f
 7791290004542	detergente cif 375 	Limpieza	cif	16.00	13.28	20	-10	1	1	1	11.00	12.10	11.00	1	1	1	2011-12-16 00:00:00	S	\N	\N	1	0	1251	21.00	1	t	f	f
 7791293033235	dovedove men + core	Perfumeria	dove 	180.00	140.40	25	-47				12.00	13.20	11.00	1		1	2011-12-01 00:00:00	S	\N	\N	1	0	1253	21.00	1	t	f	f
 75024956	rexona men amarillo	Perfumeria	rexona	650.00	124.80	25	-7				17.00	18.70	17.00	1		1	2011-12-01 00:00:00	S	0	\N	1	0	1254	21.00	1	t	f	f
@@ -7361,7 +7554,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798321151398	sublime creme	Lacteos	sancor	1000.00	107.90	20	-7	6281	1	1	3.75	4.31	2.91	1	1	1	2012-06-25 00:00:00	S	0	\N	1	0	1371	21.00	1	t	f	f
 7790387015515	la merced yerba d monte 500g	yerbas	la merced	450.00	328.50	30	0	1	1	1	7.80	8.58	7.80	1	1	1	2011-02-28 00:00:00	S	0	\N	1	0	1372	21.00	1	t	f	f
 7798113300508	F-nandito VII	Gaseosa	Manaos	1200.00	830.00	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1373	21.00	1	t	f	f
-7798134193721	Petakon Cafe al coñac	Licores	Manaos	1200.00	876.00	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1374	21.00	1	t	f	f
+7798134193721	Petakon Cafe al coÃ±ac	Licores	Manaos	1200.00	876.00	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1374	21.00	1	t	f	f
 7798080660612	budin de chocolate	Almacen	saccan	100.00	83.00	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	\N	\N	\N	1	0	1375	21.00	1	t	f	f
 7790070320841	 integaal  tirabuzon 	Almacen	motarazzo	1800.00	1328.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1376	21.00	1	t	f	f
 7790990586976	limol jabon x 3 x 90 	Perfumeria	limol	20.00	15.60	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1377	21.00	1	t	f	f
@@ -7407,7 +7600,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7500435178907	always noct 4 x 8 toalla 	Toallitas	Always	850.00	328.50	30	0	1	1	1	4.85	5.34	4.85	1	ninio	1	2010-10-30 00:00:00	S	0	\N	1	0	1424	21.00	1	t	f	f
 7798092050166	sarava 200 mini palmera	Galletitas	sarava	1400.00	131.40	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1425	21.00	1	t	f	f
 7795933101285	sardina en aceite y agua	Almacen	bahia	38.00	31.54	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1426	21.00	1	t	f	f
-7793440700014	Santa isabel borgoña 700ml	vinos	Santa isabel	14.00	10.22	30	-27	96571			8.60	9.46	8.60	1	nini	1	2010-07-22 00:00:00	S	\N	\N	1	0	1427	21.00	1	t	f	f
+7793440700014	Santa isabel borgoÃ±a 700ml	vinos	Santa isabel	14.00	10.22	30	-27	96571			8.60	9.46	8.60	1	nini	1	2010-07-22 00:00:00	S	\N	\N	1	0	1427	21.00	1	t	f	f
 7791520009699	veritas hombre maxima  pretecion120g	Perfumeria	veritas	36.00	24.90	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1428	21.00	1	t	f	f
 7794710004023	veronica manteca x 200 g	Lacteos	veronica	145.00	120.35	20	-8	1	1	1	5.64	6.20	5.64	1	1	1	2011-12-03 00:00:00	S	\N	\N	1	0	1429	21.00	1	t	f	f
 7500435191418	pantene clasico sham 200	Perfumeria	pantene	3600.00	2808.00	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1430	21.00	1	t	f	f
@@ -7427,9 +7620,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791905000020	lavandina  1lt clasica	Lavandina	querubin	17.00	12.41	30	0	2682931	1	1	1.20	1.38	1.20	1	nini	1	2010-04-13 00:00:00	S	\N	\N	1	0	1447	21.00	1	t	f	f
 7798132920459	alco coctail  x825g	Duraznos	Alco	280.00	204.40	30	2	3450	1	1	3.97	4.37	3.97	1	1	1	2009-04-15 00:00:00	S	\N	\N	1	0	1450	21.00	1	t	f	f
 7791130683753	Limp.orig aniv. x900	desodorantes	Procenex	2700.00	146.00	30	-24	4188390	1	1	2.70	3.11	2.90	1	1	1	2011-06-30 00:00:00	S	0	\N	1	0	1452	21.00	1	t	f	f
-7500435133326	pañ active baby g	pañal	pampers	300.00	219.00	30	-2	1	1	3656	12.28	14.12	12.28	1	maxi	1	2009-09-30 00:00:00	S	\N	\N	1	0	1457	21.00	1	t	f	f
-7500435188975	pampers confort sec xg x 8	pañal	pampers 	750.00	328.50	30	-5	1	1	3657	12.28	14.12	12.28	1	maxi	1	2009-09-30 00:00:00	S	0	\N	1	0	1458	21.00	1	t	f	f
-7500435228657	Pam Babysan (XxG) x8	pañal	pampers 	4000.00	584.00	30	-5	4394704	0114449	7835	5.96	6.56	6.80	1	maxi	1	2010-10-04 00:00:00	S	0	\N	1	0	1459	21.00	1	t	f	f
+7500435133326	paÃ± active baby g	paÃ±al	pampers	300.00	219.00	30	-2	1	1	3656	12.28	14.12	12.28	1	maxi	1	2009-09-30 00:00:00	S	\N	\N	1	0	1457	21.00	1	t	f	f
+7500435188975	pampers confort sec xg x 8	paÃ±al	pampers 	750.00	328.50	30	-5	1	1	3657	12.28	14.12	12.28	1	maxi	1	2009-09-30 00:00:00	S	0	\N	1	0	1458	21.00	1	t	f	f
+7500435228657	Pam Babysan (XxG) x8	paÃ±al	pampers 	4000.00	584.00	30	-5	4394704	0114449	7835	5.96	6.56	6.80	1	maxi	1	2010-10-04 00:00:00	S	0	\N	1	0	1459	21.00	1	t	f	f
 7790895645785	smart water 1.50	Aguas	smart water	2000.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1460	21.00	1	t	f	f
 7790742770103	la ser crem batir clas  200	Lacteos	la serenisima	2300.00	381.80	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1461	21.00	1	t	f	f
 7790080014693	sancor Que rall x100g	queso rallado	Sancor	3700.00	3071.00	20	-10	1409	1	1	5.80	6.67	7.54	1	Sancor	1	2010-05-22 00:00:00	S	0	\N	1	0	1462	21.00	1	t	f	f
@@ -7437,9 +7630,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791376000994	gold mundo limon 250	Almacen	gold mundo	13.00	10.79	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1464	21.00	1	t	f	f
 7790040991606	tostadas clasicas 200g	bagley	 criollitas	65.00	47.45	30	1	1	1	1	14.00	15.40	14.00	1	bagley	1	2014-05-13 00:00:00	S	\N	\N	1	0	1465	21.00	1	t	f	f
 7791293045108	rexona des xtracoll	Perfumeria	rexona	1000.00	312.00	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1466	21.00	1	t	f	f
-7793806000116	la santiagueña salvado600	Almacen	la santiagueña	160.00	132.80	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1467	21.00	1	t	f	f
+7793806000116	la santiagueÃ±a salvado600	Almacen	la santiagueÃ±a	160.00	132.80	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1467	21.00	1	t	f	f
 77971708	opera x3 bon o bon	Galletitas	opera	320.00	73.00	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1468	21.00	1	t	f	f
-7791905004417	odex gat baño 500 m	Limpieza	odex	2500.00	372.30	30	-2	1	1	1	2.46	2.83	2.02	1	1	1	2010-09-25 00:00:00	S	0	\N	1	0	1469	21.00	1	t	f	f
+7791905004417	odex gat baÃ±o 500 m	Limpieza	odex	2500.00	372.30	30	-2	1	1	1	2.46	2.83	2.02	1	1	1	2010-09-25 00:00:00	S	0	\N	1	0	1469	21.00	1	t	f	f
 7798182437730	Okey encend caja x 25	Cacao	Okey	2600.00	1898.00	30	6	135909	1	662	1.20	1.32	1.30	1	maxi	0	2010-04-21 00:00:00	S	0	\N	1	0	1472	21.00	1	t	f	f
 7798136300387	elementos dulce natural torrontes 750	Vinos	elementos	350.00	290.50	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1473	21.00	1	t	f	f
 7613034790194	frigor hel almendra	Almacen	frigor	1000.00	780.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1475	21.00	1	t	f	f
@@ -7489,7 +7682,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790480000081	yerba la tranquera suave 500g	mate cocido	la tranquera	90.00	74.70	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1532	21.00	1	t	f	f
 7793253098711	poett perfum.ropa.sue.alg.250g	desodorantes	poet	18.50	13.51	30	-6	1	0134336	1	8.50	9.78	3.00	1	1	1	2010-08-04 00:00:00	S	\N	\N	1	0	1533	21.00	1	t	f	f
 7793825001699	la catedra blanco dulce	Vinos	la catedra	48.00	39.84	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1534	21.00	1	t	f	f
-7500435228619	Pam babysan G 9 uni 	PAÑAL	PAMPERS	3700.00	620.50	30	-2	4396839	1	7834	5.69	6.54	6.61	1	nini	1	2010-10-04 00:00:00	S	0	\N	1	0	1535	21.00	1	t	f	f
+7500435228619	Pam babysan G 9 uni 	PAÃ‘AL	PAMPERS	3700.00	620.50	30	-2	4396839	1	7834	5.69	6.54	6.61	1	nini	1	2010-10-04 00:00:00	S	0	\N	1	0	1535	21.00	1	t	f	f
 7792222041307	huevo disney 90 g	pscua	bonafide	15.00	9.00	60	1	1	1	1	9.00	9.90	9.00	1	felino	1	2009-04-02 00:00:00	S	\N	\N	1	0	1537	21.00	1	t	f	f
 7790139003173	casalta vinag alc 1 l 	adereso	casalta	1200.00	730.00	30	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1538	21.00	1	t	f	f
 7791130683661	procenex merine	Limpieza	procenex	1600.00	124.50	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1539	21.00	1	t	f	f
@@ -7506,7 +7699,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7891000291900	dolca espresso capupuccino	Almacen	dolca 	13000.00	1679.00	30	-3	4158814	1	1	2.80	3.22	2.80	1	Nini	1	2009-04-30 00:00:00	S	0	\N	1	0	1552	21.00	1	t	f	f
 7798108000079	Quitasarro x500	Limpiador	Rex	65.00	47.45	30	3	2458659	1	1	4.02	4.42	4.02	1	Nini	1	2009-03-14 00:00:00	S	\N	\N	1	0	1553	21.00	1	t	f	f
 7790310984505	cheetos 151 g 	snack	cheetos	3000.00	829.17	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1554	21.00	1	t	f	f
-7790520989109	Mr.Musc.Baño gatillo x500	Limpiador	Mr.Musculos	13.50	9.86	30	-5	4269756	1	1	7.66	8.42	7.66	1	Nini	1	2009-03-14 00:00:00	S	0	\N	1	0	1555	21.00	1	t	f	f
+7790520989109	Mr.Musc.BaÃ±o gatillo x500	Limpiador	Mr.Musculos	13.50	9.86	30	-5	4269756	1	1	7.66	8.42	7.66	1	Nini	1	2009-03-14 00:00:00	S	0	\N	1	0	1555	21.00	1	t	f	f
 7790490998040	hileret zucra forte 50 sobrescalorias	Almacen	hileret	140.00	116.20	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1557	21.00	1	t	f	f
 7790520987365	Oxy Power polvo x400	Quitamanchas	Mr.Musculos	13.50	10.33	30	0	2995352	1	1	10.33	11.36	10.33	1	Nini	1	2009-03-14 00:00:00	S	\N	\N	1	0	1560	21.00	1	t	f	f
 7791337008595	ser colc manzana 175 ml	Lacteos	ser 	3800.00	1992.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1562	21.00	1	t	f	f
@@ -7550,14 +7743,14 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791905023784	Aktiol repele 143 cm 	Limpieza	aktiol	2600.00	2158.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1609	21.00	1	t	f	f
 7791672002012	fantoche mini 	Almacen	fantoche	2000.00	539.50	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1610	21.00	1	t	f	f
 7791293525433	Shamp.verano touch x350	Shampoo	Sedal	12.00	8.76	30	0	4195590	1	1	6.85	7.88	7.62	1	Nini	1	2009-07-27 00:00:00	S	0	\N	1	0	1611	21.00	1	t	f	f
-7798064260036	polvorones veteados	Galletitas	muños	20.00	14.60	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1613	21.00	1	t	f	f
+7798064260036	polvorones veteados	Galletitas	muÃ±os	20.00	14.60	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1613	21.00	1	t	f	f
 7795733000344	galletitas de limon 	Galletitas	kokis	160.00	116.80	30	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1614	21.00	1	t	f	f
 7791540047862	dada art 391 malbec	Vinos	dada	5000.00	788.50	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1615	21.00	1	t	f	f
 7798100661162	Pure de tomate 260g	pure	Canale	25.00	18.25	30	-24	3341	1	1	1.40	1.61	1.35	1	pietra	1	2010-07-19 00:00:00	S	0	\N	1	0	1618	21.00	1	t	f	f
 7500435224604	gillette crem 312 g	Perfumeria	lux	8000.00	1404.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1620	21.00	1	t	f	f
 7798095651773	caro amici carne y leche 1.5	Almacen	caro amici	100.00	83.00	20	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1622	10.50	1	t	f	f
 7790990000816	Jabon exfol/plus x120	Jabon tocador	Plusbelle	350.00	255.50	30	-9	4329457	1	12929	1.96	2.25	1.53	1	Maxi	1	2009-07-12 00:00:00	S	0	\N	1	0	1623	21.00	1	t	f	f
-7790010960106	talco dulces sueños x 200	Enjuague	johnson	18.00	13.14	30	-7	1	1	15286	6.92	7.61	6.92	1	Maxi	1	2009-02-21 00:00:00	S	\N	\N	1	0	1624	21.00	1	t	f	f
+7790010960106	talco dulces sueÃ±os x 200	Enjuague	johnson	18.00	13.14	30	-7	1	1	15286	6.92	7.61	6.92	1	Maxi	1	2009-02-21 00:00:00	S	\N	\N	1	0	1624	21.00	1	t	f	f
 7794820902974	milka cr leche 200	Lacteos	milkaut	2600.00	664.00	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1626	21.00	1	t	f	f
 7791293044040	axe epic fresh 	Perfumeria	axe	3500.00	2730.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1843	21.00	1	t	f	f
 7790990001769	zorro jab pan clas 150 g	Almacen	zorro	1300.00	107.90	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1627	21.00	1	t	f	f
@@ -7581,7 +7774,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792798002368	patagonia bohemian pilsenier 	Almacen	patagonia 	3800.00	3154.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1650	21.00	1	t	f	f
 7791568004892	Pan dulce c/fruta 400 g	Almacen	France	2000.00	1660.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1651	21.00	1	t	f	f
 7791990193034	panrollado rosa blanco	Almacen	rebozador	75.00	62.25	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1653	21.00	1	t	f	f
-7791290794429	Power cream baño 450	Limpiador	Cif	2000.00	803.00	30	5	1	1	1	7.50	8.25	7.50	1	1	1	2009-01-26 00:00:00	S	0	\N	1	0	1654	21.00	1	t	f	f
+7791290794429	Power cream baÃ±o 450	Limpiador	Cif	2000.00	803.00	30	5	1	1	1	7.50	8.25	7.50	1	1	1	2009-01-26 00:00:00	S	0	\N	1	0	1654	21.00	1	t	f	f
 77940322	shimyGelatina frutilla. 110g	lacteos	sancor	190.00	91.30	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1655	21.00	1	t	f	f
 7790520996138	glade toque + difusor	Limpieza	glade	5300.00	4399.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1656	21.00	1	t	f	f
 7790250010906	Hig.premium trip./hoja 4x20	Higienico	Elite	14.50	10.59	30	-27	4184289	1	17105	6.05	6.65	7.00	1	Maxi	1	2010-06-06 00:00:00	S	0	\N	1	0	1657	21.00	1	t	f	f
@@ -7620,12 +7813,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798096051275	spa esponja manopla	Limpieza	spa	700.00	298.80	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1696	21.00	1	t	f	f
 7798096051282	spa guante exfoliante	Limpieza	spa	2000.00	1660.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1697	21.00	1	t	f	f
 7798096054047	spa gel 	Perfumeria	spa	100.00	78.00	25	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1698	21.00	1	t	f	f
-7798096051060	spa esponja de baño 	Perfumeria	spa	2000.00	1560.00	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1699	21.00	1	t	f	f
+7798096051060	spa esponja de baÃ±o 	Perfumeria	spa	2000.00	1560.00	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1699	21.00	1	t	f	f
 7798096051244	spa esponjas vegetal art 124	Perfumeria	spa	2000.00	1560.00	25	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1700	21.00	1	t	f	f
 7798096051107	spa esponja art 110	Perfumeria	spa	2000.00	1560.00	25	53	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1701	21.00	1	t	f	f
 7798096051053	spa esponja 	Perfumeria	spa	2000.00	1560.00	25	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1702	21.00	1	t	f	f
 7798096051534	spa fibra exfoliante art 153	Perfumeria	spa	370.00	288.60	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1703	21.00	1	t	f	f
-7798096051046	spa esponja para baño art 104	Perfumeria	spa	2000.00	1560.00	25	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1704	21.00	1	t	f	f
+7798096051046	spa esponja para baÃ±o art 104	Perfumeria	spa	2000.00	1560.00	25	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1704	21.00	1	t	f	f
 7798061894982	romyl bolsas 50x 70 consorcio	Limpieza	romyl bolsas	80.00	66.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1705	21.00	1	t	f	f
 7790742373809	la serenisima cremon LIGTH 280	Yogures	serenisima	2700.00	605.90	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1706	21.00	1	t	f	f
 7791337007833	danette dulce de leche 	Lacteos	danette	1600.00	1328.00	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1707	21.00	1	t	f	f
@@ -7663,8 +7856,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791250003110	smirnoff 473 ml ice 	Licores	smirnoff	2900.00	415.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1739	21.00	1	t	f	f
 3568394171256	cancelar 2	Almacen	1	0.00	0.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1740	21.00	1	t	f	f
 7791828000442	servilleta x 140 felpita	Limpieza	felpita	650.00	456.50	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1741	21.00	1	t	f	f
-7792180133014	Pasta box bolognesa	Almacen	cañuelas	570.00	473.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1742	21.00	1	t	f	f
-7792180133021	pasta box salsa de queso	Almacen	cañuelas	570.00	473.10	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1743	21.00	1	t	f	f
+7792180133014	Pasta box bolognesa	Almacen	caÃ±uelas	570.00	473.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1742	21.00	1	t	f	f
+7792180133021	pasta box salsa de queso	Almacen	caÃ±uelas	570.00	473.10	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1743	21.00	1	t	f	f
 7798056680163	pan para pebete 210g *4	Almacen	tapa mania 	400.00	332.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1744	21.00	1	t	f	f
 7798333920203	malu pan de papa x4 un	Pan papa	malu 	2500.00	2324.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1745	21.00	1	t	f	f
 7791620187693	danica ketchup 220 	Almacen	danica	1300.00	1079.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1746	21.00	1	t	f	f
@@ -7687,7 +7880,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793147573331	imperial cream x 6  lagre	Almacen	imperial 	10500.00	5810.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1763	21.00	1	t	f	f
 7790310982938	mani salado sabor jamon g+	Almacen	pehuamar	600.00	498.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	1764	21.00	1	t	f	f
 7790070335401	luch  penne rigate	fideos	lucchetti	1400.00	249.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1765	21.00	1	t	f	f
-7790070621825	la salteña ñoquis 1 k 	Almacen	la salteña	5000.00	1162.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1766	21.00	1	t	f	f
+7790070621825	la salteÃ±a Ã±oquis 1 k 	Almacen	la salteÃ±a	5000.00	1162.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1766	21.00	1	t	f	f
 7798171946939	maxx presr anatom 	Perfumeria	maxx	1500.00	312.00	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1767	21.00	1	t	f	f
 7798171946977	maxx pres mega	Perfumeria	maxx	1500.00	1170.00	25	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1768	21.00	1	t	f	f
 7794529042117	tosti talita pizza 	Galletitas	tosti	950.00	182.50	30	-44	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1769	21.00	1	t	f	f
@@ -7714,8 +7907,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790742331601	Lech pol zero lact 400 g	Almacen	ARMONIA	5500.00	796.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1789	21.00	1	t	f	f
 7798187211830	tostaditas cuatatro queso	Almacen	quento	1800.00	1079.00	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1790	21.00	1	t	f	f
 7798187211823	tostadaitas jaman 	Almacen	quento	1800.00	1079.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1791	21.00	1	t	f	f
-7792684000591	Puritos bañados 160 g 	Galletitas	Solitas	350.00	255.50	30	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1792	21.00	1	t	f	f
-7792684000447	Rosquitas bañada 	Galletitas	Solitas	350.00	255.50	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1793	21.00	1	t	f	f
+7792684000591	Puritos baÃ±ados 160 g 	Galletitas	Solitas	350.00	255.50	30	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1792	21.00	1	t	f	f
+7792684000447	Rosquitas baÃ±ada 	Galletitas	Solitas	350.00	255.50	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1793	21.00	1	t	f	f
 7796624000122	vincar sandw famil x 3 	Galletitas	vincar 	300.00	182.50	30	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1794	21.00	1	t	f	f
 7790503198696	gall arroz salada 100 g 	Galletitas	Dos Hermanos	280.00	146.00	30	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1795	21.00	1	t	f	f
 7790503198689	gall arroz s/sal 100 g 	Galletitas	Dos Hermanos	200.00	146.00	30	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1796	21.00	1	t	f	f
@@ -7737,7 +7930,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790314079009	Flama happy hour golden 	Vinos	Flama	800.00	664.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1813	21.00	1	t	f	f
 77958532	mentho plus limon 	Almacen	Mentoplus	240.00	199.20	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1814	21.00	1	t	f	f
 7793890259049	blanco bimbo 400g	Almacen	bimbo	4000.00	3320.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1815	21.00	1	t	f	f
-7792180140760	Sopa box sabor pollo	Almacen	cañuelas	570.00	473.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1816	21.00	1	t	f	f
+7792180140760	Sopa box sabor pollo	Almacen	caÃ±uelas	570.00	473.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1816	21.00	1	t	f	f
 7798183770522	grido famil 3 l fr.vai.crem	helados	grido	16000.00	11680.00	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1817	21.00	1	t	f	f
 7798183770188	grido tor hela 1.6l d.d.l gran 	helados	grido	16000.00	11680.00	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1818	21.00	1	t	f	f
 7798183771307	grido tor hela 1.6l oreo 	helados	grido	10500.00	2555.00	30	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1819	21.00	1	t	f	f
@@ -7775,7 +7968,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7500435211963	pant liso acond 200	Perfumeria	pantene	3800.00	2964.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1852	21.00	1	t	f	f
 7791664006301	la italiana ravioles de 4 queso	pastas	la italiana	4700.00	937.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1853	21.00	1	t	f	f
 7791854203961	Family mega 4 x 80 m 	Limpieza	Family	1200.00	622.50	20	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1854	21.00	1	t	f	f
-7791854204036	Family d.h 120 paño 	Limpieza	Family	1000.00	830.00	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1855	21.00	1	t	f	f
+7791854204036	Family d.h 120 paÃ±o 	Limpieza	Family	1000.00	830.00	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1855	21.00	1	t	f	f
 7793890259032	bimbo blan 550 g 	Almacen	bimbo	4700.00	4150.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1856	21.00	1	t	f	f
 7793890259063	bimbo integral 	Almacen	bimbo	4000.00	4648.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1857	21.00	1	t	f	f
 720665993690	konkatt 9.2 lt  sanitario	Almacen	konkatt 	2000.00	564.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	1858	21.00	1	t	f	f
@@ -7933,10 +8126,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798362627708	B.B.Q salsa barbacua	Almacen	Saws	1400.00	1162.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2010	21.00	1	t	f	f
 076625212050	risky-dit dulce	Galletitas	risky-dit	220.00	160.60	30	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2011	21.00	1	t	f	f
 7798161722826	Organico MANZ 500 G 	Jugos	las brisas	900.00	498.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2012	21.00	1	t	f	f
-7798054490764	doña magdalena pasta de mani	Almacen	doña magdalena	750.00	622.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2013	21.00	1	t	f	f
+7798054490764	doÃ±a magdalena pasta de mani	Almacen	doÃ±a magdalena	750.00	622.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2013	21.00	1	t	f	f
 7794529041653	tosti ricas desde siempre 	Almacen	tosti 	290.00	240.70	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2014	21.00	1	t	f	f
 7798259439506	pura frutta  multifuta  1l	Almacen	pura frutta  	2000.00	539.50	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2015	21.00	1	t	f	f
-7798054490771	doña magdalena pasta de mani con estevia	Almacen	doña magdalena 	750.00	622.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2016	21.00	1	t	f	f
+7798054490771	doÃ±a magdalena pasta de mani con estevia	Almacen	doÃ±a magdalena 	750.00	622.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2016	21.00	1	t	f	f
 7791337006775	ser calci plus  120 g 	Lacteos	ser calci	1100.00	332.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2017	21.00	1	t	f	f
 7794820901588	milkaut crematto light 290	Lacteos	milkaut	150.00	124.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2018	21.00	1	t	f	f
 7798141972388	providencia tripack x 5 galletitas	Galletitas	providencia	1900.00	182.50	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2019	21.00	1	t	f	f
@@ -7957,14 +8150,14 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792540240215	rm tomate triturado 950g	Almacen	rm	90.00	74.70	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2034	21.00	1	t	f	f
 7790742142504	rellrno mezcla para chocotorta	Dulce	serenicima	110.00	91.30	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2035	21.00	1	t	f	f
 7791113000935	emeth merme naranja 454g	Almacen	emeth 	65.00	53.95	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2036	21.00	1	t	f	f
-7790040119956	mini hogareñas 7 semillas	Galletitas	arcor 	56.00	40.88	30	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2037	21.00	1	t	f	f
+7790040119956	mini hogareÃ±as 7 semillas	Galletitas	arcor 	56.00	40.88	30	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2037	21.00	1	t	f	f
 7790940216205	toalla tanga 8 c/alas  t/suave	Perfumeria	Doncella	900.00	624.00	25	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2038	21.00	1	t	f	f
 7790940233240	prot/diar anat/si/perfume 20 uni	Gaseosa	Doncella	1000.00	664.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2039	21.00	1	t	f	f
 7790940235077	p/diar sin / perf 20 un	Perfumeria	Doncella	1000.00	702.00	25	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2040	21.00	1	t	f	f
 7790580311315	mogul gom conitos	Almacen	mogul	9500.00	830.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2041	21.00	1	t	f	f
 7790580309602	mogul gom anillo	Almacen	mogul	7500.00	415.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2042	21.00	1	t	f	f
 7797453971799	pedrigree dentastix 	Almacen	pedrigree	400.00	33.20	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2043	21.00	1	t	f	f
-7792180142627	mayonesa 125 g 	Almacen	Cañuela	300.00	249.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2044	21.00	1	t	f	f
+7792180142627	mayonesa 125 g 	Almacen	CaÃ±uela	300.00	249.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2044	21.00	1	t	f	f
 7792798003846	patagonia hoppy lager 	Almacen	patagonia 	2900.00	913.00	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2045	21.00	1	t	f	f
 8992741970549	gummi zone burger	Dulce	gummi zone 	300.00	58.10	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2046	21.00	1	t	f	f
 7790520018427	Off erosol seco	Perfumeria	OFF	400.00	312.00	25	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2047	21.00	1	t	f	f
@@ -7976,7 +8169,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790416016247	Quit/esmalte fortal.x50ml	Perfumeria	cutex	2400.00	1512.00	40	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2053	21.00	1	t	f	f
 7798061894715	rejilla todo uso 	Limpieza	romyl	100.00	83.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2054	21.00	1	t	f	f
 7798061894425	romyl trapo de piso 122	Limpieza	romyl	140.00	116.20	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2055	21.00	1	t	f	f
-7798061890885	alfombra ventiçosina	Limpieza	romyl	130.00	107.90	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2056	21.00	1	t	f	f
+7798061890885	alfombra ventiÃ§osina	Limpieza	romyl	130.00	107.90	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2056	21.00	1	t	f	f
 8718696760376	philips 9 w	Limpieza	philips	90.00	74.70	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2057	21.00	1	t	f	f
 7798139837750	interelec lampara led 7 w	Limpieza	intelelec	70.00	58.10	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2058	21.00	1	t	f	f
 7798092968614	Pisa Papas Plastico	Almacen	make	2500.00	207.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2059	21.00	1	t	f	f
@@ -8040,7 +8233,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793253002831	ropa quitamanchas blanca suprema	Almacen	quiubin	80.00	66.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2119	21.00	1	t	f	f
 7791130001182	vanish prelavado 400 todos los dias	Almacen	vanish 	1300.00	224.10	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2120	21.00	1	t	f	f
 7791130001250	vanish  ropa oscura	Almacen	vanish 	2000.00	1660.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2121	21.00	1	t	f	f
-7790236018025	la salteña TAPA ciollas	Almacen	la salteña 	77.00	63.91	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2122	21.00	1	t	f	f
+7790236018025	la salteÃ±a TAPA ciollas	Almacen	la salteÃ±a 	77.00	63.91	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2122	21.00	1	t	f	f
 7798321150520	sancor sublime vainilla	Lacteos	sancor	120.00	99.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2123	21.00	1	t	f	f
 7793046007777	dulcor cormillot ciruela	Galletitas	dulcor	70.00	51.10	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2124	21.00	1	t	f	f
 088169004978	nescafe tradicio	Almacen	nescafe	30.00	24.90	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2125	21.00	1	t	f	f
@@ -8062,7 +8255,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798321152654	sublime sancor dulce de leche	Lacteos	sancor	1300.00	996.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2141	21.00	1	t	f	f
 7790201120906	eco lili bols 45 x 60 	Limpieza	eco lili	600.00	498.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2142	21.00	1	t	f	f
 7791620186917	manty ligth 250 	Lacteos	manty	85.00	70.55	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2143	21.00	1	t	f	f
-7790040126794	hogareñas mix de cereales 	Galletitas	arcor	90.00	65.70	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2144	21.00	1	t	f	f
+7790040126794	hogareÃ±as mix de cereales 	Galletitas	arcor	90.00	65.70	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2144	21.00	1	t	f	f
 7790742172204	protei choco 200 ml	Lacteos	La serenisima	1400.00	581.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2145	21.00	1	t	f	f
 7798061890847	secador nro40	Limpieza	romyl	60.00	49.80	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2146	21.00	1	t	f	f
 7793147571672	imperial golden 1 l	cerveza	imperial	2500.00	996.00	20	-37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2147	21.00	1	t	f	f
@@ -8141,15 +8334,15 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790520024602	FUYI aparato y pastillas	Limpieza	FUYI	300.00	249.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2220	21.00	1	t	f	f
 7797675001601	san telmo 12 bocadito 384g	Almacen	san telmo	350.00	290.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2221	21.00	1	t	f	f
 7797675001571	san telmo alfajor	Almacen	san telmo	380.00	315.40	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2222	21.00	1	t	f	f
-7790206028856	felfort turron bañado	Almacen	felfort	450.00	103.75	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2223	21.00	1	t	f	f
+7790206028856	felfort turron baÃ±ado	Almacen	felfort	450.00	103.75	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2223	21.00	1	t	f	f
 7790206028719	felfort turron cremona	Almacen	felfort	270.00	224.10	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2224	21.00	1	t	f	f
 7790206013579	felfort turron de almendra	Almacen	felfort	400.00	124.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2225	21.00	1	t	f	f
 7790286028296	felfort turron dulce de leche	Almacen	felfort	240.00	66.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2226	21.00	1	t	f	f
-7790206028849	felfort garrapiñada mani	Almacen	felfort	95.00	78.85	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2227	21.00	1	t	f	f
+7790206028849	felfort garrapiÃ±ada mani	Almacen	felfort	95.00	78.85	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2227	21.00	1	t	f	f
 039800013613	energizer bateria 9 volt	Limpieza	energizer	130.00	107.90	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2228	21.00	1	t	f	f
-7792410505390	Caña Ombu	Almacen	Padilla	250.00	207.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2229	21.00	1	t	f	f
-7798054012874	sidra ´para niños  anana	Almacen	disney	440.00	132.80	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2230	21.00	1	t	f	f
-7798054012867	sidra para niños  manzana 	Almacen	anana	160.00	132.80	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2231	21.00	1	t	f	f
+7792410505390	CaÃ±a Ombu	Almacen	Padilla	250.00	207.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2229	21.00	1	t	f	f
+7798054012874	sidra Â´para niÃ±os  anana	Almacen	disney	440.00	132.80	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2230	21.00	1	t	f	f
+7798054012867	sidra para niÃ±os  manzana 	Almacen	anana	160.00	132.80	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2231	21.00	1	t	f	f
 7794000002883	knorr sobres champignon hongos	Almacen	knorr	12.00	9.96	20	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2232	21.00	1	t	f	f
 7794000002906	knorr sabor en sobre finas hierbas	Almacen	knorr	14.00	11.62	20	-56	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2233	21.00	1	t	f	f
 7794000004221	knorr sobre tomate	Almacen	knorr	260.00	215.80	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2234	21.00	1	t	f	f
@@ -8188,7 +8381,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798061890731	escobillo romyl recto n 61	Limpieza	romyl	140.00	116.20	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2267	21.00	1	t	f	f
 7798061890298	romyl trapo de piso gris	Limpieza	romyl	85.00	70.55	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2268	21.00	1	t	f	f
 7798061890700	romyl curvo n 3 bicolor  51	Limpieza	romyl	2200.00	1826.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2269	21.00	1	t	f	f
-7798061890458	romyl esponja salva uñas	Limpieza	romyl	45.00	37.35	20	-44	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2270	21.00	1	t	f	f
+7798061890458	romyl esponja salva uÃ±as	Limpieza	romyl	45.00	37.35	20	-44	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2270	21.00	1	t	f	f
 7798061894180	romyl curvo n 113	Limpieza	romyl	180.00	149.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2271	21.00	1	t	f	f
 7798061890250	romyl esponja de acero n 6	Limpieza	romyl	15.00	12.45	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2272	21.00	1	t	f	f
 7798061891417	romyl esponja de acero 30	Limpieza	romyl	1200.00	83.00	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2273	21.00	1	t	f	f
@@ -8250,7 +8443,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790070506979	yerbas hierbas .serra crua de malta	yerbas 	cruz de malta	120.00	99.60	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2329	21.00	1	t	f	f
 7613035161603	Nescafe descaf.cremoso 125	cafe	Nescafe	80.00	58.40	30	-12	3316386			16.80	18.48	16.80	1	nini	1	2010-07-24 00:00:00	S	0	\N	1	0	2330	21.00	1	t	f	f
 7790945003909	san humberto bonarda syrah	Vinos	san humberto	230.00	190.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2331	21.00	1	t	f	f
-7791290004016	ultra blanco baño c/lavan.	Limpieza	cif	21.00	17.43	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2333	21.00	1	t	f	f
+7791290004016	ultra blanco baÃ±o c/lavan.	Limpieza	cif	21.00	17.43	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2333	21.00	1	t	f	f
 7792410517355	cusenier mariposa 750	Licores	cusenier	550.00	401.50	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2336	21.00	1	t	f	f
 7790740505585	sham.bambu y aloe vera 1lt	shampoo	plusbelle	180.00	131.40	30	-11	4418310			6.60	7.26	6.60	1	nini	1	2010-07-24 00:00:00	S	\N	\N	1	0	2337	21.00	1	t	f	f
 77974549	serenito 120g flan	Lacteos	serenito 	90.00	74.70	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2338	21.00	1	t	f	f
@@ -8282,7 +8475,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798362628767	durazno mitad 820 g	Almacen	la Maiela	1800.00	1494.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2373	21.00	1	t	f	f
 7793890259216	Valente d/ de vainilla	Galletitas	Valente	650.00	474.50	30	-16	11145			1.85	2.04	1.85	1		1	2010-07-10 00:00:00	S	0	\N	1	0	2374	21.00	1	t	f	f
 7793890259247	Valente muffins chocol.170g	Galletitas	Valente	650.00	474.50	30	-18	11142			1.85	2.04	1.85	1		1	2010-07-10 00:00:00	S	0	\N	1	0	2375	21.00	1	t	f	f
-7790336030231	lopez sauviñon blanco 	Vinos	lopez	280.00	232.40	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2377	21.00	1	t	f	f
+7790336030231	lopez sauviÃ±on blanco 	Vinos	lopez	280.00	232.40	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2377	21.00	1	t	f	f
 7798100662077	canale jardinera 	Almacen	canale	20.00	16.60	20	-16				3.05	3.36	3.05	1	pietra	1	2011-02-28 00:00:00	S	\N	\N	1	0	2378	21.00	1	t	f	f
 7792378001682	purocol 500cm	Limpieza	Purocol	1500.00	94.90	30	23	1	0103480	1	3.90	4.29	3.90	1	1	1	2010-08-01 00:00:00	S	0	\N	1	0	2379	21.00	1	t	f	f
 7790080040425	Shimy vain/rocklets 120g	Lacteos	nestle	200.00	166.00	20	1	4025	1	1	5.09	5.85	4.65	1	sancor	1	2012-06-25 00:00:00	S	0	\N	1	0	2380	21.00	1	t	f	f
@@ -8297,17 +8490,17 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790240040555	Trapiche origen malbec 750cc	vinos	Trapiche	25.00	19.20	30	1	3581942			19.20	21.12	19.20	1	nini	1	2010-08-09 00:00:00	S	\N	\N	1	0	2391	21.00	1	t	f	f
 7790314079245	est.mend dulce chennin 750cc	vinos	Estancia mendoza	1200.00	730.00	30	6	4278062			17.20	18.92	17.20	1	nini	1	2010-08-09 00:00:00	S	0	\N	1	0	2392	21.00	1	t	f	f
 7791218124536	Tapa Criolla 330gr	tapa de empanada	Orali	1600.00	1328.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2393	21.00	1	t	f	f
-7798176000421	bebe 3 1 a 3 años x 800	Lacteos	sancor	800.00	664.00	20	-1				6.15	6.76	6.15	1	sancor	1	2011-03-01 00:00:00	S	0	\N	1	0	2397	21.00	1	t	f	f
+7798176000421	bebe 3 1 a 3 aÃ±os x 800	Lacteos	sancor	800.00	664.00	20	-1				6.15	6.76	6.15	1	sancor	1	2011-03-01 00:00:00	S	0	\N	1	0	2397	21.00	1	t	f	f
 7500435113779	pampers rn x 20 	Almacen	pampers	340.00	282.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2398	21.00	1	t	f	f
 7790742186102	MARTONA entera	Lacteos	martona	100.00	83.00	20	-403	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2399	21.00	1	t	f	f
 7790336037063	xero lopez malbec 750	Vinos	xero lopez	125.00	103.75	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2400	21.00	1	t	f	f
 7792170110568	Gat frutos tripic. 1.25 lt	Jugos	Gatorade	2800.00	830.00	20	2				7.00	7.70	7.00	1	quilmes	1	2010-08-11 00:00:00	S	0	\N	1	0	2401	21.00	1	t	f	f
-7790236000617	Ravioles jamon y muzarela	pasta	la salteña	59.90	43.73	30	4	1	1	1	11.20	12.32	11.20	1	1	1	2010-08-12 00:00:00	S	\N	\N	1	0	2402	21.00	1	t	f	f
+7790236000617	Ravioles jamon y muzarela	pasta	la salteÃ±a	59.90	43.73	30	4	1	1	1	11.20	12.32	11.20	1	1	1	2010-08-12 00:00:00	S	\N	\N	1	0	2402	21.00	1	t	f	f
 80050315	kinder maxi choco	Dulce	kinder	800.00	66.40	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2403	21.00	1	t	f	f
 7797675000222	Turimar miel 200g	Galletitas	Turimar	40.00	29.20	30	8	11392			2.90	3.19	2.90	1		1	2010-08-12 00:00:00	S	0	\N	1	0	2404	21.00	1	t	f	f
 7798017860214	For van 160g	Galletitas	for van	800.00	58.40	30	-11	35344	1	1	1.35	1.49	1.35	1	1	1	2010-08-12 00:00:00	S	0	\N	1	0	2406	21.00	1	t	f	f
 77933942	vauquita conitos	Almacen	vauquita	18.00	14.94	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2407	21.00	1	t	f	f
-7790250054764	Elite pañue 6ud	higienico	Elite	200.00	146.00	30	1	1	1	1	6.30	6.93	6.30	1	1	1	2010-08-15 00:00:00	S	0	\N	1	0	2408	21.00	1	t	f	f
+7790250054764	Elite paÃ±ue 6ud	higienico	Elite	200.00	146.00	30	1	1	1	1	6.30	6.93	6.30	1	1	1	2010-08-15 00:00:00	S	0	\N	1	0	2408	21.00	1	t	f	f
 7793253007102	Bolsas 45 x 55 15 und 	Bolsas	Mortimer	3500.00	2555.00	30	0	1	107221	1	1.75	1.93	1.75	1	vital	1	2010-10-02 00:00:00	S	\N	\N	1	0	2409	21.00	1	t	f	f
 7790040147720	Bagley surtido 	Galletitas	bagley	3000.00	1606.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2412	21.00	1	t	f	f
 7798092964098	Pala c/cabo Make	Limpieza	Make	300.00	204.00	35	-4	6187			4.00	4.40	4.00	1		1	2010-08-18 00:00:00	S	0	\N	1	0	2413	21.00	1	t	f	f
@@ -8346,9 +8539,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790538009615	galletas c/arroz dulces	Galletitas	el tetu	50.00	36.50	30	1	1	1	1	2.10	2.31	2.10	1	1	1	2010-09-09 00:00:00	S	0	\N	1	0	2453	21.00	1	t	f	f
 7798039590229	tocornal blanco 700cm	vinos	tocornal	750.00	146.00	30	0	1768500	1	1	7.50	8.25	7.50	1	nini	1	2010-09-09 00:00:00	S	0	\N	1	0	2455	21.00	1	t	f	f
 7790077000739	Magdalena s/frutas 	Galletitas	Pozo	1600.00	315.40	20	9	1	1	1	4.10	4.51	3.82	1	1	1	2010-10-05 00:00:00	S	0	\N	1	0	2456	21.00	1	t	f	f
-7795733001099	Kokis cañ/mem 200g	Galletitas	Kokis	1300.00	65.70	30	-6	30349			2.10	2.31	2.10	1		1	2010-09-10 00:00:00	S	0	\N	1	0	2458	21.00	1	t	f	f
+7795733001099	Kokis caÃ±/mem 200g	Galletitas	Kokis	1300.00	65.70	30	-6	30349			2.10	2.31	2.10	1		1	2010-09-10 00:00:00	S	0	\N	1	0	2458	21.00	1	t	f	f
 7791787100122	Trio surtida 360g	Galletitas	Trio	80.00	58.40	30	-11	10972			2.60	2.86	2.60	1		1	2010-09-10 00:00:00	S	0	\N	1	0	2459	21.00	1	t	f	f
-77928672	pastilla menta mentoplus	Golosina	menthoplusç	60.00	31.80	50	-36				0.90	0.99	0.90	1		1	2010-09-12 00:00:00	S	\N	\N	1	0	2466	21.00	1	t	f	f
+77928672	pastilla menta mentoplus	Golosina	menthoplusÃ§	60.00	31.80	50	-36				0.90	0.99	0.90	1		1	2010-09-12 00:00:00	S	\N	\N	1	0	2466	21.00	1	t	f	f
 7790077000753	Magdalena pozo choc.250g	Galletitas	Pozo	1600.00	277.40	30	9	1	1	1	3.80	4.37	3.50	1	1	1	2010-09-13 00:00:00	S	0	\N	1	0	2467	21.00	1	t	f	f
 77959935	toys mundial huevos	Golosina	arcor	30.00	15.90	50	11	3000	1	1	0.67	0.73	0.67	1	arcor	1	2010-09-14 00:00:00	S	\N	\N	1	0	2468	21.00	1	t	f	f
 7793046007302	dulcor membrillo sin azucar	mermelada	dulcor	190.00	138.70	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2469	21.00	1	t	f	f
@@ -8372,7 +8565,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790480089949	Yerba 1 kg selec esp 	yerba	La Tranquera	3300.00	2409.00	30	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2491	21.00	1	t	f	f
 7794417002575	sina esponjas	Limpieza	Sina	260.00	176.80	35	-37				4.50	4.95	4.50	1		1	2010-09-21 00:00:00	S	\N	\N	1	0	2492	21.00	1	t	f	f
 7794417000434	cepillo zapato sina	Limpieza	Sina	1600.00	1088.00	35	6				5.00	5.50	5.00	1		1	2010-09-21 00:00:00	S	\N	\N	1	0	2493	21.00	1	t	f	f
-7798160330596	esponja de baño	Limpieza	extra limp	50.00	41.50	20	5	1	1	1	1.90	2.09	1.90	1	1	1	2011-03-21 00:00:00	S	\N	\N	1	0	2494	21.00	1	t	f	f
+7798160330596	esponja de baÃ±o	Limpieza	extra limp	50.00	41.50	20	5	1	1	1	1.90	2.09	1.90	1	1	1	2011-03-21 00:00:00	S	\N	\N	1	0	2494	21.00	1	t	f	f
 7798110300020	Film aderente 30cm	Prod.Altos	Alumy	40.00	27.20	35	1				4.00	4.40	4.00	1		1	2010-09-21 00:00:00	S	\N	\N	1	0	2496	21.00	1	t	f	f
 7797390000507	schez rejila liviana	Almacen	schez	60.00	49.80	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2497	21.00	1	t	f	f
 7790742326409	Ques unt Fontina 180 g 	Lacteos	La serenisima	2400.00	1743.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2498	21.00	1	t	f	f
@@ -8386,7 +8579,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798321151046	sancor Yogs vainilla  900g	Lacteos	sancor	1100.00	332.00	20	-22	6214	1	1	4.17	4.59	4.17	1	sancor	1	2010-09-23 00:00:00	S	0	\N	1	0	2509	21.00	1	t	f	f
 7790080062137	Yogs vida frutilla light 900g	Lacteos	Sancor	85.00	70.55	20	6	6213			4.17	4.59	4.17	1	sancor	1	2010-09-23 00:00:00	S	\N	\N	1	0	2510	21.00	1	t	f	f
 7730922252814	yogurisimo natural 190g	Lacteos	serenisima	70.00	58.10	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2512	21.00	1	t	f	f
-7622300864934	oreo bañadas x2	Galletitas	oreo	90.00	65.70	30	3	2445	1	1	2.30	2.53	2.30	1	1	1	2010-09-24 00:00:00	S	0	\N	1	0	2513	21.00	1	t	f	f
+7622300864934	oreo baÃ±adas x2	Galletitas	oreo	90.00	65.70	30	3	2445	1	1	2.30	2.53	2.30	1	1	1	2010-09-24 00:00:00	S	0	\N	1	0	2513	21.00	1	t	f	f
 7614500010013	toblerone x100g	Golosina	toblerone	670.00	189.80	30	-9	13801	1	1	9.65	10.62	9.65	1	1	1	2010-09-24 00:00:00	S	0	\N	1	0	2514	21.00	1	t	f	f
 76145513	toblerone x35g	Golosina	toblerone	80.00	58.40	30	-13	40592	1	1	3.01	3.31	3.01	1	1	1	2010-09-24 00:00:00	S	\N	\N	1	0	2515	21.00	1	t	f	f
 7622300800307	leger c/almendras x100g	Golosina	milka	280.00	204.40	30	-11	479999	1	1	6.54	7.19	6.54	1	1	1	2010-09-24 00:00:00	S	\N	\N	1	0	2517	21.00	1	t	f	f
@@ -8398,7 +8591,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290790902	Skip jab.liquido 400ml	Limpieza	Skip	130.00	94.90	30	-11		129897		10.30	11.33	10.30	1	vital	1	2010-09-25 00:00:00	S	\N	\N	1	0	2524	21.00	1	t	f	f
 7791293035727	Impulse paristrue 150 ml	Perfumeria	Impulse	2500.00	1825.00	30	0	1	142508	1	6.10	6.71	6.10	1	vital	1	2010-09-25 00:00:00	S	0	\N	1	0	2525	21.00	1	t	f	f
 7899026422025	Elvive sh liss int.extr 200ml	Perfumeria	Ilvive	13.50	9.86	30	2		138981		6.41	7.05	6.41	1	vital	1	2010-09-25 00:00:00	S	\N	\N	1	0	2527	21.00	1	t	f	f
-7898587761925	Elvive acon.cabello dañado 200 ml	Perfumeria	Elvive	390.00	284.70	30	5		141238		7.01	7.71	7.01	1	vital	1	2010-09-25 00:00:00	S	\N	\N	1	0	2528	21.00	1	t	f	f
+7898587761925	Elvive acon.cabello daÃ±ado 200 ml	Perfumeria	Elvive	390.00	284.70	30	5		141238		7.01	7.71	7.01	1	vital	1	2010-09-25 00:00:00	S	\N	\N	1	0	2528	21.00	1	t	f	f
 7793253000363	mortimer espon.	Limpieza	Mortimer	38.00	25.84	35	0		103824		3.14	3.45	3.14	1	vital	1	2010-09-25 00:00:00	S	\N	\N	1	0	2529	21.00	1	t	f	f
 7790040139909	formis 72 g 	Galletitas	arcor	600.00	438.00	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2530	21.00	1	t	f	f
 7798183771741	torta helada mousse	helados	grido	15000.00	8715.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2531	21.00	1	t	f	f
@@ -8418,7 +8611,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7795184133073	noel polenta 500g	Almacen	noel	1100.00	49.80	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2548	21.00	1	t	f	f
 7798017860429	for van vanina	Galletitas	for.van	80.00	58.40	30	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2549	21.00	1	t	f	f
 7790520028662	Raid sin olor 380 cm	espirales	Raid	6000.00	2835.00	40	1	3799921			1.00	1.10	1.00	1	nini	1	2010-09-30 00:00:00	S	0	\N	1	0	2550	21.00	1	t	f	f
-7790387015225	mañanita  500g yerba	yerba	Union	250.00	182.50	30	-2	2174731			5.60	6.16	5.60	1	nini	1	2010-09-30 00:00:00	S	\N	\N	1	0	2551	21.00	1	t	f	f
+7790387015225	maÃ±anita  500g yerba	yerba	Union	250.00	182.50	30	-2	2174731			5.60	6.16	5.60	1	nini	1	2010-09-30 00:00:00	S	\N	\N	1	0	2551	21.00	1	t	f	f
 7790070432285	Gallo arroz mix semill 	arroz	Gallo	2200.00	1460.00	30	3	1655880			6.40	7.04	6.40	1	nini	1	2010-09-30 00:00:00	S	0	\N	1	0	2552	21.00	1	t	f	f
 7790520009548	Fuyi espirales estuche x12 fresh	espirales	Fuyi	250.00	63.00	40	3	2614359			3.50	3.85	3.50	1	nini	1	2010-09-30 00:00:00	S	0	\N	1	0	2553	21.00	1	t	f	f
 7798021691040	ravioles pollo	Almacen	via vespucci	16.00	13.28	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2555	21.00	1	t	f	f
@@ -8432,7 +8625,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790590016293	fosforos 222 unid	fosforos	tres patitos	600.00	438.00	30	1	4475194	1	1	1.96	2.25	2.04	1	1	1	2012-10-14 00:00:00	S	0	\N	1	0	2563	21.00	1	t	f	f
 7790957000156	jorgito	Almacen	jorgito	40.00	33.20	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2564	21.00	1	t	f	f
 567891017	miel x 1 kg	Almacen	bianca	20.00	16.60	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2565	21.00	1	t	f	f
-7798092969499	Colador Metalico n°16	Almacen	Make	3500.00	2075.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2566	21.00	1	t	f	f
+7798092969499	Colador Metalico nÂ°16	Almacen	Make	3500.00	2075.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2566	21.00	1	t	f	f
 7795170000204	carnevali dulce de leche repos 400g	Almacen	carnevali	150.00	124.50	20	36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2567	10.50	1	t	f	f
 7793890259261	pan semillas 330 g	pan lactal	lactal	3000.00	2075.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2568	21.00	1	t	f	f
 7790040144071	traviata orig 108 g 	Galletitas	traviata	600.00	438.00	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2569	21.00	1	t	f	f
@@ -8440,7 +8633,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791293018133	lux suavidad y petalos 3*125	jabon tocador	Lux	55.00	40.15	30	3	1	1	11090	2.12	2.33	2.12	1	maxi	1	2010-10-09 00:00:00	S	\N	\N	1	0	2573	21.00	1	t	f	f
 7791293018188	refrescame 3	jabon tocador	lux	15.50	11.32	30	-25	1	1	11088	2.12	2.33	2.12	1	maxi	1	2010-10-09 00:00:00	S	\N	\N	1	0	2574	21.00	1	t	f	f
 7791130003544	Power plus floral 500cc	limpieza	harpic	1500.00	949.00	30	0	1	1	17778	6.83	7.51	6.83	1	maxi	1	2010-10-09 00:00:00	S	0	\N	1	0	2575	21.00	1	t	f	f
-7790336041275	champaña brut nature	Vinos	montchenot	75.00	62.25	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2577	21.00	1	t	f	f
+7790336041275	champaÃ±a brut nature	Vinos	montchenot	75.00	62.25	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2577	21.00	1	t	f	f
 7790520995315	lysofort aer 360 lavanda	limpieza	lysoform	3000.00	219.00	30	1	1	1	14152	6.90	7.59	6.90	1	maxi	1	2010-10-09 00:00:00	S	0	\N	1	0	2578	21.00	1	t	f	f
 7790990001806	fede jab x 2 	jabon	federal	580.00	423.40	30	1	1	1	13707	1.62	1.78	1.62	1	maxi	1	2010-10-09 00:00:00	S	0	\N	1	0	2579	21.00	1	t	f	f
 7791293045948	acond.ceram.sedal 340 coc	Perfumeria	sedal	2600.00	1890.00	40	6	1	1	4604	0.45	0.50	0.45	1	1	1	2010-10-11 00:00:00	S	0	\N	1	0	2580	21.00	1	t	f	f
@@ -8646,7 +8839,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798120180551	manieri dulces	Galletitas	manieri	950.00	240.90	30	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2802	21.00	1	t	f	f
 7806810240000	Manga Decoradora	Bazar	Ilko	16.50	12.70	30	0	1	0136783	1	12.70	13.97	12.70	1	vital	1	2009-08-17 00:00:00	S	\N	\N	1	0	2804	21.00	1	t	f	f
 7806810252003	Sacacorchos doble palanca	Bazar	Ilko	32.90	25.29	30	0	1	0113177	1	25.29	27.82	25.29	1	vital	1	2009-08-17 00:00:00	S	\N	\N	1	0	2805	21.00	1	t	f	f
-7792542000046	ttostadas dulces	Galletitas	dietética integral	24.50	17.89	30	-41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2806	21.00	1	t	f	f
+7792542000046	ttostadas dulces	Galletitas	dietÃ©tica integral	24.50	17.89	30	-41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2806	21.00	1	t	f	f
 7509552902532	Sh.rep.ker 200ml	Perfumeria	Elvive	3800.00	2774.00	30	4	1	0125636	1	8.47	9.32	8.47	1	vital	1	2009-08-17 00:00:00	S	0	\N	1	0	2807	21.00	1	t	f	f
 7793890002720	villagio fargo	Almacen	fargo	60.00	49.80	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2808	21.00	1	t	f	f
 7798016101073	La Comarca salch  6 190g	salchicha	La Comarca	1300.00	1079.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2809	21.00	1	t	f	f
@@ -8654,7 +8847,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790036000572	baggio Jug.Manzana 200ml.	Jugos	Baggio	500.00	94.90	30	-43	3853233	1	1	0.89	0.98	0.89	1	Nini	1	2009-09-01 00:00:00	S	0	\N	1	0	2811	21.00	1	t	f	f
 7790070412492	postre de dulce de leche 120g	postre	exquisita	55.00	40.15	30	0	34231	1	1	1.57	1.73	1.57	1	NINI	1	2010-08-14 00:00:00	S	0	\N	1	0	2812	21.00	1	t	f	f
 7798031155693	fideos mix  tirabuzon 500 g knorr	fideo	knoor	2000.00	94.90	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2814	21.00	1	t	f	f
-7790236002093	carne y verdura 500g	Almacen	la salteña	170.00	141.10	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2815	10.50	1	t	f	f
+7790236002093	carne y verdura 500g	Almacen	la salteÃ±a	170.00	141.10	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2815	10.50	1	t	f	f
 7790957000651	jorgito Bizco 400gr.	Galletitas	Jorgito	1800.00	138.70	30	-11	10084	1	1	24.92	27.41	2.08	12	10084	1	2009-09-08 00:00:00	S	0	\N	1	0	2816	21.00	1	t	f	f
 7790040350502	cindor cereal	Golosinas	Arcor	16.00	8.48	50	-9	4448	1	1	7.33	8.06	0.37	20	4448	1	2009-09-09 00:00:00	S	\N	\N	1	0	2817	21.00	1	t	f	f
 7790040704909	serranas sandwich 336g	galletitas	arcor	1500.00	102.20	30	-1	7049	1	1	2.71	2.98	3.21	1	vauress	1	2010-04-21 00:00:00	S	0	\N	1	0	2818	21.00	1	t	f	f
@@ -8714,7 +8907,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791620001784	Salsa golf original dp.220cm3.	Aderezos	Danica	40.00	29.20	30	-10	2302470	1	1	1.98	2.18	1.98	1	nini	1	2009-08-12 00:00:00	S	\N	\N	1	0	2886	21.00	1	t	f	f
 7790080010855	manteca libre de gluten500 	Lacteos	sancor	8500.00	2075.00	20	20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2887	21.00	1	t	f	f
 7794000599826	purecica 	salsas	cica 	80.00	66.40	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2889	21.00	1	t	f	f
-1003	leña de quebracho x 8 kg	carbon	el gauchito	7000.00	5810.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2890	21.00	1	t	f	f
+1003	leÃ±a de quebracho x 8 kg	carbon	el gauchito	7000.00	5810.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2890	21.00	1	t	f	f
 7797453000017	cachorrro  carne.pollo y leche 1.30kg	mascota	pedrigree	23.00	16.79	30	-79	1	1	1	13.20	14.52	13.20	1	1	1	2011-03-02 00:00:00	S	\N	\N	1	0	2891	21.00	1	t	f	f
 7790070413673	favorita pan rallado	Almacen	favorita	100.00	83.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2892	21.00	1	t	f	f
 7797453001502	adulto carnes pollo cereales	mascota	pedigree	6500.00	474.50	30	-2				11.88	13.07	11.88	1	peadegree	1	2011-03-02 00:00:00	S	0	\N	1	0	2893	21.00	1	t	f	f
@@ -8789,7 +8982,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7730104034290	tabaco vainilla yellow 	tabaco	cerrito	6000.00	4380.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2966	21.00	1	t	f	f
 7798062541939	we citrus 2.25	Jugos	we	47.00	39.01	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2967	21.00	1	t	f	f
 7790070418326	choco arroz	Almacen	choco arroz	70.00	58.10	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2968	21.00	1	t	f	f
-7790236001577	la salteña raviol de kilo	Almacen	LA SALTEÑIA	255.00	211.65	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2969	21.00	1	t	f	f
+7790236001577	la salteÃ±a raviol de kilo	Almacen	LA SALTEÃ‘IA	255.00	211.65	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2969	21.00	1	t	f	f
 7790079000317	fela salchicchas x 6 u	Almacen	fela	180.00	149.40	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2970	21.00	1	t	f	f
 7793890257922	fargo lacteado 430	Almacen	FARGO	700.00	581.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2971	21.00	1	t	f	f
 7790742116802	LIGHT	Lacteos	SERENICIMA	48.00	39.84	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2972	21.00	1	t	f	f
@@ -8808,8 +9001,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791787001115	trio chips pepas 300	Almacen	trio	1000.00	830.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2986	21.00	1	t	f	f
 7798000350258	parma copetin	Almacen	parma	2000.00	62.25	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2987	21.00	1	t	f	f
 7702026178086	nosotras tampones super	+	nosotras	280.00	232.40	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2988	21.00	1	t	f	f
-7798092961394	colador n°10	Prod.Altos	make	1250.00	1162.50	10	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2989	21.00	1	t	f	f
-7798092962025	colador n°20	Prod.Altos	make	120.00	111.60	10	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2990	21.00	1	t	f	f
+7798092961394	colador nÂ°10	Prod.Altos	make	1250.00	1162.50	10	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2989	21.00	1	t	f	f
+7798092962025	colador nÂ°20	Prod.Altos	make	120.00	111.60	10	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	2990	21.00	1	t	f	f
 7798092964418	rallador cilindrico 5 usos	Prod.Altos	make	3500.00	167.40	10	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2991	21.00	1	t	f	f
 7795091000277	el grande arroz 1 kg	Almacen	el grande 	2000.00	1660.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2992	21.00	1	t	f	f
 7793253003258	quitamanchas blanco supremo	Limpieza	ayudin	2400.00	1162.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	2993	21.00	1	t	f	f
@@ -8831,7 +9024,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790639002478	cellier naranja 1.5	Gaseosa	cellier	12.00	9.96	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3009	21.00	1	t	f	f
 7790639002461	cellier pomelo 1.5	Gaseosa	cellier	12.00	9.96	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3010	21.00	1	t	f	f
 7790236001263	hojaldradas pascualina	Almacen	la saltenia	600.00	431.60	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3011	21.00	1	t	f	f
-7790236001270	salteña criolla    sequitas	Almacen	la salteña	600.00	332.00	20	-52	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3012	21.00	1	t	f	f
+7790236001270	salteÃ±a criolla    sequitas	Almacen	la salteÃ±a	600.00	332.00	20	-52	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3012	21.00	1	t	f	f
 7790071090217	tostadas  de mesa	Almacen	riera	750.00	124.50	20	-39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3013	21.00	1	t	f	f
 7790071090316	tostadas  intergales	Almacen	riera	450.00	124.50	20	-68	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3014	21.00	1	t	f	f
 7790071090415	tostadas   sin sal	Almacen	riera	750.00	132.80	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3015	21.00	1	t	f	f
@@ -8843,8 +9036,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337690813	yogurisimo x 500 pack x 4	Lacteos	serenisima	40.00	33.20	20	-31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3021	21.00	1	t	f	f
 7798176001060	leche  bebe  4	Almacen	sarcor	26.00	21.58	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3022	21.00	1	t	f	f
 7798176001077	leche  bebe 4	Almacen	sancor	100.00	83.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3023	21.00	1	t	f	f
-7793806000109	pan	Almacen	la santiagueña	160.00	132.80	20	-78	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3024	21.00	1	t	f	f
-7793806000727	santiagueña semillado	Almacen	santiaguena	170.00	141.10	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3025	21.00	1	t	f	f
+7793806000109	pan	Almacen	la santiagueÃ±a	160.00	132.80	20	-78	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3024	21.00	1	t	f	f
+7793806000727	santiagueÃ±a semillado	Almacen	santiaguena	170.00	141.10	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3025	21.00	1	t	f	f
 7798090071170	sin culpa alfajor frutos rojos	Almacen	sin culpa	220.00	149.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3026	21.00	1	t	f	f
 7797906000700	mc cain Papas congel 400 g	Almacen	mc cain	3300.00	74.70	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3027	21.00	1	t	f	f
 7792684000119	daniela pepas 200	Almacen	daniela	300.00	12.45	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3028	21.00	1	t	f	f
@@ -8875,7 +9068,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798321151947	sancorito chocolate 105g	Lacteos	sancor	450.00	232.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3054	21.00	1	t	f	f
 7790950133271	limon  1.35l 	Almacen	terma	2000.00	232.40	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3055	21.00	1	t	f	f
 7791290006706	power cream cocina	Limpieza	cif	75.00	62.25	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3056	21.00	1	t	f	f
-7790236001768	la salteña estilo casero	pastas	La Salteña	3200.00	2075.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3057	21.00	1	t	f	f
+7790236001768	la salteÃ±a estilo casero	pastas	La SalteÃ±a	3200.00	2075.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3057	21.00	1	t	f	f
 7790770002368	CALIPSO  VERDE	Almacen	CALIPSO	70.00	58.10	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3058	21.00	1	t	f	f
 7790770004010	calipso rosa x 50 protec anatomico	Almacen	calipso	130.00	107.90	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3059	21.00	1	t	f	f
 7790770002276	protector celeste	Almacen	calipso	70.00	58.10	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3060	21.00	1	t	f	f
@@ -8936,7 +9129,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792798000470	guarana antarctica  1.50.	Gaseosa	guarana	400.00	132.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3117	21.00	1	t	f	f
 7798184581066	limpi cherry 150 ml 	Limpieza	Multimax	1200.00	830.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3118	21.00	1	t	f	f
 7791130146791	procenex vidrios	Prod.Altos	pocenex	30.00	27.90	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3119	21.00	1	t	f	f
-7791130146883	gatillo  baño 500 ml 	Prod.Altos	procenex	2400.00	130.20	10	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3120	21.00	1	t	f	f
+7791130146883	gatillo  baÃ±o 500 ml 	Prod.Altos	procenex	2400.00	130.20	10	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3120	21.00	1	t	f	f
 7791130146913	gatillo cocina 	Prod.Altos	procenex	2400.00	130.20	10	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3121	21.00	1	t	f	f
 7500435198097	gillette  prestobarba 3hojas  *2	Prod.Altos	gillette	7500.00	4650.00	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3122	21.00	1	t	f	f
 7790580131388	surtido bombones en casa	Almacen	arcor 	9000.00	7470.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3123	21.00	1	t	f	f
@@ -8988,7 +9181,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7794050007319	doree crema 40 	Almacen	doree	1000.00	830.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3170	21.00	1	t	f	f
 7509546692234	kolinos 70 g	Almacen	kolinos	2500.00	2075.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3171	21.00	1	t	f	f
 7790742114204	garcia ricotta 500	lacteos	garcia	3900.00	830.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3172	21.00	1	t	f	f
-7794371000082	sabor  sal marina  ahmadas	Almacen	pirañl 	60.00	49.80	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3173	21.00	1	t	f	f
+7794371000082	sabor  sal marina  ahmadas	Almacen	piraÃ±l 	60.00	49.80	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3173	21.00	1	t	f	f
 7798397440013	rasta blanco 2 uni x 1500	Alfajores	marley	1200.00	996.00	20	20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3174	21.00	1	t	f	f
 705105635873	rejilla  super	Limpieza	entrelsol	60.00	49.80	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3175	21.00	1	t	f	f
 705105635972	rejila liviana	Limpieza	emtrelsol	600.00	249.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3176	21.00	1	t	f	f
@@ -8996,7 +9189,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 705105636276	trapo  de piso gris	Limpieza	emtrelaol	12.00	9.96	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3178	21.00	1	t	f	f
 7793806000703	lacteado	Almacen	la santagiena	110.00	91.30	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3179	21.00	1	t	f	f
 7790742067005	sere d.lech repost 400	Dul de leche	serenisima	3500.00	581.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3180	21.00	1	t	f	f
-7790070621894	espinaca mozzarela y parmezano	pastas	La Salteña	3000.00	830.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3181	21.00	1	t	f	f
+7790070621894	espinaca mozzarela y parmezano	pastas	La SalteÃ±a	3000.00	830.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3181	21.00	1	t	f	f
 7790742187703	ser dulce de leche x 400	dulce de leche	ser	120.00	99.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3182	21.00	1	t	f	f
 041333431482	pilas AAA x 2 unidades	Almacen	duracell	2500.00	581.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3183	21.00	1	t	f	f
 7792798000852	GUARANA 2 l	Gaseosa	GUARANA	190.00	157.70	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3184	21.00	1	t	f	f
@@ -9004,9 +9197,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793620002105	kotex tampones super	Almacen	kotex	350.00	174.30	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3186	21.00	1	t	f	f
 7790742103604	ducu de leche	Gaseosa	serenisima	35.00	29.05	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3187	21.00	1	t	f	f
 7791337090132	COFLER	Lacteos	COFLER	23.00	19.09	20	-28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3188	21.00	1	t	f	f
-7793806000055	la santiagueña pascualina roja	Almacen	santiaguena	80.00	66.40	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3189	21.00	1	t	f	f
-7500435168687	pampers supersec xxg	pañales	pampers	2000.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3190	21.00	1	t	f	f
-7791290795594	cif baño gat 500ml	Limpieza	CIF	3600.00	2075.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3191	21.00	1	t	f	f
+7793806000055	la santiagueÃ±a pascualina roja	Almacen	santiaguena	80.00	66.40	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3189	21.00	1	t	f	f
+7500435168687	pampers supersec xxg	paÃ±ales	pampers	2000.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3190	21.00	1	t	f	f
+7791290795594	cif baÃ±o gat 500ml	Limpieza	CIF	3600.00	2075.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3191	21.00	1	t	f	f
 7797283005497	BOLOGNESA	Almacen	KMORR	22.00	18.26	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3192	21.00	1	t	f	f
 7791290008465	CREMA  FLORES DE NARANJA	Almacen	CIF	180.00	149.40	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3193	21.00	1	t	f	f
 7791290008441	CREMA ORIGINAL	Limpieza	CIF	180.00	149.40	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3194	21.00	1	t	f	f
@@ -9021,7 +9214,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798114090439	blanco dulce|	Vinos	enoteca	70.00	58.10	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3203	21.00	1	t	f	f
 7798114090385	cabernet sobinione	Vinos	enoteca	70.00	58.10	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3204	21.00	1	t	f	f
 7790037001813	nieve rey momo 	Almacen	Rey momo 	2800.00	1660.00	20	29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3205	21.00	1	t	f	f
-7794417000410	escobin de baño 	Limpieza	Sina	2000.00	1660.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3206	21.00	1	t	f	f
+7794417000410	escobin de baÃ±o 	Limpieza	Sina	2000.00	1660.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3206	21.00	1	t	f	f
 7791250000935	los arboles malbec	Vinos	los arboles	3900.00	257.30	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3207	21.00	1	t	f	f
 7791293026299	suabe	Perfumeria	suabe	35.00	27.30	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3208	21.00	1	t	f	f
 7791293026275	suabe	Perfumeria	suabe	35.00	27.30	25	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3209	21.00	1	t	f	f
@@ -9034,8 +9227,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791293027326	sedal ceramidas acondiciona  300	Perfumeria	sedal	210.00	163.80	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3216	21.00	1	t	f	f
 7791293027289	sedal shampoo CERAMIDAS 	Perfumeria	sedal	210.00	163.80	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3217	21.00	1	t	f	f
 7793890001853	pan pra pancho	Almacen	pan para pancho	200.00	166.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3218	21.00	1	t	f	f
-7790070621870	ravioles 450g sabor jamo y muzza	pastas	La Salteña	3000.00	871.50	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3219	21.00	1	t	f	f
-7790236002000	ravioles pollo y verdura 	Almacen	la salteña 	170.00	141.10	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3220	21.00	1	t	f	f
+7790070621870	ravioles 450g sabor jamo y muzza	pastas	La SalteÃ±a	3000.00	871.50	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3219	21.00	1	t	f	f
+7790236002000	ravioles pollo y verdura 	Almacen	la salteÃ±a 	170.00	141.10	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3220	21.00	1	t	f	f
 7791537001129	la negra 45 x 60	Limpieza	la negra	14.00	11.62	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3221	21.00	1	t	f	f
 7789876512352	bolsa 50 x 70	Limpieza	la negra	17.00	14.11	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3222	21.00	1	t	f	f
 7794417000724	escobillon gigante	Limpieza	sina	100.00	83.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3223	21.00	1	t	f	f
@@ -9064,7 +9257,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790130001833	menoyo salsa de soja	Vinos	Menoyo	100.00	78.00	25	2	1314570	1	1	0.00	0.00	2.72	1	1	0	2010-08-24 00:00:00	S	0	\N	1	0	3252	21.00	1	t	f	f
 7791130002110	polycera  Negra x750g	Perfumeria	polycera	65.00	47.45	30	5	1886797	0104477	6646	2.18	1.65	2.18	1	Vital	0	2010-07-26 00:00:00	S	\N	\N	1	0	3253	21.00	1	t	f	f
 7790703001628	champagne 750	Vinos	new age	80.00	66.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3254	21.00	1	t	f	f
-7790236000105	Fideos med./huevo 500g	pasta	La Salteña	135.00	98.55	30	8	1	1	1	6.80	7.82	6.50	1	el tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	3255	21.00	1	t	f	f
+7790236000105	Fideos med./huevo 500g	pasta	La SalteÃ±a	135.00	98.55	30	8	1	1	1	6.80	7.82	6.50	1	el tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	3255	21.00	1	t	f	f
 7790514606517	Velas x4 udad	Limpieza	Malambo	80.00	58.40	30	-21	71226	1	1	1.35	1.55	1.35	1	1	0	2010-04-13 00:00:00	S	0	\N	1	0	3256	21.00	1	t	f	f
 7791293014791	sh.Control Humect 350	Perfumeria	sedal	16.00	13.28	20	-3	3481417	1	1	4.85	5.58	5.13	1	Nini	0	2009-07-27 00:00:00	S	\N	\N	1	0	3261	21.00	1	t	f	f
 7794000004900	bolsa para carne	Almacen	knorr	350.00	149.40	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3262	10.50	1	t	f	f
@@ -9078,7 +9271,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790150497241	empanadas y relleno	Dulce	alicante	50.00	41.50	20	-62	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3272	21.00	1	t	f	f
 7798342860026	pan de paty 	panificados	Donna wheat	1300.00	1079.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3273	21.00	1	t	f	f
 7791290001176	ropa fina camellito x900ml	Limpieza	ala	20.00	16.60	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3274	21.00	1	t	f	f
-7792410132244	caña de durazno 750mi	Licores	padilla	250.00	182.50	30	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3275	21.00	1	t	f	f
+7792410132244	caÃ±a de durazno 750mi	Licores	padilla	250.00	182.50	30	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3275	21.00	1	t	f	f
 7622300827588	Chocolate leger 45g	Dulce	Milka	35.00	25.55	30	-2	470999	1	1	0.00	0.00	2.90	1	1	0	2009-10-16 00:00:00	S	\N	\N	1	0	3276	21.00	1	t	f	f
 7798103003020	Higienico Nat 50x6	Higienico	Lans	42.00	30.66	30	-1	3564096	1	1	3.73	4.29	4.24	1	1	0	2010-04-13 00:00:00	S	0	\N	1	0	3277	21.00	1	t	f	f
 7790250015864	premium d/hoja  4 r x 30 m 	Higienico	Higienol	3300.00	2409.00	30	-23	3949710	0131071	15833	3.70	4.26	3.36	1	1	0	2010-07-19 00:00:00	S	0	\N	1	0	3278	21.00	1	t	f	f
@@ -9175,7 +9368,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 77971647	master box 20 	cigarros	master	1600.00	1328.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3400	21.00	1	t	f	f
 7794417006047	esponja	Gaseosa	esponja	120.00	99.60	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3401	21.00	1	t	f	f
 7500435125017	Deterg. limon 300 ml	Detergentes	Magistral	30.00	21.90	30	-2	1	1	1	0.00	0.00	3.74	1	1	0	\N	S	\N	\N	1	0	3402	21.00	1	t	f	f
-7798183770096	Chocolate con Almendras garrapiñadas	Almacen	Grido	11000.00	9130.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3405	21.00	1	t	f	f
+7798183770096	Chocolate con Almendras garrapiÃ±adas	Almacen	Grido	11000.00	9130.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3405	21.00	1	t	f	f
 7791600030124	Ciel nat spray 	Perfumeria	Ciel nuit	14500.00	8580.00	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3406	21.00	1	t	f	f
 7790360977960	swift burger doble mega 160 g 	congelados	swift	2200.00	1022.00	30	30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3407	21.00	1	t	f	f
 7798422620069	energy melon	Almacen	moster	3000.00	2324.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3409	21.00	1	t	f	f
@@ -9184,12 +9377,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790990589922	Jab.plusbelle belleza 150	Jabon tocador	Plusbelle	70.00	51.10	30	9	1	1	12928	4.36	5.02	3.20	1	1	0	\N	S	0	\N	1	0	3412	21.00	1	t	f	f
 7622300871970	Postre light vainilla	postre	Royal	650.00	146.00	30	3	3249093	1	1	0.00	0.00	1.45	1	1	0	2010-08-14 00:00:00	S	0	\N	1	0	3413	21.00	1	t	f	f
 7798321152265	Yogs frutos rojos  900g	Lacteos	sancor	2500.00	1826.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3414	21.00	1	t	f	f
-7794417007204	Secador plastico n40	Limpieza	Siña	35.00	25.55	30	3	1	1	1	0.00	0.00	3.98	1	1	0	2009-06-22 00:00:00	S	0	\N	1	0	3415	21.00	1	t	f	f
+7794417007204	Secador plastico n40	Limpieza	SiÃ±a	35.00	25.55	30	3	1	1	1	0.00	0.00	3.98	1	1	0	2009-06-22 00:00:00	S	0	\N	1	0	3415	21.00	1	t	f	f
 7793046007845	duklcor	Jugos	dulcor	56.00	46.48	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3417	21.00	1	t	f	f
 7798304841803	sin parar ddleche/choco	helados	frigor	2200.00	1825.00	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3418	21.00	1	t	f	f
 7891037408104	crema para piel	Perfumeria	lux	15.00	11.70	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3419	21.00	1	t	f	f
 7790119001120	Strawberry Fizz 720ml	Licores	Real	15.00	12.45	20	-12	1	1	1	0.00	0.00	5.09	1	1	0	\N	S	\N	\N	1	0	3423	21.00	1	t	f	f
-7798039591103	Champaña. Demisec 750ml	Licores	Tocornal	130.00	94.90	30	0	2796031	1	1	0.00	0.00	6.99	1	1	0	2009-12-17 00:00:00	S	0	\N	1	0	3424	21.00	1	t	f	f
+7798039591103	ChampaÃ±a. Demisec 750ml	Licores	Tocornal	130.00	94.90	30	0	2796031	1	1	0.00	0.00	6.99	1	1	0	2009-12-17 00:00:00	S	0	\N	1	0	3424	21.00	1	t	f	f
 7790119000048	Marsala 750ml	Licores	El Abuelo	22.75	16.61	30	-5	1	1	1	0.00	0.00	5.93	1	1	0	\N	S	\N	\N	1	0	3426	21.00	1	t	f	f
 7790710334597	cbse limon 500 g	yerba	cbse	2200.00	219.00	30	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3427	21.00	1	t	f	f
 7790070036179	mila grande  fugazz 560 g	congelado	Lucchetti 	6000.00	4980.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3428	21.00	1	t	f	f
@@ -9201,13 +9394,13 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793360000140	pulpa de tomate x  520g	Salsati 	salsati	1100.00	102.20	30	9	3681483	1	1	0.00	0.00	17.50	1	1	0	\N	S	0	\N	1	0	3440	21.00	1	t	f	f
 7790895000225	Sprite 2 l retornable 	Gaseosa	Sprite	2600.00	2158.00	20	-100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3442	21.00	1	t	f	f
 7794940000604	dulzura de origen 50 s	Almacen	hileret	2000.00	66.40	20	200	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3444	21.00	1	t	f	f
-7790336040124	champaña extra brut	Vinos	montchenot	60.00	49.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3445	21.00	1	t	f	f
+7790336040124	champaÃ±a extra brut	Vinos	montchenot	60.00	49.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3445	21.00	1	t	f	f
 7798096057758	Sales Lavanda 	Perfumeria	spa	1500.00	1170.00	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3446	21.00	1	t	f	f
 7796804047299	champi fiesta 	Almacen	champi	70.00	58.10	20	-46	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3447	21.00	1	t	f	f
 7790787960439	ilolay vainilla	Lacteos	ilolay	1000.00	830.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3449	21.00	1	t	f	f
-7790520014221	lysoform aire/montaña 360	Limpieza	Lysoform	270.00	197.10	30	0	3683460	0109553	1107	4.21	4.84	6.35	1	1	0	2010-10-19 00:00:00	S	0	\N	1	0	3450	21.00	1	t	f	f
+7790520014221	lysoform aire/montaÃ±a 360	Limpieza	Lysoform	270.00	197.10	30	0	3683460	0109553	1107	4.21	4.84	6.35	1	1	0	2010-10-19 00:00:00	S	0	\N	1	0	3450	21.00	1	t	f	f
 7798032180076	Lisetta Polenta 1kg	Polentas	Lisetta	14.00	10.22	30	-56	1280820	1	1	0.00	0.00	1.70	1	1	0	2010-09-03 00:00:00	S	0	\N	1	0	3451	21.00	1	t	f	f
-7794000960244	Ketchup  500 3g	Mayonesas	hellmann´s	200.00	156.00	25	4	3297489	1	1	0.00	0.00	2.78	1	1	0	2009-05-27 00:00:00	S	\N	\N	1	0	3452	21.00	1	t	f	f
+7794000960244	Ketchup  500 3g	Mayonesas	hellmannÂ´s	200.00	156.00	25	4	3297489	1	1	0.00	0.00	2.78	1	1	0	2009-05-27 00:00:00	S	\N	\N	1	0	3452	21.00	1	t	f	f
 7791167000394	cotar yogur frutilla 1 l	Lacteos	cotar	25.00	20.75	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3453	21.00	1	t	f	f
 8004200129006	Guantes extra grande	Limpieza	Mapa	47.00	34.31	30	6	333727	1	1	0.00	0.00	3.70	1	1	0	2009-07-28 00:00:00	S	\N	\N	1	0	3455	21.00	1	t	f	f
 7790036114125	Jug. Pomelo Rosado 1,5lts	jugos	Mocoreta	400.00	11.68	30	-2	3201724	0102870	1	3.09	3.55	2.69	1	1	0	2010-07-10 00:00:00	S	0	\N	1	0	3457	21.00	1	t	f	f
@@ -9241,7 +9434,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337009783	yogur natural 190	Almacen	la serenisima	2900.00	2407.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3499	21.00	1	t	f	f
 9	electronica	helados	shelatino	3000.00	2190.00	30	-154	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3500	21.00	1	t	f	f
 7794990000012	la paulina port salut light	Lacteos	la paulina	65.00	53.95	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3502	21.00	1	t	f	f
-7896001008502	escoba de baño slow	Limpieza	slow	22.00	18.26	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3503	21.00	1	t	f	f
+7896001008502	escoba de baÃ±o slow	Limpieza	slow	22.00	18.26	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3503	21.00	1	t	f	f
 7891150082649	dove sh oleo 200 ml	Perfumeria	dove	350.00	187.20	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3505	21.00	1	t	f	f
 7790070034410	granja  naggets crocante  400g	Almacen	granja iria	7000.00	1411.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3506	21.00	1	t	f	f
 7793890013368	lactal oferta	Panaderia	el tetu	15.00	10.95	30	-66	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3507	21.00	1	t	f	f
@@ -9287,7 +9480,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790770601066	Toalla s/anat c/alas 8u	Toallitas	Calipso	400.00	131.40	30	-11	3189155	1	15340	0.00	0.00	1.24	1	Nini	0	2010-04-21 00:00:00	S	0	\N	1	0	3560	21.00	1	t	f	f
 7790114901234	confites shot x 40g	Almacen	royal	28.00	23.24	20	16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3561	21.00	1	t	f	f
 7793147001025	cerveza Schenider 	Almacen	Schneirder	330.00	273.90	30	-45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3563	21.00	1	t	f	f
-7790236017509	Ravioles ric/esp. x500g	Pasta	La Salteña	17.00	12.41	30	2	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	\N	\N	1	0	3565	21.00	1	t	f	f
+7790236017509	Ravioles ric/esp. x500g	Pasta	La SalteÃ±a	17.00	12.41	30	2	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	\N	\N	1	0	3565	21.00	1	t	f	f
 7798187211885	quento jamon serrano 	snacks	Quento	2200.00	1660.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3566	21.00	1	t	f	f
 7794000006478	savora ex sodio 250 origin	Almacen	savora	1200.00	290.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3568	21.00	1	t	f	f
 77905277	halls de miel	Dulce	halls	700.00	664.00	20	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3569	21.00	1	t	f	f
@@ -9336,7 +9529,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790770601905	norm clas toalla 8 unid 	Perfumeria	NOSOTRAS	2000.00	1560.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3624	21.00	1	t	f	f
 7500435231244	h&s sh ant comez 180 ml	Limpieza	h&s 	5700.00	3320.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3625	21.00	1	t	f	f
 7790071070707	grisinas finas hierdas 160g	Galletitas	riera	60.00	43.80	30	-54	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3627	21.00	1	t	f	f
-7790336041107	champaña nature	Vinos	montchenot	65.00	53.95	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3629	21.00	1	t	f	f
+7790336041107	champaÃ±a nature	Vinos	montchenot	65.00	53.95	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3629	21.00	1	t	f	f
 7791337008557	l.s clas vain 85 g 	Lacteos	la serenisima	500.00	332.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3630	21.00	1	t	f	f
 7798024450118	trapo de piso 62x48	Almacen	mister trapo	600.00	498.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3631	21.00	1	t	f	f
 7790520010445	raid espirales x 4	Limpieza	Raid	900.00	747.00	20	-16	1	1	1	0.00	0.00	19.50	1	1	0	2009-03-28 00:00:00	S	0	\N	1	0	3633	21.00	1	t	f	f
@@ -9350,7 +9543,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791813421368	Paso/Toros  tonica 1.5l	Gaseosa	Paso de los Toros	2200.00	1037.50	20	-12	000008	1	1	0.00	0.00	4.57	1	Quilmes	0	2010-10-05 00:00:00	S	0	\N	1	0	3642	21.00	1	t	f	f
 7790387003482	taragui mate cocido 25 unid 	mate cocido	taragui	100.00	83.00	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3644	21.00	1	t	f	f
 7791113003356	Merme durazno 420 g	Mermeladas	emeth	1100.00	80.30	30	2	1	1	1	0.00	0.00	1.20	1	1	0	\N	S	0	\N	1	0	3646	21.00	1	t	f	f
-7791843008294	Viña balbo Borgoña 1250ml	Vinos	Viñas de Balbo	4000.00	2920.00	30	12	1459710	1	1	8.10	9.32	10.65	1	Nini	0	2010-06-30 00:00:00	S	0	\N	1	0	3648	21.00	1	t	f	f
+7791843008294	ViÃ±a balbo BorgoÃ±a 1250ml	Vinos	ViÃ±as de Balbo	4000.00	2920.00	30	12	1459710	1	1	8.10	9.32	10.65	1	Nini	0	2010-06-30 00:00:00	S	0	\N	1	0	3648	21.00	1	t	f	f
 7798187211779	quento nachos choclo manteca	Almacen	quento	2000.00	1079.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3650	21.00	1	t	f	f
 7790950004731	Amargo. limon 1.5lt	Aperitivo	Monferrato	50.00	36.50	30	-5	1	1	1	3.10	3.57	3.10	1	1	0	2010-09-21 00:00:00	S	0	\N	1	0	3651	21.00	1	t	f	f
 7790950003420	Aperit. serrano 1.5lt	Aperitivo	Tres Torres	1400.00	87.60	30	0	3790924	2903u	1	2.85	3.28	2.70	1	Nini	0	2010-07-10 00:00:00	S	0	\N	1	0	3652	21.00	1	t	f	f
@@ -9389,7 +9582,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790387013122	taragui x 500 	Almacen	taragui	12.50	10.38	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3697	21.00	1	t	f	f
 7791337003514	ser botellita 190 	Lacteos	SER	130.00	107.90	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3698	21.00	1	t	f	f
 7790895010088	schweppers pomelo zero 1.5	Gaseosa	schweppers	2500.00	1992.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3699	21.00	1	t	f	f
-7798092963046	sepillo para baño	Limpieza	make	550.00	199.20	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3700	21.00	1	t	f	f
+7798092963046	sepillo para baÃ±o	Limpieza	make	550.00	199.20	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3700	21.00	1	t	f	f
 7798176000711	sancor bebe  3 200	Lacteos	sancor	300.00	249.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3701	21.00	1	t	f	f
 7791290794979	Lavandina en gel 700 Citrus	Limpieza	Vim	2000.00	1660.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3702	21.00	1	t	f	f
 7613036507424	dogui carne asada con seleccion de vegetales x1.5kg	Almacen	dogui	100.00	83.00	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3703	10.50	1	t	f	f
@@ -9428,7 +9621,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798146350051	agua hermida	Almacen	hermida	2500.00	2075.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3737	21.00	1	t	f	f
 7790080026733	Tholem  light clasico	Lacteos	sancor	2200.00	315.90	22	1	2756	1	1	6.97	8.01	6.48	1	Sancor	0	2012-06-25 00:00:00	S	0	\N	1	0	3738	21.00	1	t	f	f
 7790080026788	Tholem  light 4 quesos	Lacteos	sancor	1700.00	299.70	22	-5	2782	1	1	6.97	8.02	6.48	1	Sancor	0	2012-06-25 00:00:00	S	0	\N	1	0	3739	21.00	1	t	f	f
-7798115010337	otard dupuy coñac	Vinos	otar	120.00	99.60	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3740	21.00	1	t	f	f
+7798115010337	otard dupuy coÃ±ac	Vinos	otar	120.00	99.60	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3740	21.00	1	t	f	f
 7891000368893	Nestle classico diplomata 80g	Almacen	Nestle	2000.00	1460.00	30	0	1	1	1	0.00	0.00	4.50	1	1	0	\N	S	0	\N	1	0	3741	21.00	1	t	f	f
 7798095170250	Leche en polvo	leche	purisima	15.56	11.97	30	-1	1	1	1	0.00	0.00	11.97	1	1	0	\N	S	\N	\N	1	0	3743	21.00	1	t	f	f
 7795184006001	Mermelada light durazno	Mermeladas	Noel	2600.00	197.10	30	2	1	5113	1	3.44	3.96	2.74	1	1	0	2009-04-01 00:00:00	S	0	\N	1	0	3745	21.00	1	t	f	f
@@ -9552,7 +9745,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790040008175	Opera x 220gs	Almacen	Bagley	2300.00	189.80	30	7	1	1	1	0.00	0.00	2.53	1	1	0	\N	S	0	\N	1	0	3911	21.00	1	t	f	f
 7794700000011	Maiz inflado dulce 80g	Almacen	capullitos en flor	15.00	10.95	30	-33	1	1	1	2.00	2.30	1.86	1	1	0	2010-09-21 00:00:00	S	0	\N	1	0	3912	21.00	1	t	f	f
 7899975800523	Oreo chocolate	Galletitas	nabisco	590.00	430.70	30	-20	1	1	1	0.00	0.00	1.25	1	1	0	\N	S	0	\N	1	0	3913	21.00	1	t	f	f
-7791070005752	Rollo 200 paños 	Limpieza	campanita	1600.00	1328.00	20	74	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3914	21.00	1	t	f	f
+7791070005752	Rollo 200 paÃ±os 	Limpieza	campanita	1600.00	1328.00	20	74	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3914	21.00	1	t	f	f
 7790696000301	Duraznos amarillos x800	Latas	abeto	2000.00	3.99	30	-2	3849996	1	1	3.99	4.59	3.99	1	nini	0	\N	S	0	\N	1	0	3915	21.00	1	t	f	f
 7790704167644	vino tinto cabernet	Vinos	suter	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3916	21.00	1	t	f	f
 7798130888638	Higienico 6x50m	Higienico	Vual	1600.00	26.28	30	5	2176475	0136084	1	4.23	4.86	4.65	1	Nini	0	2010-08-14 00:00:00	S	0	\N	1	0	3918	21.00	1	t	f	f
@@ -9566,7 +9759,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 77905604	lulemuu	Dulce	dulce de leche	60.00	49.80	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3940	21.00	1	t	f	f
 7791130002752	proc antigr 420 ml	Desodorante piso	procenex	1800.00	146.00	30	-3	3837513	1	1	1.94	2.23	2.70	1	1	0	2010-03-16 00:00:00	S	0	\N	1	0	3942	21.00	1	t	f	f
 7790520995322	Lysoform aer 360 ml 	Limpieza	lysoform	2900.00	2117.00	30	-1	3858278	0129887	1	3.02	3.48	3.50	1	Nini	0	2010-03-27 00:00:00	S	0	\N	1	0	3943	21.00	1	t	f	f
-7793360111457	ñsabor tipo barbacoa	Gaseosa	la campañola	20.00	16.60	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3944	21.00	1	t	f	f
+7793360111457	Ã±sabor tipo barbacoa	Gaseosa	la campaÃ±ola	20.00	16.60	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3944	21.00	1	t	f	f
 7798321152494	sancor yog fir vai 190 gr	Lacteos	sancor	1400.00	830.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	3945	21.00	1	t	f	f
 7798126073765	mantequitas 220 g 	Galletitas	gaona	1200.00	876.00	30	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3948	21.00	1	t	f	f
 7795733000139	Membrillitos kokis x500g	Galletitas	Kokis	2800.00	321.20	30	-13	30093	1	1	4.60	5.29	4.60	1	Michael	0	2010-09-28 00:00:00	S	0	\N	1	0	3949	21.00	1	t	f	f
@@ -9602,7 +9795,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792590000227	harina caserita 0000 x 1kg	Harinas	caserita	1200.00	365.00	30	-10	25895	1	1	2.80	3.22	1.65	1	1	0	\N	S	0	\N	1	0	3986	10.50	1	t	f	f
 7790387000849	Mate cocido x25	Mate	Taragui	150.00	54.75	30	-29	40894	1	2025	1.12	1.29	1.70	1	1	0	2010-10-02 00:00:00	S	0	\N	1	0	3987	21.00	1	t	f	f
 7791293034447	closeup pasta dental	Limpieza	close up	32.00	26.56	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	3989	21.00	1	t	f	f
-7790236000303	Ravioles carne y verdura	Pasta	la salteña	69.00	50.37	30	3	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	\N	\N	1	0	3990	10.50	1	t	f	f
+7790236000303	Ravioles carne y verdura	Pasta	la salteÃ±a	69.00	50.37	30	3	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	\N	\N	1	0	3990	10.50	1	t	f	f
 7790990002810	Jabon doy pack .800g	Jabon polvo	Ariel	3800.00	2190.00	30	0	3749401	0128419	1	7.26	8.35	7.26	1	Vital	0	2010-03-27 00:00:00	S	0	\N	1	0	3994	21.00	1	t	f	f
 75003435124720	Jabon polvo bio 3kg matic	Jabon en polvo	Ace	200.00	146.00	30	1	1	1	1	3.12	3.59	4.97	1	1	0	2009-05-29 00:00:00	S	\N	\N	1	0	3995	21.00	1	t	f	f
 7791290010079	skip sachet 3 l	Jabon polvo	skip	600.00	438.00	30	2	1	1	1	6.72	7.73	6.72	1	1	0	\N	S	\N	\N	1	0	3996	21.00	1	t	f	f
@@ -9634,7 +9827,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7795933203224	pulpa de frutilla 	Latas	Bahia	3800.00	2774.00	30	0	1	1	1	0.00	0.00	3.65	1	1	0	\N	S	0	\N	1	0	4036	21.00	1	t	f	f
 7790040439009	Mana rellena de frutilla	Galletitas	Mana	70.00	49.00	33	-4	4390	1	1	2.09	2.40	2.12	1	1	0	2009-12-02 00:00:00	S	0	\N	1	0	4037	21.00	1	t	f	f
 7791150010126	Cafe 170g	Cafe	arlistan	25.00	18.25	30	17	1	1	1	0.00	0.00	7.30	1	1	0	\N	S	\N	\N	1	0	4038	21.00	1	t	f	f
-77908377	Cafe al Coñac 200ml	Licores	Cusenier	2000.00	1022.00	30	-39	59374	1	1	2.70	3.11	2.70	1	1	0	\N	S	0	\N	1	0	4039	21.00	1	t	f	f
+77908377	Cafe al CoÃ±ac 200ml	Licores	Cusenier	2000.00	1022.00	30	-39	59374	1	1	2.70	3.11	2.70	1	1	0	\N	S	0	\N	1	0	4039	21.00	1	t	f	f
 7790070410672	Exquisita Bizc. naranja 540	Bizcochuelo	Exquisita	26.00	17.52	30	-2	3216039	1	564	4.15	4.77	4.79	1	1	0	2010-08-14 00:00:00	S	0	\N	1	0	4040	21.00	1	t	f	f
 7798060853270	tonadita 10 fet cheddar 	Lacteos	tonadita	2200.00	747.00	20	-41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4041	21.00	1	t	f	f
 7795184946604	Salsa filetta x340	Pure	Noel	120.00	73.00	30	-8	2090643	0102200	46858	1.79	2.05	1.79	1	Nini	0	\N	S	0	\N	1	0	4042	21.00	1	t	f	f
@@ -9663,10 +9856,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793008005575	issue color pack 10	Almacen	issue 	4400.00	498.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4071	21.00	1	t	f	f
 7790260013157	Licor crema  menta 	Licores	Tres Plumas	14.04	10.80	30	0	N231	1	1	0.00	0.00	6.78	1	1	0	\N	S	0	\N	1	0	4072	21.00	1	t	f	f
 7798092964357	pizzeran 35 graneada liviana	Prod.Altos	make	20.00	18.60	10	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4073	21.00	1	t	f	f
-7790070336583	fideo moños 500 g 	fideo	don vicente	3800.00	2988.00	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4074	21.00	1	t	f	f
-7793360006142	Caballa al natural 	Almacen	La campañola	15.00	10.95	30	-27	3245977	1	1	0.00	0.00	8.30	1	1	0	2008-12-27 00:00:00	S	0	\N	1	0	4075	21.00	1	t	f	f
+7790070336583	fideo moÃ±os 500 g 	fideo	don vicente	3800.00	2988.00	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4074	21.00	1	t	f	f
+7793360006142	Caballa al natural 	Almacen	La campaÃ±ola	15.00	10.95	30	-27	3245977	1	1	0.00	0.00	8.30	1	1	0	2008-12-27 00:00:00	S	0	\N	1	0	4075	21.00	1	t	f	f
 77990105	Licor seco	Licores	tres plumas	60.00	43.80	30	2	N242	1	1	0.00	0.00	3.36	1	1	0	2010-05-25 00:00:00	S	\N	\N	1	0	4076	21.00	1	t	f	f
-7791560000366	whisky añejo doble-v x200	Licores	doble v	320.00	233.60	30	-18	1	1	1	0.00	0.00	2.77	1	1	0	2009-06-15 00:00:00	S	0	\N	1	0	4077	21.00	1	t	f	f
+7791560000366	whisky aÃ±ejo doble-v x200	Licores	doble v	320.00	233.60	30	-18	1	1	1	0.00	0.00	2.77	1	1	0	2009-06-15 00:00:00	S	0	\N	1	0	4077	21.00	1	t	f	f
 7891024111130	Dentifrico total 12	dentrifico	Colgate	18.00	14.94	20	2	1	1	1	0.00	0.00	6.47	1	1	0	\N	S	\N	\N	1	0	4078	21.00	1	t	f	f
 7791520077261	veritas Jabon neutro x 3	Jabon tocador	veritas	14.00	10.22	30	-7	1	1	1	0.00	0.00	1.29	1	1	0	\N	S	\N	\N	1	0	4079	21.00	1	t	f	f
 7795323774846	vital bago n2 800 g 	Lacteos	vital	4500.00	1743.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4081	21.00	1	t	f	f
@@ -9692,10 +9885,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798151770288	por salut 190 g 	Lacteos	tremblay	1600.00	1328.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4110	21.00	1	t	f	f
 7793890258806	Pan de paty 210gr	Pan lactal	Lactal	2500.00	328.50	30	-31	1	1	1	16.76	18.77	1.40	12	Michael	0	\N	S	0	\N	1	0	4113	21.00	1	t	f	f
 714604304234	agua 750 ml 	Aguas	Saint Michel	900.00	747.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4115	21.00	1	t	f	f
-7501056332068	pon´s rejuvenese 50 g	Perfumeria	pon´s	20.00	15.60	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4121	21.00	1	t	f	f
+7501056332068	ponÂ´s rejuvenese 50 g	Perfumeria	ponÂ´s	20.00	15.60	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4121	21.00	1	t	f	f
 7792390620823	capelettini de tridicci	Almacen	giacomo	4300.00	3154.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4122	21.00	1	t	f	f
 7794321068940	Sopapa de goma	Limpieza	make	1000.00	930.00	10	-3	1	1	1	0.00	0.00	3.30	1	1	0	\N	S	0	\N	1	0	4123	21.00	1	t	f	f
-7796322000028	paño amarillo gr 	Limpieza	plasser	2000.00	1660.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4124	21.00	1	t	f	f
+7796322000028	paÃ±o amarillo gr 	Limpieza	plasser	2000.00	1660.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4124	21.00	1	t	f	f
 7798335287007	gandara dulce de leche	Lacteos	gandara	80.00	66.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4125	21.00	1	t	f	f
 7791828000138	felpita decorado x 3 felpita	Limpieza	felpita cocina	750.00	298.80	20	-52	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4126	21.00	1	t	f	f
 7898422746803	Jabon tocador idratante	Jabon tocador	dove	48.00	35.04	30	-15	1	0128262	1	3.15	3.62	1.25	1	NINI	0	2010-07-09 00:00:00	S	0	\N	1	0	4129	21.00	1	t	f	f
@@ -9747,12 +9940,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798176001206	leche bebe 1 f.inicio p/lactantes	Lacteos	Sancor	450.00	373.50	20	0	3795	1	1	2.20	2.53	2.73	1	Sancor	0	2010-10-14 00:00:00	S	0	\N	1	0	4187	21.00	1	t	f	f
 7892840817619	doritos queso 140 g	Almacen	doritos	350.00	290.50	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4188	21.00	1	t	f	f
 7790070336200	fideos penne rigate	Fideos	Matarazzo	1600.00	1168.00	30	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4189	21.00	1	t	f	f
-7791625004162	Esponja baño	esponja\r\n	Hebra dorada	600.00	438.00	30	81	1	1	1	0.00	0.00	0.73	1	1	0	2009-01-19 00:00:00	S	0	\N	1	0	4190	21.00	1	t	f	f
+7791625004162	Esponja baÃ±o	esponja\r\n	Hebra dorada	600.00	438.00	30	81	1	1	1	0.00	0.00	0.73	1	1	0	2009-01-19 00:00:00	S	0	\N	1	0	4190	21.00	1	t	f	f
 7798105550164	Limpia vidrio 30	Limpieza	B.J	12.00	8.76	30	10	1	1	1	0.00	0.00	3.32	1	1	0	2009-07-29 00:00:00	S	\N	\N	1	0	4191	21.00	1	t	f	f
-7798024450514	Mister trapo paño piso	Limpieza	Mister trapo	28.00	23.24	20	-2	1	1	1	0.00	0.00	0.75	1	1	0	\N	S	\N	\N	1	0	4192	21.00	1	t	f	f
+7798024450514	Mister trapo paÃ±o piso	Limpieza	Mister trapo	28.00	23.24	20	-2	1	1	1	0.00	0.00	0.75	1	1	0	\N	S	\N	\N	1	0	4192	21.00	1	t	f	f
 7798186032979	D.R.F. pastilla menta	Almacen	D.R.F	30.00	24.90	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4193	21.00	1	t	f	f
 7790770600861	calipso pack economico 16 	Perfumeria	calipso	90.00	70.20	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4194	21.00	1	t	f	f
-7790236002079	salteña jamon y queso 500g	Almacen	la salteña	160.00	132.80	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4196	21.00	1	t	f	f
+7790236002079	salteÃ±a jamon y queso 500g	Almacen	la salteÃ±a	160.00	132.80	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4196	21.00	1	t	f	f
 7793015002901	lumilagro termo estilo 1 l 	Prod.Altos	lumilagro	1500.00	1395.00	10	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4197	21.00	1	t	f	f
 7797655000525	palmitos enteros 220g	Almacen	castello ponte	16.00	13.28	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4198	21.00	1	t	f	f
 7791218000076	Fideos frescos x 500 g	Fideos	Orali	2300.00	323.70	20	1	1	1	1	0.00	0.00	1.47	1	1	0	\N	S	0	\N	1	0	4199	21.00	1	t	f	f
@@ -9767,7 +9960,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792180004772	 rebosador x kilo	mermeladas	mama cocina	2000.00	1660.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4210	21.00	1	t	f	f
 7790726000141	Dulcypas budin vainilla 170	Galletitas	Dulcypas	30.00	21.90	30	-43	8273	1	1	23.37	26.88	2.72	10	Michael	0	2010-03-17 00:00:00	S	0	\N	1	0	4211	21.00	1	t	f	f
 7791293030395	shampoo arandanos y terojo	Limpieza	suave	62.00	51.46	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4212	21.00	1	t	f	f
-7790236000129	Ñoquis La Salteña 500g	pasta	La Salteña 	95.00	69.35	30	12	1	1	1	6.80	7.82	6.50	1	tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	4213	21.00	1	t	f	f
+7790236000129	Ã‘oquis La SalteÃ±a 500g	pasta	La SalteÃ±a 	95.00	69.35	30	12	1	1	1	6.80	7.82	6.50	1	tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	4213	21.00	1	t	f	f
 7790787960873	Queso clasico 290 g 	Lacteos	ilolay	2500.00	2241.00	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4214	21.00	1	t	f	f
 7891000008478	nestle clasico	Dulce	Nestle	80.00	66.40	20	0	1876899	1	1	0.00	0.00	4.81	1	1	0	\N	S	\N	\N	1	0	4215	21.00	1	t	f	f
 7790070320117	lucchettini carne 500 g	Almacen	lucchetti	4200.00	298.80	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4216	10.50	1	t	f	f
@@ -9778,14 +9971,14 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7795643001707	cilo pepas 300	Almacen	cilo	1200.00	996.00	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4224	21.00	1	t	f	f
 7790132098459	Lav. concentrada 1lt 	lavandina	ayudin	1400.00	803.00	30	9	66125	0104165	386	1.63	1.87	1.87	1	Nini	0	2010-08-14 00:00:00	S	0	\N	1	0	4225	21.00	1	t	f	f
 7790520010384	Echo 3en1 env.econ. x450	Desodorante piso	Echo	80.00	66.40	20	5	3744787	1	1	0.00	0.00	2.66	1	1	0	2009-03-14 00:00:00	S	0	\N	1	0	4226	21.00	1	t	f	f
-7798187211205	quento arroz bañado 	Almacen	quento	2000.00	1079.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4229	21.00	1	t	f	f
+7798187211205	quento arroz baÃ±ado 	Almacen	quento	2000.00	1079.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4229	21.00	1	t	f	f
 7790520010438	glade discos adhesivos maquina	Limpieza	glade	165.00	136.95	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4231	21.00	1	t	f	f
 7798184680684	saphirus magnolias aerosol	Perfumeria	saphirus	90.00	70.20	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4232	21.00	1	t	f	f
 7798096059202	spa perfumina caria vainilla	Perfumeria	spa	670.00	522.60	25	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4234	21.00	1	t	f	f
 7790310984000	Lays clasicas 145g	snack	pepsico	3200.00	813.40	20	-4	1	1	1	0.00	0.00	0.50	1	1	0	\N	S	0	\N	1	0	4235	21.00	1	t	f	f
 7891024041109	colgate plax en juague bucal	Perfumeria	colgate	320.00	249.60	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4236	21.00	1	t	f	f
 7793015525974	lumilagro termo terra 1 l	Prod.Altos	lumilagro	1300.00	1209.00	10	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4237	21.00	1	t	f	f
-7794321003699	Salva uña esponja 	Limpieza	task	500.00	415.00	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4238	21.00	1	t	f	f
+7794321003699	Salva uÃ±a esponja 	Limpieza	task	500.00	415.00	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4238	21.00	1	t	f	f
 7509546686479	kolinos 90 g 	Perfumeria	kolinos	2700.00	2106.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4239	21.00	1	t	f	f
 7790080032819	Leche descre.sache	Leche	Sancor	32.00	26.56	20	1	3281	1	1	1.60	1.84	3.00	1	Sancor	0	2010-09-23 00:00:00	S	0	\N	1	0	4241	21.00	1	t	f	f
 7790580230111	mogul vivorita  	Almacen	mogul	200.00	58.10	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4242	21.00	1	t	f	f
@@ -9829,7 +10022,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790310985571	doritos 200g 	Almacen	doritos	7300.00	5644.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4301	21.00	1	t	f	f
 7798184688994	Good woman	Perfumeria	Saphirus	3400.00	2652.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4302	21.00	1	t	f	f
 7798120829023	Pro-luminio film aluminio 5mx25cm	Limpieza	pro-luminio	110.00	91.30	20	-8	1	1	1	0.00	0.00	1.83	1	1	0	\N	S	\N	\N	1	0	4303	21.00	1	t	f	f
-77990112	Cafe al coñac Petaca	Licores	Tres plumas	2000.00	1460.00	30	3	2440741	1	1	3.92	4.51	3.90	1	1	0	2009-07-27 00:00:00	S	0	\N	1	0	4304	21.00	1	t	f	f
+77990112	Cafe al coÃ±ac Petaca	Licores	Tres plumas	2000.00	1460.00	30	3	2440741	1	1	3.92	4.51	3.90	1	1	0	2009-07-27 00:00:00	S	0	\N	1	0	4304	21.00	1	t	f	f
 7791290788497	Skip q/action 400g	Jabon polvo	Skip 	80.00	58.40	30	-7	N143	1	\N	4.51	5.19	4.15	1	1	0	2009-05-29 00:00:00	S	\N	\N	1	0	4305	21.00	1	t	f	f
 7791290012615	Skip u/black 800g	Jabon polvo	Skip 	160.00	116.80	30	0	1	122341	1	8.83	10.15	8.11	1	1	0	2009-05-29 00:00:00	S	0	\N	1	0	4306	21.00	1	t	f	f
 7790360720115	swif picadillo	Almacen	SWIFT	1000.00	747.00	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4307	21.00	1	t	f	f
@@ -9848,7 +10041,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290004757	Cif Cocina/lav.750	gatillo	Cif 	200.00	146.00	30	1	518700	1	1	8.58	9.87	9.00	1	1	0	2010-03-10 00:00:00	S	0	\N	1	0	4329	21.00	1	t	f	f
 7794417003145	sina broches de plastico	Limpieza	sina	1300.00	58.10	20	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4330	21.00	1	t	f	f
 7798096056959	Jabon Floral Glicerina	Perfumeria	Spa	1200.00	429.00	25	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4331	21.00	1	t	f	f
-7793360108426	choclo entero	Almacen	la campañola	300.00	174.30	20	-40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4332	21.00	1	t	f	f
+7793360108426	choclo entero	Almacen	la campaÃ±ola	300.00	174.30	20	-40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4332	21.00	1	t	f	f
 77962751	red point cigarrillo 16	Almacen	red 	65.00	53.95	20	-159	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4333	21.00	1	t	f	f
 7790580116958	mogul con sticker mas grande de ben 10	Dulce	mogul	500.00	74.70	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4335	21.00	1	t	f	f
 7791828000817	carta higienico doble hoja	Limpieza	CARTABELLA	1700.00	166.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4336	21.00	1	t	f	f
@@ -9909,7 +10102,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7795481000085	ecosatti salsa de aji picanrte	Almacen	scozatti	17.50	14.53	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4404	21.00	1	t	f	f
 7791070000047	rollo de cocina 60 mts	Limpieza	campanita	1700.00	132.80	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4405	21.00	1	t	f	f
 7795403011205	pan salvado	Almacen	mayo	80.00	66.40	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4406	21.00	1	t	f	f
-7798096031116	Choclo 340 g 	Almacen	Doña pupa	1800.00	1162.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4407	21.00	1	t	f	f
+7798096031116	Choclo 340 g 	Almacen	DoÃ±a pupa	1800.00	1162.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4407	21.00	1	t	f	f
 7794000006553	hellm mayo ajo 250 g	Almacen	hellmanns	2500.00	581.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4408	21.00	1	t	f	f
 7791957000559	torta	Almacen	loca	59.00	48.97	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4409	21.00	1	t	f	f
 7790520161055	Repelente Off x165	Perfumeria	johnson	25.00	18.25	30	-48	278041	0103878	1222	8.47	9.74	9.67	1	1	0	2009-10-09 00:00:00	S	0	\N	1	0	4410	21.00	1	t	f	f
@@ -9931,11 +10124,11 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798422620120	Monster pepile punch	energizante	monster	3000.00	2490.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4431	21.00	1	t	f	f
 7790070318329	Lucch  Tirabuz x500g	Fideos	Lucchetti	800.00	73.00	30	-58	866105	1	1	3.26	3.75	3.42	1	1	0	2010-08-24 00:00:00	S	0	\N	1	0	4433	21.00	1	t	f	f
 7794520868204	krachitos snacks papas	Almacen	krachitos 	1300.00	913.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4434	21.00	1	t	f	f
-7790010986113	jonnson´s crema	Perfumeria	jonnson´s	20.00	15.60	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4435	21.00	1	t	f	f
+7790010986113	jonnsonÂ´s crema	Perfumeria	jonnsonÂ´s	20.00	15.60	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4435	21.00	1	t	f	f
 7791337605848	la serenisima clasico durazno 	Lacteos	la serenisima	150.00	95.45	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4437	21.00	1	t	f	f
 7790580148997	choclo entero	Almacen	noel	1600.00	830.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4438	21.00	1	t	f	f
 7798113300515	Fernet x 1 litro	bebidas	Fernandito	1200.00	730.00	30	12	3960455	0132095	1	2.33	2.68	1.84	1	Vital	0	2010-06-12 00:00:00	S	0	\N	1	0	4439	21.00	1	t	f	f
-7798092961387	colador n°8 	Prod.Altos	make	800.00	744.00	10	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4440	21.00	1	t	f	f
+7798092961387	colador nÂ°8 	Prod.Altos	make	800.00	744.00	10	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4440	21.00	1	t	f	f
 7798321150353	vida vainilla 185 g	Lacteos	sancor	550.00	62.25	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4441	21.00	1	t	f	f
 7790398100132	Queso rallado x 150g	queso rallado	La Paulina	63.00	45.99	30	1	1	0129004	1	5.35	6.15	5.82	1	nini	0	2010-03-27 00:00:00	S	\N	\N	1	0	4442	21.00	1	t	f	f
 7798321152500	sancor yog fir fruti 190 	Lacteos	sancor	1400.00	830.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4443	21.00	1	t	f	f
@@ -9976,7 +10169,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790990002209	zorro blue power 1.4 l	Limpieza	zorro	2500.00	1245.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4497	21.00	1	t	f	f
 7791130011303	ropa oscura	Limpieza	woolite	13.50	11.21	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4499	21.00	1	t	f	f
 7791293012087	desodo	Almacen	dave	90.00	74.70	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4502	21.00	1	t	f	f
-7794417000366	Limpia espalda	Limpieza	Siña	80.00	50.40	40	1	1	1	1	4.00	4.40	4.00	1	Limpieza	0	\N	S	\N	\N	1	0	4507	21.00	1	t	f	f
+7794417000366	Limpia espalda	Limpieza	SiÃ±a	80.00	50.40	40	1	1	1	1	4.00	4.40	4.00	1	Limpieza	0	\N	S	\N	\N	1	0	4507	21.00	1	t	f	f
 7790670052715	calabaza choclo chia 	Galletitas	Green life	3800.00	2774.00	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4508	21.00	1	t	f	f
 7797390401458	Cepillo de mano	Limpieza	Limpieza	1200.00	220.50	40	-8	1	1	1	1.85	2.04	1.85	1	-limpieza	0	\N	S	0	\N	1	0	4509	21.00	1	t	f	f
 7790990494622	zorro ultra 500	Limpieza	zorro	110.00	91.30	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5828	21.00	1	t	f	f
@@ -9988,7 +10181,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000146	panceta salada	Fiambreria	Fiambreria	3400.00	99.60	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4515	21.00	1	t	f	f
 5000161	salchichon con jamon	Fiambreria	Fiambreria	725.00	16.60	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4516	21.00	1	t	f	f
 7798107100237	bolsas  para residuos	Limpieza	la superiora	20.00	16.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4517	21.00	1	t	f	f
-7790070621887_2	ravioles carne y verdura 	pastas	La Salteña	3000.00	830.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4518	10.50	1	t	f	f
+7790070621887_2	ravioles carne y verdura 	pastas	La SalteÃ±a	3000.00	830.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4518	10.50	1	t	f	f
 7790070101747	Arroz 1 kg + 100 	Almacen	Gallo	2400.00	1992.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4519	21.00	1	t	f	f
 7793404001058	Choc/Amer/Frut/Vain. x2lts	Helados	Mc.Cream	25.00	18.25	30	-6	1	1	1	0.00	0.00	7.96	1	1	0	2008-11-27 00:00:00	S	\N	\N	1	0	4521	21.00	1	t	f	f
 7793404203087_2	Torta frutilla x800g	Helados	Mc.Cream	29.90	21.83	30	0	1	1	1	0.00	0.00	0.00	1	1	0	\N	S	\N	\N	1	0	4522	21.00	1	t	f	f
@@ -10137,7 +10330,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790250021971	Higienico Maxlleva 90 paga 80x4	Higienico	Higienol	55.00	40.15	30	-10	3261158	1	11890	6.21	7.15	7.23	1	Maxi	0	2010-08-24 00:00:00	S	0	\N	1	0	4715	21.00	1	t	f	f
 7790458657057	tibu desinfectante lavanda 410cm	Perfumeria	tibu	130.00	101.40	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4717	21.00	1	t	f	f
 7791718844798	rollo de aluminio	Almacen	alumni	2300.00	215.80	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4719	21.00	1	t	f	f
-7798008382787	paño multiuso patito 40 x 37	Rejilla	vileda	90.00	65.70	30	0	1	1	1	1.45	1.60	1.45	1	1	0	\N	S	\N	\N	1	0	4721	21.00	1	t	f	f
+7798008382787	paÃ±o multiuso patito 40 x 37	Rejilla	vileda	90.00	65.70	30	0	1	1	1	1.45	1.60	1.45	1	1	0	\N	S	\N	\N	1	0	4721	21.00	1	t	f	f
 7794440045921	guantes plumita m	Almacen	 plumita 	120.00	99.60	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4723	21.00	1	t	f	f
 7798032180632	Maiz pisingallo x400g	Maiz	Lisetta	800.00	73.00	30	7	4004191	1	1	1.66	1.91	1.56	1	1	0	2009-11-12 00:00:00	S	0	\N	1	0	4725	21.00	1	t	f	f
 7798260050226	Aceite coco neutro 300 ml 	Almacen	Chia graal	7000.00	6640.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4726	21.00	1	t	f	f
@@ -10185,7 +10378,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798125810361	tostex cintitas cebolla	Galletitas	toxtex	1000.00	197.10	30	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4784	21.00	1	t	f	f
 7798128000950	cachafaz cookids vainillas	Galletitas	cachafaz	40.00	29.20	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4785	21.00	1	t	f	f
 7791113006487	emeth brownies 425	bizcochuelos	emeth	2200.00	146.00	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4786	21.00	1	t	f	f
-7790895646775	cepita fresh pomelo	Gaseosa	cepíta	2200.00	1826.00	20	-31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4787	21.00	1	t	f	f
+7790895646775	cepita fresh pomelo	Gaseosa	cepÃ­ta	2200.00	1826.00	20	-31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4787	21.00	1	t	f	f
 7790895643866	ades manzana litro	Jugos	ades	3000.00	996.00	20	-38	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4788	21.00	1	t	f	f
 7795323002437	nutrilon 2 profutura 800	Lacteos	nutrilon	31000.00	10790.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4789	21.00	1	t	f	f
 7791293042220	dove Sham liso 180 ml	Shampoo	Dove	480.00	292.00	30	-18	3777510	1	1	8.74	9.61	9.18	1	Nini	0	\N	S	0	\N	1	0	4790	21.00	1	t	f	f
@@ -10214,8 +10407,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290010796	cif crema ultra 	limpieza	cif	130.00	94.90	30	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4827	21.00	1	t	f	f
 7798184684576	saph anti hume 285 g	Perfumeria	saphirus	6000.00	4680.00	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4828	21.00	1	t	f	f
 7798310620027	hermetico chicos	bazar	Colombraro	270.00	197.10	30	-2	2091879	1	1	7.14	7.85	7.14	1	Nini	0	\N	S	\N	\N	1	0	4829	21.00	1	t	f	f
-7790250040774	pañal grande x 8 Und.	Pañales	Babysec	2600.00	2158.00	20	7	3439208	0125553	12359	6.24	7.18	6.24	1	1	0	\N	S	0	\N	1	0	4830	21.00	1	t	f	f
-7790250040798	Premium xxg x8und.	Pañales	Babysec	2800.00	2158.00	20	-1	3439267	1	12363	6.24	7.18	6.24	1	Nini	0	\N	S	0	\N	1	0	4831	21.00	1	t	f	f
+7790250040774	paÃ±al grande x 8 Und.	PaÃ±ales	Babysec	2600.00	2158.00	20	7	3439208	0125553	12359	6.24	7.18	6.24	1	1	0	\N	S	0	\N	1	0	4830	21.00	1	t	f	f
+7790250040798	Premium xxg x8und.	PaÃ±ales	Babysec	2800.00	2158.00	20	-1	3439267	1	12363	6.24	7.18	6.24	1	Nini	0	\N	S	0	\N	1	0	4831	21.00	1	t	f	f
 7791293030555	sedal 190	Almacen	sedal	400.00	332.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4832	21.00	1	t	f	f
 7791293030586	sedal sh rest 300 ml	Almacen	sedal	500.00	415.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4833	21.00	1	t	f	f
 7790787251780	Queso rayado x 40g	queso rallado	Ilolay	1300.00	1.54	30	2	3374432	1	1	30.84	33.92	1.54	20	Nini	0	\N	S	0	\N	1	0	4834	21.00	1	t	f	f
@@ -10225,7 +10418,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798070700090	Hamburg/vegana garb/ x4 un	Hamburguesas	Fusa	3300.00	2409.00	30	0	2600706	1	1	20.51	22.56	1.71	12	Nini	0	\N	S	0	\N	1	0	4838	21.00	1	t	f	f
 7798069330154	Hamburg vegana  Mijo 4 uni	Hamburguesa	Fusa	3300.00	2409.00	30	0	2804492	1	1	26.02	29.92	1.08	24	Nini	0	\N	S	0	\N	1	0	4839	21.00	1	t	f	f
 7790045827634	granolita manz y canela 350 g	Galletitas	granix	2600.00	1898.00	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4840	21.00	1	t	f	f
-7791070005714	rollo coc x 200 paños 	Limpieza	Sol Mayor	1300.00	1079.00	20	161	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4841	21.00	1	t	f	f
+7791070005714	rollo coc x 200 paÃ±os 	Limpieza	Sol Mayor	1300.00	1079.00	20	161	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4841	21.00	1	t	f	f
 7798044151408	SNACKS chimi	Almacen	pipas	800.00	664.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4843	21.00	1	t	f	f
 7798113302533	agua tonica 	Gaseosa	manaos	1500.00	1245.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4844	21.00	1	t	f	f
 7790895064111	fanta 3l	Gaseosa	FANTA	4400.00	3652.00	20	908	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6603	21.00	1	t	f	f
@@ -10254,7 +10447,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798061891097	romyl repasador estampado	Limpieza	romyl	80.00	66.40	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4870	21.00	1	t	f	f
 7798062543926	brio naranja 1.5 l 	Jugos	Brio	1000.00	657.00	30	6	1	1	1	16.94	18.63	2.82	6	1	0	\N	S	0	\N	1	0	4871	21.00	1	t	f	f
 7791290008489	cif crema naranja 375	Limpieza	Cif	90.00	65.70	30	-1	4000927	1	1	13.52	14.87	4.96	3	1	0	2009-03-14 00:00:00	S	0	\N	1	0	4873	21.00	1	t	f	f
-7791290782310	Power  baño gat.500ml	Limpieza	Cif	140.00	102.20	30	-2	3857107	1	15278	8.42	9.68	10.87	1	1	0	2010-01-06 00:00:00	S	0	\N	1	0	4874	21.00	1	t	f	f
+7791290782310	Power  baÃ±o gat.500ml	Limpieza	Cif	140.00	102.20	30	-2	3857107	1	15278	8.42	9.68	10.87	1	1	0	2010-01-06 00:00:00	S	0	\N	1	0	4874	21.00	1	t	f	f
 7791290782334	Cocina gat.x500ml	Limpieza	Cif	140.00	102.20	30	4	3857310	0129816	1	7.11	8.18	7.83	1	1	0	2009-03-14 00:00:00	S	\N	\N	1	0	4875	21.00	1	t	f	f
 7793253005801	ayudin antigr. gel	Limpieza	Ayudin 	2500.00	1825.00	30	-6	1793040	0104188	1	5.32	6.12	5.48	1	Nini	0	2010-03-10 00:00:00	S	0	\N	1	0	4876	21.00	1	t	f	f
 77980755	OFF rep fam 60 g	Almacen	OFF	4500.00	3735.00	20	19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4881	21.00	1	t	f	f
@@ -10269,7 +10462,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7730908403056	della quinta pure	Almacen	de la quinta	18.00	14.94	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4895	21.00	1	t	f	f
 7613034780850	NOVELTY  POSTRES	Almacen	FRIGOR	186.00	154.38	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4896	21.00	1	t	f	f
 7791843019108	Vino rose 700 ml 	Vinos	Chacabuco	4700.00	3569.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4897	21.00	1	t	f	f
-7790480010103	V.de Alvear Tinto x1250ml	Vinos	Viñas de Alvear	80.00	58.40	30	12	2456281	1	1	8.10	9.32	7.90	1	Nini	0	2009-10-09 00:00:00	S	0	\N	1	0	4898	21.00	1	t	f	f
+7790480010103	V.de Alvear Tinto x1250ml	Vinos	ViÃ±as de Alvear	80.00	58.40	30	12	2456281	1	1	8.10	9.32	7.90	1	Nini	0	2009-10-09 00:00:00	S	0	\N	1	0	4898	21.00	1	t	f	f
 7791885001550	Atun desm.natural x170	Almacen	Cumana	1500.00	73.00	30	3	3266346	1	296	1.95	2.15	2.44	1	Nini	0	2009-12-24 00:00:00	S	0	\N	1	0	4900	21.00	1	t	f	f
 7613034780614	NOVELTY POSTRES	Almacen	FRIGOR	186.00	154.38	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4902	21.00	1	t	f	f
 7790070036087	croq espinaa 400 g 	congelados	granja del sol	6700.00	5561.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4903	21.00	1	t	f	f
@@ -10292,7 +10485,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290010918	lavado   a  mano  800	Limpieza	drive	100.00	83.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4928	21.00	1	t	f	f
 7791290009738	CAMELLITO  PORA FINA	Limpieza	ALA	52.00	43.16	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4929	21.00	1	t	f	f
 7791290009486	drive matic 800 g 	Limpieza	DRIVE	270.00	224.10	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4930	21.00	1	t	f	f
-7791297002107	Paño p/piso blanco	Limpieza	Julieta	25.00	18.25	30	5	1	1	1	1.60	1.84	1.60	1	Limpieza	0	2009-03-13 00:00:00	S	0	\N	1	0	4931	21.00	1	t	f	f
+7791297002107	PaÃ±o p/piso blanco	Limpieza	Julieta	25.00	18.25	30	5	1	1	1	1.60	1.84	1.60	1	Limpieza	0	2009-03-13 00:00:00	S	0	\N	1	0	4931	21.00	1	t	f	f
 7790045827849	aven.mix.manz.quin.zapall 60 g	Galletitas	Granix	600.00	438.00	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	4933	21.00	1	t	f	f
 7790079000638	paladini leber wuard 250 g	Almacen	paladini	1000.00	348.60	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4934	21.00	1	t	f	f
 7798062548709	levite manzana 1.50	Jugos	levite	2100.00	1328.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4935	21.00	1	t	f	f
@@ -10355,7 +10548,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337910416	SER vainilla	Almacen	SER	70.00	58.10	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5003	21.00	1	t	f	f
 7791290012608	SKIP  x 400	Almacen	SKIP	125.00	103.75	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5004	21.00	1	t	f	f
 7791293030753	sedal 190	Gaseosa	sedal	400.00	332.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5005	21.00	1	t	f	f
-7702133253119	Pastilla Vita-C Limon	Golosinasç	Halls	40.00	21.20	50	12	1	1	1	0.80	0.92	0.69	1	1	0	2010-01-22 00:00:00	S	\N	\N	1	0	5006	21.00	1	t	f	f
+7702133253119	Pastilla Vita-C Limon	GolosinasÃ§	Halls	40.00	21.20	50	12	1	1	1	0.80	0.92	0.69	1	1	0	2010-01-22 00:00:00	S	\N	\N	1	0	5006	21.00	1	t	f	f
 7798059384433	esponja teflon	Almacen	Nikitos	40.00	29.20	30	-9	1	1	1	2.20	2.42	2.20	1	1	0	\N	S	\N	\N	1	0	5007	21.00	1	t	f	f
 7790040133242	mana rellena chocolate 152.g	Galletitas	mana	1700.00	146.00	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5008	21.00	1	t	f	f
 7792180142481	Mama cocina pizza 500 g	Almacen	Mama cocina	1300.00	1079.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5009	21.00	1	t	f	f
@@ -10365,7 +10558,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793253003753	lav. pureza de glasiar 2lt	lavandina	ayudin	500.00	365.00	30	1	6815	1	1	2.66	3.06	3.75	1	Nini	0	2010-08-14 00:00:00	S	0	\N	1	0	5014	21.00	1	t	f	f
 7790770002290	DUAL  TELA  	Perfumeria	CALIPSA	70.00	54.60	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5015	21.00	1	t	f	f
 7792129004450	equalsweet sucralosa 80s 	Almacen	equalsweet	1500.00	456.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5016	21.00	1	t	f	f
-49	Empanada De Pollo	Almacen	Salteña	1500.00	1245.00	20	-32	1	1	1	0.00	0.00	0.00	1	1	0	\N	S	0	\N	1	0	5017	21.00	1	t	f	f
+49	Empanada De Pollo	Almacen	SalteÃ±a	1500.00	1245.00	20	-32	1	1	1	0.00	0.00	0.00	1	1	0	\N	S	0	\N	1	0	5017	21.00	1	t	f	f
 7791290794443	vidrio gatillo 500 ml 	Limpieza	Cif	1900.00	1387.00	30	0	2337096	1	1	11.28	12.97	3.76	3	1	0	\N	S	0	\N	1	0	5018	21.00	1	t	f	f
 7790580134693	La Campagnola spaghetti fideo	fideos	La campagnola	100.00	73.00	30	1	11312	0101963	2254	1.94	2.23	1.94	1	1	0	2010-08-04 00:00:00	S	0	\N	1	0	5019	21.00	1	t	f	f
 7790895007392	crush pomelo	Gaseosa	crush	1500.00	1245.00	20	-51	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5022	21.00	1	t	f	f
@@ -10379,7 +10572,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790770601929	nosotras natural 8 invisible	Perfumeria	NOSOTRAS	1700.00	585.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5030	21.00	1	t	f	f
 7793360803109	Mermelada damazco campagnola	Mermeladas	la campagnola	190.00	138.70	30	-9	3241416	1	899	5.27	6.06	4.57	1	1	0	2010-08-24 00:00:00	S	\N	\N	1	0	5031	21.00	1	t	f	f
 7790770002832	BUENA  NOCHES	Perfumeria	NOSOTRAS	160.00	124.80	25	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5033	21.00	1	t	f	f
-7798092965125	Escobilla De baño	Limpieza	Make	1800.00	1494.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5035	21.00	1	t	f	f
+7798092965125	Escobilla De baÃ±o	Limpieza	Make	1800.00	1494.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5035	21.00	1	t	f	f
 7798091030329	Antares KoLsCh 473 	Almacen	Antares	650.00	539.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5036	21.00	1	t	f	f
 7791866000558	May.cada dia 250cm	mayonesa	Cada Dia	70.00	51.10	30	0	2388871	3077	7184	1.04	1.19	1.20	1	Nini	0	2010-09-14 00:00:00	S	0	\N	1	0	5039	21.00	1	t	f	f
 7790770002573	calipso ultra delgada x 8	Gaseosa	CALIPSO	70.00	58.10	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5040	21.00	1	t	f	f
@@ -10412,7 +10605,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790742145406	leche      entera	Almacen	serenicima	62.00	51.46	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5076	21.00	1	t	f	f
 7790310987902	Pep rued Flam hot 71 g	Snack	Pep 	2000.00	1387.00	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5077	21.00	1	t	f	f
 7790080040906	Shimy postre 120g	Lacteos	Sancor	100.00	83.00	20	-1	4090	1	1	3.42	3.93	3.32	1	Sancor	0	2012-06-25 00:00:00	S	0	\N	1	0	5079	21.00	1	t	f	f
-7795733000184	Cañoncito kokis x500	Galletitas	Kokis	2800.00	262.80	30	-16	30440	1	1	4.62	5.31	4.62	1	Michael	0	2010-09-28 00:00:00	S	0	\N	1	0	5080	21.00	1	t	f	f
+7795733000184	CaÃ±oncito kokis x500	Galletitas	Kokis	2800.00	262.80	30	-16	30440	1	1	4.62	5.31	4.62	1	Michael	0	2010-09-28 00:00:00	S	0	\N	1	0	5080	21.00	1	t	f	f
 7790895003301	Jugo de manzana 2,25	Jugos	Acuarius	2600.00	2075.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5081	21.00	1	t	f	f
 7791120021558	doble carolina 1 k 	Almacen	molinos ala	270.00	174.30	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5082	21.00	1	t	f	f
 7790150067062	Salsa blanca 40g	salsa lista	Alicante	70.00	50.40	31	0	1906178	9150	58000-8	2.20	2.53	2.06	1	Nini	0	2010-09-23 00:00:00	S	0	\N	1	0	5083	21.00	1	t	f	f
@@ -10430,7 +10623,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793253000998	LABANDINA  EN GEL	Almacen	QUIDIN	140.00	116.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5102	21.00	1	t	f	f
 7793147572372	salta caut roja 473	Almacen	SALTA	11500.00	1162.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5104	21.00	1	t	f	f
 7790163013049	Whisky etiqueta negra 200cc.	Licores	Pioneer	30.00	18.90	40	0	1	1	1	0.00	0.00	2.00	1	1	0	\N	S	\N	\N	1	0	5105	21.00	1	t	f	f
-7790762077084	Borgoña 1.25 L	Vinos	Santa Ana	15.60	12.00	30	0	3039579	0123065	1	7.99	9.19	7.99	1	nini	0	2010-04-30 00:00:00	S	0	\N	1	0	5106	21.00	1	t	f	f
+7790762077084	BorgoÃ±a 1.25 L	Vinos	Santa Ana	15.60	12.00	30	0	3039579	0123065	1	7.99	9.19	7.99	1	nini	0	2010-04-30 00:00:00	S	0	\N	1	0	5106	21.00	1	t	f	f
 7791540041198	Touch Citrus 750ml	Vinos	Frizze	18.00	13.14	30	1	3751449	1	1	7.41	8.52	9.36	1	Nini	0	2010-01-12 00:00:00	S	0	\N	1	0	5107	21.00	1	t	f	f
 7792433000711	junin corte americano 150	snacks	junin	38.00	27.74	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5108	21.00	1	t	f	f
 7792961001068	hormigon mata hormigas	Prod.Altos	hortal	5000.00	4650.00	10	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5110	21.00	1	t	f	f
@@ -10495,7 +10688,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790770003129	nosotras protectores 20 diario 	Perfumeria	NOSOTRAS	100.00	78.00	25	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5176	21.00	1	t	f	f
 7791293025865	GOLD  TEMPTATIN	Almacen	AXE	56.00	46.48	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5178	21.00	1	t	f	f
 7793100120275	kolino pasta 90g	Almacen	KOLINOS	100.00	83.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5179	21.00	1	t	f	f
-7791070005615	campanita rollo de cocina 200 paños	Almacen	canpanita 	150.00	124.50	20	14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5181	21.00	1	t	f	f
+7791070005615	campanita rollo de cocina 200 paÃ±os	Almacen	canpanita 	150.00	124.50	20	14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5181	21.00	1	t	f	f
 7791293050973	cotton jab 120 g 	Almacen	rexona	1000.00	830.00	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5182	21.00	1	t	f	f
 7791337605510	sere yog clas vainil 1 l	Lacteos	la serenisima	400.00	207.50	20	-33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5183	21.00	1	t	f	f
 7798001560120	Yogu.beb.fruti  1 kg	Lacteos	Cremigal	1800.00	1494.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5187	21.00	1	t	f	f
@@ -10510,14 +10703,14 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790411001972	Yerba  rosamonte x1kg  plus	Yerbas	Rosamonte	900.00	657.00	30	3	40622	0102550	2474	4.75	5.46	6.60	1	Nini	0	2010-09-21 00:00:00	S	0	\N	1	0	5197	21.00	1	t	f	f
 7792180002563	Haina integral 1 kg	Harinas	Pureza	40.00	29.20	30	0	2790300	1	1	2.56	2.94	2.64	1	nini	0	2010-04-27 00:00:00	S	0	\N	1	0	5199	10.50	1	t	f	f
 7792180004901	Harina pizza pan  1 kg	Harinas	pureza	42.00	30.66	30	-2	3496864	1	1	2.37	2.73	1.32	1	nini	0	\N	S	\N	\N	1	0	5200	10.50	1	t	f	f
-7790250022633	Rollo coc,60 pño.x3ud	Rollo Cocina	Elite	15.00	10.95	30	-9	3982351	0104414	13048	5.62	6.46	6.50	1	Nini	0	2010-10-19 00:00:00	S	0	\N	1	0	5201	21.00	1	t	f	f
+7790250022633	Rollo coc,60 pÃ±o.x3ud	Rollo Cocina	Elite	15.00	10.95	30	-9	3982351	0104414	13048	5.62	6.46	6.50	1	Nini	0	2010-10-19 00:00:00	S	0	\N	1	0	5201	21.00	1	t	f	f
 7794000964035	sabora original sachex250g	Almacen	savora	15.00	12.45	20	-84	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5202	21.00	1	t	f	f
 7790580983406	jardinera con choclo arcor	Almacen	arcor	450.00	132.80	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5203	21.00	1	t	f	f
 7797154002334	new crem cono bola	Almacen	new crem	35.00	29.05	20	-31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5204	21.00	1	t	f	f
 7790310983959	lays de provoleta 85 g	Almacen	lays	200.00	166.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5205	21.00	1	t	f	f
 7792222002780	D R F mentol	Golosina	D R F	400.00	21.90	30	-2	1	1	1	4.67	5.23	0.39	12	1	0	\N	S	0	\N	1	0	5207	21.00	1	t	f	f
 7792222002827	D R F naranja	Golosina	D R F	400.00	43.80	30	-14	1	1	1	4.67	5.23	0.39	12	1	0	\N	S	0	\N	1	0	5208	21.00	1	t	f	f
-7790070621863	ricotta mozzarella danbo parme 	pastas	La Salteña	2700.00	830.00	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5210	21.00	1	t	f	f
+7790070621863	ricotta mozzarella danbo parme 	pastas	La SalteÃ±a	2700.00	830.00	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5210	21.00	1	t	f	f
 7798142740016	VINAGRE	Almacen	SILVA	70.00	58.10	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5211	21.00	1	t	f	f
 7791620002019	danica mostaza  237 	Gaseosa	danica	50.00	41.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5212	21.00	1	t	f	f
 7790080010756	Manteca pote x200g	Manteca	Sancor	125.00	103.75	20	4	1075	1	1	6.24	7.18	5.72	1	Sancor	0	2010-07-01 00:00:00	S	\N	\N	1	0	5215	21.00	1	t	f	f
@@ -10595,12 +10788,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7795323775249	vital 1  200 ml	Lacteos	vital 	1700.00	622.50	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5311	21.00	1	t	f	f
 77969811	L & M corto 20	cigarrillos	L & M	750.00	665.00	8	-133	1880	1	1	3.10	3.41	3.10	1	Silicaro	0	\N	S	0	\N	1	0	5312	21.00	1	t	f	f
 77912954	Philip morris box 20	cigarrillos	Philip morris 	5000.00	3800.00	8	10	3422	1	1	74.08	85.19	7.60	10	Silicaro	0	2012-06-18 00:00:00	S	0	\N	1	0	5314	21.00	1	t	f	f
-7790236001775	casero	Almacen	lasalteña	130.00	107.90	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5315	21.00	1	t	f	f
+7790236001775	casero	Almacen	lasalteÃ±a	130.00	107.90	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5315	21.00	1	t	f	f
 7500435197342	Toall. basica s/ala	Toallitas	Always	350.00	116.80	30	-29	3902790	0115306	1	2.52	2.90	2.60	1	Nini	0	2010-10-19 00:00:00	S	0	\N	1	0	5316	21.00	1	t	f	f
 7791290011908	VIVERE MANIANAS DE SOL	Limpieza	ALA	140.00	116.20	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5317	21.00	1	t	f	f
 7798101650530	cameleon malbec 2015	Vinos	cameleon 	67.00	55.61	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5320	21.00	1	t	f	f
 7791337605312	laserenisima descremado vainilla  clasico 120 	Lacteos	la serenisima	120.00	66.40	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5321	21.00	1	t	f	f
-7790250054894	pañuelos desc.6pte 10ud	antitraspirante	Elite	2000.00	379.60	30	4	1550349	1	1	2.70	3.11	1.25	1	1	0	\N	S	0	\N	1	0	5322	21.00	1	t	f	f
+7790250054894	paÃ±uelos desc.6pte 10ud	antitraspirante	Elite	2000.00	379.60	30	4	1550349	1	1	2.70	3.11	1.25	1	1	0	\N	S	0	\N	1	0	5322	21.00	1	t	f	f
 7791130683715	limp. procenex	Limpieza	procenex	230.00	109.50	30	1	3648451	1	1	9.77	10.75	3.59	3	1	0	\N	S	0	\N	1	0	5323	21.00	1	t	f	f
 7793704000928	Yerba playadito . 1 kg	yerbas	Playadito	4100.00	3504.00	30	-7	630306	0110890	1194	6.14	7.06	5.64	1	1	0	2010-02-27 00:00:00	S	0	\N	1	0	5324	21.00	1	t	f	f
 7790387000856	mate cocido 50saquito	Yerva	taragui	130.00	94.90	30	1	54631	1	1	13.30	14.63	2.66	5	1	0	\N	S	\N	\N	1	0	5326	21.00	1	t	f	f
@@ -10673,18 +10866,18 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792684003912	solitas abeceda 500g	Galletitas	Solitas	1500.00	1095.00	30	-1	1	1	1	2.32	2.66	2.34	1	Michael	0	\N	S	0	\N	1	0	5423	21.00	1	t	f	f
 7500435020169	head & shoulders shampoo 375 ml	Almacen	 head & shoulders	380.00	315.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5424	21.00	1	t	f	f
 7790770002948	nosotras multiestilo 20	Perfumeria	NOSOTRAS	1000.00	280.80	25	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5425	21.00	1	t	f	f
-7790236002062	mini raviolitos espinaca	Almacen	la salteña	550.00	182.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5426	21.00	1	t	f	f
+7790236002062	mini raviolitos espinaca	Almacen	la salteÃ±a	550.00	182.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5426	21.00	1	t	f	f
 7795184119756	Mermelada durazno x454g	Mermelada	Noel	2400.00	197.10	30	-7	453064	1	1	3.35	3.85	3.35	1	1	0	\N	S	0	\N	1	0	5427	21.00	1	t	f	f
 7793680001698	roby fijador  x400	Shampoo	Roby	70.00	51.10	30	-3	3729664	1	1	5.74	6.31	5.74	1	Nini	0	\N	S	\N	\N	1	0	5428	21.00	1	t	f	f
 7790150495308	Condimento p/pescado x25	Condimento	Alicante	30.00	21.60	31	-10	1981684	1	49522-6	1.23	1.35	1.75	1	Nini	0	2010-03-17 00:00:00	S	0	\N	1	0	5429	21.00	1	t	f	f
-7795733000382	cañonsitos	Almacen	kokis	28.00	23.24	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5430	21.00	1	t	f	f
+7795733000382	caÃ±onsitos	Almacen	kokis	28.00	23.24	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5430	21.00	1	t	f	f
 7790080065190	sancor yous 2 x 125	Lacteos	sancor	90.00	74.70	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5431	21.00	1	t	f	f
 7790990999288	zorro jabon 800	Almacen	zorro	120.00	99.60	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5432	21.00	1	t	f	f
 7793680001735	roby fijador x400	Shampoo	Roby	165.00	120.45	30	0	3729753	1	1	5.74	6.31	5.74	1	Nini	0	\N	S	\N	\N	1	0	5433	21.00	1	t	f	f
 7794000002654	knorr ajo y albaca	arroz	Knorr	85.00	62.05	30	3	4136829	0133018	1	3.90	4.29	3.90	1	vital	0	2009-03-04 00:00:00	S	\N	\N	1	0	5435	21.00	1	t	f	f
 7790010002318	prot diarios brisa 20 	Perfumeria	carefree	900.00	624.00	25	1	4283287	1	1	1.80	1.98	1.80	1	1	0	2010-01-27 00:00:00	S	0	\N	1	0	5436	21.00	1	t	f	f
-7798096030195	doña pupa tomate tripurado  950 g	Almacen	doña pupa	80.00	66.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5437	21.00	1	t	f	f
-7791560000106_2	Whisky añejo 1lt	Licores	Premium	20.74	15.95	30	0	N226	1	1	11.25	12.38	11.25	1	1	0	\N	S	0	\N	1	0	5439	21.00	1	t	f	f
+7798096030195	doÃ±a pupa tomate tripurado  950 g	Almacen	doÃ±a pupa	80.00	66.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5437	21.00	1	t	f	f
+7791560000106_2	Whisky aÃ±ejo 1lt	Licores	Premium	20.74	15.95	30	0	N226	1	1	11.25	12.38	11.25	1	1	0	\N	S	0	\N	1	0	5439	21.00	1	t	f	f
 7500435138222	acon liso/sed 200 	Shampoo	Pantene	3800.00	2628.00	30	0	3111601	1	6533	4.10	4.51	4.81	1	Nini	0	\N	S	0	\N	1	0	5442	21.00	1	t	f	f
 7790580283506	turron de mani arcor 120g	Almacen	arcor	150.00	124.50	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5443	21.00	1	t	f	f
 7791828000121	felpita rollo cocina  resistente	Limpieza	felpita	1600.00	199.20	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5444	21.00	1	t	f	f
@@ -10694,21 +10887,21 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792410008150	Guindas cusenier 700 ml	licores	Cusenier	50.00	36.50	30	0	1179217	1	1	9.27	10.19	9.27	1	1	0	\N	S	\N	\N	1	0	5450	21.00	1	t	f	f
 7792390620809	capelettini j y q 250 g	Almacen	giacomo	2200.00	730.00	30	-8	3120660	101130	102	10.95	12.59	10.20	1	1	0	2010-09-06 00:00:00	S	0	\N	1	0	5451	21.00	1	t	f	f
 7790990586846	Jabon energizante x150	Jabon tocador	Plusbelle	20.00	14.60	30	1	3826562	1	1	5.77	6.64	2.92	1	Nini	0	2012-06-25 00:00:00	S	\N	\N	1	0	5453	21.00	1	t	f	f
-7794564000219	fideos moño color  num 1	fideos	Badaloni	1600.00	1168.00	30	-17	211028	1	1	25.40	27.94	3.89	10	1	0	\N	S	0	\N	1	0	5454	21.00	1	t	f	f
+7794564000219	fideos moÃ±o color  num 1	fideos	Badaloni	1600.00	1168.00	30	-17	211028	1	1	25.40	27.94	3.89	10	1	0	\N	S	0	\N	1	0	5454	21.00	1	t	f	f
 7790580587901	bon o bon huevos de pascuas 55g	huevos de pascuas	bon o bon	5000.00	248.20	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5456	21.00	1	t	f	f
 7798001560526	Yogu.beb.Duraz 1 kg	Lacteos	Cremigal	1800.00	1494.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5457	21.00	1	t	f	f
 7797470129630	Pulpa tomate 520gr	pure	Marolio	20.00	14.60	30	4	1	1	13473	1.51	1.74	1.15	1	maxi	0	2010-07-05 00:00:00	S	0	\N	1	0	5458	21.00	1	t	f	f
 2099998030845	VERDURAS	Almacen	VERDUAS	31.00	25.73	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5459	10.50	1	t	f	f
 7798176000414	BEBE 2 6a12 meses x 800	Lacteos	Sancor	950.00	788.50	20	0	4391	1	4391	30.00	34.50	2.65	1	Sancor	0	2010-09-03 00:00:00	S	0	\N	1	0	5460	21.00	1	t	f	f
 7790310007259	sabor barbacoa	Almacen	lays	40.00	33.20	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5461	21.00	1	t	f	f
-7790070621818	la salteña rav 900 g 4 queso	ravioles	la salteña	1800.00	1494.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5462	21.00	1	t	f	f
-7790520987020	Lysoform baño ion total.	Limpieza	Lysoform	14.00	10.22	30	-3	3858871	1	1	3.85	4.24	3.85	1	Nini	0	\N	S	0	\N	1	0	5463	21.00	1	t	f	f
+7790070621818	la salteÃ±a rav 900 g 4 queso	ravioles	la salteÃ±a	1800.00	1494.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5462	21.00	1	t	f	f
+7790520987020	Lysoform baÃ±o ion total.	Limpieza	Lysoform	14.00	10.22	30	-3	3858871	1	1	3.85	4.24	3.85	1	Nini	0	\N	S	0	\N	1	0	5463	21.00	1	t	f	f
 7794000960329	SALSA GOlF	Almacen	HELLMANNS	90.00	74.70	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5464	21.00	1	t	f	f
 7790990990063	Zorro citrus 800g	Limpieza	zorro	140.00	102.20	30	0	1	1	1	3.68	4.05	3.68	1	1	0	\N	S	\N	\N	1	0	5465	21.00	1	t	f	f
 7790080031850	sancor dulce de leche 400	Almacen	SANCOR	56.00	46.48	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5466	21.00	1	t	f	f
 7791337009998	Yog.grie.natu. 190 g	Lacteos	Yogurisimo	2900.00	2490.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5467	21.00	1	t	f	f
 7500435183772	magistral  con espuma activa  300ml	Limpieza	magistral	160.00	132.80	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5468	21.00	1	t	f	f
-7794417004135	escobillon	Limpieza	siña	14.50	10.59	30	-1	1	1	1	4.65	5.12	6.50	1	1	0	2009-08-13 00:00:00	S	0	\N	1	0	5469	21.00	1	t	f	f
+7794417004135	escobillon	Limpieza	siÃ±a	14.50	10.59	30	-1	1	1	1	4.65	5.12	6.50	1	1	0	2009-08-13 00:00:00	S	0	\N	1	0	5469	21.00	1	t	f	f
 7798096059943	spa perfumina rocio frutal	Perfumeria	spa	15.00	11.70	25	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5471	21.00	1	t	f	f
 7790703165207	New age blanco x750ml	Vinos	Bianchi	160.00	116.80	30	-11	687870	1	1	12.40	12395.00	12.40	1	Nini	0	2009-01-12 00:00:00	S	0	\N	1	0	5472	21.00	1	t	f	f
 7791293022390	suave jabon esencias flores 150	Jabon tocador	suave	17.00	13.26	25	3	1	1	1	1.07	1.18	1.07	1	1	0	\N	S	\N	\N	1	0	5473	21.00	1	t	f	f
@@ -10738,7 +10931,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793253005313	repuesto cocina 450	Limpieza	ayudin	2000.00	1660.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5507	21.00	1	t	f	f
 5000549	pata y muslo ofertas	pollo	carne	955.50	112.60	3	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5509	21.00	1	t	f	f
 77981455	Cereal mix  fruttilla chocolate	Dulce	arcor	500.00	49.80	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5511	21.00	1	t	f	f
-7793253005276	antisarro baño	Limpieza	ayudin	2500.00	2075.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5512	21.00	1	t	f	f
+7793253005276	antisarro baÃ±o	Limpieza	ayudin	2500.00	2075.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5512	21.00	1	t	f	f
 7798040590331	gumballs red	Almacen	gumballs	1200.00	996.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5513	21.00	1	t	f	f
 7790070417299	favorita bizc choco 450 g 	bizcochuelo	favorita	1500.00	248.20	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5514	21.00	1	t	f	f
 7791520023473	colageno elastica	Perfumeria	st.ives	20.00	15.60	25	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5517	21.00	1	t	f	f
@@ -10760,7 +10953,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7796613024764	pure de tomate	Almacen	M&K	30.00	24.90	20	-82	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5540	21.00	1	t	f	f
 7798103003006	Higienico 1x50m	Higienico	Lans	15.00	10.95	30	-88	3571530	1	1	0.71	0.82	0.83	1	Nini	0	2010-10-19 00:00:00	S	\N	\N	1	0	5541	21.00	1	t	f	f
 7791200000510	Ginebra Bols x1lt	Ginebras	Bols	1700.00	511.00	30	1	149314	0102788	1	9.67	11.12	9.27	1	Nini	0	\N	S	0	\N	1	0	5542	21.00	1	t	f	f
-7790189001921	Borgoña x1,25Lts	Vinos	Michel Torino	19.00	13.87	30	15	3095550	0123066	11830	8.10	9.32	11.67	1	Nini	0	2010-09-21 00:00:00	S	0	\N	1	0	5543	21.00	1	t	f	f
+7790189001921	BorgoÃ±a x1,25Lts	Vinos	Michel Torino	19.00	13.87	30	15	3095550	0123066	11830	8.10	9.32	11.67	1	Nini	0	2010-09-21 00:00:00	S	0	\N	1	0	5543	21.00	1	t	f	f
 7798051300462	Tempranillo x750	Vinos	Omnium	21.50	15.70	30	0	2455838	1	1	52.02	57.22	8.67	6	Nini	0	\N	S	\N	\N	1	0	5545	21.00	1	t	f	f
 7798051300202	Malbec x750	Vinos	Omnium	260.00	189.80	30	-11	2455803	1	1	52.02	57.22	8.67	6	Nini	0	\N	S	\N	\N	1	0	5546	21.00	1	t	f	f
 7798051300189	Cabernet Sauvignon x750	Vinos	Omnium	260.00	189.80	30	-6	2455773	1	1	52.02	57.22	8.67	6	Nini	0	\N	S	\N	\N	1	0	5547	21.00	1	t	f	f
@@ -10771,7 +10964,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790380003809	Turron mani blando x25g	Turrones	Georgalos	25.00	18.25	30	-37	565539	1	1	1.33	1.47	1.33	1	Nini	0	\N	S	\N	\N	1	0	5557	21.00	1	t	f	f
 77969354	Georgalos CHOCOLATIN 	Mani	Georgalos	400.00	18.25	30	-38	2855402	1	1	2.83	3.11	2.83	1	Nini	0	\N	S	0	\N	1	0	5559	21.00	1	t	f	f
 7509552791440	ac perf 200 ml	Perfumeria	elvive loreal	3800.00	2964.00	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5560	21.00	1	t	f	f
-7790250056843	Rollo cocina 3ud 150 PAÑ	rollo cocina	Sussex	400.00	292.00	30	5	4074904	0128017	1	4.48	5.15	4.60	1	Nini	0	2010-03-16 00:00:00	S	0	\N	1	0	5561	21.00	1	t	f	f
+7790250056843	Rollo cocina 3ud 150 PAÃ‘	rollo cocina	Sussex	400.00	292.00	30	5	4074904	0128017	1	4.48	5.15	4.60	1	Nini	0	2010-03-16 00:00:00	S	0	\N	1	0	5561	21.00	1	t	f	f
 7790168114000	colon  Cab.Sau	Vinos	Colon	2600.00	585.00	25	0	4057988	1	1	16.69	18.36	16.69	1	Nini	0	\N	S	0	\N	1	0	5562	21.00	1	t	f	f
 7792900092676	sal gruesa x 500 g	Almacen	dos anclas	70.00	58.10	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5563	21.00	1	t	f	f
 7613035494787	nido fortificada 400 G	almacen	nido	310.00	226.30	30	1	3982866	1	1	13.47	14.82	13.47	1	1	0	2009-08-12 00:00:00	S	\N	\N	1	0	5564	21.00	1	t	f	f
@@ -10781,17 +10974,17 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790773007117	Hisopos x100und	Perfumeria	Q-soft	2300.00	1679.00	30	-6	3390365	1	12220	2.06	2.26	2.99	1	Nini	0	2010-10-09 00:00:00	S	0	\N	1	0	5569	21.00	1	t	f	f
 7790250019572	HIGIENOL REMIUN	Almacen	HIGIENOL	60.00	49.80	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5570	21.00	1	t	f	f
 0790757825536	Ham pan de papa x 2 120 g	Panificados	Arte en harina	1600.00	1168.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5571	21.00	1	t	f	f
-7793008006688	Aplic.+Tintura N°5.65	Tinturas	Issue	700.00	511.00	30	6	2953560	1	1	3.58	3.94	3.58	1	Nini	0	\N	S	\N	\N	1	0	5572	21.00	1	t	f	f
+7793008006688	Aplic.+Tintura NÂ°5.65	Tinturas	Issue	700.00	511.00	30	6	2953560	1	1	3.58	3.94	3.58	1	Nini	0	\N	S	\N	\N	1	0	5572	21.00	1	t	f	f
 7798065070719	alfajor d dulce d leche	Almacen	suschen	40.00	33.20	20	-58	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5573	21.00	1	t	f	f
 7792070011156	nucete aceitunas negras en rodajas	Almacen	nucete	2000.00	190.90	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5574	21.00	1	t	f	f
 7798184720694	Alf dubai choc pistacho	Galletitas	Dubai	2200.00	1095.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5575	21.00	1	t	f	f
 7790119002073	Sidra 660 ml	sidras	Real	12.00	9.96	20	-7	1	1	1	8.15	8.96	8.15	1	1	0	\N	S	0	\N	1	0	5576	21.00	1	t	f	f
 7797453001540	Carne/veget. adulto x1,5kg	Forraje	Pedigree	6500.00	627.80	30	3	1338000	1	1	8.26	9.09	8.26	1	Nini	0	\N	S	0	\N	1	0	5578	10.50	1	t	f	f
-7613034416889	dow chaw Adultos r/pequeña x1,5kg	Forraje	Dog Chow	200.00	146.00	30	0	3007626	1	1	8.02	9.22	7.64	1	Nini	0	\N	S	\N	\N	1	0	5579	21.00	1	t	f	f
+7613034416889	dow chaw Adultos r/pequeÃ±a x1,5kg	Forraje	Dog Chow	200.00	146.00	30	0	3007626	1	1	8.02	9.22	7.64	1	Nini	0	\N	S	\N	\N	1	0	5579	21.00	1	t	f	f
 7798086021042	oleo calcareo 500cc.	Perfumeria	babybasic	50.00	39.00	25	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5580	21.00	1	t	f	f
 7790336037070	xero lopez cabernet	Vinos	xero lopez	125.00	103.75	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5581	21.00	1	t	f	f
 7790070320858	matarazzo integra spaghetti 500g	fideos	matarazzo	1800.00	1494.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5583	21.00	1	t	f	f
-7798039591097	Champaña Brut x750	Vinos	Tocornal	68.00	49.64	30	1	2795973	1	1	45.00	49.50	7.50	6	Nini	0	\N	S	0	\N	1	0	5584	21.00	1	t	f	f
+7798039591097	ChampaÃ±a Brut x750	Vinos	Tocornal	68.00	49.64	30	1	2795973	1	1	45.00	49.50	7.50	6	Nini	0	\N	S	0	\N	1	0	5584	21.00	1	t	f	f
 7791293045436	dove rec com sha 200ml	Shampoo	Dove	350.00	146.00	30	4	3495752	1	1	8.74	9.61	9.45	1	1	0	2009-08-03 00:00:00	S	0	\N	1	0	5585	21.00	1	t	f	f
 7790070320018	fideos ave maria 500	Almacen	matarazzo	1800.00	124.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5587	21.00	1	t	f	f
 7790121001071	Ron Dorado	Vinos	New Style	4000.00	2905.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5588	21.00	1	t	f	f
@@ -10830,8 +11023,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290793927	Det crem  limon 750 ml	Limpieza	ala	2400.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5629	21.00	1	t	f	f
 7613287591197	Leche condesada nestle 395g	Dulce	nestle	360.00	298.80	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5631	21.00	1	t	f	f
 77982672000105	la bustincera  dulce de leche	Galletitas	la bustincera 	170.00	124.10	30	20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5632	21.00	1	t	f	f
-7793008006855	Aplic.+Tintura N°7-3	Tinturas	Issue	700.00	511.00	30	6	2954648	1	1	3.58	3.94	3.58	1	Nini	0	\N	S	\N	\N	1	0	5633	21.00	1	t	f	f
-7793008006558	Aplic.+Tintura N°-1	Tinturas	Issue	700.00	511.00	30	6	1	1	1	3.58	3.94	3.58	1	Nini	0	\N	S	\N	\N	1	0	5634	21.00	1	t	f	f
+7793008006855	Aplic.+Tintura NÂ°7-3	Tinturas	Issue	700.00	511.00	30	6	2954648	1	1	3.58	3.94	3.58	1	Nini	0	\N	S	\N	\N	1	0	5633	21.00	1	t	f	f
+7793008006558	Aplic.+Tintura NÂ°-1	Tinturas	Issue	700.00	511.00	30	6	1	1	1	3.58	3.94	3.58	1	Nini	0	\N	S	\N	\N	1	0	5634	21.00	1	t	f	f
 7791293025964	suavidad de petalos 	Limpieza	lux	22.00	18.26	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5635	21.00	1	t	f	f
 7798183044470	NUGGETS  POLLO CROCANTR	Almacen	SADIA	115.00	95.45	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5636	21.00	1	t	f	f
 7798120769701	utilisima   limon lavavajilla	Limpieza	utilisima 	14.00	11.62	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5637	21.00	1	t	f	f
@@ -10867,7 +11060,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791672001985	Pan dulce sin frutas	Pan dulce	Fantoche	3200.00	37.35	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5676	21.00	1	t	f	f
 7798176000384	sancor bebe 3 premiun  1l	Lacteos	sancor	220.00	182.60	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5677	21.00	1	t	f	f
 7798138552012	molto arvejas x350g	Almacen	molto	15.00	8.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5678	21.00	1	t	f	f
-7790010960090	talco dulces sueños x 200	Perfumeria	Johsons	18.00	13.14	30	0	2846977	1	1	1.43	1.64	2.39	1	Nini	0	\N	S	\N	\N	1	0	5681	21.00	1	t	f	f
+7790010960090	talco dulces sueÃ±os x 200	Perfumeria	Johsons	18.00	13.14	30	0	2846977	1	1	1.43	1.64	2.39	1	Nini	0	\N	S	\N	\N	1	0	5681	21.00	1	t	f	f
 7500435190565	Gillette derma 	Perfumeria	Gillette	450.00	328.50	30	-10	3795543	1	1	5.67	6.24	5.67	1	Nini	0	\N	S	0	\N	1	0	5682	21.00	1	t	f	f
 77958921	bon bon	Almacen	bon bon	500.00	33.20	20	-51	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5683	21.00	1	t	f	f
 7500435176002	Pantene shampoo control x200	Acondicionador	Pantene	280.00	204.40	30	-6	3515400	1	13070	4.11	4.52	5.39	1	Nini	0	2009-12-10 00:00:00	S	0	\N	1	0	5684	21.00	1	t	f	f
@@ -10908,8 +11101,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790010007016	Colonia baby citrus 200ml	Perfumeria	johnson	15.60	11.39	30	2	727148	1	1	6.88	7.91	5.25	1	1	0	\N	S	0	\N	1	0	5729	21.00	1	t	f	f
 7794000960466	savora 200 g original	Almacen	sabora	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5730	21.00	1	t	f	f
 7790070228673	SABOR MANTECA	Almacen	COSINERO	600.00	149.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5731	21.00	1	t	f	f
-7793008006596	Tintura pak duo n°3	Perfumeria	Issue	700.00	511.00	30	6	2953501	1	1	3.58	3.94	3.58	1	1	0	\N	S	\N	\N	1	0	5733	21.00	1	t	f	f
-7793008001874	Tintura pak duo n°10	Perfumeria	Issue	700.00	511.00	30	6	2822407	1	1	3.58	3.94	3.58	1	1	0	\N	S	\N	\N	1	0	5734	21.00	1	t	f	f
+7793008006596	Tintura pak duo nÂ°3	Perfumeria	Issue	700.00	511.00	30	6	2953501	1	1	3.58	3.94	3.58	1	1	0	\N	S	\N	\N	1	0	5733	21.00	1	t	f	f
+7793008001874	Tintura pak duo nÂ°10	Perfumeria	Issue	700.00	511.00	30	6	2822407	1	1	3.58	3.94	3.58	1	1	0	\N	S	\N	\N	1	0	5734	21.00	1	t	f	f
 7790704167637	suter caza bor.malbec 1.25 L	pele	suter	110.00	80.30	30	-6	3932222	1	1	4.71	5.42	4.56	1	nini	0	2009-07-25 00:00:00	S	0	\N	1	0	5736	21.00	1	t	f	f
 7790070411709	PANQEQE 	Almacen	LUCHETTI	30.00	24.90	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5737	21.00	1	t	f	f
 7791290010741	jabon x2 400g	Limpieza	ala	140.00	116.20	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5738	21.00	1	t	f	f
@@ -10918,10 +11111,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798039910041	capitan de espacio negro	Almacen	capitan de espacio	1300.00	149.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5741	21.00	1	t	f	f
 77917188	La gotita  x2ml	Pegamento	La gotita	2000.00	1460.00	30	-95	3755738	0117054	702	3.02	14.86	3.02	5	Nini	0	2010-04-17 00:00:00	S	0	\N	1	0	5742	21.00	1	t	f	f
 7792798010202	andes criolla pack x 6 473 	cerveza	andes	11500.00	8395.00	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5743	21.00	1	t	f	f
-7798096051084	spa esponja de baño	Perfumeria	spa	2000.00	1560.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5745	21.00	1	t	f	f
+7798096051084	spa esponja de baÃ±o	Perfumeria	spa	2000.00	1560.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5745	21.00	1	t	f	f
 7509546692128	crem dent 90  g 	Prod.Altos	colgate	2500.00	2325.00	10	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5746	21.00	1	t	f	f
 7798092960274	velas x4 105 g	Limpieza	make	160.00	132.80	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5748	21.00	1	t	f	f
-7790070507983	lucchetti ñoquis 500g	Almacen	lucchetti 	230.00	190.90	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5749	21.00	1	t	f	f
+7790070507983	lucchetti Ã±oquis 500g	Almacen	lucchetti 	230.00	190.90	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5749	21.00	1	t	f	f
 7790150250136	te con canela la virginia	Almacen	la virginia	150.00	124.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5750	21.00	1	t	f	f
 7798321151091	sancor yogs vainilla 185 botellita	Lacteos	sancor	550.00	149.40	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5751	21.00	1	t	f	f
 7500435212052	pante sha 200	Gaseosa	panten	1700.00	830.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5752	21.00	1	t	f	f
@@ -10961,7 +11154,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791520007374	desodorante en aerosol	Perfumeria	veritas	22.50	17.55	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5797	21.00	1	t	f	f
 7791337999787	Yogurt fort vainilla granola	Lacteos	yogurisimo	40.00	31.20	25	-23	0973-02	0231-02	1	7.20	8.28	5.81	1	la serenisima	0	2012-06-27 00:00:00	S	0	\N	1	0	5800	21.00	1	t	f	f
 5000533	supremas de pollo	pollo	carne	3943.00	395.08	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5801	21.00	1	t	f	f
-5000551	riñon	carne	carne	574.00	39.20	5	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5802	21.00	1	t	f	f
+5000551	riÃ±on	carne	carne	574.00	39.20	5	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5802	21.00	1	t	f	f
 5000149	papas saladas 	Fiambreria	Fiambreria	875.00	33.62	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5803	21.00	1	t	f	f
 5000162	salchichon primavera	Fiambreria	Fiambreria	1740.00	83.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5804	21.00	1	t	f	f
 5000129	mani saborisado	Almacen	mani	1200.00	11.62	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5805	21.00	1	t	f	f
@@ -10976,7 +11169,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000150	pepinitos vinagre	Fiambreria	Fiambreria	2925.00	66.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5814	21.00	1	t	f	f
 5000160	salame	Fiambreria	Fiambreria	1995.00	149.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5815	21.00	1	t	f	f
 5000109	chisitos	Fiambreria	Fiambreria	2200.00	124.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5816	21.00	1	t	f	f
-7790520012388	mr musculo total y baño gatillo 	Limpieza	MR MUSCULO	70.00	49.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5817	21.00	1	t	f	f
+7790520012388	mr musculo total y baÃ±o gatillo 	Limpieza	MR MUSCULO	70.00	49.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5817	21.00	1	t	f	f
 7790520018632	mr musculo vidrios gatillo	Limpieza	mr musculo	60.00	37.35	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5818	21.00	1	t	f	f
 7790520018649	repuesto multiuso	Almacen	mr musculo	22.00	18.26	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5819	21.00	1	t	f	f
 5000561	papas noissette	carne	carne	1330.00	4.96	30	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	5820	21.00	1	t	f	f
@@ -10990,7 +11183,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792798992317	andes lata 473 roja	cerveza	andes	2300.00	1560.00	25	38	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5830	21.00	1	t	f	f
 7791560000458	Vodka x750	Licores	Hiram	14.46	11.12	30	0	315818	0103434	1	7.25	8.34	8.80	1	Vital	0	2009-07-06 00:00:00	S	0	\N	1	0	5831	21.00	1	t	f	f
 7791200001043	Vodka frutilla x750	Licores	Volskaya	400.00	292.00	30	1	1	0117672	2514	8.59	9.45	8.59	1	Vital	0	2009-07-04 00:00:00	S	0	\N	1	0	5832	21.00	1	t	f	f
-7798096031062	dña pupa porotos 203 g	Almacen	doña pupa	50.00	41.50	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5834	21.00	1	t	f	f
+7798096031062	dÃ±a pupa porotos 203 g	Almacen	doÃ±a pupa	50.00	41.50	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5834	21.00	1	t	f	f
 7509552902341	aco hid rell 200 ml	Perfumeria	elvive loreal	3800.00	2964.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5835	21.00	1	t	f	f
 714604022930	Mix premiun 160 g 	Almacen	Raices	3000.00	2075.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5836	21.00	1	t	f	f
 7790950000351	Ron x 1 litro	Licores	Castillo	29.90	21.83	30	0	2587777	0130405	1	8.54	9.82	13.31	1	Vital	0	2009-07-06 00:00:00	S	0	\N	1	0	5837	21.00	1	t	f	f
@@ -11030,7 +11223,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793147573324	imperial cerveza lager	Vinos	imperial	1800.00	456.50	30	-35	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5883	21.00	1	t	f	f
 7790770600878	calipso TANGA 8	Perfumeria	calipso	110.00	85.80	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5884	21.00	1	t	f	f
 7790369008344	Mini coronita Black 130 g	Galletitas	Fachitas	1100.00	803.00	30	16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5885	21.00	1	t	f	f
-7791670026614	Champaña d/sec x750	Vinos	federico de alvear	4500.00	3735.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5886	21.00	1	t	f	f
+7791670026614	ChampaÃ±a d/sec x750	Vinos	federico de alvear	4500.00	3735.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5886	21.00	1	t	f	f
 7793147570262	miller 710 	Almacen	miller	4000.00	3320.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5887	21.00	1	t	f	f
 7790950133318	Aper. serrano 1.25lt	Aperitivo	Terma	2200.00	1533.00	30	5	2395142	0109880	2911	5.90	6.79	5.20	1	1	0	2010-03-22 00:00:00	S	0	\N	1	0	5888	21.00	1	t	f	f
 7790950133332	Aper. cuyano 1.35lt	Aperitivo	Terma	2000.00	94.90	30	8	2395410	0109881	1	3.45	3.97	5.60	1	Nini	0	2010-09-21 00:00:00	S	0	\N	1	0	5889	21.00	1	t	f	f
@@ -11053,7 +11246,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793253003647	poett antibacterial  900	Desodorante piso	Poett	1900.00	80.30	30	3	3313050	0124403	12069	2.60	2.99	2.70	1	1	0	2010-09-01 00:00:00	S	0	\N	1	0	5914	21.00	1	t	f	f
 7790250056881	Rollos cocina 50x3	Rollo Cocina	Sussex	2000.00	511.00	30	3	583596	0104418	3794	4.05	4.66	3.80	1	1	0	2011-04-16 00:00:00	S	0	\N	1	0	5915	21.00	1	t	f	f
 7798130888997	Rollos cocina x3u	Rollo Cocina	Vual	35.00	25.55	30	1	3498840	0138728	13035	2.26	2.60	2.80	1	Nini	0	2010-08-14 00:00:00	S	0	\N	1	0	5916	21.00	1	t	f	f
-7795085000016	Paño para piso. gris 60x50cm	Limpieza	julieta	1000.00	930.00	10	-45	1	1	1	1.15	1.32	1.00	1	1	0	2009-08-13 00:00:00	S	0	\N	1	0	5918	21.00	1	t	f	f
+7795085000016	PaÃ±o para piso. gris 60x50cm	Limpieza	julieta	1000.00	930.00	10	-45	1	1	1	1.15	1.32	1.00	1	1	0	2009-08-13 00:00:00	S	0	\N	1	0	5918	21.00	1	t	f	f
 7794440045938	guantes plumita l 	Almacen	plumita	120.00	99.60	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5919	21.00	1	t	f	f
 7500435206631	H&S sh con cafeina 375 ml	Almacen	H&S sh	7000.00	996.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5921	21.00	1	t	f	f
 7798011110070	Azufre en barrita 5u	Perfumeria	gonzalito	1200.00	664.00	20	-14	1	1	1	1.00	1.15	2.00	1	1	0	2009-11-06 00:00:00	S	0	\N	1	0	5923	21.00	1	t	f	f
@@ -11083,7 +11276,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290792586	cif bio deterg  450 ml 	Almacen	cif	370.00	307.10	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5954	21.00	1	t	f	f
 7613034428271	Nestum 5 cereales 200g	Galletitas	Nestle	150.00	117.00	25	-2	452460	1	1	4.00	4.60	3.16	1	1	0	2009-07-15 00:00:00	S	0	\N	1	0	5955	21.00	1	t	f	f
 7792850000066	Edulcorante chuker 250cm	Azucar	Chuker	110.00	80.30	30	1	110191	0131633	2244	2.74	3.16	3.24	1	Vital	0	2010-09-03 00:00:00	S	0	\N	1	0	5959	21.00	1	t	f	f
-7791540049408	Frizzé blue frost x750ml	Vinos	Frizze	45.00	32.85	30	0	4275756	1	1	0.00	0.00	9.61	1	1	0	2010-07-15 00:00:00	S	\N	\N	1	0	5961	21.00	1	t	f	f
+7791540049408	FrizzÃ© blue frost x750ml	Vinos	Frizze	45.00	32.85	30	0	4275756	1	1	0.00	0.00	9.61	1	1	0	2010-07-15 00:00:00	S	\N	\N	1	0	5961	21.00	1	t	f	f
 7794710010017	Veronica Leche Entera 1 Lts	Lacteos	Veronica	75.00	62.25	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5963	21.00	1	t	f	f
 7790040133488	Sonrisas Vainilla x120	Galletitas	Bagley	1200.00	94.90	30	-11	1	1	1	0.00	0.00	0.97	1	bagley	0	\N	S	0	\N	1	0	5964	21.00	1	t	f	f
 7790895063855	coca cola 250 ml 	Gaseosa	coca cola	1500.00	1245.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	5965	21.00	1	t	f	f
@@ -11091,7 +11284,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793100120268	kolinos 70 g	Perfumeria	kolinos 	110.00	85.80	25	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5967	21.00	1	t	f	f
 7798056680019	Tapa de emp,horno	tapa de empanada	Tapa mania	1600.00	288.00	31	-24	1	1	1	0.00	0.00	2.77	1	Tapa Mania	0	2010-03-12 00:00:00	S	0	\N	1	0	5968	21.00	1	t	f	f
 7790080032284	lecha entera 1 lt calcio y vitms	lacteos	sancor	27.00	22.41	20	-74	3228	1	1	3.13	3.60	3.00	1	Sancor	1	2010-07-13 00:00:00	S	0	\N	1	0	5970	21.00	1	t	f	f
-7790080066326	yçogs x 3	Leche en polvo	Sancor	13.00	10.79	20	-1	5371	1	1	7.45	8.57	7.25	1	Sancor	1	2009-08-25 00:00:00	S	0	\N	1	0	5971	21.00	1	t	f	f
+7790080066326	yÃ§ogs x 3	Leche en polvo	Sancor	13.00	10.79	20	-1	5371	1	1	7.45	8.57	7.25	1	Sancor	1	2009-08-25 00:00:00	S	0	\N	1	0	5971	21.00	1	t	f	f
 7798096590200	rollo	Gaseosa	rollo	100.00	83.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5972	21.00	1	t	f	f
 7792070001614	extra virjen	Almacen	nucete	170.00	141.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5973	21.00	1	t	f	f
 7792798001750	stella lata 355	Almacen	stella	125.00	103.75	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7335	21.00	1	t	f	f
@@ -11140,7 +11333,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790411000548	Rosamonte suave x 500	yerbas	Rosamonte	2400.00	348.60	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6024	21.00	1	t	f	f
 7790250098058	Toallitas sin alas x 8	Toallitas	ladysoft	70.00	51.10	30	-4	2997878	1	6773	1.03	1.18	3.20	1	1	0	\N	S	0	\N	1	0	6027	21.00	1	t	f	f
 7792129000759	Edulcorante polvo	edulcorante	EqualSweet	2300.00	182.60	20	4	1	1	1	0.00	0.00	4.81	1	1	0	\N	S	0	\N	1	0	6028	21.00	1	t	f	f
-7790580111694	naranja durazno BC	Jugos	 la campañola 	30.00	24.90	20	-30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6029	21.00	1	t	f	f
+7790580111694	naranja durazno BC	Jugos	 la campaÃ±ola 	30.00	24.90	20	-30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6029	21.00	1	t	f	f
 7793253001841	poett algodon 900	Almacen	pooett	75.00	62.25	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6030	21.00	1	t	f	f
 7790520028747	lustra mueble original	Limpieza	blem	5000.00	3320.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6031	21.00	1	t	f	f
 7792378000937	Vinagre de alcohol pet 1lt	almacen	gustoso	17.00	12.41	30	0	3153991	1	1	17.12	19.69	1.43	12	Nini	0	2009-09-17 00:00:00	S	\N	\N	1	0	6033	21.00	1	t	f	f
@@ -11157,7 +11350,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798155710143	daditos  tradicional queso	Galletitas	daditos	1300.00	803.00	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6048	21.00	1	t	f	f
 7791293042756	enjuague s.o.s balance 	Perfumeria	sedal	400.00	202.80	25	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6049	21.00	1	t	f	f
 7790990572290	jabon Federal x 2	Limpieza	federal	20.00	16.60	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6050	21.00	1	t	f	f
-7790613000322	lustra mueble aerosol	limpìeza	suiza	300.00	219.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6051	21.00	1	t	f	f
+7790613000322	lustra mueble aerosol	limpÃ¬eza	suiza	300.00	219.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6051	21.00	1	t	f	f
 7793253001667	poett pastilla inodoro	Limpieza	poett	220.00	14.94	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6052	21.00	1	t	f	f
 7790250014966	papel 80 m x 6 un	limpieza	higienol	22.50	16.43	30	-101	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6053	21.00	1	t	f	f
 7791828000626	cartabe rollo de cocina	limpieza	cartabella	1700.00	146.00	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6054	21.00	1	t	f	f
@@ -11181,7 +11374,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798100661186	perita clasico x 400 g	Almacen	canale	19.00	15.77	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6081	21.00	1	t	f	f
 7799175003994	palo santo dulces frutillas	Almacen	aromanza	2000.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6082	21.00	1	t	f	f
 7790310983966	Asado	Almacen	Lays	270.00	224.10	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6083	21.00	1	t	f	f
-7790260002076	Cafe Coñac 3 pluma 750g	Licores	Tres Plumas	4000.00	357.70	30	1	44016	1	1	10.52	12.09	10.51	1	1	0	2009-07-27 00:00:00	S	0	\N	1	0	6084	21.00	1	t	f	f
+7790260002076	Cafe CoÃ±ac 3 pluma 750g	Licores	Tres Plumas	4000.00	357.70	30	1	44016	1	1	10.52	12.09	10.51	1	1	0	2009-07-27 00:00:00	S	0	\N	1	0	6084	21.00	1	t	f	f
 7792170555314	Avena Integral Extra Fina	Almacen	Quaker	3200.00	298.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6085	21.00	1	t	f	f
 7790520993106	Ceramicol Ceras negra	Ceras	Ceramicol	3000.00	693.50	30	3	1576569	0104221	1	0.00	0.00	4.24	1	1	0	2010-07-02 00:00:00	S	0	\N	1	0	6086	21.00	1	t	f	f
 7793344904631	rollo de cocina 100m x3	Rollo Cocina	elegante	85.00	62.05	30	3	0128999	0128999	1	0.00	0.00	5.40	1	1	0	2010-08-14 00:00:00	S	0	\N	1	0	6087	21.00	1	t	f	f
@@ -11239,7 +11432,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791843002513	Cabernet-malbec 750ml	Vinos	Los haroldos	12.57	9.67	30	0	1	1	1	9.67	11.12	6.06	1	1	0	2009-05-02 00:00:00	S	\N	\N	1	0	6177	21.00	1	t	f	f
 7790093132728	Vino tinto x700cc	Vinos	Etchart	3500.00	43.80	30	6	49417	1	1	4.27	4.91	3.99	1	Nini	0	2009-05-02 00:00:00	S	0	\N	1	0	6182	21.00	1	t	f	f
 7791560000243	Tia Maria  700lt	Licores	Tia Maria	170.00	124.10	30	6	N227	1	1	0.00	0.00	1.25	1	1	0	\N	S	0	\N	1	0	6184	21.00	1	t	f	f
-7790480000463	Viña tinto  1250ml	Vinos	Viñas de alvear	1300.00	876.00	30	0	1	1	1	8.10	9.32	7.13	1	1	0	2009-07-17 00:00:00	S	0	\N	1	0	6188	21.00	1	t	f	f
+7790480000463	ViÃ±a tinto  1250ml	Vinos	ViÃ±as de alvear	1300.00	876.00	30	0	1	1	1	8.10	9.32	7.13	1	1	0	2009-07-17 00:00:00	S	0	\N	1	0	6188	21.00	1	t	f	f
 7798120180599	salvado sin sal	Almacen	manieri	950.00	273.90	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6189	21.00	1	t	f	f
 7790314000034	toro Vino blanco 1lt	Vinos	Toro	30.00	21.90	30	0	107	1	1	35.15	40.42	3.32	12	El Faro	0	2009-10-06 00:00:00	S	0	\N	1	0	6192	21.00	1	t	f	f
 7790036068329	Vino. tinto dulce x1lt	Vinos	Uvita	1800.00	584.00	30	0	898058	1	46017	62.00	71.30	6.10	12	Nini	0	2010-07-15 00:00:00	S	0	\N	1	0	6194	21.00	1	t	f	f
@@ -11261,7 +11454,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790703204968	Don valentin malbec	Vinos	Don valentin	3800.00	2158.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6212	21.00	1	t	f	f
 7791337008458	Serenito  vainilla 190g	Serenito	La Serenisima	2800.00	1494.00	20	-11	0304-01	1	1	5.13	5.90	3.82	1	La Serenisima	0	2012-06-27 00:00:00	S	0	\N	1	0	6213	21.00	1	t	f	f
 7891000369098	nestle calssico con leche 80g	Galletitas	nestle	2000.00	1460.00	30	0	1	1	1	7.00	7.70	7.00	1	1	1	2012-01-26 00:00:00	S	0	\N	1	0	6214	21.00	1	t	f	f
-7790580984113	naranja BC	Jugos	la campañola 	25.00	20.75	20	-36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6215	21.00	1	t	f	f
+7790580984113	naranja BC	Jugos	la campaÃ±ola 	25.00	20.75	20	-36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6215	21.00	1	t	f	f
 7790742872739	Seren SeNse Macchiatto 200ml	Lacteos	La Serenisima	220.00	166.00	20	0	1	1	1	3.64	4.19	3.47	1	La Serenisima	0	2009-03-17 00:00:00	S	0	\N	1	0	6216	21.00	1	t	f	f
 7790742872654	Seren SeNse caramel 200ml	Lacteos	La Serenisima	200.00	166.00	20	-2	1	1	1	3.64	4.19	3.47	1	La Serenisima	0	2009-03-17 00:00:00	S	0	\N	1	0	6217	21.00	1	t	f	f
 7790040137912	mana chocolatada 	Almacen	mana	750.00	132.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6218	21.00	1	t	f	f
@@ -11296,7 +11489,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7891000368992	Nestle calssico du 80g	Lacteos	Nestle	2000.00	1660.00	20	0	1	1	1	0.00	0.00	2.19	1	Sancor	0	\N	S	0	\N	1	0	6250	21.00	1	t	f	f
 7798321151725	Shimy postre vainilla 120g	Lacteos	sancor	1700.00	265.60	20	-23	4087	1	1	3.42	3.93	3.32	1	Sancor	0	2012-06-25 00:00:00	S	0	\N	1	0	6251	21.00	1	t	f	f
 7790580119058	bombom blanco  x 30 unid	Almacen	bon o bon	9000.00	830.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6252	21.00	1	t	f	f
-7790984004981	Malbec 750 ml 	Vinos	Muñeco rebelde	2600.00	2158.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6253	21.00	1	t	f	f
+7790984004981	Malbec 750 ml 	Vinos	MuÃ±eco rebelde	2600.00	2158.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6253	21.00	1	t	f	f
 7791337005686	ser Yogur firme vainilla	Lacteos	la serenisima	380.00	215.80	20	-7	0016-02	1	1	0.00	0.00	1.31	1	La Serenisima	0	2009-11-03 00:00:00	S	0	\N	1	0	6254	21.00	1	t	f	f
 7791293037547	jabon lux desgustame pack de 3	Perfumeria	lux	135.00	105.30	25	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6255	21.00	1	t	f	f
 7793890059250	fargo pan dulce c/chips choco	Almacen	fargo	22.50	18.68	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6256	21.00	1	t	f	f
@@ -11312,8 +11505,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798108834056	callia merlot 700	Vinos	callia	1600.00	1328.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6266	21.00	1	t	f	f
 7622201492717	choco cookies 	Almacen	milka	1200.00	116.20	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6267	21.00	1	t	f	f
 7790142018805	mizzi cat 500	Prod.Altos	mizzi cat	300.00	232.50	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6268	21.00	1	t	f	f
-7793253179236	Limp. baño econ 500cm	repuestos	ayudin	80.00	58.40	30	0	1	1	1	0.00	0.00	2.18	1	1	0	\N	S	\N	\N	1	0	6270	21.00	1	t	f	f
-7793360101571	mandaraina BC	Jugos	la campañola 	17.00	14.11	20	-39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6273	21.00	1	t	f	f
+7793253179236	Limp. baÃ±o econ 500cm	repuestos	ayudin	80.00	58.40	30	0	1	1	1	0.00	0.00	2.18	1	1	0	\N	S	\N	\N	1	0	6270	21.00	1	t	f	f
+7793360101571	mandaraina BC	Jugos	la campaÃ±ola 	17.00	14.11	20	-39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6273	21.00	1	t	f	f
 7792260231180	orieta merme  zapallo 500 g	Almacen	orieta	130.00	107.90	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6274	21.00	1	t	f	f
 7791290010895	drive 800 	Limpieza	drive	90.00	74.70	20	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6275	21.00	1	t	f	f
 7790503199129	arroz largo fino 500 g 	Almacen	los hermanos 	800.00	62.25	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6276	21.00	1	t	f	f
@@ -11326,7 +11519,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790071000889	pan dulce class c/ fruta 400 g	Pan dulce	class	400.00	292.00	30	-68	1	1	1	0.00	0.00	2.92	1	1	0	\N	S	0	\N	1	0	6285	21.00	1	t	f	f
 7798000350333	Prepizza x 2 600 g	panificados	Parma	2200.00	1743.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6286	21.00	1	t	f	f
 7798094222325	budin fantacia limon	Budin	nevares	1400.00	91.30	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6289	21.00	1	t	f	f
-7793360002175	coctel  BC 800 g 	Almacen	la campañola 	178.00	147.74	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6293	21.00	1	t	f	f
+7793360002175	coctel  BC 800 g 	Almacen	la campaÃ±ola 	178.00	147.74	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6293	21.00	1	t	f	f
 7799175001570	palo santo lavandas del valle	Almacen	aromanza	2000.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6295	21.00	1	t	f	f
 7790150101384	Cafe en saquitos x 7gs	Cafe	La Virginia	70.00	51.10	30	1	1448676	1	1	6.28	7.22	0.35	20	La Virginia	0	2010-07-16 00:00:00	S	0	\N	1	0	6296	21.00	1	t	f	f
 7798056680330	Ravioles de ricotta	pasta	La Nonina	1300.00	657.00	30	-6	1	1	1	0.00	0.00	3.43	1	La Nonina	0	2010-03-12 00:00:00	S	0	\N	1	0	6298	21.00	1	t	f	f
@@ -11348,7 +11541,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798035770328	G y M Marineras sin sal 200g	Galletitas	G Y M	70.00	51.10	30	-14	30216	1	1	18.91	21.75	2.64	12	Michael	0	2010-03-11 00:00:00	S	0	\N	1	0	6315	21.00	1	t	f	f
 7790580132224	arcor light Merm. duraz  454g	mermelada	arcor	2500.00	164.30	50	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6316	21.00	1	t	f	f
 7793890258790	Pan de pancho 210gr	Pan lactal	Lactal	2500.00	328.50	30	-32	1	1	1	17.17	19.75	1.32	12	Michael	0	\N	S	0	\N	1	0	6320	21.00	1	t	f	f
-7790168000426	Vino borgoña x750cc	Vinos	Colon	14.47	11.13	30	0	48518	0103097	3647	10.50	12.08	6.87	1	Nini	0	2010-03-18 00:00:00	S	0	\N	1	0	6321	21.00	1	t	f	f
+7790168000426	Vino borgoÃ±a x750cc	Vinos	Colon	14.47	11.13	30	0	48518	0103097	3647	10.50	12.08	6.87	1	Nini	0	2010-03-18 00:00:00	S	0	\N	1	0	6321	21.00	1	t	f	f
 7790070102041	Fideos tallarin 500 g	fideos	Matarazzo	1600.00	1168.00	30	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6323	21.00	1	t	f	f
 7793360131530	bc de frutilla mermelada390g	mermelada	bc	4300.00	978.20	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6324	21.00	1	t	f	f
 7792684001505	solitas pepas  300g	Galletitas	Solitas	1400.00	51.10	30	-57	1	1	1	0.00	0.00	1.26	1	Michael	0	\N	S	0	\N	1	0	6326	21.00	1	t	f	f
@@ -11385,7 +11578,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 77980267	Alf. triple blanco	Golosina	Guaymallen	600.00	87.60	30	-222	1283310	14234	1	0.00	0.00	0.45	1	Michael	0	\N	S	0	\N	1	0	6368	21.00	1	t	f	f
 039800099099	Energizer Pila  AAA	Almacen	Energizer	360.00	298.80	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6370	21.00	1	t	f	f
 7798043310011	sani cat	Almacen	sanicat	25.00	20.75	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6371	21.00	1	t	f	f
-7791293033396	hidratacion profunda shampoo	Perfumeria	TRESemmé	60.00	46.80	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6372	21.00	1	t	f	f
+7791293033396	hidratacion profunda shampoo	Perfumeria	TRESemmÃ©	60.00	46.80	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6372	21.00	1	t	f	f
 7791337009981	Yogur Griego nat 190g	Lacteos	Yogurisimo	2500.00	2490.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6374	21.00	1	t	f	f
 7500435251938	VENUS maquinita	Almacen	venus	2500.00	2075.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6375	21.00	1	t	f	f
 7791885001208	Atun desm.aceit x170g	Latas	cumana	1600.00	94.90	30	8	3266400	1	1	0.00	0.00	2.01	1	1	0	2009-12-24 00:00:00	S	0	\N	1	0	6376	21.00	1	t	f	f
@@ -11409,7 +11602,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7899026457027	el vive color vive shampoo	Limpieza	loreal	13.50	11.21	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6401	21.00	1	t	f	f
 7798008383081	vileda esponja acero 3	Almacen	videla	90.00	74.70	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6403	21.00	1	t	f	f
 7899026457133	el vive reparasion total 5	Limpieza	loreal	13.50	11.21	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6404	21.00	1	t	f	f
-7790070621801	ravioles pollo y esp 900	Pasta	La salteña	4000.00	2920.00	30	-1	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	6405	21.00	1	t	f	f
+7790070621801	ravioles pollo y esp 900	Pasta	La salteÃ±a	4000.00	2920.00	30	-1	1	1	1	11.20	12.88	10.70	1	Tetu	0	2010-07-22 00:00:00	S	0	\N	1	0	6405	21.00	1	t	f	f
 7899026457256	el vive re-nutrision acondisionador	Perfumeria	loreal 	13.50	10.53	25	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6406	21.00	1	t	f	f
 7791337623217	Ser x1lt	Lacteos	La serenisima	145.00	120.35	20	5	1	1	1	4.01	4.61	4.01	1	La Serenisima	0	2009-01-23 00:00:00	S	0	\N	1	0	6407	21.00	1	t	f	f
 7790040711105	Diversion sur mix x400g	Galletitas	Arcor	100.00	70.00	33	-9	6805	7111	1	2.65	3.05	3.89	1	arcor	0	2010-06-16 00:00:00	S	0	\N	1	0	6409	21.00	1	t	f	f
@@ -11432,7 +11625,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790520995568	blem multisuperficie floral 360 g	Limpieza	blem	550.00	456.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6437	21.00	1	t	f	f
 7790480001538	federico de alvear rosado	Vinos	f.alvear	76.00	63.08	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6438	21.00	1	t	f	f
 7790142000114	tiernito carne	Prod.Altos	tiernito	3000.00	409.20	10	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6439	10.50	1	t	f	f
-7793253001865	Limp. liq a/navideño 900ml	Desodorante piso	Poett	70.00	51.10	30	-8	1	1	1	2.60	2.99	2.60	1	1	0	2010-09-01 00:00:00	S	\N	\N	1	0	6440	21.00	1	t	f	f
+7793253001865	Limp. liq a/navideÃ±o 900ml	Desodorante piso	Poett	70.00	51.10	30	-8	1	1	1	2.60	2.99	2.60	1	1	0	2010-09-01 00:00:00	S	\N	\N	1	0	6440	21.00	1	t	f	f
 7798056681054	tapa mania 500g	Almacen	tapa mania 	350.00	290.50	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6441	21.00	1	t	f	f
 7797429007019	Palitos Salados x800	Copetin	La Pampa	600.00	408.00	35	0	1	1	1	0.00	0.00	2.60	1	1	0	\N	S	\N	\N	1	0	6442	21.00	1	t	f	f
 7798081250430	lampara led 5w	Almacen	lampara	40.00	33.20	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6443	21.00	1	t	f	f
@@ -11487,7 +11680,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790940234025	prot dia 40 unid 	Perfumeria	Doncella	2100.00	1248.00	25	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6503	21.00	1	t	f	f
 7798321151121	Yogur crem Vain. 190	Lacteos	Sancor	600.00	486.00	22	-1	1	1	1	1.71	1.97	1.49	1	Sancor	0	2008-12-04 00:00:00	S	0	\N	1	0	6504	21.00	1	t	f	f
 7790168904373	colon rose dulce 700	Vinos	colon	4500.00	3984.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6506	21.00	1	t	f	f
-7790577005401	pequeña vasija malbec	Vinos	pequeñavacija	66.00	54.78	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6507	21.00	1	t	f	f
+7790577005401	pequeÃ±a vasija malbec	Vinos	pequeÃ±avacija	66.00	54.78	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6507	21.00	1	t	f	f
 7622202247392	halls mentol 	golosina	Halls 	800.00	584.00	30	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6508	21.00	1	t	f	f
 7794910083590	ensalada de frutas	Fideos	Canale	18.00	13.14	30	-6	1	1	8099	1.97	2.26	1.89	1	1	0	\N	S	\N	\N	1	0	6510	21.00	1	t	f	f
 5000101	Chisitos Krachi 	fiambreria	Fiambreria	1500.00	1022.00	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6750	21.00	1	t	f	f
@@ -11506,15 +11699,15 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790310984314	pep rueditas 74gr	snacks	Pepsico	2000.00	390.00	25	-6	118	1	1	0.80	0.88	0.80	1	1	0	2009-12-05 00:00:00	S	0	\N	1	0	6527	21.00	1	t	f	f
 7790717153436	vino ping vino white blend	Vinos	dante robino	220.00	182.60	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6528	21.00	1	t	f	f
 7794520000826	papas chedar	Almacen	krachito	1150.00	913.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6529	21.00	1	t	f	f
-7799032005161	velas paea cumpleaños 	Limpieza	ranchera	140.00	102.20	30	2	71196	0104534	1	1.66	1.90	1.57	1	1	0	\N	S	0	\N	1	0	6530	21.00	1	t	f	f
+7799032005161	velas paea cumpleaÃ±os 	Limpieza	ranchera	140.00	102.20	30	2	71196	0104534	1	1.66	1.90	1.57	1	1	0	\N	S	0	\N	1	0	6530	21.00	1	t	f	f
 7891240000034	Vaso bahia x 6 ud	vaso	wheaton	17.25	13.27	30	0	2634244	1	1	13.27	15.26	0.91	1	nini	0	\N	S	\N	\N	1	0	6531	21.00	1	t	f	f
 7790580607418	chocolatin blanco x 25 g	golosinas	Arcor	700.00	106.00	50	-1	6073	1	1	0.52	0.57	0.52	1	arcor	0	\N	S	0	\N	1	0	6532	21.00	1	t	f	f
 7790499002106	la banda acelga 550	Almacen	la banda	2600.00	166.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6533	21.00	1	t	f	f
-7792180139559	cañ arroz paboil 500 g 	pan rallado	Cañuelas	250.00	80.30	30	-12	3603180	0126930	13377	19.70	22.66	2.11	12	nini 	0	2010-08-24 00:00:00	S	0	\N	1	0	6536	21.00	1	t	f	f
+7792180139559	caÃ± arroz paboil 500 g 	pan rallado	CaÃ±uelas	250.00	80.30	30	-12	3603180	0126930	13377	19.70	22.66	2.11	12	nini 	0	2010-08-24 00:00:00	S	0	\N	1	0	6536	21.00	1	t	f	f
 7793704000232	Yerba playadito x500g	yerbas	Playadito	250.00	182.50	30	-15	695130	0110889	1183	3.20	3.68	3.50	1	1	0	2010-05-27 00:00:00	S	0	\N	1	0	6537	21.00	1	t	f	f
 7790990003954	deterg 225 ml 	Limpieza	magistral	1800.00	1494.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6540	21.00	1	t	f	f
 7794520869546	konos bbq 45 g 	Snacks	Krachitos	1000.00	730.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6541	21.00	1	t	f	f
-7790927816039	Paño lava coche pesado	Limpieza	Texas	110.00	91.30	20	4	1	1	1	2.80	3.08	2.80	1	Limpieza	0	\N	S	\N	\N	1	0	6542	21.00	1	t	f	f
+7790927816039	PaÃ±o lava coche pesado	Limpieza	Texas	110.00	91.30	20	4	1	1	1	2.80	3.08	2.80	1	Limpieza	0	\N	S	\N	\N	1	0	6542	21.00	1	t	f	f
 7506309895253	head & shoulde acon 200 ml	Perfumeria	head & shoulde	43.00	33.54	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6546	21.00	1	t	f	f
 7506309805559	head & shoulde sham 200 ml	Perfumeria	head & shoulde	43.00	33.54	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6548	21.00	1	t	f	f
 7506309895321	head & shoulde sham 200 ml	Perfumeria	head & shoulde 	43.00	33.54	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6549	21.00	1	t	f	f
@@ -11524,7 +11717,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790265001333	NEO blue	Vinos	NEO	40.00	33.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6848	21.00	1	t	f	f
 7798303720116	Bolsa residuos 80x110	bolsas de residuos	Arial	2000.00	80.30	30	20	1	1	1	0.00	0.00	4.50	24	1	0	\N	S	0	\N	1	0	6557	21.00	1	t	f	f
 77914217	Chocolate shot 35g	golosinas	shot	1400.00	189.00	40	-69	2183706	653653	1	0.00	0.00	1.81	1	1	0	2009-09-12 00:00:00	S	0	\N	1	0	6558	21.00	1	t	f	f
-7794000006188	Ketchup 250g	mayonesas	Hellmann´s	2400.00	1752.00	30	9	1673040	1	2966	4.62	5.31	4.23	1	1	0	2012-06-25 00:00:00	S	0	\N	1	0	6560	21.00	1	t	f	f
+7794000006188	Ketchup 250g	mayonesas	HellmannÂ´s	2400.00	1752.00	30	9	1673040	1	2966	4.62	5.31	4.23	1	1	0	2012-06-25 00:00:00	S	0	\N	1	0	6560	21.00	1	t	f	f
 7790895006418	coca cola3 l	Gaseosa	coca cola	4400.00	3403.00	20	-572	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6562	21.00	1	t	f	f
 7791564012525	Adler salame x 100g	Fiambreria	Adler	2500.00	124.50	20	-17	1	1	1	0.00	0.00	2.78	1	1	0	\N	S	0	\N	1	0	6563	21.00	1	t	f	f
 7795735600924	don satur pepas 300	Budines	Don Satur	1000.00	43.80	30	59	35339	1	1	1.92	2.20	2.01	1	123	0	2009-12-17 00:00:00	S	0	\N	1	0	6564	21.00	1	t	f	f
@@ -11538,7 +11731,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7613034309105	nesquik obles 	golosinas	nestle	16.00	11.68	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6576	21.00	1	t	f	f
 7798103000708	Polenta x1kg	Polentas	Sou Bles	15.00	10.95	30	10	3099750	1	1	1.65	1.90	1.70	1	1	0	2010-09-14 00:00:00	S	0	\N	1	0	6579	21.00	1	t	f	f
 7790802000010	Yerba romance x500g	Yerbas	Romance	650.00	474.50	30	-14	223298	0110781	16169	25.40	29.21	3.10	10	1	0	2010-10-19 00:00:00	S	0	\N	1	0	6580	21.00	1	t	f	f
-7792180139580	cañ arroz int 500 g	pan rayado	Cañuelas	120.00	87.60	30	-2	3603091	0126928	13376	19.70	22.66	2.11	12	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	6581	21.00	1	t	f	f
+7792180139580	caÃ± arroz int 500 g	pan rayado	CaÃ±uelas	120.00	87.60	30	-2	3603091	0126928	13376	19.70	22.66	2.11	12	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	6581	21.00	1	t	f	f
 7791293022369	Jabon estr.jojoba Suave x125	Jabon tocador	Suave	17.00	13.26	25	2	1	1	1	0.00	0.00	0.66	1	1	0	\N	S	0	\N	1	0	6582	21.00	1	t	f	f
 4005900399984	Jabon crem.Nivea Pack 90x2	Jabon tocador	Nivea	200.00	156.00	25	-6	1	1	1	0.00	0.00	1.24	1	1	0	\N	S	\N	\N	1	0	6583	21.00	1	t	f	f
 7790520009890	Insec.Raid Antipol. x400	Insecticida	Raid	340.00	248.20	30	-1	1	1	1227	7.20	8.28	5.78	1	Maxi	0	\N	S	\N	\N	1	0	6584	21.00	1	t	f	f
@@ -11552,12 +11745,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791905004196	polyana fresh 150 ml	Perfumeria	polyana	2000.00	1560.00	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6597	21.00	1	t	f	f
 7790740509026	plusbelle largo acondicionador	Perfumeria	Plusbelle	200.00	146.00	30	2	3477185	1	12845	5.11	5.87	4.42	1	Nini	0	\N	S	\N	\N	1	0	6598	21.00	1	t	f	f
 7798092964500	contendor retangular	Limpieza	make	330.00	273.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6599	21.00	1	t	f	f
-7794564000356	Fideos Moño Nº1 500g	Fideos	Badaloni	2200.00	1241.00	30	4	210188	1	1	2.66	3.06	2.45	1	1	0	2009-09-09 00:00:00	S	0	\N	1	0	6600	21.00	1	t	f	f
-7794564000363	Fideos moños N°2 500g	Fideos	Badaloni	2100.00	438.00	30	-12	210242	1	1	2.42	2.78	2.42	1	Nini	0	2009-11-17 00:00:00	S	0	\N	1	0	6601	21.00	1	t	f	f
+7794564000356	Fideos MoÃ±o NÂº1 500g	Fideos	Badaloni	2200.00	1241.00	30	4	210188	1	1	2.66	3.06	2.45	1	1	0	2009-09-09 00:00:00	S	0	\N	1	0	6600	21.00	1	t	f	f
+7794564000363	Fideos moÃ±os NÂ°2 500g	Fideos	Badaloni	2100.00	438.00	30	-12	210242	1	1	2.42	2.78	2.42	1	Nini	0	2009-11-17 00:00:00	S	0	\N	1	0	6601	21.00	1	t	f	f
 7790150540152	alicante oregano x 25 g	Almacen	alicante	800.00	74.70	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6602	21.00	1	t	f	f
-7794564000332	Tallarines N°2 x500g	Fideos	Badaloni	2100.00	438.00	30	1	209880	1	1	2.52	2.90	2.68	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	6604	21.00	1	t	f	f
+7794564000332	Tallarines NÂ°2 x500g	Fideos	Badaloni	2100.00	438.00	30	1	209880	1	1	2.52	2.90	2.68	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	6604	21.00	1	t	f	f
 7790580567903	Tom. peritas lata 400g	Pure	Arcor	1500.00	770.00	33	-12	5679	0102305	1	2.34	2.69	3.15	1	Arcor	0	2010-06-16 00:00:00	S	0	\N	1	0	6605	21.00	1	t	f	f
-7794564000338	moños chico n 1  x500g 	Fideos	Badaloni	1700.00	1241.00	30	10	210005	1	1	2.42	2.78	2.98	1	1	0	2009-10-29 00:00:00	S	\N	\N	1	0	6606	21.00	1	t	f	f
+7794564000338	moÃ±os chico n 1  x500g 	Fideos	Badaloni	1700.00	1241.00	30	10	210005	1	1	2.42	2.78	2.98	1	1	0	2009-10-29 00:00:00	S	\N	\N	1	0	6606	21.00	1	t	f	f
 7790895000447	Sprite 1.50	Gaseosa	sprite	2800.00	2324.00	20	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6607	21.00	1	t	f	f
 7790070411877	Gallo 00000  largo fino 500g	Arroz	Gallo	260.00	73.00	30	0	247715	0100317	1	1.78	2.05	3.15	1	Nini	0	2010-09-30 00:00:00	S	0	\N	1	0	6608	21.00	1	t	f	f
 714604022824	Mix clasico 160 g	Almacen	Raices 	2000.00	1660.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6609	21.00	1	t	f	f
@@ -11578,7 +11771,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798355480570	rapideli tortilla	Almacen	rapideli	2100.00	1743.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6630	21.00	1	t	f	f
 7798113301611	Agua 2 l 	Aguas	Manaos	1000.00	913.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6631	21.00	1	t	f	f
 7793360986604	Porotos mant. x300g	latas	La Campagnola	18.00	13.14	30	1	3661440	102398	1	2.70	3.11	2.70	1	nini	0	2010-09-07 00:00:00	S	0	\N	1	0	6632	21.00	1	t	f	f
-7791293033358	limpieza reparadora shampoo	Perfumeria	TRESemmé	60.00	46.80	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6633	21.00	1	t	f	f
+7791293033358	limpieza reparadora shampoo	Perfumeria	TRESemmÃ©	60.00	46.80	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6633	21.00	1	t	f	f
 7790045827832	Aven.mix.algarro.paa,uva 60g 	Galletitas	Granix	600.00	438.00	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6634	21.00	1	t	f	f
 7622300202859	terrabussi  38g	Almacen	pepitos	200.00	166.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6638	21.00	1	t	f	f
 7790740001421	plusb esen sham 300 ml	Perfumeria	Plusbelle	3600.00	2628.00	30	0	4143930	1	1	1.96	2.25	1.63	1	Nini	0	2009-07-12 00:00:00	S	0	\N	1	0	6640	21.00	1	t	f	f
@@ -11644,7 +11837,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790163012110	Gin london dry 	Licores	Dreamer	8000.00	5840.00	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6722	21.00	1	t	f	f
 7790150432358	SABOR EN POLVO	Almacen	ALICANTE	15.00	12.45	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6723	21.00	1	t	f	f
 7790895000454	Fanta 1.5	Gaseosa	Fanta	2800.00	2324.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6725	21.00	1	t	f	f
-7790070621900	la salteña raviol mini de qurso	Almacen	la salteña	1700.00	705.50	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6727	21.00	1	t	f	f
+7790070621900	la salteÃ±a raviol mini de qurso	Almacen	la salteÃ±a	1700.00	705.50	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6727	21.00	1	t	f	f
 7790742165909	finlandia balance 300	Lacteos	finlandia	180.00	149.40	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6728	21.00	1	t	f	f
 7790121000067	FERNET	Vinos	IMPERIO	42.00	34.86	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6729	21.00	1	t	f	f
 7797429010804	Palitos de maiz	Almacen	L.E.Q	650.00	539.50	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6731	21.00	1	t	f	f
@@ -11716,7 +11909,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 77901705	Maxi alfajor 85g	Golosina	jorgelin	1400.00	132.50	50	-19	1	1	1	6.15	7.07	1.23	6		0	\N	S	0	\N	1	0	6819	21.00	1	t	f	f
 5000540	lengua	carne	carne	287.00	5.16	60	1	627011	0107902	1	23.16	26.63	1.25	50		0	2009-08-20 00:00:00	S	\N	\N	1	0	6820	21.00	1	t	f	f
 7798321151251	Yogs cremoso  vain. 2 x 120	Lacteos	Sancor	1800.00	290.50	20	3	6406	1	1	4.37	5.03	3.91	1	Sancor	0	2010-07-13 00:00:00	S	0	\N	1	0	6821	21.00	1	t	f	f
-7791690709030	quara mañbec 750  ml	Vinos	QUARA	1100.00	249.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6822	21.00	1	t	f	f
+7791690709030	quara maÃ±bec 750  ml	Vinos	QUARA	1100.00	249.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6822	21.00	1	t	f	f
 7790036044323	UVITA vino BLANCO	Vinos	UVITA	1800.00	373.50	20	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6823	21.00	1	t	f	f
 7790070342065	fideos daditos 500g 	Almacen	favorita	1200.00	166.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6824	21.00	1	t	f	f
 77940148	Turron de mani x25g	Golosina	Misky	350.00	185.50	50	-28	4014	1	1	18.84	21.67	0.37	50	Arcor	0	2010-07-21 00:00:00	S	0	\N	1	0	6825	21.00	1	t	f	f
@@ -11756,12 +11949,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798321150452	yogscolchon pulpa 160	Lacteos	sancor	60.00	49.80	20	-3	6690	1	1	4.37	5.03	3.91	1	Sancor	0	2010-07-13 00:00:00	S	\N	\N	1	0	6872	21.00	1	t	f	f
 7798096700012	tabaco natural 50 g 	tabaco	Las hojas	4800.00	3650.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6875	21.00	1	t	f	f
 7798422330340	Dulce condena 700 ml 	Vinos	finjamos demencia	3000.00	2490.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6876	21.00	1	t	f	f
-7791290795624	cif baño 450	Limpiador	Cif	2000.00	876.00	30	6	1	0129817	1	4.27	4.70	4.70	1	Vital	0	2008-12-09 00:00:00	S	0	\N	1	0	6881	21.00	1	t	f	f
+7791290795624	cif baÃ±o 450	Limpiador	Cif	2000.00	876.00	30	6	1	0129817	1	4.27	4.70	4.70	1	Vital	0	2008-12-09 00:00:00	S	0	\N	1	0	6881	21.00	1	t	f	f
 5000546	asado americano	carne	carne	205.10	99.60	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6882	21.00	1	t	f	f
 7791822689469	Vaso Pinta x4	Vasos	Rigolleau	32.00	24.58	30	0	4021568	1	1	24.58	27.04	24.58	1	Nini	0	\N	S	\N	\N	1	0	6885	21.00	1	t	f	f
 7798092965811	Cubetera x1u	Bazar	Make	30.00	21.90	30	5	4023390	1	1	1.94	2.13	1.94	1	nini	0	\N	S	\N	\N	1	0	6886	21.00	1	t	f	f
 7791293021706	gel expolit 	Perfumeria	suave	12.00	9.36	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6887	21.00	1	t	f	f
-7790236000815	Ñoquis Light	Almacen	La Salteña	95.00	78.85	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6888	21.00	1	t	f	f
+7790236000815	Ã‘oquis Light	Almacen	La SalteÃ±a	95.00	78.85	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6888	21.00	1	t	f	f
 7790895000270	sprite lata 354	Gaseosa	sprite	1600.00	1328.00	20	53	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6889	21.00	1	t	f	f
 7790080037180	sancor leche caja desc.1lt	Lacteos	Sancor	2000.00	605.90	20	-3	3718	1	1	0.00	0.00	3.19	1	Sancor	0	2010-06-01 00:00:00	S	0	\N	1	0	6890	21.00	1	t	f	f
 7790895641183	Powerade naranja 500ml	jugos	Powerade	1700.00	1411.00	20	4	2662	1	1	2.34	2.57	2.46	1	coca cola	0	2009-01-07 00:00:00	S	0	\N	1	0	6892	21.00	1	t	f	f
@@ -11773,19 +11966,19 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798062540291	levite naranja 2.25 l	Gaseosa	Levite	2500.00	597.60	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6899	21.00	1	t	f	f
 7790895004575	SCEWEPEES 1.5 pomelo	Gaseosa	COLACOLA	30.00	24.90	20	-87	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6900	21.00	1	t	f	f
 7790314009679	canciller vII	Vinos	canciller	75.00	62.25	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6901	21.00	1	t	f	f
-7790984004998	Cabern sauvignon 750 ml 	Vinos	Muñeco rebelde	2600.00	2158.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6902	21.00	1	t	f	f
+7790984004998	Cabern sauvignon 750 ml 	Vinos	MuÃ±eco rebelde	2600.00	2158.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6902	21.00	1	t	f	f
 7794600003310	terrabusi budin  500	Fideos	terrabusi	30.00	21.90	30	5	3236889			3.27	3.76	2.48	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	6903	21.00	1	t	f	f
-7790580984311	mango naranja BC	Jugos	la campañola	25.00	20.75	20	-42	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6904	21.00	1	t	f	f
+7790580984311	mango naranja BC	Jugos	la campaÃ±ola	25.00	20.75	20	-42	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6904	21.00	1	t	f	f
 7790580716707	Saladix  jamon 100g	Galletitas	Saladix	1700.00	136.00	35	-12	7167	1	1	1.94	2.13	2.13	1	arcor	1	2010-01-13 00:00:00	S	0	\N	1	0	6907	21.00	1	t	f	f
 7891167021013	Sardina c/aceite x125	Sardina	Gomes Costa	26.00	18.98	30	1	2946270	1	2101	3.27	3.76	2.60	1	Nini	0	2009-09-29 00:00:00	S	\N	\N	1	0	6909	21.00	1	t	f	f
 7790202057461	Sardinas c/limon x125	Sardinas	Gomes Costa	45.00	32.85	30	2	3309878	1	1	3.27	3.76	2.60	1	Nini	0	2009-09-29 00:00:00	S	\N	\N	1	0	6910	21.00	1	t	f	f
 7790070416797	Gelatina de naranja x120	Gelatina	Exquisita	60.00	43.80	30	0	35319	0101229	2184	1.51	1.74	2.00	1	2184	0	2010-09-21 00:00:00	S	0	\N	1	0	6911	21.00	1	t	f	f
-7791293033389	hidratacion profunda acon.	Perfumeria	TRESemmé	120.00	93.60	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6912	21.00	1	t	f	f
+7791293033389	hidratacion profunda acon.	Perfumeria	TRESemmÃ©	120.00	93.60	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6912	21.00	1	t	f	f
 041333001043	duracell bateria viru.!	Almacen	duracell	5700.00	4731.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6914	21.00	1	t	f	f
 7500435229654	always suave 	Perfumeria	always	2400.00	1872.00	25	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6918	21.00	1	t	f	f
 7791337605916	la serenisima clasico firme 120 g	Lacteos	la serenisima	120.00	91.30	20	-90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6919	21.00	1	t	f	f
 7798067780029	soda cimes x 2 ltre	Licores	cimes	1200.00	219.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6920	21.00	1	t	f	f
-7500435148450	pampers toallitas 48 un	Pañales	Pampers	160.00	132.80	20	-26	1	0108187		10.14	11.66	11.49	1	Vital	0	2009-04-22 00:00:00	S	\N	\N	1	0	6921	21.00	1	t	f	f
+7500435148450	pampers toallitas 48 un	PaÃ±ales	Pampers	160.00	132.80	20	-26	1	0108187		10.14	11.66	11.49	1	Vital	0	2009-04-22 00:00:00	S	\N	\N	1	0	6921	21.00	1	t	f	f
 7790990001813	Jabon pan 	Jabon	Federal	1300.00	116.80	30	3	1	0103990	1	2.72	2.99	2.72	1	1	0	2009-02-21 00:00:00	S	0	\N	1	0	6922	21.00	1	t	f	f
 7798136870095	dahi yogur descremado frutilla 	Lacteos	dahi 	900.00	315.40	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6923	21.00	1	t	f	f
 7794520868228	Chizitos 300 g 	Snacks	Krachitos	4300.00	2920.00	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6925	21.00	1	t	f	f
@@ -11804,10 +11997,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790670052715_2	Espinaca pimientos	Galletitas	Gren life	3800.00	2774.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6941	21.00	1	t	f	f
 7790040143227	Chocolinas x170g	Galletitas	Bagley	1700.00	876.00	30	4	9299	1	1	2.82	3.24	2.76	1	Bagley	0	2010-07-06 00:00:00	S	0	\N	1	0	6942	21.00	1	t	f	f
 700	Aguila Tableta choc.blanco x100g	Chocolate	Aguila	2700.00	204.40	30	3	3107	1	1	3.15	3.47	3.80	1	Arcor	0	2010-03-18 00:00:00	S	0	\N	1	0	6943	21.00	1	t	f	f
-7896061990717	 premium 45 un	Pañales	Babysec	2300.00	1909.00	20	6	3439500	1	1	12.24	13.47	12.24	1	Nini	0	\N	S	\N	\N	1	0	6944	21.00	1	t	f	f
+7896061990717	 premium 45 un	PaÃ±ales	Babysec	2300.00	1909.00	20	6	3439500	1	1	12.24	13.47	12.24	1	Nini	0	\N	S	\N	\N	1	0	6944	21.00	1	t	f	f
 7798093880274	mapu cura rosado	Vinos	mapu cura	34.00	26.00	30	-5	1	1	1	26.00	28.60	26.00	1	1	1	2011-12-24 00:00:00	S	\N	\N	1	0	6945	21.00	1	t	f	f
 7790520014214	Lysoform naranja desif	Limpieza	Lysoform	270.00	224.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6946	21.00	1	t	f	f
-7793360927607	salsati portuguesa	Almacen	la campañola	60.00	49.80	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6948	21.00	1	t	f	f
+7793360927607	salsati portuguesa	Almacen	la campaÃ±ola	60.00	49.80	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6948	21.00	1	t	f	f
 7791324156780	Par-Nor Rosquita de miel x170g	Galletitas	Par-nor	30.00	21.90	30	-7	1	1	1	31.96	35.16	1.07	30	Michael	0	\N	S	0	\N	1	0	6951	21.00	1	t	f	f
 7794000009141	Mix oreg,tomate,ajo	Almacen	Knorr	1000.00	996.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	6952	21.00	1	t	f	f
 7791324156810	Par-Nor Sabrosona x170g	Galletitas	Par-Nor	17.00	12.41	30	-10	1	1	1	31.96	35.16	1.07	30	Michael	0	\N	S	0	\N	1	0	6953	21.00	1	t	f	f
@@ -11836,7 +12029,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791540140303	Vino cab.sauvignon x750	Vinos	Hereford	17.50	12.78	30	-6	3009360	1	1	6.42	7.38	6.29	1	Nini	0	\N	S	\N	\N	1	0	6983	21.00	1	t	f	f
 7793253004279	poett aerosol 360	Pastillas inodoro	Poett	2600.00	233.60	30	3	3658651	1	1	1.16	1.27	1.16	1	Nini	0	\N	S	0	\N	1	0	6985	21.00	1	t	f	f
 7791293035611	Jabon cool breeze 3x125	Jabon tocador	Rexona	135.00	98.55	30	-1	3991261	1	1	4.41	5.07	5.09	1	Nini	0	2010-02-28 00:00:00	S	0	\N	1	0	6986	21.00	1	t	f	f
-7791290792142	ala Ja pol mañ sol 800	Jabon en polvo\r\n	Ala	2200.00	189.80	30	0	3926257	0128528	15561	7.45	8.57	6.71	1	Nini	0	2010-07-05 00:00:00	S	0	\N	1	0	6987	21.00	1	t	f	f
+7791290792142	ala Ja pol maÃ± sol 800	Jabon en polvo\r\n	Ala	2200.00	189.80	30	0	3926257	0128528	15561	7.45	8.57	6.71	1	Nini	0	2010-07-05 00:00:00	S	0	\N	1	0	6987	21.00	1	t	f	f
 7790990572269	jabon en pan x 200g	Limpieza	gran federal	70.00	58.10	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6988	21.00	1	t	f	f
 7791293036380	Acond.Coco/leche x930	Acondicionador	Suave	120.00	87.60	30	-4	1	1	1	4.14	4.55	4.14	1	1	0	\N	S	0	\N	1	0	6991	21.00	1	t	f	f
 7794000004122	knorr pure de papas zapallo	Almacen	knorr	160.00	132.80	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	6992	21.00	1	t	f	f
@@ -11890,7 +12083,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790250010814	hig. ultra 30mt x6ud	higienico	Elite	21.00	15.33	30	4	1	0128573	1	7.13	7.84	7.13	1		0	\N	S	\N	\N	1	0	7048	21.00	1	t	f	f
 7793344904150	higi.max 30mt x6ud	higienico	Elegante	2000.00	6.57	30	0	1	0130177	1	3.29	3.62	3.62	1		0	2009-08-17 00:00:00	S	0	\N	1	0	7049	21.00	1	t	f	f
 7798038152909	higi.scott 30mt 6ud	higienico	scott	130.00	94.90	30	46	3889050	0108198	1	3.75	4.13	4.73	1		0	2010-07-28 00:00:00	S	0	\N	1	0	7050	21.00	1	t	f	f
-7798049540382	Poroto pállares 400g	legumbres	La abadia	65.00	47.45	30	8	1	0130139	1	3.31	3.64	3.31	1	1	0	\N	S	\N	\N	1	0	7051	21.00	1	t	f	f
+7798049540382	Poroto pÃ¡llares 400g	legumbres	La abadia	65.00	47.45	30	8	1	0130139	1	3.31	3.64	3.31	1	1	0	\N	S	\N	\N	1	0	7051	21.00	1	t	f	f
 7790790000054	choclo amarillo	Almacen	inca	50.00	41.50	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7052	21.00	1	t	f	f
 7798321151206	yogs durazno 160g	Lacteos	sancor	1500.00	298.80	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7053	21.00	1	t	f	f
 7794000004283	SOPA	Licores	SOPA	120.00	87.60	30	-30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7054	21.00	1	t	f	f
@@ -11905,7 +12098,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790010694568	toallitas	Gaseosa	toallitas	50.00	41.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7067	21.00	1	t	f	f
 7793376000165	Pepas x170g	Galletitas	Futuro	650.00	58.40	30	-17	35784	1	1	27.00	31.05	1.13	24	Michael	0	2010-10-07 00:00:00	S	0	\N	1	0	7068	21.00	1	t	f	f
 7790310984543	pehuamar mani aji y limon 	Almacen	pehuamar	200.00	166.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7069	21.00	1	t	f	f
-7793806000253	la santiagueña Pascualina azul	pascualina	la santiagueña	90.00	74.70	20	-18	1	1	1	0.00	0.00	0.85	1	1	0	\N	S	0	\N	1	0	7070	21.00	1	t	f	f
+7793806000253	la santiagueÃ±a Pascualina azul	pascualina	la santiagueÃ±a	90.00	74.70	20	-18	1	1	1	0.00	0.00	0.85	1	1	0	\N	S	0	\N	1	0	7070	21.00	1	t	f	f
 7790163001039	llave ginebra	Vinos	llave	110.00	91.30	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7071	21.00	1	t	f	f
 7798333920401	pan arabe x4 	Almacen	MALU	1900.00	1577.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7072	21.00	1	t	f	f
 7791019000060	Copos azucarados x 200	Almacen	3 Arroyos	1200.00	58.40	30	413	2246708	0100589	1	15.34	17.64	2.11	8	Nini	0	\N	S	0	\N	1	0	7073	21.00	1	t	f	f
@@ -11920,7 +12113,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790670050650	Paty clasico x 4 und.320 g	hamburgesas	Paty	5500.00	1168.00	30	7	1	1	5651	10.50	12.08	10.00	1	Lactosur	0	2010-09-03 00:00:00	S	0	\N	1	0	7084	21.00	1	t	f	f
 7790670045465	patyneesa *2 	hamburgesas	paty	3000.00	496.40	30	-17	1	1	1	4.00	4.60	5.00	1	Lactosur	0	2010-08-28 00:00:00	S	0	\N	1	0	7085	21.00	1	t	f	f
 7795733001075	kokis galleguitas 200	Galletitas	kokis	1000.00	25.55	30	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7088	21.00	1	t	f	f
-7791290792418	Baño recarga 500ml	repuestos	Cif	1400.00	124.10	30	-28	1	1	1	0.00	0.00	3.00	1	1	0	\N	S	0	\N	1	0	7089	21.00	1	t	f	f
+7791290792418	BaÃ±o recarga 500ml	repuestos	Cif	1400.00	124.10	30	-28	1	1	1	0.00	0.00	3.00	1	1	0	\N	S	0	\N	1	0	7089	21.00	1	t	f	f
 7790895640438	coca zero 3 l	Gaseosa	COCA COLA	4100.00	3403.00	20	47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7090	21.00	1	t	f	f
 7790895000997	cocacola 2.25	Gaseosa	coca cola	3600.00	2988.00	20	-484	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7091	21.00	1	t	f	f
 7794000960473	Savora suave  200g	Almacen	savora	23.00	16.79	30	0	4196643	1	17129	4.17	4.59	4.17	1	maxi	1	2009-03-14 00:00:00	S	0	\N	1	0	7092	21.00	1	t	f	f
@@ -11974,7 +12167,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798045210432	millenium stono	Almacen	stone	42.00	34.86	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7158	21.00	1	t	f	f
 7794560000343	leche uat descremada	Lacteos	cotra	20.00	16.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7159	21.00	1	t	f	f
 7793360986406	Porotos alubia x300	latas	La campagnola	170.00	124.10	30	-13	1927957	1	2340	2.35	2.70	2.82	1	1	0	2010-09-07 00:00:00	S	0	\N	1	0	7160	21.00	1	t	f	f
-7790580134747	La Campagnola moños fideo	fideos	la campagnola	110.00	80.30	30	1	1715130	1	1	36.65	42.15	4.35	12	1	0	2010-10-19 00:00:00	S	0	\N	1	0	7161	21.00	1	t	f	f
+7790580134747	La Campagnola moÃ±os fideo	fideos	la campagnola	110.00	80.30	30	1	1715130	1	1	36.65	42.15	4.35	12	1	0	2010-10-19 00:00:00	S	0	\N	1	0	7161	21.00	1	t	f	f
 7798100665917	canale butique de frambuesa x 284g	Dulce	canale	14.00	11.62	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7162	21.00	1	t	f	f
 7878958441239	pan pancho x 6	Prod.Altos	Caserito	1400.00	1209.00	10	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7163	21.00	1	t	f	f
 7790398100644	Leche en polvo entera 800g	Lacteos	La Paulina	15.90	12.21	30	0	1	1	1526	0.00	0.00	7.83	1	1	0	\N	S	\N	\N	1	0	7164	21.00	1	t	f	f
@@ -11998,16 +12191,16 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337008410	Chocolatada 200cm3	Cindor	La Serenisima	1400.00	830.00	20	-14	0198-00	1	1	5.55	6.38	4.81	1	La Serenisima	0	2012-06-29 00:00:00	S	0	\N	1	0	7185	21.00	1	t	f	f
 7791905024057	odex lav 1 lt	Limpieza	Odex	800.00	584.00	30	7	1	1	1	2.46	2.83	1.64	1	1	0	2010-09-25 00:00:00	S	0	\N	1	0	7186	21.00	1	t	f	f
 7500435211840	pant con acon 200	Perfumeria	pantene 	3300.00	780.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7187	21.00	1	t	f	f
-7791070003482	campanita pañuelitos	Limpieza	campanita	60.00	49.80	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7188	21.00	1	t	f	f
+7791070003482	campanita paÃ±uelitos	Limpieza	campanita	60.00	49.80	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7188	21.00	1	t	f	f
 7500435206570	h&s manzana 180ml 	Perfumeria	h&s	3900.00	507.00	25	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7189	21.00	1	t	f	f
 7792198005273	natura yerba mate x 500	yerbas	natura	100.00	83.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7190	21.00	1	t	f	f
-7792409007447	Rollo coc dh 3 x 100 paños 	Limpieza	Nitidess	1800.00	1494.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7191	21.00	1	t	f	f
+7792409007447	Rollo coc dh 3 x 100 paÃ±os 	Limpieza	Nitidess	1800.00	1494.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7191	21.00	1	t	f	f
 7790080015256	QueSabores Prov/Pat.	quesos	Sancor	13.60	9.93	30	-79	1525	1	1	0.00	0.00	4.99	1	Sancor	0	2009-06-09 00:00:00	S	\N	\N	1	0	7192	21.00	1	t	f	f
 7792684000133	Solitas Aritos 500g	Galletitas	Solitas	2000.00	394.20	30	2	29564	1	1	3.11	3.58	3.50	1	Michael	0	2010-07-10 00:00:00	S	0	\N	1	0	7193	21.00	1	t	f	f
 7790748235231	Sardinas e/aceite 170g	Latas	Puglisi	13.00	9.49	30	-10	3253147	1	1	0.00	0.00	3.48	1	1	0	2009-09-09 00:00:00	S	0	\N	1	0	7194	21.00	1	t	f	f
 7795403000902	Saborino Pan de viena x6	Pan lactal	Saborino	45.00	32.85	30	-371	1	1	1	1.90	2.19	2.08	1	1	0	2009-12-26 00:00:00	S	\N	\N	1	0	7195	21.00	1	t	f	f
 7790990999967	zorro jabon en polbo x 400matic	Detergentes	Zorro	110.00	80.30	30	-10	1	0103773	4162	2.58	2.97	2.23	1	1	0	2009-09-09 00:00:00	S	\N	\N	1	0	7196	21.00	1	t	f	f
-7891150051584	hidratacion reparadora acon.	Perfumeria	TRESemmé	100.00	78.00	25	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7197	21.00	1	t	f	f
+7891150051584	hidratacion reparadora acon.	Perfumeria	TRESemmÃ©	100.00	78.00	25	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7197	21.00	1	t	f	f
 7793890254600	Bizcochuelo vainilla x750	Galletitas	Valente	170.00	124.10	30	1	11123	1	1	28.95	33.29	9.80	3	Michael	0	2009-12-09 00:00:00	S	0	\N	1	0	7199	21.00	1	t	f	f
 7791560001158	Whisky  doble -v 1lt	Licores	Doble - V	700.00	511.00	30	-2	149373	1	1	9.60	11.04	3.69	1	1	0	2010-04-24 00:00:00	S	0	\N	1	0	7200	21.00	1	t	f	f
 7500435206488	H&S Sh coco 375 ml	Perfumeria	H&S	7000.00	657.00	30	-7	2067277	0106735	5237	7.62	8.76	6.68	1	1	0	2009-07-27 00:00:00	S	0	\N	1	0	7201	21.00	1	t	f	f
@@ -12041,12 +12234,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798031155730	fideos spaghetti 500 g	Almacen	cica	1100.00	83.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7235	21.00	1	t	f	f
 600	efectivoooo	Efectivo	Efectivo	-10000.00	2100.00	0	-259113	1	1	1	0.00	0.00	10.00	1	1	18000	\N	N	\N	\N	0	1	7237	21.00	1	t	f	f
 7793147572402	amtel lager lata 473  x 6 	cerveza	amstel	11000.00	1328.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7238	21.00	1	t	f	f
-7790230033031	matazzaso moño	Almacen	matazzaso	2600.00	415.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7239	21.00	1	t	f	f
+7790230033031	matazzaso moÃ±o	Almacen	matazzaso	2600.00	415.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7239	21.00	1	t	f	f
 20	huevos x 6 unid	Almacen	clara	1600.00	1245.00	20	-496	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7240	21.00	1	t	f	f
 7790580980900	porotos alubia LATA x300g	Almacen	arcor	480.00	132.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7242	21.00	1	t	f	f
 7622201735340	tang naranja 	Almacen	tang 	400.00	249.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7243	21.00	1	t	f	f
 7798348230984	Sahumerio romero	Limpieza	palo santo	1600.00	1328.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7244	21.00	1	t	f	f
-7793360810404	mermelada de tomate	Almacen	la campañola	155.00	128.65	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7245	21.00	1	t	f	f
+7793360810404	mermelada de tomate	Almacen	la campaÃ±ola	155.00	128.65	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7245	21.00	1	t	f	f
 7798103000432	Sal fina x500g	sal	Sou Bles	50.00	36.50	30	5	2911809	1	1	0.81	0.93	0.81	1	Nini	0	2010-05-24 00:00:00	S	\N	\N	1	0	7246	21.00	1	t	f	f
 7798103000456	sal gruesa x1kg	sal	Sou Bles	12.00	8.76	30	-3	2911833	1	1	0.90	1.04	1.21	1	Nini	0	2010-10-02 00:00:00	S	0	\N	1	0	7247	21.00	1	t	f	f
 7790265001593	neo red 750	Vinos	neo 	40.00	33.20	20	0	1	1	1	0.00	0.00	0.42	1	1	0	\N	S	\N	\N	1	0	7248	21.00	1	t	f	f
@@ -12058,7 +12251,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798008381575	esponja cuadritos	Limpieza	patito	80.00	66.40	20	9	1	1	1	0.00	0.00	2.80	1	1	0	\N	S	\N	\N	1	0	7256	21.00	1	t	f	f
 7790990002285	Jabon matic 800 g 	javon polvo	Zorro	1800.00	1494.00	20	0	2313189	\N	3809	2.30	2.65	2.42	1	Vital	0	2010-04-21 00:00:00	S	0	\N	1	0	7260	21.00	1	t	f	f
 7798138552050	molto jardinera 220	Almacen	molto	14.00	11.62	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7261	21.00	1	t	f	f
-7798056680101	tapa mania ñoqui 500g	Almacen	tapa mania 	2000.00	182.60	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7262	21.00	1	t	f	f
+7798056680101	tapa mania Ã±oqui 500g	Almacen	tapa mania 	2000.00	182.60	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7262	21.00	1	t	f	f
 78309406114	rayovac halog 69w	Almacen	rayovac	22.00	18.26	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7263	21.00	1	t	f	f
 7790580132422	Choclo amarillo 350g 	Latas	Arcor	1200.00	147.00	33	-5	3654338	2436	1	4.25	4.89	4.25	1	1	0	2010-10-20 00:00:00	S	0	\N	1	0	7264	21.00	1	t	f	f
 7792170555437	Quaker instantania 280 g 	cereales	Quaker	2500.00	401.50	30	1	3318540	100631	1667	0.00	0.00	2.75	1	1	0	2010-05-12 00:00:00	S	0	\N	1	0	7265	21.00	1	t	f	f
@@ -12078,7 +12271,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798142880026	moli del bos sin sal 	Galletitas	carilo	1800.00	107.90	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7281	21.00	1	t	f	f
 7790150160909	la virginia cafe light doy pack	Almacen	la virginia	210.00	174.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7332	21.00	1	t	f	f
 7797470000588	Pure tomate x520	Pure	Marolio	16.00	11.68	30	1	N24	1	2616	1.57	1.81	1.40	1	Maxiconsumo	0	2010-09-07 00:00:00	S	0	\N	1	0	7282	21.00	1	t	f	f
-7794417004081	Escobillon recto	Limpieza	siña	60.00	58.80	5	5	1	1	1	3.60	4.14	3.30	1	1	0	\N	S	\N	\N	1	0	7288	21.00	1	t	f	f
+7794417004081	Escobillon recto	Limpieza	siÃ±a	60.00	58.80	5	5	1	1	1	3.60	4.14	3.30	1	1	0	\N	S	\N	\N	1	0	7288	21.00	1	t	f	f
 7792798001712	ANDES RUBIA  pack x 6	cerveza	ANDES	11000.00	9545.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7289	21.00	1	t	f	f
 7790580346515	Oblea Bon o Bon x30	Golosina	Arcor	1000.00	530.00	50	-23	3465	1	1	20.21	23.24	1.01	20	Arcor	0	2010-07-29 00:00:00	S	0	\N	1	0	7290	21.00	1	t	f	f
 6910021007206	Cep.Dent./Prem.cle	cepillo	Colgate	1500.00	1095.00	30	8	4399838	109375	1	2.50	2.88	-0.83	1	1	0	2010-09-25 00:00:00	S	0	\N	1	0	7291	21.00	1	t	f	f
@@ -12088,7 +12281,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7501056346140	dove crema	Acondicionador	Dove	100.00	73.00	30	-3	3049981	1	1	7.81	8.98	7.81	1	Nini	0	2010-07-24 00:00:00	S	0	\N	1	0	7295	21.00	1	t	f	f
 7798120769725	utisima	Limpieza	utilisima	14.00	11.62	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7296	21.00	1	t	f	f
 7798100662299	CHOCLO CREMOSO BLANCO	Almacen	CANALE	22.00	18.26	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7297	21.00	1	t	f	f
-7792409008338	Maxi Rollo 200 paños	Limpieza	Soleado	1250.00	1037.50	20	19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7298	21.00	1	t	f	f
+7792409008338	Maxi Rollo 200 paÃ±os	Limpieza	Soleado	1250.00	1037.50	20	19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7298	21.00	1	t	f	f
 7790628102684	Vainillas x80g	Galletitas	Mauri	500.00	102.20	30	-20	11150	1	1	0.92	1.06	4.13	1	Michael	0	2010-09-01 00:00:00	S	0	\N	1	0	7299	21.00	1	t	f	f
 7793253003821	lavandina gel citrus 700	gatillo	Ayudin	2500.00	219.00	30	11	4219414	1	1	0.99	1.14	1.14	1	nini	0	2009-10-29 00:00:00	S	0	\N	1	0	7300	21.00	1	t	f	f
 7790044005583	Minerva x 500cm	jugos	Minerva	13.00	9.49	30	-46	2789469	0102850	2752	14.57	16.76	4.78	6	Vital	0	2009-12-17 00:00:00	S	0	\N	1	0	7303	21.00	1	t	f	f
@@ -12106,7 +12299,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790197161310	san telmo esencia malbec	Vinos	san telmo	36.00	29.88	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7316	21.00	1	t	f	f
 7798040463352	ring pop	Almacen	pop	400.00	332.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7318	21.00	1	t	f	f
 7798040720530	Leche en polvo ent.x800	leche	Lactobur	13.00	10.79	20	0	1	1	1	0.00	0.00	10.79	1	1	0	\N	S	\N	\N	1	0	7320	21.00	1	t	f	f
-7794626013454	higgies prot plus m 8 un	Pañales	Huggies 	3000.00	2190.00	30	10	4284909	0114253	1	5.88	6.76	7.00	1	1	0	2010-09-25 00:00:00	S	0	\N	1	0	7321	21.00	1	t	f	f
+7794626013454	higgies prot plus m 8 un	PaÃ±ales	Huggies 	3000.00	2190.00	30	10	4284909	0114253	1	5.88	6.76	7.00	1	1	0	2010-09-25 00:00:00	S	0	\N	1	0	7321	21.00	1	t	f	f
 7868998841549	CASERITO X 2 	Almacen	delipan 	1400.00	1079.00	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7322	21.00	1	t	f	f
 7791579001248	tomates peritas x400g	Pure	molto	750.00	32.85	30	-12	1	0126597	1	0.00	0.00	1.39	1	1	0	2009-08-17 00:00:00	S	0	\N	1	0	7323	21.00	1	t	f	f
 7794068001057	gran oporto crotta	Vinos	crotta	62.00	51.46	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7325	21.00	1	t	f	f
@@ -12132,18 +12325,18 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7797232008562	crom hermetico 1l	Almacen	picnic	350.00	290.50	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7354	21.00	1	t	f	f
 7790040139428	Coquitas 270 g 	Almacen	Coquitas 	650.00	249.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7355	21.00	1	t	f	f
 7790202000207	caballa	Almacen	penusi	45.00	37.35	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7356	21.00	1	t	f	f
-7792409008390	Rollo coc 300 paños	Limpieza	Nitidess	1600.00	1079.00	20	-37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7358	21.00	1	t	f	f
+7792409008390	Rollo coc 300 paÃ±os	Limpieza	Nitidess	1600.00	1079.00	20	-37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7358	21.00	1	t	f	f
 7790150100646	LA VIRGINIA cafe clasico 50g	Almacen	la virginia	120.00	99.60	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7360	21.00	1	t	f	f
 7790150160701	la virginia capuchino	Almacen	la virginia	200.00	166.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7361	21.00	1	t	f	f
 7794600002337	Fideos fettuchini x500	Fideos	Don Felipe	320.00	109.50	30	0	118320	1	1	3.90	4.49	3.64	1	Nini	0	2009-09-29 00:00:00	S	0	\N	1	0	7362	21.00	1	t	f	f
-7790010960076	talco dulces sueños x 200	Jabon tocador	johnson	18.00	13.14	30	-1	4106199	1	1	1.43	1.64	1.43	1	Nini	0	\N	S	\N	\N	1	0	7364	21.00	1	t	f	f
+7790010960076	talco dulces sueÃ±os x 200	Jabon tocador	johnson	18.00	13.14	30	-1	4106199	1	1	1.43	1.64	1.43	1	Nini	0	\N	S	\N	\N	1	0	7364	21.00	1	t	f	f
 7500435212212	Acond.Liso sedoso x200	Acondicionador	pantene	3800.00	730.00	30	-13	3111962	0109056	6562	4.72	5.19	5.39	1	Nini	0	2009-12-10 00:00:00	S	0	\N	1	0	7365	21.00	1	t	f	f
 7790080043570	Leche ent./polvo x 800	almacen	chelita	32.00	23.36	30	-4	1708350	1	1	2.30	2.53	12.39	1	1	0	2010-07-12 00:00:00	S	\N	\N	1	0	7366	21.00	1	t	f	f
 7790071090118	riera tostadas dulces	Almacen	riera	430.00	149.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7367	21.00	1	t	f	f
 7794000960022	HELLMANS	Almacen	MAYONISA	30.00	24.90	20	-481	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7368	21.00	1	t	f	f
 7793147570330	imperial ipa 1 litro	Almacen	imperial	4300.00	423.30	20	-188	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7369	21.00	1	t	f	f
 7798107419810	cria de cosechas bl x 1.250	vinos	cria de cosechas	12.00	8.76	30	-3	1283670	1	1	2.42	2.78	3.98	1	1	0	2010-06-30 00:00:00	S	0	\N	1	0	7371	21.00	1	t	f	f
-7798137221001	Whisky ext. añejo	Licores	Old smuggler	37.76	29.05	30	0	146889	1	1	17.50	19.25	24.00	1	1	0	2009-08-23 00:00:00	S	0	\N	1	0	7372	21.00	1	t	f	f
+7798137221001	Whisky ext. aÃ±ejo	Licores	Old smuggler	37.76	29.05	30	0	146889	1	1	17.50	19.25	24.00	1	1	0	2009-08-23 00:00:00	S	0	\N	1	0	7372	21.00	1	t	f	f
 7796348230021	Sahumerio insencio	Limpieza	palo santo	1600.00	1328.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7373	21.00	1	t	f	f
 7790070036186	mila soja y espin cas xl 560	Almacen	luccheti	6000.00	4565.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7374	21.00	1	t	f	f
 7794050008248	doree gel fij. pomo x 172	gel	doree	30.00	21.90	30	0	1069292	1	1	3.40	3.91	2.13	1	1	0	2010-07-30 00:00:00	S	\N	\N	1	0	7375	21.00	1	t	f	f
@@ -12188,7 +12381,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790990012284	tocador aloe vera	Jabon tocador	suave	80.00	58.40	30	-2	1	1	1	0.90	0.99	0.90	1	1	0	\N	S	0	\N	1	0	7432	21.00	1	t	f	f
 7790150100356	la virg cafe clasico 170	Almacen	la virginia	1000.00	514.60	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7433	21.00	1	t	f	f
 7791957000306	pionono	Panaderia	lomas	26.00	18.98	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7434	21.00	1	t	f	f
-7790236018049	mini raviolito calaberza y queso	Almacen	la saltieñ	50.00	41.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7437	21.00	1	t	f	f
+7790236018049	mini raviolito calaberza y queso	Almacen	la saltieÃ±	50.00	41.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7437	21.00	1	t	f	f
 7793049100246	alcohol 500 ml 	Perfumeria	villa iris	1800.00	1404.00	25	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7439	21.00	1	t	f	f
 7790580650919	Pulpa/tomate x 520	almacen	Arcor	900.00	73.00	30	-13	6616	0131991	1	1.95	2.24	1.97	1	1	0	2010-07-19 00:00:00	S	0	\N	1	0	7440	21.00	1	t	f	f
 7791118012421	pico  dulce naranja	Jugos	pico dulci	15.00	10.95	30	-60	3959678	1	1	2.25	2.59	2.30	1	nini	0	\N	S	\N	\N	1	0	7441	21.00	1	t	f	f
@@ -12203,15 +12396,15 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7796551000042	san iginio alcohol 96 %	Perfumeria	san iginio	1500.00	117.00	25	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7452	21.00	1	t	f	f
 7790787016549	Cuatro queso unt 190 g	Lacteos	Ilolay	2200.00	1826.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7453	21.00	1	t	f	f
 7790040103153	frutillas fresa	Galletitas	tentacion	55.00	40.15	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7454	21.00	1	t	f	f
-7790250000358	Pañuelos descartables x7	Pañuelos	Elite	400.00	43.80	30	-5	3729001	1	1	0.39	0.43	0.39	1	Nini	0	\N	S	0	\N	1	0	7455	21.00	1	t	f	f
+7790250000358	PaÃ±uelos descartables x7	PaÃ±uelos	Elite	400.00	43.80	30	-5	3729001	1	1	0.39	0.43	0.39	1	Nini	0	\N	S	0	\N	1	0	7455	21.00	1	t	f	f
 7500435241090	control sham200	Perfumeria	pantene 	3800.00	2574.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7458	21.00	1	t	f	f
-7793360111648	miel y mostasas	Almacen	la campañola	21.00	17.43	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7459	21.00	1	t	f	f
+7793360111648	miel y mostasas	Almacen	la campaÃ±ola	21.00	17.43	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7459	21.00	1	t	f	f
 7790895012419	kin	Gaseosa	kin	100.00	83.00	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7460	21.00	1	t	f	f
 7790310985137	3.d 143g	snack	3-d	4600.00	813.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7461	21.00	1	t	f	f
 7791416072714	raza pesc de gato 1 k	Almacen	raza	3000.00	2490.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7462	21.00	1	t	f	f
 7790940234032	Prot dia 40 und respirable	Perfumeria	Doncella	2000.00	1560.00	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7464	21.00	1	t	f	f
-7790236013112	foratty	Almacen	la salteña	19.00	15.77	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7468	21.00	1	t	f	f
-7790236000570	la salteña raviolito 4q	Almacen	la salteña	600.00	373.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7469	21.00	1	t	f	f
+7790236013112	foratty	Almacen	la salteÃ±a	19.00	15.77	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7468	21.00	1	t	f	f
+7790236000570	la salteÃ±a raviolito 4q	Almacen	la salteÃ±a	600.00	373.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7469	21.00	1	t	f	f
 7798176000889	sancor bebe 2 x 500	Lacteos	sancor	140.00	116.20	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7470	21.00	1	t	f	f
 8435124852396	fun pop  chupete	Almacen	pop	2000.00	415.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7472	21.00	1	t	f	f
 7798187211410	papas salame	snacks	quento	2000.00	597.60	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7473	21.00	1	t	f	f
@@ -12229,7 +12422,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798321150674	sancor postres chocolate	Almacen	sancor	90.00	74.70	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7485	21.00	1	t	f	f
 7798022410275	martin gluten 160	Galletitas	martin	50.00	36.50	30	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7486	21.00	1	t	f	f
 7796348236610	patchouli sahumerio 8 uni	Limpieza	palo santo	1600.00	1328.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7489	21.00	1	t	f	f
-7790236016441	sacotinos	Almacen	la salteña	75.00	62.25	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7490	21.00	1	t	f	f
+7790236016441	sacotinos	Almacen	la salteÃ±a	75.00	62.25	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7490	21.00	1	t	f	f
 7509546677200	COLGATE HERBAL 140	Perfumeria	colgate	500.00	390.00	25	-68	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7491	21.00	1	t	f	f
 7792070001652	nucete aceite de oliva 250 ml	Almacen	nucete	900.00	315.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7493	21.00	1	t	f	f
 7790520012432	Mr musculo antigrasa doy pack	Limpieza	mr musculo	180.00	149.40	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7498	21.00	1	t	f	f
@@ -12369,7 +12562,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 77990358	Sapito bl	Almacen	sapito	250.00	207.50	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7668	21.00	1	t	f	f
 7796148000110	vino tinto dulce patero 1250	Vinos	ernesto suter	65.00	53.95	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7670	21.00	1	t	f	f
 7798347086087	pila 2032 	Prod.Altos	candela	500.00	465.00	10	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7674	21.00	1	t	f	f
-7792410090797	padilla cañaombu	Almacen	padilla	40.00	33.20	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7677	21.00	1	t	f	f
+7792410090797	padilla caÃ±aombu	Almacen	padilla	40.00	33.20	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7677	21.00	1	t	f	f
 7790670051985	frambuesas 400 g 	Congelado	green life	11000.00	6935.00	30	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7678	21.00	1	t	f	f
 695688663250	palitos broche 	Prod.Altos	k & k	1300.00	1209.00	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7729	21.00	1	t	f	f
 7794417001769	rejilla t/ alpargata	Limpieza	sina	600.00	124.50	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7682	21.00	1	t	f	f
@@ -12401,7 +12594,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000039	Pera 	Verduleria	Verduleria	3000.00	4.77	50	1	1	1	1	0.00	0.00	0.00	1	Mercado	0	\N	N	0	\N	1	0	7714	10.50	1	t	f	f
 5000029	palta	Verduleria	Verduleria	16.38	8.68	50	1	1	1	1	0.00	0.00	0.00	1	Mercado	0	\N	N	\N	\N	1	0	7715	10.50	1	t	f	f
 7798038600028	Miel pura x500	Miel	La Magdalena	15.00	10.95	30	-17	1	1	1	10.00	11.50	9.35	1	1	0	2010-07-06 00:00:00	S	0	\N	1	0	7716	21.00	1	t	f	f
-7790250005366	Lysoform Bañ/coc.Gati.x500	Limpieza	Lysoform	60.00	43.80	30	3	3858901	1	1	7.95	9.14	7.95	1	1	0	2008-12-27 00:00:00	S	\N	\N	1	0	7717	21.00	1	t	f	f
+7790250005366	Lysoform BaÃ±/coc.Gati.x500	Limpieza	Lysoform	60.00	43.80	30	3	3858901	1	1	7.95	9.14	7.95	1	1	0	2008-12-27 00:00:00	S	\N	\N	1	0	7717	21.00	1	t	f	f
 7792180004758	mama coc pan rall 1k	Almacen	mama cocina	2000.00	356.90	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7718	21.00	1	t	f	f
 7622201733865	Jugo Mandarina	Jugos	Tang	400.00	290.50	20	-81	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7719	21.00	1	t	f	f
 7798066080267	puro sol naranja x 500	Jugos	puro sol	45.00	37.35	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7720	21.00	1	t	f	f
@@ -12418,7 +12611,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791070002676	camp d/hoja  20 m x 4	Limpieza	campanita	1600.00	99.60	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7737	21.00	1	t	f	f
 7798148910093	Copa capuchino mc.cream 220cm	Helado	Mc.Cream	20.00	13.20	37	-21	1	1	1	0.00	0.00	1.72	1	1	0	\N	S	\N	\N	1	0	7738	21.00	1	t	f	f
 7798138551633	molto tomate perita 400	Pure	Molto	22.00	16.06	30	0	1	0126601	1	1.81	2.09	1.63	1	1	0	\N	S	0	\N	1	0	7743	21.00	1	t	f	f
-7790336047109	champaña lopez extra brut	Vinos	lopez	40.00	33.20	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7744	21.00	1	t	f	f
+7790336047109	champaÃ±a lopez extra brut	Vinos	lopez	40.00	33.20	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7744	21.00	1	t	f	f
 7798066080632	purosol naranja durazno x 500	Jugos	purosol	26.00	21.58	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7745	21.00	1	t	f	f
 7798093680119	mapu cura extra brut	Vinos	mapu cura	34.00	26.10	30	-3				26.10	28.71	26.10	1		1	2011-12-24 00:00:00	S	\N	\N	1	0	7746	21.00	1	t	f	f
 7790077001002	Madalena Pozo x110	Galletitas	Pozo	1600.00	124.10	30	-4	1	1	1	0.00	0.00	0.58	1	Michael	0	\N	S	0	\N	1	0	7747	21.00	1	t	f	f
@@ -12478,7 +12671,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790520998170	glade ilove you 360	Desodorante ambiente	jhonson	650.00	442.00	35	1	2460602	0114264	1	0.00	0.00	3.88	1	1	0	2010-03-27 00:00:00	S	0	\N	1	0	7821	21.00	1	t	f	f
 7790520995308	Lysoform toque.a/mont 9g 12m	Limpieza	Lysoform	3000.00	332.00	20	0	1	1	1	0.00	0.00	4.83	1	1	0	\N	S	0	\N	1	0	7824	21.00	1	t	f	f
 7790520987136	Past.inodoro .rep glade 32g	Limpieza	Glade	20.00	13.60	35	1	1	1	1	1.78	2.05	1.78	1	1	0	\N	S	\N	\N	1	0	7826	21.00	1	t	f	f
-7793253385712	Paño mortimer.mult.1ud	rejilla	Mortimer	25.00	18.25	30	4	1	1	1	2.20	2.53	1.25	1	1	0	2010-07-09 00:00:00	S	\N	\N	1	0	7827	21.00	1	t	f	f
+7793253385712	PaÃ±o mortimer.mult.1ud	rejilla	Mortimer	25.00	18.25	30	4	1	1	1	2.20	2.53	1.25	1	1	0	2010-07-09 00:00:00	S	\N	\N	1	0	7827	21.00	1	t	f	f
 7791290794382	antigras gatillo 500 ml	limpieza	Cif	2500.00	2075.00	20	0	2688999	1	1	0.00	0.00	2.31	1	1	0	2010-05-09 00:00:00	S	0	\N	1	0	7828	21.00	1	t	f	f
 7793350102304	Pomada.sap.negro 45g	Perfumeria	Wassington	2500.00	1606.00	30	-1	722340	1	2535	1.40	1.61	1.76	1	maxi	0	2009-10-09 00:00:00	S	0	\N	1	0	7829	21.00	1	t	f	f
 7793350000891	Pomada zapato marr.45g	Perfumeria	Wassington	2500.00	1606.00	30	-11	1	1	46878	1.41	1.62	1.39	1	1	0	\N	S	0	\N	1	0	7830	21.00	1	t	f	f
@@ -12487,7 +12680,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791324157084	Mini pitusa mous 160g	Galletitas	Par-Nor	1000.00	693.50	30	4	10824	1	1	1.95	2.24	1.95	1	Michael	0	2010-09-28 00:00:00	S	0	\N	1	0	7833	21.00	1	t	f	f
 7798177410151	Merenguito color	Galletitas	Urquiza	70.00	51.10	30	1	1	1	1	0.00	0.00	0.86	1	Michael	0	\N	S	\N	\N	1	0	7834	21.00	1	t	f	f
 7798031151213	Fideos Mostachole x500g	Fideos	Sol Pampeano	1000.00	730.00	30	-38	3281370	1	1	1.16	1.33	1.70	1	1	0	2010-08-24 00:00:00	S	0	\N	1	0	7836	21.00	1	t	f	f
-7794564000349	Tallarines N°3 x500g	Fideos	Badaloni	2100.00	1314.00	30	2	209945	1	1	2.52	2.90	2.68	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	7837	21.00	1	t	f	f
+7794564000349	Tallarines NÂ°3 x500g	Fideos	Badaloni	2100.00	1314.00	30	2	209945	1	1	2.52	2.90	2.68	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	7837	21.00	1	t	f	f
 7794820012406	milkaut colchon frutas durazno	Lacteos	milkaut	60.00	49.80	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7838	21.00	1	t	f	f
 7798032180564	Lisetta Polenta. ya x500g	Polentas	Lisetta	180.00	62.40	25	164	2702134	1	1	0.00	0.00	1.27	1	1	0	2010-09-30 00:00:00	S	0	\N	1	0	7840	21.00	1	t	f	f
 7790070412362	exquis  naranja bizco	Almacen	exquisita	2500.00	398.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7841	21.00	1	t	f	f
@@ -12557,7 +12750,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7613287526236	nestle mani 3.3 g	Dulce	nestle	700.00	99.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7919	21.00	1	t	f	f
 7798092965514	guantes grandes	Limpieza	make	60.00	49.80	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7920	21.00	1	t	f	f
 7790742164407	Ricota 500g garcia magra	Lacteos	garcia	65.00	53.95	20	3	1	1	1	4.87	5.36	1.87	1	la serenisima	1	2009-04-09 00:00:00	S	\N	\N	1	0	7922	21.00	1	t	f	f
-7790070621283	la salteña ravioles cuatro queso	ravioles	la salteña	2700.00	2241.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7924	21.00	1	t	f	f
+7790070621283	la salteÃ±a ravioles cuatro queso	ravioles	la salteÃ±a	2700.00	2241.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7924	21.00	1	t	f	f
 7793699045423	esencial lavavajilla c/gliserina 750ml	Limpieza	esencial	70.00	51.10	30	0	1	1	3948	1.86	2.05	1.86	1	Maxi	1	2009-02-14 00:00:00	S	\N	\N	1	0	7927	21.00	1	t	f	f
 7792180004567	harina pizza casera	Almacen	pureza	1900.00	265.60	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7929	10.50	1	t	f	f
 7798066080625	purosol naranja durazno	Jugos	purosol	34.00	28.22	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7930	21.00	1	t	f	f
@@ -12569,10 +12762,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000047	ciruela	verduleria	verduleria	16.00	8.48	50	1	1	1	1	0.00	0.00	0.00	1	1	0	\N	S	\N	\N	1	0	7943	10.50	1	t	f	f
 77910950	Parisiennes Box x20	Cigarrillos	Parisiennes	160.00	148.80	10	-38	1	1	1	0.00	0.00	3.16	1	Silicaro	0	\N	S	\N	\N	1	0	7945	21.00	1	t	f	f
 7794000598829	knorr salsa pomarola 340	Almacen	knorr	75.00	62.25	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7946	21.00	1	t	f	f
-7793806000147	la santiagueña tapa para hornos	Almacen	la santiagueña	70.00	58.10	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7949	21.00	1	t	f	f
+7793806000147	la santiagueÃ±a tapa para hornos	Almacen	la santiagueÃ±a	70.00	58.10	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7949	21.00	1	t	f	f
 7790314004995	canciller I	Vinos	canciller	75.00	62.25	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7950	21.00	1	t	f	f
 7798000350074	Tapa p/ pastelitos	Almacen	Parma	2500.00	539.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7951	21.00	1	t	f	f
-7794000960350	Salsa golf sachet x125cc	aderezo	Hellmann´s	60.00	43.80	30	7	1916645	1	1	1.39	1.60	1.39	1	1	0	2009-10-24 00:00:00	S	0	\N	1	0	7952	21.00	1	t	f	f
+7794000960350	Salsa golf sachet x125cc	aderezo	HellmannÂ´s	60.00	43.80	30	7	1916645	1	1	1.39	1.60	1.39	1	1	0	2009-10-24 00:00:00	S	0	\N	1	0	7952	21.00	1	t	f	f
 7791249451656	Shot mania x 90	Golosina	Shot	3700.00	352.80	40	-1	1	1	1	0.00	0.00	0.43	1	1	0	\N	S	0	\N	1	0	7954	21.00	1	t	f	f
 40084107	kinders huevo 	Dulce	kinder	2600.00	2158.00	20	-4	1	1	1	0.00	0.00	1.81	1	1	0	\N	S	0	\N	1	0	7956	21.00	1	t	f	f
 7798041710097	el faro mani casca	snacks	El faro	900.00	290.50	20	-81	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7958	21.00	1	t	f	f
@@ -12598,7 +12791,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791690000298	pecado cosecha tardia 750	Vinos	pecado	1800.00	53.95	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7981	21.00	1	t	f	f
 7790990586785	night therapuy	Almacen	plubelle	34.00	28.22	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	7982	21.00	1	t	f	f
 8445291082175	Dolca orig 50 g 	cafe	Dolca	4000.00	2324.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	7984	21.00	1	t	f	f
-7790070622006	Pascualina balance	pascualina	La Salteña	1800.00	1314.00	30	1	1	1	1	5.30	6.10	4.85	1	Tetu	0	2010-06-29 00:00:00	S	0	\N	1	0	7985	21.00	1	t	f	f
+7790070622006	Pascualina balance	pascualina	La SalteÃ±a	1800.00	1314.00	30	1	1	1	1	5.30	6.10	4.85	1	Tetu	0	2010-06-29 00:00:00	S	0	\N	1	0	7985	21.00	1	t	f	f
 7790710334016	Yerba pomelo	Yerbas	Cbse	19.00	13.87	30	-19	1065181	1	1	3.62	4.16	3.52	1	1	0	2010-09-03 00:00:00	S	0	\N	1	0	7986	21.00	1	t	f	f
 7791293044477	Efficient Polvo 100g	talco\r\n	Rexona	2800.00	2044.00	30	12	675482	0104982	2623	3.18	3.66	3.63	1	1	0	2009-07-02 00:00:00	S	0	\N	1	0	7987	21.00	1	t	f	f
 7792170555413	Avena quaker 550g	cereales	Quaker	3200.00	605.90	30	-1	1	1	1668	0.00	0.00	4.09	1	1	0	2010-10-09 00:00:00	S	0	\N	1	0	7988	21.00	1	t	f	f
@@ -12632,8 +12825,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790990000502	zorro Jabon pan 150g	Limpieza	zorro 	100.00	83.00	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8023	21.00	1	t	f	f
 7790150830857	La virginia Chocolino 180g	cacao	La virginia	300.00	81.90	12	0	4128184	0100410	83063-8	4.28	4.92	9.96	1	la virginia	0	2012-07-02 00:00:00	S	0	\N	1	0	8025	21.00	1	t	f	f
 7798031151060	Fideos Codos x 500g	Fideos	Sol Pampeano	40.00	29.20	30	12	3281493	1	1	1.68	1.93	1.70	1	1	0	2010-08-24 00:00:00	S	0	\N	1	0	8026	21.00	1	t	f	f
-7794564000370	Fideos moño N°3 x500	Fideos	Badaloni	2100.00	438.00	30	1	210307	1	1	2.42	2.78	2.66	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	8027	21.00	1	t	f	f
-7794564000189	Tallarines N°1 x500g	Fideos	Badaloni	2100.00	1241.00	30	3	209821	1	1	2.52	2.90	2.66	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	8028	21.00	1	t	f	f
+7794564000370	Fideos moÃ±o NÂ°3 x500	Fideos	Badaloni	2100.00	438.00	30	1	210307	1	1	2.42	2.78	2.66	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	8027	21.00	1	t	f	f
+7794564000189	Tallarines NÂ°1 x500g	Fideos	Badaloni	2100.00	1241.00	30	3	209821	1	1	2.52	2.90	2.66	1	Nini	0	2010-08-24 00:00:00	S	0	\N	1	0	8028	21.00	1	t	f	f
 7891150023468	shampoo 2en1	Limpieza	dove men	29.00	24.07	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8029	21.00	1	t	f	f
 7790520010414	Limpiador piso echo1lt	Desodorante piso	Echo	160.00	132.80	20	-6	1	1	1	0.00	0.00	4.09	1	1	0	\N	S	\N	\N	1	0	8031	21.00	1	t	f	f
 7622300800277	Milka	Golosina	Milka	200.00	112.00	47	-4	1	1	1	0.00	0.00	0.68	1	1	0	2009-05-07 00:00:00	S	\N	\N	1	0	8032	21.00	1	t	f	f
@@ -12642,7 +12835,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 77910325	Parisiennes comun x20	cigarrillos	Parisiennes	170.00	158.10	10	-29	7015583	7007754	1	0.00	0.00	3.07	1	Silicaro	0	\N	S	0	\N	1	0	8038	21.00	1	t	f	f
 7791337642324	Yogurisimo frutilla 1.3lt	Lacteos	la serenisima	80.00	66.40	20	-275	0423-9	1	1	6.67	7.67	8.30	1	La Serenisima	0	2012-06-27 00:00:00	S	0	\N	1	0	8039	21.00	1	t	f	f
 7798138552319	molto codito fideos	Almacen	molto	12.00	9.96	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8040	21.00	1	t	f	f
-7790387015126	mañanita	Almacen	mañanita	45.00	37.35	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8041	21.00	1	t	f	f
+7790387015126	maÃ±anita	Almacen	maÃ±anita	45.00	37.35	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8041	21.00	1	t	f	f
 7798321151176	yogs vainilla	Almacen	yogs	1800.00	647.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8042	21.00	1	t	f	f
 7798187212165	MOSTAZA 82 G 	snacks	Quento	2200.00	1460.00	30	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8043	21.00	1	t	f	f
 7791620001029	Margarina 200g	Lacteos	Delicia	450.00	62.25	20	0	1	1	1	0.00	0.00	1.08	1	1	0	\N	S	0	\N	1	0	8044	21.00	1	t	f	f
@@ -12688,7 +12881,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790045827740	Sin sal x 3  600 g 	Galletitas	Granix	3200.00	1971.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8093	21.00	1	t	f	f
 7790710334535	Yerba hier nat.x500g	Yerbas	Cbse	2200.00	401.50	30	4	40770	0102495	2285	5.32	6.12	4.75	1	1	0	2011-12-26 00:00:00	S	0	\N	1	0	8098	21.00	1	t	f	f
 7790628102646	Vainillas x320g	Galletitas	Mauri	2000.00	445.30	30	2	11165	1	1	40.13	46.15	3.58	16	Michael	0	2010-07-10 00:00:00	S	0	\N	1	0	8099	21.00	1	t	f	f
-7790150080115	Cafe/inst. Clásico sobre	Cafe	La Virginia	100.00	73.00	30	0	1	1	1	0.00	0.00	0.83	1	La Virginia	0	\N	S	0	\N	1	0	8100	21.00	1	t	f	f
+7790150080115	Cafe/inst. ClÃ¡sico sobre	Cafe	La Virginia	100.00	73.00	30	0	1	1	1	0.00	0.00	0.83	1	La Virginia	0	\N	S	0	\N	1	0	8100	21.00	1	t	f	f
 7790070318749	spagetti morron 	fideos	matarazzo	57.00	47.31	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8101	21.00	1	t	f	f
 7791337064331	danonino chocolatada 	Lacteos	danonino	90.00	74.70	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8102	21.00	1	t	f	f
 7794612066310	hamlet blanco y cookies	Dulce	hamlet	1000.00	830.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8103	21.00	1	t	f	f
@@ -12723,7 +12916,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790036115122	Jug. naranja 1,5lts	Jugos	Mocoreta	400.00	11.68	30	5	140732	0102869	1242	3.09	3.55	2.69	1	1	0	2009-11-27 00:00:00	S	0	\N	1	0	8146	21.00	1	t	f	f
 7798103001262	sou bles bizc chocolaa 540	Almacen	sou ble	50.00	41.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8148	21.00	1	t	f	f
 7790260002090	Cafe al Whisky 3 pluma 750lt	Licores	Tres Plumas	1800.00	167.90	30	-1	696900	1	1	0.00	0.00	1.25	1	1	0	\N	S	0	\N	1	0	8149	21.00	1	t	f	f
-7792410008365	Cusenier Cafe/Coñac 700lt	Licores	Cusenier	6000.00	584.00	30	6	147338	1	1	9.03	10.38	12.43	1	1	0	2010-08-09 00:00:00	S	0	\N	1	0	8151	21.00	1	t	f	f
+7792410008365	Cusenier Cafe/CoÃ±ac 700lt	Licores	Cusenier	6000.00	584.00	30	6	147338	1	1	9.03	10.38	12.43	1	1	0	2010-08-09 00:00:00	S	0	\N	1	0	8151	21.00	1	t	f	f
 7792410008532	Cusenier Melon 700lt	Licores	Cusenier	4000.00	511.00	30	-7	1	1	1	9.26	10.65	9.57	1	1	0	2009-05-04 00:00:00	S	0	\N	1	0	8152	21.00	1	t	f	f
 7501009224174	Prestobarba u.grip. verde mob.	Perfumeria	Gillette	90.00	65.70	30	-128	3129608	153	75060422	2.70	3.11	3.00	1	1	0	2010-09-14 00:00:00	S	\N	\N	1	0	8153	21.00	1	t	f	f
 714604035107	Azucar Tipo A 1 Kg	Almacen	Imperial	1000.00	747.00	20	-59	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8154	21.00	1	t	f	f
@@ -12752,7 +12945,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7613035543300	FRUTILLA CREMA	Almacen	POPSI	20.00	16.60	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8183	21.00	1	t	f	f
 7798085370073	premio manteca 100	Lacteos	prime premio	60.00	49.80	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8184	21.00	1	t	f	f
 7798187212158	Papas s/salame 82 g 	Snacks	QUENTO	2200.00	1460.00	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8185	21.00	1	t	f	f
-7798138552586	molto moño	Almacen	molto	12.00	9.96	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8186	21.00	1	t	f	f
+7798138552586	molto moÃ±o	Almacen	molto	12.00	9.96	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8186	21.00	1	t	f	f
 7798138555174	molto espaguetti fideos	Almacen	molto	1000.00	830.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8187	21.00	1	t	f	f
 77980212	Alfajor de dulce de leche	Golosina	Guaymallen	300.00	51.10	30	-319	14232	0105102	283	0.39	0.44	0.36	1	1	0	2009-07-25 00:00:00	S	0	\N	1	0	8189	21.00	1	t	f	f
 7793360000294	Salsati  perita + pure 400g	pure	La Campagnola	1800.00	1314.00	30	-27	274119	0102318	1814	4.00	4.60	2.33	1	1	0	2010-07-07 00:00:00	S	0	\N	1	0	8190	21.00	1	t	f	f
@@ -12806,8 +12999,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000537	mondongo	carne	carne	960.00	7.86	10	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8252	21.00	1	t	f	f
 7798138552920	molto lenteja molto 340	Almacen	molto	17.00	14.11	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8253	21.00	1	t	f	f
 7793825000616	la catedra cabern sauvignon	Vinos	la catedra	62.00	51.46	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8254	21.00	1	t	f	f
-7790189041125	Borgoña 750	Vinos	Michel Torino	40.00	29.20	30	-1	865052	1	1	5.98	6.88	6.67	1	nini	0	2010-05-09 00:00:00	S	0	\N	1	0	8255	21.00	1	t	f	f
-7793806001038	Pionono salado la santiagurña	Almacen	la santiagurña	80.00	58.40	30	-17	1	1	1	3.25	3.58	3.25	1	carbiz	0	\N	S	\N	\N	1	0	8256	21.00	1	t	f	f
+7790189041125	BorgoÃ±a 750	Vinos	Michel Torino	40.00	29.20	30	-1	865052	1	1	5.98	6.88	6.67	1	nini	0	2010-05-09 00:00:00	S	0	\N	1	0	8255	21.00	1	t	f	f
+7793806001038	Pionono salado la santiagurÃ±a	Almacen	la santiagurÃ±a	80.00	58.40	30	-17	1	1	1	3.25	3.58	3.25	1	carbiz	0	\N	S	\N	\N	1	0	8256	21.00	1	t	f	f
 7794167000050	biscochuelo 1kg	Almacen	cardiz	14.30	11.00	30	0	1	1	1	11.00	12.10	11.00	1	cardiz	0	\N	S	\N	\N	1	0	8257	21.00	1	t	f	f
 7794167000036	biscochuelo 800g	Almacen	cardiz	12.35	9.50	30	0	1	1	1	9.50	10.45	9.50	1	cardiz	0	\N	S	\N	\N	1	0	8258	21.00	1	t	f	f
 7790580127145	cofler bon o bon 	Dulce	cofler	1600.00	66.40	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8260	21.00	1	t	f	f
@@ -12875,9 +13068,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790040656109	sonrisas picaras	Galletitas	bagley	16.00	11.68	30	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8347	21.00	1	t	f	f
 7790070036636	Formitas de pollo 350 g 	Congelados	Lucchetti	4400.00	3403.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8348	21.00	1	t	f	f
 7798140990130	morrones en lata	Almacen	los franciscos	15.50	12.87	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8349	21.00	1	t	f	f
-7806500720669	Pañal ultra mega gdex20	Pañales	Basbysec	12.50	9.59	30	0	14702	1	1	9.59	10.55	9.59	1	Nini	0	\N	S	\N	\N	1	0	8350	21.00	1	t	f	f
-7790250040781	Pañal ultra XG x 8 	Pañales	Babysec	2600.00	1898.00	30	-12	14703	1	1	9.59	10.55	9.59	1	Nini	0	\N	S	0	\N	1	0	8351	21.00	1	t	f	f
-7806500720461	Pañal ultra mega x24	Pañales	Babysec	15.25	11.71	30	0	14701	1	1	9.59	10.55	9.59	1	Nini	0	\N	S	\N	\N	1	0	8352	21.00	1	t	f	f
+7806500720669	PaÃ±al ultra mega gdex20	PaÃ±ales	Basbysec	12.50	9.59	30	0	14702	1	1	9.59	10.55	9.59	1	Nini	0	\N	S	\N	\N	1	0	8350	21.00	1	t	f	f
+7790250040781	PaÃ±al ultra XG x 8 	PaÃ±ales	Babysec	2600.00	1898.00	30	-12	14703	1	1	9.59	10.55	9.59	1	Nini	0	\N	S	0	\N	1	0	8351	21.00	1	t	f	f
+7806500720461	PaÃ±al ultra mega x24	PaÃ±ales	Babysec	15.25	11.71	30	0	14701	1	1	9.59	10.55	9.59	1	Nini	0	\N	S	\N	\N	1	0	8352	21.00	1	t	f	f
 7790170907379	capuchino instantaneo	Almacen	la morenita	15.50	12.87	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8354	21.00	1	t	f	f
 7792860016217	Baby doll x4	Golosina	Lheritier	550.00	106.00	50	-46	1	1	1	13.01	14.31	0.72	18		0	\N	S	0	\N	1	0	8355	21.00	1	t	f	f
 77946805	pastilla cherry s/azu.	Golosina	mentho plus	700.00	53.00	50	-20	4680	1	1	10.49	12.06	0.92	12	Arcor	0	\N	S	0	\N	1	0	8356	21.00	1	t	f	f
@@ -12910,8 +13103,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793015134008	Repuesto original x650	Termo	Lumilagro	150.00	109.50	30	5	1	0125161	1	9.07	9.98	9.07	1	Vital	0	\N	S	\N	\N	1	0	8387	21.00	1	t	f	f
 7794297000012	Termo jarra universo  x 3 l	Termo	Lumilagro	320.00	233.60	30	4	1	0125193	1	24.20	26.62	24.20	1	Vital	0	\N	S	\N	\N	1	0	8388	21.00	1	t	f	f
 7791885407055	cumana champignones laminados	Almacen	cumana	380.00	315.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8389	21.00	1	t	f	f
-7790070621856	rav pol y espinaca 450	Fideos	La Salteña	3000.00	766.50	30	-5	1	1	1	2.20	2.42	2.20	1	1	0	\N	S	0	\N	1	0	8393	21.00	1	t	f	f
-7790070622075	la salteña TAPA hojaldre	Fideos	La Salteña	1800.00	1314.00	30	12	1	1	1	3.81	4.19	3.81	1	1	1	2009-11-30 00:00:00	S	0	\N	1	0	8394	21.00	1	t	f	f
+7790070621856	rav pol y espinaca 450	Fideos	La SalteÃ±a	3000.00	766.50	30	-5	1	1	1	2.20	2.42	2.20	1	1	0	\N	S	0	\N	1	0	8393	21.00	1	t	f	f
+7790070622075	la salteÃ±a TAPA hojaldre	Fideos	La SalteÃ±a	1800.00	1314.00	30	12	1	1	1	3.81	4.19	3.81	1	1	1	2009-11-30 00:00:00	S	0	\N	1	0	8394	21.00	1	t	f	f
 7798096053057	SPA Jabon Liquido c/pico	Limpieza	estilo spa	1500.00	390.10	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8395	21.00	1	t	f	f
 7790310985557	lays cebolla 77 g	Almacen	lays	3000.00	1826.00	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8396	21.00	1	t	f	f
 314	make cepillo violin	Limpieza	make	1500.00	12.45	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8397	21.00	1	t	f	f
@@ -12947,7 +13140,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791690713198	pecado malbec 750	Vinos	pecado	550.00	124.50	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8442	21.00	1	t	f	f
 7791130145510	Limp.plus c/lav. x750	Limpiador	Procenex	18.00	13.14	30	-21	1	0104306	1	3.02	3.33	3.33	1	Vital	0	\N	S	\N	\N	1	0	8444	21.00	1	t	f	f
 7798183771987	secreto cookis 	Dulce	grido	2800.00	2324.00	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8445	21.00	1	t	f	f
-7793040065728	salchichas viena carcaraña	Almacen	carcaraña	1200.00	33.20	20	-95	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8446	21.00	1	t	f	f
+7793040065728	salchichas viena carcaraÃ±a	Almacen	carcaraÃ±a	1200.00	33.20	20	-95	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8446	21.00	1	t	f	f
 7798061891110	Espon exfo spa cod 183	Perfumeria	boob 	2100.00	1638.00	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8447	21.00	1	t	f	f
 714604023128	nuez mariposa 	Almacen	raices	2900.00	2241.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8448	21.00	1	t	f	f
 7799155000180	villavicencio  1.5 	Gaseosa	villavicencio	1800.00	332.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8449	21.00	1	t	f	f
@@ -12957,7 +13150,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790250098072	Toal.suave c/alas x16	Protectores	Ladysoft	120.00	87.60	30	0	3510786	1	15310	2.12	2.43	2.57	1	Nini	0	2010-09-03 00:00:00	S	0	\N	1	0	8458	21.00	1	t	f	f
 7791885408328	jandaia morron en mitad x 130 	Almacen	jandaia	2700.00	207.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8460	21.00	1	t	f	f
 7789876512369	Bolsa/consorcio 60x90	bolsas de residuos	La Negra	12.00	8.76	30	20	1	1	1	1.90	2.19	1.90	1	Limpieza	0	\N	S	\N	\N	1	0	8462	21.00	1	t	f	f
-7798033120033	Secador de goma N°50	Secador	Secador	12.00	8.76	30	2	1	1	1	3.00	3.45	3.00	1	Limpieza	0	\N	S	\N	\N	1	0	8463	21.00	1	t	f	f
+7798033120033	Secador de goma NÂ°50	Secador	Secador	12.00	8.76	30	2	1	1	1	3.00	3.45	3.00	1	Limpieza	0	\N	S	\N	\N	1	0	8463	21.00	1	t	f	f
 7798100660110	canales duraznos en almibar	Almacen	canales	38.00	31.54	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8467	21.00	1	t	f	f
 7797453972284	adulto pollo/veg.x500	Forraje	Whiskas	3800.00	365.00	30	2	1	1	1	4.84	5.32	4.84	1	1	0	\N	S	0	\N	1	0	8470	21.00	1	t	f	f
 7797453972383	Gato adulto pollo/veg.x1kg	Jorraje	Whiskas	3800.00	365.00	30	2	1	1	1	8.70	9.57	8.70	1	1	0	\N	S	0	\N	1	0	8471	21.00	1	t	f	f
@@ -13001,9 +13194,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790060100774	nobleza gau c/naranja x 500 	Almacen	nobleza gaucha	15.00	12.45	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8529	21.00	1	t	f	f
 7790150006122	la virginia cafe 250 g	Almacen	la virginia	3200.00	141.10	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8530	21.00	1	t	f	f
 7791885004827	cumana anana 567	Almacen	cumana	1300.00	224.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8537	21.00	1	t	f	f
-4015400862116	pampers toallita 48	Pañales	Pampers	180.00	149.40	20	6	1	0118607	1	12.28	13.51	12.28	1	Vital	0	\N	S	\N	\N	1	0	8538	21.00	1	t	f	f
-7793806000598	la santiagueña raviol pollo y verdura 	Almacen	la santiagueña 	12.50	10.38	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8539	21.00	1	t	f	f
-7622300724221	terrabusi fideos moños	Almacen	terrabusi 	15.00	12.45	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8540	21.00	1	t	f	f
+4015400862116	pampers toallita 48	PaÃ±ales	Pampers	180.00	149.40	20	6	1	0118607	1	12.28	13.51	12.28	1	Vital	0	\N	S	\N	\N	1	0	8538	21.00	1	t	f	f
+7793806000598	la santiagueÃ±a raviol pollo y verdura 	Almacen	la santiagueÃ±a 	12.50	10.38	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8539	21.00	1	t	f	f
+7622300724221	terrabusi fideos moÃ±os	Almacen	terrabusi 	15.00	12.45	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8540	21.00	1	t	f	f
 7790380028116	flynn paff xxl2	Almacen	flynn paff 	50.00	41.50	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8541	21.00	1	t	f	f
 7791293022536	rexona sensitive aer.x105g	Antitranspirante	Rexona	140.00	102.20	30	1	4087747	0127208	1	6.78	7.79	9.64	1	Vital	0	2010-03-27 00:00:00	S	0	\N	1	0	8542	21.00	1	t	f	f
 7790580111465	mogul confites 40 g	Almacen	mogul	20.00	16.60	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8543	21.00	1	t	f	f
@@ -13022,7 +13215,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7795930000338	nestle awafrut 1.65 manzana verde	Jugos	awafrut	180.00	149.40	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8560	21.00	1	t	f	f
 7791337001732	Yogurisimi leche para beber 700	Lacteos	la serenisima	80.00	66.40	20	1	1	1	1	2.75	3.16	2.33	1	La Serenisima	0	2010-07-17 00:00:00	S	\N	\N	1	0	8561	21.00	1	t	f	f
 7790748235187	Merluza al natural x380	Merluza	Puglisi	12.50	9.13	30	0	3639487	\N	1	25.40	29.21	1.25	6	Nini	0	2009-06-23 00:00:00	S	0	\N	1	0	8562	21.00	1	t	f	f
-7797470007730	esensial diseño 3 	Higienico	Esencial	30.00	21.90	30	4	1	1	14699	0.52	0.60	0.52	1	Maxi	0	2010-10-09 00:00:00	S	0	\N	1	0	8563	21.00	1	t	f	f
+7797470007730	esensial diseÃ±o 3 	Higienico	Esencial	30.00	21.90	30	4	1	1	14699	0.52	0.60	0.52	1	Maxi	0	2010-10-09 00:00:00	S	0	\N	1	0	8563	21.00	1	t	f	f
 7790895007385	crush lima limon 2.25	Gaseosa	crush	1500.00	1245.00	20	-223	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8565	21.00	1	t	f	f
 7790742142009	sere zero lac  200 batir	Lacteos	la serenisima	2200.00	539.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8566	21.00	1	t	f	f
 77966742	Cigarrillos x20	Cigarrillo	Colorado	1900.00	1674.00	10	1	1511	1	1	2.80	3.08	2.80	1	Silicaro	0	\N	S	0	\N	1	0	8567	21.00	1	t	f	f
@@ -13039,7 +13232,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798136870590	dahi yogur 	Lacteos	dahi	1300.00	830.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8582	21.00	1	t	f	f
 7891150053144	Shamp.cont/caida 200cc	shampoo	Dove	180.00	131.40	30	3	4111567	1	1	6.60	7.26	7.81	1	Nini	0	2010-09-03 00:00:00	S	0	\N	1	0	8583	21.00	1	t	f	f
 7790070507525	mate cocido 25 cruz de malta	mate	CRUz MALTA	21.00	17.43	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8586	21.00	1	t	f	f
-7791290782327	Power cream baño d/p x500	Limpiador	Cif	15.50	11.32	30	6	3857166	1	1	4.55	5.00	5.00	1	nini	0	2008-12-27 00:00:00	S	0	\N	1	0	8587	21.00	1	t	f	f
+7791290782327	Power cream baÃ±o d/p x500	Limpiador	Cif	15.50	11.32	30	6	3857166	1	1	4.55	5.00	5.00	1	nini	0	2008-12-27 00:00:00	S	0	\N	1	0	8587	21.00	1	t	f	f
 7790430017190	Svelty plus x 400	almacen	nestle	20.00	14.60	30	-21	405515	0128780	1	7.25	7.97	11.95	1	1	0	2010-09-07 00:00:00	S	0	\N	1	0	8588	21.00	1	t	f	f
 7613033157783	Nescafe dolce gusto nesquik 	almacen	nescafe	230.00	167.90	30	0	1	1	1	3.25	3.58	3.25	1	1	0	\N	S	\N	\N	1	0	8589	21.00	1	t	f	f
 7791070000443	campanita premium dob.hoj. 30m.	limpieza	campanita	90.00	65.70	30	-8	1	1	1	4.23	4.66	4.23	1	1	0	\N	S	\N	\N	1	0	8591	21.00	1	t	f	f
@@ -13055,7 +13248,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790940216267	nocturna 160 unid 	Perfumeria	Doncella	2400.00	1872.00	25	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8601	21.00	1	t	f	f
 7791290789944	CIF VIDRIO	Limpieza	CIF	130.00	107.90	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8602	21.00	1	t	f	f
 7798038152244	scott rinde max 4 	Almacen	scott	25.50	21.17	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8603	21.00	1	t	f	f
-7790260006029	Piña colada 750ml	licores	American club	3300.00	2190.00	30	1	N230	102961	1	9.32	10.25	9.32	1	vital	0	\N	S	0	\N	1	0	8604	21.00	1	t	f	f
+7790260006029	PiÃ±a colada 750ml	licores	American club	3300.00	2190.00	30	1	N230	102961	1	9.32	10.25	9.32	1	vital	0	\N	S	0	\N	1	0	8604	21.00	1	t	f	f
 7792280005730	Yerba c/hier.500g	yerba	Cachamate	2200.00	1606.00	30	3	N49	0102490	1	2.42	2.78	1.25	1	Vital	0	\N	S	0	\N	1	0	8606	21.00	1	t	f	f
 7790080016956	sancor pategas fundido 200 g	Lacteos	sancor 	5000.00	996.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8607	21.00	1	t	f	f
 7792222002865	D.R.F. pastilla menta	Golosina	D.R.F.	400.00	53.00	50	-7	1	1	1	0.37	0.41	0.37	1	1	0	\N	S	0	\N	1	0	8611	21.00	1	t	f	f
@@ -13072,13 +13265,13 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798032180649	Garbanzo seco 400g	almacen	Lisetta	1600.00	87.60	30	4	4004221			2.28	2.50	2.73	1	nini	0	2009-09-17 00:00:00	S	0	\N	1	0	8625	21.00	1	t	f	f
 7794050007258	dorre oxidante 30 vol	Almacen	dorre	60.00	49.80	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8628	21.00	1	t	f	f
 5000520	caracu	carne	carne	1500.00	15.77	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8629	21.00	1	t	f	f
-7790119000031	Jerez añejo x750	Jerez	El abuelo	15.00	10.95	30	0	1	0103120	1	6.05	6.65	6.05	1	Vital	0	\N	S	0	\N	1	0	8631	21.00	1	t	f	f
+7790119000031	Jerez aÃ±ejo x750	Jerez	El abuelo	15.00	10.95	30	0	1	0103120	1	6.05	6.65	6.05	1	Vital	0	\N	S	0	\N	1	0	8631	21.00	1	t	f	f
 7798092960809	limpia vidrios	Limpieza	make	13.00	10.79	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8632	21.00	1	t	f	f
 7791293018201	Jabon refrescante x125	Jabon tocador	Lux	15.50	11.32	30	-54	4148649	1	6617	2.00	2.09	1.81	1	Nini	0	2010-05-20 00:00:00	S	0	\N	1	0	8635	21.00	1	t	f	f
 7798092965743	secador doble de goma	Limpieza	make	75.00	62.25	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8636	21.00	1	t	f	f
 7797453000420	whiskas carne 	Almacen	whiskas	1200.00	996.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8638	10.50	1	t	f	f
 7798092966474	escobillon negro	Limpieza	make	35.00	29.05	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8639	21.00	1	t	f	f
-48	Empanada De Carne 	Almacen	Salteña	1400.00	1162.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8641	10.50	1	t	f	f
+48	Empanada De Carne 	Almacen	SalteÃ±a	1400.00	1162.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8641	10.50	1	t	f	f
 7792900093338	dos anclas aji molido	Pimienta	Dos anclas	140.00	102.20	30	0	3389677	1	1	2.04	2.25	2.04	1	Nini	0	\N	S	0	\N	1	0	8642	21.00	1	t	f	f
 7792900009049	dos anclas aceto balsamico	Pimenton	Dos anclas	240.00	175.20	30	6	3389618	1	1	1.30	1.43	1.30	1	nini	0	\N	S	\N	\N	1	0	8643	21.00	1	t	f	f
 7798006433504	mani picante 	Almacen	fritbon	1500.00	1245.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8644	21.00	1	t	f	f
@@ -13122,9 +13315,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 714604022442	chia 150 gr	Almacen	Raices	1700.00	1411.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8690	21.00	1	t	f	f
 7798060854116	chedda americano 120 g 	Almacen	tonadita	2500.00	1826.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8691	21.00	1	t	f	f
 7790250097587	Toall Ult suav / alas 8 un	Perfumeria	Ladysoft	1600.00	936.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8694	21.00	1	t	f	f
-7792409008383	Rollo coc 200 paños 	Limpieza	Nitidess	1500.00	1411.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8695	21.00	1	t	f	f
+7792409008383	Rollo coc 200 paÃ±os 	Limpieza	Nitidess	1500.00	1411.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8695	21.00	1	t	f	f
 7790950133363	terma pomelo ros 1.35	Jugos	terma	2000.00	116.20	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8696	21.00	1	t	f	f
-7791290789913	cif active gel baño	Limpieza	cif	90.00	74.70	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8698	21.00	1	t	f	f
+7791290789913	cif active gel baÃ±o	Limpieza	cif	90.00	74.70	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8698	21.00	1	t	f	f
 7798130955385	boquita dai	Almacen	fun	55.00	45.65	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10341	21.00	1	t	f	f
 7790010570534	Shampoo rizados x200	Shampoo	Jonsons	230.00	167.90	30	1	1	1	43150	5.27	5.79	5.27	1	Maxi	0	\N	S	\N	\N	1	0	8701	21.00	1	t	f	f
 7791293011769	rexona sin olor	Antitranspirante	Rexona	20.00	14.60	30	-2	1	1	12824	6.78	7.79	6.78	1	Maxi	0	2008-11-29 00:00:00	S	\N	\N	1	0	8705	21.00	1	t	f	f
@@ -13143,11 +13336,11 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793253940003	Lavand.color/vivos x1	Lavandina	Ayudin	15.00	10.95	30	-4	4122844	0133155	1	4.72	5.19	5.75	1	Vital	0	2010-07-02 00:00:00	S	0	\N	1	0	8725	21.00	1	t	f	f
 7793253999971	vand.color/vivos *2	Lavandina	Ayudin	120.00	87.60	30	-47	4122968	0133157	1	4.75	5.47	4.75	1	Vital	0	2009-01-13 00:00:00	S	0	\N	1	0	8726	21.00	1	t	f	f
 7791290784529	Deterg.ropa fina reg.x450	Detergente	ALA	14.00	10.22	30	16	1378920	0103776	1	5.11	5.62	6.58	1	Vital	0	2010-07-02 00:00:00	S	0	\N	1	0	8727	21.00	1	t	f	f
-7793806000079	pizzetas	Almacen	la santiagueña	18.00	14.94	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8728	21.00	1	t	f	f
+7793806000079	pizzetas	Almacen	la santiagueÃ±a	18.00	14.94	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8728	21.00	1	t	f	f
 7798184680721	saphirus oriente	Perfumeria	saphirus	80.00	62.40	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8729	21.00	1	t	f	f
 7791290784543	Deterg. rop/fina b/esp.x450	Detergente	Ala	14.00	10.22	30	15	3016625	0121598	1	5.11	5.62	6.58	1	Vital	0	2010-07-02 00:00:00	S	\N	\N	1	0	8730	21.00	1	t	f	f
 7790520016324	Limp.desinfectante x900	Limpiador	Lysoform	30.00	21.90	30	0	1	0131087	1	3.75	4.13	3.75	1	Vital	0	\N	S	\N	\N	1	0	8731	21.00	1	t	f	f
-7790520028693	lysoform aer fran montaña	Limpieza	Lysoform	2900.00	1752.00	30	3	3858812	0129885	1	8.63	9.92	1.25	1	Vital	0	2010-03-10 00:00:00	S	0	\N	1	0	8732	21.00	1	t	f	f
+7790520028693	lysoform aer fran montaÃ±a	Limpieza	Lysoform	2900.00	1752.00	30	3	3858812	0129885	1	8.63	9.92	1.25	1	Vital	0	2010-03-10 00:00:00	S	0	\N	1	0	8732	21.00	1	t	f	f
 7798062544695	levite pomelo 1 l	Jugos	levite	1600.00	1328.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8733	21.00	1	t	f	f
 7790520995285	lysofort mont.aer 360 cm	Limpiador	Lysoform	3000.00	219.00	30	0	4112407	0133110	1	2.06	2.26	2.25	1	Vital	0	2009-10-29 00:00:00	S	0	\N	1	0	8735	21.00	1	t	f	f
 7806500730514	Babysec toallita 50 uni	Limpieza	Babysec	3000.00	2490.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8736	21.00	1	t	f	f
@@ -13188,7 +13381,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790040111363	saladix baconzitos 25 g	Galletitas	saladix	14.00	10.22	30	2	1	1	1	1.35	1.49	1.35	1	1	1	2011-12-18 00:00:00	S	\N	\N	1	0	8776	21.00	1	t	f	f
 7792180133564	mini budin vainilla 	Almacen	9 de oro	500.00	415.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8777	21.00	1	t	f	f
 7793300423565	suprtabond adhesivo	Prod.Altos	suprabond	27.00	25.11	10	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8778	21.00	1	t	f	f
-7790080037135	las tres niñas leche entera	Lacteos	las tres niñas	28.00	23.24	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8781	21.00	1	t	f	f
+7790080037135	las tres niÃ±as leche entera	Lacteos	las tres niÃ±as	28.00	23.24	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8781	21.00	1	t	f	f
 7798024450095	trapo de piso	Gaseosa	soft	26.00	21.58	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8783	21.00	1	t	f	f
 7798006433450	mani sabor jamon 	Almacen	fritbon	1500.00	1245.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8784	21.00	1	t	f	f
 7798148380384	Mani sin sal repelado 500 g 	Snack	JL	4000.00	3796.00	30	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8788	21.00	1	t	f	f
@@ -13200,7 +13393,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790310983911	mani salado pehuamar	Almacen	pehuamar	750.00	581.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8794	21.00	1	t	f	f
 7791293895062	Efficient aer. x200g	talco	Rexona	220.00	160.60	30	6	1	1	1	6.50	7.15	6.50	1	1	0	\N	S	0	\N	1	0	8796	21.00	1	t	f	f
 5000524	Milanesa pollo	pollo	carne	5288.00	17.58	10	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8797	21.00	1	t	f	f
-7797390000842	escobillon bicolor	Limpieza	siña	80.00	58.40	30	-4	1	1	1	3.00	3.30	3.00	1	1	0	\N	S	0	\N	1	0	8798	21.00	1	t	f	f
+7797390000842	escobillon bicolor	Limpieza	siÃ±a	80.00	58.40	30	-4	1	1	1	3.00	3.30	3.00	1	1	0	\N	S	0	\N	1	0	8798	21.00	1	t	f	f
 7790387013450	yerba taragui	Almacen	taragui	34.00	28.22	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8800	21.00	1	t	f	f
 7790710000232	yerba fruto del bosque cbse	Almacen	cbse	170.00	141.10	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8801	21.00	1	t	f	f
 7790130000065	Vinagre de vino x500	Vinagre	Menoyo	1700.00	43.80	30	0	1314660	1	1	2.17	2.50	2.50	1	Nini	0	2010-07-02 00:00:00	S	0	\N	1	0	8803	21.00	1	t	f	f
@@ -13223,11 +13416,11 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290793903	Deterg plus aloe 750 ml	Detergente	Ala	2000.00	277.40	30	1	4168089	1	145	2.85	3.14	3.28	1	Nini	1	2010-04-21 00:00:00	S	0	\N	1	0	8824	21.00	1	t	f	f
 7790387015508	yerba de campo 	yerbas	la merced	330.00	273.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8825	21.00	1	t	f	f
 5000046	choclo x unid	verduleria	verduleria	500.00	365.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8826	10.50	1	t	f	f
-7790040994904	Porteñitas x130g	Galletitas	Bagley	60.00	43.80	30	-2	9949	1	1	2.10	2.42	1.91	1	Bagley|	1	2010-07-21 00:00:00	S	0	\N	1	0	8827	21.00	1	t	f	f
+7790040994904	PorteÃ±itas x130g	Galletitas	Bagley	60.00	43.80	30	-2	9949	1	1	2.10	2.42	1.91	1	Bagley|	1	2010-07-21 00:00:00	S	0	\N	1	0	8827	21.00	1	t	f	f
 7798148381329	Mani t.jap.horn.salame 500 g 	Snacks	JL	4000.00	2920.00	30	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8828	21.00	1	t	f	f
 7891150023468_2	fuerza extrema shampoo	Limpieza	dove men	29.00	24.07	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8829	21.00	1	t	f	f
 7790580132538	Jardinera c/choclo x350	Lata	Arcor	1100.00	245.00	33	7	2438	1	9234	3.89	4.47	3.50	1	1	1	2010-07-07 00:00:00	S	0	\N	1	0	8830	21.00	1	t	f	f
-7622210745293	Milka castañas x55g	Alfajor	Milka	3500.00	265.00	50	-12	548515	1	1	0.90	0.99	0.90	1	bachajo	1	\N	S	0	\N	1	0	8831	21.00	1	t	f	f
+7622210745293	Milka castaÃ±as x55g	Alfajor	Milka	3500.00	265.00	50	-12	548515	1	1	0.90	0.99	0.90	1	bachajo	1	\N	S	0	\N	1	0	8831	21.00	1	t	f	f
 7790199082095	don julian azucar	Almacen	don julian	80.00	66.40	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8832	21.00	1	t	f	f
 7798148381312	Mani t.jap.horn.Jamon 500 g 	Snacks	JL	5200.00	2920.00	30	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8833	21.00	1	t	f	f
 815	Pernil Cerdo	Fiambreria	Rama	16.65	11.89	40	-1	1	1	1	11.89	13.08	11.89	1	Rama	0	\N	N	\N	\N	1	0	8834	21.00	1	t	f	f
@@ -13300,8 +13493,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792350067071	inalpa garbanzo	Almacen	inalpa	450.00	373.50	20	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8914	21.00	1	t	f	f
 7790740000271	plus Sh balance 1lt	Shampoo 	Plusbelle	350.00	255.50	30	-4	3345602	0124415	1	4.98	5.73	4.48	1	Vital	0	\N	S	0	\N	1	0	8915	21.00	1	t	f	f
 7792260231043	orieta merme  mxi frutal 500 g	Dulce	Orieta	90.00	65.70	30	5	1	1	1	0.00	0.00	1.66	1	1	0	\N	S	\N	\N	1	0	8917	21.00	1	t	f	f
-7798092965255	molde para torata n° 24	Limpieza	make	100.00	83.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8918	21.00	1	t	f	f
-7798092965491	guantes pequeño	Limpieza	make	60.00	49.80	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8920	21.00	1	t	f	f
+7798092965255	molde para torata nÂ° 24	Limpieza	make	100.00	83.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8918	21.00	1	t	f	f
+7798092965491	guantes pequeÃ±o	Limpieza	make	60.00	49.80	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8920	21.00	1	t	f	f
 7622300871703	royal mouse de limo	Almacen	royal	80.00	66.40	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8921	21.00	1	t	f	f
 7792900009124	Sal fina Light x500g	Sales	Dos Anclas	68.00	49.64	30	0	621099	1	1	0.00	0.00	3.87	1	1	0	2010-10-02 00:00:00	S	\N	\N	1	0	8922	21.00	1	t	f	f
 7798092965507	guantes medianos	Limpieza	make	60.00	49.80	20	-31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8923	21.00	1	t	f	f
@@ -13324,7 +13517,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000152	queso de cerdo	Fiambreria	Fiambreria	1485.00	83.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8942	21.00	1	t	f	f
 80050094	kinder maxi choco	Almacen	kinder	1200.00	66.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10342	21.00	1	t	f	f
 7790520986665	Autobrillo Rojo 900cm	Limpieza	Glo-Cot	22.00	16.06	30	-13	1	1	6785	0.00	0.00	5.31	1	1	0	\N	S	\N	\N	1	0	8943	21.00	1	t	f	f
-7790480001446	Champaña d/sec x750	Licores	Federico de Alvear	170.00	124.10	30	7	1	1	721	10.89	12.52	7.67	1	1	0	2008-11-21 00:00:00	S	0	\N	1	0	8944	21.00	1	t	f	f
+7790480001446	ChampaÃ±a d/sec x750	Licores	Federico de Alvear	170.00	124.10	30	7	1	1	721	10.89	12.52	7.67	1	1	0	2008-11-21 00:00:00	S	0	\N	1	0	8944	21.00	1	t	f	f
 5000068	VERDURITA	Verduleria	Verduleria	3000.00	1.00	50	0	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	0	\N	1	0	8945	10.50	1	t	f	f
 7790742436306	leche en pol 400 g 	Yogures	la serenisima	6500.00	1153.70	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8946	21.00	1	t	f	f
 5000600	paleta cerdo	Dulce	cerdo	67.52	20.75	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8947	21.00	1	t	f	f
@@ -13333,7 +13526,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000076	Lechuga morada	Verduleria	Verduleria	12.45	1.00	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8950	10.50	1	t	f	f
 5000078	Naranja oferta	Verduleria	Verduleria	12.83	1.00	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8951	10.50	1	t	f	f
 5000085	Manzana verde	Verduleria	Verduleria	315.00	1.00	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8952	10.50	1	t	f	f
-5000088	entraña	Verduleria	Verduleria	663.00	258.38	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8954	10.50	1	t	f	f
+5000088	entraÃ±a	Verduleria	Verduleria	663.00	258.38	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8954	10.50	1	t	f	f
 5000090	Cereza	Verduleria	Verduleria	16.50	1.00	50	2	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8956	10.50	1	t	f	f
 5000092	CHOCLO X UNIDAD	Verduleria	Verduleria	320.00	10.60	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8958	10.50	1	t	f	f
 5000094	Uva blanca	Verduleria	Verduleria	15.00	1.00	50	1	1	1	1	1.00	1.10	1.00	1	1	1	\N	N	\N	\N	1	0	8959	10.50	1	t	f	f
@@ -13343,7 +13536,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000183	queso porsalud la serenisima	Verduleria	Verduleria	150.00	116.60	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8966	10.50	1	t	f	f
 7790787960415	ilolay frutilla 	Lacteos	ilolay 	1000.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8967	21.00	1	t	f	f
 5000105	aji vinagre	Fiambreria	Fiambreria	1800.00	1.23	50	1	1	1	1	1.00	1.10	1.00	1	1	0	\N	N	\N	\N	1	0	8969	21.00	1	t	f	f
-7798135760083	cafe al cogñac 1 l	licores	de javu	13.00	10.00	30	-6	1	1	1	10.00	11.00	10.00	1	1	1	2011-07-01 00:00:00	S	\N	\N	1	0	8970	21.00	1	t	f	f
+7798135760083	cafe al cogÃ±ac 1 l	licores	de javu	13.00	10.00	30	-6	1	1	1	10.00	11.00	10.00	1	1	1	2011-07-01 00:00:00	S	\N	\N	1	0	8970	21.00	1	t	f	f
 7790150160756	cappuchino tradicional	Almacen	la virginia	100.00	83.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8973	21.00	1	t	f	f
 8445290367587	puer de papas 100g	Almacen	maggi 	2800.00	1961.00	50	0	1	1	1	1.00	1.10	1.00	1	1	1	\N	N	0	\N	1	0	8975	21.00	1	t	f	f
 5000117	cremoso silvia	Fiambreria	Fiambreria	50500.00	80.30	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	8976	21.00	1	t	f	f
@@ -13365,7 +13558,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792070002345	cebollitas en vinagre x 300g	Almacen	nucete	400.00	124.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	8995	21.00	1	t	f	f
 7790520025777	raid cuca sin olor 400g	insecticida	raid	10000.00	8300.00	20	2	1	1	1	0.00	0.00	4.00	1	1	0	\N	S	0	\N	1	0	8996	21.00	1	t	f	f
 7790950133349	terma cuya cero 1.35	Aperitivo	Terma	2000.00	102.20	30	7	2395835	1	1	9.39	10.80	3.55	3	1	0	2009-04-06 00:00:00	S	0	\N	1	0	8998	21.00	1	t	f	f
-7798031154146	knorr moños 	Almacen	Knorr	80.00	58.40	30	-29	2787547	1	1	0.00	0.00	1.70	1	1	0	2009-03-04 00:00:00	S	0	\N	1	0	9000	21.00	1	t	f	f
+7798031154146	knorr moÃ±os 	Almacen	Knorr	80.00	58.40	30	-29	2787547	1	1	0.00	0.00	1.70	1	1	0	2009-03-04 00:00:00	S	0	\N	1	0	9000	21.00	1	t	f	f
 7790520986788	Desinf. aero f/orig  x360	Limpieza	Lysoform	13.50	9.86	30	-22	3683583	1	1115	4.20	4.83	6.60	6	1	0	2010-10-19 00:00:00	S	0	\N	1	0	9001	21.00	1	t	f	f
 7790520996602	Pastillas Fuyi x12	Limpieza	Fuyi	4000.00	160.60	30	7	598712	0103918	1066	8.35	9.60	7.90	1	1	0	2010-02-12 00:00:00	S	0	\N	1	0	9003	21.00	1	t	f	f
 7792018951123	Gillette prestobarba x150	Perfumeria	Gillette	40.00	27.20	35	0	3736474	1	1	0.00	0.00	3.50	1	1	0	\N	S	\N	\N	1	0	9004	21.00	1	t	f	f
@@ -13384,7 +13577,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791990000141	 Rebozador 500g 	pan rayado	RosaBlanca	1100.00	80.30	30	-9	578258	1	1	2.16	2.48	2.27	1	1	0	2010-05-27 00:00:00	S	0	\N	1	0	9018	21.00	1	t	f	f
 7791337060999	sere queso clas des  290cm	Crema	La Serenisima	1100.00	935.00	18	-12	0472-00	1	1	7.40	8.51	7.74	1	La Serenisima	0	2011-12-17 00:00:00	S	0	\N	1	0	9019	21.00	1	t	f	f
 7790990589953	plusbelle jabon exfoliantes	Limpieza	plusbelle	70.00	58.10	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9020	21.00	1	t	f	f
-7794000003606	Ketchup x250g	Mayonesas	hellmanñs	250.00	138.70	30	-8	2962926	0120698	7586	2.25	2.59	2.25	1	Vital	0	2010-08-18 00:00:00	S	0	\N	1	0	9021	21.00	1	t	f	f
+7794000003606	Ketchup x250g	Mayonesas	hellmanÃ±s	250.00	138.70	30	-8	2962926	0120698	7586	2.25	2.59	2.25	1	Vital	0	2010-08-18 00:00:00	S	0	\N	1	0	9021	21.00	1	t	f	f
 7794990878932	queso clasico x190g	Almacen	la paulina	100.00	83.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9022	21.00	1	t	f	f
 7798035770359	G y M Con gluten 	Galletitas	G y M	70.00	51.10	30	-10	30175	1	1	25.87	29.75	2.40	12	Michael	0	2009-11-25 00:00:00	S	0	\N	1	0	9023	21.00	1	t	f	f
 7790119010917	real 1888 sidra 500cc	Vinos	real	2800.00	1660.00	20	16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9024	21.00	1	t	f	f
@@ -13438,10 +13631,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790387014624	union yer suav 500	Almacen	union	2400.00	1660.00	20	82	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9093	21.00	1	t	f	f
 7790070507099	yerba cruz de malta x 500	Almacen	cruzmalta	290.00	240.70	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9094	21.00	1	t	f	f
 7798321151961	sancorito dulce de leche 105	Crema	Sancor	450.00	226.80	22	2	3334	1	1	5.94	6.83	5.76	1	Sancor	0	2010-07-13 00:00:00	S	0	\N	1	0	9095	21.00	1	t	f	f
-7793806000130	la santiagueña tapa de empanadas 	Almacen	la santiagueña	70.00	58.10	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9096	21.00	1	t	f	f
+7793806000130	la santiagueÃ±a tapa de empanadas 	Almacen	la santiagueÃ±a	70.00	58.10	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9096	21.00	1	t	f	f
 7798176000872	Bebe 1 est. x 500 	Lacteos	Sancor	150.00	124.50	20	-18	5327	1	1	38.54	44.32	33.98	1	Sancor	0	2010-01-16 00:00:00	S	0	\N	1	0	9097	21.00	1	t	f	f
 7798138551961	Molto duraznos	Almacen	molto	590.00	232.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9098	21.00	1	t	f	f
-7791690707296	Vino borgoña  1.250 L	Vinos	Viejo Solar	13.50	9.86	30	0	2400308	0111070	1	6.48	7.45	7.75	1	nini	0	2010-03-08 00:00:00	S	0	\N	1	0	9099	21.00	1	t	f	f
+7791690707296	Vino borgoÃ±a  1.250 L	Vinos	Viejo Solar	13.50	9.86	30	0	2400308	0111070	1	6.48	7.45	7.75	1	nini	0	2010-03-08 00:00:00	S	0	\N	1	0	9099	21.00	1	t	f	f
 7790070318602	matarazo tirabuzon	Almacen	matarazo	1400.00	91.30	20	-52	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9100	21.00	1	t	f	f
 77903785	Milka mousse x3 	golosina	Milka	1400.00	742.00	50	-66	548516	1	1	1.25	1.44	1.25	1	bachajo	0	\N	S	0	\N	1	0	9101	21.00	1	t	f	f
 7791564136139	Vital + fibras x 100g	Fiambreria	Adler	1800.00	1494.00	20	0	1	1	1	0.00	0.00	2.91	1	1	0	\N	S	\N	\N	1	0	9102	21.00	1	t	f	f
@@ -13451,7 +13644,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 714604023470	aritos frutales 	Almacen	raices	1000.00	830.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9107	21.00	1	t	f	f
 7794297133536	pulverizador	Prod.Altos	cristal	60.00	55.80	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9108	21.00	1	t	f	f
 7798113302083	Placer Multifrutas 1.50 l	Jugos	Manaos	1200.00	996.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9109	21.00	1	t	f	f
-7500435133333	ppañales 	Perfumeria	pamper	130.00	107.90	20	-28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9111	21.00	1	t	f	f
+7500435133333	ppaÃ±ales 	Perfumeria	pamper	130.00	107.90	20	-28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9111	21.00	1	t	f	f
 8445290060907	pure de papas  125	Almacen	maggi	350.00	215.80	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9112	21.00	1	t	f	f
 779124001929	Palitos salados 770g pehuamar	Almacen	pehuamar	145.00	120.35	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9114	21.00	1	t	f	f
 5000151	queso cheddar	Fiambreria	Fiambreria	1680.00	124.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9115	21.00	1	t	f	f
@@ -13496,7 +13689,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793825000708	la caterda blanco	Vinos	la catedra	46.00	38.18	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9163	21.00	1	t	f	f
 7798000350029	Pascualina hojaldre	tapas de empanada	Parma	2400.00	1992.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9164	21.00	1	t	f	f
 7790070411679	exquisita Helado vainilla 100g	Helados	Exquisita	50.00	36.50	30	-1	36579	0101233	1	0.96	1.10	1.25	1	Vital	0	2010-01-25 00:00:00	S	0	\N	1	0	9165	21.00	1	t	f	f
-7798064260012	rosquitas galletitas dulces	Galletitas	muñoz	37.00	27.01	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9166	21.00	1	t	f	f
+7798064260012	rosquitas galletitas dulces	Galletitas	muÃ±oz	37.00	27.01	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9166	21.00	1	t	f	f
 7794990878581	la paulina 400 dulce de leche	Almacen	la paulina	42.00	34.86	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9167	21.00	1	t	f	f
 7798342860347	raviol 4 quesos 1 k 	pastas	donna wheat 	3700.00	2372.50	30	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9168	21.00	1	t	f	f
 7790250098065	Toal.fem.c/alas 8u.	Toallitas	Ladysoft	70.00	51.10	30	-4	3005046	1	1	6.40	7.36	1.39	6	1	0	2010-05-04 00:00:00	S	0	\N	1	0	9170	21.00	1	t	f	f
@@ -13514,7 +13707,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 5000223	Banana ecuador	Verduleria	Verduleria	130.00	1.00	50	1	1	1	1	1.00	1.10	1.00	1	1	1	\N	N	\N	\N	1	0	9191	10.50	1	t	f	f
 5000120	Membrillo	Fiambreria	fiambreria	1715.00	73.73	30	1	1	1	1	0.00	0.00	0.00	1	1	1	\N	N	\N	\N	1	0	9202	21.00	1	t	f	f
 5000119	Batata con chocolate	Fiambreria	fiambreria	1288.00	2.88	30	1	1	1	1	0.00	0.00	0.00	1	1	1	\N	N	\N	\N	1	0	9203	21.00	1	t	f	f
-5000325	paño amarillo	Limpieza	paño amarillo	51.66	1.17	30	1	1	1	1	0.00	0.00	0.00	1	1	1	\N	N	\N	\N	1	0	9204	21.00	1	t	f	f
+5000325	paÃ±o amarillo	Limpieza	paÃ±o amarillo	51.66	1.17	30	1	1	1	1	0.00	0.00	0.00	1	1	1	\N	N	\N	\N	1	0	9204	21.00	1	t	f	f
 5000173	ilolay Cremoso 	Fiambreria	fiambreria	2550.00	64.24	30	1	1	1	1	0.00	0.00	0.00	1	1	1	\N	N	\N	\N	1	0	9205	21.00	1	t	f	f
 5000124	Pebete	Panaderia	Pan	2800.00	0.67	30	1	1	1	1	0.00	0.00	0.00	1	1	1	2009-08-04 00:00:00	N	0	\N	1	0	9206	21.00	1	t	f	f
 5000123	jamon crudo	Fiambreria	Fiambreria	3150.00	5.11	30	1	1	1	1	0.00	0.00	0.00	1	1	0	\N	N	\N	\N	1	0	9207	21.00	1	t	f	f
@@ -13582,7 +13775,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798023690416	s&p maiz pising 	Almacen	s&p	700.00	581.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9293	21.00	1	t	f	f
 7501037600018	Pilas Eveready D	Pilas	Eveready	300.00	249.00	20	0	922346	1	1	1.83	2.10	2.05	1	1	0	2010-02-17 00:00:00	S	\N	\N	1	0	9294	21.00	1	t	f	f
 7790742145901	por salud light untable 200	Queso	serenisima	100.00	73.00	30	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9296	21.00	1	t	f	f
-7790236000693	la salteña capeletinis 	Licores	la salteña 	140.00	102.20	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9297	21.00	1	t	f	f
+7790236000693	la salteÃ±a capeletinis 	Licores	la salteÃ±a 	140.00	102.20	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9297	21.00	1	t	f	f
 7792710000182	amanda yer 500  tradic	yerbas	amanda	2200.00	556.10	20	14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9298	21.00	1	t	f	f
 7793360131462	merme  arandanos 390	mermelada	la campagnola	4000.00	365.00	30	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9299	21.00	1	t	f	f
 7792180131645	Buedincito 215 g 	Galletitas	9 de oro 	1300.00	949.00	30	-4	11034	1	1	24.53	28.21	1.59	20	Michael	0	\N	S	0	\N	1	0	9300	21.00	1	t	f	f
@@ -13627,7 +13820,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791293037585	jabon lux refrescate 3 x125g	Perfumeria	lux	125.00	97.50	25	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9356	21.00	1	t	f	f
 7790950003437	tres torres. blanco 1.5lt	Aperitivo	Tres Torres	1400.00	87.60	30	1	2553066	2904u	2904u	2.85	3.28	2.70	1	Nini	0	2010-07-10 00:00:00	S	0	\N	1	0	9357	21.00	1	t	f	f
 7793147001001	amber lager imperial	cerveza	imperial	840.00	697.20	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9358	21.00	1	t	f	f
-7799032003549	make velas para cumpeleaños 	Gaseosa	make	2200.00	232.40	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9359	21.00	1	t	f	f
+7799032003549	make velas para cumpeleaÃ±os 	Gaseosa	make	2200.00	232.40	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9359	21.00	1	t	f	f
 7791337533318	Yogurisimo Vainilla Bot. de185gr	Lacteos	La Serenisima	80.00	66.40	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9360	21.00	1	t	f	f
 7790430010481	svelty calcio plus 0% 800g	Lacteos	Nestle	15.00	12.49	20	0	1	1	1	0.00	0.00	11.25	1	1	0	\N	S	\N	\N	1	0	9361	21.00	1	t	f	f
 7795184003901	Tomate entero x 400g	Pure	Noel	1250.00	87.60	30	-10	1211580	0102330	2451	2.35	2.70	2.35	1	1	0	2010-10-19 00:00:00	S	0	\N	1	0	9362	21.00	1	t	f	f
@@ -13649,7 +13842,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790314006104	toro chandonay Vino b/ 750	Vinos	Toro	50.00	36.50	30	1	1	1	1	0.00	0.00	1.82	1	El Faro	0	\N	S	0	\N	1	0	9380	21.00	1	t	f	f
 7790314074219	Vino tinto 1.250	Vinos	Toro	2500.00	350.40	30	1	1	1	1	0.00	0.00	2.07	1	El Faro	0	\N	S	0	\N	1	0	9381	21.00	1	t	f	f
 7792684000706	Legendaria 500g	Galletitas	Solitas	2000.00	1460.00	30	8	35599	1	1	3.90	4.49	3.60	1	Michael	0	2010-09-01 00:00:00	S	0	\N	1	0	9382	21.00	1	t	f	f
-7798064260043	rosquitas con chips	Galletitas	muños	15.00	10.95	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9383	21.00	1	t	f	f
+7798064260043	rosquitas con chips	Galletitas	muÃ±os	15.00	10.95	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9383	21.00	1	t	f	f
 7506339349023	old spice desod barra 	Perfumeria	old spice	80.00	62.40	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9385	21.00	1	t	f	f
 7791113001970	emeth gelat framb light 25 g	Almacen	emeth	18.00	14.94	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9386	21.00	1	t	f	f
 7790430017138	Nido cresimiento 1+ 760g	Lacteos	Nestle	36.00	26.28	30	1	3621634	1	1	0.00	0.00	19.20	1	1	0	2010-07-12 00:00:00	S	\N	\N	1	0	9387	21.00	1	t	f	f
@@ -13659,7 +13852,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798138290396	vauquita con merengue alfajor	Almacen	vauquita	25.00	20.75	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9393	21.00	1	t	f	f
 7790742324108	finlandia queso sin sal 290g	Queso	Finlandia	3600.00	788.50	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9394	21.00	1	t	f	f
 7793360987205	la campagnola lentejas remojada	Almacen	la campagnola	210.00	174.30	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9395	21.00	1	t	f	f
-7794000008915	Hellmann´s mayo pican	Mayonesas	Hellmann´s	2300.00	730.00	30	1	3245284	1	1	2.14	2.46	2.65	1	Nini	0	2010-08-18 00:00:00	S	0	\N	1	0	9396	21.00	1	t	f	f
+7794000008915	HellmannÂ´s mayo pican	Mayonesas	HellmannÂ´s	2300.00	730.00	30	1	3245284	1	1	2.14	2.46	2.65	1	Nini	0	2010-08-18 00:00:00	S	0	\N	1	0	9396	21.00	1	t	f	f
 7793344004300	Rollo cocina x3	Rollo Cocina	Dicha	1500.00	1.95	30	4	1	1	1	15.60	17.94	1.19	8	1	0	\N	S	0	\N	1	0	9397	21.00	1	t	f	f
 7790639001068	cunnington Indian tonic clasica 2.25lt	Gaseosa	Cunnington	1500.00	1095.00	30	-17	60	1	1	19.00	21.85	5.24	6	El Faro	0	2009-12-17 00:00:00	S	0	\N	1	0	9398	21.00	1	t	f	f
 7798125811221	ketchup galletitas 	Gaseosa	cintitas	1000.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9399	21.00	1	t	f	f
@@ -13678,7 +13871,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791293046532	rexona 72 h hombre 	Almacen	rexona 	700.00	581.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9417	21.00	1	t	f	f
 7792180007285	Gallet. c/sesamo x 300g	Galletitas	Paseo	950.00	54.75	30	-2	1	1	1	1.85	2.13	0.19	1	Michael	0	\N	S	0	\N	1	0	9420	21.00	1	t	f	f
 7791564012501	Adler Fontina x 100g	Fiambreria	Adler	2500.00	124.50	20	6	1	1	1	0.00	0.00	2.10	1	1	0	\N	S	0	\N	1	0	9422	21.00	1	t	f	f
-7790070621955	la salteña tapas de em freir	Almacen	la salteña	1800.00	1095.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9424	21.00	1	t	f	f
+7790070621955	la salteÃ±a tapas de em freir	Almacen	la salteÃ±a	1800.00	1095.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9424	21.00	1	t	f	f
 7791337065017	Casancrem clasico 330g	Lacteos	La Serenisima	50.00	41.50	20	0	0371-00	1	1	7.07	8.14	6.67	1	La Serenisima	0	2010-07-17 00:00:00	S	0	\N	1	0	9425	21.00	1	t	f	f
 7793360000287	Salsati cub.+pure x400g	pure	La Campagnola	1100.00	116.80	30	-2	248	0102317	1	0.00	0.00	3.45	1	1	0	2010-03-27 00:00:00	S	0	\N	1	0	9426	21.00	1	t	f	f
 7798000350012	Tapa hojaldre 340gr	tapas de empanada	Parma	1900.00	489.10	30	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	\N	1	0	9427	21.00	1	t	f	f
@@ -13727,7 +13920,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792198005266	yerba mate 1 kg  natura	Almacen	natura	50.00	41.50	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9488	21.00	1	t	f	f
 7790580138738	polenta 490g	Polenta	presto pronta	1400.00	1752.00	30	5	1	1	1	1.00	\N	1.00	1	1	0	\N	S	0	\N	1	0	9489	21.00	1	t	f	f
 7790070410726	Gelatina de cereza	Gelatina	Exquisita	32.00	23.36	30	-27	2875110	2187	1	0.00	\N	2.00	1	1	0	2010-09-21 00:00:00	S	0	\N	1	0	9490	21.00	1	t	f	f
-7791070000030	classic 50 paños x3	almacen	campanita	1400.00	182.50	30	78	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9491	21.00	1	t	f	f
+7791070000030	classic 50 paÃ±os x3	almacen	campanita	1400.00	182.50	30	78	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9491	21.00	1	t	f	f
 7791290793460	ala  jabon en pan 400 g	Limpieza	ala	2500.00	365.00	30	0	N188	1	1	1.00	1.10	1.00	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9492	21.00	1	t	f	f
 7796624000115	Galletita x 3 sandw 330 g	Galletitas	neosol	1000.00	730.00	30	2	N80	1	1	0.00	\N	1.00	1	1	0	\N	S	0	\N	1	0	9493	21.00	1	t	f	f
 7792184003146	biscochos dulces 130g	Galletitas	H&J	750.00	65.70	30	-22	N83	1	1	0.00	\N	1.00	1	1	0	\N	S	0	\N	1	0	9497	21.00	1	t	f	f
@@ -13800,7 +13993,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 76130336496607613033648564	batido delce de leche	Almacen	nestum	12.00	9.96	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9601	21.00	1	t	f	f
 7793360132520	jardinera la campa 	Almacen	la campagnola	1500.00	182.60	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9603	21.00	1	t	f	f
 7798047030540	nieve 320 g 	Prod.Altos	nieve	2000.00	1860.00	10	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9605	21.00	1	t	f	f
-7798024079487	make Guantes pequeño	Limpieza	make	2000.00	102.20	30	3	907948	1	1	2.00	2.20	2.00	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9606	21.00	1	t	f	f
+7798024079487	make Guantes pequeÃ±o	Limpieza	make	2000.00	102.20	30	3	907948	1	1	2.00	2.20	2.00	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9606	21.00	1	t	f	f
 7798024079500	make guantes grande	Limpieza	make	2000.00	102.20	30	1	N140	1	1	2.00	2.20	2.00	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9607	21.00	1	t	f	f
 7798024079494	Guantes mediano	Limpieza	make	2000.00	102.20	30	2	907949	1	1	2.00	2.20	2.00	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9608	21.00	1	t	f	f
 7790127733549	aceit en rodajas 100 g 	Almacen	vanoli	1000.00	830.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9609	21.00	1	t	f	f
@@ -13809,9 +14002,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791130684330	limp cremoso naranja 730gl	Limpieza	procenex	1600.00	80.30	30	-6	1	1	1	3.27	3.60	3.27	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9612	21.00	1	t	f	f
 7798184581332	limp coco vainil 150 ml	Limpieza	multimax	1200.00	830.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9615	21.00	1	t	f	f
 7797232005622	crom hermetico 2 l	Prod.Altos	crom	600.00	558.00	10	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9616	21.00	1	t	f	f
-7790121000029	Caña de durazno	Vinos	san vicente	15.00	10.95	30	-6	1	1	1	5.70	6.27	5.70	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9617	21.00	1	t	f	f
+7790121000029	CaÃ±a de durazno	Vinos	san vicente	15.00	10.95	30	-6	1	1	1	5.70	6.27	5.70	1	1	1	2008-10-31 00:00:00	S	0	\N	1	0	9617	21.00	1	t	f	f
 7790036000626	Jugo durazno x200	Jugos	Baggio	500.00	58.40	30	-122	1	1	1	0.90	0.99	0.90	1	1	1	2008-11-01 00:00:00	S	0	\N	1	0	9618	21.00	1	t	f	f
-7790070622044	la salteña tapa p /e hojaldrada	Almacen	la salteña 	1800.00	1494.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9620	21.00	1	t	f	f
+7790070622044	la salteÃ±a tapa p /e hojaldrada	Almacen	la salteÃ±a 	1800.00	1494.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9620	21.00	1	t	f	f
 7790345111006	Escobillon laurita	Limpieza	Samantha	18.00	14.94	20	0	1	1	1	0.00	0.00	3.63	1	1	0	\N	S	\N	\N	1	0	9621	21.00	1	t	f	f
 7613035375093	svelty calcio plus 0% 400gdesc	Lacteos	Nestle	280.00	232.40	20	1	1	1	1	0.00	0.00	6.71	1	1	0	2010-10-02 00:00:00	S	0	\N	1	0	9622	21.00	1	t	f	f
 7790430017121	Nido cresimiento.1+ 370g	Lacteos	Nestle	19.00	13.87	30	0	3621693	1	13419	6.98	8.02	10.90	1	1	0	2010-09-21 00:00:00	S	\N	\N	1	0	9623	21.00	1	t	f	f
@@ -13823,7 +14016,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790387013610	Yerba taragui x1kg	Yerbas	Taragui	3600.00	1022.00	30	46	39969	0102531	1846	6.10	7.02	8.00	1	Nini	0	2010-08-09 00:00:00	S	0	\N	1	0	9629	21.00	1	t	f	f
 7790070335975	fideos integral spaghetti	fideos	matarazzo	1900.00	1494.00	20	-1				3.02	3.32	4.57	1	vemart	1	2016-04-06 00:00:00	S	0	\N	1	0	9630	21.00	1	t	f	f
 7798095651865	caro amici carne 1.50	Almacen	caro amici	70.00	58.10	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9631	10.50	1	t	f	f
-7792180001528	Harina 000 x1kg	harinas	Cañuelas	180.00	43.80	30	-26	1537140	0101530	15282	1.38	1.59	1.30	1	1	0	2010-06-21 00:00:00	S	0	\N	1	0	9632	10.50	1	t	f	f
+7792180001528	Harina 000 x1kg	harinas	CaÃ±uelas	180.00	43.80	30	-26	1537140	0101530	15282	1.38	1.59	1.30	1	1	0	2010-06-21 00:00:00	S	0	\N	1	0	9632	10.50	1	t	f	f
 7790790005028	Inca Coctel de Frutas	Almacen	Inca	200.00	166.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9633	21.00	1	t	f	f
 7798151952585	mani jamon cervecero 	Almacen	mani king	1200.00	996.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9634	21.00	1	t	f	f
 7794580000019	Arroz  fortuna x 1 kg	Arroz	Mocovi	200.00	126.00	40	0	131229	1	1	0.00	0.00	5.20	1	1	0	2009-09-09 00:00:00	S	0	\N	1	0	9635	21.00	1	t	f	f
@@ -13873,7 +14066,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 763571883846	alfajor negro	Almacen	maradona	900.00	664.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9694	21.00	1	t	f	f
 7791909317322	panchos	Almacen	pan	18.00	14.94	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9695	21.00	1	t	f	f
 7793333018004	Polvo para hornear x50g	Almacen	Royal	80.00	58.40	30	3	1878930	1	1612	1.45	1.67	1.81	1	1	0	2009-09-01 00:00:00	S	0	\N	1	0	9696	21.00	1	t	f	f
-7798064260029	polvorones 	Galletitas	muñoz	20.00	14.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9698	21.00	1	t	f	f
+7798064260029	polvorones 	Galletitas	muÃ±oz	20.00	14.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9698	21.00	1	t	f	f
 7798094220963	genio alfajor triple blan	Almacen	genio	20.00	16.60	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9700	21.00	1	t	f	f
 7790314001475	dilema vino blanco dulce estancia mendoza	Vinos	estancia mendoza	500.00	415.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9701	21.00	1	t	f	f
 7794000005877	sopa crema verduras 38g	sopa lista	knorr	2000.00	131.40	30	9	7382	1	3410	13.72	15.78	2.35	8	1	0	2010-09-07 00:00:00	S	0	\N	1	0	9702	10.50	1	t	f	f
@@ -13894,7 +14087,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7613287850355	Nesquik Cacao 180g	cacao	Nesquik	250.00	131.40	30	-4	1314120	0100419	933	2.55	2.93	2.55	1	1	0	2010-07-22 00:00:00	S	0	\N	1	0	9717	21.00	1	t	f	f
 7790119009959	anana fizz real	Prod.Altos	real	23000.00	21390.00	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9718	21.00	1	t	f	f
 7790940216250	toallita x 16 un ultrafina	Perfumeria	Doncella	1800.00	1404.00	25	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9719	21.00	1	t	f	f
-7790580131470	aguila baño  reposteria 	reposteria	Aguila	3300.00	730.00	30	-9	2471043	0100759	2203	4.80	5.52	5.50	1	Vital	0	2010-09-14 00:00:00	S	0	\N	1	0	9720	21.00	1	t	f	f
+7790580131470	aguila baÃ±o  reposteria 	reposteria	Aguila	3300.00	730.00	30	-9	2471043	0100759	2203	4.80	5.52	5.50	1	Vital	0	2010-09-14 00:00:00	S	0	\N	1	0	9720	21.00	1	t	f	f
 7792710000090	 yer ma espe 500	Almacen	amanda	1900.00	290.50	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9721	21.00	1	t	f	f
 7790080040128	cremoso light mendicrim	Lacteos	sancor	20.00	16.60	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9722	21.00	1	t	f	f
 7791293037684	jabon lux orquidea negra 220 ml	Perfumeria	lux	240.00	187.20	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9723	21.00	1	t	f	f
@@ -13955,7 +14148,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790080014846	sancor Queso rallado x120g	queso rallado	santa brigida	130.00	94.90	30	3	1494	1	1	5.35	6.15	6.75	1	1	0	2010-06-05 00:00:00	S	0	\N	1	0	9795	21.00	1	t	f	f
 7791813828464	Pepsi black 2 l 	Gaseosa	pepsi	2100.00	1743.00	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9796	21.00	1	t	f	f
 7790070431721	gasllo risotto 4 quesos	Almacen	gallo	2400.00	1992.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9798	21.00	1	t	f	f
-7794000004825	Mayonesa 250cc	Mayonesas	hellmanñs	210.00	153.30	30	-56	1896156	0126660	12999	0.95	1.09	0.95	1	1	0	2009-02-07 00:00:00	S	\N	\N	1	0	9799	21.00	1	t	f	f
+7794000004825	Mayonesa 250cc	Mayonesas	hellmanÃ±s	210.00	153.30	30	-56	1896156	0126660	12999	0.95	1.09	0.95	1	1	0	2009-02-07 00:00:00	S	\N	\N	1	0	9799	21.00	1	t	f	f
 7791866001197	May.sachet x 125cc	Mayonesas	Natura	700.00	438.00	30	108	1797450	0101736	7276	1.00	1.15	1.20	1	Nini	0	2010-09-01 00:00:00	S	0	\N	1	0	9800	21.00	1	t	f	f
 7791620187686	danica mostaza 220 g	aderesos	Danica	900.00	129.00	60	-9	2598540	0115875	4774	0.75	0.86	0.78	1	1	0	2010-05-12 00:00:00	S	0	\N	1	0	9804	21.00	1	t	f	f
 7790387120370	taragui mate listo x500cc	Yerbas	Taragui	2000.00	730.00	30	1	1	1	1	0.00	0.00	3.99	1	1	0	\N	S	0	\N	1	0	9805	21.00	1	t	f	f
@@ -14057,7 +14250,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793253002466	poett lvevolucion 	Limpieza	poett	120.00	99.60	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9932	21.00	1	t	f	f
 7793253003470	poett primavera	Limpieza	poett 	1900.00	315.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9933	21.00	1	t	f	f
 7791905000037	Lavandina querubin 2lt	Lavandinas	Querubin	30.00	21.90	30	0	3513246	0114919	1	1.94	2.23	2.50	1	1	0	2010-09-25 00:00:00	S	\N	\N	1	0	9934	21.00	1	t	f	f
-7794626009358	Pañal classic wave P	Pañales	Huggies	110.00	80.30	30	-15	4308123	1	1	0.00	0.00	5.33	1	1	0	\N	S	\N	\N	1	0	9937	21.00	1	t	f	f
+7794626009358	PaÃ±al classic wave P	PaÃ±ales	Huggies	110.00	80.30	30	-15	4308123	1	1	0.00	0.00	5.33	1	1	0	\N	S	\N	\N	1	0	9937	21.00	1	t	f	f
 7792684000782	mini alfajor 300	Galletitas	solitas 	3200.00	219.00	30	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9938	21.00	1	t	f	f
 7793253004439	ayudin lav clasica 1 l	Limpieza	ayudin 	1100.00	116.20	20	90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9939	21.00	1	t	f	f
 7790314057014	Vino tinto 1l	Vinos	Toro	1800.00	36.50	30	-23	2347687	100	1	4.21	4.84	3.63	1	El Faro	0	2009-07-12 00:00:00	S	0	\N	1	0	9940	21.00	1	t	f	f
@@ -14092,7 +14285,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798362628842	cerezas 330 ml	Almacen	la maiella	3000.00	2490.00	20	53	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9986	21.00	1	t	f	f
 7798024420845	Fashion fresa esp.x710	Licores	Fashion	15.00	10.95	30	-3	1	1	1	0.00	0.00	7.25	1	Sancor	0	2009-12-24 00:00:00	S	\N	\N	1	0	9988	21.00	1	t	f	f
 7793253189006	Trenet Oxi gatillo 500cm	Limpieza	Trenet	16.50	13.70	20	-1	3180727	1	1	0.00	0.00	5.57	1	1	0	2009-03-14 00:00:00	S	\N	\N	1	0	9989	21.00	1	t	f	f
-7792180001641	Aceite x900 ml	Aceites	Cañuelas	3900.00	1825.00	30	30	2675765	0116783	218	3.14	3.61	3.17	1	Vital	0	2010-05-12 00:00:00	S	0	\N	1	0	9990	21.00	1	t	f	f
+7792180001641	Aceite x900 ml	Aceites	CaÃ±uelas	3900.00	1825.00	30	30	2675765	0116783	218	3.14	3.61	3.17	1	Vital	0	2010-05-12 00:00:00	S	0	\N	1	0	9990	21.00	1	t	f	f
 7795170002413	D. leche sache 250g	Dulce de Leche	El placer	1400.00	204.00	35	18	1460	1	1460	2.14	2.46	2.06	1	1	0	2010-07-19 00:00:00	S	0	\N	1	0	9991	21.00	1	t	f	f
 7790314080203	estacia mendoza  Dulce 750 	Vinos	estancia mendoza	4000.00	2158.00	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9992	21.00	1	t	f	f
 7791167000400	cotar yogur vainilla 1 l	Lacteos	cotar	35.00	29.05	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	9994	21.00	1	t	f	f
@@ -14125,7 +14318,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791274000584	jab liq flower 300 ml 	Perfumeria	algabo	1700.00	1326.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10032	21.00	1	t	f	f
 7798136078965	vainilla	Perfumeria	max aroma	180.00	140.40	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10033	21.00	1	t	f	f
 764451522213	Pan mesa 320 g 	Almacen	Dharma	1600.00	1245.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10034	21.00	1	t	f	f
-7794564000400	Fideos moñ.color x500g	Fideos	Badaloni	600.00	438.00	30	8	211087	1	1	0.00	0.00	2.65	1	Nini	0	2009-11-17 00:00:00	S	0	\N	1	0	10035	21.00	1	t	f	f
+7794564000400	Fideos moÃ±.color x500g	Fideos	Badaloni	600.00	438.00	30	8	211087	1	1	0.00	0.00	2.65	1	Nini	0	2009-11-17 00:00:00	S	0	\N	1	0	10035	21.00	1	t	f	f
 7790206514397	Chocolate con Mani	Dulce	Fel Fort	550.00	199.20	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10036	21.00	1	t	f	f
 7790070012050	Aceite gir. 900ml	aceite	Cocinero	2700.00	189.80	30	-3	2078074	0106988	300	3.29	3.78	348.00	1	Vital	0	2010-09-21 00:00:00	S	0	\N	1	0	10037	21.00	1	t	f	f
 7790490998118	hileret sweet 200 sobres	edulcorante	hileret	2000.00	315.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10038	21.00	1	t	f	f
@@ -14169,7 +14362,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790314079726	blan bulce no hay 	Vinos	dilema	4000.00	3320.00	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10083	21.00	1	t	f	f
 7798040463598	Push pop	Almacen	Push pop	700.00	581.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10084	21.00	1	t	f	f
 7791600134242	kevin ice 150 ml	Perfumeria	Kevin	3200.00	2340.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10085	21.00	1	t	f	f
-7798124360355	limpi baños 500 ml 	Limpieza	ecovita	900.00	747.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10087	21.00	1	t	f	f
+7798124360355	limpi baÃ±os 500 ml 	Limpieza	ecovita	900.00	747.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10087	21.00	1	t	f	f
 7790580136109	mogul murcielago	Dulce	mogul	150.00	58.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10088	21.00	1	t	f	f
 7790080067675	sancor yogs 500 frutilla	Lacteos	sancor	150.00	124.50	20	-2	4042	1	1	5.09	5.85	2.91	1	Sancor	0	2012-06-25 00:00:00	S	\N	\N	1	0	10090	21.00	1	t	f	f
 7790315000910	levite pomelo cero 1.5	Jugos	levite	2000.00	1660.00	20	91	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10091	21.00	1	t	f	f
@@ -14219,7 +14412,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790040939905	ser pack x3 	Galletitas	ser	50.00	36.50	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10150	21.00	1	t	f	f
 7501059295872	coffe mate (original)	Almacen	nestle	85.00	70.55	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10151	21.00	1	t	f	f
 7790742669001	armonia manteca 200 g	Lacteos	armonia	400.00	124.50	20	-28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10152	21.00	1	t	f	f
-7798031150988	fideos moño 500g	Almacen	sol pampeano	1300.00	45.65	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10153	21.00	1	t	f	f
+7798031150988	fideos moÃ±o 500g	Almacen	sol pampeano	1300.00	45.65	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10153	21.00	1	t	f	f
 7790990002285_2	zorro a mano 800	Limpieza	zorro	1800.00	1494.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10156	21.00	1	t	f	f
 7794417222256	trapo de piso sina	Limpieza	sina	1000.00	830.00	20	16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10157	21.00	1	t	f	f
 7790150811061	filtros de papel para cafe 40 un	infusiones	la virginia	3800.00	1245.00	20	16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10158	21.00	1	t	f	f
@@ -14236,7 +14429,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790704070333	viejo solar abocado	Vinos	viejo solar	70.00	58.10	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10171	21.00	1	t	f	f
 7791337003552	ser colchon de frutas 	Lacteos	ser	130.00	107.90	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10172	21.00	1	t	f	f
 7790070412348	Postre vainilla 200g	Flan	Exquisita	60.00	43.80	30	2	1	0101237	1	1.00	1.15	0.97	1	Vital	0	\N	S	0	\N	1	0	10173	21.00	1	t	f	f
-7792684003394	solitas puritos bañado 	Galletitas	solitas	2200.00	182.50	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10174	21.00	1	t	f	f
+7792684003394	solitas puritos baÃ±ado 	Galletitas	solitas	2200.00	182.50	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10174	21.00	1	t	f	f
 7798184581103	limp mult lavanda rin 5 lts	Limpieza	multimax	1200.00	622.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10175	21.00	1	t	f	f
 7791200000060	cinzano nuevo sabor bianco	Almacen	cinzano	85.00	70.55	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10176	21.00	1	t	f	f
 7793306993512	frutt loops	Almacen	kelloggs 	230.00	190.90	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10179	21.00	1	t	f	f
@@ -14264,7 +14457,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791293021256	rexona men aquashield	Almacen	rexona	18.00	14.94	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10204	21.00	1	t	f	f
 77909145	Cereal fort frutilla	Golosina	Cereal fort	800.00	26.50	50	6	1	1	1	29.00	33.35	1.16	24	1	1	2010-09-14 00:00:00	S	0	\N	1	0	10205	21.00	1	t	f	f
 7790950806946	six pack 6 x 473 gin tonic 	Almacen	dr lemon	8000.00	6640.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10206	21.00	1	t	f	f
-7790236000709	la salteña sorrentino pollo y porro	Almacen	la salteña	22.00	18.26	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10208	21.00	1	t	f	f
+7790236000709	la salteÃ±a sorrentino pollo y porro	Almacen	la salteÃ±a	22.00	18.26	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10208	21.00	1	t	f	f
 7798031154221	knorr mostachol 	fideos	knorr	58.00	48.14	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10209	21.00	1	t	f	f
 7622202216510	huellita acida 82.5	Almacen	bubbaloo	1200.00	996.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10210	21.00	1	t	f	f
 7790787960422	yogur fir 120 g vaini	Lacteos	ilolay	750.00	415.00	20	-45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10213	21.00	1	t	f	f
@@ -14277,7 +14470,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790040534803	Formis chocolate x108g	Galletitas	Arcor	50.00	36.50	30	0	5348	1	1	1.50	1.65	1.50	1	Arcor	1	2009-09-02 00:00:00	S	0	\N	1	0	10224	21.00	1	t	f	f
 7790040677005	Tortitas chocol.x125g	Galletitas	Arcor	1000.00	138.00	34	0	6770	1	1	2.70	3.11	1.55	1	Arcor	1	2010-08-30 00:00:00	S	0	\N	1	0	10225	21.00	1	t	f	f
 7790150102008	la virginia suave x 100	Almacen	la virginia	15.00	12.45	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10226	21.00	1	t	f	f
-7790480001613	Whisky añejo x 1ltr	Whisky	Criadores	100.00	73.00	30	1	146765	1	1	23.00	25.30	24.00	1	1	1	2010-05-20 00:00:00	S	0	\N	1	0	10227	21.00	1	t	f	f
+7790480001613	Whisky aÃ±ejo x 1ltr	Whisky	Criadores	100.00	73.00	30	1	146765	1	1	23.00	25.30	24.00	1	1	1	2010-05-20 00:00:00	S	0	\N	1	0	10227	21.00	1	t	f	f
 742832600552_2	kryptonite 500 ml 	Jugos	foursport	1000.00	830.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10228	21.00	1	t	f	f
 7798139837798	interelec 12 w luz dia	Prod.Altos	interelec	60.00	55.80	10	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10229	21.00	1	t	f	f
 7791885001383	Choclo entero 320g	choclo	Cumana	50.00	36.50	30	-70	3153215	1	888	2.23	2.45	2.40	1	El Faro	1	2010-02-08 00:00:00	S	0	\N	1	0	10230	21.00	1	t	f	f
@@ -14291,19 +14484,19 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7794959000497	Gaseosa manzana 2.25	Gaseosa	Cimes	28.00	20.44	30	6	1	1	1	1.55	1.71	1.58	1	1	1	2009-12-05 00:00:00	S	\N	\N	1	0	10241	21.00	1	t	f	f
 7791337000599	mix frutas ceriales  157g 	Lacteos	yogueisimo.	38.00	31.54	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10291	21.00	1	t	f	f
 7794959000220	Gaseosa pomelo 2.25	Gaseosa	Cimes	28.00	20.44	30	0	1	1	1	1.55	1.71	1.58	1	1	1	2009-12-05 00:00:00	S	0	\N	1	0	10242	21.00	1	t	f	f
-7791070000641	campanita mega rollo 300 paños	Limpieza	campanita	2500.00	456.50	20	68	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10243	21.00	1	t	f	f
+7791070000641	campanita mega rollo 300 paÃ±os	Limpieza	campanita	2500.00	456.50	20	68	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10243	21.00	1	t	f	f
 7791293045726	 rest.intn shampoo 300ml	Perfumeria	sedal	2900.00	390.00	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10244	21.00	1	t	f	f
 7790770600779	calipso plus con alas 8 toallitas	Perfumeria	calipso	160.00	124.80	25	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10245	21.00	1	t	f	f
 7792684000478	solitas rosquitas caseras g500	Almacen	solitas	2000.00	124.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10246	21.00	1	t	f	f
 7795735600948	don satur magda / chips	Galletitas	don satur	28.00	20.44	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10247	21.00	1	t	f	f
-7794271000045	Paño multiuso	Esponja	Hebra dorada	18.00	13.14	30	-5	1	1	1	1.80	1.98	1.80	1	11	1	2009-08-13 00:00:00	S	\N	\N	1	0	10251	21.00	1	t	f	f
+7794271000045	PaÃ±o multiuso	Esponja	Hebra dorada	18.00	13.14	30	-5	1	1	1	1.80	1.98	1.80	1	11	1	2009-08-13 00:00:00	S	\N	\N	1	0	10251	21.00	1	t	f	f
 7798321152098	sancor flan caramelo  230	lacteos	sancor	2900.00	474.50	30	-4	1	1	1	5.00	5.50	5.00	1	1	1	2011-02-22 00:00:00	S	0	\N	1	0	10252	21.00	1	t	f	f
 041333000985	DURACELL C Mediana 2.u	Almacen	Duracell	11000.00	9130.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10254	21.00	1	t	f	f
 7790240442106	alma mora malbec estuche	Vinos	alma mora	1900.00	1577.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10255	21.00	1	t	f	f
 7613036277341	nestle nido leche deslactosada 800	Almacen	nido	465.00	385.95	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10257	21.00	1	t	f	f
 5000548	patitas de pollos	carne	carne	430.00	50.50	2	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10258	21.00	1	t	f	f
 7793147570934	warsteiner latas x 6	Almacen	warsteiner	1200.00	996.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10259	21.00	1	t	f	f
-7790236001614	casero	Almacen	la salteñia	67.00	55.61	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10261	21.00	1	t	f	f
+7790236001614	casero	Almacen	la salteÃ±ia	67.00	55.61	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10261	21.00	1	t	f	f
 77942128	pall mall 20	cigarros	pall mall	150.00	109.50	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10262	21.00	1	t	f	f
 7791324157527	pitusa jalea y frambueza	Galletitas	par nor	1000.00	693.50	30	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10263	21.00	1	t	f	f
 7798056680439	Tapas Emp. criollas x12	tapa de empanada	Tapa Mania	1600.00	936.00	31	-15	1	1	1	2.40	2.64	2.70	1	Tapa mania	1	2009-11-06 00:00:00	S	0	\N	1	0	10265	21.00	1	t	f	f
@@ -14372,8 +14565,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 4005900517005	fresh fragancia intensa	Perfumeria	nivea men 	1500.00	546.00	25	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10346	21.00	1	t	f	f
 7790127780017	vanoli   bbq  390g	Almacen	vanoli	230.00	190.90	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10347	21.00	1	t	f	f
 7791130962476	procenex vainilla	Limpieza	procenex	230.00	66.40	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10348	21.00	1	t	f	f
-7798131250014	brisa silvestre suavizante	Limpieza	hèroe	50.00	41.50	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10349	21.00	1	t	f	f
-7798131250021	flores frutales suavizante	Limpieza	hèroe	1400.00	41.50	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10350	21.00	1	t	f	f
+7798131250014	brisa silvestre suavizante	Limpieza	hÃ¨roe	50.00	41.50	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10349	21.00	1	t	f	f
+7798131250021	flores frutales suavizante	Limpieza	hÃ¨roe	1400.00	41.50	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10350	21.00	1	t	f	f
 7790520996947	lysoform fresh discos	Perfumeria	lysoform	650.00	507.00	25	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10351	21.00	1	t	f	f
 7793890252163	valente magda chocolate	Galletitas	valente	60.00	43.80	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10352	21.00	1	t	f	f
 7793890251654	valente magda clasica	Galletitas	valente	60.00	43.80	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10353	21.00	1	t	f	f
@@ -14381,7 +14574,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791250002779	san telmo malbec 1250	Vinos	san telmo	180.00	149.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10355	21.00	1	t	f	f
 7791290793071_2	drive matic x 400	Limpieza	drive	190.00	157.70	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10356	21.00	1	t	f	f
 7795697613949	cerveza no retornable	Almacen	Grolsch	360.00	298.80	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10357	21.00	1	t	f	f
-7794000002128	Hellmann´s vegana 250	Almacen	Hellmann´s	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10358	21.00	1	t	f	f
+7794000002128	HellmannÂ´s vegana 250	Almacen	HellmannÂ´s	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10358	21.00	1	t	f	f
 7794000002005	maizena chocolate 300	Almacen	maizena	100.00	83.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10359	21.00	1	t	f	f
 7891150058125	knorr hierbas y especias	Almacen	knorr	120.00	99.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10360	21.00	1	t	f	f
 7794626996672	huggies toallas humedas  x 48	Limpieza	huggies	200.00	166.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10361	21.00	1	t	f	f
@@ -14411,7 +14604,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7500435019576	H&S shampoo 	Limpieza	H&S	240.00	199.20	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10385	21.00	1	t	f	f
 7791130001663	cobra  	Limpieza	cobra 	400.00	332.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10386	21.00	1	t	f	f
 7798313470148	interelec lampara led 5 w	Almacen	liptime	45.00	37.35	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10387	21.00	1	t	f	f
-7798031155419	lasaña 	Almacen	sol pampeano 	42.00	34.86	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10388	21.00	1	t	f	f
+7798031155419	lasaÃ±a 	Almacen	sol pampeano 	42.00	34.86	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10388	21.00	1	t	f	f
 7798031154306	mostachol rayado	Almacen	sol pampeano 	1200.00	45.65	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10389	21.00	1	t	f	f
 7790206506866	trebian marroc	Almacen	fel fort	35.00	29.05	20	-39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10390	21.00	1	t	f	f
 7790206506880	trebian dulach	Almacen	fel fort	35.00	29.05	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10391	21.00	1	t	f	f
@@ -14425,7 +14618,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337001060	ser  banana caramel	Lacteos	ser	60.00	49.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10399	21.00	1	t	f	f
 7791337006591	danette crema americana 95g	Lacteos	danette	380.00	249.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10400	21.00	1	t	f	f
 7791337006607	danette  chocolate	Almacen	danette 	600.00	498.00	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10401	21.00	1	t	f	f
-7791828000404	servilleta x 40 felpita	Almacen	FELPÌTA	25.00	20.75	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10402	21.00	1	t	f	f
+7791828000404	servilleta x 40 felpita	Almacen	FELPÃŒTA	25.00	20.75	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10402	21.00	1	t	f	f
 7730908402332	rinde 2 dos	Jugos	rinde 2	50.00	41.50	20	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10403	21.00	1	t	f	f
 7730908402660	rinde 2 dos naranja	Jugos	rinde 2 dos	50.00	41.50	20	-76	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10404	21.00	1	t	f	f
 7793890253368	valente magda chocolate	Galletitas	valente	60.00	43.80	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10405	21.00	1	t	f	f
@@ -14454,11 +14647,11 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793008005582	negro azulado 1A	Perfumeria	issue	4000.00	1248.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10428	21.00	1	t	f	f
 7793008005711	issue platino 101 	Perfumeria	issue	4400.00	546.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10429	21.00	1	t	f	f
 7793008018452	rubio osculo ceniza 6.1	Perfumeria	issue	4000.00	280.80	25	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10430	21.00	1	t	f	f
-7793008006626	castaño rojizo viola 4.65	Perfumeria	issue	360.00	280.80	25	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10431	21.00	1	t	f	f
-7793008018483	castaño claro ceniza 5.1	Perfumeria	issue	3150.00	280.80	25	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10432	21.00	1	t	f	f
+7793008006626	castaÃ±o rojizo viola 4.65	Perfumeria	issue	360.00	280.80	25	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10431	21.00	1	t	f	f
+7793008018483	castaÃ±o claro ceniza 5.1	Perfumeria	issue	3150.00	280.80	25	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10432	21.00	1	t	f	f
 7794710070103	quese untable clasico	Lacteos	veeronica	80.00	66.40	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10433	21.00	1	t	f	f
 7798092968652	bombilla resorte	Almacen	make	3800.00	2905.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10434	21.00	1	t	f	f
-7798096030850	pure tomate 520 g 	pure 	doña pupa 	700.00	511.00	30	-191	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10435	21.00	1	t	f	f
+7798096030850	pure tomate 520 g 	pure 	doÃ±a pupa 	700.00	511.00	30	-191	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10435	21.00	1	t	f	f
 77945150	felfort alfajor	Almacen	felfort	28.00	23.24	20	-47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10436	21.00	1	t	f	f
 7792410134729	Cusenier  lemonchello  700	Licores	Cusenier 	4000.00	438.00	30	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10437	21.00	1	t	f	f
 5000140	nuez mariposa	Fiambreria	fiambreria	68.75	456.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10438	21.00	1	t	f	f
@@ -14479,9 +14672,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790677703269	puro sol multifrutas	Jugos	puro sol 	75.00	62.25	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10453	21.00	1	t	f	f
 7798372110172	barr cer arand almendras	Almacen	Vitalgy	800.00	664.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10454	21.00	1	t	f	f
 7790613071537	roble claro	Almacen	suiza	4000.00	3320.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10455	21.00	1	t	f	f
-7793253005283	repuesto baño limpiezza activa	Limpieza	ayudin	2200.00	1162.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10456	21.00	1	t	f	f
+7793253005283	repuesto baÃ±o limpiezza activa	Limpieza	ayudin	2200.00	1162.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10456	21.00	1	t	f	f
 7790040133600	aguila coco alf 	Almacen	aguila	1000.00	830.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10457	21.00	1	t	f	f
-7798287170181	cerv lager 473 cm	cerveza	peñon del aguila	1800.00	1314.00	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10458	21.00	1	t	f	f
+7798287170181	cerv lager 473 cm	cerveza	peÃ±on del aguila	1800.00	1314.00	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10458	21.00	1	t	f	f
 7798111060916	yatasto buena leche	Lacteos	yatasto	23.00	19.09	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10459	21.00	1	t	f	f
 7798111060909	yatasto postre de chocolate	Lacteos	yatasto	30.00	24.90	20	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10460	21.00	1	t	f	f
 7791241800315	la lacteo manteca 100	Lacteos	la lacteo	50.00	41.50	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10461	21.00	1	t	f	f
@@ -14495,7 +14688,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7794710070134	veronica queso descremado	Lacteos	veronica	75.00	62.25	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10469	21.00	1	t	f	f
 076625259574	crisari  aceite de oliva	Almacen	crisari	100.00	83.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10470	21.00	1	t	f	f
 7500435231237	head shoulders anti comezon	Almacen	h&s	7300.00	3320.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10471	21.00	1	t	f	f
-7798287170037	ceerv negra 473 cm 	cerveza	peñon del aguila	1800.00	1314.00	30	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10472	21.00	1	t	f	f
+7798287170037	ceerv negra 473 cm 	cerveza	peÃ±on del aguila	1800.00	1314.00	30	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10472	21.00	1	t	f	f
 7792319972743	sexyhsif blan de blancs  750	Vinos	norton	4000.00	3320.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10473	21.00	1	t	f	f
 7790580148959	merme frutos rojos 390	Almacen	campagnola	3800.00	3154.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10474	21.00	1	t	f	f
 77972743	menthoplus powerade	Almacen	menthoplus	20.00	16.60	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10475	21.00	1	t	f	f
@@ -14554,7 +14747,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337533356	Yogurisimo.manzana y bananade185gr	Lacteos	Yogurisimo	40.00	33.20	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10528	21.00	1	t	f	f
 7798335282064	gandara yogur entero 185	Lacteos	gandara	30.00	24.90	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10529	21.00	1	t	f	f
 7798092968157	make filtro de bombilla	Prod.Altos	make	800.00	148.80	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10530	21.00	1	t	f	f
-7793008005513	issue tin 4 castaño	Perfumeria	issue	4400.00	2691.00	25	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10531	21.00	1	t	f	f
+7793008005513	issue tin 4 castaÃ±o	Perfumeria	issue	4400.00	2691.00	25	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10531	21.00	1	t	f	f
 7798126073086	gaona magdalena vainiolla	Galletitas	gaona	50.00	36.50	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10532	21.00	1	t	f	f
 7798126073000	gaona magdalena vainiolla	Galletitas	gaona	50.00	36.50	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10533	21.00	1	t	f	f
 7798126071563	gaona vitalita	Galletitas	gaona	53.00	38.69	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10534	21.00	1	t	f	f
@@ -14598,9 +14791,9 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792590001156	caserita pizza 	Gaseosa	caserita	1000.00	49.80	20	-50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10572	21.00	1	t	f	f
 7790040667204	cerela mix avena y pasas 	Galletitas	arcor	56.00	40.88	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10573	21.00	1	t	f	f
 7790040713703	Gall.c/avena y manzana 180g	Galletitas	arcor	50.00	36.50	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10574	21.00	1	t	f	f
-7790040669208	hogareñas de salvado 600 g	Galletitas	arcor	150.00	109.50	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10575	21.00	1	t	f	f
-7790040494206	hogareñas 7 semillas 	Galletitas	arcor	110.00	80.30	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10576	21.00	1	t	f	f
-7790040567009	hogareñas mix de ceales 600	Galletitas	arcor	100.00	73.00	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10577	21.00	1	t	f	f
+7790040669208	hogareÃ±as de salvado 600 g	Galletitas	arcor	150.00	109.50	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10575	21.00	1	t	f	f
+7790040494206	hogareÃ±as 7 semillas 	Galletitas	arcor	110.00	80.30	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10576	21.00	1	t	f	f
+7790040567009	hogareÃ±as mix de ceales 600	Galletitas	arcor	100.00	73.00	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10577	21.00	1	t	f	f
 7790040374409	cereal mix chocolate	Galletitas	arcor	50.00	36.50	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10578	21.00	1	t	f	f
 7790580123383	godet taza torta 	Almacen	godet	15.00	12.45	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10579	21.00	1	t	f	f
 7790580123406	godet torta taza choco	Almacen	godet	15.00	12.45	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10580	21.00	1	t	f	f
@@ -14626,7 +14819,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7891150058118	knorr sabor   romero tomillo	Almacen	knorr	120.00	99.60	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10600	21.00	1	t	f	f
 7794000597235	salsa 4 quesos	Almacen	knorr	65.00	53.95	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10601	21.00	1	t	f	f
 7798038152718	scott rinde max 4 uni 30 mtro	Almacen	scott	170.00	141.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10602	21.00	1	t	f	f
-7798036830311	celosas corazon bañado	Galletitas	celosa	30.00	21.90	30	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10603	21.00	1	t	f	f
+7798036830311	celosas corazon baÃ±ado	Galletitas	celosa	30.00	21.90	30	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10603	21.00	1	t	f	f
 7791179330021	queso rallado 40 amanecer	Almacen	amanecer	33.00	27.39	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10604	21.00	1	t	f	f
 7791200200682	Gin Pomelo	Prod.Altos	Bols	4500.00	2604.00	10	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10605	21.00	1	t	f	f
 7798060850019	tonadita mant 100 g	Almacen	tonadita	1700.00	1411.00	20	-95	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10606	21.00	1	t	f	f
@@ -14634,25 +14827,25 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790310981191	lays clasica x 250	Almacen	lays	110.00	91.30	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10608	21.00	1	t	f	f
 7797453971690	cachorro carne pate	Almacen	pedigree	3600.00	1909.00	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10609	10.50	1	t	f	f
 77906731	La gotita gel x 10	Almacen	la goltita	2400.00	996.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10610	21.00	1	t	f	f
-7791828900377	felpitas maxi rol 200 paños	Limpieza	felpitas	2400.00	249.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10611	21.00	1	t	f	f
+7791828900377	felpitas maxi rol 200 paÃ±os	Limpieza	felpitas	2400.00	249.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10611	21.00	1	t	f	f
 7798100150086	del cielo carioc	Galletitas	Del cielo	200.00	109.50	30	-43	1	1	1	2.25	2.59	2.04	1	del cielo	1	2010-08-30 00:00:00	S	0	\N	1	0	10612	21.00	1	t	f	f
 7790787960453	yog vain firm 190 g 	Lacteos	|Ilolay 	1200.00	747.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10613	21.00	1	t	f	f
 7622210828606	chocolate  lila go ore	Golosina	Milka	90.00	65.70	30	6	1	1	1	1.80	1.98	1.80	1	1	1	2009-05-07 00:00:00	S	0	\N	1	0	10614	21.00	1	t	f	f
 7790387000306	te de tilo x 10	te	taragui	100.00	73.00	30	-3	1	1	5404	1.81	1.99	1.81	1	maxi	1	2009-05-09 00:00:00	S	0	\N	1	0	10615	21.00	1	t	f	f
-7790040566903	cereales	Almacen	hogareñas	40.00	33.20	20	-73	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10617	21.00	1	t	f	f
+7790040566903	cereales	Almacen	hogareÃ±as	40.00	33.20	20	-73	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10617	21.00	1	t	f	f
 7790787004416	ilolay clas unt 190	Lacteos	ilolay	2000.00	1660.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10619	21.00	1	t	f	f
 7622201808884	Terrabussi anillos 170	Galletitas	Terrabussi	1500.00	197.10	30	0	753736	1	1	2.15	2.36	2.45	1	Silicaro	1	2010-06-18 00:00:00	S	0	\N	1	0	10620	21.00	1	t	f	f
 7798096051251	manopla con vegetal 	Utility	estilo spa	450.00	328.50	30	1	3636488	1	1	4.49	4.94	4.49	1	nini	1	2010-05-04 00:00:00	S	\N	\N	1	0	10621	21.00	1	t	f	f
 7791290008182	limpieza diaria	Limpieza	cif	18.50	18.87	1	14	1	1	1	9.21	\N	\N	\N	nini	0	\N	\N	0	\N	1	0	10622	21.00	1	t	f	f
 7790150331088	la virg manza/ anis 25 s	cafe	la virginia	1700.00	131.40	30	0	8000-2	1	1	11.90	13.69	9.96	1	la virginia	1	2012-07-02 00:00:00	S	0	\N	1	0	10623	21.00	1	t	f	f
-7794000960756	Ketchup x60g	Ketchup	Hellmann´s	30.00	21.90	30	2	2787784	1	1	0.95	1.05	1.07	1	Lactosur	1	2010-09-14 00:00:00	S	0	\N	1	0	10625	21.00	1	t	f	f
+7794000960756	Ketchup x60g	Ketchup	HellmannÂ´s	30.00	21.90	30	2	2787784	1	1	0.95	1.05	1.07	1	Lactosur	1	2010-09-14 00:00:00	S	0	\N	1	0	10625	21.00	1	t	f	f
 7790150811948	tuy sweet 50	Almacen	la virginia	400.00	166.00	20	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10626	21.00	1	t	f	f
 7798085681636	Citric manz 500 ml 	Jugos	citric	1700.00	1411.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10628	21.00	1	t	f	f
 7790250913313	higienico max 80 	Limpieza	higienol	330.00	273.90	20	8	1	1	1	3.00	3.30	3.00	1	1	1	2011-03-26 00:00:00	S	\N	\N	1	0	10629	21.00	1	t	f	f
 7791520071238	gel	Perfumeria	vo5	38.00	29.64	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10630	21.00	1	t	f	f
 7792360071365	Chocol taza 100 g	Galletitas	Bonafide	5700.00	4161.00	30	5	1	1	1	0.66	0.73	0.66	1	Felino	1	2009-05-21 00:00:00	S	0	\N	1	0	10631	21.00	1	t	f	f
 742832600552_3	glacier blue 500 ml 	Jugos	foursport	1000.00	830.00	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10632	21.00	1	t	f	f
-7792180139542	cañuelas arroz largo fino 500g	Almacen	cañuelas	1000.00	65.70	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10633	21.00	1	t	f	f
+7792180139542	caÃ±uelas arroz largo fino 500g	Almacen	caÃ±uelas	1000.00	65.70	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10633	21.00	1	t	f	f
 7622201816445	mantecol 64g	Almacen	mantecol 	1200.00	498.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10634	21.00	1	t	f	f
 7791293037622	Jabon energ.mint 0x125g	Jabon tocador	Rexona	80.00	58.40	30	5	4277406	1	1	4.41	5.07	5.09	1	Nini	1	2010-02-28 00:00:00	S	0	\N	1	0	10637	21.00	1	t	f	f
 7790045824909	biz c/semilla girasol 180g	Galletitas	granix	900.00	109.50	30	11	69103	1	1	1.95	2.15	3.26	1	granix	1	2010-03-29 00:00:00	S	0	\N	1	0	10639	21.00	1	t	f	f
@@ -14682,7 +14875,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7500435148320	h & s acondicionador 	Perfumeria	h&s	650.00	429.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10663	21.00	1	t	f	f
 7793147571818	GROLSH lata x 6	Almacen	grolsh	1320.00	1095.60	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10664	21.00	1	t	f	f
 7793147571795	warsteiner X 6 473	Jugos	warsteiner	2000.00	1660.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10665	21.00	1	t	f	f
-7790387015324	mañanita yerba 500 g 	Almacen	mañanita	2400.00	1992.00	40	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10666	21.00	1	t	f	f
+7790387015324	maÃ±anita yerba 500 g 	Almacen	maÃ±anita	2400.00	1992.00	40	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10666	21.00	1	t	f	f
 7798171732167	sabores sal marinas	Almacen	sabores	1700.00	166.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10667	21.00	1	t	f	f
 7798171730477	sabores chips de batatitas 	Almacen	sabores	1400.00	149.40	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10668	21.00	1	t	f	f
 7791813080039	paso de los toros 1.50	Gaseosa	toros	2200.00	415.00	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10669	21.00	1	t	f	f
@@ -14697,10 +14890,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790360967824	SWIFT MILANESAS DE SOJA	Almacen	SWIFT 	260.00	215.80	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10678	21.00	1	t	f	f
 7790360967800	SWIFT MILANESAS DE SOJA	Almacen	SWIFT 	280.00	232.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10679	21.00	1	t	f	f
 7790360967794	SWIFT MILANESAS DE SOJA	Almacen	SWIFT 	280.00	232.40	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10680	21.00	1	t	f	f
-7798302400019	doña elsa sin frutas budin	Galletitas	doña elsa	50.00	36.50	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10681	21.00	1	t	f	f
-7798302400026	doña elsa budin c frutas	Galletitas	doña elsa	50.00	36.50	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10682	21.00	1	t	f	f
-7798302400040	doña elsa budin con chips	Almacen	doña elsa	50.00	41.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10683	21.00	1	t	f	f
-7798302400033	doña elsa budin marmolado	Galletitas	doña elsa	50.00	36.50	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10684	21.00	1	t	f	f
+7798302400019	doÃ±a elsa sin frutas budin	Galletitas	doÃ±a elsa	50.00	36.50	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10681	21.00	1	t	f	f
+7798302400026	doÃ±a elsa budin c frutas	Galletitas	doÃ±a elsa	50.00	36.50	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10682	21.00	1	t	f	f
+7798302400040	doÃ±a elsa budin con chips	Almacen	doÃ±a elsa	50.00	41.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10683	21.00	1	t	f	f
+7798302400033	doÃ±a elsa budin marmolado	Galletitas	doÃ±a elsa	50.00	36.50	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10684	21.00	1	t	f	f
 7792612000051	tassara harina leudante	Almacen	tassara	70.00	58.10	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10685	10.50	1	t	f	f
 7790047000233	smell fresh original	Limpieza	smell	150.00	124.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10686	21.00	1	t	f	f
 7790645011136	gentleman vinagre de alcohol 500	Almacen	gentleman	60.00	49.80	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10687	21.00	1	t	f	f
@@ -14712,7 +14905,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790787960514	yogur fruti 900 	Lacteos	Ilolay	2300.00	1328.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10693	21.00	1	t	f	f
 7798016109451	La Comarca salch 12 380g	salchicha	La Comarca	1800.00	747.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10694	21.00	1	t	f	f
 7791337003231	ser vainilla yogor	Almacen	ser	170.00	141.10	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10695	21.00	1	t	f	f
-7790380014652	torroni garrapiñada	Almacen	torroni	50.00	41.50	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10696	21.00	1	t	f	f
+7790380014652	torroni garrapiÃ±ada	Almacen	torroni	50.00	41.50	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10696	21.00	1	t	f	f
 7790380034179	torroni crocante de mni 	Almacen	torroni	45.00	37.35	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10697	21.00	1	t	f	f
 7790380012153	torroni turron de mani	Almacen	torroni	50.00	41.50	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10698	21.00	1	t	f	f
 7791293040554	suave shampoo 	Perfumeria	suave	240.00	156.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10699	21.00	1	t	f	f
@@ -14728,7 +14921,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7500435171335	magistral 500ml	Limpieza	magistral 	180.00	149.40	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10709	21.00	1	t	f	f
 7790520991034	raid cucaracha	Limpieza	raid	400.00	332.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10710	21.00	1	t	f	f
 7798014062376	dismar alcohol	Limpieza	dismar	130.00	107.90	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10711	21.00	1	t	f	f
-7792900916606	dos anclas baño repostero	Almacen	dos anclas	150.00	124.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10712	21.00	1	t	f	f
+7792900916606	dos anclas baÃ±o repostero	Almacen	dos anclas	150.00	124.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10712	21.00	1	t	f	f
 7790310982990	papaps acanaladas pehuamar	Almacen	pehuamar	400.00	332.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10713	21.00	1	t	f	f
 7793147571450	heineken 473 x 4	Almacen	keineken	420.00	348.60	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10714	21.00	1	t	f	f
 7791813888239	7 up  gaseosa 245	Gaseosa	7 up	1800.00	1494.00	20	-154	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10715	21.00	1	t	f	f
@@ -14771,11 +14964,11 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7702026196400	nosotras b.noches 	Limpieza	nosotras	720.00	597.60	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10752	21.00	1	t	f	f
 7791620187327	danica salsa golf	Almacen	danica	260.00	91.30	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10753	21.00	1	t	f	f
 8445291389021	nido 200 g leche	Almacen	nido	4000.00	3320.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10754	21.00	1	t	f	f
-7798090071255	sin culpa bañado sabor limon 	Galletitas	sin culpa	180.00	65.70	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10755	21.00	1	t	f	f
+7798090071255	sin culpa baÃ±ado sabor limon 	Galletitas	sin culpa	180.00	65.70	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10755	21.00	1	t	f	f
 7798053122031	repasador de tela 250	Almacen	repasador	300.00	124.50	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10756	21.00	1	t	f	f
 7793147572273	imperial ipa pack x 6	Gaseosa	imperial	13500.00	9960.00	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10757	21.00	1	t	f	f
 7790990500002	zorro ultra gatillo cocina	Almacen	zorro ultra	150.00	124.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10758	21.00	1	t	f	f
-7790990500033	zorro ultra gatillo baño	Almacen	zorro ultra	150.00	124.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10759	21.00	1	t	f	f
+7790990500033	zorro ultra gatillo baÃ±o	Almacen	zorro ultra	150.00	124.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10759	21.00	1	t	f	f
 7792900000312	dos anclas salsa caesar	Almacen	dos anclas	280.00	232.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10760	21.00	1	t	f	f
 7790040124417	polvorita de limon 	Almacen	lia 	35.00	29.05	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10761	21.00	1	t	f	f
 7798096059691	spa perfumina pomelo	Perfumeria	spa	140.00	109.20	25	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10762	21.00	1	t	f	f
@@ -14808,7 +15001,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790310983164	cheetos 48 g	snacks	cheetos	75.00	62.25	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10789	21.00	1	t	f	f
 7790645001120	gentleman durazno mited	Almacen	gentleman	170.00	141.10	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10790	21.00	1	t	f	f
 7798165080038	la fride roble	Vinos	la fride	240.00	199.20	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10791	21.00	1	t	f	f
-7790480009114	viñas de alvear 700 tinto	Vinos	viñas de alvear	100.00	83.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10792	21.00	1	t	f	f
+7790480009114	viÃ±as de alvear 700 tinto	Vinos	viÃ±as de alvear	100.00	83.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10792	21.00	1	t	f	f
 7790971001924	ravana flan light	Almacen	ravana	30.00	24.90	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10793	21.00	1	t	f	f
 7790971002198	ravana gelatimn durazno	Almacen	ravana	50.00	41.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10794	21.00	1	t	f	f
 790757828100	guacho alf choc 	Almacen	Guacho	1200.00	996.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10796	21.00	1	t	f	f
@@ -14830,7 +15023,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7795735601167	don satur magadalena	Almacen	don satur	1400.00	49.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10812	21.00	1	t	f	f
 7795735601174	don satur magdalena dulce de leche	Almacen	don satur	1400.00	166.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10813	21.00	1	t	f	f
 7798085681834	citric naranja  1 litro 	Jugos	citric	3800.00	2988.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10814	21.00	1	t	f	f
-7790040148789	bagley 160 años 	Almacen	bagley	13000.00	10790.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10815	21.00	1	t	f	f
+7790040148789	bagley 160 aÃ±os 	Almacen	bagley	13000.00	10790.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10815	21.00	1	t	f	f
 7790787960538	yogur durazno 900	Lacteos	Ilolay	2000.00	1328.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10816	21.00	1	t	f	f
 7792798002214	quilmes bock x6	Almacen	quilmes 	8500.00	7055.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10817	21.00	1	t	f	f
 7798176080249	ins 60 x 90 bol  res	Limpieza	insulimp	1500.00	332.00	20	-138	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10818	21.00	1	t	f	f
@@ -14846,7 +15039,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337009967	Yogur griego vain/cereal 168 g	Yogures	Yogurisimo	3000.00	2490.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10828	21.00	1	t	f	f
 7790150211793	la virginia x 25 	Almacen	la virginia	70.00	58.10	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10829	21.00	1	t	f	f
 7793008001935	issue 20 vol	Limpieza	issue	1600.00	1328.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10830	21.00	1	t	f	f
-7790990500057	zorro ultra baño 500	Almacen	zorro ultra	70.00	58.10	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10831	21.00	1	t	f	f
+7790990500057	zorro ultra baÃ±o 500	Almacen	zorro ultra	70.00	58.10	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10831	21.00	1	t	f	f
 7790990990766	zorro ultra antimancha 500	Almacen	zorro ultra	120.00	99.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10832	21.00	1	t	f	f
 7790990500026	zorro ultra cocina 500	Almacen	zorro ultra	70.00	58.10	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10833	21.00	1	t	f	f
 7790990500088	zorro ultra vidrio	Almacen	zorro ultra	70.00	58.10	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10834	21.00	1	t	f	f
@@ -14892,7 +15085,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790310983171	cheetoos 95 g 	Almacen	chettos	160.00	132.80	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10874	21.00	1	t	f	f
 7790310983003	papas pehuamar 500 g	Almacen	pehuamar 	400.00	332.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10875	21.00	1	t	f	f
 1007	hielo x 2kilos	Almacen	hermida	3500.00	2490.00	20	-71	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10876	21.00	1	t	f	f
-7790070621023	la salteña raviole pollo verdura	Almacen	la salteña	1000.00	830.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10877	21.00	1	t	f	f
+7790070621023	la salteÃ±a raviole pollo verdura	Almacen	la salteÃ±a	1000.00	830.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10877	21.00	1	t	f	f
 7798106150455	mora arveja 	Almacen	mora	45.00	37.35	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10878	21.00	1	t	f	f
 7798321151510	vida frutilla  190g	Lacteos	sancor	550.00	456.50	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10879	21.00	1	t	f	f
 7790150433423	saborisado	Almacen	Alicante	260.00	215.80	20	-33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10880	21.00	1	t	f	f
@@ -14904,7 +15097,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793207000081	benidorm salsa golf  500	Almacen	benidorm	450.00	290.50	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10886	21.00	1	t	f	f
 7794000005266	Maizena pan y pizza 500	Almacen	Maizena	210.00	174.30	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10887	21.00	1	t	f	f
 7794000005280	Maizena chipa 250g 	Almacen	Maizena	250.00	207.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10888	21.00	1	t	f	f
-7794000005273	Maizena ñoquis 400 g	Almacen	Maizena	230.00	190.90	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10889	21.00	1	t	f	f
+7794000005273	Maizena Ã±oquis 400 g	Almacen	Maizena	230.00	190.90	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10889	21.00	1	t	f	f
 7790070036247	veggies gren life arvej y brocoli x 2	Almacen	veggies gren life 	5000.00	4150.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10890	21.00	1	t	f	f
 7790670051916	veggies gren life calabaza y choclo	Almacen	veggies gren life 	350.00	166.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10891	21.00	1	t	f	f
 7790670051923	veggies gren life lenteja y zanahoris	Almacen	veggies gren life 	1400.00	1162.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10892	21.00	1	t	f	f
@@ -14956,7 +15149,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798304841148	frigor sin parar choco alfajor 	helados	frigor	3400.00	2822.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10938	21.00	1	t	f	f
 7613053750753	frigor sin parar 90 g 	helados	frigor	1600.00	1328.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	10939	21.00	1	t	f	f
 7798162671789	caber-sauv vino 750 ml	Vinos	Oveja negra 	2800.00	2324.00	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10940	21.00	1	t	f	f
-7792180139320	cañuela 000 refinada	Almacen	cañuela	900.00	257.30	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10941	21.00	1	t	f	f
+7792180139320	caÃ±uela 000 refinada	Almacen	caÃ±uela	900.00	257.30	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10941	21.00	1	t	f	f
 7792290000398	lenteja remojada 340 g 	Almacen	montenevi	700.00	581.00	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10942	21.00	1	t	f	f
 7798064780459	pan de mesa chico	Almacen	tio guis	1400.00	1162.00	20	-47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10943	21.00	1	t	f	f
 7791337009615	flan caramelo flan 	Yogures	serenisima	1700.00	830.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	10944	21.00	1	t	f	f
@@ -15039,7 +15232,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790580299903	huevos tofi 115 g 	huevos de pascuas	tofi	6800.00	401.50	30	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11021	21.00	1	t	f	f
 7790580434007	bon o bon blanco huevos  125 g	Huevos de pascua	bon o bon	560.00	408.80	30	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11022	21.00	1	t	f	f
 7790580140274	rocklets simone 22 g	Huevos de pascua	rocklets	13000.00	6935.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11023	21.00	1	t	f	f
-7798350081246	Duffy XG 18 PAÑ	Perfumeria	Duffy	6700.00	5226.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11024	21.00	1	t	f	f
+7798350081246	Duffy XG 18 PAÃ‘	Perfumeria	Duffy	6700.00	5226.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11024	21.00	1	t	f	f
 7790787035007	yogur fruta trozo 150 g 	Lacteos	Ilolay	1300.00	913.00	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11025	21.00	1	t	f	f
 7790787087211	postre vain c top crispin 110 g	Lacteos	ilolay 	1900.00	913.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11026	21.00	1	t	f	f
 77941169	rocklets conejo 110 g 	Huevos de pascua	rocklets	200.00	142.00	32	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11027	21.00	1	t	f	f
@@ -15137,7 +15330,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337340015	sere gran compra yogur vainilla 1l	Lacteos	serenisima	60.00	49.80	20	-42	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11119	21.00	1	t	f	f
 7791337340022	sere gran compra yogur frutilla 1l	Lacteos	serenisima	60.00	49.80	20	-54	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11120	21.00	1	t	f	f
 7792798999866	andes lata 473 rubia	cerveza	andes	2000.00	1660.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11121	21.00	1	t	f	f
-7790070318183	don vicente moños	Almacen	don viente	2300.00	224.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11122	21.00	1	t	f	f
+7790070318183	don vicente moÃ±os	Almacen	don viente	2300.00	224.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11122	21.00	1	t	f	f
 7790070411914	gallo yamani 500g	Almacen	gallo	400.00	249.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11123	21.00	1	t	f	f
 7790070411792	gallo carnaroli para risotto 500g	Almacen	gallo	600.00	207.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11124	21.00	1	t	f	f
 7790070411761	gallo ristto primavera 200g	Almacen	gallo	100.00	83.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11125	21.00	1	t	f	f
@@ -15164,7 +15357,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798141970353	la providencia  tallarin	fideos	la providencia 	26.00	18.98	30	-81	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11146	21.00	1	t	f	f
 7798141970346	la providencia spaghetti	fideos	la providencia 	100.00	73.00	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11147	21.00	1	t	f	f
 7798141970407	la providencia municion	fideos	la providencia 	1000.00	18.98	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11148	21.00	1	t	f	f
-7798141970414	la providencia moños	fideos	la providencia 	30.00	21.90	30	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11149	21.00	1	t	f	f
+7798141970414	la providencia moÃ±os	fideos	la providencia 	30.00	21.90	30	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11149	21.00	1	t	f	f
 7793875853033	valle de uco ciruelas sin carozo	Almacen	valle unco	50.00	41.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11150	21.00	1	t	f	f
 7622300424084	shot 170 gr	Almacen	shot	520.00	431.60	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11151	21.00	1	t	f	f
 7790740000325	plus sh  luminosidad .x1lt	Perfumeria	plusbelle	3200.00	663.00	25	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11152	21.00	1	t	f	f
@@ -15273,17 +15466,17 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790580134761	la campagnola ave maria fideo	fideos	la campagnola	100.00	73.00	30	14	1	1	1	2.61	2.87	2.61	1	1	1	2011-04-12 00:00:00	S	\N	\N	1	0	11255	21.00	1	t	f	f
 7793046007210	durazno ligth cormillot merm s azucar	Almacen	dulcor	700.00	255.50	30	-12	3575	1	1	9.50	10.45	9.50	1	vermart	1	2011-04-13 00:00:00	S	0	\N	1	0	11256	21.00	1	t	f	f
 7792129003354	equal sweet granulado	edulcorante	EqualSweet	80.00	66.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11258	21.00	1	t	f	f
-7793806000086	tapa grande	Almacen	la santiagueña	37.00	30.71	20	23				3.10	3.41	3.10	1		1	2011-04-20 00:00:00	S	0	\N	1	0	11261	21.00	1	t	f	f
+7793806000086	tapa grande	Almacen	la santiagueÃ±a	37.00	30.71	20	23				3.10	3.41	3.10	1		1	2011-04-20 00:00:00	S	0	\N	1	0	11261	21.00	1	t	f	f
 7891150017849	dove crema corporal	Perfumeria	dove	140.00	109.20	25	-1	1	1	1	7.20	7.92	7.20	1	1	1	2011-04-20 00:00:00	S	0	\N	1	0	11264	21.00	1	t	f	f
 7790150210000	te negro intenso 20 saq 40 g	infusiones	la virginia	900.00	747.00	20	3	81220-6	1	1	4.41	4.85	4.41	1	la virginia	1	2011-04-21 00:00:00	S	0	\N	1	0	11265	21.00	1	t	f	f
 7798113301345	manzana 2.25	Gaseosa	Manaos	1500.00	1095.00	30	-24	1	1	1	3.00	3.30	3.00	1	1	1	2011-04-25 00:00:00	S	0	\N	1	0	11266	21.00	1	t	f	f
 7797453971003	whiskas atun y sardina	Almacen	wuiskas	22.00	16.06	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11267	21.00	1	t	f	f
 7793147009199	heineken lata 473	Almacen	heineken	3200.00	1411.00	20	-163	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11268	21.00	1	t	f	f
 7793654000023	independencia azucar  1kg	Almacen	dos anclas	250.00	207.50	20	-44	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11269	21.00	1	t	f	f
-7790883000107	la salteña lacteado 390 g 	Almacen	la salteña	35.00	29.05	20	-287	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11270	21.00	1	t	f	f
-7790883005003	la salteña pan de pancho	Almacen	la salteña	25.00	20.75	20	-697	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11271	21.00	1	t	f	f
+7790883000107	la salteÃ±a lacteado 390 g 	Almacen	la salteÃ±a	35.00	29.05	20	-287	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11270	21.00	1	t	f	f
+7790883005003	la salteÃ±a pan de pancho	Almacen	la salteÃ±a	25.00	20.75	20	-697	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11271	21.00	1	t	f	f
 7791337915817	ser flan caser	Almacen	serenisima	45.00	37.35	20	-61	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11273	21.00	1	t	f	f
-7790883000015	lacteado gr	Almacen	la salteña	55.00	45.65	20	-168	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11274	21.00	1	t	f	f
+7790883000015	lacteado gr	Almacen	la salteÃ±a	55.00	45.65	20	-168	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11274	21.00	1	t	f	f
 7791473000811	bizcochuelo x 3 hojas	Almacen	don mose	16.70	13.86	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11275	21.00	1	t	f	f
 7791436000360	filetes de anchoas  90g	Almacen	finesterre	12.00	9.96	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11276	21.00	1	t	f	f
 7798092964128	rejilla doble  cocina	Limpieza	make	900.00	166.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11277	21.00	1	t	f	f
@@ -15300,8 +15493,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798096051435	esponja de hueso	Perfumeria	spa	2000.00	1560.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11288	21.00	1	t	f	f
 7798096051428	esponja masajeadora	Perfumeria	spa	2000.00	1560.00	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11289	21.00	1	t	f	f
 7790606000186	lactal fino	Almacen	noly	39.00	32.37	20	-2	1	1	1	6.00	6.60	6.00	1	1	1	2011-04-21 00:00:00	S	\N	\N	1	0	11290	21.00	1	t	f	f
-7790236000273	sorrentino jamon y queso	Almacen	la salteña	24.25	20.13	20	-47				14.00	15.40	14.00	1		1	2011-04-21 00:00:00	S	\N	\N	1	0	11291	21.00	1	t	f	f
-7790236000280	sorrentino capreze	Almacen	la salteña	23.50	19.51	20	-9				14.00	15.40	14.00	1		1	2011-04-21 00:00:00	S	\N	\N	1	0	11292	21.00	1	t	f	f
+7790236000273	sorrentino jamon y queso	Almacen	la salteÃ±a	24.25	20.13	20	-47				14.00	15.40	14.00	1		1	2011-04-21 00:00:00	S	\N	\N	1	0	11291	21.00	1	t	f	f
+7790236000280	sorrentino capreze	Almacen	la salteÃ±a	23.50	19.51	20	-9				14.00	15.40	14.00	1		1	2011-04-21 00:00:00	S	\N	\N	1	0	11292	21.00	1	t	f	f
 7794940000758	hileret stevia	Almacen	hileret	2200.00	37.35	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11294	21.00	1	t	f	f
 7790010002639	siempre libre especial adp suave 8	Perfumeria	siempre libre	450.00	328.50	30	0	4348834	1	1	6.08	6.69	6.08	1	nini	1	2011-04-23 00:00:00	S	0	\N	1	0	11297	21.00	1	t	f	f
 7790010614849	siempre libre ultra fina	Limpieza	siempre libre	110.00	80.30	30	-18	4348710	1	1	6.08	6.69	6.08	1	nini	1	2011-04-23 00:00:00	S	\N	\N	1	0	11298	21.00	1	t	f	f
@@ -15329,7 +15522,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790895006036	Powerade manzana 995	Jugos	powerade	2800.00	2324.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11328	21.00	1	t	f	f
 7791337651227	yogurisimo sab.frutilla 190	Lacteos	la serenisima	80.00	66.40	20	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11329	21.00	1	t	f	f
 7798061891400	romyl pala plastica goma	Limpieza	romyl	30.00	24.90	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11330	21.00	1	t	f	f
-7790726000585	DULCIPAS CHIP´S  x200gr	Galletitas	dulcipas	60.00	49.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11331	21.00	1	t	f	f
+7790726000585	DULCIPAS CHIPÂ´S  x200gr	Galletitas	dulcipas	60.00	49.80	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11331	21.00	1	t	f	f
 7790726120030	galletitas dulce x200gr	Galletita>>s	dfulcipas	800.00	4.15	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11332	21.00	1	t	f	f
 7798130958379	MEGA WATER PISTOLA	Prod.Altos	WATER	320.00	297.60	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11333	21.00	1	t	f	f
 7506195184622	x - dri antitranspirante 	Perfumeria	gillette	13.50	10.53	25	0	1	1	1	8.00	8.80	8.00	1	1	1	2011-04-29 00:00:00	S	\N	\N	1	0	11334	21.00	1	t	f	f
@@ -15371,12 +15564,12 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791290793729	Vivere viol flores 900	Limpieza	vivere	2700.00	1660.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11385	21.00	1	t	f	f
 7622210733887	pasas  cadbury	Almacen	cadbury	100.00	83.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11386	21.00	1	t	f	f
 7793046007296	merm cormillot  light s/azucar	Almacen	dulcor	3800.00	207.50	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11388	21.00	1	t	f	f
-7790236000259	capelletti	Almacen	la salteña	21.50	17.85	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11389	21.00	1	t	f	f
+7790236000259	capelletti	Almacen	la salteÃ±a	21.50	17.85	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11389	21.00	1	t	f	f
 7792798003716	corona  710	cerveza	corona	4700.00	647.40	20	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11391	21.00	1	t	f	f
 7794000004320	knorr sopa crema  choclo	Almacen	knorr	100.00	83.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11393	21.00	1	t	f	f
 7500435017053	oral b complete star wars	Perfumeria	oral b	320.00	249.60	25	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11394	21.00	1	t	f	f
 7794000004887	knorr b horno lim oreg	Almacen	knorr	2800.00	149.40	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11396	21.00	1	t	f	f
-7622201818579	tres sueños 25 g	Almacen	cadbury	1300.00	1328.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11397	21.00	1	t	f	f
+7622201818579	tres sueÃ±os 25 g	Almacen	cadbury	1300.00	1328.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11397	21.00	1	t	f	f
 7790480008773	mate cosido x 50	Almacen	la tranquera	150.00	124.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11398	21.00	1	t	f	f
 7798050150495	tomate triturado	Almacen	cialpil	42.00	34.86	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11400	21.00	1	t	f	f
 7790250014652	papel x 6	Almacen	higienol	14.00	11.62	20	-104	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11401	21.00	1	t	f	f
@@ -15402,18 +15595,18 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7792260639696	orieta merme frutilla	Almacen	orieta	110.00	91.30	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11424	21.00	1	t	f	f
 7792319972699	norton 1000 rosas 750	Almacen	norton	3000.00	1079.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11425	21.00	1	t	f	f
 7791337001800	yugur crema vainilla 140 g	lacteo	serenisima	55.00	45.65	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11430	21.00	1	t	f	f
-7500435167864	aluways tranquilas8 con alas	Limpieza	aluways	2800.00	2324.00	20	12	\N	\N	\N	\N	\N	\N	\N	Fábrica	\N	\N	\N	\N	\N	1	0	11433	21.00	1	t	f	f
+7500435167864	aluways tranquilas8 con alas	Limpieza	aluways	2800.00	2324.00	20	12	\N	\N	\N	\N	\N	\N	\N	FÃ¡brica	\N	\N	\N	\N	\N	1	0	11433	21.00	1	t	f	f
 7798079711431	torrontes 1.20	Almacen	la candela	13.50	11.21	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11434	21.00	1	t	f	f
 7798079711691	cabernet sauvigon	Almacen	la candela	15.50	12.87	20	-171	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11435	21.00	1	t	f	f
 7798079711707	malbec - bonarda	Almacen	la candela	17.00	14.11	20	-116	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11436	21.00	1	t	f	f
 7791250002977	vat 69 	Licores	vat  69	1070.00	781.10	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11437	21.00	1	t	f	f
 7798134521036	trigi inflado	Almacen	el maizal	18.00	14.94	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11438	21.00	1	t	f	f
 7790310005309	chetos	Almacen	pepsico	55.00	45.65	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11439	21.00	1	t	f	f
-7790883003504	pan de hamburguesa	Almacen	la salteña	25.00	20.75	20	-585	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11440	21.00	1	t	f	f
+7790883003504	pan de hamburguesa	Almacen	la salteÃ±a	25.00	20.75	20	-585	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11440	21.00	1	t	f	f
 7791337530287	chocolate belga	Almacen	serenisima	50.00	41.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11441	21.00	1	t	f	f
 7793253002435	poett 900 brisa polar	Almacen	poett	75.00	62.25	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11442	21.00	1	t	f	f
 7798096051503	exponja exofilante	Perfumeria	spa	1500.00	1170.00	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11443	21.00	1	t	f	f
-7790883002101	la salteña pan mesa	Almacen	la salteña	35.00	29.05	20	-258	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11444	21.00	1	t	f	f
+7790883002101	la salteÃ±a pan mesa	Almacen	la salteÃ±a	35.00	29.05	20	-258	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11444	21.00	1	t	f	f
 7791337530270	danette sab.chocolate suizo	Lacteos	la serenisima	50.00	41.50	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11445	21.00	1	t	f	f
 7798081669164	0-61 red blend 750 ml 	Vinos	0-61	6500.00	3735.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11446	21.00	1	t	f	f
 7790139002879	fernet 1882	Licores	1882	7500.00	1022.00	30	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11447	21.00	1	t	f	f
@@ -15422,10 +15615,10 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791564012495	Adler ques azul 100 g 	Fiambreria	Adler	2500.00	124.50	20	-7				6.00	6.60	6.00	1		1	2011-07-16 00:00:00	S	0	\N	1	0	11450	21.00	1	t	f	f
 7891010010577	ob tamnpones super	Perfumeria	o .b	100.00	78.00	25	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11451	21.00	1	t	f	f
 77971944	cofler bolck  89 g	Dulce	cofler	30.00	24.90	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11452	21.00	1	t	f	f
-7790883002002	pan de mesa	Almacen	la salteña	19.70	16.35	20	-80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11453	21.00	1	t	f	f
-7790883001104	pan doble salvado	Almacen	la salteña	45.00	37.35	20	-109	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11454	21.00	1	t	f	f
+7790883002002	pan de mesa	Almacen	la salteÃ±a	19.70	16.35	20	-80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11453	21.00	1	t	f	f
+7790883001104	pan doble salvado	Almacen	la salteÃ±a	45.00	37.35	20	-109	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11454	21.00	1	t	f	f
 7790071070134	riera light 200 g	Galletitas	riera	1800.00	1314.00	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11456	21.00	1	t	f	f
-7798056680491	ñoquis 	pastas	la nonina	2200.00	539.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11459	21.00	1	t	f	f
+7798056680491	Ã±oquis 	pastas	la nonina	2200.00	539.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11459	21.00	1	t	f	f
 7791113001598	emeth postre de chocolade	Almacen	emeth	12.00	9.96	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11460	21.00	1	t	f	f
 7790070760722	malbec x  750	Vinos	emilia	6000.00	4980.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11461	21.00	1	t	f	f
 7793440000329	malbec bonarda x 750ml	Vinos	emilia	39.00	32.37	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11462	21.00	1	t	f	f
@@ -15443,14 +15636,14 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790613000254	suiza cera liquida para piso incoloro	Limpieza	suiza	3000.00	249.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11477	21.00	1	t	f	f
 7790742223005	Queso regianito 70 G	Lacteos	la serenisima	2600.00	1743.00	20	-16				8.85	9.74	8.85	1	376	1	2011-07-16 00:00:00	S	0	\N	1	0	11478	21.00	1	t	f	f
 7797453001496	pouch souffle 85 g	alimentos	whiskas	1200.00	830.00	20	-7	1	1	1	8.25	9.08	8.25	1	1	1	2011-07-16 00:00:00	S	0	\N	1	0	11479	21.00	1	t	f	f
-7790070337016	lasagña 250 gr	Almacen	matarazzo	2000.00	1411.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11482	21.00	1	t	f	f
+7790070337016	lasagÃ±a 250 gr	Almacen	matarazzo	2000.00	1411.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11482	21.00	1	t	f	f
 7790070336217	fideos mostachol n52	Almacen	matarazzo	1600.00	1162.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11483	21.00	1	t	f	f
 7702425545953	toallas nocturnas kotex day's	Perfumeria	kotes day's	15.00	11.70	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11485	21.00	1	t	f	f
 8727900878455	eco home 14 w 	Almacen	philips	18.00	14.94	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11487	21.00	1	t	f	f
 7795403000056	pan lacteado  550 g 	Almacen	mayo	25.00	20.75	20	-88	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11488	21.00	1	t	f	f
 7795403000094	pan de salvado diet 400 g 	Almacen	mayo	55.00	45.65	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11489	21.00	1	t	f	f
 7793253004255	poett de bebe	Almacen	poett	2600.00	2158.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11490	21.00	1	t	f	f
-7790883001159	doble salvado 600	Almacen	la salteña	22.90	19.01	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11491	21.00	1	t	f	f
+7790883001159	doble salvado 600	Almacen	la salteÃ±a	22.90	19.01	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11491	21.00	1	t	f	f
 7791337004207	ser natural 185	Lacteos	ser	170.00	141.10	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11492	21.00	1	t	f	f
 7790740505509	sham.algas marinas	Almacen	plusbelle	180.00	149.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11493	21.00	1	t	f	f
 7790740505523	sham.bambu y aloe vera	Almacen	plusbelle	180.00	149.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11494	21.00	1	t	f	f
@@ -15465,7 +15658,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798187210581	quento papas 45 	Almacen	quento	400.00	332.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11503	21.00	1	t	f	f
 7501086494262	oral b cepi suave clear	Perfumeria	oral b	2300.00	351.00	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11504	21.00	1	t	f	f
 7790360026606	swift 160g  x 2 uni clasica roja	paty	swift	3000.00	438.00	30	29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11505	21.00	1	t	f	f
-7790236002086	salteña ÑOQUI	Almacen	la salteña	100.00	83.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11506	21.00	1	t	f	f
+7790236002086	salteÃ±a Ã‘OQUI	Almacen	la salteÃ±a	100.00	83.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11506	21.00	1	t	f	f
 7791290793743	clasico 3 l	Limpieza	vivere	9000.00	7470.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11508	21.00	1	t	f	f
 7791290782600	jabon x 1 l skip	Limpieza	skip	65.00	53.95	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11511	21.00	1	t	f	f
 7791290790889	jabon x 800 skip doy pack 	Limpieza	skip	340.00	282.20	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11512	21.00	1	t	f	f
@@ -15481,17 +15674,17 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798359330123	pasta multicereal sin gluten 400 g 	fideos	Cusinor	3000.00	2190.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11524	21.00	1	t	f	f
 7790060053063	nobleza gaucha s/palos x500g	Almacen	nobleza gaucha	13.50	11.21	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11525	21.00	1	t	f	f
 7790503198719	dos hermanos harina de arroz 500	Almacen	dos hermanos	32.00	26.56	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11527	10.50	1	t	f	f
-7891000062586	NIDO 3 años 800g	Almacen	nestle	160.00	132.80	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11528	21.00	1	t	f	f
+7891000062586	NIDO 3 aÃ±os 800g	Almacen	nestle	160.00	132.80	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11528	21.00	1	t	f	f
 7798362627722	SOJA salsa 270 ml	Almacen	Saws	1300.00	1079.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11529	21.00	1	t	f	f
 7622201492465	milka choco pause	Galletitas	milka	1200.00	197.10	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11530	21.00	1	t	f	f
-7622300759506	choco pàradise by oroe 70 g 	golosina	milka	200.00	146.00	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11531	21.00	1	t	f	f
+7622300759506	choco pÃ radise by oroe 70 g 	golosina	milka	200.00	146.00	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11531	21.00	1	t	f	f
 7798136056000	max aroma naranja	Limpieza	max aroma	2600.00	2158.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11532	21.00	1	t	f	f
 7798134070688	Signo jabon en pan 150 g	Limpieza	Signo	800.00	664.00	20	31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11533	21.00	1	t	f	f
 7891079012895	pollo 69 g	Almacen	cup noodles	2600.00	2158.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11534	21.00	1	t	f	f
 7791600173357	paco desodorante	Almacen	paco	130.00	107.90	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11535	21.00	1	t	f	f
 7790580120146	cofler  bolck xl	Almacen	cofler  	90.00	74.70	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11537	21.00	1	t	f	f
 7790580128555	arcor uva	Almacen	godet	20.00	16.60	20	-84	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11538	21.00	1	t	f	f
-7790040569706	hogareñas	Almacen	hogareñas	50.00	41.50	20	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11539	21.00	1	t	f	f
+7790040569706	hogareÃ±as	Almacen	hogareÃ±as	50.00	41.50	20	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11539	21.00	1	t	f	f
 77965370	granolas cereal mix	Almacen	cereal mix	850.00	149.40	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11540	21.00	1	t	f	f
 7791250002717	smirnoff citric	Licores	smirnoff	600.00	438.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11542	21.00	1	t	f	f
 77917324	Halls pastillas vita-c	Almacen	halls	500.00	74.70	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11543	21.00	1	t	f	f
@@ -15527,7 +15720,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790639003444	tonica cunnin 2.25	Gaseosa	cunnington	1700.00	415.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11578	21.00	1	t	f	f
 7790639003857	pomelo	Gaseosa	cunnington	1600.00	415.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11579	21.00	1	t	f	f
 7790580259600	mogul diente 160 g 	Almacen	mogul	700.00	539.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11580	21.00	1	t	f	f
-7791070005707	sol mayor 50 paños 	Almacen	Sol mayor	1500.00	332.00	20	-83	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11581	21.00	1	t	f	f
+7791070005707	sol mayor 50 paÃ±os 	Almacen	Sol mayor	1500.00	332.00	20	-83	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11581	21.00	1	t	f	f
 7798183771772	Caja Shot Alfajor 	Almacen	SHOT	10000.00	2656.00	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11582	21.00	1	t	f	f
 7790206006106	marroc bocadito	Dulce	felfort	800.00	124.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11583	21.00	1	t	f	f
 7798183770539	grido 4 sabores	Almacen	 grido	16000.00	13280.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11584	21.00	1	t	f	f
@@ -15556,8 +15749,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790520025869	fuyi mosca y mosq 360 cm 	Limpieza	fuyi	5200.00	74.70	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11607	21.00	1	t	f	f
 7798023697811	S&p salsa soja 200 ml	Almacen	S&P	520.00	431.60	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11608	21.00	1	t	f	f
 7797264000282	rejilla pabilo 	Almacen	california	450.00	373.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11609	21.00	1	t	f	f
-7798342860460	donna wheat ñoquis 1 kg	pasatas	donna wheat	3400.00	2490.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11610	21.00	1	t	f	f
-7790070621832	ñoquis de 300 g 	pastas	La Salteña	1300.00	401.50	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11611	21.00	1	t	f	f
+7798342860460	donna wheat Ã±oquis 1 kg	pasatas	donna wheat	3400.00	2490.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11610	21.00	1	t	f	f
+7790070621832	Ã±oquis de 300 g 	pastas	La SalteÃ±a	1300.00	401.50	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11611	21.00	1	t	f	f
 7791290795136	gramby matic  plus 3 l	Limpieza	gramby	2100.00	1743.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11612	21.00	1	t	f	f
 7791290795129	gramby matic  plus 3 l	Limpieza	gramby	2100.00	1743.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11613	21.00	1	t	f	f
 7793147573126	he150ken litro	cerveza	he150ken	2900.00	2160.00	23	-41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11614	21.00	1	t	f	f
@@ -15572,8 +15765,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790070418425	gallo snack 100 g 	Almacen	gallo	400.00	332.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11623	21.00	1	t	f	f
 7622201761288	nini oreo  50g	Almacen	oreo	800.00	249.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11624	21.00	1	t	f	f
 7896004004938	zucaritas cere 150 g 	Almacen	kelloggs	900.00	581.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11625	21.00	1	t	f	f
-656750791004	aceite de oliva	Gaseosa	doña juana	2850.00	2365.50	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11626	21.00	1	t	f	f
-656750791042	Doña juana OLIVA 250 	Almacen	Doña juana	1400.00	1162.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11627	21.00	1	t	f	f
+656750791004	aceite de oliva	Gaseosa	doÃ±a juana	2850.00	2365.50	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11626	21.00	1	t	f	f
+656750791042	DoÃ±a juana OLIVA 250 	Almacen	DoÃ±a juana	1400.00	1162.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11627	21.00	1	t	f	f
 7798183770430	grifo split	helado	grido	2000.00	1460.00	30	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11628	21.00	1	t	f	f
 7791130961905	aer magn y cherry 165 g	Limpieza	aerowick	900.00	747.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11629	21.00	1	t	f	f
 7794520869164	krachitos amer 420	papas	krachitos 	8000.00	1909.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11630	21.00	1	t	f	f
@@ -15610,7 +15803,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7702026191313	nosotras clasicas rapi sec	Perfumeria	nosotras 	320.00	202.80	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11661	21.00	1	t	f	f
 7790770600663	nosotras clasica x 16 unid 	Perfumeria	nosotras 	210.00	163.80	25	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11662	21.00	1	t	f	f
 7790770600519	nosotras p.diario normal 20 unid 	Perfumeria	nosotras 	120.00	93.60	25	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11663	21.00	1	t	f	f
-7790770601905_2	nosotras ´proteccion suave	Perfumeria	nosotras 	2000.00	1053.00	25	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11664	21.00	1	t	f	f
+7790770601905_2	nosotras Â´proteccion suave	Perfumeria	nosotras 	2000.00	1053.00	25	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11664	21.00	1	t	f	f
 7791293045078	rexona hom,bre	Almacen	rexona	650.00	539.50	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11665	21.00	1	t	f	f
 7794000006737	knorr ca gallina x 12	Almacen	knorr	700.00	273.90	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11666	21.00	1	t	f	f
 7798130954319	chupetin crazy pop	Almacen	fun candy	120.00	99.60	20	-36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11667	21.00	1	t	f	f
@@ -15779,7 +15972,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790907000885	benjamin pepas 160 g 	Galletitas	benjamin	500.00	365.00	30	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11830	21.00	1	t	f	f
 7798347080900	Luz 20w led	Prod.Altos	Candela	5000.00	4650.00	10	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11831	21.00	1	t	f	f
 7791293043807	Axe musk 	Perfumeria	Axe	3500.00	2730.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11832	21.00	1	t	f	f
-7798059384525	Esponja salva uña	Limpieza	Dea	500.00	415.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11833	21.00	1	t	f	f
+7798059384525	Esponja salva uÃ±a	Limpieza	Dea	500.00	415.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11833	21.00	1	t	f	f
 7791130681391	harpic power plus 515 g	Limpieza	harpic	4500.00	3735.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11834	21.00	1	t	f	f
 7798333920012	Pizzetas x 12 un	Pizzetas	malu	2000.00	1743.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11835	21.00	1	t	f	f
 7794297533565	la americana olla n 28	Prod.Altos	la americana	1300.00	1209.00	10	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11836	21.00	1	t	f	f
@@ -15791,7 +15984,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 656750750483	franch mani honey roasted	Almacen	franch	500.00	415.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11842	21.00	1	t	f	f
 7794640173073	hinds rosa 250 ml	Perfumeria	hinds	5100.00	858.00	25	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11843	21.00	1	t	f	f
 7794640173066	hinds rosa 125 ml	Perfumeria	hinds	3100.00	546.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11844	21.00	1	t	f	f
-7798054010825	sidra ´para niños  anana	Vinos	disney	440.00	365.20	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11845	21.00	1	t	f	f
+7798054010825	sidra Â´para niÃ±os  anana	Vinos	disney	440.00	365.20	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11845	21.00	1	t	f	f
 7790154000485	sidra 1930 demisec 750	sidra	1930	800.00	584.00	30	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11846	21.00	1	t	f	f
 7790154008078	sidra 1930 dolce 750	sidra	1930	5000.00	584.00	30	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11847	21.00	1	t	f	f
 7796518010220	bambitas con sal aceite 	Galletitas	bambitas	1600.00	1168.00	30	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11848	21.00	1	t	f	f
@@ -15879,7 +16072,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791070000856	campanita d/h x 4 30 m	Limpieza	campanita	2800.00	84.00	20	-59	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11930	21.00	1	t	f	f
 7790580118570	buttees toffees ddleche	Almacen	arcor	9000.00	4980.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11931	21.00	1	t	f	f
 7790907005309	benjamin mar maiz 350 g 	Galletitas	benjamin	900.00	657.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11932	21.00	1	t	f	f
-7790040143364	Galletas surtidas	Almacen	Diversión	1900.00	1328.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11933	21.00	1	t	f	f
+7790040143364	Galletas surtidas	Almacen	DiversiÃ³n	1900.00	1328.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11933	21.00	1	t	f	f
 7794480000195	manteda 100g	Almacen	goierri	80.00	66.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11934	21.00	1	t	f	f
 77961679	ocb premier 	Almacen	premier	70.00	58.10	20	-54	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11935	21.00	1	t	f	f
 7798363320578	ocb premier 	Almacen	premier 	1200.00	996.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	11936	21.00	1	t	f	f
@@ -15924,7 +16117,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790040143319	desfile polvorita 400g	Galletitas	desfile	1300.00	949.00	30	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11975	21.00	1	t	f	f
 7500435241007	pantene sh kerat 400 ml	Perfumeria	pantene 	6700.00	4446.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11976	21.00	1	t	f	f
 7500435230018	cabello debil 400 ml	Perfumeria	pantene 	6700.00	5070.00	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11977	21.00	1	t	f	f
-7500435243674	pantene c/peinar dañado y teñido 300 ml	Perfumeria	pantene 	7000.00	5460.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11978	21.00	1	t	f	f
+7500435243674	pantene c/peinar daÃ±ado y teÃ±ido 300 ml	Perfumeria	pantene 	7000.00	5460.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11978	21.00	1	t	f	f
 7500435235310	pantene bambu c/peinar 	Perfumeria	pantene 	4400.00	2964.00	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11979	21.00	1	t	f	f
 7500435243667	pantene repara c/peinar 	Perfumeria	pantene 	8000.00	5460.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11980	21.00	1	t	f	f
 7500435243681	pantene c/peinar rizos	Perfumeria	pantene 	8000.00	5460.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	11981	21.00	1	t	f	f
@@ -15956,8 +16149,8 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798149111222	gallinita 	Almacen	gallinita	40.00	33.20	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12007	21.00	1	t	f	f
 7798134521081	El Makzal palito queso 	Almacen	El Makzal	600.00	149.40	20	-47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12008	21.00	1	t	f	f
 7790040139411	Coquitas 157 g 	Almacen	Coquitas 	1000.00	166.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12009	21.00	1	t	f	f
-7791843008317	Viña balbo Borgoña  balanco 1250ml	Vinos	Viña balbo 	700.00	415.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12010	21.00	1	t	f	f
-7798054012218	sidra ´para niños manzana	Vinos	disney	1500.00	996.00	20	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12011	21.00	1	t	f	f
+7791843008317	ViÃ±a balbo BorgoÃ±a  balanco 1250ml	Vinos	ViÃ±a balbo 	700.00	415.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12010	21.00	1	t	f	f
+7798054012218	sidra Â´para niÃ±os manzana	Vinos	disney	1500.00	996.00	20	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12011	21.00	1	t	f	f
 7798063140636	tunki palitos salados 250 g 	Almacen	tunki	280.00	232.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12012	21.00	1	t	f	f
 7794000006515	savora original 60  g	Almacen	savora 	700.00	190.90	20	14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12013	21.00	1	t	f	f
 7791813555094	PEPSI 2L	Almacen	PEPSI	1250.00	1037.50	20	-201	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12014	21.00	1	t	f	f
@@ -16053,7 +16246,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7793360131523	Merme Damasco	Almacen	BC	3600.00	581.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12104	21.00	1	t	f	f
 7791290792371	antigrasa gatillo cif 500 ml	Limpieza	cif 	450.00	373.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12105	21.00	1	t	f	f
 7798023699105	S&p  sal gruesa 1 k 	Almacen	s&p	150.00	83.00	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12106	21.00	1	t	f	f
-7798023697057	carmel pañuelo  x 6	Almacen	carmel	200.00	149.40	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12107	21.00	1	t	f	f
+7798023697057	carmel paÃ±uelo  x 6	Almacen	carmel	200.00	149.40	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12107	21.00	1	t	f	f
 7891024113684	protex aloe 	Perfumeria	protex	180.00	140.40	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12108	21.00	1	t	f	f
 7792410527897	Whisky 200ml	Licores	Doble-V	2000.00	255.50	30	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12109	21.00	1	t	f	f
 7799032003556	ilumanarte x10 	Perfumeria	iluminarte	280.00	218.40	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12110	21.00	1	t	f	f
@@ -16067,7 +16260,6 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790580134785	fideos spaghetti 500g	Almacen	arcor	1200.00	1245.00	20	-33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12118	21.00	1	t	f	f
 7790458658030	mas filo 3 hojas 	Perfumeria	mas filos	1000.00	780.00	25	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12119	21.00	1	t	f	f
 7791337007161	serenisina gran compra fuutilla	Lacteos	serenisima	650.00	415.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12120	21.00	1	t	f	f
-7791337009684	 gran compra frutilla cermoso	Lacteos	serenisima	2000.00	1660.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12121	21.00	1	t	f	f
 7790580129729	arcor jug naran mang 	Jugos	arcor	240.00	199.20	20	-67	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12122	21.00	1	t	f	f
 7793706000858	Crema y ciboul papas 	Almacen	sabores	1700.00	996.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12123	21.00	1	t	f	f
 7790310985182	pep rami queso 120	Almacen	pep	2500.00	2075.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12124	21.00	1	t	f	f
@@ -16159,7 +16351,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790580129286	manzana	Jugos	arcor	240.00	33.20	20	-65	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12210	21.00	1	t	f	f
 7794612157902	noel surtido bombon	Almacen	noel 	500.00	415.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12211	21.00	1	t	f	f
 724751090867	saint michel 1.5	Aguas	sanit michel 	700.00	66.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12212	21.00	1	t	f	f
-7791828000299	felpita felices fiestas 120 paños	Limpieza	felpita	450.00	107.90	20	-48	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12213	21.00	1	t	f	f
+7791828000299	felpita felices fiestas 120 paÃ±os	Limpieza	felpita	450.00	107.90	20	-48	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12213	21.00	1	t	f	f
 7791828000633	soft paper qquality rollo cocina 3	Limpieza	soft paper	1500.00	149.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12214	21.00	1	t	f	f
 7791337004726	danonino frutilla 85g	Lacteos	serenisima	1500.00	131.40	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12215	21.00	1	t	f	f
 7791337004719	danonino vainilla85g	Lacteos	serenisima	1500.00	1245.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12216	21.00	1	t	f	f
@@ -16229,7 +16421,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798114090774	PROP caballo cabernet	Vinos	caballo de carrero	120.00	99.60	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12280	21.00	1	t	f	f
 7792129003637	EqualS stevia 100 sobres	edulcorante	EqualSweet	2500.00	153.30	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12281	21.00	1	t	f	f
 7798116163056	tahiti provensal	Almacen	tahiti	1600.00	58.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12282	21.00	1	t	f	f
-7798106640017	la muñeca azucar 	Almacen	la muñeca	70.00	58.10	20	-69	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12283	21.00	1	t	f	f
+7798106640017	la muÃ±eca azucar 	Almacen	la muÃ±eca	70.00	58.10	20	-69	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12283	21.00	1	t	f	f
 7793147571108	schneider	Almacen	schneider	850.00	705.50	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12284	21.00	1	t	f	f
 7798130953633	coco pop uva 	Almacen	coco pop	2500.00	2075.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12285	21.00	1	t	f	f
 7798040463666	push pop morango	Almacen	push pop	500.00	4150.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12286	21.00	1	t	f	f
@@ -16267,7 +16459,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7798134070688_2	jabon  balnco signo 	Limpieza	signo	800.00	33.20	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12318	21.00	1	t	f	f
 7798184680165	Saphirus patio 250 ml 	Almacen	Saphirus	2700.00	2241.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12319	21.00	1	t	f	f
 7790990002315	Zorro blue power 800g	Limpieza	Zorro	1800.00	1494.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12320	21.00	1	t	f	f
-7790040143692	Choco-cookies bañ 105	Golosinas	Cofler	2200.00	1022.00	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12321	21.00	1	t	f	f
+7790040143692	Choco-cookies baÃ± 105	Golosinas	Cofler	2200.00	1022.00	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12321	21.00	1	t	f	f
 7500435178839	ALWAYS 8 T SUAVES 	Perfumeria	ALWAYS	1500.00	1170.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12322	21.00	1	t	f	f
 7790168904403	bonarda  malbec 750cc 	Vinos	Colon	4000.00	2656.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12323	21.00	1	t	f	f
 7622201388485	express x 3 309 gr 	Galletitas	terrabussi	1900.00	1387.00	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12324	21.00	1	t	f	f
@@ -16286,7 +16478,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7797390495815	secador goma 40	Limpieza	schez	2200.00	83.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12337	21.00	1	t	f	f
 7790310982839	toddy galletitas clasica	Gaseosa	todis	100.00	83.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12338	21.00	1	t	f	f
 7791337002005	ser vainilla postre	Lacteos	serenisima	60.00	49.80	20	-46	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12339	21.00	1	t	f	f
-7798096031086	doña pupa lente 340 g	Almacen	doña pupa	1000.00	74.70	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12340	21.00	1	t	f	f
+7798096031086	doÃ±a pupa lente 340 g	Almacen	doÃ±a pupa	1000.00	74.70	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12340	21.00	1	t	f	f
 77909008	cereal fort  clas 12 g	golosina	fort 	800.00	581.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12341	21.00	1	t	f	f
 77909039	cereal fort frutilla 	Almacen	fort 	1200.00	49.80	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12342	21.00	1	t	f	f
 7791293046464	sedal acon hidr  x 340 	Almacen	sedal 	2600.00	2158.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12343	21.00	1	t	f	f
@@ -16386,7 +16578,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791337001343	gran compra yogur frutilla 120	Lacteos	gran compra	36.00	29.88	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12437	21.00	1	t	f	f
 7791337001350	gran compra yogur frutilla 120	Lacteos	gran compra	36.00	29.88	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12438	21.00	1	t	f	f
 7791337001626	ser calci plus frutilla	Lacteos	serenisima	90.00	74.70	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12439	21.00	1	t	f	f
-7791337001374	gran compra yogur frutilla 120º	Lacteos	gran compra	36.00	29.88	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12440	21.00	1	t	f	f
+7791337001374	gran compra yogur frutilla 120Âº	Lacteos	gran compra	36.00	29.88	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12440	21.00	1	t	f	f
 7791337001367	gran compra yogur frutilla 120	Lacteos	gran compra	36.00	29.88	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12441	21.00	1	t	f	f
 7794000002340	hellmanns con aceite de palta 250	Almacen	hellmanns	95.00	78.85	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12442	21.00	1	t	f	f
 7799155000708	levite cero manzana 15l	Jugos	levite	2000.00	1328.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12443	21.00	1	t	f	f
@@ -16432,7 +16624,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7613038151878	nesquik banana 200	Almacen	nestle	45.00	37.35	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12483	21.00	1	t	f	f
 7791813410362	paso de los toros tonica x 200	Gaseosa	paso de los toros	50.00	41.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12484	21.00	1	t	f	f
 7791813333012	mirinda naranja x 200	Gaseosa	mirinda	60.00	49.80	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12485	21.00	1	t	f	f
-7790040126824	hogareñas 7 semillas	Almacen	hogareñas	240.00	199.20	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12486	21.00	1	t	f	f
+7790040126824	hogareÃ±as 7 semillas	Almacen	hogareÃ±as	240.00	199.20	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12486	21.00	1	t	f	f
 7793890254211	lactal 315 g pan	Almacen	lactal	220.00	182.60	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12487	21.00	1	t	f	f
 7798065733454	sierra de los padres agua x 600	Aguas	sierra de los padres	25.00	20.75	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12488	21.00	1	t	f	f
 7791290794801	suav liq 900 ml en 1	Almacen	drive	1900.00	1577.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12489	21.00	1	t	f	f
@@ -16463,7 +16655,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7790070414687	gallo primavera risotto 500g	Almacen	gallo	600.00	207.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12514	21.00	1	t	f	f
 7798061891004	guantes talle L art.172	Limpieza	romyl	120.00	99.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12515	21.00	1	t	f	f
 7798061891943	guantes talle XL art173	Limpieza	romyl	100.00	83.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12516	21.00	1	t	f	f
-7798061890212	paño multiuso doble cara art17	Limpieza	romyl	100.00	83.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12517	21.00	1	t	f	f
+7798061890212	paÃ±o multiuso doble cara art17	Limpieza	romyl	100.00	83.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12517	21.00	1	t	f	f
 7798061890243	esponja art13	Limpieza	todo poderoso	20.00	16.60	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12518	21.00	1	t	f	f
 7790742344007	cremon desayuno light	Lacteos	serenisima	110.00	91.30	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12519	21.00	1	t	f	f
 7791293045894_2	sedal sh 190 ml	Perfumeria	sedal	550.00	429.00	25	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12520	21.00	1	t	f	f
@@ -16511,7 +16703,7 @@ COPY public.productos (codigo, descripcion, rubro, marca, precio, costo, porcent
 7791199003172	life quality sanisante 65	Perfumeria	life quality 	80.00	62.40	25	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12562	21.00	1	t	f	f
 77903860	terrabussi alf 	Galletitas	terrabussi	1400.00	949.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12563	21.00	1	t	f	f
 7790616000442	vacalin cremoso 400 g vacalin	Lacteos	vacalin	220.00	182.60	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12564	21.00	1	t	f	f
-736684266073	Azucar tipo " A "	Azucar	La muñeca	1000.00	58.10	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12565	21.00	1	t	f	f
+736684266073	Azucar tipo " A "	Azucar	La muÃ±eca	1000.00	58.10	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12565	21.00	1	t	f	f
 cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12566	21.00	1	t	f	f
 7791337060784	casancrem clas 290 	Lacteos	la serenisima	800.00	415.00	20	-26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12567	21.00	1	t	f	f
 7798038220028	lavandina 2 l nico	Limpieza	nico	80.00	66.40	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12568	21.00	1	t	f	f
@@ -16572,7 +16764,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790787960378	yogur crem vainill 120 g	Lacteos	ilolay	7500.00	456.50	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12623	21.00	1	t	f	f
 7794820903490	yog,crem,frut 190 g	Lacteos	milkaut	1400.00	1162.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12624	21.00	1	t	f	f
 7790742340801	serenisima tradicion argen ddleche 400	Lacteos	serenisima	107.00	88.81	20	-37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12625	21.00	1	t	f	f
-7790236001232	la salteña tapa emp. x 20	Almacen	la salteña	110.00	91.30	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12626	21.00	1	t	f	f
+7790236001232	la salteÃ±a tapa emp. x 20	Almacen	la salteÃ±a	110.00	91.30	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12626	21.00	1	t	f	f
 7790070413079	exquisita  durazno 40	Almacen	exquisita 	85.00	70.55	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12627	21.00	1	t	f	f
 7790411001989	rosa suave 500 yerba	yerba	rosamonte	2200.00	290.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12628	21.00	1	t	f	f
 7792798010561	stella artois 1 l	cerveza	stella artois	5000.00	3569.00	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12629	21.00	1	t	f	f
@@ -16687,8 +16879,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798304840493	frigor postre crema y dul de leche	Almacen	frigor	480.00	398.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12738	21.00	1	t	f	f
 7791337002111	yogurisimo cremix 	Lacteos	serenisima	40.00	33.20	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12739	21.00	1	t	f	f
 7790990494608	zorro ultra 500	Limpieza	zorro	110.00	91.30	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12740	21.00	1	t	f	f
-7798096031093	doña pupa choclo cremoso	Almacen	doña pupa	45.00	37.35	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12741	21.00	1	t	f	f
-7798096031215	doña pupà jardinera 	Almacen	doña pupa	50.00	41.50	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12742	21.00	1	t	f	f
+7798096031093	doÃ±a pupa choclo cremoso	Almacen	doÃ±a pupa	45.00	37.35	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12741	21.00	1	t	f	f
+7798096031215	doÃ±a pupÃ  jardinera 	Almacen	doÃ±a pupa	50.00	41.50	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12742	21.00	1	t	f	f
 7791337002951	yogurisimo ready 190 	Lacteos	yogurisimo	100.00	83.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12743	21.00	1	t	f	f
 7790070231567	cocinero maiz  900	Almacen	cocinero	180.00	149.40	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12744	21.00	1	t	f	f
 7791813777045	7up 1.5lt	Almacen	7up	1300.00	1079.00	20	71	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12745	21.00	1	t	f	f
@@ -16725,7 +16917,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790040287105	polvorita sabor vainilla 150	Almacen	polvorita 	35.00	29.05	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12776	21.00	1	t	f	f
 7798350431027	marley alfajor bajonero banco	Dulce	marley 	100.00	83.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12777	21.00	1	t	f	f
 7798350431010	marley alfajor bajonero nero	Dulce	marley  	100.00	83.00	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12778	21.00	1	t	f	f
-7792180136961	harina leudante 1g 	Almacen	cañuelas 	75.00	62.25	20	-47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12779	10.50	1	t	f	f
+7792180136961	harina leudante 1g 	Almacen	caÃ±uelas 	75.00	62.25	20	-47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12779	10.50	1	t	f	f
 7791293040257	rexona alcohol en aerosol	Limpieza	rexona	75.00	62.25	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12780	21.00	1	t	f	f
 7791337003200	ser crunch	Lacteos	ser	100.00	83.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12781	21.00	1	t	f	f
 7798138290167	vauquita alfajor triple dulce de leche	Almacen	vauquita	1000.00	91.30	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12782	21.00	1	t	f	f
@@ -16743,7 +16935,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7500435020008	head shoulders	Perfumeria	head shoulders 	290.00	226.20	25	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12794	21.00	1	t	f	f
 7793253005078	ayudin exp des ambiente	Limpieza	ayudin	2500.00	2075.00	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12795	21.00	1	t	f	f
 7500435206471	head shoulders aceite de coco 180	Perfumeria	head shoulders 	1700.00	1326.00	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12796	21.00	1	t	f	f
-7794626008665	huggies xg 34 pañales	Almacen	huggies 	500.00	415.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12797	21.00	1	t	f	f
+7794626008665	huggies xg 34 paÃ±ales	Almacen	huggies 	500.00	415.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12797	21.00	1	t	f	f
 7792798003723	corona pack x 6 330	cerveza	corona	13000.00	10790.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12798	21.00	1	t	f	f
 7798151771124	Yugur beb frut 900 g 	Lacteos	tremblay	2100.00	1328.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12799	21.00	1	t	f	f
 7798000350272	Pascualina criolla	tapas de empanada	Parma	2400.00	713.80	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12800	21.00	1	t	f	f
@@ -16758,14 +16950,14 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798176080263	insulimp bolsas 90 x 120	Limpieza	insulimp	2800.00	1826.00	20	-87	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12809	21.00	1	t	f	f
 7797390000255	schez esponja de acero 	Limpieza	schz 	60.00	49.80	20	-38	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12810	21.00	1	t	f	f
 723540525108	lucky	Fiambreria	LUCKY	6000.00	292.00	30	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12811	21.00	1	t	f	f
-7793127000390	PIZETA LA  CADAÑA	Almacen	la cabaña 	90.00	74.70	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12812	21.00	1	t	f	f
-7790070622013	Tapa Hojaldre 330gr	Almacen	La Salteña	1500.00	1245.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12813	21.00	1	t	f	f
-7793127100670	la cabaña sorrentino	Almacen	la cabaña 	135.00	112.05	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12814	21.00	1	t	f	f
-7793127100687	la cabaña sorrentino	Almacen	la cabaña	130.00	107.90	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12815	21.00	1	t	f	f
-7793127000345	la cabaña ñoquis tricolor	Almacen	la cabaña 	165.00	136.95	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12816	21.00	1	t	f	f
-7793127000239	la cabaña ravioles  de pollo 	Almacen	la cabaña	135.00	112.05	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12817	21.00	1	t	f	f
-7793127000635	la cabaña ñoquis	Almacen	la cabaña	90.00	74.70	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12818	21.00	1	t	f	f
-7793127000123	la cabaña super rotiseras	Almacen	la cabaña	85.00	70.55	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12819	21.00	1	t	f	f
+7793127000390	PIZETA LA  CADAÃ‘A	Almacen	la cabaÃ±a 	90.00	74.70	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12812	21.00	1	t	f	f
+7790070622013	Tapa Hojaldre 330gr	Almacen	La SalteÃ±a	1500.00	1245.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12813	21.00	1	t	f	f
+7793127100670	la cabaÃ±a sorrentino	Almacen	la cabaÃ±a 	135.00	112.05	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12814	21.00	1	t	f	f
+7793127100687	la cabaÃ±a sorrentino	Almacen	la cabaÃ±a	130.00	107.90	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12815	21.00	1	t	f	f
+7793127000345	la cabaÃ±a Ã±oquis tricolor	Almacen	la cabaÃ±a 	165.00	136.95	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12816	21.00	1	t	f	f
+7793127000239	la cabaÃ±a ravioles  de pollo 	Almacen	la cabaÃ±a	135.00	112.05	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12817	21.00	1	t	f	f
+7793127000635	la cabaÃ±a Ã±oquis	Almacen	la cabaÃ±a	90.00	74.70	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12818	21.00	1	t	f	f
+7793127000123	la cabaÃ±a super rotiseras	Almacen	la cabaÃ±a	85.00	70.55	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12819	21.00	1	t	f	f
 7791290789869	cif ulra brillo 380ml	Almacen	cif	120.00	99.60	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12820	21.00	1	t	f	f
 7798132920503	durazno canale 485g	Almacen	canale	2300.00	340.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12821	21.00	1	t	f	f
 7790990002308	zorro 400 a mano 	Limpieza	zorro	1200.00	622.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12822	21.00	1	t	f	f
@@ -16815,7 +17007,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7792180136480	pureza integral con semillas	Almacen	pureza	70.00	58.10	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12866	21.00	1	t	f	f
 7791885000799	cumana palmito 800 g	Almacen	cumana	320.00	265.60	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12867	21.00	1	t	f	f
 1007084703536	monster ultra paradise	energizante	monster	3200.00	2656.00	20	62	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12868	21.00	1	t	f	f
-7790040136069	hogareñas 7 semillas	Galletitas	hogareñas	1000.00	730.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12869	21.00	1	t	f	f
+7790040136069	hogareÃ±as 7 semillas	Galletitas	hogareÃ±as	1000.00	730.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12869	21.00	1	t	f	f
 7790742167309	finladia light dambo 	Fiambreria	finlandia	180.00	131.40	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12870	21.00	1	t	f	f
 7790742167200	finlandia fetas dambo	Fiambreria	finlandia	180.00	131.40	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12871	21.00	1	t	f	f
 7790742667755	finlandia hebras cheddar	Lacteos	finlandia	3600.00	365.20	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12872	21.00	1	t	f	f
@@ -16826,18 +17018,18 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791250001857	Green Aple	Vinos	Smirnoff	9500.00	1494.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12877	21.00	1	t	f	f
 7790940216229	taolla nor 16 u t/s c/alas c/perfu	Perfumeria	Doncella	1500.00	1092.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12878	21.00	1	t	f	f
 7790070034922	granja del sol mila legumbres	Almacen	GRANJA DEL SOL	550.00	456.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12879	21.00	1	t	f	f
-7793127000079	la cabaña ravioles de ricota	Almacen	la cabaña	110.00	91.30	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12880	21.00	1	t	f	f
-7793127000482	la cabaña ravioles de 4quesos	Almacen	la cabaña	130.00	107.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12881	21.00	1	t	f	f
-7793127000086	la cabaña ravioles de verdura	Almacen	la cabaña	130.00	107.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12882	10.50	1	t	f	f
-7793127000062	la cabaña ravioles de pollo y verdura	Almacen	la cabaña	110.00	91.30	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12883	21.00	1	t	f	f
-7793127000352	la cabaña ñoquis tricolor	Almacen	la cabaña	110.00	91.30	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12884	21.00	1	t	f	f
-7793127000550	la cabaña tallarines	Almacen	la cabaña	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12885	21.00	1	t	f	f
-7793127000581	la cabaña fideos fusiles	Almacen	la cabaña	110.00	91.30	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12886	21.00	1	t	f	f
-7793127100403	la cabaña tapa de empanada p freir	Almacen	la cabaña	60.00	49.80	20	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12887	21.00	1	t	f	f
-7793127100083	la cabaña tapa de empanada criolla	Almacen	la cabaña	60.00	49.80	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12888	21.00	1	t	f	f
-7793127000444	la cabaña pacualina de hojaldre	Almacen	la cabaña	85.00	70.55	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12889	21.00	1	t	f	f
-7793127100090	la cabaña pascualina criolla	Almacen	la cabaña	85.00	70.55	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12890	21.00	1	t	f	f
-7793127100236	la cabaña pizzas x2	Almacen	la cabaña	110.00	91.30	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12891	21.00	1	t	f	f
+7793127000079	la cabaÃ±a ravioles de ricota	Almacen	la cabaÃ±a	110.00	91.30	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12880	21.00	1	t	f	f
+7793127000482	la cabaÃ±a ravioles de 4quesos	Almacen	la cabaÃ±a	130.00	107.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12881	21.00	1	t	f	f
+7793127000086	la cabaÃ±a ravioles de verdura	Almacen	la cabaÃ±a	130.00	107.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12882	10.50	1	t	f	f
+7793127000062	la cabaÃ±a ravioles de pollo y verdura	Almacen	la cabaÃ±a	110.00	91.30	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12883	21.00	1	t	f	f
+7793127000352	la cabaÃ±a Ã±oquis tricolor	Almacen	la cabaÃ±a	110.00	91.30	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12884	21.00	1	t	f	f
+7793127000550	la cabaÃ±a tallarines	Almacen	la cabaÃ±a	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12885	21.00	1	t	f	f
+7793127000581	la cabaÃ±a fideos fusiles	Almacen	la cabaÃ±a	110.00	91.30	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12886	21.00	1	t	f	f
+7793127100403	la cabaÃ±a tapa de empanada p freir	Almacen	la cabaÃ±a	60.00	49.80	20	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12887	21.00	1	t	f	f
+7793127100083	la cabaÃ±a tapa de empanada criolla	Almacen	la cabaÃ±a	60.00	49.80	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12888	21.00	1	t	f	f
+7793127000444	la cabaÃ±a pacualina de hojaldre	Almacen	la cabaÃ±a	85.00	70.55	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12889	21.00	1	t	f	f
+7793127100090	la cabaÃ±a pascualina criolla	Almacen	la cabaÃ±a	85.00	70.55	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12890	21.00	1	t	f	f
+7793127100236	la cabaÃ±a pizzas x2	Almacen	la cabaÃ±a	110.00	91.30	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12891	21.00	1	t	f	f
 7790170923621	la morenita tilo 	Almacen	la morenita	130.00	107.90	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12892	21.00	1	t	f	f
 7790272007328	natura aceite de oliva x 500	Almacen	natura	320.00	265.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12893	21.00	1	t	f	f
 7793253000349	Esponja avrasiva cuadri.	Almacen	 mortimer 	1400.00	31.54	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12894	21.00	1	t	f	f
@@ -16866,7 +17058,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798321152067	sancor gelatina naranja	Lacteos	Sancor	1100.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12917	21.00	1	t	f	f
 7790787960477	yogur top cer 165 g 	Lacteos	Ilolay	1700.00	1079.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12918	21.00	1	t	f	f
 7798061890236	fibra extra fuerte	Almacen	romyl	2000.00	58.10	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12919	21.00	1	t	f	f
-7798061890113	fibra verde 2 paños	Almacen	romyl	2000.00	66.40	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12920	21.00	1	t	f	f
+7798061890113	fibra verde 2 paÃ±os	Almacen	romyl	2000.00	66.40	20	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12920	21.00	1	t	f	f
 7798061894319	multiuso 	Almacen	romyl	50.00	41.50	20	-21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12921	21.00	1	t	f	f
 7798061891059	manoplla para horno y posapava	Almacen	romyl	300.00	249.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12922	21.00	1	t	f	f
 7790580110666	godet godet gelatina 	Almacen	godet godet 	50.00	41.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12923	21.00	1	t	f	f
@@ -16895,7 +17087,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7792798010721	stella artois 710 	Almacen	stellaartois	3900.00	3237.00	20	96	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12946	21.00	1	t	f	f
 7792180139313	Harina caserita 0000 x1Kg refinada	Almacen	caserita	350.00	406.70	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12947	10.50	1	t	f	f
 7792180134516	pureza integral 1 kg 	Almacen	pureza	1600.00	107.90	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12948	21.00	1	t	f	f
-7792180139962	cañuela harina 000 	Almacen	cañuela	65.00	53.95	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12949	10.50	1	t	f	f
+7792180139962	caÃ±uela harina 000 	Almacen	caÃ±uela	65.00	53.95	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12949	10.50	1	t	f	f
 7790387015607	la merced  de campo 	Almacen	la merced	4200.00	813.40	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12950	21.00	1	t	f	f
 7790503199105	dos herm arroz integral 	Almacen	dos hermanos	900.00	622.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	12951	21.00	1	t	f	f
 7798304840875	la frutta anana 69gr	Almacen	frigor	100.00	83.00	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	12952	21.00	1	t	f	f
@@ -16958,7 +17150,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798354180211	melon	Almacen	aroma max	600.00	249.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13009	21.00	1	t	f	f
 7790310983669	lays jamon serrano	Almacen	lays	150.00	124.50	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13010	21.00	1	t	f	f
 7790950133691	DRlemon mojito 1 l	Licores	DRlemon	3000.00	189.80	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13011	21.00	1	t	f	f
-7794626009563	hugguies xxg 8 pañales	Limpieza	huggies	170.00	141.10	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13012	21.00	1	t	f	f
+7794626009563	hugguies xxg 8 paÃ±ales	Limpieza	huggies	170.00	141.10	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13012	21.00	1	t	f	f
 7798287690016	saccan pan lacteado 570 g 	Almacen	saccan	2300.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13013	21.00	1	t	f	f
 7798287690115	saccan pan multicereal  380 g 	Almacen	saccan	1800.00	2075.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13014	21.00	1	t	f	f
 7790742387707	SER dul de leche 300 g 	Almacen	ser	2300.00	232.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13015	21.00	1	t	f	f
@@ -17010,7 +17202,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7891000115657	Dog chow doy pack 100 g 	Almacen	Dog chow	120.00	99.60	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13061	21.00	1	t	f	f
 7793147571238	imperial apa 473 pack x 6	cerveza	imperial	7000.00	5810.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13062	21.00	1	t	f	f
 7791337643222	danonino handball	Almacen	danonino 	100.00	83.00	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13063	21.00	1	t	f	f
-7792180136954	cañuela 0000 	Almacen	cañuela	70.00	58.10	20	53	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13064	21.00	1	t	f	f
+7792180136954	caÃ±uela 0000 	Almacen	caÃ±uela	70.00	58.10	20	53	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13064	21.00	1	t	f	f
 7798333920050	malu pizzeta de cebolla 	Almacen	malu	690.00	572.70	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13065	21.00	1	t	f	f
 7501058610638	nestle nan 1 leche	Lacteos	nan	700.00	581.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13066	21.00	1	t	f	f
 7501058610645	nestle nan 2 800 g 	Lacteos	nan	700.00	581.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13067	21.00	1	t	f	f
@@ -17019,7 +17211,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790742340306	la serenisima sin azucar 	Lacteos	serenisima	900.00	581.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13070	21.00	1	t	f	f
 7792129004283	chuker con stevia 50 sobre	Almacen	chuker	70.00	58.10	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13071	21.00	1	t	f	f
 7791818002135	suape	Almacen	suape	21.00	17.43	20	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14069	21.00	1	t	f	f
-7891024073001	colgate niños x 2 pack	Perfumeria	colgate	260.00	202.80	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13072	21.00	1	t	f	f
+7891024073001	colgate niÃ±os x 2 pack	Perfumeria	colgate	260.00	202.80	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13072	21.00	1	t	f	f
 7500435147484	h&s acond . hidrata 300 ml	Perfumeria	h&s	1700.00	1326.00	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13073	21.00	1	t	f	f
 7792798009893	quilmes clacica ow	Vinos	qilmea	185.00	153.55	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13074	21.00	1	t	f	f
 7790310983676	lays provoleta 80g	Almacen	lays 	160.00	132.80	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13075	21.00	1	t	f	f
@@ -17029,7 +17221,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791250003127	smirnoff 473 ml Green apple	Licores	smirnoff 	2900.00	401.50	30	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	6	\N	1	0	13079	21.00	1	t	f	f
 7793147572051	amtel lager lata 473  x 6 	Almacen	amstel	11000.00	9130.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13080	21.00	1	t	f	f
 7793147572044	amtel lager lata 473 	cerveza	amstel	1900.00	1577.00	20	-111	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13081	21.00	1	t	f	f
-7790236018209	la salteña pomarola 340	Almacen	la salteña	55.00	45.65	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13082	21.00	1	t	f	f
+7790236018209	la salteÃ±a pomarola 340	Almacen	la salteÃ±a	55.00	45.65	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13082	21.00	1	t	f	f
 7798138290037	vauquita 140	Almacen	vauquita	80.00	66.40	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13083	21.00	1	t	f	f
 7795735600917	don satur mix de semilla	Almacen	don satur	450.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13084	21.00	1	t	f	f
 7790580119133	bon o bon x 30	Almacen	bon bon 	13000.00	2324.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13085	21.00	1	t	f	f
@@ -17047,7 +17239,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 77977090	lucky parissien 20 	cigarrillo	Lucky Strike	3300.00	2324.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13097	21.00	1	t	f	f
 7790150100677	la virginia cafe 60 g	Almacen	la virginia	2500.00	415.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13098	21.00	1	t	f	f
 7791293046587	clinical 96 men	Perfumeria	rexona	5000.00	3900.00	25	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13099	21.00	1	t	f	f
-7790336036202	lopez casona cabernet sauvigñon 	Vinos	lopez casona	2700.00	664.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13100	21.00	1	t	f	f
+7790336036202	lopez casona cabernet sauvigÃ±on 	Vinos	lopez casona	2700.00	664.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13100	21.00	1	t	f	f
 7790336036196	lopez casona malbec 	Vinos	lopez casona	2700.00	664.00	20	-52	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13101	21.00	1	t	f	f
 7798065070481	alfajor d dulce d leche	Almacen	suschen	40.00	33.20	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13102	21.00	1	t	f	f
 7794000005624	caldo de verduras x 6	Caldo 	knorr	900.00	747.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13103	10.50	1	t	f	f
@@ -17080,7 +17272,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7797273000280	Deyse  oleo calcareo	Limpieza	Deyse	110.00	91.30	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13130	21.00	1	t	f	f
 7798087370019	ogib 12 invisible	Perfumeria	ogib	1000.00	70.20	25	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13131	21.00	1	t	f	f
 2800001634543	bengala x 4 unidades	Perfumeria	multicolor	115.00	89.70	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13132	21.00	1	t	f	f
-7793370134200	lima de uña	Perfumeria	j & l	80.00	62.40	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13133	21.00	1	t	f	f
+7793370134200	lima de uÃ±a	Perfumeria	j & l	80.00	62.40	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13133	21.00	1	t	f	f
 7794050007241	doree aua oxigenada 30	Perfumeria	doree	1200.00	85.80	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13134	21.00	1	t	f	f
 7790742348005	leche multidefensa 1 l	Lacteos	serenisima	1700.00	83.00	20	-307	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13135	21.00	1	t	f	f
 076625285191	crisof azucar tipo a	Almacen	crisof	60.00	49.80	20	181	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13136	21.00	1	t	f	f
@@ -17089,7 +17281,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790380024750	georgalos chocolate de mani 110g	Almacen	georgalos	2500.00	332.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13139	21.00	1	t	f	f
 7798115811330	roble malbec	Vinos	Los Gigantes	2300.00	224.10	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13140	21.00	1	t	f	f
 7790984001461	roble torronte 	Vinos	Los Gigantes	90.00	74.70	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13141	21.00	1	t	f	f
-7790070414694	gallo risotto española	Almacen	gallo	480.00	207.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13142	21.00	1	t	f	f
+7790070414694	gallo risotto espaÃ±ola	Almacen	gallo	480.00	207.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13142	21.00	1	t	f	f
 7790070414700	gallo risotto champignon	Almacen	gallo	250.00	207.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13143	21.00	1	t	f	f
 7790070431523	gallo risotto caja	Almacen	gallo	2400.00	1992.00	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13144	21.00	1	t	f	f
 7796854000145	lacteado 360g	Panaderia	romero	1700.00	1411.00	20	-116	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13145	21.00	1	t	f	f
@@ -17203,7 +17395,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7793147572860	grolsch red pack x 6 473 	cerveza	grolsch	10000.00	1277.50	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13253	21.00	1	t	f	f
 7793147572839	grolsch red  473 	cerveza	grolsch	1600.00	255.50	30	-33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13254	21.00	1	t	f	f
 7798195630227_2	pan de hamburguesa dyd	Almacen	dyd	1200.00	996.00	20	-38	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13255	21.00	1	t	f	f
-7792180137944	pureza aceit giras 1,5	aceite	cañuela	800.00	584.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13256	21.00	1	t	f	f
+7792180137944	pureza aceit giras 1,5	aceite	caÃ±uela	800.00	584.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13256	21.00	1	t	f	f
 7798113300928	manaos de manzana	Gaseosa	manaos	1500.00	1245.00	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13257	21.00	1	t	f	f
 7790895648595	power ade 500 mango	Jugos	poerade	230.00	174.30	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13258	21.00	1	t	f	f
 7793147572853	amstel 710 	cerveza	amstel	3000.00	284.70	30	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13259	21.00	1	t	f	f
@@ -17298,14 +17490,14 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798056681061	tapa mania sabado 12u 	Almacen	tapa mania 	180.00	149.40	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13347	21.00	1	t	f	f
 7798176000704	bebe 2  advanced 200 	Lacteos	sancor	300.00	249.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13348	21.00	1	t	f	f
 77954411	limu limon 	Almacen	limu	70.00	58.10	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13349	21.00	1	t	f	f
-7795323774549	vital 3 bago 1 a 3 años  200 g 	Lacteos	vital	480.00	249.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13350	21.00	1	t	f	f
+7795323774549	vital 3 bago 1 a 3 aÃ±os  200 g 	Lacteos	vital	480.00	249.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13350	21.00	1	t	f	f
 7790613072008	suiza  marina 900ml 	Licores	suiza	170.00	124.10	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13351	21.00	1	t	f	f
 7702026194703	nosotras 8 tampones mini	Almacen	nosotras	3000.00	307.10	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13352	21.00	1	t	f	f
 7791885004032	champig  lamin 400 g	Almacen	cumana	3500.00	1992.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13353	21.00	1	t	f	f
 7798125810958	tostex provileta talitas	Galletitas	tostex	1100.00	197.10	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13354	21.00	1	t	f	f
 77959027_2	melbour clasico	Almacen	melbour	1400.00	995.00	30	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14691	21.00	1	t	f	f
 7798321151145	yogs frutilla cremoso	Lacteos	sancor	330.00	83.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13355	21.00	1	t	f	f
-7798023697040	carmel papel pañuelito 	Perfumeria	carmel	40.00	31.20	25	-64	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13356	21.00	1	t	f	f
+7798023697040	carmel papel paÃ±uelito 	Perfumeria	carmel	40.00	31.20	25	-64	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13356	21.00	1	t	f	f
 7500435129534	downy concentrada 1 l suave	Limpieza	downy	4800.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13357	21.00	1	t	f	f
 7798008381599	patito esponja 	Limpieza	patito	700.00	74.70	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13358	21.00	1	t	f	f
 7798304841230	frigor hel chomp framb	helados	frigor 	8500.00	6205.00	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13359	21.00	1	t	f	f
@@ -17314,7 +17506,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790070411525	preferido Pan horno 1 kg 	Almacen	preferido	2700.00	448.20	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13362	21.00	1	t	f	f
 7798322690810	el toxico malbec	Almacen	el toxico	730.00	581.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13363	21.00	1	t	f	f
 0766625213033	giovanello aalfajor x 6 	Almacen	giovanello	840.00	697.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13364	21.00	1	t	f	f
-7792180001665	cañ Aceite 1,5	Almacen	Cañuelas	6000.00	2905.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13365	21.00	1	t	f	f
+7792180001665	caÃ± Aceite 1,5	Almacen	CaÃ±uelas	6000.00	2905.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13365	21.00	1	t	f	f
 7791337607507	casancrem inteso light 290	Lacteos	casancrem	430.00	290.50	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13366	21.00	1	t	f	f
 77981337004689	ser flan 95 g 	Lacteos	ser	160.00	132.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13367	21.00	1	t	f	f
 7790045826972	granix aritos frutales 350	Almacen	granix	500.00	415.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13368	21.00	1	t	f	f
@@ -17336,8 +17528,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798359330017_2	doninas sin azucar	Galletitas	doninas	2300.00	219.00	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13385	21.00	1	t	f	f
 7793706000353	doninas chips chocolate	Galletitas	doninas	2300.00	219.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13386	21.00	1	t	f	f
 7798134521388	El Makzal  pizzitas	Galletitas	makzal	800.00	131.40	30	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13387	21.00	1	t	f	f
-656750791165	doña juana pickles coliflor 	Almacen	doña juana	600.00	498.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13388	21.00	1	t	f	f
-656750791165_2	doña juana pickles coliflor y brocoli	Almacen	doña juana	600.00	498.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13389	21.00	1	t	f	f
+656750791165	doÃ±a juana pickles coliflor 	Almacen	doÃ±a juana	600.00	498.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13388	21.00	1	t	f	f
+656750791165_2	doÃ±a juana pickles coliflor y brocoli	Almacen	doÃ±a juana	600.00	498.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13389	21.00	1	t	f	f
 7790040137813	mana livianas con leche 	Almacen	mana	800.00	166.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13390	21.00	1	t	f	f
 7791337605824	la serenisima clasico 120 	Lacteos	la serenisima	150.00	95.45	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13391	21.00	1	t	f	f
 021893407882	bolsa  comp 90+120	Limpieza	bolsa  	2400.00	1992.00	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13392	21.00	1	t	f	f
@@ -17388,8 +17580,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791905004370	odex vidr 500 ml	Almacen	odex	2500.00	423.30	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13437	21.00	1	t	f	f
 7796854000114	romero pan de paty	Almacen	romero	1200.00	996.00	20	-35	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13438	21.00	1	t	f	f
 7796854000121	romero  pan de pancho	Panaderia	romero	1300.00	996.00	20	-124	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13439	21.00	1	t	f	f
-7790236001225	la salteña tapa emp. x 20	Almacen	la salteña	110.00	91.30	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13440	21.00	1	t	f	f
-7790070612106	la salteña ñoquis 450 g	Almacen	la salteña	2700.00	1494.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13441	21.00	1	t	f	f
+7790236001225	la salteÃ±a tapa emp. x 20	Almacen	la salteÃ±a	110.00	91.30	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13440	21.00	1	t	f	f
+7790070612106	la salteÃ±a Ã±oquis 450 g	Almacen	la salteÃ±a	2700.00	1494.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13441	21.00	1	t	f	f
 076625228044	lamparita 7w	Almacen	tbcin	100.00	83.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13442	21.00	1	t	f	f
 7790580322113	godet arcor	Almacen	godet	100.00	83.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13443	21.00	1	t	f	f
 7790580123741	cofler graffiti 	Almacen	arcor	70.00	58.10	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13444	21.00	1	t	f	f
@@ -17402,8 +17594,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791337002722	Firme vainilla 190g superalimento	Lacteos	serenisima	90.00	74.70	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13451	21.00	1	t	f	f
 7791337002739	Firme frutilla 190g superalimento	Lacteos	serenisima	90.00	74.70	20	-37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13452	21.00	1	t	f	f
 7790742168009	finlandia  guacamole 200	Lacteos	finlandia	180.00	149.40	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13453	21.00	1	t	f	f
-7798338290035	la tres niñas descremada brik	Lacteos	la tres niñas	75.00	62.25	20	-60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13454	21.00	1	t	f	f
-7798338290028	la tres niñas entera  brik	Lacteos	la tres niñas	75.00	62.25	20	-60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13455	21.00	1	t	f	f
+7798338290035	la tres niÃ±as descremada brik	Lacteos	la tres niÃ±as	75.00	62.25	20	-60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13454	21.00	1	t	f	f
+7798338290028	la tres niÃ±as entera  brik	Lacteos	la tres niÃ±as	75.00	62.25	20	-60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13455	21.00	1	t	f	f
 7790895010064	schweppes pomelo 500	Gaseosa	schweppes 	1300.00	1079.00	20	22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13456	21.00	1	t	f	f
 7791337005112	serenito potre chocolate100  g	Lacteos	serenito 	250.00	149.40	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13457	21.00	1	t	f	f
 7798321150551	sublime sancor arroz con canela	Lacteos	sancor	450.00	116.20	20	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13458	21.00	1	t	f	f
@@ -17423,8 +17615,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790040125056	saladik   chedar	Licores	papas 	170.00	124.10	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13472	21.00	1	t	f	f
 7790613071995	Suiza Original	Limpieza	Suiza	1100.00	99.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13473	21.00	1	t	f	f
 7790613071711	Suiza Citronella	Limpieza	Suiza	1100.00	99.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13474	21.00	1	t	f	f
-7791828900117	Pañuelitos descartables	Limpieza	Felpita	1900.00	830.00	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13475	21.00	1	t	f	f
-7791828900124	Pañuelito descartable	Limpieza	felpita	400.00	83.00	20	-79	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13476	21.00	1	t	f	f
+7791828900117	PaÃ±uelitos descartables	Limpieza	Felpita	1900.00	830.00	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13475	21.00	1	t	f	f
+7791828900124	PaÃ±uelito descartable	Limpieza	felpita	400.00	83.00	20	-79	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13476	21.00	1	t	f	f
 7790047000417	smell fresh bebe 	Perfumeria	smell fresh	150.00	117.00	25	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13477	21.00	1	t	f	f
 7790047000424	smell fresh bebe aloe vera 	Perfumeria	smell fresh	150.00	117.00	25	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13478	21.00	1	t	f	f
 7798033800285	panacity pan integral 	Almacen	panacity	310.00	257.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13479	21.00	1	t	f	f
@@ -17554,19 +17746,19 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791290793019	drive j.l 30 lavados 3 l	Limpieza	drive	1100.00	913.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13602	21.00	1	t	f	f
 7791290792982	gramby matic  plus 3 l	Limpieza	gramby	1200.00	996.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13603	21.00	1	t	f	f
 7791290795099	gramby matic  plus 800 	Jabon en polvo	gramby	1800.00	1494.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13604	21.00	1	t	f	f
-7793344000883	elegante 3 capas pañuelos 	Limpieza	elegante	220.00	182.60	20	-37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13605	21.00	1	t	f	f
+7793344000883	elegante 3 capas paÃ±uelos 	Limpieza	elegante	220.00	182.60	20	-37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13605	21.00	1	t	f	f
 7790010570787	siempre libre 16 u toallitas 	Limpieza	siempre libre	600.00	498.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13606	21.00	1	t	f	f
 4005900122186	nivea protec care des 150 ml	Perfumeria	nivea	2200.00	702.00	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13607	21.00	1	t	f	f
 7790520010551	glade gel adhesivo la vanda 	Perfumeria	glade	1300.00	1014.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13608	21.00	1	t	f	f
 7790520990037	glade discos activo 	Perfumeria	glade	400.00	312.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13609	21.00	1	t	f	f
-7613287763488	nido 3  de 1 año 	Lacteos	nestle	1800.00	1494.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13610	21.00	1	t	f	f
+7613287763488	nido 3  de 1 aÃ±o 	Lacteos	nestle	1800.00	1494.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13610	21.00	1	t	f	f
 7891000358238	nidina inicio  1 0 a 6 meses	Lacteos	nestle	3000.00	2490.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13611	21.00	1	t	f	f
 7891000358276	nidina a continuacion 2 de 6 a 12 meses	Lacteos	nestle	2900.00	2407.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13612	21.00	1	t	f	f
 7790580129958	b c mango naranja jugo 	Jugos	b c 	240.00	199.20	20	-212	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13613	21.00	1	t	f	f
 7791269001145	veromar pepas con chips 330 g 	Galletitas	veromar 	2800.00	547.50	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13614	21.00	1	t	f	f
 7791269001138	veromar scons 400 g 	Galletitas	veromar 	2800.00	547.50	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13615	21.00	1	t	f	f
 7790895648380	benedictino sin  gas 3l	Aguas	benedictino	1800.00	1494.00	20	-33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13616	21.00	1	t	f	f
-7790380126379	mantecol bañado 20g	Almacen	mantecol 	700.00	249.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13617	21.00	1	t	f	f
+7790380126379	mantecol baÃ±ado 20g	Almacen	mantecol 	700.00	249.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13617	21.00	1	t	f	f
 7790071090422	riera tos ssal 200 g 	Galletitas	riera	1300.00	693.50	30	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13618	21.00	1	t	f	f
 7798151770929	ques crem light 290 	Lacteos	tempblay 	2300.00	1909.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13619	21.00	1	t	f	f
 7790895649264	mix anana mandarina 1l	Jugos	cepita	2500.00	1826.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13620	21.00	1	t	f	f
@@ -17633,7 +17825,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790150161128	la virginia capuccino vainilla	Almacen	la virginia	500.00	415.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13681	21.00	1	t	f	f
 7790150355084	la virginia te  verde 40 g	te	la virginia 	1300.00	95.40	50	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13682	21.00	1	t	f	f
 7790150240175	la virginia te de limon 	te	la virginia 	1500.00	95.40	50	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13683	21.00	1	t	f	f
-7792410528917	Caña Ombu	Licores	OMBU	1100.00	803.00	30	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13684	21.00	1	t	f	f
+7792410528917	CaÃ±a Ombu	Licores	OMBU	1100.00	803.00	30	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13684	21.00	1	t	f	f
 7702026194123	nosotras dia noche x 8	Perfumeria	nosotras 	320.00	249.60	25	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13685	21.00	1	t	f	f
 7798130954289	crazy pop fun pastilla	Almacen	crazy pop	90.00	74.70	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13686	21.00	1	t	f	f
 7790990000632	zorro crema  original 500	Limpieza	zorro	1400.00	116.20	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13687	21.00	1	t	f	f
@@ -17642,7 +17834,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798333090050	muecas pasas y almendras 	Dulce	muecas	800.00	149.40	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13690	21.00	1	t	f	f
 7798333090067	muecas cacao y avellanas 	Dulce	muecas	1000.00	149.40	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13691	21.00	1	t	f	f
 7790272000794	mazola aceite de maiz 	aceite	mazola	700.00	511.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13692	21.00	1	t	f	f
-7792684003417	solitas rosquitas bañada	Galletitas	solitas	2200.00	182.50	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13693	21.00	1	t	f	f
+7792684003417	solitas rosquitas baÃ±ada	Galletitas	solitas	2200.00	182.50	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13693	21.00	1	t	f	f
 77977106	cigarro 43/70	Almacen	cigarro 	2000.00	373.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13694	21.00	1	t	f	f
 754697522870	saint michel  10 li	Almacen	saint miche	2900.00	2407.00	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13695	21.00	1	t	f	f
 7790740509224	plus acond antioxidante 	perfumeria	plusbelle	450.00	215.80	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13696	21.00	1	t	f	f
@@ -17674,7 +17866,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7500435183123	pampers supersec xg 5	Limpieza	pampers	1000.00	315.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13722	21.00	1	t	f	f
 7500435193108	always suave nocturna 8	Perfumeria	always	280.00	218.40	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13723	21.00	1	t	f	f
 041789002915	maruchan ramen sabor pollo	Almacen	maruchan 	170.00	141.10	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13724	21.00	1	t	f	f
-7798096031185	doña pupa arvejas 	Almacen	doña pupa	140.00	116.20	20	-48	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13725	21.00	1	t	f	f
+7798096031185	doÃ±a pupa arvejas 	Almacen	doÃ±a pupa	140.00	116.20	20	-48	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13725	21.00	1	t	f	f
 7798146138963	tau caesar 500	Almacen	tau	750.00	273.90	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13726	21.00	1	t	f	f
 7790580129347	mogul extreme acido dulce sandia	Almacen	arcor	800.00	74.70	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13727	21.00	1	t	f	f
 7790580131838	bc anana 	Almacen	bc	700.00	581.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13728	21.00	1	t	f	f
@@ -17744,7 +17936,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7794000006096	hellmanns may  125	mayonesa	hellmanns	500.00	182.50	30	-75	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13791	21.00	1	t	f	f
 7790290101473	fernet branca menta  750	Prod.Altos	branca	15000.00	13950.00	10	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13792	21.00	1	t	f	f
 7791337061408	casancrem deslct 290	Lacteos	casamcrem	2700.00	1826.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13793	21.00	1	t	f	f
-7622201818739	codburi tres sueñios	Dulce	codburi 	3300.00	249.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13794	21.00	1	t	f	f
+7622201818739	codburi tres sueÃ±ios	Dulce	codburi 	3300.00	249.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13794	21.00	1	t	f	f
 7799837263457	naipes	Gaseosa	naipes	110.00	91.30	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13795	21.00	1	t	f	f
 7790150101490	La virgi suave 170 	cafe	la virginia	6600.00	394.20	30	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13796	21.00	1	t	f	f
 7790150550588	alicante pimienta blanca	especias	alicante	1400.00	141.10	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	2026-02-25 00:00:00	\N	0	\N	1	0	13797	21.00	1	t	f	f
@@ -17774,9 +17966,9 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798290580540	tratenfu  almendra 1 l	Jugos	trantenfu	500.00	415.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13821	21.00	1	t	f	f
 7798290581035	trantenfu leche de coco 1 l	Jugos	trantenfu	450.00	373.50	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13822	21.00	1	t	f	f
 7795643001318	cilo lenguita b/chocolate	Galletitas	cilo	1600.00	131.40	30	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13823	21.00	1	t	f	f
-7795643001370	cilo lenguita baño de chocolate	Galletitas	cilo	1600.00	131.40	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13824	21.00	1	t	f	f
+7795643001370	cilo lenguita baÃ±o de chocolate	Galletitas	cilo	1600.00	131.40	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13824	21.00	1	t	f	f
 7795643001301	cilo pepas b / chocolate	Galletitas	cilo	1600.00	131.40	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13825	21.00	1	t	f	f
-7795643001356	cilo anillitos baño de choclate 300	Galletitas	cilo	1600.00	131.40	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13826	21.00	1	t	f	f
+7795643001356	cilo anillitos baÃ±o de choclate 300	Galletitas	cilo	1600.00	131.40	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13826	21.00	1	t	f	f
 7798136870026	dahi yogur frutilla	Lacteos	dahi	900.00	747.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13827	21.00	1	t	f	f
 7798017860290	For-Van formula 1  200 g	Galletitas	For-Van	150.00	109.50	30	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13828	21.00	1	t	f	f
 77983831	phililip mix y match 12u	Almacen	phililip 	300.00	249.00	20	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13829	21.00	1	t	f	f
@@ -17833,7 +18025,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798061891905	romyl esponja de acero docle	Almacen	romyl	100.00	83.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13880	21.00	1	t	f	f
 7790070035547	granja del lenteja y yamani	Almacen	granja del sol	1000.00	830.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13881	21.00	1	t	f	f
 7790040133716	mini macucas 140 g 	Galletitas	arcor	100.00	73.00	30	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13882	21.00	1	t	f	f
-7790040132955	hogareñas salvado 	Galletitas	hogareñas 	250.00	182.50	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13883	21.00	1	t	f	f
+7790040132955	hogareÃ±as salvado 	Galletitas	hogareÃ±as 	250.00	182.50	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13883	21.00	1	t	f	f
 7790045827054	granix frutigran avena y frutos rojos	Galletitas	granix	130.00	94.90	30	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13884	21.00	1	t	f	f
 7790380028185	flynn paff gomitas	Galletitas	flynn paff 	60.00	43.80	30	-41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13885	21.00	1	t	f	f
 7798179480014|	ns galletitas marinrras	Galletitas	ns	110.00	80.30	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13886	21.00	1	t	f	f
@@ -17876,7 +18068,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790150436080	canela en rama	Almacen	Alicante	1900.00	481.40	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13923	21.00	1	t	f	f
 7790150438275	champignones y hongos 	Almacen	Alicante	260.00	49.80	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13924	21.00	1	t	f	f
 7791990000158	rosa blanca rebozador 1 kg	Almacen	rosa blanca	2000.00	240.70	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13925	21.00	1	t	f	f
-7798096030850_2	doña pupa pure tomate 520	Almacen	doña pupa	700.00	49.80	20	84	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13926	21.00	1	t	f	f
+7798096030850_2	doÃ±a pupa pure tomate 520	Almacen	doÃ±a pupa	700.00	49.80	20	84	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13926	21.00	1	t	f	f
 076625233048	risky-dit snack de queso 50 g	Galletitas	risky-dit	80.00	66.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13927	21.00	1	t	f	f
 076625233031	risky-dit snack jamon	Galletitas	risky-dit	80.00	58.40	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13928	21.00	1	t	f	f
 7798304841131	frigor sin parar DDL americ	Almacen	sin parar	900.00	747.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13929	21.00	1	t	f	f
@@ -17899,7 +18091,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798332890347	papas cheddar 70 g 	Almacen	sabores	1400.00	996.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13946	21.00	1	t	f	f
 7792900990705	dos anclas sal caesar 360 g 	Almacen	dos anclas 	4200.00	3735.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13947	21.00	1	t	f	f
 77987228	marlboro vis limit edi 20	cigarros	marlboro	4300.00	2409.00	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13948	21.00	1	t	f	f
-7790070621047	ñoquis papa 900g	Almacen	la salteña	1050.00	705.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13949	21.00	1	t	f	f
+7790070621047	Ã±oquis papa 900g	Almacen	la salteÃ±a	1050.00	705.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13949	21.00	1	t	f	f
 7791672014428	fantoche pepas	Galletitas	fantoche	50.00	36.50	30	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13950	21.00	1	t	f	f
 7790412000509	leiva mini salvado	Galletitas	leiva	350.00	40.15	30	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	13951	21.00	1	t	f	f
 7798061894197	romyl don vicente rojo 130 	Almacen	romyl	240.00	199.20	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	13952	21.00	1	t	f	f
@@ -17976,7 +18168,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791290012226	Cif lavavaj.melon 300ml	Limpieza	Cif	80.00	58.40	30	1	4156269			5.25	5.78	5.25	1	nini	1	2010-10-04 00:00:00	S	0	\N	1	0	14038	21.00	1	t	f	f
 7798080660605	Bizcochuelo choc.3capas 500g	Bizcochuelo	Valido	250.00	182.50	30	2	1	1	1	10.50	11.55	10.50	1	el tetu 	1	2010-10-07 00:00:00	S	\N	\N	1	0	14041	21.00	1	t	f	f
 7790080010862	sancor manteca x 100	Lacteos	sancor	2100.00	498.00	20	15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14043	21.00	1	t	f	f
-7798176009783	sancor bebe 3 1 año 	Lacteos	Sancor	3800.00	615.60	22	5	3791			5.22	5.74	5.22	1	sancor	1	2010-07-13 00:00:00	S	0	\N	1	0	14044	21.00	1	t	f	f
+7798176009783	sancor bebe 3 1 aÃ±o 	Lacteos	Sancor	3800.00	615.60	22	5	3791			5.22	5.74	5.22	1	sancor	1	2010-07-13 00:00:00	S	0	\N	1	0	14044	21.00	1	t	f	f
 77987655	halls azul pas 	Almacen	halls 	800.00	199.20	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14045	21.00	1	t	f	f
 7791708611720	veneziana torta casera d.d.leche	Panaderia	veneziana	50.00	36.50	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14046	21.00	1	t	f	f
 7790150497272	alic cond.empanada 25g	Condimentos	Alicante	1000.00	73.00	30	2	49721-4	1	1	2.83	3.26	9.96	1	la virginia	1	2012-07-02 00:00:00	S	0	\N	1	0	14047	21.00	1	t	f	f
@@ -18006,7 +18198,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798095440087	Lavandina 2 lts	Limpieza	Hogar	1200.00	996.00	20	-36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14081	21.00	1	t	f	f
 7798354180730	Max aroma m cher aer	Limpieza	Max aroma	3200.00	2490.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14082	21.00	1	t	f	f
 7790480088935	traquera yerba 2 kg	yerba	tra quera	15.38	11.83	30	0		0121272		11.83	13.01	11.83	1		1	2010-07-09 00:00:00	S	\N	\N	1	0	14083	21.00	1	t	f	f
-7791880936208	risotto a la española	Almacen	arroz gallo	14.00	11.62	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14091	21.00	1	t	f	f
+7791880936208	risotto a la espaÃ±ola	Almacen	arroz gallo	14.00	11.62	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14091	21.00	1	t	f	f
 7798051300691	omnium extra brut	Prod.Altos	omniun	65.00	60.45	10	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14092	21.00	1	t	f	f
 75026455	rex anti/nutri.wom.barra 50g	antitranspirante	rexona	550.00	401.50	30	0		0140509		11.80	12.98	11.80	1		1	2010-07-09 00:00:00	S	0	\N	1	0	14093	21.00	1	t	f	f
 75027513	dove antit.original barra 50g	antitranspirante	rexona	3800.00	313.90	30	6				11.80	12.98	11.80	1		1	2010-07-09 00:00:00	S	0	\N	1	0	14094	21.00	1	t	f	f
@@ -18026,16 +18218,16 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7792170110551	Gat  Naranja 1.25lt 	Jugos	Gatorade	2800.00	265.60	20	0	001424	1	1	7.00	7.70	7.00	1	quilmes	1	2010-07-12 00:00:00	S	0	\N	1	0	14110	21.00	1	t	f	f
 7792170110575	Gat  manzana 1.25lt	Jugos	Gatorade	2800.00	1660.00	20	-8	001425			7.00	8.05	7.00	1	quilmes	1	2010-07-12 00:00:00	S	0	\N	1	0	14111	21.00	1	t	f	f
 7613034428318	nestle nestum	Almacen	nestle	16.00	13.28	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14112	21.00	1	t	f	f
-7790236000686	Ravioles mazarela y espinaca	pasta	la salteña	17.00	12.41	30	0				11.20	12.32	11.20	1		1	2010-08-12 00:00:00	S	\N	\N	1	0	14113	21.00	1	t	f	f
+7790236000686	Ravioles mazarela y espinaca	pasta	la salteÃ±a	17.00	12.41	30	0				11.20	12.32	11.20	1		1	2010-08-12 00:00:00	S	\N	\N	1	0	14113	21.00	1	t	f	f
 7790080014686	Queso Reggianito 190g	Almacen	Sancor	6500.00	1411.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14114	21.00	1	t	f	f
 7790520995599	cera liq floral x400	Limpieza	Blem	4300.00	3569.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14115	21.00	1	t	f	f
 7791337012035	casamcrem light 300g 	Lacteos	serenisima	135.00	112.05	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14116	21.00	1	t	f	f
 7790201379625	eco lili bols 60x90	Limpieza	eco lili	1100.00	913.00	20	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14117	21.00	1	t	f	f
 7794728033824	monegar crema de cuerpo	Perfumeria	monegar	140.00	109.20	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14118	21.00	1	t	f	f
-5000200	´por salud maffia sin sal	Fiambreria	maffia	96.00	124.10	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	0	14119	21.00	1	t	f	f
+5000200	Â´por salud maffia sin sal	Fiambreria	maffia	96.00	124.10	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	0	14119	21.00	1	t	f	f
 7798359330116	pasta 3 veget sin gluten 400 g 	fideos	Cusinor	3000.00	2190.00	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14123	21.00	1	t	f	f
 7790010599276	s.libre term.contr.c/a 8	Toallita	Siempre Libre	110.00	80.30	30	-19	4264320	1	1	5.90	6.49	5.90	1	nini	1	2010-07-03 00:00:00	S	\N	\N	1	0	14124	21.00	1	t	f	f
-7794626008672	huggies xxg 34 pañales	pañales	Huggies	580.00	423.40	30	0	3898741			16.16	17.77	1.88	1	nini	1	2010-07-03 00:00:00	S	\N	\N	1	0	14125	21.00	1	t	f	f
+7794626008672	huggies xxg 34 paÃ±ales	paÃ±ales	Huggies	580.00	423.40	30	0	3898741			16.16	17.77	1.88	1	nini	1	2010-07-03 00:00:00	S	\N	\N	1	0	14125	21.00	1	t	f	f
 7790580133634	chocolate banco 95 g	Galletitas	arcor	250.00	182.50	30	0	\N	\N	\N	\N	\N	\N	\N		\N	\N	\N	\N	\N	1	0	14126	21.00	1	t	f	f
 7790480089307	Te green gills verde 25g	te	Grenn gills	55.00	40.15	30	-10			14117	3.99	4.39	3.99	1		1	2010-07-05 00:00:00	S	\N	\N	1	0	14127	21.00	1	t	f	f
 7798040461617	push pop candy chuoetin	Almacen	push	150.00	124.50	20	17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14128	21.00	1	t	f	f
@@ -18068,8 +18260,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7799155000173	villavicencio 500 	Aguas	villavicencio	1000.00	664.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14163	21.00	1	t	f	f
 7798354180266	max aroma tropical	Limpieza	max aroma	2900.00	2407.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14164	21.00	1	t	f	f
 7798177400138	urquiza cubanito 180 g	Galletitas	urquiza pepi	90.00	65.70	30	3	35772	1	1	2.39	2.63	2.39	1	jose	1	2010-07-01 00:00:00	S	\N	\N	1	0	14165	21.00	1	t	f	f
-7791885001345	Champiñon lamin.400g	Almacen	Jandaia	15.00	10.95	30	-37				5.10	3.85	3.50	1		1	2010-07-01 00:00:00	S	\N	\N	1	0	14167	21.00	1	t	f	f
-7798350084230	Duffy Grande 20 pañ	Perfumeria	Duffy	6700.00	5226.00	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14168	21.00	1	t	f	f
+7791885001345	ChampiÃ±on lamin.400g	Almacen	Jandaia	15.00	10.95	30	-37				5.10	3.85	3.50	1		1	2010-07-01 00:00:00	S	\N	\N	1	0	14167	21.00	1	t	f	f
+7798350084230	Duffy Grande 20 paÃ±	Perfumeria	Duffy	6700.00	5226.00	25	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14168	21.00	1	t	f	f
 7791290784932	Confort suav.conc.orig.500ml	Limpieza	Confort	18.00	13.14	30	-7	4213440			9.80	10.78	9.80	1	nini	1	2010-07-02 00:00:00	S	\N	\N	1	0	14169	21.00	1	t	f	f
 7791290785687	Confort.suav.conc.jojob 500ml	Limpieza	Confort	14.50	11.15	30	0	4473841			11.15	12.27	11.15	1	nini	1	2010-07-02 00:00:00	S	\N	\N	1	0	14170	21.00	1	t	f	f
 7791130101981	Woolite esp.limp.alfon.346ml	Limpieza	Woolite	18.00	13.14	30	0	4364970			13.80	15.18	13.80	1	nini	1	2010-07-02 00:00:00	S	\N	\N	1	0	14171	21.00	1	t	f	f
@@ -18077,8 +18269,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791130002080	polycera autobr.negro.dp 400ml	Limpieza	Polycera	50.00	36.50	30	3	4056990			4.25	4.68	4.25	1	nini	1	2010-07-02 00:00:00	S	\N	\N	1	0	14173	21.00	1	t	f	f
 7791813888468	pepsi 2l	Jugos	pepsi 	2500.00	1743.00	20	-35	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14174	21.00	1	t	f	f
 7791290793774	Vivere planc facil 810ml	Limpieza	Vivere	3000.00	328.50	30	4	4127196	133212	1	5.20	5.72	5.20	1	nini	1	2010-10-02 00:00:00	S	0	\N	1	0	14175	21.00	1	t	f	f
-7791290003156	Vivere mañana del sol x500	Limpieza	Vivere	18.00	13.14	30	1	3890228			5.20	5.72	5.20	1	nini	1	2010-07-03 00:00:00	S	\N	\N	1	0	14176	21.00	1	t	f	f
-7790387015218	mañanita bcp	yerbas	mañanita	220.00	160.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14177	21.00	1	t	f	f
+7791290003156	Vivere maÃ±ana del sol x500	Limpieza	Vivere	18.00	13.14	30	1	3890228			5.20	5.72	5.20	1	nini	1	2010-07-03 00:00:00	S	\N	\N	1	0	14176	21.00	1	t	f	f
+7790387015218	maÃ±anita bcp	yerbas	maÃ±anita	220.00	160.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14177	21.00	1	t	f	f
 7790940216151	taolla nor 8 u t/s c/alas s/perf	Perfumeria	Doncella	800.00	624.00	25	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14178	21.00	1	t	f	f
 7622300506919	postre frutilla	Almacen	royal	20.00	16.60	20	6	1	1	1	2.50	2.75	2.50	1	1	1	2011-04-07 00:00:00	S	\N	\N	1	0	14179	21.00	1	t	f	f
 7790201379602	eco lili bols 90 x 120	Limpieza	eco lili	2000.00	1660.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14180	21.00	1	t	f	f
@@ -18126,10 +18318,10 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7793360826306	bc frutos rojos 390	mermeladas	bc 	1340.00	265.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14240	21.00	1	t	f	f
 7622201820473	royal gelatina narnja	Almacen	royal	1100.00	109.50	30	-15	1943642	1	1	8.26	9.09	8.26	1	nini	1	2010-05-17 00:00:00	S	0	\N	1	0	14241	21.00	1	t	f	f
 7790070409478	Bocadito de Limon x 330g	Bizcochuelo	Exquisita	13.50	9.86	30	-4	1943618	1	1	8.26	9.09	8.26	1	nini	1	2010-05-17 00:00:00	S	0	\N	1	0	14242	21.00	1	t	f	f
-7790236000341	capellettis quesos	Fideos	La Salteña 	21.25	15.51	30	-33	1	1	1	9.82	10.80	9.82	1	tetu	1	2010-05-17 00:00:00	S	\N	\N	1	0	14243	21.00	1	t	f	f
+7790236000341	capellettis quesos	Fideos	La SalteÃ±a 	21.25	15.51	30	-33	1	1	1	9.82	10.80	9.82	1	tetu	1	2010-05-17 00:00:00	S	\N	\N	1	0	14243	21.00	1	t	f	f
 7790415127081	malbec	Vinos	carcazone	22.00	18.26	20	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14246	21.00	1	t	f	f
 7790070507129	nobleza gaucha yerba 1 k	yerbas	nobleza gaucha	90.00	66.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14248	21.00	1	t	f	f
-7790121000012	Caña Quemada x 1l	Licores	Quemaita	1300.00	657.00	30	1	2714760	1	1	8.64	9.50	8.64	1	nini	1	2010-05-20 00:00:00	S	0	\N	1	0	14249	21.00	1	t	f	f
+7790121000012	CaÃ±a Quemada x 1l	Licores	Quemaita	1300.00	657.00	30	1	2714760	1	1	8.64	9.50	8.64	1	nini	1	2010-05-20 00:00:00	S	0	\N	1	0	14249	21.00	1	t	f	f
 7791293998619	Dove.ant.dermo Aclar. 100	antitraspirante	Dove	15.60	12.00	30	-10	4479394	1	1	11.50	12.65	11.50	1	nini	1	2010-09-14 00:00:00	S	\N	\N	1	0	14250	21.00	1	t	f	f
 7791293049489	rexona des 150 ml	desodorante	Rexona	3300.00	2409.00	30	-6	4435656	1	1	4.79	5.27	4.79	1	nini	1	2010-05-20 00:00:00	S	0	\N	1	0	14251	21.00	1	t	f	f
 7790080033397	crema deleche santa brigida	Lacteos	sancor	80.00	66.40	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14253	21.00	1	t	f	f
@@ -18152,8 +18344,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790250015833	higienol max ph  x 4 ud 100mts	higienico	higienol 	490.00	357.70	30	1		140901		9.50	10.93	8.20	1	nini	1	2010-09-25 00:00:00	S	\N	\N	1	0	14273	21.00	1	t	f	f
 7790150321065	tilo manzanilla cedron 20 sq	te	La Virginia	1600.00	122.40	31	0	81012-7	1	1	1.55	1.71	1.55	1	lA VIRGINIA	1	2010-05-07 00:00:00	S	0	\N	1	0	14274	21.00	1	t	f	f
 7500435019613	head&shouleerds 180 	Limpieza	head shoulders	170.00	141.10	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14275	21.00	1	t	f	f
-7790070509079	cruz  manzanilla x 500 kg	yerbas	cruz malta	2000.00	290.50	20	15	\N	\N	\N	\N	\N	\N	\N	Otro	\N	\N	\N	0	\N	1	0	14276	21.00	1	t	f	f
-7791690000991	Viejo solar borgoña 1.25l	Vinos	Viejo Solar	2800.00	2044.00	30	1	4472225	1	1	9.30	10.23	9.30	1	nini	1	2010-05-09 00:00:00	S	0	\N	1	0	14277	21.00	1	t	f	f
+7791690000991	Viejo solar borgoÃ±a 1.25l	Vinos	Viejo Solar	2800.00	2044.00	30	1	4472225	1	1	9.30	10.23	9.30	1	nini	1	2010-05-09 00:00:00	S	0	\N	1	0	14277	21.00	1	t	f	f
 7793890033021	Ravioles 4quesos	pasta\r\n	Fargo	20.40	15.91	25	22	1	1	1	8.40	9.66	7.70	1	Fargo	1	2010-10-07 00:00:00	S	\N	\N	1	0	14278	21.00	1	t	f	f
 7891167021020	Sardinas c/Salsa tomate 125g	Sardinas	Gomes da Costa	26.00	18.98	30	0	2946459	1	2102	4.08	4.69	1.25	1	nini	1	2010-08-09 00:00:00	S	0	\N	1	0	14279	21.00	1	t	f	f
 7798187211274	quento 45 g cheddar	Almacen	quento	5500.00	4565.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14280	21.00	1	t	f	f
@@ -18169,14 +18360,15 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790080026542	Triangulito Jamon	Quesos	Sancor	40.00	33.20	20	-5	2654	1	1	6.25	7.19	6.20	1	Sancor	1	2012-06-25 00:00:00	S	\N	\N	1	0	14294	21.00	1	t	f	f
 7790310984482	cheetos 47 g	snacks	cheetos	350.00	290.50	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14295	21.00	1	t	f	f
 7791293050645	lord cheseline gel humedo 280g 	Perfumeria	lord cheseline	2800.00	2184.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14296	21.00	1	t	f	f
-7790236013129	la salteña fideos tallarin 500	fideos	la salteña	20.00	13.60	35	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14297	21.00	1	t	f	f
+7790236013129	la salteÃ±a fideos tallarin 500	fideos	la salteÃ±a	20.00	13.60	35	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14297	21.00	1	t	f	f
 7798151770189	tremblay queso rallado 40 g 	Lacteos	tremblay	1000.00	498.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14298	21.00	1	t	f	f
 7790670052333	green life arveja brocol	Almacen	green life 	1500.00	830.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14299	21.00	1	t	f	f
 7790250021919	Higienico Bco. 90mx4u	Higienicos	Elitte	18.50	15.36	20	-1	4470214	1	1	11.71	12.88	11.71	1	nini	1	2010-04-27 00:00:00	S	\N	\N	1	0	14300	21.00	1	t	f	f
-7500435112710	pampers supersec  xxg 8	Pañales	Pampers	140.00	102.20	30	16	4394763	1	1	6.80	7.82	6.80	1	nini	1	2010-10-19 00:00:00	S	0	\N	1	0	14301	21.00	1	t	f	f
+7500435112710	pampers supersec  xxg 8	PaÃ±ales	Pampers	140.00	102.20	30	16	4394763	1	1	6.80	7.82	6.80	1	nini	1	2010-10-19 00:00:00	S	0	\N	1	0	14301	21.00	1	t	f	f
 7790313000875	Salsa Pomarola 350g	pure	La Colina	15.00	10.95	30	-1	904449	1	1	2.20	2.42	2.20	1	nini	1	2010-04-27 00:00:00	S	\N	\N	1	0	14302	21.00	1	t	f	f
 7790070410917	Gelat.Light Durazno 25g	Gelatina	Exquisita	60.00	43.80	30	0	2607727	1	1	2.25	2.48	2.25	1	nini	1	2010-04-27 00:00:00	S	0	\N	1	0	14303	21.00	1	t	f	f
 7891079012215	nissin ramen carne	Almacen	nissin ramen	1400.00	1162.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14579	10.50	1	t	f	f
+7790070509079	cruz  manzanilla x 500 kg	yerbas	cruz malta	2000.00	290.50	20	15	\N	\N	\N	\N	\N	\N	\N	Otro	\N	\N	\N	0	\N	1	0	14276	21.00	1	t	f	t
 7506309803784	acondi 10ml	Shampoo	Pantene	250.00	146.00	30	3	1	0133541	1	6.42	7.06	6.42	1	Vital	1	2010-04-27 00:00:00	S	0	\N	1	0	14304	21.00	1	t	f	f
 7798362627678	jugo limon 1 ls	Almacen	saws	1400.00	1162.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14305	21.00	1	t	f	f
 7798327190445	Tomate Triturado 910g	Pure de tomate	Gallardo	240.00	175.20	30	1	1	1	1	3.40	3.74	3.40	1	Morelli	1	2010-04-29 00:00:00	S	\N	\N	1	0	14306	21.00	1	t	f	f
@@ -18193,7 +18385,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791520009705	fresco refresca y protege	Almacen	veritas	30.00	24.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14323	21.00	1	t	f	f
 7790813150131	levadura inst 20x10gr	Fiambreria	calsa	50.00	36.50	30	10	2454157	1	1	16.00	16.00	16.00	4	fargo	1	2010-03-18 00:00:00	S	\N	\N	1	0	14325	21.00	1	t	f	f
 7793890013306	pan rallado 500g	pan rayado	fargo	20.99	15.32	30	-10	7008	1	1	2.90	3.19	2.90	1	fargo	1	2010-03-18 00:00:00	S	\N	\N	1	0	14326	21.00	1	t	f	f
-7790236001485	salsa estilo casera filetto 350g	salsas	la salteña	20.00	14.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14328	21.00	1	t	f	f
+7790236001485	salsa estilo casera filetto 350g	salsas	la salteÃ±a	20.00	14.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14328	21.00	1	t	f	f
 7790400014532	Poxipol Transparente	Pegamento	Poxipol	5000.00	146.00	30	-2	376	1	1	8.23	9.05	8.23	1	Analgesicos	1	2010-03-20 00:00:00	S	0	\N	1	0	14329	21.00	1	t	f	f
 7790400014525	Poxipol	Pegamento	Poxipol	5000.00	146.00	30	2	375	1	1	8.23	9.05	8.23	1	Analgesicos	1	2010-03-20 00:00:00	S	0	\N	1	0	14330	21.00	1	t	f	f
 7790080052947	Leche en polvo x 350g	Leche en polvo	Santa Brigida	17.00	14.11	20	0	5294	1	1	8.29	9.12	8.29	1	Sancor	1	2010-03-20 00:00:00	S	\N	\N	1	0	14331	21.00	1	t	f	f
@@ -18207,7 +18399,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790070022059	pATITAS X 400 + 50G	Hamburguesas	granja del sol	28.00	20.44	30	-53	7123	1	1	11.50	12.65	11.50	1	Vermart	1	2010-04-21 00:00:00	S	\N	\N	1	0	14342	21.00	1	t	f	f
 7790150260821	Litoral yerba mate x 25	mate cocido	La virginia	1200.00	324.00	31	10	1	1	1	2.20	2.42	2.20	1	1	1	2010-04-21 00:00:00	S	0	\N	1	0	14344	21.00	1	t	f	f
 7613034733245	nestun VEGETAL 200gs	cereales	nestle	42.00	30.66	30	0	3015157	1	1	4.95	5.45	4.95	1	nini	1	2010-04-21 00:00:00	S	0	\N	1	0	14345	21.00	1	t	f	f
-7790770601165	calipso p/d x 20c/frag	Prtotectoresºº	Calipso	350.00	124.10	30	-46	2323290	1	1	3.70	4.26	3.70	1	nini	1	2010-04-22 00:00:00	S	0	\N	1	0	14349	21.00	1	t	f	f
+7790770601165	calipso p/d x 20c/frag	PrtotectoresÂºÂº	Calipso	350.00	124.10	30	-46	2323290	1	1	3.70	4.26	3.70	1	nini	1	2010-04-22 00:00:00	S	0	\N	1	0	14349	21.00	1	t	f	f
 7790770602193	Prote normal  x 50	Protectores	Calipso	2200.00	730.00	30	8	265683	1	1	3.70	4.07	3.70	1	nini	1	2010-04-22 00:00:00	S	0	\N	1	0	14350	21.00	1	t	f	f
 7790520014184	Lysoform lavanda 360 cm3	limpieza	Lysoform	180.00	131.40	30	10	4426142	1	1	6.34	6.97	6.34	1	nini	1	2010-04-22 00:00:00	S	0	\N	1	0	14353	21.00	1	t	f	f
 7791293041469	dove rep sha 180 ml	Perfumeria	dove	1200.00	624.00	25	-22	1	1	1	11.50	12.65	11.50	1	1	1	2011-12-01 00:00:00	S	0	\N	1	0	14354	21.00	1	t	f	f
@@ -18234,7 +18426,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7793890033083	capeletti 4 quesos	pasta	fargo	20.40	15.91	25	12	4045	1	1	7.70	8.47	8.39	1	fargo	1	2010-10-07 00:00:00	S	\N	\N	1	0	14381	21.00	1	t	f	f
 7793890044324	capeletti poll y esp	pasta	fargo	20.40	15.91	25	-6	4432	1	1	7.70	8.47	7.70	1	FARGO	1	2010-03-18 00:00:00	S	\N	\N	1	0	14382	21.00	1	t	f	f
 7793890044517	TORTELETTI poll y esp	pasta	fargo	13.50	10.53	25	0	4431	1	1	7.70	8.47	8.39	1	fargo	1	2010-10-07 00:00:00	S	\N	\N	1	0	14383	21.00	1	t	f	f
-7793806001045	pionono dulce la santiagurña	Almacen	 la santiagurña	80.00	62.40	25	-43	5067	1	1	5.35	5.89	5.35	1	fargo	1	2010-03-18 00:00:00	S	\N	\N	1	0	14386	21.00	1	t	f	f
+7793806001045	pionono dulce la santiagurÃ±a	Almacen	 la santiagurÃ±a	80.00	62.40	25	-43	5067	1	1	5.35	5.89	5.35	1	fargo	1	2010-03-18 00:00:00	S	\N	\N	1	0	14386	21.00	1	t	f	f
 7791293030371	shampoo  manzana verde	Panaderia	suave	120.00	87.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14387	21.00	1	t	f	f
 7791290010420	matic  acion liquida  900ml	Limpieza	ala	48.00	39.84	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14388	21.00	1	t	f	f
 7791293023441	suave *3	Panaderia	suave	50.00	36.50	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14389	21.00	1	t	f	f
@@ -18286,8 +18478,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790580460501	Huevo Barbie leche x 60g	Huevos de pascua	Arcor	12.30	9.43	30	2	4605	1	1	9.43	10.37	9.43	1	Arcor	1	2010-03-05 00:00:00	S	\N	\N	1	0	14449	21.00	1	t	f	f
 7790580058043	Huevo Barbie Leche x 130g	Huevos de pascua	Arcor	23.60	18.10	30	2	5804	1	1	18.10	19.91	18.10	1	Arcor	1	2010-03-05 00:00:00	S	\N	\N	1	0	14450	21.00	1	t	f	f
 7790580302900	Huevo Ben 10 x 130g	Huevos de pascua	Arcor	30.75	23.56	30	2	3029	1	1	23.56	25.92	23.56	1	Arcor	1	2010-03-05 00:00:00	S	\N	\N	1	0	14452	21.00	1	t	f	f
-7790407031273	aguila 140 años chocolate 150 g	chocolate	Aguila	6500.00	1460.00	30	-1	2816	1	1	16.50	18.15	16.50	1	Arcor	1	2010-03-05 00:00:00	S	0	\N	1	0	14453	21.00	1	t	f	f
-7790580131487	AGUILA Baño rep. leche 150g	Huevos de pascua	Aguila	3500.00	1314.00	30	0	4528	1	1	19.65	21.62	19.65	1	Arcor	1	2010-03-05 00:00:00	S	0	\N	1	0	14454	21.00	1	t	f	f
+7790407031273	aguila 140 aÃ±os chocolate 150 g	chocolate	Aguila	6500.00	1460.00	30	-1	2816	1	1	16.50	18.15	16.50	1	Arcor	1	2010-03-05 00:00:00	S	0	\N	1	0	14453	21.00	1	t	f	f
+7790580131487	AGUILA BaÃ±o rep. leche 150g	Huevos de pascua	Aguila	3500.00	1314.00	30	0	4528	1	1	19.65	21.62	19.65	1	Arcor	1	2010-03-05 00:00:00	S	0	\N	1	0	14454	21.00	1	t	f	f
 7794000004832	hellmanns mayonesa clasica x 500	mayonesa	hellmanns	300.00	219.00	30	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14456	21.00	1	t	f	f
 7798186032689	yummy dinosaurios	Dulce	yummy	500.00	83.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14457	21.00	1	t	f	f
 7791885003820	cumana durazno 485g light.	Latas	Cumana	1400.00	1022.00	30	-24	290	1	1	16.60	18.26	3.32	5	Pietra	1	2010-03-08 00:00:00	S	0	\N	1	0	14458	21.00	1	t	f	f
@@ -18334,14 +18526,14 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7795735601006	Don satur pan dulce chips de cho	Pan dulce	Don Satur	4000.00	215.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14528	21.00	1	t	f	f
 7790990001820	federal J . P 	Limpieza	federal	1300.00	132.80	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14529	21.00	1	t	f	f
 7792180004871	Harina 0000 u refinada 	Harinas	pureza	1300.00	107.90	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14530	10.50	1	t	f	f
-7790189021035	elemento syrat	Vinos	elñemento	280.00	232.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14531	21.00	1	t	f	f
+7790189021035	elemento syrat	Vinos	elÃ±emento	280.00	232.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14531	21.00	1	t	f	f
 7790742771506	serenisima crema cocinar 520	Lacteos	serenisima 	900.00	705.50	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14532	21.00	1	t	f	f
 7790036000367	baggioo mix frutal	Jugos	baggio	1500.00	290.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14533	21.00	1	t	f	f
 7798186890142	La sofia finca malbec 750 ml 	Vinos	FINCA LA SOFIA 	2700.00	2241.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14534	21.00	1	t	f	f
 7790387013504	taragui yerba sin palo 500 g	yerba	taragui	2800.00	2324.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14535	21.00	1	t	f	f
 7794959000251	COLA	Gaseosa	CIMES	28.00	23.24	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14536	21.00	1	t	f	f
 7792860007260	lherittier turron tradicional100 g	Almacen	lherittier 	500.00	3.74	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14539	21.00	1	t	f	f
-7790132009158	plomero liqu destapacañeria	Limpieza	ayudin	6000.00	415.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14541	21.00	1	t	f	f
+7790132009158	plomero liqu destapacaÃ±eria	Limpieza	ayudin	6000.00	415.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14541	21.00	1	t	f	f
 7622201819699	 royal gelatina de ceresa	gelatinas	royal	1200.00	124.50	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14542	21.00	1	t	f	f
 7622201819668	royal gel framb	Almacen	royol	1200.00	249.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14543	21.00	1	t	f	f
 7793253169084	maxima limpieza	Almacen	ayudin	80.00	66.40	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14544	21.00	1	t	f	f
@@ -18405,8 +18597,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7793890000931	fargo doble salvad rodaja fina	Almacen	fargo	65.00	53.95	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14621	21.00	1	t	f	f
 7792129003705	EqualSweet edulcorante liquido 180	edulcorante	EqualSweet	280.00	141.10	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14622	21.00	1	t	f	f
 7794626007170	toallas humedas  x 48	Limpieza	huggies	170.00	141.10	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14623	21.00	1	t	f	f
-7790940000095	pañales para adultos xg	Limpieza	nonisec	18.50	15.36	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14624	21.00	1	t	f	f
-7790580106324	garrapiñadas de mani maxi	Almacen	arcor	85.00	70.55	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14625	21.00	1	t	f	f
+7790940000095	paÃ±ales para adultos xg	Limpieza	nonisec	18.50	15.36	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14624	21.00	1	t	f	f
+7790580106324	garrapiÃ±adas de mani maxi	Almacen	arcor	85.00	70.55	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14625	21.00	1	t	f	f
 102	tortas artesanales	Almacen	el tetu	59.00	48.97	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14626	21.00	1	t	f	f
 7790580240103	turron de mani	Almacen	arcor	60.00	49.80	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14628	21.00	1	t	f	f
 7791905002765	QUERUBIN FRESH LIMON	Limpieza	queruin	23.00	19.09	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14629	21.00	1	t	f	f
@@ -18468,11 +18660,11 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7613287261137	Nescafe cafe mocha 125 g	cafe	dolca	165.00	120.45	30	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14704	21.00	1	t	f	f
 7793890013184	Pan Lactal Grande	Almacen	Fargo	19.00	15.77	20	15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14705	21.00	1	t	f	f
 7798136870132	dahio yogur con frutas	Lacteos	dahi	900.00	747.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14706	21.00	1	t	f	f
-7793360791703	sansa golf	Almacen	campañola	30.00	24.90	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14707	21.00	1	t	f	f
-7794626999765_2	hueggies prot plus g x 8	pañales	huggies	750.00	448.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14708	21.00	1	t	f	f
+7793360791703	sansa golf	Almacen	campaÃ±ola	30.00	24.90	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14707	21.00	1	t	f	f
+7794626999765_2	hueggies prot plus g x 8	paÃ±ales	huggies	750.00	448.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14708	21.00	1	t	f	f
 7793890000917	fargo rodajas finas 560	Panaderia	fargo	570.00	416.10	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14710	21.00	1	t	f	f
 7798092964463	contenedor 2300 cm 	bazar	make	80.00	58.40	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14712	21.00	1	t	f	f
-7798092961325	tostador estañado	bazar	make	4000.00	584.00	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14714	21.00	1	t	f	f
+7798092961325	tostador estaÃ±ado	bazar	make	4000.00	584.00	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14714	21.00	1	t	f	f
 7798092965156	make cucharon 	bazar	make	1200.00	255.50	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14715	21.00	1	t	f	f
 7798092963305	papel manteca 	bazar	make	2000.00	255.50	30	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14716	21.00	1	t	f	f
 7798092961868	rallador cilindro	bazar	make	4000.00	1825.00	30	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14717	21.00	1	t	f	f
@@ -18495,7 +18687,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790380023432	toddy con chip d chocolate	Galletitas	toddy	1800.00	328.50	30	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14742	21.00	1	t	f	f
 7795323002420	nutrilon 1 profutura 800	Lacteos	nutrilon	37000.00	14110.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14743	21.00	1	t	f	f
 7795323002451	nutrilon 4 profutura 800	Lacteos	nutrilon	2800.00	2324.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14744	21.00	1	t	f	f
-7791070002959	celestial x 3 40 paños	Limpieza	celestial	1300.00	124.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14745	21.00	1	t	f	f
+7791070002959	celestial x 3 40 paÃ±os	Limpieza	celestial	1300.00	124.50	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14745	21.00	1	t	f	f
 7790387014167	yerba union bcp 500	Yerbas	union	450.00	298.80	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14746	21.00	1	t	f	f
 7798096053248	spa jabon liquido doy pack 320ml	Jabon liquido	sps	1200.00	204.40	30	3	1	1	1	6.00	6.60	6.00	1	Nini	1	2010-02-22 00:00:00	S	0	\N	1	0	14747	21.00	1	t	f	f
 7798096053224	spa jabon liquido doy pack 320ml	jabon liquido	spa 	1200.00	255.50	30	5	1	1	1	6.00	6.60	6.00	1	nini	1	2010-02-22 00:00:00	S	0	\N	1	0	14748	21.00	1	t	f	f
@@ -18531,7 +18723,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790070336996	vitina nuti plus vegetales 250g	almacen	lucchetti	2000.00	1314.00	30	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14788	21.00	1	t	f	f
 7791293025230	Impulse des.White Orchid 53g	desodorante	Impulse 	28.00	20.44	30	-4	4387236	1	1	5.43	5.97	5.43	1	nini	1	2010-06-06 00:00:00	S	0	\N	1	0	14789	21.00	1	t	f	f
 7790940216144	taolla nor 8 u t/s c/alas c/perfu	Perfumeria	Doncella	800.00	624.00	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14790	21.00	1	t	f	f
-7791787000941	cariño c/merm.x 300grs	Galletitas	trio	160.00	116.80	30	1	12057	1	1	29.19	32.11	2.43	24	1	1	2010-06-11 00:00:00	S	0	\N	1	0	14791	21.00	1	t	f	f
+7791787000941	cariÃ±o c/merm.x 300grs	Galletitas	trio	160.00	116.80	30	1	12057	1	1	29.19	32.11	2.43	24	1	1	2010-06-11 00:00:00	S	0	\N	1	0	14791	21.00	1	t	f	f
 7791787000767	trio doritas d choc.x 320grs	Galletitas	trio	160.00	116.80	30	-13	35664	1	1	30.80	35.42	2.57	12		1	2010-09-28 00:00:00	S	\N	\N	1	0	14792	21.00	1	t	f	f
 7794050008781	GEL FIJACION SUAVE X 250	gel	DOREE	45.00	32.85	30	-2	1069446	1	1	4.00	4.60	3.64	1	1	1	2010-07-30 00:00:00	S	\N	\N	1	0	14793	21.00	1	t	f	f
 7790895643743	ades 200	Jugos	ades	900.00	747.00	20	75	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14795	21.00	1	t	f	f
@@ -18567,13 +18759,13 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790710334641	Yerba silueta naran.	Yerbas	cbse	2200.00	1606.00	30	3	1	1	1	3.62	4.16	3.38	1	1	1	2010-09-03 00:00:00	S	0	\N	1	0	14831	21.00	1	t	f	f
 7795633003391	vino patero tinto  1125 ml 	Vinos	caberceno	3500.00	2241.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14833	21.00	1	t	f	f
 7795633002547	vino patero patero 1125 ml 	Vinos	caberceno	1000.00	830.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14834	21.00	1	t	f	f
-7790236000266	ravioles muzzarela	Almacen	la salteña	69.00	57.27	20	-13	1	1	1	14.10	15.51	14.10	1	1	1	2011-04-20 00:00:00	S	\N	\N	1	0	14835	21.00	1	t	f	f
+7790236000266	ravioles muzzarela	Almacen	la salteÃ±a	69.00	57.27	20	-13	1	1	1	14.10	15.51	14.10	1	1	1	2011-04-20 00:00:00	S	\N	\N	1	0	14835	21.00	1	t	f	f
 7790070433145	gallo largo fino 500 gr	Almacen	gallo	1300.00	1328.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14836	21.00	1	t	f	f
 7791293048475	desodorante ritual	Perfumeria	dove	3300.00	2574.00	25	0	1	1	1	7.10	7.81	7.10	1	1	1	2011-04-20 00:00:00	S	0	\N	1	0	14837	21.00	1	t	f	f
 7791293034843	contorl duradero 200 ml 	perfumeria	dove	165.00	120.45	30	-23				7.10	7.81	7.10	1	enro	1	2011-04-20 00:00:00	S	\N	\N	1	0	14838	21.00	1	t	f	f
 7791293042190	dova sh reg ext 200 ml	Perfumeria	dove	500.00	365.00	30	1				7.20	7.92	7.20	1	enro	1	2011-04-20 00:00:00	S	0	\N	1	0	14839	21.00	1	t	f	f
 7791293046983	dove sha.rec,compl	Perfumeria	dove	2700.00	507.00	25	-5	1	1	1	7.10	7.81	7.10	1	1	1	2011-04-20 00:00:00	S	0	\N	1	0	14840	21.00	1	t	f	f
-7500435183130	pampers supersec g	pañales	pampers 	1000.00	249.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14841	21.00	1	t	f	f
+7500435183130	pampers supersec g	paÃ±ales	pampers 	1000.00	249.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14841	21.00	1	t	f	f
 7796953215303	leber wurst	Almacen	calchaqui	2000.00	207.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14842	21.00	1	t	f	f
 4005808588114	nivea reparadora 	Perfumeria	nivea	380.00	296.40	25	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14843	21.00	1	t	f	f
 7790070411556	prefe rebosad 1 k	Almacen	preferido	2400.00	224.10	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14844	21.00	1	t	f	f
@@ -18588,14 +18780,14 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790580416805	buo chocolate con leche blanco 95g	Almacen	Arcor	250.00	207.50	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14858	21.00	1	t	f	f
 7791290001169	camellito doy pak  450 ml	Limpieza	ala	12.00	9.96	20	6				7.20	7.92	7.20	1	enro	1	2011-04-04 00:00:00	S	\N	\N	1	0	14859	21.00	1	t	f	f
 7798092961752	make esponja no raya teflon 	Limpieza	make	1400.00	124.50	20	0	1	1	1	1.65	1.82	1.65	1	1	1	2011-04-04 00:00:00	S	0	\N	1	0	14861	21.00	1	t	f	f
-7798092961035	esponja salva uñas	Limpieza	make	800.00	83.00	20	1				1.55	1.71	1.55	1		1	2011-04-04 00:00:00	S	0	\N	1	0	14862	21.00	1	t	f	f
+7798092961035	esponja salva uÃ±as	Limpieza	make	800.00	83.00	20	1				1.55	1.71	1.55	1		1	2011-04-04 00:00:00	S	0	\N	1	0	14862	21.00	1	t	f	f
 7798092963749	vertedor grande	Jugos	make	32.00	26.56	20	1	1	1	1	6.50	7.15	6.50	1	1	1	2011-04-04 00:00:00	S	\N	\N	1	0	14864	21.00	1	t	f	f
 7797429004018	le.q pancetitas 80 g 	Almacen	le.q	1500.00	1245.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14866	21.00	1	t	f	f
 7899975801964	nestle kitkat  helado	helado	frigor	260.00	236.60	12	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14867	21.00	1	t	f	f
 7798092963787	virulana 	Limpieza	make	1000.00	18.25	30	12	107905	1	1	1.00	1.10	1.00	1	make	1	2011-04-06 00:00:00	S	0	\N	1	0	14868	21.00	1	t	f	f
 7795930000321	manzana 1.5	Gaseosa	awafrut	180.00	149.40	20	24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14869	21.00	1	t	f	f
 7790070101730	patitas orig  400 g	Congelados	patitas	7500.00	5561.00	20	-1	7133	1	1	9.07	9.98	9.07	1	vermrt	1	2011-04-06 00:00:00	S	0	\N	1	0	14870	21.00	1	t	f	f
-781718812733	vono malbec 2019	Vinos	LAS Vicuñas	2700.00	2241.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14871	21.00	1	t	f	f
+781718812733	vono malbec 2019	Vinos	LAS VicuÃ±as	2700.00	2241.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14871	21.00	1	t	f	f
 7798036731786	huevo de pascuas 	Golosina	cannettine	23.00	18.90	50	-8	3076	1	1	18.90	20.79	18.90	1	del cielo	1	2011-04-07 00:00:00	S	\N	\N	1	0	14872	21.00	1	t	f	f
 7798036731861	huevos de pascuas n 34	Golosina	cannettine	14.50	11.50	50	-10	34	1	1	11.50	12.65	11.50	1	del cielo	1	2011-04-07 00:00:00	S	\N	\N	1	0	14873	21.00	1	t	f	f
 7798036731779	huevos x 130g	Golosina	cannettine	16.00	13.65	50	-15	1	1	1	13.65	15.02	13.65	1	1	1	2011-04-07 00:00:00	S	\N	\N	1	0	14874	21.00	1	t	f	f
@@ -18628,7 +18820,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790070411822	luchetti arros 500	Almacen	luchetti	300.00	91.30	20	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14909	21.00	1	t	f	f
 7790503001989	doble carolina	Almacen	dos hermanos 	80.00	66.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14910	21.00	1	t	f	f
 7790895648687	powerade uva 500 ml 	Jugos	powerade	1700.00	1411.00	20	69	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14911	21.00	1	t	f	f
-7794417224625	Enbudo n°15	Almacen	sina	2500.00	2075.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14913	21.00	1	t	f	f
+7794417224625	Enbudo nÂ°15	Almacen	sina	2500.00	2075.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	14913	21.00	1	t	f	f
 7794417223345	Rejilla americana	Limpieza	sina	500.00	415.00	20	-53	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14915	21.00	1	t	f	f
 7790060007004	baston merluza 300 g 	Almacen	granja del sol	3000.00	2490.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14917	21.00	1	t	f	f
 7622300829544	variedad terrabusi	Galletitas	terrabusi	30.00	21.90	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14919	21.00	1	t	f	f
@@ -18721,7 +18913,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791290793354	cif piso plastific y flotantes 750 	Limpieza	cif 	2800.00	2044.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15034	21.00	1	t	f	f
 7798167890017	renaissance extra brut	Vinos	renaissance	60.00	13.80	80	0	1	1	1	6.50	7.48	9.16	1	1	1	2009-08-11 00:00:00	S	\N	\N	1	0	15036	21.00	1	t	f	f
 7798114638051	Juego de damas y Carr.Animales	Bijouterie	El renacer	13.23	7.15	85	1	1	1	1	6.50	7.15	6.50	1	1	1	2009-08-10 00:00:00	S	\N	\N	1	0	15037	21.00	1	t	f	f
-781718812719	vino malbec 750 ml 	Vinos	las vicuñas	3000.00	2490.00	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15038	21.00	1	t	f	f
+781718812719	vino malbec 750 ml 	Vinos	las vicuÃ±as	3000.00	2490.00	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15038	21.00	1	t	f	f
 7798136870750	dahi apple crumble 	Lacteos	dahi	1500.00	1245.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15040	21.00	1	t	f	f
 7798074820022	Termo 1l.	Bazar	matrisur	26.00	13.78	50	-5	1	1	1	33.00	36.30	33.00	1	1	1	2009-08-10 00:00:00	S	\N	\N	1	0	15041	21.00	1	t	f	f
 7790168000457	vino tinto  beaujolais 750ml	Vinos	colon	14.47	11.13	30	1	800465	1	1	8.03	8.83	9.04	1	colon	1	2009-12-02 00:00:00	S	0	\N	1	0	15042	21.00	1	t	f	f
@@ -18731,7 +18923,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790102000208	salchichas the roxy	Almacen	the roxy	26.00	13.78	50	9	1.	0135860	1	0.50	0.55	0.50	1	VITAL	1	2009-06-08 00:00:00	S	\N	\N	1	0	15049	21.00	1	t	f	f
 7791290010819	drive flores  lavado a mano	Almacen	drive	65.00	53.95	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15050	21.00	1	t	f	f
 7896016111891	wella polvo descolorante	Perfumeria	wella	90.00	70.20	25	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15051	21.00	1	t	f	f
-7790236016427	sacotino cuatro queso 500g	pasta	la salteña	75.00	54.75	30	2	1	1	1	7.60	8.36	7.60	1	tetu	1	2009-10-06 00:00:00	S	0	\N	1	0	15052	21.00	1	t	f	f
+7790236016427	sacotino cuatro queso 500g	pasta	la salteÃ±a	75.00	54.75	30	2	1	1	1	7.60	8.36	7.60	1	tetu	1	2009-10-06 00:00:00	S	0	\N	1	0	15052	21.00	1	t	f	f
 7793147572389	salta cautiva roja 475mc	Almacen	cervesa	2000.00	1079.00	20	-112	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15056	21.00	1	t	f	f
 7613032295349	PURINA CAT CHOW 500	Almacen	puirina	17.00	14.11	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15057	21.00	1	t	f	f
 7790240094466	trapiche cabernet y malbec	Vinos	trapiche	155.00	113.15	30	1	2815290	1	1	25.00	28.75	24.99	1	nini	1	2009-07-27 00:00:00	S	0	\N	1	0	15058	21.00	1	t	f	f
@@ -18755,7 +18947,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7794520421133	palitos de maiz c/queso	Copetin	Krachitos	900.00	657.00	30	0	0100709	1	1	5.32	5.85	5.32	1	vital	1	2009-06-01 00:00:00	S	0	\N	1	0	15080	21.00	1	t	f	f
 7790060006199	hamburguesa DE QUESO	CNGELADOS	GRANJA DEL SOL	32.00	23.36	30	-12	1	1	1	8.25	9.08	8.25	1	1	1	2009-06-03 00:00:00	S	\N	\N	1	0	15081	21.00	1	t	f	f
 7790070408037	torta de chocolate 	biscochuelo	exquisita	12.60	9.20	30	-4	3917827	1	2111	4.71	5.18	4.71	1	vermart	1	2010-05-17 00:00:00	S	0	\N	1	0	15083	21.00	1	t	f	f
-7791670027482	viñas de alvear tinto 1250ml	vinos	Viñas de alveart	3100.00	1971.00	30	2	2456311	0126522	13319	8.10	9.32	11.39	1	Nini	1	2010-07-09 00:00:00	S	0	\N	1	0	15085	21.00	1	t	f	f
+7791670027482	viÃ±as de alvear tinto 1250ml	vinos	ViÃ±as de alveart	3100.00	1971.00	30	2	2456311	0126522	13319	8.10	9.32	11.39	1	Nini	1	2010-07-09 00:00:00	S	0	\N	1	0	15085	21.00	1	t	f	f
 7798041710110	mani tostado salado 600g	Golosina	el faro	90.00	47.70	50	2	514624	1	1	0.34	0.37	0.27	1	Nini	1	2009-09-12 00:00:00	S	\N	\N	1	0	15087	21.00	1	t	f	f
 7798100665832	Mermelada frutilla light 390g	mermeladas	Canale	50.00	36.50	30	0	3456	1	1	4.90	5.39	4.90	1	pietra	1	2009-05-26 00:00:00	S	\N	\N	1	0	15090	21.00	1	t	f	f
 7790080033182	sancor Cre  past.x500	Crema	Sancor	3200.00	664.00	20	-6	3323	1	1	9.00	10.35	8.83	1	Sancor	1	2010-07-13 00:00:00	S	0	\N	1	0	15091	21.00	1	t	f	f
@@ -18872,8 +19064,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798092961417	Tirabuzon mango/Madera	Bazar	Make	2500.00	438.00	30	-1	6141	1	1	2.95	3.25	2.95	1	El Negro	1	2010-02-18 00:00:00	S	0	\N	1	0	15244	21.00	1	t	f	f
 7798187211076	quento papa pay 475 g 	Galletitas	quento	6000.00	4380.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15245	21.00	1	t	f	f
 7799068002189	Luxon lamp 9 w	Prod.Altos	Luxon	1200.00	1116.00	10	13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15246	21.00	1	t	f	f
-7798092965262	Bombilla Mini Curva Boq.Bañ.Oro	BAzar	MAke	2600.00	109.50	30	12	6136	1	1	5.70	6.27	5.70	1	el negro	1	2010-01-23 00:00:00	S	0	\N	1	0	15247	21.00	1	t	f	f
-7798092965279	Bombilla Recta Boq.Bañ.Oro	Bazar	MAke	500.00	365.00	30	11	6134	1	1	6.00	6.60	6.00	1	El Negro	1	2010-01-23 00:00:00	S	\N	\N	1	0	15248	21.00	1	t	f	f
+7798092965262	Bombilla Mini Curva Boq.BaÃ±.Oro	BAzar	MAke	2600.00	109.50	30	12	6136	1	1	5.70	6.27	5.70	1	el negro	1	2010-01-23 00:00:00	S	0	\N	1	0	15247	21.00	1	t	f	f
+7798092965279	Bombilla Recta Boq.BaÃ±.Oro	Bazar	MAke	500.00	365.00	30	11	6134	1	1	6.00	6.60	6.00	1	El Negro	1	2010-01-23 00:00:00	S	\N	\N	1	0	15248	21.00	1	t	f	f
 7798092961301	Abrelatas Mariposa	bazar	make	2500.00	474.50	30	-13	6130	1	1	6.75	7.43	6.75	1	el negro	1	2010-01-23 00:00:00	S	0	\N	1	0	15249	21.00	1	t	f	f
 7798092961400	Sacacorchos Garzon	BAzar||	Make 	4000.00	511.00	30	0	6140	1	1	7.00	8.05	6.40	1	el negro	1	2010-07-06 00:00:00	S	0	\N	1	0	15250	21.00	1	t	f	f
 7799175012545	Perfumina p/auto pumita	Limpieza	make	4000.00	2920.00	30	0	6346	1	1	5.95	6.55	5.95	1	el negro	1	2010-05-14 00:00:00	S	\N	\N	1	0	15251	21.00	1	t	f	f
@@ -18886,11 +19078,11 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7896001016910	Escoba Angular c/Cabo	Limpieza	Make	19.00	14.60	30	0	1692	1	1	14.60	16.06	14.60	1	el negro	1	2010-01-25 00:00:00	S	\N	\N	1	0	15258	21.00	1	t	f	f
 7798092961370	Rallador Plano 3 usos	bazar	make	3700.00	102.20	30	2	6137	1	1	3.35	3.69	3.35	1	el negro	1	2010-05-14 00:00:00	S	0	\N	1	0	15259	21.00	1	t	f	f
 7796182900018	tauro Rallador Cilindro	Bazar	make	40.00	29.20	30	-5	6441	1	1	2.95	3.25	2.95	1	el negro	1	2010-05-14 00:00:00	S	0	\N	1	0	15260	21.00	1	t	f	f
-7798092964395	Pava Bombe n°16	bazar	make	50.00	36.50	30	0	6439	1	1	19.70	21.67	19.70	1	el negro	1	2010-01-25 00:00:00	S	\N	\N	1	0	15262	21.00	1	t	f	f
+7798092964395	Pava Bombe nÂ°16	bazar	make	50.00	36.50	30	0	6439	1	1	19.70	21.67	19.70	1	el negro	1	2010-01-25 00:00:00	S	\N	\N	1	0	15262	21.00	1	t	f	f
 7798092963718	Jarra c/Tapa 1.75lt.	Bazar	Make	2000.00	189.80	30	1	6371	1	1	4.70	5.17	4.70	1	el negro	1	2010-05-14 00:00:00	S	0	\N	1	0	15263	21.00	1	t	f	f
 7798092964425	Contenedor Rect.820cm3	Bazar	make	150.00	109.50	30	2	6448	1	1	5.00	5.50	5.00	1	el negro	1	2010-01-25 00:00:00	S	\N	\N	1	0	15264	21.00	1	t	f	f
 7798092963732	Vertedor Chico	bazar	make	20.00	14.60	30	1	6373	1	1	3.00	3.30	3.00	1	el negro	1	2010-05-14 00:00:00	S	\N	\N	1	0	15265	21.00	1	t	f	f
-7798092961042	Fibra Esponja c/Sava uñas	esponja	make	300.00	189.80	30	5	6103	1	1	0.90	0.99	0.90	1	el negro	1	2010-01-25 00:00:00	S	0	\N	1	0	15266	21.00	1	t	f	f
+7798092961042	Fibra Esponja c/Sava uÃ±as	esponja	make	300.00	189.80	30	5	6103	1	1	0.90	0.99	0.90	1	el negro	1	2010-01-25 00:00:00	S	0	\N	1	0	15266	21.00	1	t	f	f
 7798092961046	Escobin Hileras	Limpieza	make	1000.00	730.00	30	0	6127	1	1	4.60	5.06	4.60	1	el negro	1	2010-01-25 00:00:00	S	0	\N	1	0	15267	21.00	1	t	f	f
 7798092964685	Escobillon 5 Hileras 	Limpieza	make	50.00	36.50	30	2	6468	1	1	4.15	4.57	4.15	1	el negro	1	2010-01-25 00:00:00	S	\N	\N	1	0	15268	21.00	1	t	f	f
 7798092962490	Bolsas p/Consorcio 80x110cm.	bolsas de residuos	make	45.00	32.85	30	3	6249	1	1	5.85	6.44	5.85	1	el negro	1	2010-05-14 00:00:00	S	\N	\N	1	0	15269	21.00	1	t	f	f
@@ -18901,7 +19093,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7793008018551	issue 5 cast/claro	Perfumeria	issue	3150.00	2457.00	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15277	21.00	1	t	f	f
 77901095	mentoplus zero	Dulce	menthoplus	700.00	83.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15278	21.00	1	t	f	f
 7790430060356	bananita dolca	Almacen	nestle	22.00	18.26	20	20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15279	21.00	1	t	f	f
-781718812726	vino malbec 750 ml 	Vinos	las vicuñas	3000.00	2490.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15280	21.00	1	t	f	f
+781718812726	vino malbec 750 ml 	Vinos	las vicuÃ±as	3000.00	2490.00	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15280	21.00	1	t	f	f
 7790080044171	Lecle en polvo descrem x 500	leche en polvo	Sancor	120.00	99.60	20	0	4370	1	1	5.00	5.50	5.00	1	sancor	1	2010-04-24 00:00:00	S	\N	\N	1	0	15281	21.00	1	t	f	f
 7798048730814	la nonna chips 	Galletitas	la nonna	32.00	23.36	30	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15282	21.00	1	t	f	f
 7794710055476	veronica d de lech repostero x500	Lacteos	veronica	95.00	78.85	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15283	21.00	1	t	f	f
@@ -18912,7 +19104,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7794450002266	granrodas	Gaseosa	gran rodas	20.00	16.60	20	54	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15290	21.00	1	t	f	f
 7790770602155	calipso anatomico  x 8	toallitas	calipso	1000.00	657.00	30	3	2908778	1	1	1.82	2.00	1.82	1	nini	1	2010-02-28 00:00:00	S	0	\N	1	0	15291	21.00	1	t	f	f
 7791293031415	rexona ant.roll-on crys 50ml	antitraspirante	rexona	60.00	43.80	30	10	4353218			5.39	5.93	5.39	1	nini	1	2010-02-28 00:00:00	S	\N	\N	1	0	15294	21.00	1	t	f	f
-7790940000071	pañales para adultos g	Limpieza	nonisec	17.50	14.53	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15296	21.00	1	t	f	f
+7790940000071	paÃ±ales para adultos g	Limpieza	nonisec	17.50	14.53	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15296	21.00	1	t	f	f
 7791293050843	Jabon Jazmin Cremoso	Jabon tocador	Lux	1100.00	730.00	30	-6	4440935			5.30	5.83	5.30	1	nini	1	2010-02-28 00:00:00	S	0	\N	1	0	15297	21.00	1	t	f	f
 7798061891172	romyl escobillas wc	Limpieza	romyl	60.00	49.80	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15298	21.00	1	t	f	f
 7500435175999	pantene liso sedoso . x200 shampoo	Perfumeria	pantene	240.00	175.20	30	-4	4426533			6.05	6.66	6.35	1	nini	1	2010-05-12 00:00:00	S	0	\N	1	0	15300	21.00	1	t	f	f
@@ -18986,7 +19178,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798116162035	Salsa de Frutilla	Salsas Dulces	Tahiti	100.00	73.00	30	8	1	1	16903	4.50	4.95	4.50	1	maxiconsumo	1	2009-11-23 00:00:00	S	0	\N	1	0	15383	21.00	1	t	f	f
 7798116163087	Salsa de aji picante	Salsa dulces	Tahiti	2100.00	40.15	30	1	1	1	16902	5.45	6.00	5.45	1	maxiconsumo	1	2009-11-23 00:00:00	S	0	\N	1	0	15384	21.00	1	t	f	f
 7790077001033	magdalena dulce de leche 	pan dulce	pozo	1700.00	124.10	30	-9	11508	1	1	4.52	4.97	4.52	1	michael	1	2009-11-25 00:00:00	S	0	\N	1	0	15385	21.00	1	t	f	f
-7798031155655	knorr fideo moños 500 g	fideos	knorr	1800.00	146.00	30	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15386	21.00	1	t	f	f
+7798031155655	knorr fideo moÃ±os 500 g	fideos	knorr	1800.00	146.00	30	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15386	21.00	1	t	f	f
 7798064780473	Pan de campo 500 g 	Panaderia	tio guis	2400.00	1533.00	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15387	21.00	1	t	f	f
 7790480089871	te verde 25 saq 50 g 	TE	Green Hills	1800.00	1314.00	30	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15388	21.00	1	t	f	f
 7790070031778	lucchetti milas grande 4 unid   560 g	Almacen	lucchetti	950.00	539.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15389	21.00	1	t	f	f
@@ -19127,7 +19319,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7794000004771_2	cica salsa portuguesa	Almacen	cica	100.00	83.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15525	21.00	1	t	f	f
 7891515580643	sadinesa rellen 100 g 	congelado	sadia	700.00	511.00	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15526	21.00	1	t	f	f
 7795323774570	Nutrilon 2 200ml	Lacteos	nutrilon	610.00	415.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15527	21.00	1	t	f	f
-7790387015317	mañanita de 1 kg 	Almacen	mañanita 	4200.00	705.50	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15528	21.00	1	t	f	f
+7790387015317	maÃ±anita de 1 kg 	Almacen	maÃ±anita 	4200.00	705.50	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15528	21.00	1	t	f	f
 7509546677521	colgate clasico 70 	Almacen	colgate	1600.00	207.50	20	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15529	21.00	1	t	f	f
 7509546677569	colgate triple accion 90	Almacen	colgate	370.00	307.10	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15530	21.00	1	t	f	f
 7509546692135	colgate 70 	Almacen	colgate	2300.00	1660.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15531	21.00	1	t	f	f
@@ -19182,7 +19374,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7793147572488	heineken laton 710 pack 6	cerveza	heineken	29000.00	1950.50	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15580	21.00	1	t	f	f
 7791337004764	yogur firm  frutilla 190g	Lacteos	serenisima	260.00	215.80	20	-42	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15581	21.00	1	t	f	f
 7798120180803	manieri tostadas arroz  dulce	Galletitas	manieri	150.00	87.60	30	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15582	21.00	1	t	f	f
-7792180142016	Mayonesa 250 g 	Mayonesa	Cañuela	1000.00	415.00	20	39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15583	21.00	1	t	f	f
+7792180142016	Mayonesa 250 g 	Mayonesa	CaÃ±uela	1000.00	415.00	20	39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15583	21.00	1	t	f	f
 7798023698238	S&P frutilla 	Jugos	S&P	500.00	415.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15584	21.00	1	t	f	f
 7790520010469	raid espirales x 4	Limpieza	raid	1200.00	249.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15585	21.00	1	t	f	f
 7790520997562	raid s/olor Insecticida aer. 400cm	Limpieza	raid	700.00	340.30	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15586	21.00	1	t	f	f
@@ -19256,7 +19448,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790310984031	lays 94 g 	snacks	lays	1600.00	332.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15654	21.00	1	t	f	f
 7791337004108	SERenisima yogurisimo frutilla 1 l	Lacteos	serenisima	250.00	207.50	20	-71	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15655	21.00	1	t	f	f
 7790742357502	la ser  3 %  leche	Lacteos	la serenisima	500.00	398.40	20	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15656	21.00	1	t	f	f
-7790070621306	la salteña ravioles carne y verduras	Almacen	la salteña	1050.00	539.50	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15657	10.50	1	t	f	f
+7790070621306	la salteÃ±a ravioles carne y verduras	Almacen	la salteÃ±a	1050.00	539.50	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15657	10.50	1	t	f	f
 7791337004160	yogurisimo yugur 	Almacen	serenisima	200.00	166.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15658	21.00	1	t	f	f
 7790040132603	formis galletitas	Almacen	formis	150.00	107.90	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15659	21.00	1	t	f	f
 7790040132634	formis galletitas 	Almacen	formis	150.00	107.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15660	21.00	1	t	f	f
@@ -19429,7 +19621,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790895649615	powerade gold rush 500	Almacen	poer ade	1400.00	996.00	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15841	21.00	1	t	f	f
 77977151	rothmans click 20 	cigarrillo	rrothmans 	1900.00	1023.00	10	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15842	21.00	1	t	f	f
 7790080015317	sancor ligth	Lacteos	sancor	80.00	66.40	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15843	21.00	1	t	f	f
-7794612066211_2	hamlet obleas bañada	Almacen	Hamblet	1000.00	830.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15844	21.00	1	t	f	f
+7794612066211_2	hamlet obleas baÃ±ada	Almacen	Hamblet	1000.00	830.00	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15844	21.00	1	t	f	f
 7622202220579	terrabu miel 	Galletitas	terrabussi	800.00	584.00	30	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15845	21.00	1	t	f	f
 7791813421603	h2 oh citrus 1.50 lts	Gaseosa	h2 oh	1200.00	182.60	20	64	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15846	21.00	1	t	f	f
 7791540050084	frizze evolution 1 l	Vinos	frizze	65.00	53.95	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15847	21.00	1	t	f	f
@@ -19480,7 +19672,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798092964050	Make Esponja 2 en 1	Limpieza	Make	27.00	22.41	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15892	21.00	1	t	f	f
 7798092966900	Make esponjas redondas	Limpieza	Make	60.00	49.80	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15893	21.00	1	t	f	f
 7798092967723	make centrifugadoras de veget	Limpieza	make	300.00	249.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15894	21.00	1	t	f	f
-7798092962018	make Colador Metalico n°18	Limpieza	make	200.00	166.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15895	21.00	1	t	f	f
+7798092962018	make Colador Metalico nÂ°18	Limpieza	make	200.00	166.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15895	21.00	1	t	f	f
 7798092964821	make viandero 2	Prod.Altos	make	60.00	55.80	10	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15896	21.00	1	t	f	f
 7790070411754	rissoto	Almacen	gallo	80.00	66.40	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15897	21.00	1	t	f	f
 7795323002208	vital bago n3 800 g 	Lacteos	vital	1300.00	1079.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15899	21.00	1	t	f	f
@@ -19551,7 +19743,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798125960769	hop raza med/grande 7.50	mnascotas	hop	300.00	219.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15964	21.00	1	t	f	f
 7798125960783	hop perro adultos 1 razas med/g	mascotas 	hop	50.00	36.50	30	-34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15965	21.00	1	t	f	f
 7790790120738	inca tomate perita	Almacen	inca	300.00	249.00	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16063	21.00	1	t	f	f
-7798125960677	hop raza pequeñas 1 kg 	mascotas 	hop	50.00	36.50	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15966	21.00	1	t	f	f
+7798125960677	hop raza pequeÃ±as 1 kg 	mascotas 	hop	50.00	36.50	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15966	21.00	1	t	f	f
 7794767789140	fideos integ morron  300 g 	fideos	ceral	1700.00	1241.00	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15967	21.00	1	t	f	f
 48020657	red point cigarros 20 box	cigarros	red point	1500.00	1245.00	20	-108	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15968	21.00	1	t	f	f
 7790580129620	bc anana	Jugos	bc	240.00	199.20	20	-18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15969	21.00	1	t	f	f
@@ -19576,14 +19768,14 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 5000604	carnaza  cerdo	carniciria	 cerdo	75.60	76.50	18	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15988	21.00	1	t	f	f
 7790310981931	papa gratinada con panceta	Almacen	lays	55.00	45.65	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15989	21.00	1	t	f	f
 7798304841230_2	chomp fram 160 g	helado	frigor	8000.00	306.60	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	15990	21.00	1	t	f	f
-7790236018070	la salteña	Gaseosa	ravioles	170.00	141.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15991	21.00	1	t	f	f
+7790236018070	la salteÃ±a	Gaseosa	ravioles	170.00	141.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15991	21.00	1	t	f	f
 7792281910491_2	carol corta pizza	bazar	carol	65.00	47.45	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15992	21.00	1	t	f	f
 8897112587435	pela papas 	Prod.Altos	pelachu	40.00	37.20	10	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15993	21.00	1	t	f	f
 7795722017094	tostadora jovel	Prod.Altos	jovel	120.00	111.60	10	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	15994	21.00	1	t	f	f
 7791337008069	 yogurt  vainilla de latosado	lacteos	yogurt	3000.00	1245.00	20	-6	0502-02	1	1	2.50	2.75	2.50	1	1	1	2009-11-28 00:00:00	S	0	\N	1	0	15997	21.00	1	t	f	f
 7500435019491	h&s sh 375 ml	Perfumeria	h&s	8500.00	5329.00	30	3	4585984	1	1	9.31	10.24	9.31	1	nini	1	2011-04-23 00:00:00	S	0	\N	1	0	15998	21.00	1	t	f	f
 7790310985236	lays clasica 40g g	Copetin	Lays	2000.00	292.00	30	4	1813	1	1	1.55	1.71	1.55	1	pepsico	1	2009-11-28 00:00:00	S	0	\N	1	0	15999	21.00	1	t	f	f
-7790070102898	Cuatro quesos raviol 	Fideos	La Salteña	4000.00	2190.00	30	2	1	1	1	3.81	4.38	6.80	1	1	1	2010-07-22 00:00:00	S	0	\N	1	0	16000	21.00	1	t	f	f
+7790070102898	Cuatro quesos raviol 	Fideos	La SalteÃ±a	4000.00	2190.00	30	2	1	1	1	3.81	4.38	6.80	1	1	1	2010-07-22 00:00:00	S	0	\N	1	0	16000	21.00	1	t	f	f
 77917317	halls creamy mora	Golosina	halls	500.00	79.50	50	16	85916	1	1	0.80	0.88	0.80	1	nini	1	2009-11-30 00:00:00	S	0	\N	1	0	16002	21.00	1	t	f	f
 7794820903056	yogur vainilla 900g	Lacteos	milkaut	2000.00	996.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16004	21.00	1	t	f	f
 7790010570602	johnsons Shampoo rizados x200	Perfumeria	johnsons	200.00	156.00	25	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16005	21.00	1	t	f	f
@@ -19615,19 +19807,19 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790080067682	yog, desc frambuesa y moras 500	Lacteos	sancor	120.00	99.60	20	-1	6696	1	1	2.84	3.27	2.62	1	sancor	1	2010-07-13 00:00:00	S	\N	\N	1	0	16039	21.00	1	t	f	f
 7798088560846	g & m razas gr. y med.	Almacen	kongo	19.00	15.77	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16041	21.00	1	t	f	f
 7896004009162	pringles ceb-crem 109 g	Almacen	pringles	5000.00	1826.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16044	21.00	1	t	f	f
-7798092969505	Colador Metalico n°8	Almacen	Make	3000.00	2490.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16045	21.00	1	t	f	f
+7798092969505	Colador Metalico nÂ°8	Almacen	Make	3000.00	2490.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16045	21.00	1	t	f	f
 7790040111325	saladix papas con chedada	Galletitas	Saladix	170.00	115.60	35	0	7797	1	1	2.13	2.34	2.30	1	Vaires	1	2009-11-11 00:00:00	S	0	\N	1	0	16046	21.00	1	t	f	f
 7798179490243	con soja	Galletitas	n.s	90.00	65.70	30	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16047	21.00	1	t	f	f
 7798113300027	lima limon 2.25	Gaseosa	manaos	1500.00	1245.00	20	-50				3.41	3.75	3.41	1	fazio	1	2011-02-18 00:00:00	S	0	\N	1	0	16048	21.00	1	t	f	f
 8445291082212	dolca orig cafe 170 g 	Almacen	dolca 	9000.00	3901.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16049	21.00	1	t	f	f
-7500435168601	pampers Pañal xg 32	Pañales	Pampers	600.00	438.00	30	0	4295706	1	1	9.00	9.90	9.00	1	nini	1	2009-11-12 00:00:00	S	0	\N	1	0	16051	21.00	1	t	f	f
-7500435112703	pampers supersec sec g x 8	Pañales	Pampers	140.00	102.20	30	16	4295315	1	11959	9.00	9.90	9.00	1	nini	1	2009-11-12 00:00:00	S	0	\N	1	0	16052	21.00	1	t	f	f
+7500435168601	pampers PaÃ±al xg 32	PaÃ±ales	Pampers	600.00	438.00	30	0	4295706	1	1	9.00	9.90	9.00	1	nini	1	2009-11-12 00:00:00	S	0	\N	1	0	16051	21.00	1	t	f	f
+7500435112703	pampers supersec sec g x 8	PaÃ±ales	Pampers	140.00	102.20	30	16	4295315	1	11959	9.00	9.90	9.00	1	nini	1	2009-11-12 00:00:00	S	0	\N	1	0	16052	21.00	1	t	f	f
 7790990002186	Jabon 3 l 	Jabon en polvo	Zorro	6700.00	1972.00	35	9	4370104	1	17464	5.35	6.15	4.93	1	1	1	2010-09-07 00:00:00	S	0	\N	1	0	16053	21.00	1	t	f	f
 5000061	verdeo	Verduleria	Verduleria	125.00	58.40	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16054	10.50	1	t	f	f
-7798138552906	lasagña x 500	lasagnas	Molto	40.00	29.20	30	-9	2858649	0119498	1	1.80	2.07	1.25	1	1	1	2010-07-09 00:00:00	S	0	\N	1	0	16055	21.00	1	t	f	f
+7798138552906	lasagÃ±a x 500	lasagnas	Molto	40.00	29.20	30	-9	2858649	0119498	1	1.80	2.07	1.25	1	1	1	2010-07-09 00:00:00	S	0	\N	1	0	16055	21.00	1	t	f	f
 7622300691653	Variedad familiar x 600g.	Galletitas	Terrabusi	12.00	8.76	30	1	762683	1	1	5.19	5.71	5.19	1	bachajo	1	2009-11-12 00:00:00	S	\N	\N	1	0	16056	21.00	1	t	f	f
 7792410091817	Vodka x 1lt.	Vinos	orloff	33.50	27.81	20	-3	1565550	1	1	20.70	22.77	20.70	1	1565550	1	2009-10-24 00:00:00	S	\N	\N	1	0	16062	21.00	1	t	f	f
-7792410008754	Piña colada x 1l	Vinos	Clinton	50.00	36.50	30	0	2964783	1	1	11.03	12.13	11.03	1	1	1	2009-10-24 00:00:00	S	0	\N	1	0	16064	21.00	1	t	f	f
+7792410008754	PiÃ±a colada x 1l	Vinos	Clinton	50.00	36.50	30	0	2964783	1	1	11.03	12.13	11.03	1	1	1	2009-10-24 00:00:00	S	0	\N	1	0	16064	21.00	1	t	f	f
 7798135760472	Vodka frutill 1lt	Licores	Iggor	12.35	9.50	30	0	4380240	1	1	7.69	8.46	9.35	1	1	1	2010-05-12 00:00:00	S	0	\N	1	0	16065	21.00	1	t	f	f
 7790895007217	coca cola 175l 	Jugos	coca	2500.00	1743.00	20	888	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16067	21.00	1	t	f	f
 7798135760496	Vodka Anana x 1l	Licores	Iggor	12.45	9.58	30	0	4380215	1	1	7.69	8.46	9.35	1	1	1	2010-05-12 00:00:00	S	0	\N	1	0	16068	21.00	1	t	f	f
@@ -19644,7 +19836,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7794820902851	Milk yog gran 155 g	Lacteos	Milkaut 	1300.00	456.50	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16082	21.00	1	t	f	f
 7791337060913	casancrem int original 290 g 	Lacteos	casancrem	1300.00	996.00	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16083	21.00	1	t	f	f
 7794000599192	knorr sabor al horno barbacua	Salsas	Knorr	50.00	36.50	30	-15	421839	1	1	3.35	3.85	3.35	1	1	1	2009-10-29 00:00:00	S	\N	\N	1	0	16084	21.00	1	t	f	f
-7790070562043	luchetti ñoqui de papa tipo casros	Prod.Altos	luchetti	2500.00	2325.00	10	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16086	21.00	1	t	f	f
+7790070562043	luchetti Ã±oqui de papa tipo casros	Prod.Altos	luchetti	2500.00	2325.00	10	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16086	21.00	1	t	f	f
 7796373003177	chimichirri ahumado  300ml	Copetin	la parmesana	30.00	21.90	30	-15	1	1	1	2.24	2.46	2.24	1	1	1	2011-11-14 00:00:00	S	\N	\N	1	0	16087	21.00	1	t	f	f
 7790971002495	ravana bizco coco	Almacen	ravana	2000.00	1494.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16088	21.00	1	t	f	f
 7794626996764	Toall. c/Alas x 8 un	Toallitas	Lina	100.00	62.05	30	-44	4361377	1	1	1.45	1.60	1.45	1	nini	1	2010-09-03 00:00:00	S	0	\N	1	0	16091	21.00	1	t	f	f
@@ -19659,8 +19851,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791293046525	rexona Jabon 125 g 	Jabon de tocador	Rexona	230.00	102.20	30	-16	4386302	0139591	1	1.57	1.81	1.80	1	nini	1	2010-10-19 00:00:00	S	0	\N	1	0	16105	21.00	1	t	f	f
 7790040377707	criollitas original  100g	Galletitas	criollitas	50.00	36.50	30	9	3777	1	1	1.20	1.32	1.35	1	bagley	1	2010-06-16 00:00:00	S	0	\N	1	0	16106	21.00	1	t	f	f
 7790010570589	shampoo cabellos 200g	Perfumeria	johnsons	50.00	36.50	30	-1	1	1	1	8.62	9.48	8.62	1	nini	1	2009-10-21 00:00:00	S	\N	\N	1	0	16110	21.00	1	t	f	f
-7790580392703	turron almendras/yemas 110g	navideño	arcor	14.70	11.31	30	0	3927	1	1	8.23	9.05	8.23	1	arcor	1	2009-10-21 00:00:00	S	0	\N	1	0	16114	21.00	1	t	f	f
-7790580423001	rocklets mani navideño 120g	navideño	arcor	140.00	102.20	30	2	4230	1	1	3.70	4.26	4.70	1	arcor	1	2010-10-16 00:00:00	S	0	\N	1	0	16116	21.00	1	t	f	f
+7790580392703	turron almendras/yemas 110g	navideÃ±o	arcor	14.70	11.31	30	0	3927	1	1	8.23	9.05	8.23	1	arcor	1	2009-10-21 00:00:00	S	0	\N	1	0	16114	21.00	1	t	f	f
+7790580423001	rocklets mani navideÃ±o 120g	navideÃ±o	arcor	140.00	102.20	30	2	4230	1	1	3.70	4.26	4.70	1	arcor	1	2010-10-16 00:00:00	S	0	\N	1	0	16116	21.00	1	t	f	f
 7790168000518	Vino Chardonay 750ml.	Vinos	Colon	17.50	12.78	30	-19	1	3635	1	10.50	12.08	9.93	1	distri-sur	1	2010-03-18 00:00:00	S	0	\N	1	0	16117	21.00	1	t	f	f
 7790310007211	papas de jamon serrano 32g	Copetin	lays	40.00	29.20	30	-5	694	1	1	1.54	1.69	1.54	1	pehuamar	1	2009-10-09 00:00:00	S	\N	\N	1	0	16120	21.00	1	t	f	f
 7790336020782	vasco viejo	Gaseosa	vasco viejo	250.00	107.90	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16121	21.00	1	t	f	f
@@ -19701,7 +19893,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798134521265	Crocante de cereal de trigo	Cereal	El Makzal	500.00	146.00	30	-5	1	1	1	2.00	2.20	2.00	1	1	1	2009-10-02 00:00:00	S	0	\N	1	0	16168	21.00	1	t	f	f
 7798134521159	el El Makzal ceral de trigo 60g	cereal	El Makzal	900.00	18.25	30	-15	1	1	1	2.60	2.86	2.60	1	garcia	1	2010-07-23 00:00:00	S	0	\N	1	0	16169	21.00	1	t	f	f
 7613034873132	cat chow adultos 500 	Prod.Altos	cat chau	60.00	55.80	10	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16170	21.00	1	t	f	f
-7790070507938	blancaflor ñoquis	Almacen	blancaflor	2900.00	298.80	20	6	\N	\N	\N	\N	\N	\N	\N	Fábrica	\N	\N	\N	0	\N	1	0	16171	21.00	1	t	f	f
+7790070507938	blancaflor Ã±oquis	Almacen	blancaflor	2900.00	298.80	20	6	\N	\N	\N	\N	\N	\N	\N	FÃ¡brica	\N	\N	\N	0	\N	1	0	16171	21.00	1	t	f	f
 7790310004326	Palitos salados  200g.	Copetin	Pehuamar	100.00	73.00	30	8	878	2	1	2.28	2.51	2.28	1	1	1	2009-10-02 00:00:00	S	\N	\N	1	0	16172	21.00	1	t	f	f
 7790310985533	Palitos Salados 620 g	Copetin	Pehuamar	7800.00	2190.00	30	2	854	1	1	2.28	2.51	2.28	1	1	1	2009-10-02 00:00:00	S	0	\N	1	0	16173	21.00	1	t	f	f
 7790310004333	Palitos salados 770g	copetin	Pehuamar	250.00	182.50	30	3	1	1	1	6.95	7.65	6.95	1	1	1	2009-10-02 00:00:00	S	0	\N	1	0	16174	21.00	1	t	f	f
@@ -19720,14 +19912,14 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790520002280	Desinfectante en Aerosol	Almacen	Lysoform	15.00	12.45	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16188	21.00	1	t	f	f
 7790310004340	pehuamar palitos de queso 55g	Copetin	Pehuamar	60.00	43.80	30	3	816	1	1	2.27	2.50	2.27	1	Pepsico	1	2009-09-25 00:00:00	S	\N	\N	1	0	16189	21.00	1	t	f	f
 7798031155648	knorr fideo dedalito 500 g	fideos	knorr	1500.00	51.10	30	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16190	21.00	1	t	f	f
-7790310981429	Lay´s Clasicas 40g	Copetin	Pepsico	35.00	25.55	30	-7	656	1	1	1.54	1.69	1.54	1	Pepsico	1	2009-09-25 00:00:00	S	0	\N	1	0	16191	21.00	1	t	f	f
+7790310981429	LayÂ´s Clasicas 40g	Copetin	Pepsico	35.00	25.55	30	-7	656	1	1	1.54	1.69	1.54	1	Pepsico	1	2009-09-25 00:00:00	S	0	\N	1	0	16191	21.00	1	t	f	f
 4005800137679	nivea piel normal - seca	Limpieza	nivea	3100.00	2573.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16192	21.00	1	t	f	f
 7790742326706	finlandia ja y pa 180 g	Almacen	serenisima	2400.00	224.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16193	21.00	1	t	f	f
 7790411001514	rosamonte suave x 500 g  plus	yerba	rosamonte 	270.00	197.10	30	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16194	21.00	1	t	f	f
 7791250001482	Legui Licor Fino 750ml.	Licores	Legui	4200.00	379.60	30	0	4330110	1	1	8.92	9.81	9.81	1	nini	1	2010-05-20 00:00:00	S	0	\N	1	0	16195	21.00	1	t	f	f
-7791293025162	POND´S crema C pepino 50g	Perfumeria	Ponds	41.00	29.93	30	0	1	0111926	1	5.81	6.39	5.81	1	vital	1	2009-09-26 00:00:00	S	0	\N	1	0	16196	21.00	1	t	f	f
-7501056330293	POND´S crema H 20hs. 100g	Perfumeria	Ponds	200.00	146.00	30	-6	1	0104706	1	9.23	10.15	9.23	1	vital	1	2009-09-26 00:00:00	S	0	\N	1	0	16197	21.00	1	t	f	f
-7501056330323	POND´S crema fresc/hidrat 50g	perfumeria	Ponds	200.00	146.00	30	-2	1	0122343	1	5.81	6.39	5.81	1	1	1	2009-09-26 00:00:00	S	\N	\N	1	0	16198	21.00	1	t	f	f
+7791293025162	PONDÂ´S crema C pepino 50g	Perfumeria	Ponds	41.00	29.93	30	0	1	0111926	1	5.81	6.39	5.81	1	vital	1	2009-09-26 00:00:00	S	0	\N	1	0	16196	21.00	1	t	f	f
+7501056330293	PONDÂ´S crema H 20hs. 100g	Perfumeria	Ponds	200.00	146.00	30	-6	1	0104706	1	9.23	10.15	9.23	1	vital	1	2009-09-26 00:00:00	S	0	\N	1	0	16197	21.00	1	t	f	f
+7501056330323	PONDÂ´S crema fresc/hidrat 50g	perfumeria	Ponds	200.00	146.00	30	-2	1	0122343	1	5.81	6.39	5.81	1	1	1	2009-09-26 00:00:00	S	\N	\N	1	0	16198	21.00	1	t	f	f
 7790313000530	La Colina spaguetti salsa	Almacen	La Colina	15.00	12.45	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16200	21.00	1	t	f	f
 7790010570862	Toallita Nocturnas x8u	Toallitas	Siempre libre	1000.00	240.90	30	0	4348710	1	1	4.68	5.15	5.17	1	1	1	2010-10-19 00:00:00	S	0	\N	1	0	16201	21.00	1	t	f	f
 7790990586754	Jab.Cremoso c/glicer. 3x125g	Jabon Tocador	Plusbelle	160.00	116.80	30	10	4329309	1	1	4.13	4.55	4.13	1	1	1	2009-09-26 00:00:00	S	0	\N	1	0	16203	21.00	1	t	f	f
@@ -19756,23 +19948,23 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791218000090	Tapa empan.Horno y Freir	tapa de empanada	Orali	1300.00	514.60	20	8	1	1	1	2.00	2.20	2.00	1	1	1	2009-09-24 00:00:00	S	0	\N	1	0	16241	21.00	1	t	f	f
 7791218000021	Tapa hojaldre 330gr	tapa de empanada	Orali	1800.00	1162.00	20	-39	1	1	1	2.50	2.75	2.50	1	1	1	2009-09-24 00:00:00	S	0	\N	1	0	16242	21.00	1	t	f	f
 7791218000175	Tortelettis Carne y esp. 500g	Pastas	Orali	105.00	87.15	20	-2	1	1	1	3.90	4.29	3.90	1	1	1	2009-09-24 00:00:00	S	0	\N	1	0	16243	10.50	1	t	f	f
-7791218000137	Ñoquis x 500g	Pastas	orali	600.00	323.70	20	5	1	1	1	3.00	3.30	3.00	1	1	1	2009-09-24 00:00:00	S	0	\N	1	0	16244	21.00	1	t	f	f
+7791218000137	Ã‘oquis x 500g	Pastas	orali	600.00	323.70	20	5	1	1	1	3.00	3.30	3.00	1	1	1	2009-09-24 00:00:00	S	0	\N	1	0	16244	21.00	1	t	f	f
 7791218122624	ORALI Ravioles de Ricota	ravioles	Orali	2600.00	622.50	20	-1	1	1	1	3.50	3.85	3.50	1	1	1	2009-09-24 00:00:00	S	0	\N	1	0	16245	21.00	1	t	f	f
 7790150570180	Alicante Provenzal 25g sin tacc	especias	alicante	1200.00	99.60	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16246	21.00	1	t	f	f
 7791218123799	orali cocina tortillas 220 g	Pastas	Orali	100.00	83.00	20	8	1	1	1	3.50	3.85	3.50	1	1	1	2009-09-24 00:00:00	S	\N	\N	1	0	16247	21.00	1	t	f	f
 7790315101228	levite fizz pom 225l	Jugos	levite	2200.00	1494.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16248	21.00	1	t	f	f
 7791218000144	Pascualina t/Criolla	pascualina	Orali	2100.00	622.50	20	-62	1	1	1	2.70	2.97	2.70	1	1	1	2009-09-24 00:00:00	S	0	\N	1	0	16249	21.00	1	t	f	f
-7790070621269	raviole de ricota	Almacen	la salteña	650.00	539.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16250	21.00	1	t	f	f
+7790070621269	raviole de ricota	Almacen	la salteÃ±a	650.00	539.50	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16250	21.00	1	t	f	f
 7798151770332	tremblay cheddar 190 g	Lacteos	tremblay	1600.00	830.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16251	21.00	1	t	f	f
 7790520986825	Mr.Musculo Destructor gat.500cm3	Limpieza	Mr.Musculo	15.00	11.52	30	0	3788229	1	1	11.52	12.67	11.52	1	nini	1	2010-01-06 00:00:00	S	0	\N	1	0	16252	21.00	1	t	f	f
 7791130004305	Harpic Power Plus 500	limpieza	Harpic	14.00	10.22	30	-1	3815463	1	1	6.69	7.36	6.69	1	nini	1	2010-01-06 00:00:00	S	\N	\N	1	0	16253	21.00	1	t	f	f
 7790740529062	Shamp.Leche coco	Shampoo	Plusbelle	16.00	11.68	30	-14	4414292	1	1	5.52	6.07	5.52	1	nini	1	2010-01-06 00:00:00	S	\N	\N	1	0	16254	21.00	1	t	f	f
-7790480000029	vino malbec de los viñedos 1.1ml	Vinos	federico de alvear	13.50	10.37	30	0	4328400	1	1	10.37	11.41	10.37	1	Nini	1	2009-09-19 00:00:00	S	0	\N	1	0	16255	21.00	1	t	f	f
+7790480000029	vino malbec de los viÃ±edos 1.1ml	Vinos	federico de alvear	13.50	10.37	30	0	4328400	1	1	10.37	11.41	10.37	1	Nini	1	2009-09-19 00:00:00	S	0	\N	1	0	16255	21.00	1	t	f	f
 78006805	deo barra triple mint 45g	antitranspirante	rexona	160.00	116.80	30	-7	4302249	1	1	10.88	11.97	10.88	1	nini	1	2009-09-19 00:00:00	S	0	\N	1	0	16257	21.00	1	t	f	f
 7791293990613	Rexona invisible 150ml	antitranspirante\r\n	rexona	50.00	36.50	30	6	4200306	1	1	5.80	6.67	7.38	1	nini	1	2009-11-16 00:00:00	S	\N	\N	1	0	16258	21.00	1	t	f	f
 7798031154184	knorr fideos sopero letras 500	fideos	knorr	60.00	49.80	20	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16259	21.00	1	t	f	f
 7793890258349	Pan Dulce C/chips x 500g.	Pan Dulces	Valente	560.00	408.80	30	4	29614	1	1	8.76	9.64	8.76	1	Galletitas	1	2009-12-17 00:00:00	S	0	\N	1	0	16260	21.00	1	t	f	f
-7798088561959	kongo raza pequeña 	Almacen	kongo	17.00	14.11	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16261	21.00	1	t	f	f
+7798088561959	kongo raza pequeÃ±a 	Almacen	kongo	17.00	14.11	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16261	21.00	1	t	f	f
 7790975000190	Chandon D'sec 750cc.	Champang	Chandon	44.00	33.76	30	0	108812	1	1	33.76	37.14	33.76	1	nini	1	2009-12-17 00:00:00	S	0	\N	1	0	16262	21.00	1	t	f	f
 7798031154436	knorr fideos fettucchini 500	fideos	knorr	55.00	45.65	20	-30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16263	21.00	1	t	f	f
 7790168113300	santa silvia blanco dulce 750	vinos	santa silvia	150.00	109.50	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16264	21.00	1	t	f	f
@@ -19851,11 +20043,11 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790590016453	Fosforo 222unid	Almacen	Fosforo 222unid	750.00	622.50	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16337	21.00	1	t	f	f
 7793008018377	ISSUE 6.62	Limpieza	ISSUE	4000.00	2822.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16338	21.00	1	t	f	f
 7798143230264	Jual Stevia 	Almacen	JUAL	2800.00	1826.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16339	21.00	1	t	f	f
-7798092961295	Make abre lata uña 	Almacen	make	2100.00	1494.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16340	21.00	1	t	f	f
+7798092961295	Make abre lata uÃ±a 	Almacen	make	2100.00	1494.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16340	21.00	1	t	f	f
 7790787087341	flan d de leche	Lacteos	ilolay	900.00	747.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16341	21.00	1	t	f	f
 7790787960484	yogur cereal 160	Lacteos	ilolay	1300.00	996.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16342	21.00	1	t	f	f
 7791290791145	cif detergen frutas citricas 500	Almacen	cif	800.00	224.10	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16343	21.00	1	t	f	f
-7790883000473	multisemillas la salteña 410	Panificados	La Salteña 	52.00	37.96	30	2	1	1	1	72.00	79.20	4.00	18	La Perla 	1	2009-12-22 00:00:00	S	0	\N	1	0	16344	21.00	1	t	f	f
+7790883000473	multisemillas la salteÃ±a 410	Panificados	La SalteÃ±a 	52.00	37.96	30	2	1	1	1	72.00	79.20	4.00	18	La Perla 	1	2009-12-22 00:00:00	S	0	\N	1	0	16344	21.00	1	t	f	f
 7798151770349	tremblay clasi 190 g	Lacteos	tremblay	1800.00	830.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16345	21.00	1	t	f	f
 7790748266167	Atun en Aceite	Atun	Puglisi	42.00	30.66	30	-1	3245918	1	1	5.56	6.12	5.56	1	NINI	1	2009-12-24 00:00:00	S	\N	\N	1	0	16346	21.00	1	t	f	f
 7793253003296	Perf.bebe 250 ml 	Limpieza	poett	4600.00	3818.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16348	21.00	1	t	f	f
@@ -19875,8 +20067,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798130952353	twister pop	Almacen	pop	35.00	29.05	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16367	21.00	1	t	f	f
 7798070860626	freddo x 6 g dulce de leche	helado	freddo	530.00	386.90	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16368	21.00	1	t	f	f
 77947550	marlboro ice fresh box 20	cigarrillos	marlboro	5600.00	3135.00	8	4	4208	1	1	4.86	5.35	4.86	1	silicaro	1	2009-09-16 00:00:00	S	0	\N	1	0	16369	21.00	1	t	f	f
-7798088560891	raza pequeñas adultos x1.5kg	Almacen	kongo	20.00	16.60	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16370	21.00	1	t	f	f
-7798131200613	old smuggler añejo x1 lt	licores	old smuggler	550.00	401.50	30	2	146889	1	1	25.13	27.64	29.03	1	nini	1	2010-10-04 00:00:00	S	0	\N	1	0	16371	21.00	1	t	f	f
+7798088560891	raza pequeÃ±as adultos x1.5kg	Almacen	kongo	20.00	16.60	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16370	21.00	1	t	f	f
+7798131200613	old smuggler aÃ±ejo x1 lt	licores	old smuggler	550.00	401.50	30	2	146889	1	1	25.13	27.64	29.03	1	nini	1	2010-10-04 00:00:00	S	0	\N	1	0	16371	21.00	1	t	f	f
 7790480089819	La tranquera 25 mate cocido	mate cocido	La tranquera	170.00	99.60	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16372	21.00	1	t	f	f
 7622300844967	milka d de leche 67	Golosina	milka	50.00	26.50	50	3	754902	1	1	2.00	2.20	3.00	1	nini	1	2010-05-21 00:00:00	S	\N	\N	1	0	16373	21.00	1	t	f	f
 7790310006993	rueditas sabor pizza  84 g 	Galletitas	pepsico	60.00	43.80	30	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16375	21.00	1	t	f	f
@@ -19919,7 +20111,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790645003315	Morron enteros x 220g	Conservas	Caracas	130.00	94.90	30	7	3107825	1	1	3.50	3.85	3.50	1	nini	1	2009-12-10 00:00:00	S	\N	\N	1	0	16422	21.00	1	t	f	f
 7795933000373	Palmitos enteros x 400g	Conservas	Bahia	50.00	36.50	30	3	3519961	1	1	6.90	7.59	6.93	1	nini	1	2009-12-10 00:00:00	S	\N	\N	1	0	16423	21.00	1	t	f	f
 7795184983609	Choclo Gr.Amarillo x 350g	Choclo	noel	40.00	29.20	30	-15	2906589	1	1	2.83	3.11	3.35	1	nini	1	2010-10-19 00:00:00	S	\N	\N	1	0	16424	21.00	1	t	f	f
-7792180142009	mayo 500 g	Mayonesa	cañuela	1700.00	1314.00	30	42	4283317	1	1	3.60	3.96	3.60	1	nini	1	2010-06-28 00:00:00	S	0	\N	1	0	16426	21.00	1	t	f	f
+7792180142009	mayo 500 g	Mayonesa	caÃ±uela	1700.00	1314.00	30	42	4283317	1	1	3.60	3.96	3.60	1	nini	1	2010-06-28 00:00:00	S	0	\N	1	0	16426	21.00	1	t	f	f
 7794940000550	hile azu ligth x 250 g	Almacen	hileret	1500.00	99.60	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16429	21.00	1	t	f	f
 7798183770386	grido post almendr X 1 	HELADOS	GRIDO	1400.00	876.00	30	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16430	21.00	1	t	f	f
 7790080067620	yogs	Almacen	sancor	100.00	83.00	20	-33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16431	21.00	1	t	f	f
@@ -19952,11 +20144,11 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791293035970	sham, liso extremo 200ml	Perfumeria	sedal	35.00	25.55	30	0	4301587	135339	1	4.30	4.73	4.47	1	Nini	1	2010-08-24 00:00:00	S	0	\N	1	0	16466	21.00	1	t	f	f
 7798120180582	tostada  c/gluten light x 160g	galletitas	manieri	60.00	43.80	30	-17	1	1	1	2.00	2.20	2.00	1	1	1	2009-11-18 00:00:00	S	0	\N	1	0	16467	21.00	1	t	f	f
 7790150310137	boldo la virginia 	te	la virgina	80.00	66.40	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16468	21.00	1	t	f	f
-7790040132962	salvado	Almacen	hogareñas	1000.00	830.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16469	21.00	1	t	f	f
+7790040132962	salvado	Almacen	hogareÃ±as	1000.00	830.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16469	21.00	1	t	f	f
 7791218122631	Ravioles de Verdura 454gr.	pasta	Orari	2600.00	321.20	30	3	3721388	1	1	2.66	2.93	2.66	1	Nini	1	2009-08-23 00:00:00	S	0	\N	1	0	16470	10.50	1	t	f	f
 7790150295137	Cappuccino Trad.Inst.10s.x12.5gr	Cafe	La Virginia	15.60	12.00	30	-2	1748820	1	1	8.07	8.88	8.07	1	nini	1	2009-08-23 00:00:00	S	0	\N	1	0	16471	21.00	1	t	f	f
 7798111061531	yatasto leche larga vida caja 	Lacteos	yatasto	30.00	24.90	20	-300	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16472	21.00	1	t	f	f
-7798092964296	budinera nº22	Almacen	make	1400.00	49.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16473	21.00	1	t	f	f
+7798092964296	budinera nÂº22	Almacen	make	1400.00	49.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16473	21.00	1	t	f	f
 7791337960886	yogurisimo de manzana 125	Lacteos	serenisima	18.00	14.94	20	-54	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16474	21.00	1	t	f	f
 7790263110846	Okebon de Leche 160 g 	Galletitas	Okebon	55.00	40.15	30	-72	10755	1	1	30.68	33.75	1.50	24	1	1	2010-05-27 00:00:00	S	0	\N	1	0	16475	21.00	1	t	f	f
 7798136055294	max aroma kosiuko 	Limpieza	maxaroma	180.00	149.40	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16477	21.00	1	t	f	f
@@ -20107,7 +20299,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790580262402	mogul  moras 	Almacen	mogul	2200.00	1826.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16628	21.00	1	t	f	f
 7793890001044	pan fargo paty	Almacen	fargo	500.00	415.00	20	-25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16629	21.00	1	t	f	f
 7791293022505	REXONA HOMBRE	Almacen	REXONA	230.00	190.90	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16630	21.00	1	t	f	f
-7791540044519	DADÁ 2	Vinos	DADÁ	5000.00	456.50	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16631	21.00	1	t	f	f
+7791540044519	DADÃ 2	Vinos	DADÃ	5000.00	456.50	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16631	21.00	1	t	f	f
 7798092965910	make aromatisante 	Almacen	make	110.00	91.30	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16632	21.00	1	t	f	f
 7790080067941	botellita  yogs  	Lacteos	sancor	90.00	74.70	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16633	21.00	1	t	f	f
 7798062543872	limanoada 1.65l	Jugos	levite	750.00	622.50	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16634	21.00	1	t	f	f
@@ -20117,12 +20309,12 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790070936493	cafe arlis 100 g	Almacen	arlistan	870.00	332.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16638	21.00	1	t	f	f
 7790202001105	sin sal agregada	Almacen	pennisi	45.00	37.35	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16639	21.00	1	t	f	f
 7790580109592	citos confites	Almacen	citos	15.00	12.45	20	-9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16641	21.00	1	t	f	f
-7790250054283	elite doble hoja pañuelito 	Perfumeria	elite	160.00	124.80	25	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16642	21.00	1	t	f	f
+7790250054283	elite doble hoja paÃ±uelito 	Perfumeria	elite	160.00	124.80	25	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16642	21.00	1	t	f	f
 7791337003538	ser colchon de frutos rojos	Almacen	serenisima	140.00	116.20	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16647	21.00	1	t	f	f
 7790010570763	siempre libre max suave	Perfumeria	siempre libre	280.00	179.40	25	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16648	21.00	1	t	f	f
 7790045000174	salvado 270 granix 	Galletitas	granix	48.00	35.04	30	-49	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16649	21.00	1	t	f	f
 7798108834155	alta callia tardio 700	Vinos	callia	1900.00	1328.00	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16650	21.00	1	t	f	f
-7613034873262	cat chaw hogareños x 500	Almacen	cat chow	60.00	49.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16651	21.00	1	t	f	f
+7613034873262	cat chaw hogareÃ±os x 500	Almacen	cat chow	60.00	49.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16651	21.00	1	t	f	f
 7791293044521	lavanda y hojas de bambu acon.	Almacen	suave	240.00	199.20	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16652	21.00	1	t	f	f
 7791290004801	toallitas hum. fragancia limon	Limpieza	cif	12.75	10.58	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16653	21.00	1	t	f	f
 7790080040050	mandicrim original x300g	Lacteos	mendicrim	2700.00	10.79	20	0	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	\N	0	\N	1	0	16654	21.00	1	t	f	f
@@ -20142,8 +20334,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791120001512	knorr arroz en caja x 1 k	Almacen	knorr	32.00	23.36	30	3	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	\N	\N	\N	1	0	16669	21.00	1	t	f	f
 7791885326004	cumana lentejas secas remojadas	Almacen	cumana	48.00	39.84	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16670	21.00	1	t	f	f
 7791290001534	anti-bacterial	almacen	cif	2500.00	328.50	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	\N	0	\N	1	0	16671	21.00	1	t	f	f
-7798125960745	hop razas pequeñas 1kg	mascotas	hop	50.00	41.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16672	21.00	1	t	f	f
-7790520997548	raid mmm power x 2ººº	Limpieza	raid	520.00	255.50	30	-10	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	\N	0	\N	1	0	16673	21.00	1	t	f	f
+7798125960745	hop razas pequeÃ±as 1kg	mascotas	hop	50.00	41.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16672	21.00	1	t	f	f
+7790520997548	raid mmm power x 2ÂºÂºÂº	Limpieza	raid	520.00	255.50	30	-10	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	\N	0	\N	1	0	16673	21.00	1	t	f	f
 7791600024239	ciel crystal 123 	Perfumeria	ciel	2500.00	1950.00	25	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16674	21.00	1	t	f	f
 7798070860893	freddo paleta vainilla 65 	helado	freddo	150.00	109.50	30	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16675	21.00	1	t	f	f
 7622300865610	royal gelatina frutos rojos light	gelatinas	royal	210.00	109.20	25	-33	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	\N	0	\N	1	0	16676	21.00	1	t	f	f
@@ -20178,7 +20370,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798134360130	oro del valle aceit en rodajas 280	Almacen	oro del valle	25.00	20.75	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16717	21.00	1	t	f	f
 7798038151773	scott x 6	Perfumeria	scott	22.00	17.16	25	40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16719	21.00	1	t	f	f
 7798080660056	budin	Almacen	saccan	100.00	83.00	20	-16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16720	21.00	1	t	f	f
-2	Panaderia y confiteria	Panaderia	omar	2100.00	4380.00	30	953	\N	\N	\N	\N	\N	\N	\N		1015862	2026-01-29 00:00:00	\N	0	\N	0	1	16701	21.00	1	t	f	f
+2	Panaderia y confiteria	Panaderia	omar	1500.00	4380.00	0	952	\N	\N	\N	\N	\N	\N	\N		1015862	2026-01-29 00:00:00	\N	0	\N	0	1	16701	21.00	1	t	t	f
 4005808817009	espuma de afeitar nivea men	Almacen	nivea	12.00	8.76	30	23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16721	21.00	1	t	f	f
 7790580134723	La Campagnola tirabuzon fideos	fideos	la campagnola	100.00	83.00	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16722	21.00	1	t	f	f
 7794000598171	sopa casera verdura fideo dedalit	Almacen	knorr	18.00	14.94	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16724	10.50	1	t	f	f
@@ -20212,13 +20404,13 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 77945495	lulemuu afajor	Almacen	lulemuu	60.00	49.80	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16759	21.00	1	t	f	f
 7790250014942	papel higienol de 80 mtrs	Limpieza	higienol	15.00	12.45	20	-107	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16760	21.00	1	t	f	f
 7790520015617	desif bosque de pino	limpieza	glade	35.00	25.55	30	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16761	21.00	1	t	f	f
-7790070621313	la salteña ravioles espinaca	ravioles	la salteña	1050.00	539.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16763	21.00	1	t	f	f
+7790070621313	la salteÃ±a ravioles espinaca	ravioles	la salteÃ±a	1050.00	539.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16763	21.00	1	t	f	f
 7790773018656	toall para tu bebe  suave 	limpieza	ideal	1600.00	167.90	30	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16764	21.00	1	t	f	f
 7500435216548	magistral 500 LIMON	Limpieza	magistral	2300.00	498.00	20	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16765	21.00	1	t	f	f
 7613035745384	lafruta	Almacen	frigor	110.00	91.30	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16766	21.00	1	t	f	f
-7509546693170	crema dental para niños	Perfumeria	odolito	2000.00	1560.00	25	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16767	21.00	1	t	f	f
+7509546693170	crema dental para niÃ±os	Perfumeria	odolito	2000.00	1560.00	25	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16767	21.00	1	t	f	f
 7509546003122	crema dental barbie	perfumeria	colgate	70.00	54.60	25	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16768	21.00	1	t	f	f
-7509546066776	crema denta para niños bob esponja	Perfumeria	colgate	70.00	54.60	25	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16769	21.00	1	t	f	f
+7509546066776	crema denta para niÃ±os bob esponja	Perfumeria	colgate	70.00	54.60	25	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16769	21.00	1	t	f	f
 7790990002834	Plat.con.diluir. 500 ml 	Limpieza	ariel	6000.00	4980.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16770	21.00	1	t	f	f
 7791290003163	vivere consen x 500 	Limpieza	vivere	15.50	12.87	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16772	21.00	1	t	f	f
 7790206528882	croco con aorz mani	almacen	croco	340.00	282.20	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16773	21.00	1	t	f	f
@@ -20233,7 +20425,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7500435019224	detergente limo 300 ml	limpieza	magistral	90.00	65.70	30	-27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16782	21.00	1	t	f	f
 7798128000677	cachafaz  granola integral 225	Galletitas	cachafaz	70.00	51.10	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16783	21.00	1	t	f	f
 7798061894203	piragua broches	Limpieza	piragua	1200.00	58.10	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16784	21.00	1	t	f	f
-7791905000761	limpiador de baño gatillo 500 ml	Limpieza	querubin	12.00	9.96	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16787	21.00	1	t	f	f
+7791905000761	limpiador de baÃ±o gatillo 500 ml	Limpieza	querubin	12.00	9.96	20	-15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16787	21.00	1	t	f	f
 7790387015522	la merced barbacua yerba 500g	yerbas	la merced	330.00	240.90	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16788	21.00	1	t	f	f
 7790206506927	kooky bon 	Almacen	kool	500.00	24.90	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16794	21.00	1	t	f	f
 7792075000117	galleta de arroz limon light	Galletitas	ricediex	70.00	51.10	30	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16795	21.00	1	t	f	f
@@ -20262,13 +20454,13 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798321150629	yogur frutos del bosque	Lacteos	sancor	80.00	66.40	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16831	21.00	1	t	f	f
 7790697000324	varita de hojaldre	Almacen	rc	120.00	99.60	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16832	21.00	1	t	f	f
 7891024042830	total 12 70g	pasta dental	colgate	260.00	215.80	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16835	21.00	1	t	f	f
-7797453001588	pedigree señor 1.5	almacen	pedigree	6500.00	539.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16837	21.00	1	t	f	f
+7797453001588	pedigree seÃ±or 1.5	almacen	pedigree	6500.00	539.50	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16837	21.00	1	t	f	f
 7794050008217	doree efecto humedo gel	Almacen	doree	250.00	207.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16838	21.00	1	t	f	f
 7794050008743	gel fijacion 	almacen	doree	60.00	46.80	25	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16839	21.00	1	t	f	f
 7792579002181	yesi jarro plastico	Prod.Altos	ywsi	60.00	55.80	10	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16840	21.00	1	t	f	f
 7798120630490	mani concascaramani hyh	Almacen	mani	450.00	157.70	20	-66	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16841	21.00	1	t	f	f
 7794626008252	huggies p verde	almacen	huggies	180.00	131.40	30	11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16843	21.00	1	t	f	f
-7613034612687	NIDO  1 a 3 años 	Almacen	nestle	500.00	415.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16844	21.00	1	t	f	f
+7613034612687	NIDO  1 a 3 aÃ±os 	Almacen	nestle	500.00	415.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16844	21.00	1	t	f	f
 7790387015614	la merced de monte 500 g 	Almacen	la merced	3600.00	456.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16845	21.00	1	t	f	f
 7793360800009	la campagnola merme de durazno	mermeladas	la campagnols	170.00	141.10	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16847	21.00	1	t	f	f
 7798092963237	fuente decorada con tapa 	almacen	make	17.00	13.26	25	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16849	21.00	1	t	f	f
@@ -20314,7 +20506,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790040139305	mellizas 108 g 	Galletitas	bagley	900.00	124.10	30	-36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16901	21.00	1	t	f	f
 7793049100239	villa iris velas 	Limpieza	villa iris 	180.00	149.40	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16902	21.00	1	t	f	f
 7791337004689	ser flan c/caram s/tacc 95 g 	Lacteos	ser	280.00	149.40	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16903	21.00	1	t	f	f
-7793806000710	pan salvado chico	Almacen	la santiagueña	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16904	21.00	1	t	f	f
+7793806000710	pan salvado chico	Almacen	la santiagueÃ±a	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16904	21.00	1	t	f	f
 7798082000478	Galletas de Arroz SIN SAL	Galletitas	ARROZEN	20.00	14.60	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16907	21.00	1	t	f	f
 7790580626709	arcor bizcochuelo naranja	Almacen	godet	75.00	62.25	20	-3	1	1	1	5.10	5.61	5.10	1	1	1	2011-02-23 00:00:00	S	\N	\N	1	0	16908	21.00	1	t	f	f
 7613287953476	cafe tradicional x 170	Almacen	dolca	1200.00	996.00	20	-3				13.91	15.30	13.91	1	inini	1	2011-02-25 00:00:00	S	0	\N	1	0	16910	21.00	1	t	f	f
@@ -20324,7 +20516,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790084003204	cotar crema de leche x 360	Lacteos	cotar	50.00	41.50	20	-24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16914	21.00	1	t	f	f
 7798339204253	Mix de semillas 380 Gr	Pan lactal	malu 	2500.00	1079.00	20	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16917	21.00	1	t	f	f
 7790310985274	Chetos de queso 43 g	Almacen	papsico	2000.00	290.50	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16918	21.00	1	t	f	f
-7790310984079	con mani	almacen	moño dorado	170.00	141.10	20	-58	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16921	21.00	1	t	f	f
+7790310984079	con mani	almacen	moÃ±o dorado	170.00	141.10	20	-58	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16921	21.00	1	t	f	f
 7896007810017	sakura premiun 150 salsa de soja	Almacen	sakura	45.00	37.35	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16923	21.00	1	t	f	f
 7791905002413	cucatra cebo	Limpieza	cucatrap	40.00	33.20	20	39	1	1	1	12.00	13.20	12.00	1	1	1	2011-03-01 00:00:00	S	\N	\N	1	0	16924	21.00	1	t	f	f
 7790520998262	glade ao lavanda	Almacen	glade	650.00	539.50	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	16926	21.00	1	t	f	f
@@ -20382,8 +20574,8 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 78928503	dermo aclarente 	Perfumeria	dave	130.00	101.40	25	-22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	16999	21.00	1	t	f	f
 7797394001265	tic tac Mix frutal	Dulce	Tic Tac	900.00	66.40	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17000	21.00	1	t	f	f
 7790380016915	Nucrem x 43g	Dulce	Georgalos	60.00	49.80	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17003	21.00	1	t	f	f
-7790380004882	baño repos semi amargo 150g	Dulce	Georgalos	3300.00	2739.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17006	21.00	1	t	f	f
-7790380016687	baño resp leche 150 g	Dulce	Georgalos	3300.00	2739.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17007	21.00	1	t	f	f
+7790380004882	baÃ±o repos semi amargo 150g	Dulce	Georgalos	3300.00	2739.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17006	21.00	1	t	f	f
+7790380016687	baÃ±o resp leche 150 g	Dulce	Georgalos	3300.00	2739.00	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17007	21.00	1	t	f	f
 7622210745620	Milka Dulce de Leche 55g	Dulce	Milka	3500.00	415.00	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17008	21.00	1	t	f	f
 77904744	La Yapa	Dulce	Stani	300.00	74.70	20	-14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17009	21.00	1	t	f	f
 7891150067738	skip para diluir 500 ml	Limpieza	skip	600.00	498.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17011	21.00	1	t	f	f
@@ -20409,7 +20601,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798140990253	porotos en aceite 230 g 	Almacen	los franciscos	12.00	9.96	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17037	21.00	1	t	f	f
 7798140990680	salsa portuguesa 330 g 	Almacen	 los franciscos	13.00	10.79	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17039	21.00	1	t	f	f
 7798061895422	ROMYL  papel manteca 	Limpieza	romyl	110.00	91.30	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17040	21.00	1	t	f	f
-7797453001564	pedigree raza pequeña 1.3	mascota	pedigree	6500.00	581.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17041	21.00	1	t	f	f
+7797453001564	pedigree raza pequeÃ±a 1.3	mascota	pedigree	6500.00	581.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17041	21.00	1	t	f	f
 7798092964081	pala plastico 	Limpieza	make	17.00	14.11	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17042	21.00	1	t	f	f
 7798092963091	secador doble goma 43	Limpieza	make	27.00	22.41	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17044	21.00	1	t	f	f
 7793890253139	ideal para tu panera lactal 350g 	Almacen	panera 	70.00	58.10	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17046	21.00	1	t	f	f
@@ -20474,7 +20666,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790787960583	queos crema balance 290 cm 	Lacteos	ilolay	2400.00	1826.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17118	21.00	1	t	f	f
 7792798013920	quilmes pack x 6 476 cm	cerveza	quilmes	11000.00	9130.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17119	21.00	1	t	f	f
 7790206034154	felfort paraguitas 	Almacen	felfort	300.00	249.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17120	21.00	1	t	f	f
-7798135760038	piña colada 1 l 	Vinos	acapulco	13.00	10.79	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17121	21.00	1	t	f	f
+7798135760038	piÃ±a colada 1 l 	Vinos	acapulco	13.00	10.79	20	-7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17121	21.00	1	t	f	f
 7795933202029	pulpa de anana 900 g	Almacen	bahia	370.00	307.10	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17123	21.00	1	t	f	f
 7795933207017	pulpa de durazno 900 g 	Almacen	bahia	17.00	14.11	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17124	21.00	1	t	f	f
 7795933000526	pulpa de frutilla 900 g 	Almacen	bahia	320.00	265.60	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17125	21.00	1	t	f	f
@@ -20527,7 +20719,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7793890013177	Pan Lactal Rodajas Finas	Almacen	Fargo	12.00	9.96	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17186	21.00	1	t	f	f
 7793890002386	fargo salvado doble 440 g 	Almacen	fargo	260.00	215.80	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17187	21.00	1	t	f	f
 7793890044904	noquis 500g 	Almacen	fargo	13.30	11.04	20	-11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17189	21.00	1	t	f	f
-7790070708861	ñoquis de papa 500 g	pastas	matarazzo	12.00	9.36	25	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17190	21.00	1	t	f	f
+7790070708861	Ã±oquis de papa 500 g	pastas	matarazzo	12.00	9.36	25	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17190	21.00	1	t	f	f
 7790070708908	ravioles de cuatro quesos 500g	pastas	matarazzo	15.50	12.09	25	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17191	21.00	1	t	f	f
 7790070708915	raviol espinaca & mozarella	pastas	matarazzo	15.50	12.09	25	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17192	21.00	1	t	f	f
 7790070708939	ravioles jamon & muzzarella 500 g	pastas	matarazzo	15.50	12.09	25	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17193	21.00	1	t	f	f
@@ -20611,7 +20803,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7622300724368	terrabusi tallarines 	Almacen	terrabusi	23.00	19.09	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17293	21.00	1	t	f	f
 7790070031839	mila soja calabaza	Almacen	granja del sol	650.00	539.50	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17294	21.00	1	t	f	f
 7798128710200	tracia malbec 	Vinos	tracia	45.00	37.35	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17295	21.00	1	t	f	f
-7798054011204	sidra para niños sin alcohlo	Vinos	fresas	380.00	132.80	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17296	21.00	1	t	f	f
+7798054011204	sidra para niÃ±os sin alcohlo	Vinos	fresas	380.00	132.80	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17296	21.00	1	t	f	f
 7791843009048	nampe chandonay	Vinos	nampe	140.00	116.20	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17297	21.00	1	t	f	f
 7790119000505	real anana fizz x 6 	Vinos	real	4000.00	3320.00	20	5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17298	21.00	1	t	f	f
 7790903001060	Pan Semillado 360 g	Panificados	La perla 	2700.00	2075.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17299	21.00	1	t	f	f
@@ -20682,7 +20874,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 8000500020012	kinder x 100 nenas	Almacen	kinder	11000.00	9130.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17367	21.00	1	t	f	f
 7898024395706	kinder x 100 nenes	Almacen	kinder	11000.00	913.00	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17368	21.00	1	t	f	f
 7790411001958	rosa. yerba de 500g	Almacen	rosamonte	2200.00	224.10	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17369	21.00	1	t	f	f
-7790236001973	HORNO FREIR	Almacen	LA SALTEÑA	24.00	19.92	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17370	21.00	1	t	f	f
+7790236001973	HORNO FREIR	Almacen	LA SALTEÃ‘A	24.00	19.92	20	-10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17370	21.00	1	t	f	f
 7792180007315	paseo mini 5 semillas	Galletitas	Paseo	1200.00	116.80	30	10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17371	21.00	1	t	f	f
 7796373000220	salsa cheddar	Gaseosa	la parmesana	32.00	26.56	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17372	21.00	1	t	f	f
 7794037000074	provenza l25g	Almacen	irina	180.00	9.13	20	43	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17373	21.00	1	t	f	f
@@ -20695,7 +20887,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7791625000300	firba esponja sanitarios	Limpieza	extralimp	25.00	20.75	20	-30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17380	21.00	1	t	f	f
 7794037000333	para  reposteros  25g	Dulce	granas	300.00	249.00	20	-70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17381	21.00	1	t	f	f
 7794037000210	vainilla liq 110 cc	Almacen	Irina	1300.00	1079.00	20	26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17382	21.00	1	t	f	f
-7794417001066	escobin de baño	Limpieza	sina	3000.00	415.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17383	21.00	1	t	f	f
+7794417001066	escobin de baÃ±o	Limpieza	sina	3000.00	415.00	20	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17383	21.00	1	t	f	f
 7794820015186	durazno 1000g	Licores	milkaut	50.00	36.50	30	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17385	21.00	1	t	f	f
 7790895009853	cepita  1l	Jugos	cepita	2500.00	2075.00	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17386	21.00	1	t	f	f
 8445291082113	dolca 100 suave 	Almacen	dolca	5800.00	2905.00	20	7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17387	21.00	1	t	f	f
@@ -20848,13 +21040,13 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790336030262	lopez blanco natural 750	Vinos	lopez	2300.00	1162.00	20	-81	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17538	21.00	1	t	f	f
 7790336030514	lopez blanco 750 	Vinos	lopez	2700.00	2241.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17539	21.00	1	t	f	f
 7795323775331	nutrilon 200 2 l	Lacteos	nutrilon	2400.00	705.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17540	21.00	1	t	f	f
-7790121000203	santa caña azucar kg	Almacen	palanca	3000.00	2490.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17541	21.00	1	t	f	f
+7790121000203	santa caÃ±a azucar kg	Almacen	palanca	3000.00	2490.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17541	21.00	1	t	f	f
 7792960000147	poet	Gaseosa	poel	22.00	18.26	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17542	21.00	1	t	f	f
 7794870001269	clovelly aceite mezcla 900	Almacen	clovelly	26.00	21.58	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17543	21.00	1	t	f	f
 7797264000602	trao de piso blanco	Almacen	trapo	1800.00	1494.00	20	-23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17544	21.00	1	t	f	f
 7790670050537	espinaca congelada	Almacen	sadia	47.00	39.01	20	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17545	21.00	1	t	f	f
 7798067780234	agua cimes 600 cc	Gaseosa	cimes	500.00	415.00	20	13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17546	21.00	1	t	f	f
-8445291360365	lech en polv.1años.adel 370 g 	Lacteos	nido	7000.00	5810.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17547	21.00	1	t	f	f
+8445291360365	lech en polv.1aÃ±os.adel 370 g 	Lacteos	nido	7000.00	5810.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17547	21.00	1	t	f	f
 7798090920089	la loma frutilla 500	verduleria	la loma	50.00	36.50	30	13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17548	10.50	1	t	f	f
 7791519001338	prime turbo 	preservativo	prime	2800.00	830.00	20	2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17549	21.00	1	t	f	f
 77982476	chesterfield coral motion 20 box 	cigarrillos	chesterfield	3300.00	2409.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17550	21.00	1	t	f	f
@@ -20872,7 +21064,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790217000032	la cumbresita yerba x 500	yerbas	la cumbresita	1600.00	99.60	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17562	21.00	1	t	f	f
 7790387013160	taragui 500	Almacen	taragui	200.00	166.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17563	21.00	1	t	f	f
 7790742625106	dul d lech col 250 g	Almacen	la serenisima 	2000.00	149.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17564	21.00	1	t	f	f
-7790040132689	Porteñitas x130g	Galletitas	bagley	1200.00	87.60	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17565	21.00	1	t	f	f
+7790040132689	PorteÃ±itas x130g	Galletitas	bagley	1200.00	87.60	30	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17565	21.00	1	t	f	f
 7794560000398	cotar cotarcito postre 120	Lacteos	cotar	30.00	24.90	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17566	21.00	1	t	f	f
 5000175	port salud 	Fiambreria	serenisima	169.75	14.60	30	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17567	21.00	1	t	f	f
 7792260000021	orieta merme damazco 	Almacen	orieta	90.00	74.70	20	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17568	21.00	1	t	f	f
@@ -20935,15 +21127,15 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798184680516	safirus	Gaseosa	safirus	70.00	58.10	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17627	21.00	1	t	f	f
 7790070318060	matarazzo 3 vegetales tirabuzon	fideos	matarazzo	190.00	138.70	30	-1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17628	21.00	1	t	f	f
 7795735000502	don satur yerba	yerbas	don satur	60.00	40.80	35	6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17629	21.00	1	t	f	f
-7790236018124	la salteña fideos coditos x 500	fideos	la salteña	20.00	13.60	35	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17630	21.00	1	t	f	f
-7790236018155	la salteña fideos mostacholes 500	fideos	la salteña	20.00	13.60	35	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17631	21.00	1	t	f	f
+7790236018124	la salteÃ±a fideos coditos x 500	fideos	la salteÃ±a	20.00	13.60	35	9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17630	21.00	1	t	f	f
+7790236018155	la salteÃ±a fideos mostacholes 500	fideos	la salteÃ±a	20.00	13.60	35	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17631	21.00	1	t	f	f
 7790770602216_2	calipso diarios  multistilo 20	Limpieza	calipso	1200.00	979.40	20	-31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17632	21.00	1	t	f	f
 7793147573546	amtel lager lata 	Almacen	amstel 	2100.00	1494.00	20	12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17633	21.00	1	t	f	f
 7794417000052	inova	Gaseosa	innova	65.00	53.95	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17749	21.00	1	t	f	f
 7796699000010	azucar calidad 1 kg 	Almacen	calidad	1200.00	996.00	20	-77	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17634	21.00	1	t	f	f
 7792433000117	junin coret americano 60	snacks	junin	33.00	30.03	12	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17635	21.00	1	t	f	f
 7792433000858	junin mani chopero 120	snacks	junin	30.00	21.90	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17636	21.00	1	t	f	f
-7798048730586	la nonna bañadas 	Galletitas	la nonna	65.00	47.45	30	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17637	21.00	1	t	f	f
+7798048730586	la nonna baÃ±adas 	Galletitas	la nonna	65.00	47.45	30	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17637	21.00	1	t	f	f
 7798048730715	la nonna chocolate 160	Galletitas	la nonna	50.00	36.50	30	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17638	21.00	1	t	f	f
 7798048730708	la nonna vainilla 160	Galletitas	la nonna	25.00	18.25	30	-17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17639	21.00	1	t	f	f
 7791708611799	veneziana torta 400	Almacen	veneziana	50.00	41.50	20	0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17640	21.00	1	t	f	f
@@ -20963,10 +21155,10 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7702147201977	cristar montecarlo vao 340 ml	bazar	cristar	80.00	54.40	35	-39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17654	21.00	1	t	f	f
 7793015240129	lumilagro vaso 340ml	bazar	lumilagro	70.00	51.10	30	-20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17655	21.00	1	t	f	f
 7793015240228	lumilagro vaso x 340 ml	bazar	lumilagro	100.00	73.00	30	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17656	21.00	1	t	f	f
-7790580126506	misky garrapiñada de mani 70 g	golosina	misky	18.00	13.14	30	-103	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17657	21.00	1	t	f	f
+7790580126506	misky garrapiÃ±ada de mani 70 g	golosina	misky	18.00	13.14	30	-103	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17657	21.00	1	t	f	f
 7790580108823	misky lentejas de chocolate	golosinas	misky	20.00	14.60	30	-52	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17658	21.00	1	t	f	f
 7790580118198	misky mani de color	golosina	misky	20.00	14.60	30	-76	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17659	21.00	1	t	f	f
-7790580118181	misky mani bañado 70g	golosina	misky	30.00	21.90	30	-152	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17660	21.00	1	t	f	f
+7790580118181	misky mani baÃ±ado 70g	golosina	misky	30.00	21.90	30	-152	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17660	21.00	1	t	f	f
 7790580667801	misky tableta de mani	golosina	misky	12.00	8.76	30	-132	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17661	21.00	1	t	f	f
 7790040103276	noel budin sin frutas	Almacen	noel	42.00	34.86	20	-32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17662	21.00	1	t	f	f
 7791708001392	veneziana grisines salvado	galletitas	veneziana	27.00	19.71	30	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17663	21.00	1	t	f	f
@@ -21065,7 +21257,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798090071262	sin culpa frutilla alfajor	Almacen	sin culpa	180.00	66.40	20	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17757	21.00	1	t	f	f
 7891150054752	hidratacion profunda acon.	Perfumeria	TRESemme	100.00	78.00	25	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17758	21.00	1	t	f	f
 7791293033365	hidratacion profunda acon.	Perfumeria	TRESemme	100.00	78.00	25	-6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17759	21.00	1	t	f	f
-7798092961059	esponja de baño make	Perfumeria	make	40.00	31.20	25	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17760	21.00	1	t	f	f
+7798092961059	esponja de baÃ±o make	Perfumeria	make	40.00	31.20	25	-8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17760	21.00	1	t	f	f
 7798092961806	esponja combinada	Perfumeria	make	60.00	46.80	25	8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17761	21.00	1	t	f	f
 7798092961790	make esponja anatomica	Perfumeria	make	800.00	46.80	25	3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17762	21.00	1	t	f	f
 7790310985489	doritos dinamita	Almacen	lays	2600.00	511.00	30	-19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17763	21.00	1	t	f	f
@@ -21120,7 +21312,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798375128858	insiencio saumerio	Limpieza	saumerio	1600.00	1328.00	20	-4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17812	21.00	1	t	f	f
 7799175000795	saumerio insiecio	Limpieza	saumerio	1600.00	1328.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17813	21.00	1	t	f	f
 7798375128940	saumerio insiecio	Limpieza	saumerio	2000.00	1328.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17814	21.00	1	t	f	f
-7790070622082	pascualina sin gluten	Almacen	la salteña	3500.00	1494.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17815	21.00	1	t	f	f
+7790070622082	pascualina sin gluten	Almacen	la salteÃ±a	3500.00	1494.00	20	1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	17815	21.00	1	t	f	f
 7798187211106	quento palito cheddar 100 g	Almacen	quento	1300.00	1079.00	20	-2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17816	21.00	1	t	f	f
 7798187210147	quento mani pelado	Almacen	quento	400.00	332.00	20	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17817	21.00	1	t	f	f
 7790040120181	ser snacks queso	snacks	ser	40.00	33.20	20	-12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17818	21.00	1	t	f	f
@@ -21215,7 +21407,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790070432490	gelatina frutilla	gelatinas	Exquisita	1000.00	730.00	30	100	\N	\N	\N	\N	\N	\N	\N	vemart	\N	\N	\N	\N	\N	1	0	17908	21.00	1	t	f	f
 7798335288233	gandara batido vainilla 160grs	Lacteos	gandara	2100.00	1743.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17909	21.00	1	t	f	f
 7793890261288	rapidita ligth	Almacen	qbimbo	3200.00	2656.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17910	21.00	1	t	f	f
-7509552791860	Elvive sha cabello dañado 200 ml	Perfumeria	Elvive	4000.00	2920.00	30	100	\N	\N	\N	\N	\N	\N	\N	vital	\N	\N	\N	\N	\N	1	0	17911	21.00	1	t	f	f
+7509552791860	Elvive sha cabello daÃ±ado 200 ml	Perfumeria	Elvive	4000.00	2920.00	30	100	\N	\N	\N	\N	\N	\N	\N	vital	\N	\N	\N	\N	\N	1	0	17911	21.00	1	t	f	f
 7797453000437	pollo y leche x 85g	mascotas	whiskas	1200.00	876.00	30	100	\N	\N	\N	\N	\N	\N	\N	pedigree	\N	\N	\N	\N	\N	1	0	17912	21.00	1	t	f	f
 7790950145274	DR lemon  gin 473 ml	Licores	dr	2000.00	1460.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17913	21.00	1	t	f	f
 7798345470291	Escob Zonda	Limpieza	Baruk	2500.00	2075.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17914	21.00	1	t	f	f
@@ -21244,7 +21436,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7798362627128	Yerba Peperina 500 g	Yerba	Sierra pura	1400.00	1022.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17937	21.00	1	t	f	f
 7790696000110	Morron lata 180 g	conservas	Abeto	1700.00	1460.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17938	21.00	1	t	f	f
 7509552930337	elvive acondicionador 200 mll	Perfumeria	elvive	4000.00	3120.00	25	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17939	21.00	1	t	f	f
-7790520995292	Lysoform baño ion total.	Limpieza	Lysoform	3000.00	2190.00	30	100	\N	\N	\N	\N	\N	\N	\N	Nini	\N	\N	\N	\N	\N	1	0	17940	21.00	1	t	f	f
+7790520995292	Lysoform baÃ±o ion total.	Limpieza	Lysoform	3000.00	2190.00	30	100	\N	\N	\N	\N	\N	\N	\N	Nini	\N	\N	\N	\N	\N	1	0	17940	21.00	1	t	f	f
 7790990003411	Detergete plato 500ml	Limpieza	magistral	3500.00	2905.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17941	21.00	1	t	f	f
 7797453000550	Whiskas pollo 85 g	Galletitas	Whiskas	1200.00	876.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17942	21.00	1	t	f	f
 7798125811429	Tostex malanga	Galletitas	Tostex	1000.00	730.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	17943	21.00	1	t	f	f
@@ -21375,7 +21567,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790580150457	ketchup 250g	Almacen	La Campagnola	1800.00	1494.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18068	21.00	1	t	f	f
 7790762754138	Vino Cab -Sauvig 750 ml	Vinos	El Cazador	4000.00	3320.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18069	21.00	1	t	f	f
 7790762754107	Vino Malbec 750 ml	Vinos	El Cazador	4000.00	3320.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18070	21.00	1	t	f	f
-7790250040767	Pañal m x 8 un	Panales	Babysec	2600.00	1898.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18071	21.00	1	t	f	f
+7790250040767	PaÃ±al m x 8 un	Panales	Babysec	2600.00	1898.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18071	21.00	1	t	f	f
 7793253007065	Quita mancha polvo 120 g	Limpieza	Trenet	2400.00	1992.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18072	21.00	1	t	f	f
 7798183772045	palito bombon x 10	helado	grido	6200.00	4526.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18073	21.00	1	t	f	f
 7798183772052	pailo bombm choco	helados	grido	6200.00	4526.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18074	21.00	1	t	f	f
@@ -21390,7 +21582,7 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 7790787016310	queso por salut balance 190 g	Lacteos	Ilolay	2100.00	1743.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18083	21.00	1	t	f	f
 7798036730796	Mani con choco 70 g	Confituras	Brek	1100.00	803.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18084	21.00	1	t	f	f
 7798036732745	Confite de mani 70 g	Confituras	Brek	600.00	402.00	36	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18085	21.00	1	t	f	f
-7798036731977	Garrapiñada 70 g	Confituras	Brek	600.00	438.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18086	21.00	1	t	f	f
+7798036731977	GarrapiÃ±ada 70 g	Confituras	Brek	600.00	438.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18086	21.00	1	t	f	f
 7798036731748	Turron de mani 70 g	Confituras	Brek	700.00	511.00	30	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18087	21.00	1	t	f	f
 7798344600514	Pilsen 473	Vinos	AMARILLA	2800.00	2324.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18088	21.00	1	t	f	f
 7798344600538	red ipa	Almacen	amarilla	2800.00	2324.00	20	100	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	18089	21.00	1	t	f	f
@@ -21547,20 +21739,23 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 12	Bolsita de gomitas	Golisinas	mogul	1600.00	1000.00	50	16	\N	\N	\N	\N	\N	\N	\N	Proveedor Principal	\N	2026-02-25 00:00:00	\N	\N	\N	1	0	18243	0.00	1	t	f	f
 7793706000438	frutos del bosque 200 g	Galletitas	doninas	2300.00	219.00	30	5	\N	\N	\N	\N	\N	\N	\N		\N	2026-05-23 00:00:00	\N	0	\N	1	0	13382	21.00	1	t	f	f
 509998	Verduleria	Agregado en ventas	Ventas	1850.00	1233.33	50	9	\N	\N	\N	\N	\N	\N	\N	Proveedor	\N	\N	\N	\N	\N	0	\N	18247	21.00	1	t	f	f
-123123	Producto de prueba	Almacen	Marca	1600.00	1000.00	50	9	\N	\N	\N	\N	\N	\N	\N	Proveedor Principal	\N	2026-05-23 00:00:00	\N	\N	\N	0	1	18244	21.00	1	t	f	f
+10	Facturas x und	Panaderia	facturas	250.00	36.50	30	998	1	1	1	0.40	0.00	0.00	1	1	1	\N	N	\N	\N	1	0	9445	21.00	1	t	f	t
+3	fiambre :)	Fiambreria	fiambreria	3100.00	1245.00	0	977	\N	\N	\N	\N	\N	\N	\N	Proveedor Principal	1151	\N	\N	0	\N	0	1	16703	21.00	1	t	t	f
 7790742436108	 leche en polvo entera 200	Lacteos	la serenisima	3400.00	572.70	20	4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	14681	21.00	1	t	f	f
 7791337007178	 gran compra vainilla cermoso	Lacteos	serenisina	650.00	498.00	20	-13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	9604	21.00	1	t	f	f
 7790412000271	leiva  tostadas arroz 	Galletitas	leiva	1500.00	109.50	30	-3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	863	21.00	1	t	f	f
 7790150540183	alicante oregano x 25 g	especias	alicante 	1100.00	116.20	20	-5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	1	0	4797	21.00	1	t	f	f
 7793440700366	santa isabel malbec	Vinos	santa isabel	2500.00	12.87	20	-29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	1	0	5	21.00	1	t	f	f
-3	fiambre :)	Fiambreria	fiambreria	3500.00	1245.00	20	978	\N	\N	\N	\N	\N	\N	\N	Proveedor Principal	1151	\N	\N	0	\N	0	1	16703	21.00	1	t	f	f
-10	Facturas x und	Panaderia	facturas	250.00	36.50	30	998	1	1	1	0.40	0.00	0.00	1	1	1	\N	N	\N	\N	0	1	9445	21.00	1	t	f	f
+4	verduleria	verduleria	verduleria	2800.00	87.60	30	-236	\N	\N	\N	\N	\N	\N	\N		2122011461	\N	\N	0	\N	0	1	14571	10.50	1	t	t	f
+1	articulos de almacen	Almacen	almacen	2500.00	1000.00	0	908	1	1	1	1.00	1.10	1.00	1	1	11804240.1	2026-05-23 00:00:00	S	0	\N	0	1	17254	21.00	1	t	t	f
 7	bolsas	Prod.Altos	bolsas	5000.00	18.60	10	-54	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	0	1	977	21.00	1	t	f	f
 509997	Fiambreria	Fiambreria	Fiambreria	150.00	100.00	50	998	\N	\N	\N	\N	\N	\N	\N	Proveedor Principal	\N	2026-05-28 00:00:00	\N	\N	\N	0	0	18245	21.00	1	t	f	f
 6	facturas	Almacen	facturas	4900.00	6.64	20	-1546	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0	\N	0	1	934	21.00	1	t	f	f
-1	articulos de almacen	Almacen	almacen	2700.00	1000.00	30	909	1	1	1	1.00	1.10	1.00	1	1	11804240.1	2026-05-23 00:00:00	S	0	\N	0	1	17254	21.00	1	t	f	f
-4	verduleria	verduleria	verduleria	2800.00	87.60	30	-236	\N	\N	\N	\N	\N	\N	\N	\N	2122011461	\N	\N	0	\N	0	1	14571	10.50	1	t	f	f
-5	Carniceria	Carne	Carne	45000.00	60.00	30	78	1	1	1	1.00	1.10	1.00	1	1	6178581	2010-08-14 00:00:00	S	0	\N	0	1	14048	10.50	1	t	f	f
+7791337009684	Gran compra frutilla cremoso	Lacteos	serenisima	2000.00	1660.00	20	-12	\N	\N	\N	\N	\N	\N	\N		\N	\N	\N	0	\N	1	0	12121	21.00	1	t	f	f
+123124	Prueba WEB2	Almacen	Almacen	3100.00	2000.00	50	200	\N	\N	\N	\N	\N	\N	\N		\N	\N	\N	\N	\N	1	0	18251	21.00	1	t	f	t
+123123	Producto de prueba	Almacen	Marca	1600.00	1000.00	50	9	\N	\N	\N	\N	\N	\N	\N	Proveedor Principal	\N	2026-05-23 00:00:00	\N	\N	\N	0	0	18244	21.00	0	f	f	f
+123123	Producto de prueba	Almacen	Marca	1600.00	1000.00	50	9	\N	\N	\N	\N	\N	\N	\N	Proveedor Principal	\N	\N	\N	\N	\N	0	0	18250	21.00	0	f	f	f
+5	Carniceria	Carne	Carne	36500.00	60.00	0	78	1	1	1	1.00	1.10	1.00	1	1	6178581	2010-08-14 00:00:00	S	0	\N	0	1	14048	10.50	1	t	t	f
 \.
 
 
@@ -21568,13 +21763,13 @@ cigarrillos	marlboro doble fussion 20 	cigarrillos	marlboro	1200.00	996.00	20	24
 -- Data for Name: proveedores; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.proveedores (id, nombre, cuit, domicilio, telefono, email, condicioniva, observaciones, activo, fechacreacion, usuariocreacion, rubro) FROM stdin;
-1	Coca Cola	1	Domicilio 1	(221) 666-6666	cocacola@gmail.com	21	\N	1	2025-10-27 12:14:37.219565	Manuel	Gaseosa
-2	Quilmes	45466	2132132156498	213232582	quilmes@quilmes.com.ar	21	\N	1	2025-10-27 12:15:09.705344	Manuel	Cerveza
-4	Verduleria	1	1	1	\N	21	\N	1	2026-05-18 23:15:13.52427	Manuel	Verduleria
-5	Carniceria	1	1	1	\N	21	\N	1	2026-05-18 23:15:37.314295	Manuel	Carne
-3	Fiambreria	12	1	1	\N	21	\N	1	2026-05-18 23:14:11.209484	Manuel	\N
-6	Pan	456	122	221	\N	0	\N	1	2026-05-23 22:09:30.34366	Manuel	Panaderia
+COPY public.proveedores (id, nombre, cuit, domicilio, telefono, email, condicioniva, observaciones, activo, fechacreacion, usuariocreacion, rubro, contacto) FROM stdin;
+1	Coca Cola	1	Domicilio 1	(221) 666-6666	cocacola@gmail.com	21	\N	1	2025-10-27 12:14:37.219565	Manuel	Gaseosa	\N
+2	Quilmes	45466	2132132156498	213232582	quilmes@quilmes.com.ar	21	\N	1	2025-10-27 12:15:09.705344	Manuel	Cerveza	\N
+4	Verduleria	1	1	1	\N	21	\N	1	2026-05-18 23:15:13.52427	Manuel	Verduleria	\N
+5	Carniceria	1	1	1	\N	21	\N	1	2026-05-18 23:15:37.314295	Manuel	Carne	\N
+3	Fiambreria	12	1	1	\N	21	\N	1	2026-05-18 23:14:11.209484	Manuel	\N	\N
+6	Pan	456	122	221	\N	0	\N	1	2026-05-23 22:09:30.34366	Manuel	Panaderia	\N
 \.
 
 
@@ -21599,9 +21794,9 @@ COPY public.retirosefectivo (id, monto, motivo, responsable, numerocajero, usuar
 1	20000.00	pago proveedor	Manuel	5	admin	2026-01-12 21:20:11.063	887	MANUELC
 2	150000.00	retiro	victor	5	admin	2026-01-12 21:24:09.847	887	MANUELC
 3	5000.00	retiro	Victor	5	admin	2026-01-14 20:40:09.53	892	MANUELC
-4	20000.00	Efectivo empleado - María García	María García	5	admin	2026-02-18 17:33:31.097	973	MANUELC
-5	15000.00	Efectivo empleado - María García	María García	5	admin	2026-02-18 17:36:10.727	974	MANUELC
-6	-10000.00	Efectivo empleado - María García	María García	5	admin	2026-02-18 17:42:03.607	975	MANUELC
+4	20000.00	Efectivo empleado - MarÃ­a GarcÃ­a	MarÃ­a GarcÃ­a	5	admin	2026-02-18 17:33:31.097	973	MANUELC
+5	15000.00	Efectivo empleado - MarÃ­a GarcÃ­a	MarÃ­a GarcÃ­a	5	admin	2026-02-18 17:36:10.727	974	MANUELC
+6	-10000.00	Efectivo empleado - MarÃ­a GarcÃ­a	MarÃ­a GarcÃ­a	5	admin	2026-02-18 17:42:03.607	975	MANUELC
 7	100.00	asdasd	ad	5	admin	2026-02-18 19:48:16.193	975	MANUELC
 8	200.00	1	1	5	admin	2026-02-18 19:51:39.58	975	MANUELC
 9	100000.00	retiro	manuel	5	admin	2026-02-25 20:03:19.013	997	MANUELC
@@ -23716,10 +23911,10 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2445627	290	1	articulos de almacen	125.00	1	125.00	2025-10-14 00:00:00	1900-01-01 19:59:51	\N	Almacen	almacen	1	\N	876.00	1		\N	21.69	21.00	\N	\N	\N	\N	\N	0
 2445628	290	2	Panaderia y confiteria	2800.00	1	2800.00	2025-10-14 00:00:00	1900-01-01 19:59:52	\N	almacen	omar	\N	\N	4380.00	1		\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2445629	290	3	fiambre :)	2000.00	1	2000.00	2025-10-14 00:00:00	1900-01-01 19:59:53	\N	almacen	fiambreria	\N	\N	1245.00	1		\N	347.11	21.00	\N	\N	\N	\N	\N	0
-2445630	291	1	articulos de almacen	125.00	1	125.00	2025-10-14 00:00:00	1900-01-01 20:49:56	\N	Almacen	almacen	1	\N	876.00	1	Carlos López	\N	21.69	21.00	\N	\N	\N	\N	\N	0
-2445631	291	2	Panaderia y confiteria	2800.00	1	2800.00	2025-10-14 00:00:00	1900-01-01 20:49:57	\N	almacen	omar	\N	\N	4380.00	1	Carlos López	\N	485.95	21.00	\N	\N	\N	\N	\N	0
-2445632	291	3	fiambre :)	2000.00	1	2000.00	2025-10-14 00:00:00	1900-01-01 20:49:57	\N	almacen	fiambreria	\N	\N	1245.00	1	Carlos López	\N	347.11	21.00	\N	\N	\N	\N	\N	0
-2445633	291	5	Carniceria	5000.00	1	5000.00	2025-10-14 00:00:00	1900-01-01 20:49:58	\N	Carne	Carne	1	\N	60.00	1	Carlos López	\N	475.11	10.50	\N	\N	\N	\N	\N	0
+2445630	291	1	articulos de almacen	125.00	1	125.00	2025-10-14 00:00:00	1900-01-01 20:49:56	\N	Almacen	almacen	1	\N	876.00	1	Carlos LÃ³pez	\N	21.69	21.00	\N	\N	\N	\N	\N	0
+2445631	291	2	Panaderia y confiteria	2800.00	1	2800.00	2025-10-14 00:00:00	1900-01-01 20:49:57	\N	almacen	omar	\N	\N	4380.00	1	Carlos LÃ³pez	\N	485.95	21.00	\N	\N	\N	\N	\N	0
+2445632	291	3	fiambre :)	2000.00	1	2000.00	2025-10-14 00:00:00	1900-01-01 20:49:57	\N	almacen	fiambreria	\N	\N	1245.00	1	Carlos LÃ³pez	\N	347.11	21.00	\N	\N	\N	\N	\N	0
+2445633	291	5	Carniceria	5000.00	1	5000.00	2025-10-14 00:00:00	1900-01-01 20:49:58	\N	Carne	Carne	1	\N	60.00	1	Carlos LÃ³pez	\N	475.11	10.50	\N	\N	\N	\N	\N	0
 2445634	292	1	articulos de almacen	125.00	1	125.00	2025-10-14 00:00:00	1900-01-01 22:07:17	\N	Almacen	almacen	1	\N	876.00	1	Diego Hoyos	\N	21.69	21.00	\N	\N	\N	\N	\N	0
 2445635	292	2	Panaderia y confiteria	2800.00	1	2800.00	2025-10-14 00:00:00	1900-01-01 22:07:19	\N	almacen	omar	\N	\N	4380.00	1	Diego Hoyos	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2445636	292	3	fiambre :)	2000.00	1	2000.00	2025-10-14 00:00:00	1900-01-01 22:07:20	\N	almacen	fiambreria	\N	\N	1245.00	1	Diego Hoyos	\N	347.11	21.00	\N	\N	\N	\N	\N	0
@@ -23735,7 +23930,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2445646	296	1	articulos de almacen	125.00	1	125.00	2025-10-14 00:00:00	1900-01-01 23:15:26	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	21.69	21.00	\N	\N	\N	\N	\N	0
 2445647	296	2	Panaderia y confiteria	2800.00	1	2800.00	2025-10-14 00:00:00	1900-01-01 23:15:26	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2445648	296	3	fiambre :)	2000.00	1	2000.00	2025-10-14 00:00:00	1900-01-01 23:15:27	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	347.11	21.00	\N	\N	\N	\N	\N	0
-2441782	708669	7791070000030	classic 50 paños x3	1400.00	1	1400.00	2025-09-22 00:00:00	1899-12-30 09:51:18	Cajero 1	almacen	campanita			182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441782	708669	7791070000030	classic 50 paÃ±os x3	1400.00	1	1400.00	2025-09-22 00:00:00	1899-12-30 09:51:18	Cajero 1	almacen	campanita			182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441783	708669	7790387013627	taragui original 500	2400.00	1	2400.00	2025-09-22 00:00:00	1899-12-30 09:51:22	Cajero 1	Almacen	taragui			664.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441784	708669	7790150564844	Pimenton ex/dulce 25g	700.00	1	700.00	2025-09-22 00:00:00	1899-12-30 09:51:24	Cajero 1	Condimentos	Alicante	Nini	0	72.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441785	708669	7790150550588	alicante pimienta blanca	1500.00	1	1500.00	2025-09-22 00:00:00	1899-12-30 09:51:25	Cajero 1	especias	alicante			141.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -23816,7 +24011,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441819	708675	7790670053040	Hamburguesa  x 4 276 g 	2600.00	1	2600.00	2025-09-22 00:00:00	1899-12-30 10:32:51	Cajero 1	hamburgesas	Barfy			1752.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441820	708675	77969095	beldent manzana	800.00	1	800.00	2025-09-22 00:00:00	1899-12-30 10:33:02	Cajero 1	Dulce	beldent			498.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441821	708676	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-22 00:00:00	1899-12-30 10:33:57	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441822	708676	7791070000030	classic 50 paños x3	1400.00	1	1400.00	2025-09-22 00:00:00	1899-12-30 10:34:11	Cajero 1	almacen	campanita			182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441822	708676	7791070000030	classic 50 paÃ±os x3	1400.00	1	1400.00	2025-09-22 00:00:00	1899-12-30 10:34:11	Cajero 1	almacen	campanita			182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441823	708676	7798151952332	king pasta de mani 	3000.00	1	3000.00	2025-09-22 00:00:00	1899-12-30 10:34:25	Cajero 1	Almacen	king			498.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2445649	297	1	articulos de almacen	125.00	1	125.00	2025-10-14 00:00:00	1900-01-01 23:15:57	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	21.69	21.00	\N	\N	\N	\N	\N	0
 2445650	297	2	Panaderia y confiteria	2800.00	1	2800.00	2025-10-14 00:00:00	1900-01-01 23:15:58	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
@@ -23868,9 +24063,9 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2445700	310	2	Panaderia y confiteria	2800.00	6	16800.00	2025-10-17 00:00:00	1900-01-01 12:22:00	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2441339	708548	5099997	carniceria	12303.00	1	12303.00	2025-09-21 00:00:00	1899-12-30 14:11:17	Cajero 3	carniceria	carnes			9473.31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441340	708549	5099998	verduleria	1745.00	1	1745.00	2025-09-21 00:00:00	1899-12-30 14:13:45	Cajero 3	verduleria	verduleria	Mercado	0	1343.65	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441341	708549	7792409008338	Maxi Rollo 200 paños	1250.00	1	1250.00	2025-09-21 00:00:00	1899-12-30 14:13:51	Cajero 3	Limpieza	Soleado			1037.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441341	708549	7792409008338	Maxi Rollo 200 paÃ±os	1250.00	1	1250.00	2025-09-21 00:00:00	1899-12-30 14:13:51	Cajero 3	Limpieza	Soleado			1037.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441342	708549	7793344904228	Higienico 4 x 80m.	3100.00	1	3100.00	2025-09-21 00:00:00	1899-12-30 14:13:53	Cajero 3	Papel Higienico	Elegante	vital	1	42.34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441343	708549	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 14:13:57	Cajero 3	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441343	708549	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 14:13:57	Cajero 3	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441344	708549	7795016100044	Arroz 0000 1kg.	1300.00	1	1300.00	2025-09-21 00:00:00	1899-12-30 14:14:01	Cajero 3	Arroz	Lucato	Nini	0	949.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441345	708549	5000155	reggianito maffia	2430.00	1	2430.00	2025-09-21 00:00:00	1899-12-30 14:14:04	Cajero 3	Fiambreria	maffia	Mercado	0	1871.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441346	708549	7790170914018	la moren te  en saq 25 u 	850.00	1	850.00	2025-09-21 00:00:00	1899-12-30 14:14:06	Cajero 3	Almacen	la morenita	la virginia	1	65.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -24231,7 +24426,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442119	708763	7622201703172	clight pomelo rosado	350.00	7	2450.00	2025-09-22 00:00:00	1899-12-30 19:39:48	Cajero 3	Jugos	clight			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442120	708763	7790770602193	Prote normal  x 50	1800.00	1	1800.00	2025-09-22 00:00:00	1899-12-30 19:39:52	Cajero 3	Protectores	Calipso	nini	1	730.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442121	708763	7799175003987	palo santo esencias de la indea	2000.00	1	2000.00	2025-09-22 00:00:00	1899-12-30 19:39:54	Cajero 3	Almacen	aromanza			1660.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442122	708763	8445291360365	lech en polv.1años.adel 370 g 	7000.00	1	7000.00	2025-09-22 00:00:00	1899-12-30 19:39:55	Cajero 3	Lacteos	nido			5810.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442122	708763	8445291360365	lech en polv.1aÃ±os.adel 370 g 	7000.00	1	7000.00	2025-09-22 00:00:00	1899-12-30 19:39:55	Cajero 3	Lacteos	nido			5810.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442123	708763	5000147	papas saladas	2500.00	1	2500.00	2025-09-22 00:00:00	1899-12-30 19:39:58	Cajero 3	Almacen	fiambreia			1925.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442124	708763	7794940000758	hileret stevia	2200.00	1	2200.00	2025-09-22 00:00:00	1899-12-30 19:40:00	Cajero 3	Almacen	hileret			37.35	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442125	708763	7794000006362	knorr pure de papas 125 g 	2100.00	1	2100.00	2025-09-22 00:00:00	1899-12-30 19:40:02	Cajero 3	Caldo 	knorr			1577.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -24352,7 +24547,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441667	708635	7790895001413	coca 1 l 	1600.00	1	1600.00	2025-09-21 00:00:00	1899-12-30 19:56:48	Cajero 3	Gaseosa	coca cola			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441668	708635	7790895001413	coca 1 l 	1600.00	1	1600.00	2025-09-21 00:00:00	1899-12-30 19:56:49	Cajero 3	Gaseosa	coca cola			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441669	708636	7793450000159	hojalmar  larguitas 150g	1500.00	1	1500.00	2025-09-21 00:00:00	1899-12-30 19:59:16	Cajero 3	Galletitas	hojalmar			224.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441670	708636	7791828900117	Pañuelitos descartables	1900.00	1	1900.00	2025-09-21 00:00:00	1899-12-30 19:59:19	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441670	708636	7791828900117	PaÃ±uelitos descartables	1900.00	1	1900.00	2025-09-21 00:00:00	1899-12-30 19:59:19	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441671	708636	7795735000335	Bizcochos agridulce 200g	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 19:59:24	Cajero 3	Galletitas	Don Satur	Michael	0	401.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441672	708636	7791290792814	skip dilicades 800	3000.00	1	3000.00	2025-09-21 00:00:00	1899-12-30 19:59:28	Cajero 3	Jabon liq 	skip			2075.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441673	708636	7795733001075	kokis galleguitas 200	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 19:59:31	Cajero 3	Galletitas	kokis			25.55	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -24558,8 +24753,8 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2446259	479	1	articulos de almacen	2750.00	1	2750.00	2025-10-30 00:00:00	1900-01-01 08:21:30	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	477.27	21.00	\N	\N	\N	\N	\N	0
 2446260	479	2	Panaderia y confiteria	3500.00	1	3500.00	2025-10-30 00:00:00	1900-01-01 08:21:30	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
 2446261	479	3	fiambre :)	6860.00	1	6860.00	2025-10-30 00:00:00	1900-01-01 08:21:31	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	1190.58	21.00	\N	\N	\N	\N	\N	0
-2446262	480	1	articulos de almacen	2750.00	1	2750.00	2025-10-30 00:00:00	1900-01-01 08:25:24	\N	Almacen	almacen	1	\N	876.00	1	María García	\N	477.27	21.00	\N	\N	\N	\N	\N	0
-2446263	480	6	facturas	5275.00	1	5275.00	2025-10-30 00:00:00	1900-01-01 08:25:25	\N	Almacen	facturas	\N	\N	6.64	1	María García	\N	915.50	21.00	\N	\N	\N	\N	\N	0
+2446262	480	1	articulos de almacen	2750.00	1	2750.00	2025-10-30 00:00:00	1900-01-01 08:25:24	\N	Almacen	almacen	1	\N	876.00	1	MarÃ­a GarcÃ­a	\N	477.27	21.00	\N	\N	\N	\N	\N	0
+2446263	480	6	facturas	5275.00	1	5275.00	2025-10-30 00:00:00	1900-01-01 08:25:25	\N	Almacen	facturas	\N	\N	6.64	1	MarÃ­a GarcÃ­a	\N	915.50	21.00	\N	\N	\N	\N	\N	0
 2446275	485	1	articulos de almacen	250000.00	1	250000.00	2025-11-04 00:00:00	1900-01-01 22:37:15	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	43388.43	21.00	\N	\N	\N	\N	\N	0
 2446287	489	1	articulos de almacen	25000.00	1	25000.00	2025-11-05 00:00:00	1900-01-01 23:59:46	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	4338.84	21.00	\N	\N	\N	\N	\N	0
 2446288	489	2	Panaderia y confiteria	3500.00	1	3500.00	2025-11-05 00:00:00	1900-01-01 23:59:46	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
@@ -24678,15 +24873,15 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2446395	532	723540525115	lucky mani jamon 1 k	5500.00	1	5500.00	2025-11-08 00:00:00	1900-01-01 19:03:22	\N	Almacen	lucky	\N	\N	356.90	0	\N	\N	954.55	21.00	\N	\N	\N	\N	\N	0
 2446397	532	7790040143258	Coquitos x177 g	1500.00	1	1500.00	2025-11-08 00:00:00	1900-01-01 19:03:47	\N	Galletitas	Par nor	Michael	\N	876.00	0	\N	\N	260.33	21.00	\N	\N	\N	\N	\N	0
 2446398	532	7790040143531	amor gall	1200.00	1	1200.00	2025-11-08 00:00:00	1900-01-01 19:03:56	\N	Galletitas	bagley	\N	\N	657.00	0	\N	\N	208.26	21.00	\N	\N	\N	\N	\N	0
-2446408	535	1	articulos de almacen	13500.00	1	13500.00	2025-11-08 00:00:00	1900-01-01 19:18:42	\N	Almacen	almacen	1	\N	876.00	1	Carlos López	\N	2342.98	21.00	\N	\N	\N	\N	\N	0
-2446409	535	2	Panaderia y confiteria	3500.00	1	3500.00	2025-11-08 00:00:00	1900-01-01 19:18:42	\N	almacen	omar	\N	\N	4380.00	1	Carlos López	\N	607.44	21.00	\N	\N	\N	\N	\N	0
-2446410	535	3	fiambre :)	7200.00	1	7200.00	2025-11-08 00:00:00	1900-01-01 19:18:42	\N	almacen	fiambreria	\N	\N	1245.00	1	Carlos López	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
-2446411	536	3	fiambre :)	7200.00	1	7200.00	2025-11-08 00:00:00	1900-01-01 19:19:27	\N	almacen	fiambreria	\N	\N	1245.00	1	Juan Pérez	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
-2446412	536	6	facturas	5275.00	1	5275.00	2025-11-08 00:00:00	1900-01-01 19:19:28	\N	Almacen	facturas	\N	\N	6.64	1	Juan Pérez	\N	915.50	21.00	\N	\N	\N	\N	\N	0
-2446413	536	9	electronica	4000.00	1	4000.00	2025-11-08 00:00:00	1900-01-01 19:19:29	\N	helados	shelatino	\N	\N	2190.00	1	Juan Pérez	\N	694.21	21.00	\N	\N	\N	\N	\N	0
-2446414	536	5	Carniceria	5000.00	1	5000.00	2025-11-08 00:00:00	1900-01-01 19:19:31	\N	Carne	Carne	1	\N	60.00	1	Juan Pérez	\N	475.11	10.50	\N	\N	\N	\N	\N	0
-2446415	536	7	bolsas	50.00	1	50.00	2025-11-08 00:00:00	1900-01-01 19:19:33	\N	Prod.Altos	bolsas	\N	\N	18.60	1	Juan Pérez	\N	8.68	21.00	\N	\N	\N	\N	\N	0
-2446416	536	7	bolsas	3500.00	1	3500.00	2025-11-08 00:00:00	1900-01-01 19:19:35	\N	Prod.Altos	bolsas	\N	\N	18.60	1	Juan Pérez	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2446408	535	1	articulos de almacen	13500.00	1	13500.00	2025-11-08 00:00:00	1900-01-01 19:18:42	\N	Almacen	almacen	1	\N	876.00	1	Carlos LÃ³pez	\N	2342.98	21.00	\N	\N	\N	\N	\N	0
+2446409	535	2	Panaderia y confiteria	3500.00	1	3500.00	2025-11-08 00:00:00	1900-01-01 19:18:42	\N	almacen	omar	\N	\N	4380.00	1	Carlos LÃ³pez	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2446410	535	3	fiambre :)	7200.00	1	7200.00	2025-11-08 00:00:00	1900-01-01 19:18:42	\N	almacen	fiambreria	\N	\N	1245.00	1	Carlos LÃ³pez	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
+2446411	536	3	fiambre :)	7200.00	1	7200.00	2025-11-08 00:00:00	1900-01-01 19:19:27	\N	almacen	fiambreria	\N	\N	1245.00	1	Juan PÃ©rez	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
+2446412	536	6	facturas	5275.00	1	5275.00	2025-11-08 00:00:00	1900-01-01 19:19:28	\N	Almacen	facturas	\N	\N	6.64	1	Juan PÃ©rez	\N	915.50	21.00	\N	\N	\N	\N	\N	0
+2446413	536	9	electronica	4000.00	1	4000.00	2025-11-08 00:00:00	1900-01-01 19:19:29	\N	helados	shelatino	\N	\N	2190.00	1	Juan PÃ©rez	\N	694.21	21.00	\N	\N	\N	\N	\N	0
+2446414	536	5	Carniceria	5000.00	1	5000.00	2025-11-08 00:00:00	1900-01-01 19:19:31	\N	Carne	Carne	1	\N	60.00	1	Juan PÃ©rez	\N	475.11	10.50	\N	\N	\N	\N	\N	0
+2446415	536	7	bolsas	50.00	1	50.00	2025-11-08 00:00:00	1900-01-01 19:19:33	\N	Prod.Altos	bolsas	\N	\N	18.60	1	Juan PÃ©rez	\N	8.68	21.00	\N	\N	\N	\N	\N	0
+2446416	536	7	bolsas	3500.00	1	3500.00	2025-11-08 00:00:00	1900-01-01 19:19:35	\N	Prod.Altos	bolsas	\N	\N	18.60	1	Juan PÃ©rez	\N	607.44	21.00	\N	\N	\N	\N	\N	0
 2446425	539	1	articulos de almacen	13500.00	1	13500.00	2025-11-08 00:00:00	1900-01-01 19:25:26	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	2342.98	21.00	\N	\N	\N	\N	\N	0
 2446426	539	2	Panaderia y confiteria	3500.00	1	3500.00	2025-11-08 00:00:00	1900-01-01 19:25:26	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
 2446427	539	3	fiambre :)	7200.00	1	7200.00	2025-11-08 00:00:00	1900-01-01 19:25:27	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
@@ -24821,11 +25016,11 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2446600	615	1	articulos de almacen	6400.00	1	6400.00	2025-11-22 00:00:00	1900-01-01 01:02:22	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	1110.74	21.00	\N	\N	\N	\N	\N	0
 2446601	616	1	articulos de almacen	6400.00	1	6400.00	2025-11-22 00:00:00	1900-01-01 01:02:29	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	1110.74	21.00	\N	\N	\N	\N	\N	0
 2446603	618	1	articulos de almacen	6400.00	1	6400.00	2025-11-22 00:00:00	1900-01-01 01:10:04	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	1110.74	21.00	\N	\N	\N	\N	\N	0
-2446604	619	1	articulos de almacen	6400.00	1	6400.00	2025-11-25 00:00:00	1900-01-01 16:31:40	\N	Almacen	almacen	1	\N	876.00	1	Juan Pérez	\N	1110.74	21.00	\N	\N	\N	\N	\N	0
-2446605	619	2	Panaderia y confiteria	3500.00	1	3500.00	2025-11-25 00:00:00	1900-01-01 16:31:41	\N	almacen	omar	\N	\N	4380.00	1	Juan Pérez	\N	607.44	21.00	\N	\N	\N	\N	\N	0
-2446606	619	3	fiambre :)	7200.00	1	7200.00	2025-11-25 00:00:00	1900-01-01 16:31:42	\N	almacen	fiambreria	\N	\N	1245.00	1	Juan Pérez	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
+2446604	619	1	articulos de almacen	6400.00	1	6400.00	2025-11-25 00:00:00	1900-01-01 16:31:40	\N	Almacen	almacen	1	\N	876.00	1	Juan PÃ©rez	\N	1110.74	21.00	\N	\N	\N	\N	\N	0
+2446605	619	2	Panaderia y confiteria	3500.00	1	3500.00	2025-11-25 00:00:00	1900-01-01 16:31:41	\N	almacen	omar	\N	\N	4380.00	1	Juan PÃ©rez	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2446606	619	3	fiambre :)	7200.00	1	7200.00	2025-11-25 00:00:00	1900-01-01 16:31:42	\N	almacen	fiambreria	\N	\N	1245.00	1	Juan PÃ©rez	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
 2446607	620	1	articulos de almacen	-10000.00	1	-10000.00	2025-11-25 00:00:00	1900-01-01 16:32:09	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	-1735.54	21.00	\N	\N	\N	\N	\N	0
-2446608	621	1	articulos de almacen	-10000.00	1	-10000.00	2025-11-25 00:00:00	1900-01-01 16:32:42	\N	Almacen	almacen	1	\N	876.00	1	Juan Pérez	\N	-1735.54	21.00	\N	\N	\N	\N	\N	0
+2446608	621	1	articulos de almacen	-10000.00	1	-10000.00	2025-11-25 00:00:00	1900-01-01 16:32:42	\N	Almacen	almacen	1	\N	876.00	1	Juan PÃ©rez	\N	-1735.54	21.00	\N	\N	\N	\N	\N	0
 2446609	622	1	articulos de almacen	1300.00	1	1300.00	2025-11-26 00:00:00	1900-01-01 15:09:29	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	225.62	21.00	\N	\N	\N	\N	\N	0
 2446610	622	2	Panaderia y confiteria	2600.00	1	2600.00	2025-11-26 00:00:00	1900-01-01 15:09:30	\N	almacen	omar	\N	\N	2000.00	0	\N	\N	451.24	21.00	\N	\N	\N	\N	\N	0
 2446611	623	1	articulos de almacen	1300.00	1	1300.00	2025-11-26 00:00:00	1900-01-01 15:38:10	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	225.62	21.00	\N	\N	\N	\N	\N	0
@@ -24864,7 +25059,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2446649	636	1	articulos de almacen	7500.00	1	7500.00	2025-11-28 00:00:00	1900-01-01 16:10:21	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	1301.65	21.00	\N	\N	\N	\N	\N	0
 2441778	708669	7790742363008	larga vida 1 l clasica	2100.00	1	2100.00	2025-09-22 00:00:00	1899-12-30 09:51:06	Cajero 1	Yogures	la serenisima			1095.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441779	708669	7790742363008	larga vida 1 l clasica	2100.00	1	2100.00	2025-09-22 00:00:00	1899-12-30 09:51:07	Cajero 1	Yogures	la serenisima			1095.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441175	708504	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 12:12:29	Cajero 1	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441175	708504	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 12:12:29	Cajero 1	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441176	708504	7790710334535	Yerba hier nat.x500g	2200.00	1	2200.00	2025-09-21 00:00:00	1899-12-30 12:12:34	Cajero 1	Yerbas	Cbse	1	0	401.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441177	708504	5099998	verduleria	2970.00	1	2970.00	2025-09-21 00:00:00	1899-12-30 12:12:39	Cajero 1	verduleria	verduleria	Mercado	0	2286.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441179	708505	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-21 00:00:00	1899-12-30 12:18:33	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -24882,7 +25077,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441191	708507	7790070431417	gallo oro Arroz  1kg	2600.00	1	2600.00	2025-09-21 00:00:00	1899-12-30 12:23:36	Cajero 1	Arroz	Gallo	maxi	1	2628.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441192	708507	5000132	pan	1599.00	1	1599.00	2025-09-21 00:00:00	1899-12-30 12:23:40	Cajero 1	Almacen	pan			1231.23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441193	708507	7791416960462	raza adul p carne 1.5 k	4000.00	1	4000.00	2025-09-21 00:00:00	1899-12-30 12:23:46	Cajero 1	Prod.Altos	raza			1023.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441194	708507	7798061890113	fibra verde 2 paños	2000.00	5	10000.00	2025-09-21 00:00:00	1899-12-30 12:24:40	Cajero 1	Almacen	romyl			332.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441194	708507	7798061890113	fibra verde 2 paÃ±os	2000.00	5	10000.00	2025-09-21 00:00:00	1899-12-30 12:24:40	Cajero 1	Almacen	romyl			332.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441195	708507	77912879	philips 20 comun	4000.00	1	4000.00	2025-09-21 00:00:00	1899-12-30 12:24:57	Cajero 1	cigarrillos	philip morris			2988.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441196	708508	7790895067617	Coca cola zero 2 l retornable	2300.00	1	2300.00	2025-09-21 00:00:00	1899-12-30 12:25:38	Cajero 1	Gaseosa	Coca cola			1826.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441197	708508	77903754	guaymallen de oro	900.00	1	900.00	2025-09-21 00:00:00	1899-12-30 12:25:50	Cajero 1	Golosina	guaymallen			498.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -24902,7 +25097,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441572	708611	2	Panaderia y confiteria	6000.00	1	6000.00	2025-09-21 00:00:00	1899-12-30 18:44:59	Cajero 3	almacen	omar		1015862	4380.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441573	708613	7793344904228	Higienico 4 x 80m.	3100.00	1	3100.00	2025-09-21 00:00:00	1899-12-30 18:46:47	Cajero 3	Papel Higienico	Elegante	vital	1	42.34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441574	708613	7790045827580	Gallet avena y pasas 150 g	1300.00	1	1300.00	2025-09-21 00:00:00	1899-12-30 18:46:52	Cajero 3	Galletitas	Granix			949.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441575	708613	7791828900117	Pañuelitos descartables	1900.00	1	1900.00	2025-09-21 00:00:00	1899-12-30 18:46:55	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441575	708613	7791828900117	PaÃ±uelitos descartables	1900.00	1	1900.00	2025-09-21 00:00:00	1899-12-30 18:46:55	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2446632	630	1	articulos de almacen	158520.00	1	158520.00	2025-11-28 00:00:00	1900-01-01 15:31:37	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	27511.74	21.00	\N	\N	\N	\N	\N	0
 2446634	630	7790064104716	estrella hisopos 125 unid	180.00	1	180.00	2025-11-28 00:00:00	1900-01-01 15:32:17	\N	Perfumeria	estrella	1	\N	131.40	0	\N	\N	31.24	21.00	\N	\N	\N	\N	\N	0
 2446635	630	1	articulos de almacen	158520.00	1	158520.00	2025-11-28 00:00:00	1900-01-01 15:32:33	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	27511.74	21.00	\N	\N	\N	\N	\N	0
@@ -24960,7 +25155,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441630	708628	5000105	aji vinagre	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 19:36:27	Cajero 3	Fiambreria	Fiambreria	1	0	770.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441631	708628	5000157	pategras	3330.00	1	3330.00	2025-09-21 00:00:00	1899-12-30 19:36:29	Cajero 3	Fiambreria	Fiambreria			2564.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441632	708628	5099997	carniceria	15300.00	1	15300.00	2025-09-21 00:00:00	1899-12-30 19:36:39	Cajero 3	carniceria	carnes			11781.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441633	708628	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-21 00:00:00	1899-12-30 19:36:47	Cajero 3	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441633	708628	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-21 00:00:00	1899-12-30 19:36:47	Cajero 3	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441634	708628	7798355480013	Pan lacteado 600 gr	2800.00	1	2800.00	2025-09-21 00:00:00	1899-12-30 19:36:54	Cajero 3	Almacen	Deli pan 			2158.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441635	708628	7791620187693	danica ketchup 220 	1300.00	1	1300.00	2025-09-21 00:00:00	1899-12-30 19:36:56	Cajero 3	Almacen	danica			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441636	708628	7790503199136	parboil no se pasa 500	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 19:36:59	Cajero 3	Almacen	los hermanos			83.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25021,7 +25216,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441169	708502	1	articulos de almacen	1200.00	1	1200.00	2025-09-21 00:00:00	1899-12-30 11:45:48	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441170	708503	7798113300041	naranja 2.25	1500.00	1	1500.00	2025-09-21 00:00:00	1899-12-30 11:48:31	Cajero 1	Gaseosa	manaos	fazzio	1	1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441171	708503	7798113300058	tonica de 2.25 lr	1500.00	1	1500.00	2025-09-21 00:00:00	1899-12-30 11:48:35	Cajero 1	Gaseosa	manaos	fazzio	1	1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441174	708504	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 12:12:28	Cajero 1	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441174	708504	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 12:12:28	Cajero 1	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441178	708505	5099997	carniceria	7933.00	1	7933.00	2025-09-21 00:00:00	1899-12-30 12:18:28	Cajero 1	carniceria	carnes			6108.41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441203	708509	7790206509805	tivis cubanito relleno	1200.00	1	1200.00	2025-09-21 00:00:00	1899-12-30 12:26:41	Cajero 1	Dulce	fel fort			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441204	708509	77940735	phililip morris 20 caps	4500.00	1	4500.00	2025-09-21 00:00:00	1899-12-30 12:26:44	Cajero 1	cigarrillos	philip morris			3320.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25049,7 +25244,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440975	708453	7790787087167	POSTRE vaini 120 g	1100.00	1	1100.00	2025-09-20 00:00:00	1899-12-30 19:51:23	Cajero 3	Lacteos	Ilolay			747.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440976	708453	7790787087174	postres kid choco 120 g	1100.00	1	1100.00	2025-09-20 00:00:00	1899-12-30 19:51:30	Cajero 3	Lacteos	ilolay			747.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440977	708453	8445290993021	maggi pure 125 g 	2300.00	1	2300.00	2025-09-20 00:00:00	1899-12-30 19:51:39	Cajero 3	pure papa	maggi			620.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440978	708453	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 19:51:41	Cajero 3	Mayonesa	Cañuela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440978	708453	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 19:51:41	Cajero 3	Mayonesa	CaÃ±uela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440979	708453	7798106150011	pure de tomate 520	800.00	1	800.00	2025-09-20 00:00:00	1899-12-30 19:51:43	Cajero 3	Almacen	mora			74.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440980	708453	5000112	queso cremac	3060.00	1	3060.00	2025-09-20 00:00:00	1899-12-30 19:51:46	Cajero 3	fiambreria	fiambreria	1	0	2356.20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440981	708453	7793940305009	armonia leche 1lts	1500.00	1	1500.00	2025-09-20 00:00:00	1899-12-30 19:51:48	Cajero 3	Lacteos	armonia			265.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25081,7 +25276,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441028	708459	5099998	verduleria	6728.00	1	6728.00	2025-09-20 00:00:00	1899-12-30 20:03:56	Cajero 3	verduleria	verduleria	Mercado	0	5180.56	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441029	708460	7790895009815	cepita naranja 1 l	2600.00	1	2600.00	2025-09-20 00:00:00	1899-12-30 20:09:16	Cajero 3	Jugos	cepita			1826.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441030	708461	7790895000218	Coca cola 2 l retornable	2300.00	1	2300.00	2025-09-20 00:00:00	1899-12-30 20:12:00	Cajero 3	Gaseosa	Coca cola			1826.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441031	708462	7792409007447	Rollo coc dh 3 x 100 paños 	1800.00	1	1800.00	2025-09-20 00:00:00	1899-12-30 20:19:14	Cajero 3	Limpieza	Nitidess			1494.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441031	708462	7792409007447	Rollo coc dh 3 x 100 paÃ±os 	1800.00	1	1800.00	2025-09-20 00:00:00	1899-12-30 20:19:14	Cajero 3	Limpieza	Nitidess			1494.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441032	708462	7791866001203	May.natura x250cc	1500.00	1	1500.00	2025-09-20 00:00:00	1899-12-30 20:19:17	Cajero 3	Mayonesas	Natura	1	0	803.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441033	708463	7798187212301	Palito de queso 85 g 	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 20:19:56	Cajero 3	Snacks	Quento			1460.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441034	708463	5000205	bastonsitos krachitos	1800.00	1	1800.00	2025-09-20 00:00:00	1899-12-30 20:20:00	Cajero 3	Fiambreria	Fiambreria			1386.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25168,7 +25363,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444365	709464	5000132	pan	1664.00	1	1664.00	2025-09-26 00:00:00	1899-12-30 18:38:47	Cajero 5	Almacen	pan			1281.28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444366	709465	7790310985649	doritos 77 g	3000.00	1	3000.00	2025-09-26 00:00:00	1899-12-30 18:44:08	Cajero 5	Gaseosa	doritos			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444367	709466	7798355480020	Pan lacteado 380 gr	2100.00	1	2100.00	2025-09-26 00:00:00	1899-12-30 18:45:20	Cajero 5	Panaderia	Deli pan			1533.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444368	709466	7791828900117	Pañuelitos descartables	1900.00	1	1900.00	2025-09-26 00:00:00	1899-12-30 18:45:23	Cajero 5	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444368	709466	7791828900117	PaÃ±uelitos descartables	1900.00	1	1900.00	2025-09-26 00:00:00	1899-12-30 18:45:23	Cajero 5	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444369	709466	7791337007260	choc cindor 200 ml	1400.00	1	1400.00	2025-09-26 00:00:00	1899-12-30 18:45:27	Cajero 5	Galletitas	cindor			876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444370	709466	7791324157633	pitusa black	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 18:45:30	Cajero 5	Galletitas	pitusa			584.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444371	709466	7798125810958	tostex provileta talitas	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 18:45:33	Cajero 5	Galletitas	tostex			197.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25209,7 +25404,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442215	708787	7790971000170	ravana bizcochuelo vainilla 	1900.00	1	1900.00	2025-09-23 00:00:00	1899-12-30 08:36:57	Cajero 1	Almacen	ravana			174.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442216	708788	7792180007315	paseo mini 5 semillas	1200.00	1	1200.00	2025-09-23 00:00:00	1899-12-30 08:37:45	Cajero 1	Galletitas	Paseo			116.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442217	708789	7790369007811	Mini coronita choco 130 g	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 08:38:08	Cajero 1	galletitas	fachitas			132.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442218	708789	7791070000641	campanita mega rollo 300 paños	2500.00	1	2500.00	2025-09-23 00:00:00	1899-12-30 08:38:13	Cajero 1	Limpieza	campanita			456.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442218	708789	7791070000641	campanita mega rollo 300 paÃ±os	2500.00	1	2500.00	2025-09-23 00:00:00	1899-12-30 08:38:13	Cajero 1	Limpieza	campanita			456.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442219	708789	7791324157046	Mini Pitusa choc 160g	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 08:38:16	Cajero 1	Galletitas	Par-Nor	Michael	0	693.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442220	708789	8	golosinas	1500.00	1	1500.00	2025-09-23 00:00:00	1899-12-30 08:38:19	Cajero 1	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442221	708789	8	golosinas	900.00	1	900.00	2025-09-23 00:00:00	1899-12-30 08:38:29	Cajero 1	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25377,12 +25572,12 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2446949	755	7622300865641	Gelatina naranja Light x25	65.00	2	65.00	2025-12-16 00:00:00	1900-01-01 21:36:53	\N	Almacen	royal	\N	\N	53.95	0	\N	\N	22.56	21.00	3	Oferta combo	65.00	65.00	0.00	1
 2446950	755	7790064001701	algodon x 100	952.38	1	952.38	2025-12-16 00:00:00	1900-01-01 21:36:58	\N	almacen	estrella	\N	\N	47.45	0	\N	\N	225.62	21.00	3	Oferta combo	1300.00	952.38	347.62	1
 2446952	755	7798031151862	Fideos Bavettines 500g	500.00	3	500.00	2025-12-16 00:00:00	1900-01-01 21:41:26	\N	Fideos	Sol pampeano	Nini	\N	730.00	0	\N	\N	260.33	21.00	2	Oferta 1	1000.00	500.00	500.00	1
-2446953	755	7790236000334	Ravioles cuatro quesos	50.00	4	50.00	2025-12-16 00:00:00	1900-01-01 21:41:48	\N	Pasta	la salteña	Tetu	\N	50.37	0	\N	\N	34.71	21.00	2	Oferta 1	69.00	50.00	19.00	1
+2446953	755	7790236000334	Ravioles cuatro quesos	50.00	4	50.00	2025-12-16 00:00:00	1900-01-01 21:41:48	\N	Pasta	la salteÃ±a	Tetu	\N	50.37	0	\N	\N	34.71	21.00	2	Oferta 1	69.00	50.00	19.00	1
 2446954	756	7790040740006	recetas de la abuela membrillo	27.00	3	81.00	2025-12-16 00:00:00	1900-01-01 21:45:17	\N	Galletitas	arcor	\N	\N	21.90	0	\N	\N	14.06	21.00	4	Oferta Descuento	30.00	27.00	3.00	1
 2446955	756	7793440700366	santa isabel malbec	13.95	1	13.95	2025-12-16 00:00:00	1900-01-01 21:45:26	\N	Vinos	santa isabel	\N	\N	12.87	0	\N	\N	2.42	21.00	4	Oferta Descuento	15.50	13.95	1.55	1
 2446956	756	7790064001701	algodon x 100	952.38	1	952.38	2025-12-16 00:00:00	1900-01-01 21:45:31	\N	almacen	estrella	\N	\N	47.45	0	\N	\N	225.62	21.00	3	Oferta combo	1300.00	952.38	347.62	1
 2446957	756	7622300865641	Gelatina naranja Light x25	47.62	1	47.62	2025-12-16 00:00:00	1900-01-01 21:45:35	\N	Almacen	royal	\N	\N	53.95	0	\N	\N	11.28	21.00	3	Oferta combo	65.00	47.62	17.38	1
-2446958	756	7790236000334	Ravioles cuatro quesos	50.00	3	150.00	2025-12-16 00:00:00	1900-01-01 21:45:41	\N	Pasta	la salteña	Tetu	\N	50.37	0	\N	\N	26.03	21.00	2	Oferta 1	69.00	50.00	19.00	1
+2446958	756	7790236000334	Ravioles cuatro quesos	50.00	3	150.00	2025-12-16 00:00:00	1900-01-01 21:45:41	\N	Pasta	la salteÃ±a	Tetu	\N	50.37	0	\N	\N	26.03	21.00	2	Oferta 1	69.00	50.00	19.00	1
 2446959	756	7798031151862	Fideos Bavettines 500g	500.00	4	2000.00	2025-12-16 00:00:00	1900-01-01 21:45:59	\N	Fideos	Sol pampeano	Nini	\N	730.00	0	\N	\N	347.11	21.00	2	Oferta 1	1000.00	500.00	500.00	1
 2446960	756	1	articulos de almacen	1300.00	1	1300.00	2025-12-16 00:00:00	1900-01-01 21:48:49	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	225.62	21.00	\N	\N	\N	\N	\N	0
 2446961	756	2	Panaderia y confiteria	6300.00	1	6300.00	2025-12-16 00:00:00	1900-01-01 21:48:51	\N	almacen	omar	\N	\N	2000.00	0	\N	\N	1093.39	21.00	\N	\N	\N	\N	\N	0
@@ -25445,7 +25640,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441005	708457	7622201733865	Jugo Mandarina	350.00	1	350.00	2025-09-20 00:00:00	1899-12-30 19:59:04	Cajero 3	Jugos	Tang			290.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441006	708457	7795016100044	Arroz 0000 1kg.	1300.00	1	1300.00	2025-09-20 00:00:00	1899-12-30 19:59:06	Cajero 3	Arroz	Lucato	Nini	0	949.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441007	708457	7790940216212	taolla nor 16 u t/s c/alas s/perfu	1400.00	1	1400.00	2025-09-20 00:00:00	1899-12-30 19:59:10	Cajero 3	Perfumeria	Doncella			1092.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441008	708457	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 19:59:12	Cajero 3	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441008	708457	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 19:59:12	Cajero 3	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440759	708395	7622300457303	milka alf.mausse blanco x3	1300.00	1	1300.00	2025-09-20 00:00:00	1899-12-30 15:20:28	Cajero 3	Golosina	Milka	1	1	95.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440760	708396	77941558	master cigarro  *20	1700.00	1	1700.00	2025-09-20 00:00:00	1899-12-30 15:21:16	Cajero 3	Almacen	master			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440761	708397	1	articulos de almacen	1600.00	1	1600.00	2025-09-20 00:00:00	1899-12-30 15:24:43	Cajero 3	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25488,7 +25683,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440898	708430	5099997	carniceria	6479.00	1	6479.00	2025-09-20 00:00:00	1899-12-30 18:45:06	Cajero 3	carniceria	carnes			4988.83	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440899	708431	7792798007493	brahma cerveza 1lt	3300.00	1	3300.00	2025-09-20 00:00:00	1899-12-30 18:49:28	Cajero 3	Cervezas	Brahma	Quilmes	1	2494.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440900	708431	8	golosinas	1500.00	1	1500.00	2025-09-20 00:00:00	1899-12-30 18:49:30	Cajero 3	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440901	708432	7791070005714	rollo coc x 200 paños 	1300.00	1	1300.00	2025-09-20 00:00:00	1899-12-30 18:52:34	Cajero 3	Limpieza	Sol Mayor			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440901	708432	7791070005714	rollo coc x 200 paÃ±os 	1300.00	1	1300.00	2025-09-20 00:00:00	1899-12-30 18:52:34	Cajero 3	Limpieza	Sol Mayor			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440902	708432	7790895000782	coca cola 500  	1500.00	1	1500.00	2025-09-20 00:00:00	1899-12-30 18:52:38	Cajero 3	Gaseosa	coca cola			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440903	708432	7791337007802	Actimel multifrutas 	1800.00	1	1800.00	2025-09-20 00:00:00	1899-12-30 18:52:43	Cajero 3	Yogures	Actimel 			481.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440904	708432	7798119220183	speed x 473	2100.00	1	2100.00	2025-09-20 00:00:00	1899-12-30 18:52:45	Cajero 3	energizante	spedd			657.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25596,7 +25791,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440928	708438	7622201705961	tang sabor naranja 	350.00	1	350.00	2025-09-20 00:00:00	1899-12-30 19:07:22	Cajero 3	Jugos	tang 			249.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440929	708438	5099997	carniceria	8625.00	1	8625.00	2025-09-20 00:00:00	1899-12-30 19:07:27	Cajero 3	carniceria	carnes			6641.25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440930	708438	5000132	pan	1638.00	1	1638.00	2025-09-20 00:00:00	1899-12-30 19:07:33	Cajero 3	Almacen	pan			1261.26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440931	708438	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 19:07:50	Cajero 3	Mayonesa	Cañuela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440931	708438	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 19:07:50	Cajero 3	Mayonesa	CaÃ±uela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440932	708439	7790670052364	paty viena fun x 6	1600.00	1	1600.00	2025-09-20 00:00:00	1899-12-30 19:10:12	Cajero 3	hamburgesas	paty			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440933	708439	7792900000428	Dos Anclas sal fina 500 g	1200.00	1	1200.00	2025-09-20 00:00:00	1899-12-30 19:10:24	Cajero 3	Condimentos	Dos Anclas	Vital	0	65.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440934	708439	5000155	reggianito maffia	2340.00	1	2340.00	2025-09-20 00:00:00	1899-12-30 19:10:27	Cajero 3	Fiambreria	maffia	Mercado	0	1801.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25634,7 +25829,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447208	849	2	Panaderia y confiteria	6800.00	1	6800.00	2026-01-03 00:00:00	1900-01-01 00:15:55	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	1180.17	21.00	\N	\N	\N	\N	\N	0
 2447209	849	3	fiambre :)	5600.00	1	5600.00	2026-01-03 00:00:00	1900-01-01 00:15:56	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	971.90	21.00	\N	\N	\N	\N	\N	0
 2447210	850	7798031151862	Fideos Bavettines 500g	1000.00	9	9000.00	2026-01-03 00:00:00	1900-01-01 00:17:32	\N	Fideos	Sol pampeano	Nini	\N	730.00	0	\N	\N	1561.98	21.00	\N	\N	\N	\N	\N	0
-2447211	850	7790236000334	Ravioles cuatro quesos	69.00	5	345.00	2026-01-03 00:00:00	1900-01-01 00:17:47	\N	Pasta	la salteña	Tetu	\N	50.37	0	\N	\N	59.88	21.00	\N	\N	\N	\N	\N	0
+2447211	850	7790236000334	Ravioles cuatro quesos	69.00	5	345.00	2026-01-03 00:00:00	1900-01-01 00:17:47	\N	Pasta	la salteÃ±a	Tetu	\N	50.37	0	\N	\N	59.88	21.00	\N	\N	\N	\N	\N	0
 2447212	850	7622300865641	Gelatina naranja Light x25	65.00	3	195.00	2026-01-03 00:00:00	1900-01-01 00:18:06	\N	Almacen	royal	\N	\N	53.95	0	\N	\N	33.84	21.00	3	Oferta combo	65.00	65.00	0.00	1
 2447213	850	7790064001701	algodon x 100	1300.00	3	3900.00	2026-01-03 00:00:00	1900-01-01 00:18:53	\N	almacen	estrella	\N	\N	47.45	0	\N	\N	676.86	21.00	3	Oferta combo	1300.00	1300.00	0.00	1
 2447214	850	7790040740006	recetas de la abuela membrillo	27.00	4	108.00	2026-01-03 00:00:00	1900-01-01 00:19:36	\N	Galletitas	arcor	\N	\N	21.90	0	\N	\N	18.74	21.00	4	Oferta Descuento	30.00	27.00	3.00	1
@@ -25673,7 +25868,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447262	868	110806030170101	Cargador Somos	5000.00	1	5000.00	2026-01-07 00:00:00	1900-01-01 13:41:56	\N	Tecnologia	Mixor	Camila	\N	1000.00	0	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	0
 2447263	868	7791234020249	Cerveza descartable	2000.00	1	2000.00	2026-01-07 00:00:00	1900-01-01 13:42:00	\N	Agregado en ventas	Ventas	Proveedor	\N	1333.33	0	\N	\N	347.11	21.00	\N	\N	\N	\N	\N	0
 2447267	869	7795735000342	Bizco Negritos  200g	1000.00	1	1000.00	2026-01-07 00:00:00	1900-01-01 13:45:00	\N	Galletitas	Don Satur	Michael	\N	374.00	0	\N	\N	173.55	21.00	\N	\N	\N	\N	\N	0
-2447268	870	7792180001641	Aceite x900 ml	3510.00	1	3510.00	2026-01-07 00:00:00	1900-01-01 13:46:16	\N	Aceites	Cañuelas	Vital	\N	1825.00	0	\N	\N	609.17	21.00	10	descuento derecho	3900.00	3510.00	390.00	1
+2447268	870	7792180001641	Aceite x900 ml	3510.00	1	3510.00	2026-01-07 00:00:00	1900-01-01 13:46:16	\N	Aceites	CaÃ±uelas	Vital	\N	1825.00	0	\N	\N	609.17	21.00	10	descuento derecho	3900.00	3510.00	390.00	1
 2447269	871	7795735000342	Bizco Negritos  200g	900.00	3	2700.00	2026-01-07 00:00:00	1900-01-01 14:20:06	\N	Galletitas	Don Satur	Michael	\N	374.00	0	\N	\N	468.60	21.00	8	Descuento por cantidad	1200.00	900.00	300.00	1
 2447270	872	1	articulos de almacen	6222.00	1	6222.00	2026-01-09 00:00:00	1900-01-01 17:16:30	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	1079.85	21.00	\N	\N	\N	\N	\N	0
 2447271	873	1	articulos de almacen	6222.00	1	6222.00	2026-01-09 00:00:00	1900-01-01 17:29:36	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	1079.85	21.00	\N	\N	\N	\N	\N	0
@@ -25699,7 +25894,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447308	886	1	articulos de almacen	10000.00	1	10000.00	2026-01-12 00:00:00	1900-01-01 12:55:33	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	1735.54	21.00	\N	\N	\N	\N	\N	0
 2447309	886	5	Carniceria	10000.00	1	10000.00	2026-01-12 00:00:00	1900-01-01 12:55:37	\N	Carne	Carne	1	\N	60.00	0	\N	\N	950.23	10.50	\N	\N	\N	\N	\N	0
 2447247	862	7791866001364	Mayon, doypack 500 cm	3000.00	5	15000.00	2026-01-07 00:00:00	1900-01-01 13:01:23	\N	Mayonesas	Natura	Nini	\N	365.00	0	\N	\N	2603.31	21.00	\N	\N	\N	\N	\N	0
-2447248	862	7795735000342	Bizco Negritos  200g	1000.00	1	1000.00	2026-01-07 00:00:00	1900-01-01 13:02:52	\N	Galletitas	Don Satur	Michael	\N	374.00	1	María García	\N	173.55	21.00	\N	\N	\N	\N	\N	0
+2447248	862	7795735000342	Bizco Negritos  200g	1000.00	1	1000.00	2026-01-07 00:00:00	1900-01-01 13:02:52	\N	Galletitas	Don Satur	Michael	\N	374.00	1	MarÃ­a GarcÃ­a	\N	173.55	21.00	\N	\N	\N	\N	\N	0
 2447249	863	7791866001364	Mayon, doypack 500 cm	3000.00	1	3000.00	2026-01-07 00:00:00	1900-01-01 13:15:37	\N	Mayonesas	Natura	Nini	\N	365.00	0	\N	\N	520.66	21.00	\N	\N	\N	\N	\N	0
 2447251	864	7791866001364	Mayon, doypack 500 cm	3000.00	1	3000.00	2026-01-07 00:00:00	1900-01-01 13:15:54	\N	Mayonesas	Natura	Nini	\N	365.00	0	\N	\N	520.66	21.00	\N	\N	\N	\N	\N	0
 2447252	863	7791234020249	Cerveza descartable	2000.00	1	2000.00	2026-01-07 00:00:00	1900-01-01 13:16:09	\N	Agregado en ventas	Ventas	Proveedor	\N	1333.33	0	\N	\N	347.11	21.00	\N	\N	\N	\N	\N	0
@@ -25798,10 +25993,10 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440811	708415	5000132	pan	1690.00	1	1690.00	2025-09-20 00:00:00	1899-12-30 16:39:31	Cajero 3	Almacen	pan			1301.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440812	708415	7790895000430	Coca Cola 1.5l	2500.00	1	2500.00	2025-09-20 00:00:00	1899-12-30 16:39:34	Cajero 3	Gaseosa	Coca Cola	Coca Cola	0	1992.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440813	708416	5099997	carniceria	4675.00	1	4675.00	2025-09-20 00:00:00	1899-12-30 16:43:27	Cajero 3	carniceria	carnes			3599.75	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440814	708417	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 16:46:58	Cajero 3	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440814	708417	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 16:46:58	Cajero 3	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440815	708417	5000132	pan	1794.00	1	1794.00	2025-09-20 00:00:00	1899-12-30 16:47:00	Cajero 3	Almacen	pan			1381.38	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440816	708418	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:55:56	Cajero 3	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440817	708418	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:55:56	Cajero 3	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440816	708418	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:55:56	Cajero 3	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440817	708418	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:55:56	Cajero 3	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440818	708418	7795643001776	cilo boblinas  400	1600.00	1	1600.00	2025-09-20 00:00:00	1899-12-30 16:56:02	Cajero 3	Galletitas	cilo			876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440819	708418	7795643001776	cilo boblinas  400	1600.00	1	1600.00	2025-09-20 00:00:00	1899-12-30 16:56:02	Cajero 3	Galletitas	cilo			876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440820	708418	7795643001783	cilo buquitas de chocolate	1600.00	1	1600.00	2025-09-20 00:00:00	1899-12-30 16:56:07	Cajero 3	Galletitas	cilo			876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -25834,14 +26029,14 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444007	709354	7791337007390	yogu cereales clasico 159	2100.00	1	2100.00	2025-09-26 00:00:00	1899-12-30 11:37:56	Cajero 1	Lacteos	la serenisima			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444008	709355	7798141972371	providencia tripack x 3 galletitas	1200.00	1	1200.00	2025-09-26 00:00:00	1899-12-30 11:39:34	Cajero 1	Galletitas	providencia			730.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444009	709355	7798018850184	Levad/inst. 2 sob.x10g.c/u	1100.00	1	1100.00	2025-09-26 00:00:00	1899-12-30 11:39:42	Cajero 1	Almacen	Levex	1	0	664.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444010	709355	7792180139320	cañuela 000 refinada	900.00	1	900.00	2025-09-26 00:00:00	1899-12-30 11:39:44	Cajero 1	Almacen	cañuela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444011	709355	7792180139320	cañuela 000 refinada	900.00	1	900.00	2025-09-26 00:00:00	1899-12-30 11:39:45	Cajero 1	Almacen	cañuela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444010	709355	7792180139320	caÃ±uela 000 refinada	900.00	1	900.00	2025-09-26 00:00:00	1899-12-30 11:39:44	Cajero 1	Almacen	caÃ±uela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444011	709355	7792180139320	caÃ±uela 000 refinada	900.00	1	900.00	2025-09-26 00:00:00	1899-12-30 11:39:45	Cajero 1	Almacen	caÃ±uela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444012	709355	4	verduleria	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 11:40:09	Cajero 1	verduleria	verduleria		2122011461	87.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444013	709355	7790150100677	la virginia cafe 60 g	2500.00	1	2500.00	2025-09-26 00:00:00	1899-12-30 11:40:17	Cajero 1	Almacen	la virginia			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444014	709356	7791293045726	 rest.intn shampoo 300ml	2900.00	1	2900.00	2025-09-26 00:00:00	1899-12-30 11:41:36	Cajero 1	Perfumeria	sedal			390.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444015	709356	7791070005608	Higienico x 1	400.00	1	400.00	2025-09-26 00:00:00	1899-12-30 11:41:57	Cajero 1	Papel Higienico	campanita	nini	1	36.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444016	709356	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 11:42:02	Cajero 1	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444017	709356	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 11:42:08	Cajero 1	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444016	709356	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 11:42:02	Cajero 1	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444017	709356	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 11:42:08	Cajero 1	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444018	709356	5099998	verduleria	2043.00	1	2043.00	2025-09-26 00:00:00	1899-12-30 11:43:01	Cajero 1	verduleria	verduleria	Mercado	0	1573.11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444019	709357	7792070001126	Aceit morron 300g	2100.00	1	2100.00	2025-09-26 00:00:00	1899-12-30 11:44:53	Cajero 1	Almacen	nucete	1	1	116.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444020	709357	5000112	queso cremac	4185.00	1	4185.00	2025-09-26 00:00:00	1899-12-30 11:44:55	Cajero 1	fiambreria	fiambreria	1	0	3222.45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26101,7 +26296,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443113	709068	7790940216212	taolla nor 16 u t/s c/alas s/perfu	1400.00	1	1400.00	2025-09-24 00:00:00	1899-12-30 16:36:52	Cajero 1	Perfumeria	Doncella			1092.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443114	709069	7798135762919	new  style  vodka 1L frutos rojos	3800.00	1	3800.00	2025-09-24 00:00:00	1899-12-30 16:37:49	Cajero 1	Gaseosa	new  style  			2905.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443115	709070	7791672014435	Pan dulce c/fruta x400g	3500.00	1	3500.00	2025-09-24 00:00:00	1899-12-30 16:39:56	Cajero 1	Pan dulce	Fantoche	Nini	0	459.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443116	709070	7798056680491	ñoquis 	2200.00	2	4400.00	2025-09-24 00:00:00	1899-12-30 16:40:12	Cajero 1	pastas	la nonina			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443116	709070	7798056680491	Ã±oquis 	2200.00	2	4400.00	2025-09-24 00:00:00	1899-12-30 16:40:12	Cajero 1	pastas	la nonina			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443117	709070	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-24 00:00:00	1899-12-30 16:40:14	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443118	709070	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-24 00:00:00	1899-12-30 16:40:14	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443119	709071	5000119	Batata con chocolate	1873.00	1	1873.00	2025-09-24 00:00:00	1899-12-30 16:43:04	Cajero 1	Fiambreria	fiambreria	1	1	1442.21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26121,7 +26316,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440632	708353	7798017860016	For-Van  x160g	800.00	1	800.00	2025-09-20 00:00:00	1899-12-30 13:09:20	Cajero 3	Galletitas	For-Van	Michael	0	219.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440634	708353	77914217	Chocolate shot 35g	1400.00	1	1400.00	2025-09-20 00:00:00	1899-12-30 13:09:30	Cajero 3	golosinas	shot	1	0	189.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440635	708353	77914217	Chocolate shot 35g	1400.00	1	1400.00	2025-09-20 00:00:00	1899-12-30 13:09:31	Cajero 3	golosinas	shot	1	0	189.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440636	708353	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 13:09:35	Cajero 3	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440636	708353	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 13:09:35	Cajero 3	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440637	708353	7793450000128	hojalmar  triagulitos 150 g	1500.00	1	1500.00	2025-09-20 00:00:00	1899-12-30 13:09:37	Cajero 3	Galletitas	hojalmar			197.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440638	708353	1	articulos de almacen	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 13:09:41	Cajero 3	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440639	708354	7792200000128	Bizc. agridulce x200g	800.00	1	800.00	2025-09-20 00:00:00	1899-12-30 13:10:36	Cajero 3	Galletitas	9 de oro	Michael	0	80.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26143,7 +26338,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440655	708360	7798106150011	pure de tomate 520	800.00	1	800.00	2025-09-20 00:00:00	1899-12-30 13:29:20	Cajero 3	Almacen	mora			74.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440656	708360	5099997	carniceria	7613.00	1	7613.00	2025-09-20 00:00:00	1899-12-30 13:29:24	Cajero 3	carniceria	carnes			5862.01	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440657	708360	4	verduleria	1700.00	1	1700.00	2025-09-20 00:00:00	1899-12-30 13:29:44	Cajero 3	verduleria	verduleria		2122011461	87.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440658	708361	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 13:30:44	Cajero 3	Mayonesa	Cañuela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440658	708361	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 13:30:44	Cajero 3	Mayonesa	CaÃ±uela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440659	708361	7790670050650	Paty clasico x 4 und.320 g	5000.00	1	5000.00	2025-09-20 00:00:00	1899-12-30 13:30:45	Cajero 3	hamburgesas	Paty	Lactosur	0	1168.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440660	708361	7798133020608	Pan de Hamburg x 4 u 	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 13:30:48	Cajero 3	Panificados	Facilitas			730.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440661	708361	2	Panaderia y confiteria	1700.00	1	1700.00	2025-09-20 00:00:00	1899-12-30 13:30:55	Cajero 3	almacen	omar		1015862	4380.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26199,7 +26394,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444954	111	1	articulos de almacen	200.00	1	200.00	2025-09-30 00:00:00	1900-01-01 13:56:33	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
 2444955	111	2	Panaderia y confiteria	2800.00	1	2800.00	2025-09-30 00:00:00	1900-01-01 13:56:36	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2444956	111	3	fiambre :)	2000.00	3	6000.00	2025-09-30 00:00:00	1900-01-01 13:56:37	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	1041.32	21.00	\N	\N	\N	\N	\N	0
-2442928	709015	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-24 00:00:00	1899-12-30 12:34:39	Cajero 1	Mayonesa	Cañuela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442928	709015	7792180142016	Mayonesa 250 g 	1000.00	1	1000.00	2025-09-24 00:00:00	1899-12-30 12:34:39	Cajero 1	Mayonesa	CaÃ±uela			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442929	709015	7791885001208	Atun desm.aceit x170g	1500.00	1	1500.00	2025-09-24 00:00:00	1899-12-30 12:34:42	Cajero 1	Latas	cumana	1	0	94.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442930	709015	5000132	pan	1664.00	1	1664.00	2025-09-24 00:00:00	1899-12-30 12:34:53	Cajero 1	Almacen	pan			1281.28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442931	709015	8	golosinas	300.00	1	300.00	2025-09-24 00:00:00	1899-12-30 12:35:05	Cajero 1	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26264,7 +26459,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440468	708310	1	articulos de almacen	750.00	1	750.00	2025-09-20 00:00:00	1899-12-30 10:01:00	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440469	708311	7793940054006	Manteca x200g	3200.00	1	3200.00	2025-09-20 00:00:00	1899-12-30 10:02:03	Cajero 1	Manteca	La Serenisima	La Serenisima	0	1120.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440470	708311	7792409008376	pap hig  hoj sim 4 x 80 m	2100.00	1	2100.00	2025-09-20 00:00:00	1899-12-30 10:02:08	Cajero 1	Limpieza	Nitidess			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440471	708311	7791070000641	campanita mega rollo 300 paños	2500.00	1	2500.00	2025-09-20 00:00:00	1899-12-30 10:02:15	Cajero 1	Limpieza	campanita			456.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440471	708311	7791070000641	campanita mega rollo 300 paÃ±os	2500.00	1	2500.00	2025-09-20 00:00:00	1899-12-30 10:02:15	Cajero 1	Limpieza	campanita			456.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440472	708311	7790742330703	armonia leche 1 l	1400.00	1	1400.00	2025-09-20 00:00:00	1899-12-30 10:02:19	Cajero 1	Lacteos	armonia			332.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440473	708311	5099997	carniceria	11850.00	1	11850.00	2025-09-20 00:00:00	1899-12-30 10:02:26	Cajero 1	carniceria	carnes			9124.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440474	708312	77953513	chesterfield 20 comun	3300.00	1	3300.00	2025-09-20 00:00:00	1899-12-30 10:04:27	Cajero 1	cigarrillos	chesterfield			2739.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26274,7 +26469,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440480	708315	8445291395961	chocolatada 200 ml	1100.00	1	1100.00	2025-09-20 00:00:00	1899-12-30 10:15:44	Cajero 1	Almacen	nesquik 			913.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440481	708315	8445291395961	chocolatada 200 ml	1100.00	1	1100.00	2025-09-20 00:00:00	1899-12-30 10:15:44	Cajero 1	Almacen	nesquik 			913.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440482	708315	7790742667328	finlandia hebras 4 queso light	3600.00	1	3600.00	2025-09-20 00:00:00	1899-12-30 10:15:50	Cajero 1	quesos	finlandia			332.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440502	708317	7794564000332	Tallarines N°2 x500g	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 10:42:33	Cajero 1	Fideos	Badaloni	Nini	0	438.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440502	708317	7794564000332	Tallarines NÂ°2 x500g	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 10:42:33	Cajero 1	Fideos	Badaloni	Nini	0	438.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440503	708317	5099997	carniceria	54500.00	1	54500.00	2025-09-20 00:00:00	1899-12-30 10:43:23	Cajero 1	carniceria	carnes			41965.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440504	708317	5099998	verduleria	6166.00	1	6166.00	2025-09-20 00:00:00	1899-12-30 10:44:27	Cajero 1	verduleria	verduleria	Mercado	0	4747.82	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440505	708318	5099998	verduleria	1208.00	1	1208.00	2025-09-20 00:00:00	1899-12-30 10:46:35	Cajero 1	verduleria	verduleria	Mercado	0	930.16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26349,7 +26544,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442761	708961	5000145	panceta ahumada calchaqui	2945.00	1	2945.00	2025-09-23 00:00:00	1899-12-30 20:41:18	Cajero 3	Fiambreria	Fiambreria			2267.65	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442762	708961	7798041710042	mani tostado y salado	1300.00	1	1300.00	2025-09-23 00:00:00	1899-12-30 20:41:22	Cajero 3	snacks	El faro			298.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442763	708962	7791070005103	Soft xl 4 r x 80 metros	2600.00	1	2600.00	2025-09-23 00:00:00	1899-12-30 20:42:57	Cajero 3	higienico	Campanita	nini	0	2190.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442764	708962	731199047308	Pan de papa Sésamo	2400.00	1	2400.00	2025-09-23 00:00:00	1899-12-30 20:43:01	Cajero 3	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442764	708962	731199047308	Pan de papa SÃ©samo	2400.00	1	2400.00	2025-09-23 00:00:00	1899-12-30 20:43:01	Cajero 3	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442765	708962	7790990000397	 qui.manc bl.sup 500	1500.00	1	1500.00	2025-09-23 00:00:00	1899-12-30 20:43:04	Cajero 3	Limpieza	zorro			622.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442766	708962	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-23 00:00:00	1899-12-30 20:43:08	Cajero 3	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442767	708962	7792900093000	Vinagre manz.x500	2300.00	1	2300.00	2025-09-23 00:00:00	1899-12-30 20:43:11	Cajero 3	Vinagre	Dos anclas	Vital	0	62.05	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26414,11 +26609,11 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442556	708887	7798125810958	tostex provileta talitas	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 16:31:18	Cajero 5	Galletitas	tostex			197.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442557	708887	7792409008345	pap hig  hoj sim 4 x 30 m	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 16:31:30	Cajero 5	Limpieza	Nitidess			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442558	708887	7792409008345	pap hig  hoj sim 4 x 30 m	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 16:31:45	Cajero 5	Limpieza	Nitidess			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442559	708887	7790387015317	mañanita de 1 kg 	4200.00	1	4200.00	2025-09-23 00:00:00	1899-12-30 16:31:54	Cajero 5	Almacen	mañanita 			705.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442559	708887	7790387015317	maÃ±anita de 1 kg 	4200.00	1	4200.00	2025-09-23 00:00:00	1899-12-30 16:31:54	Cajero 5	Almacen	maÃ±anita 			705.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442560	708887	7790990002216	zorro a 800	2600.00	1	2600.00	2025-09-23 00:00:00	1899-12-30 16:32:20	Cajero 5	Limpieza	zorro			622.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442561	708887	5000156	roquefort	3300.00	1	3300.00	2025-09-23 00:00:00	1899-12-30 16:32:25	Cajero 5	Fiambreria	Fiambreria			2541.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442562	708887	7794417221051	trapo piso gris	1100.00	1	1100.00	2025-09-23 00:00:00	1899-12-30 16:32:27	Cajero 5	Limpieza	sina	1	1	43.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442563	708887	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 16:32:34	Cajero 5	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442563	708887	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 16:32:34	Cajero 5	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442564	708887	7791293045917	Acond. s.o.s recon.300	2900.00	1	2900.00	2025-09-23 00:00:00	1899-12-30 16:32:37	Cajero 5	Acondicionador	sedal	nini	0	292.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442565	708887	7791293045719	Sedal sha cre bal 300 ml	2900.00	1	2900.00	2025-09-23 00:00:00	1899-12-30 16:32:40	Cajero 5	Perfumeria	sedal			468.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442566	708887	22	maple de huevos 30 unid	7000.00	1	7000.00	2025-09-23 00:00:00	1899-12-30 16:33:03	Cajero 5	vale	huevos			7140.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26475,8 +26670,8 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442536	708887	7791293050973	cotton jab 120 g 	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 16:24:28	Cajero 5	Almacen	rexona			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442537	708887	7791293050980	Rexona 200g	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 16:24:38	Cajero 5	Perfumeria	rexona			858.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442538	708887	7790072002080	Sal fina estuchex500g	1400.00	1	1400.00	2025-09-23 00:00:00	1899-12-30 16:24:44	Cajero 5	Sal	Celusal	1	0	51.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442539	708887	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 16:24:47	Cajero 5	Almacen	Doña pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442540	708887	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 16:24:48	Cajero 5	Almacen	Doña pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442539	708887	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 16:24:47	Cajero 5	Almacen	DoÃ±a pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442540	708887	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 16:24:48	Cajero 5	Almacen	DoÃ±a pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442541	708887	7791885004094	cumana lomito de atun 170	3300.00	1	3300.00	2025-09-23 00:00:00	1899-12-30 16:24:55	Cajero 5	Almacen	cumana			456.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442542	708887	7791885004094	cumana lomito de atun 170	3300.00	1	3300.00	2025-09-23 00:00:00	1899-12-30 16:24:56	Cajero 5	Almacen	cumana			456.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442543	708887	7798056680279	Pascualina x350g	2000.00	1	2000.00	2025-09-23 00:00:00	1899-12-30 16:25:36	Cajero 5	pascualina	La Nonina	La Nonina	0	461.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26573,7 +26768,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444937	105	1	articulos de almacen	200.00	1	200.00	2025-09-30 00:00:00	1900-01-01 11:18:52	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
 2442263	708799	7798387360017	galletas integrales 160 g	1400.00	1	1400.00	2025-09-23 00:00:00	1899-12-30 09:56:38	Cajero 1	Galletitas	limbus			1022.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442264	708799	7791274198113	algabo casico 1200 g	2300.00	1	2300.00	2025-09-23 00:00:00	1899-12-30 09:56:40	Cajero 1	Perfumeria	algado			1909.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442265	708799	7794626012525	Kimbies toallitas 487 u	2300.00	1	2300.00	2025-09-23 00:00:00	1899-12-30 09:56:42	Cajero 1	Pañales	Kimbies	1	0	284.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442265	708799	7794626012525	Kimbies toallitas 487 u	2300.00	1	2300.00	2025-09-23 00:00:00	1899-12-30 09:56:42	Cajero 1	PaÃ±ales	Kimbies	1	0	284.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442266	708800	77993397	crafter mentol 20 comun	2800.00	1	2800.00	2025-09-23 00:00:00	1899-12-30 09:57:39	Cajero 1	cigarrillos	marlboro			2324.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442267	708801	3	fiambre :)	3700.00	1	3700.00	2025-09-23 00:00:00	1899-12-30 09:58:35	Cajero 1	almacen	fiambreria		1151	1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442268	708801	7795643000489	cilo anillo limon	1400.00	1	1400.00	2025-09-23 00:00:00	1899-12-30 09:58:39	Cajero 1	Galletitas	cilo anillo			1022.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26684,7 +26879,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441937	708709	4	verduleria	1300.00	1	1300.00	2025-09-22 00:00:00	1899-12-30 14:34:14	Cajero 1	verduleria	verduleria		2122011461	87.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441938	708709	77987303	rojo  crafted 20 	2400.00	1	2400.00	2025-09-22 00:00:00	1899-12-30 14:54:23	Cajero 1	cigarrillos	marlboro			1314.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441939	708709	7790940216212	taolla nor 16 u t/s c/alas s/perfu	1400.00	1	1400.00	2025-09-22 00:00:00	1899-12-30 14:55:26	Cajero 1	Perfumeria	Doncella			1092.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441940	708710	7798031155655	knorr fideo moños 500 g	1800.00	1	1800.00	2025-09-22 00:00:00	1899-12-30 14:59:32	Cajero 1	fideos	knorr			146.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441940	708710	7798031155655	knorr fideo moÃ±os 500 g	1800.00	1	1800.00	2025-09-22 00:00:00	1899-12-30 14:59:32	Cajero 1	fideos	knorr			146.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441941	708710	7791078022744	aritos con miel 130g	1200.00	1	1200.00	2025-09-22 00:00:00	1899-12-30 14:59:33	Cajero 1	cereal	granix	granix	1	109.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441942	708710	7790045001584	Copos de maiz 160g	1000.00	1	1000.00	2025-09-22 00:00:00	1899-12-30 14:59:35	Cajero 1	Galletitas	Granix	granix	0	73.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441943	708710	7794820902257	milkaut yog beb vain 900	3200.00	1	3200.00	2025-09-22 00:00:00	1899-12-30 14:59:37	Cajero 1	Lacteos	milkaut			373.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26751,7 +26946,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440496	708316	5099998	verduleria	2348.00	1	2348.00	2025-09-20 00:00:00	1899-12-30 10:22:56	Cajero 1	verduleria	verduleria	Mercado	0	1807.96	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440497	708316	1	articulos de almacen	2800.00	1	2800.00	2025-09-20 00:00:00	1899-12-30 10:23:00	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440498	708317	7791866001203	May.natura x250cc	1500.00	1	1500.00	2025-09-20 00:00:00	1899-12-30 10:41:52	Cajero 1	Mayonesas	Natura	1	0	803.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440499	708317	7794564000332	Tallarines N°2 x500g	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 10:42:07	Cajero 1	Fideos	Badaloni	Nini	0	438.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440499	708317	7794564000332	Tallarines NÂ°2 x500g	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 10:42:07	Cajero 1	Fideos	Badaloni	Nini	0	438.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440500	708317	7790742223005	Queso regianito 70 G	2600.00	1	2600.00	2025-09-20 00:00:00	1899-12-30 10:42:10	Cajero 1	Lacteos	la serenisima	376	1	1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440501	708317	7798133020042	Pan de salvado 360 g	1400.00	1	1400.00	2025-09-20 00:00:00	1899-12-30 10:42:13	Cajero 1	Panificados	Facilitas			1022.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2445064	133	1	articulos de almacen	200.00	1	200.00	2025-10-01 00:00:00	1900-01-01 11:33:28	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
@@ -26809,7 +27004,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440698	708372	77991577	Fantoche Triple choc.	800.00	1	800.00	2025-09-20 00:00:00	1899-12-30 14:21:16	Cajero 3	Golosina	Dielo	1	1	143.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440699	708372	77953124	Cofler Block x 38g	1600.00	1	1600.00	2025-09-20 00:00:00	1899-12-30 14:21:19	Cajero 3	Golosinas	Cofler	arcor	1	185.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440700	708373	7795170002413	D. leche sache 250g	1300.00	1	1300.00	2025-09-20 00:00:00	1899-12-30 14:21:57	Cajero 3	Dulce de Leche	El placer	1	0	204.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440713	708379	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 14:51:44	Cajero 3	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440713	708379	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 14:51:44	Cajero 3	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440714	708379	5099997	carniceria	13195.00	1	13195.00	2025-09-20 00:00:00	1899-12-30 14:51:49	Cajero 3	carniceria	carnes			10160.15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440715	708379	5099997	carniceria	2945.00	1	2945.00	2025-09-20 00:00:00	1899-12-30 14:51:50	Cajero 3	carniceria	carnes			2267.65	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444915	98	1	articulos de almacen	200.00	1	200.00	2025-09-30 00:00:00	1900-01-01 09:05:52	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
@@ -26852,7 +27047,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441893	708695	4	verduleria	120.00	1	120.00	2025-09-22 00:00:00	1899-12-30 12:55:06	Cajero 1	verduleria	verduleria		2122011461	87.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441895	708696	7790895001598	coca cola 1L vidrio	1600.00	1	1600.00	2025-09-22 00:00:00	1899-12-30 13:09:10	Cajero 1	Gaseosa	COCA COLA			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441896	708697	7791070005608	Higienico x 1	400.00	1	400.00	2025-09-22 00:00:00	1899-12-30 13:10:55	Cajero 1	Papel Higienico	campanita	nini	1	36.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441897	708697	7792180139320	cañuela 000 refinada	900.00	1	900.00	2025-09-22 00:00:00	1899-12-30 13:10:58	Cajero 1	Almacen	cañuela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441897	708697	7792180139320	caÃ±uela 000 refinada	900.00	1	900.00	2025-09-22 00:00:00	1899-12-30 13:10:58	Cajero 1	Almacen	caÃ±uela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441898	708697	7790628000034	Fauna surtido mauri x400g	1800.00	1	1800.00	2025-09-22 00:00:00	1899-12-30 13:11:00	Cajero 1	Galletitas	Mauri	Michael	0	102.20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441899	708697	7790040143586	Media Tarde 315g (x3)	1300.00	1	1300.00	2025-09-22 00:00:00	1899-12-30 13:11:02	Cajero 1	Galletitas	Media Tarde	bagley	1	949.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441900	708697	7790990003794	zorro 400 j.pol 	1200.00	1	1200.00	2025-09-22 00:00:00	1899-12-30 13:11:04	Cajero 1	Almacen	zorro			996.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26881,7 +27076,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443048	709049	7793147118860	schneider lata 530 lager	1800.00	1	1800.00	2025-09-24 00:00:00	1899-12-30 15:31:02	Cajero 1	cerveza	schneider			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443049	709050	77941558	master cigarro  *20	1800.00	1	1800.00	2025-09-24 00:00:00	1899-12-30 15:34:49	Cajero 1	Almacen	master			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443050	709050	7790036046327	Uvita tinto brik	1800.00	1	1800.00	2025-09-24 00:00:00	1899-12-30 15:34:51	Cajero 1	Vinos	Uvita	Nini	0	1533.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443051	709051	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-24 00:00:00	1899-12-30 15:39:38	Cajero 1	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443051	709051	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-24 00:00:00	1899-12-30 15:39:38	Cajero 1	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443053	709051	18	pago x el Vale envase	2000.00	1	2000.00	2025-09-24 00:00:00	1899-12-30 15:40:28	Cajero 1	Envase	Envase	1	0	1020.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443054	709051	18	pago x el Vale envase	2000.00	1	2000.00	2025-09-24 00:00:00	1899-12-30 15:40:31	Cajero 1	Envase	Envase	1	0	1020.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443056	709051	7790895001598	coca cola 1L vidrio	1600.00	1	1600.00	2025-09-24 00:00:00	1899-12-30 15:41:21	Cajero 1	Gaseosa	COCA COLA			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -26912,15 +27107,15 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440727	708384	7792410527897	Whisky 200ml	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 15:00:09	Cajero 3	Licores	Doble-V			255.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440728	708384	77941558	master cigarro  *20	1700.00	1	1700.00	2025-09-20 00:00:00	1899-12-30 15:00:12	Cajero 3	Almacen	master			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440729	708385	7792900092706	Sal fina 500gr	800.00	1	800.00	2025-09-20 00:00:00	1899-12-30 15:01:29	Cajero 3	Sales	Dos estrellas	Vital	0	292.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440730	708385	7791828900117	Pañuelitos descartables	1900.00	1	1900.00	2025-09-20 00:00:00	1899-12-30 15:01:32	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440731	708385	7791828900117	Pañuelitos descartables	1900.00	1	1900.00	2025-09-20 00:00:00	1899-12-30 15:01:33	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440730	708385	7791828900117	PaÃ±uelitos descartables	1900.00	1	1900.00	2025-09-20 00:00:00	1899-12-30 15:01:32	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440731	708385	7791828900117	PaÃ±uelitos descartables	1900.00	1	1900.00	2025-09-20 00:00:00	1899-12-30 15:01:33	Cajero 3	Limpieza	Felpita			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440732	708385	7790250054962	elite x 6	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 15:01:36	Cajero 3	Almacen	Elite			1660.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440733	708385	7790250054962	elite x 6	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 15:01:37	Cajero 3	Almacen	Elite			1660.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440734	708385	5000132	pan	1625.00	1	1625.00	2025-09-20 00:00:00	1899-12-30 15:01:45	Cajero 3	Almacen	pan			1251.25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440735	708385	5000132	pan	1560.00	1	1560.00	2025-09-20 00:00:00	1899-12-30 15:01:51	Cajero 3	Almacen	pan			1201.20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440736	708385	5000132	pan	1638.00	1	1638.00	2025-09-20 00:00:00	1899-12-30 15:01:54	Cajero 3	Almacen	pan			1261.26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440737	708385	1004	carbon x 10 kl	7000.00	1	7000.00	2025-09-20 00:00:00	1899-12-30 15:01:56	Cajero 3	carbon	el gauchito	1	1	5110.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440738	708386	731199047308	Pan de papa Sésamo	2400.00	1	2400.00	2025-09-20 00:00:00	1899-12-30 15:02:48	Cajero 3	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440738	708386	731199047308	Pan de papa SÃ©samo	2400.00	1	2400.00	2025-09-20 00:00:00	1899-12-30 15:02:48	Cajero 3	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440739	708386	311	aguas  hermida 8 lrt	2800.00	1	2800.00	2025-09-20 00:00:00	1899-12-30 15:02:50	Cajero 3	Almacen	quito			2324.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440740	708387	7790895000225	Sprite 2 l retornable 	2300.00	1	2300.00	2025-09-20 00:00:00	1899-12-30 15:07:24	Cajero 3	Gaseosa	Sprite			1826.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440741	708387	7791866001197	May.sachet x 125cc	700.00	1	700.00	2025-09-20 00:00:00	1899-12-30 15:07:33	Cajero 3	Mayonesas	Natura	Nini	0	438.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27105,7 +27300,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442650	708920	7794000008007	Salsa pom ceb,zan,alb x340g	1200.00	1	1200.00	2025-09-23 00:00:00	1899-12-30 18:51:53	Cajero 3	Salsas	Knorr	Nini	0	803.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442651	708920	8445290900654	bel leche condensada 395	3900.00	1	3900.00	2025-09-23 00:00:00	1899-12-30 18:51:56	Cajero 3	Almacen	nestle			2905.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442652	708920	7790360966841	swift burger  4 u caja amarilla 	3000.00	1	3000.00	2025-09-23 00:00:00	1899-12-30 18:51:58	Cajero 3	hamburgesas	Swift	1	0	803.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442653	708920	7794000006188	Ketchup 250g	2200.00	1	2200.00	2025-09-23 00:00:00	1899-12-30 18:52:00	Cajero 3	mayonesas	Hellmann´s	1	0	182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442653	708920	7794000006188	Ketchup 250g	2200.00	1	2200.00	2025-09-23 00:00:00	1899-12-30 18:52:00	Cajero 3	mayonesas	HellmannÂ´s	1	0	182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444885	90	1	articulos de almacen	200.00	1	200.00	2025-09-29 00:00:00	1900-01-01 21:00:26	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
 2444886	91	1	articulos de almacen	200.00	1	200.00	2025-09-29 00:00:00	1900-01-01 21:00:48	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
 2444887	92	1	articulos de almacen	200.00	1	200.00	2025-09-29 00:00:00	1900-01-01 21:01:29	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
@@ -27186,11 +27381,11 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440623	708349	7790813110401	levadura e/cubitos	800.00	1	800.00	2025-09-20 00:00:00	1899-12-30 13:05:18	Cajero 3	Fiambreria	calsa	fargo	1	219.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444875	84	2	Panaderia y confiteria	2800.00	1	2800.00	2025-09-29 00:00:00	1900-01-01 20:36:39	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2440624	708350	77990938	lucky strike origen 20 mentol	2600.00	1	2600.00	2025-09-20 00:00:00	1899-12-30 13:05:36	Cajero 3	cigarros	Lucky strike			1494.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440625	708351	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 13:05:57	Cajero 3	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440625	708351	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 13:05:57	Cajero 3	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440626	708351	5099997	carniceria	10570.00	1	10570.00	2025-09-20 00:00:00	1899-12-30 13:06:01	Cajero 3	carniceria	carnes			8138.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440627	708351	7790036002583	Multifruta  1.5li	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 13:06:07	Cajero 3	Almacen	baggio			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440628	708351	5000202	barra  maffia	5330.00	1	5330.00	2025-09-20 00:00:00	1899-12-30 13:06:11	Cajero 3	fiambreria	fiambreria	1	0	4104.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440629	708351	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 13:06:16	Cajero 3	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440629	708351	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-20 00:00:00	1899-12-30 13:06:16	Cajero 3	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444876	85	1	articulos de almacen	200.00	1	200.00	2025-09-29 00:00:00	1900-01-01 20:42:40	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
 2444877	85	2	Panaderia y confiteria	2800.00	1	2800.00	2025-09-29 00:00:00	1900-01-01 20:42:41	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2442692	708933	7790895000218	Coca cola 2 l retornable	2300.00	1	2300.00	2025-09-23 00:00:00	1899-12-30 19:32:42	Cajero 3	Gaseosa	Coca cola			1826.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27216,17 +27411,17 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442750	708955	5099997	carniceria	1995.00	1	1995.00	2025-09-23 00:00:00	1899-12-30 20:25:39	Cajero 3	carniceria	carnes			1536.15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442751	708956	7798304851321	simplot 700 g	4300.00	1	4300.00	2025-09-23 00:00:00	1899-12-30 20:27:24	Cajero 3	Almacen	simplot			2905.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442752	708957	7798171946267	maxx super lubricado	1500.00	1	1500.00	2025-09-23 00:00:00	1899-12-30 20:28:22	Cajero 3	Perfumeria	maxx			117.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442601	708900	731199047308	Pan de papa Sésamo	2400.00	1	2400.00	2025-09-23 00:00:00	1899-12-30 17:31:53	Cajero 5	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442601	708900	731199047308	Pan de papa SÃ©samo	2400.00	1	2400.00	2025-09-23 00:00:00	1899-12-30 17:31:53	Cajero 5	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442602	708900	5099997	carniceria	4418.00	1	4418.00	2025-09-23 00:00:00	1899-12-30 17:31:59	Cajero 5	carniceria	carnes			3401.86	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442603	708900	77988225	crafted 20  box 	3000.00	1	3000.00	2025-09-23 00:00:00	1899-12-30 17:32:11	Cajero 5	cigarrillos	marlboro			2490.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442604	708901	7791670027482	viñas de alvear tinto 1250ml	3100.00	1	3100.00	2025-09-23 00:00:00	1899-12-30 17:39:03	Cajero 5	vinos	Viñas de alveart	Nini	1	1971.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442604	708901	7791670027482	viÃ±as de alvear tinto 1250ml	3100.00	1	3100.00	2025-09-23 00:00:00	1899-12-30 17:39:03	Cajero 5	vinos	ViÃ±as de alveart	Nini	1	1971.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442605	708902	8	golosinas	1000.00	1	1000.00	2025-09-23 00:00:00	1899-12-30 17:43:58	Cajero 5	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442606	708902	7791337009998	Yog.grie.natu. 190 g	2500.00	1	2500.00	2025-09-23 00:00:00	1899-12-30 17:44:00	Cajero 5	Lacteos	Yogurisimo			2490.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442607	708902	310	agua 8 l quito	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 17:44:09	Cajero 5	Aguas	QUITO			1328.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442608	708904	7792184003085	soriano biscuits	1700.00	1	1700.00	2025-09-23 00:00:00	1899-12-30 17:54:03	Cajero 5	Almacen	soriano			273.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442609	708904	3	fiambre :)	1885.00	1	1885.00	2025-09-23 00:00:00	1899-12-30 17:54:12	Cajero 5	almacen	fiambreria		1151	1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442610	708904	7790770602148	calipso pack 8 u s.ana	800.00	1	800.00	2025-09-23 00:00:00	1899-12-30 17:54:16	Cajero 5	Perfumeria	calipso			195.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442611	708904	7792409008383	Rollo coc 200 paños 	1500.00	1	1500.00	2025-09-23 00:00:00	1899-12-30 17:54:25	Cajero 5	Limpieza	Nitidess			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442611	708904	7792409008383	Rollo coc 200 paÃ±os 	1500.00	1	1500.00	2025-09-23 00:00:00	1899-12-30 17:54:25	Cajero 5	Limpieza	Nitidess			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442612	708905	7790742348302	la serenisima 3 % leche fresca 1 l	1700.00	1	1700.00	2025-09-23 00:00:00	1899-12-30 17:59:50	Cajero 5	Lacteos	la serenisima			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442613	708905	7791337008649	yogu de vaini  1100 g	3000.00	1	3000.00	2025-09-23 00:00:00	1899-12-30 17:59:57	Cajero 5	Almacen	la serenisima			1577.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444879	86	2	Panaderia y confiteria	2800.00	1	2800.00	2025-09-29 00:00:00	1900-01-01 20:43:12	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
@@ -27307,7 +27502,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442430	708853	7793890261233	Pan blanco 400gr	4000.00	1	4000.00	2025-09-23 00:00:00	1899-12-30 14:05:38	Cajero 5	Almacen	Bimbo			3320.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442431	708853	5000141	paleta especial	2210.00	1	2210.00	2025-09-23 00:00:00	1899-12-30 14:05:40	Cajero 5	Fiambreria	Fiambreria			1701.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442432	708853	5000154	barra la serenisima	2125.00	1	2125.00	2025-09-23 00:00:00	1899-12-30 14:05:42	Cajero 5	Fiambreria	fiambreria	Mercado	0	1636.25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442433	708854	7791070000030	classic 50 paños x3	1400.00	1	1400.00	2025-09-23 00:00:00	1899-12-30 14:06:25	Cajero 5	almacen	campanita			182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442433	708854	7791070000030	classic 50 paÃ±os x3	1400.00	1	1400.00	2025-09-23 00:00:00	1899-12-30 14:06:25	Cajero 5	almacen	campanita			182.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442434	708854	7793344904143	p.h.new ul.sua.30m x 4	1600.00	1	1600.00	2025-09-23 00:00:00	1899-12-30 14:06:29	Cajero 5	papel higienico	elegante	vital	1	219.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442435	708854	7796073001916	alf platino	900.00	1	900.00	2025-09-23 00:00:00	1899-12-30 14:06:34	Cajero 5	Almacen	guaymallen			747.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442436	708854	7790150355084	la virginia te  verde 40 g	1200.00	1	1200.00	2025-09-23 00:00:00	1899-12-30 14:06:37	Cajero 5	te	la virginia 			95.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27361,8 +27556,8 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443445	709176	7791813888468	pepsi 2l	2500.00	1	2500.00	2025-09-25 00:00:00	1899-12-30 12:26:30	Cajero 1	Jugos	pepsi 			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443446	709177	5099998	verduleria	1475.00	1	1475.00	2025-09-25 00:00:00	1899-12-30 12:27:33	Cajero 1	verduleria	verduleria	Mercado	0	1135.75	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443447	709177	5099997	carniceria	9073.00	1	9073.00	2025-09-25 00:00:00	1899-12-30 12:27:35	Cajero 1	carniceria	carnes			6986.21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443448	709177	731199047308	Pan de papa Sésamo	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 12:27:41	Cajero 1	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443449	709177	731199047308	Pan de papa Sésamo	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 12:27:44	Cajero 1	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443448	709177	731199047308	Pan de papa SÃ©samo	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 12:27:41	Cajero 1	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443449	709177	731199047308	Pan de papa SÃ©samo	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 12:27:44	Cajero 1	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443450	709178	7790990002216	zorro a 800	2600.00	1	2600.00	2025-09-25 00:00:00	1899-12-30 12:30:46	Cajero 1	Limpieza	zorro			622.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443451	709178	7790310985267	doritos de queso 40g	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 12:30:50	Cajero 1	Copetin	doritos	pehuamar	1	365.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443452	709178	7790670052364	paty viena fun x 6	1600.00	1	1600.00	2025-09-25 00:00:00	1899-12-30 12:30:54	Cajero 1	hamburgesas	paty			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27458,7 +27653,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441426	708570	7622201816414	mantecol marmolado 41g	1000.00	1	1000.00	2025-09-21 00:00:00	1899-12-30 15:22:34	Cajero 3	fiesta	mantecol	1	0	109.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441427	708570	7790040991910	alfa blanc 73.5 g 	1300.00	1	1300.00	2025-09-21 00:00:00	1899-12-30 15:22:36	Cajero 3	Galletitas	bagley			584.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441428	708570	5099997	carniceria	4690.00	1	4690.00	2025-09-21 00:00:00	1899-12-30 15:22:37	Cajero 3	carniceria	carnes			3611.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441429	708570	7790407031273	aguila 140 años chocolate 150 g	6000.00	1	6000.00	2025-09-21 00:00:00	1899-12-30 15:23:07	Cajero 3	chocolate	Aguila	Arcor	1	1460.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441429	708570	7790407031273	aguila 140 aÃ±os chocolate 150 g	6000.00	1	6000.00	2025-09-21 00:00:00	1899-12-30 15:23:07	Cajero 3	chocolate	Aguila	Arcor	1	1460.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441430	708571	7793940052002	Manteca x100g	2200.00	1	2200.00	2025-09-21 00:00:00	1899-12-30 15:23:42	Cajero 3	Manteca	La Serenisima	La Serenisima	0	76.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441431	708572	5000130	matambre de carne	4760.00	1	4760.00	2025-09-21 00:00:00	1899-12-30 15:28:44	Cajero 3	Fiambreria	Fiambreria			3665.20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441432	708572	5000122	jamon	3000.00	1	3000.00	2025-09-21 00:00:00	1899-12-30 15:28:59	Cajero 3	Fiambreria	fiambreria	1	1	2310.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27489,7 +27684,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440781	708406	8	golosinas	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:14:52	Cajero 3	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440782	708407	7798039850194	Andresito yerba 500g	2100.00	1	2100.00	2025-09-20 00:00:00	1899-12-30 16:20:09	Cajero 3	yerbas	andresito			189.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440783	708407	7795735000335	Bizcochos agridulce 200g	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:20:12	Cajero 3	Galletitas	Don Satur	Michael	0	401.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440784	708407	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:20:14	Cajero 3	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440784	708407	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-20 00:00:00	1899-12-30 16:20:14	Cajero 3	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440785	708407	77987303	rojo  crafted 20 	2400.00	1	2400.00	2025-09-20 00:00:00	1899-12-30 16:20:21	Cajero 3	cigarrillos	marlboro			1314.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440786	708408	77941558	master cigarro  *20	1700.00	1	1700.00	2025-09-20 00:00:00	1899-12-30 16:28:02	Cajero 3	Almacen	master			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440787	708408	1	articulos de almacen	200.00	1	200.00	2025-09-20 00:00:00	1899-12-30 16:28:40	Cajero 3	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27693,7 +27888,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444841	72	3	fiambre :)	2000.00	1	2000.00	2025-09-29 00:00:00	1900-01-01 19:05:54	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	347.11	21.00	\N	\N	\N	\N	\N	0
 2444842	73	1	articulos de almacen	200.00	1	200.00	2025-09-29 00:00:00	1900-01-01 19:19:22	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
 2443075	709056	7790787002535	lech desc 1 l 	1500.00	1	1500.00	2025-09-24 00:00:00	1899-12-30 16:00:22	Cajero 1	Lacteos	Ilolay			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443076	709056	7795643001356	cilo anillitos baño de choclate 300	1600.00	1	1600.00	2025-09-24 00:00:00	1899-12-30 16:00:30	Cajero 1	Galletitas	cilo			131.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443076	709056	7795643001356	cilo anillitos baÃ±o de choclate 300	1600.00	1	1600.00	2025-09-24 00:00:00	1899-12-30 16:00:30	Cajero 1	Galletitas	cilo			131.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443077	709057	5000132	pan	1599.00	1	1599.00	2025-09-24 00:00:00	1899-12-30 16:01:20	Cajero 1	Almacen	pan			1231.23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443078	709058	7799068002189	Luxon lamp 9 w	1200.00	1	1200.00	2025-09-24 00:00:00	1899-12-30 16:04:31	Cajero 1	Prod.Altos	Luxon			1116.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443079	709058	0754697521484	Luxon lamp 13 w	1700.00	1	1700.00	2025-09-24 00:00:00	1899-12-30 16:04:33	Cajero 1	Prod.Altos	Luxon			1581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27744,7 +27939,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442351	708825	3	fiambre :)	3600.00	1	3600.00	2025-09-23 00:00:00	1899-12-30 12:03:04	Cajero 1	almacen	fiambreria		1151	1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442352	708825	7794820903254	yogur firme frutiila 180 	1400.00	1	1400.00	2025-09-23 00:00:00	1899-12-30 12:03:07	Cajero 1	Lacteos	milkaut			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442353	708825	7795184119770	noel naranja 454 g	2300.00	1	2300.00	2025-09-23 00:00:00	1899-12-30 12:03:10	Cajero 1	Mermelada	noel			224.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442354	708825	7791070005752	Rollo 200 paños 	1600.00	1	1600.00	2025-09-23 00:00:00	1899-12-30 12:03:14	Cajero 1	Limpieza	campanita			1328.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442354	708825	7791070005752	Rollo 200 paÃ±os 	1600.00	1	1600.00	2025-09-23 00:00:00	1899-12-30 12:03:14	Cajero 1	Limpieza	campanita			1328.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442355	708825	7798054520058	durazno en mitades x 820 g	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 12:03:17	Cajero 1	Almacen	sabio			315.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442356	708825	7798054520058	durazno en mitades x 820 g	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 12:03:21	Cajero 1	Almacen	sabio			315.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442357	708825	7791337007666	la ser clasico cereal 155	4000.00	1	4000.00	2025-09-23 00:00:00	1899-12-30 12:03:25	Cajero 1	Lacteos	serenisima			680.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27758,7 +27953,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442363	708827	7795016100044	Arroz 0000 1kg.	1300.00	1	1300.00	2025-09-23 00:00:00	1899-12-30 12:25:35	Cajero 1	Arroz	Lucato	Nini	0	949.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442364	708827	7792900092706	Sal fina 500gr	800.00	1	800.00	2025-09-23 00:00:00	1899-12-30 12:25:41	Cajero 1	Sales	Dos estrellas	Vital	0	292.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442365	708827	7790895000218	Coca cola 2 l retornable	2300.00	1	2300.00	2025-09-23 00:00:00	1899-12-30 12:25:44	Cajero 1	Gaseosa	Coca cola			1826.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442366	708827	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-23 00:00:00	1899-12-30 12:25:50	Cajero 1	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442366	708827	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-23 00:00:00	1899-12-30 12:25:50	Cajero 1	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442367	708827	4	verduleria	1900.00	1	1900.00	2025-09-23 00:00:00	1899-12-30 12:27:18	Cajero 1	verduleria	verduleria		2122011461	87.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442368	708828	5099997	carniceria	3885.00	1	3885.00	2025-09-23 00:00:00	1899-12-30 12:28:46	Cajero 1	carniceria	carnes			2991.45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442369	708828	7798422620014	Monster 473 ml 	3000.00	1	3000.00	2025-09-23 00:00:00	1899-12-30 12:28:47	Cajero 1	energizante	Monster			2044.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27811,7 +28006,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441329	708546	5000202	barra  maffia	2405.00	1	2405.00	2025-09-21 00:00:00	1899-12-30 14:05:43	Cajero 3	fiambreria	fiambreria	1	0	1851.85	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441330	708546	7790895640483	aquarius manzana s/g x 1.5l	2000.00	1	2000.00	2025-09-21 00:00:00	1899-12-30 14:05:51	Cajero 3	jugos	aquarius	coca cola	1	1660.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441331	708547	7790895000447	Sprite 1.50	2500.00	1	2500.00	2025-09-21 00:00:00	1899-12-30 14:08:23	Cajero 3	Gaseosa	sprite			1992.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441332	708548	731199047308	Pan de papa Sésamo	2400.00	1	2400.00	2025-09-21 00:00:00	1899-12-30 14:10:44	Cajero 3	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441332	708548	731199047308	Pan de papa SÃ©samo	2400.00	1	2400.00	2025-09-21 00:00:00	1899-12-30 14:10:44	Cajero 3	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441333	708548	731199047315	Pan de papa Queso	2600.00	1	2600.00	2025-09-21 00:00:00	1899-12-30 14:10:49	Cajero 3	Almacen	Boogies			1909.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441334	708548	7798054510011	sabio tomate triturado	1800.00	1	1800.00	2025-09-21 00:00:00	1899-12-30 14:10:56	Cajero 3	Almacen	sabio			249.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441336	708548	5000155	reggianito maffia	2790.00	1	2790.00	2025-09-21 00:00:00	1899-12-30 14:11:06	Cajero 3	Fiambreria	maffia	Mercado	0	2148.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27841,19 +28036,19 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444120	709395	5099997	carniceria	18620.00	1	18620.00	2025-09-26 00:00:00	1899-12-30 13:34:03	Cajero 1	carniceria	carnes			14337.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444121	709395	7791866001364	Mayon, doypack 500 cm	3000.00	1	3000.00	2025-09-26 00:00:00	1899-12-30 13:34:08	Cajero 1	Mayonesas	Natura	Nini	0	365.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444122	709395	7791866000381	natura ketchup x250g	1400.00	1	1400.00	2025-09-26 00:00:00	1899-12-30 13:34:10	Cajero 1	Almacen	natura			166.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444123	709396	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-26 00:00:00	1899-12-30 13:34:27	Cajero 1	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444123	709396	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-26 00:00:00	1899-12-30 13:34:27	Cajero 1	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444124	709396	5000132	pan	1638.00	1	1638.00	2025-09-26 00:00:00	1899-12-30 13:34:31	Cajero 1	Almacen	pan			1261.26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444130	709399	4	verduleria	1350.00	1	1350.00	2025-09-26 00:00:00	1899-12-30 13:38:43	Cajero 1	verduleria	verduleria		2122011461	87.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444131	709400	7790895006104	power ade  rojo 995	2500.00	1	2500.00	2025-09-26 00:00:00	1899-12-30 13:44:01	Cajero 1	Jugos	powerade			2075.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444132	709401	5000155	reggianito maffia	2520.00	1	2520.00	2025-09-26 00:00:00	1899-12-30 13:47:27	Cajero 1	Fiambreria	maffia	Mercado	0	1940.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444133	709401	7790984004998	Cabern sauvignon 750 ml 	2600.00	1	2600.00	2025-09-26 00:00:00	1899-12-30 13:47:30	Cajero 1	Vinos	Muñeco rebelde			2158.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444133	709401	7790984004998	Cabern sauvignon 750 ml 	2600.00	1	2600.00	2025-09-26 00:00:00	1899-12-30 13:47:30	Cajero 1	Vinos	MuÃ±eco rebelde			2158.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444134	709402	7791337007451	yogur firme calsico 190g frutilla	1500.00	1	1500.00	2025-09-26 00:00:00	1899-12-30 13:53:17	Cajero 1	Lacteos	serenisima			249.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444135	709402	7791337008663	danonino frutilla 80 g 	1200.00	2	2400.00	2025-09-26 00:00:00	1899-12-30 13:53:34	Cajero 1	Yogures	danonino			2324.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444136	709402	5000114	Cremoso punta de agua	2050.00	1	2050.00	2025-09-26 00:00:00	1899-12-30 13:53:37	Cajero 1	fiambreria	fiambreria	1	1	1578.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444137	709403	5000132	pan	1768.00	1	1768.00	2025-09-26 00:00:00	1899-12-30 13:59:06	Cajero 1	Almacen	pan			1361.36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444138	709403	5000132	pan	1664.00	1	1664.00	2025-09-26 00:00:00	1899-12-30 13:59:16	Cajero 1	Almacen	pan			1281.28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444139	709403	7791416066720	raza pequ 1.5 carne	4000.00	1	4000.00	2025-09-26 00:00:00	1899-12-30 13:59:19	Cajero 1	alimento	raza			686.20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444141	709403	7790387015324	mañanita yerba 500 g 	2400.00	1	2400.00	2025-09-26 00:00:00	1899-12-30 13:59:28	Cajero 1	Almacen	mañanita			1992.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444141	709403	7790387015324	maÃ±anita yerba 500 g 	2400.00	1	2400.00	2025-09-26 00:00:00	1899-12-30 13:59:28	Cajero 1	Almacen	maÃ±anita			1992.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444142	709403	7798113301024	Citrus  2.25 l	1500.00	1	1500.00	2025-09-26 00:00:00	1899-12-30 13:59:31	Cajero 1	Gaseosa	Manaos			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444143	709403	7790670052364	paty viena fun x 6	1600.00	1	1600.00	2025-09-26 00:00:00	1899-12-30 13:59:38	Cajero 1	hamburgesas	paty			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444144	709403	7790670052364	paty viena fun x 6	1600.00	1	1600.00	2025-09-26 00:00:00	1899-12-30 13:59:39	Cajero 1	hamburgesas	paty			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27902,7 +28097,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444059	709369	5000135	mortadela calchaqui	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 12:22:07	Cajero 1	Fiambreria	Fiambreria			770.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444060	709369	5000202	barra  maffia	2145.00	1	2145.00	2025-09-26 00:00:00	1899-12-30 12:22:12	Cajero 1	fiambreria	fiambreria	1	0	1651.65	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444061	709370	7790040143937	taviat rex orig 96 g 	800.00	1	800.00	2025-09-26 00:00:00	1899-12-30 12:23:28	Cajero 1	Galletitas	traviata			365.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444062	709371	7793008005513	issue tin 4 castaño	4400.00	1	4400.00	2025-09-26 00:00:00	1899-12-30 12:29:01	Cajero 1	Perfumeria	issue			2691.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444062	709371	7793008005513	issue tin 4 castaÃ±o	4400.00	1	4400.00	2025-09-26 00:00:00	1899-12-30 12:29:01	Cajero 1	Perfumeria	issue			2691.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444063	709372	7791813888468	pepsi 2l	2500.00	1	2500.00	2025-09-26 00:00:00	1899-12-30 12:36:04	Cajero 1	Jugos	pepsi 			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444064	709373	5000141	paleta especial	2665.00	1	2665.00	2025-09-26 00:00:00	1899-12-30 12:38:25	Cajero 1	Fiambreria	Fiambreria			2052.05	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444065	709373	5000135	mortadela calchaqui	1050.00	1	1050.00	2025-09-26 00:00:00	1899-12-30 12:38:29	Cajero 1	Fiambreria	Fiambreria			808.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -27972,10 +28167,10 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441994	708720	7790990002681	zorro suavisante 900	2800.00	1	2800.00	2025-09-22 00:00:00	1899-12-30 15:33:50	Cajero 1	Limpieza	zorro 			2324.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441995	708720	7790580602000	Rollo de goma x35g	500.00	1	500.00	2025-09-22 00:00:00	1899-12-30 15:35:08	Cajero 1	Golosina	Mogul	Arcor	0	42.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441996	708721	7791337061439	sere queso clas des  290cm	2900.00	1	2900.00	2025-09-22 00:00:00	1899-12-30 16:32:48	Cajero 1	Lacteos	serenisima			1577.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441997	708721	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-22 00:00:00	1899-12-30 16:32:51	Cajero 1	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441997	708721	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-22 00:00:00	1899-12-30 16:32:51	Cajero 1	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441999	708721	23	Maple Huevos x 30 und efectivo	6500.00	1	6500.00	2025-09-22 00:00:00	1899-12-30 16:33:02	Cajero 1	Almacen	Huevos			5810.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442000	708722	7792409008345	pap hig  hoj sim 4 x 30 m	1000.00	1	1000.00	2025-09-22 00:00:00	1899-12-30 16:42:49	Cajero 1	Limpieza	Nitidess			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442001	708722	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-22 00:00:00	1899-12-30 16:42:51	Cajero 1	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442001	708722	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-22 00:00:00	1899-12-30 16:42:51	Cajero 1	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444795	58	77987310	 crafted azul 20	2200.00	1	2200.00	2025-09-29 00:00:00	1900-01-01 09:19:44	\N	cigarrillos	Marlboro	\N	\N	1314.00	0	\N	\N	136.79	6.63	\N	\N	\N	\N	\N	0
 2444796	59	1	articulos de almacen	200.00	1	200.00	2025-09-29 00:00:00	1900-01-01 09:27:14	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
 2444797	59	77987310	 crafted azul 20	2200.00	1	2200.00	2025-09-29 00:00:00	1900-01-01 09:27:22	\N	cigarrillos	Marlboro	\N	\N	1314.00	0	\N	\N	136.79	6.63	\N	\N	\N	\N	\N	0
@@ -28020,7 +28215,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441618	708626	7500435235464	sham repar 200 ml	4300.00	1	4300.00	2025-09-21 00:00:00	1899-12-30 19:29:48	Cajero 3	Perfumeria	pantene 			2964.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441619	708627	7790742348203	la serenisima leche entera	1700.00	1	1700.00	2025-09-21 00:00:00	1899-12-30 19:33:15	Cajero 3	Lacteos	la serenisima			74.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441653	708631	5000136	pehuamar palitos 	1300.00	1	1300.00	2025-09-21 00:00:00	1899-12-30 19:45:46	Cajero 3	fiambreria	fiambreria			1001.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441654	708631	7793040065728	salchichas viena carcaraña	1200.00	1	1200.00	2025-09-21 00:00:00	1899-12-30 19:45:48	Cajero 3	Almacen	carcaraña			33.20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441654	708631	7793040065728	salchichas viena carcaraÃ±a	1200.00	1	1200.00	2025-09-21 00:00:00	1899-12-30 19:45:48	Cajero 3	Almacen	carcaraÃ±a			33.20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441655	708631	7509546692265	Odol 2 x 70g	1800.00	1	1800.00	2025-09-21 00:00:00	1899-12-30 19:45:49	Cajero 3	Dentrifico	Odol 2	nini	1	1314.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441110	708483	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-21 00:00:00	1899-12-30 09:08:58	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441111	708483	5099997	carniceria	21563.00	1	21563.00	2025-09-21 00:00:00	1899-12-30 09:09:02	Cajero 1	carniceria	carnes			16603.51	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28077,7 +28272,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443893	709321	7795735000342	Bizco Negritos  200g	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 08:38:44	Cajero 1	Galletitas	Don Satur	Michael	0	374.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443894	709321	7795735000328	Bizcochos salados 200g	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 08:38:49	Cajero 1	Galletitas	Don Satur	Michael	0	374.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443895	709321	7795735000328	Bizcochos salados 200g	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 08:38:55	Cajero 1	Galletitas	Don Satur	Michael	0	374.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443896	709321	7795733000184	Cañoncito kokis x500	2800.00	1	2800.00	2025-09-26 00:00:00	1899-12-30 08:38:59	Cajero 1	Galletitas	Kokis	Michael	0	262.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443896	709321	7795733000184	CaÃ±oncito kokis x500	2800.00	1	2800.00	2025-09-26 00:00:00	1899-12-30 08:38:59	Cajero 1	Galletitas	Kokis	Michael	0	262.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443897	709321	7795643001318	cilo lenguita b/chocolate	1600.00	1	1600.00	2025-09-26 00:00:00	1899-12-30 08:39:04	Cajero 1	Galletitas	cilo			131.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443898	709322	7791293045658	sedal sha ceram 190 ml	2500.00	1	2500.00	2025-09-26 00:00:00	1899-12-30 08:40:51	Cajero 1	Perfumeria	sedal	1	1	390.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443899	709322	7792180007254	paseo     sin sal x300g	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 08:40:54	Cajero 1	Galletitas	paseo			54.75	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28117,7 +28312,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442833	708986	7798372110344	Barr choco protei 40 g 	1400.00	1	1400.00	2025-09-24 00:00:00	1899-12-30 10:27:17	Cajero 1	Almacen	Vitalgy			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442834	708987	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-24 00:00:00	1899-12-30 10:31:43	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442835	708987	5000132	pan	1573.00	1	1573.00	2025-09-24 00:00:00	1899-12-30 10:31:51	Cajero 1	Almacen	pan			1211.21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442836	708988	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-24 00:00:00	1899-12-30 10:33:13	Cajero 1	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442836	708988	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-24 00:00:00	1899-12-30 10:33:13	Cajero 1	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442837	708989	7793147118860	schneider lata 530 lager	1800.00	1	1800.00	2025-09-24 00:00:00	1899-12-30 10:39:29	Cajero 1	cerveza	schneider			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442838	708990	7790045827733	Sin sal x 200 g 	1000.00	1	1000.00	2025-09-24 00:00:00	1899-12-30 10:44:01	Cajero 1	Galletitas	Granix			693.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442839	708990	7790045827733	Sin sal x 200 g 	1000.00	1	1000.00	2025-09-24 00:00:00	1899-12-30 10:44:06	Cajero 1	Galletitas	Granix			693.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28197,7 +28392,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443761	709272	7798035771578	g & m 5 semillas	800.00	1	800.00	2025-09-25 00:00:00	1899-12-30 18:55:44	Cajero 3	Galletitas	G & M			80.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443762	709273	7790040150072	Choco torta 	1300.00	1	1300.00	2025-09-25 00:00:00	1899-12-30 18:58:28	Cajero 3	golosina	Chocolinas			949.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443763	709273	77903785	Milka mousse x3 	1300.00	1	1300.00	2025-09-25 00:00:00	1899-12-30 18:58:29	Cajero 3	golosina	Milka	bachajo	0	95.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443764	709274	7792409007447	Rollo coc dh 3 x 100 paños 	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 19:02:09	Cajero 3	Limpieza	Nitidess			1494.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443764	709274	7792409007447	Rollo coc dh 3 x 100 paÃ±os 	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 19:02:09	Cajero 3	Limpieza	Nitidess			1494.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443765	709274	7506306241183	des orig 150	3400.00	1	3400.00	2025-09-25 00:00:00	1899-12-30 19:02:20	Cajero 3	Perfumeria	dove			2574.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443766	709274	7791620187778	Danica dorada unt.pan.210g	2600.00	1	2600.00	2025-09-25 00:00:00	1899-12-30 19:02:22	Cajero 3	Margarina	Danica	nini	1	1095.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443767	709274	310	agua 8 l quito	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 19:02:23	Cajero 3	Aguas	QUITO			1328.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28273,7 +28468,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443716	709255	77953513	chesterfield 20 comun	3600.00	1	3600.00	2025-09-25 00:00:00	1899-12-30 18:01:31	Cajero 3	cigarrillos	chesterfield			2739.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443717	709256	7790077000364	Madalena Pozo x260	1600.00	1	1600.00	2025-09-25 00:00:00	1899-12-30 18:08:56	Cajero 3	Galletitas	Pozo	Michael	0	116.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443718	709256	77991584	alfajor agrup blanco	800.00	1	800.00	2025-09-25 00:00:00	1899-12-30 18:08:59	Cajero 3	Galletitas	fantoche	michael	1	197.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443719	709256	7792180139542	cañuelas arroz largo fino 500g	1000.00	1	1000.00	2025-09-25 00:00:00	1899-12-30 18:09:01	Cajero 3	Almacen	cañuelas			65.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443719	709256	7792180139542	caÃ±uelas arroz largo fino 500g	1000.00	1	1000.00	2025-09-25 00:00:00	1899-12-30 18:09:01	Cajero 3	Almacen	caÃ±uelas			65.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443720	709256	7791813444381	7up 500 ml	1300.00	1	1300.00	2025-09-25 00:00:00	1899-12-30 18:09:05	Cajero 3	Gaseosa	7 up			664.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443721	709256	5099998	verduleria	1071.00	1	1071.00	2025-09-25 00:00:00	1899-12-30 18:09:21	Cajero 3	verduleria	verduleria	Mercado	0	824.67	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443722	709257	1004	carbon x 10 kl	7000.00	1	7000.00	2025-09-25 00:00:00	1899-12-30 18:13:07	Cajero 3	carbon	el gauchito	1	1	5110.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28392,7 +28587,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443611	709232	7790710334634	Yerba Silueta x500g	2200.00	1	2200.00	2025-09-25 00:00:00	1899-12-30 15:55:37	Cajero 1	Yerbas	Cbse	1	0	1606.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443612	709232	7790770601080	calipso incos leve x 8	2500.00	1	2500.00	2025-09-25 00:00:00	1899-12-30 15:55:42	Cajero 1	Perfumeria	calipso			132.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443613	709232	5000155	reggianito maffia	2700.00	1	2700.00	2025-09-25 00:00:00	1899-12-30 15:55:45	Cajero 1	Fiambreria	maffia	Mercado	0	2079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443614	709232	7793008005513	issue tin 4 castaño	4400.00	1	4400.00	2025-09-25 00:00:00	1899-12-30 15:55:52	Cajero 1	Perfumeria	issue			2691.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443614	709232	7793008005513	issue tin 4 castaÃ±o	4400.00	1	4400.00	2025-09-25 00:00:00	1899-12-30 15:55:52	Cajero 1	Perfumeria	issue			2691.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443615	709232	7798133021506	Pan semilla andina 540 g 	2800.00	1	2800.00	2025-09-25 00:00:00	1899-12-30 15:56:10	Cajero 1	Panificados	Facilitas			2800.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443616	709232	7796953215303	leber wurst	2000.00	1	2000.00	2025-09-25 00:00:00	1899-12-30 15:56:32	Cajero 1	Almacen	calchaqui			207.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443617	709232	7791290795006	gra Jab orq/lavn x400	1000.00	1	1000.00	2025-09-25 00:00:00	1899-12-30 15:56:36	Cajero 1	Jabon en polvo	gramby 			830.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28410,8 +28605,8 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2440845	708423	5000142	paleta sanwchera	1435.00	1	1435.00	2025-09-20 00:00:00	1899-12-30 17:34:49	Cajero 3	Fiambreria	Fiambreria			1104.95	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440846	708423	5000202	barra  maffia	2665.00	1	2665.00	2025-09-20 00:00:00	1899-12-30 17:34:51	Cajero 3	fiambreria	fiambreria	1	0	2052.05	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440847	708423	5000132	pan	1690.00	1	1690.00	2025-09-20 00:00:00	1899-12-30 17:34:57	Cajero 3	Almacen	pan			1301.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440848	708423	7792180139320	cañuela 000 refinada	900.00	1	900.00	2025-09-20 00:00:00	1899-12-30 17:35:02	Cajero 3	Almacen	cañuela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2440849	708423	7792180139320	cañuela 000 refinada	900.00	1	900.00	2025-09-20 00:00:00	1899-12-30 17:35:03	Cajero 3	Almacen	cañuela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440848	708423	7792180139320	caÃ±uela 000 refinada	900.00	1	900.00	2025-09-20 00:00:00	1899-12-30 17:35:02	Cajero 3	Almacen	caÃ±uela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440849	708423	7792180139320	caÃ±uela 000 refinada	900.00	1	900.00	2025-09-20 00:00:00	1899-12-30 17:35:03	Cajero 3	Almacen	caÃ±uela			257.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440850	708423	7798354180020	max aroma 	3200.00	1	3200.00	2025-09-20 00:00:00	1899-12-30 17:35:11	Cajero 3	Limpieza	max aroma 			2158.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440851	708423	7790770602001	noso p.diarios re 15 un 	1700.00	1	1700.00	2025-09-20 00:00:00	1899-12-30 17:35:14	Cajero 3	Perfumeria	bosotras			390.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440852	708423	7794000008540	caldo sab/verdura 12	2300.00	1	2300.00	2025-09-20 00:00:00	1899-12-30 17:35:16	Cajero 3	caldo	knorr	1	1	945.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28446,12 +28641,12 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442859	708992	7790310983256	twistos jam 95 g	3100.00	1	3100.00	2025-09-24 00:00:00	1899-12-30 10:55:22	Cajero 1	snacks	twistos			2075.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442860	708992	77946812	Pastillas s/a durazno	650.00	1	650.00	2025-09-24 00:00:00	1899-12-30 10:55:26	Cajero 1	Golosina	Mentho Plus	Arcor	0	47.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442861	708992	7622202288227	halls experts	1000.00	1	1000.00	2025-09-24 00:00:00	1899-12-30 10:55:29	Cajero 1	Dulce	halls			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442862	708993	731199047308	Pan de papa Sésamo	2400.00	1	2400.00	2025-09-24 00:00:00	1899-12-30 11:05:45	Cajero 1	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442862	708993	731199047308	Pan de papa SÃ©samo	2400.00	1	2400.00	2025-09-24 00:00:00	1899-12-30 11:05:45	Cajero 1	Almacen	Boogies			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442863	708993	5099997	carniceria	12411.00	1	12411.00	2025-09-24 00:00:00	1899-12-30 11:05:53	Cajero 1	carniceria	carnes			9556.47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442864	708993	7798113301529	Manaos soda x2 l	1500.00	1	1500.00	2025-09-24 00:00:00	1899-12-30 11:06:01	Cajero 1	soda	Manaos			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442865	708993	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-24 00:00:00	1899-12-30 11:06:03	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442866	708993	7792409008376	pap hig  hoj sim 4 x 80 m	2100.00	1	2100.00	2025-09-24 00:00:00	1899-12-30 11:06:14	Cajero 1	Limpieza	Nitidess			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442867	708994	7790380016687	baño resp leche 150 g	3300.00	1	3300.00	2025-09-24 00:00:00	1899-12-30 11:10:32	Cajero 1	Dulce	Georgalos			2739.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442867	708994	7790380016687	baÃ±o resp leche 150 g	3300.00	1	3300.00	2025-09-24 00:00:00	1899-12-30 11:10:32	Cajero 1	Dulce	Georgalos			2739.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442868	708994	7790070336545	Fettuccini don vicente 	2600.00	1	2600.00	2025-09-24 00:00:00	1899-12-30 11:10:51	Cajero 1	fIDEOS	Don Vicente			1577.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442869	708994	7794000006478	savora ex sodio 250 origin	1200.00	1	1200.00	2025-09-24 00:00:00	1899-12-30 11:10:56	Cajero 1	Almacen	savora			290.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442870	708994	5000155	reggianito maffia	2970.00	1	2970.00	2025-09-24 00:00:00	1899-12-30 11:11:02	Cajero 1	Fiambreria	maffia	Mercado	0	2286.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28546,7 +28741,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444242	709437	9	electronica	4000.00	1	4000.00	2025-09-26 00:00:00	1899-12-30 16:53:28	Cajero 1	helados	shelatino			2190.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444243	709438	1	articulos de almacen	3500.00	1	3500.00	2025-09-26 00:00:00	1899-12-30 16:53:50	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444244	709438	1	articulos de almacen	3500.00	1	3500.00	2025-09-26 00:00:00	1899-12-30 16:53:53	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444245	709438	7792409008338	Maxi Rollo 200 paños	1250.00	1	1250.00	2025-09-26 00:00:00	1899-12-30 16:53:59	Cajero 1	Limpieza	Soleado			1037.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444245	709438	7792409008338	Maxi Rollo 200 paÃ±os	1250.00	1	1250.00	2025-09-26 00:00:00	1899-12-30 16:53:59	Cajero 1	Limpieza	Soleado			1037.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444246	709438	7798000350050	Rotiseras hojaldre 480gr	2300.00	1	2300.00	2025-09-26 00:00:00	1899-12-30 16:54:04	Cajero 1	tapas de empanada	Parma			1460.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444247	709438	7798000350050	Rotiseras hojaldre 480gr	2300.00	1	2300.00	2025-09-26 00:00:00	1899-12-30 16:54:08	Cajero 1	tapas de empanada	Parma			1460.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444248	709438	714604023852	pasa de uva 200g	1900.00	1	1900.00	2025-09-26 00:00:00	1899-12-30 16:54:12	Cajero 1	Almacen	raices			1577.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28614,7 +28809,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444157	709409	5099997	carniceria	7800.00	1	7800.00	2025-09-26 00:00:00	1899-12-30 14:25:47	Cajero 1	carniceria	carnes			6006.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444158	709409	5099998	verduleria	925.00	1	925.00	2025-09-26 00:00:00	1899-12-30 14:26:22	Cajero 1	verduleria	verduleria	Mercado	0	712.25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444159	709410	77941558	master cigarro  *20	1800.00	1	1800.00	2025-09-26 00:00:00	1899-12-30 14:27:02	Cajero 1	Almacen	master			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444160	709411	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-26 00:00:00	1899-12-30 14:28:03	Cajero 1	Almacen	Doña pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444160	709411	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-26 00:00:00	1899-12-30 14:28:03	Cajero 1	Almacen	DoÃ±a pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444161	709412	9	electronica	8500.00	1	8500.00	2025-09-26 00:00:00	1899-12-30 14:33:25	Cajero 1	helados	shelatino			2190.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444162	709412	5099998	verduleria	3605.00	1	3605.00	2025-09-26 00:00:00	1899-12-30 14:33:30	Cajero 1	verduleria	verduleria	Mercado	0	2775.85	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444163	709412	5099997	carniceria	7725.00	1	7725.00	2025-09-26 00:00:00	1899-12-30 14:33:34	Cajero 1	carniceria	carnes			5948.25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28656,7 +28851,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444805	61	2	Panaderia y confiteria	2800.00	1	2800.00	2025-09-29 00:00:00	1900-01-01 09:31:14	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2444806	61	77987310	 crafted azul 20	2200.00	5	11000.00	2025-09-29 00:00:00	1900-01-01 09:31:27	\N	cigarrillos	Marlboro	\N	\N	1314.00	0	\N	\N	523.81	5.00	\N	\N	\N	\N	\N	0
 2444807	61	5000026	Acelga 2 PAQUETE	1000.00	6	6000.00	2025-09-29 00:00:00	1900-01-01 09:31:39	\N	Verduleria	Verduleria	Mercado	\N	8.11	0	\N	\N	570.14	10.50	\N	\N	\N	\N	\N	0
-2440441	708301	77908377	Cafe al Coñac 200ml	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 08:37:14	Cajero 1	Licores	Cusenier	1	0	1022.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2440441	708301	77908377	Cafe al CoÃ±ac 200ml	2000.00	1	2000.00	2025-09-20 00:00:00	1899-12-30 08:37:14	Cajero 1	Licores	Cusenier	1	0	1022.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440442	708302	5000122	jamon	1725.00	1	1725.00	2025-09-20 00:00:00	1899-12-30 08:43:35	Cajero 1	Fiambreria	fiambreria	1	1	1328.25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440443	708302	5000202	barra  maffia	1300.00	1	1300.00	2025-09-20 00:00:00	1899-12-30 08:43:37	Cajero 1	fiambreria	fiambreria	1	0	1001.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2440444	708302	5000155	reggianito maffia	4230.00	1	4230.00	2025-09-20 00:00:00	1899-12-30 08:43:40	Cajero 1	Fiambreria	maffia	Mercado	0	3257.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28721,7 +28916,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443507	709199	7791324157534	pitusas mini merengues	900.00	1	900.00	2025-09-25 00:00:00	1899-12-30 13:48:53	Cajero 1	Galletitas	pitusas			124.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443508	709199	7795735000328	Bizcochos salados 200g	1000.00	1	1000.00	2025-09-25 00:00:00	1899-12-30 13:48:57	Cajero 1	Galletitas	Don Satur	Michael	0	374.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443509	709199	4	verduleria	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 13:49:18	Cajero 1	verduleria	verduleria		2122011461	87.60	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443510	709199	7794626012525	Kimbies toallitas 487 u	2300.00	1	2300.00	2025-09-25 00:00:00	1899-12-30 13:49:28	Cajero 1	Pañales	Kimbies	1	0	284.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443510	709199	7794626012525	Kimbies toallitas 487 u	2300.00	1	2300.00	2025-09-25 00:00:00	1899-12-30 13:49:28	Cajero 1	PaÃ±ales	Kimbies	1	0	284.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443511	709199	7798064780497	multicereal 500 g 	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 13:49:31	Cajero 1	Panaderia	tio guis			1679.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443512	709199	8	golosinas	800.00	1	800.00	2025-09-25 00:00:00	1899-12-30 13:49:40	Cajero 1	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443513	709199	8	golosinas	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 13:49:45	Cajero 1	golosinas	golosinas	1	1	24.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28786,7 +28981,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443528	709203	5000160	salame	2700.00	1	2700.00	2025-09-25 00:00:00	1899-12-30 13:54:07	Cajero 1	Fiambreria	Fiambreria			2079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443529	709203	5000122	jamon	2175.00	1	2175.00	2025-09-25 00:00:00	1899-12-30 13:54:17	Cajero 1	Fiambreria	fiambreria	1	1	1674.75	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443530	709203	7509546692265	Odol 2 x 70g	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 13:54:25	Cajero 1	Dentrifico	Odol 2	nini	1	1314.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443531	709204	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-25 00:00:00	1899-12-30 13:56:27	Cajero 1	Aceites	Cañuelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443531	709204	7792180001641	Aceite x900 ml	3100.00	1	3100.00	2025-09-25 00:00:00	1899-12-30 13:56:27	Cajero 1	Aceites	CaÃ±uelas	Vital	0	1825.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443532	709204	1	articulos de almacen	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 13:56:44	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443533	709204	7790670052364	paty viena fun x 6	1600.00	1	1600.00	2025-09-25 00:00:00	1899-12-30 13:56:50	Cajero 1	hamburgesas	paty			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443534	709204	1	articulos de almacen	5000.00	1	5000.00	2025-09-25 00:00:00	1899-12-30 13:57:38	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -28796,7 +28991,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2443538	709205	77993397	crafter mentol 20 comun	2800.00	1	2800.00	2025-09-25 00:00:00	1899-12-30 14:04:29	Cajero 1	cigarrillos	marlboro			2324.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443539	709206	7792798001316	Quilmes Stout x lata 473cm	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 14:05:36	Cajero 1	Cervezas	Quilmes	Quilmes	0	1326.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443540	709206	7792798001316	Quilmes Stout x lata 473cm	1800.00	1	1800.00	2025-09-25 00:00:00	1899-12-30 14:05:37	Cajero 1	Cervezas	Quilmes	Quilmes	0	1326.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2443541	709207	7790387015324	mañanita yerba 500 g 	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 14:08:31	Cajero 1	Almacen	mañanita			1992.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2443541	709207	7790387015324	maÃ±anita yerba 500 g 	2400.00	1	2400.00	2025-09-25 00:00:00	1899-12-30 14:08:31	Cajero 1	Almacen	maÃ±anita			1992.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443542	709207	7791843013441	chenin dulce 750 ml 	4700.00	1	4700.00	2025-09-25 00:00:00	1899-12-30 14:08:34	Cajero 1	Vinos	Chacabuco			3569.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443543	709208	5099998	verduleria	1900.00	1	1900.00	2025-09-25 00:00:00	1899-12-30 14:11:13	Cajero 1	verduleria	verduleria	Mercado	0	1463.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2443544	709208	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-25 00:00:00	1899-12-30 14:11:17	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -29041,13 +29236,13 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447474	932	7798089950028	Yerba mate 500g	2100.00	3	6300.00	2026-01-28 00:00:00	1900-01-01 18:00:21	\N	Almacen	DELNOR	\N	\N	1743.00	0	\N	\N	1093.39	21.00	\N	\N	\N	\N	\N	0
 2447465	932	1	articulos de almacen	5000.00	1	5000.00	2026-01-28 00:00:00	1900-01-01 18:00:02	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
 2447466	932	2	Panaderia y confiteria	3200.00	1	3200.00	2026-01-28 00:00:00	1900-01-01 18:00:03	\N	Panaderia	omar		\N	4380.00	0	\N	\N	555.37	21.00	\N	\N	\N	\N	\N	0
-2447475	933	1	articulos de almacen	5000.00	1	5000.00	2026-01-28 00:00:00	1900-01-01 18:59:25	\N	Almacen	almacen	1	\N	876.00	1	María García	\N	867.77	21.00	\N	\N	\N	\N	\N	0
+2447475	933	1	articulos de almacen	5000.00	1	5000.00	2026-01-28 00:00:00	1900-01-01 18:59:25	\N	Almacen	almacen	1	\N	876.00	1	MarÃ­a GarcÃ­a	\N	867.77	21.00	\N	\N	\N	\N	\N	0
 2447468	932	4	verduleria	2600.00	1	2600.00	2026-01-28 00:00:00	1900-01-01 18:00:05	\N	verduleria	verduleria	\N	\N	87.60	0	\N	\N	247.06	10.50	\N	\N	\N	\N	\N	0
-2447476	933	2	Panaderia y confiteria	3200.00	1	3200.00	2026-01-28 00:00:00	1900-01-01 18:59:27	\N	Panaderia	omar		\N	4380.00	1	María García	\N	555.37	21.00	\N	\N	\N	\N	\N	0
-2447477	934	5	Carniceria	43000.00	1	43000.00	2026-01-28 00:00:00	1900-01-01 20:38:42	\N	Carne	Carne	1	\N	60.00	1	Carlos López	\N	4085.97	10.50	\N	\N	\N	\N	\N	0
-2447478	934	6	facturas	4900.00	1	4900.00	2026-01-28 00:00:00	1900-01-01 20:38:44	\N	Almacen	facturas	\N	\N	6.64	1	Carlos López	\N	850.41	21.00	\N	\N	\N	\N	\N	0
+2447476	933	2	Panaderia y confiteria	3200.00	1	3200.00	2026-01-28 00:00:00	1900-01-01 18:59:27	\N	Panaderia	omar		\N	4380.00	1	MarÃ­a GarcÃ­a	\N	555.37	21.00	\N	\N	\N	\N	\N	0
+2447477	934	5	Carniceria	43000.00	1	43000.00	2026-01-28 00:00:00	1900-01-01 20:38:42	\N	Carne	Carne	1	\N	60.00	1	Carlos LÃ³pez	\N	4085.97	10.50	\N	\N	\N	\N	\N	0
+2447478	934	6	facturas	4900.00	1	4900.00	2026-01-28 00:00:00	1900-01-01 20:38:44	\N	Almacen	facturas	\N	\N	6.64	1	Carlos LÃ³pez	\N	850.41	21.00	\N	\N	\N	\N	\N	0
 2447472	932	8	golosinas	200.00	1	200.00	2026-01-28 00:00:00	1900-01-01 18:00:09	\N	golosinas	golosinas	1	\N	24.90	0	\N	\N	34.71	21.00	\N	\N	\N	\N	\N	0
-2447479	934	4	verduleria	2600.00	1	2600.00	2026-01-28 00:00:00	1900-01-01 20:38:47	\N	verduleria	verduleria	\N	\N	87.60	1	Carlos López	\N	247.06	10.50	\N	\N	\N	\N	\N	0
+2447479	934	4	verduleria	2600.00	1	2600.00	2026-01-28 00:00:00	1900-01-01 20:38:47	\N	verduleria	verduleria	\N	\N	87.60	1	Carlos LÃ³pez	\N	247.06	10.50	\N	\N	\N	\N	\N	0
 2447480	935	1	articulos de almacen	1200.00	1	1200.00	2026-02-01 00:00:00	1900-01-01 20:38:38	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	208.26	21.00	\N	\N	\N	\N	\N	0
 2447481	935	2	Panaderia y confiteria	2800.00	1	2800.00	2026-02-01 00:00:00	1900-01-01 20:38:40	\N	Panaderia	omar		\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2447482	935	3	fiambre :)	3500.00	1	3500.00	2026-02-01 00:00:00	1900-01-01 20:38:41	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
@@ -29095,7 +29290,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442734	708946	1	articulos de almacen	200.00	1	200.00	2025-09-23 00:00:00	1899-12-30 20:09:39	Cajero 3	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442735	708947	5099997	carniceria	32890.00	1	32890.00	2025-09-23 00:00:00	1899-12-30 20:10:43	Cajero 3	carniceria	carnes			25325.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442736	708948	7798113301024	Citrus  2.25 l	1500.00	1	1500.00	2025-09-23 00:00:00	1899-12-30 20:12:47	Cajero 3	Gaseosa	Manaos			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442737	708948	7791843008294	Viña balbo Borgoña 1250ml	3000.00	1	3000.00	2025-09-23 00:00:00	1899-12-30 20:12:52	Cajero 3	Vinos	Viñas de Balbo	Nini	0	270.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442737	708948	7791843008294	ViÃ±a balbo BorgoÃ±a 1250ml	3000.00	1	3000.00	2025-09-23 00:00:00	1899-12-30 20:12:52	Cajero 3	Vinos	ViÃ±as de Balbo	Nini	0	270.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2446799	687	2	Panaderia y confiteria	8600.00	1	8600.00	2025-12-09 00:00:00	1900-01-01 19:20:58	\N	almacen	omar	\N	\N	2000.00	0	\N	\N	1492.56	21.00	\N	\N	\N	\N	\N	0
 2446802	687	1	articulos de almacen	5236.00	1	5236.00	2025-12-09 00:00:00	1900-01-01 19:21:00	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	908.73	21.00	\N	\N	\N	\N	\N	0
 2446803	687	3	fiambre :)	7200.00	1	7200.00	2025-12-09 00:00:00	1900-01-01 19:21:00	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	1249.59	21.00	\N	\N	\N	\N	\N	0
@@ -29379,7 +29574,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447582	950	7	bolsas	50.00	1	50.00	2026-02-07 00:00:00	1900-01-01 00:09:09	\N	Prod.Altos	bolsas	\N	\N	18.60	0	\N	\N	8.68	21.00	\N	\N	\N	\N	\N	0
 2447584	950	10	Facturas x und	250.00	1	250.00	2026-02-07 00:00:00	1900-01-01 00:09:12	\N	Panaderia	facturas	1	\N	36.50	0	\N	\N	43.39	21.00	\N	\N	\N	\N	\N	0
 2447585	951	1	articulos de almacen	2650.00	1	2650.00	2026-02-07 00:00:00	1900-01-01 00:17:57	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	459.92	21.00	\N	\N	\N	\N	\N	0
-2447621	973	1	articulos de almacen	3500.00	1	3500.00	2026-02-18 00:00:00	1900-01-01 17:32:30	\N	Almacen	almacen	1	\N	910.00	1	María García	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2447621	973	1	articulos de almacen	3500.00	1	3500.00	2026-02-18 00:00:00	1900-01-01 17:32:30	\N	Almacen	almacen	1	\N	910.00	1	MarÃ­a GarcÃ­a	\N	607.44	21.00	\N	\N	\N	\N	\N	0
 2447587	951	3	fiambre :)	3500.00	1	3500.00	2026-02-07 00:00:00	1900-01-01 00:18:00	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
 2447588	951	4	verduleria	2600.00	1	2600.00	2026-02-07 00:00:00	1900-01-01 00:18:00	\N	verduleria	verduleria	\N	\N	87.60	0	\N	\N	247.06	10.50	\N	\N	\N	\N	\N	0
 2442232	708792	77987303	rojo  crafted 20 	2800.00	1	2800.00	2025-09-23 00:00:00	1899-12-30 09:15:12	Cajero 1	cigarrillos	marlboro			1314.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -29389,11 +29584,11 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2442236	708793	5099998	verduleria	4210.00	1	4210.00	2025-09-23 00:00:00	1899-12-30 09:27:50	Cajero 1	verduleria	verduleria	Mercado	0	3241.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442237	708794	7790787960477	yogur top cer 165 g 	1600.00	4	6400.00	2025-09-23 00:00:00	1899-12-30 09:35:59	Cajero 1	Lacteos	Ilolay			4316.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442238	708794	7790787087174	postres kid choco 120 g	1100.00	3	3300.00	2025-09-23 00:00:00	1899-12-30 09:36:04	Cajero 1	Lacteos	ilolay			2241.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442239	708794	7791070005714	rollo coc x 200 paños 	1300.00	1	1300.00	2025-09-23 00:00:00	1899-12-30 09:36:07	Cajero 1	Limpieza	Sol Mayor			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442240	708794	7790387015317	mañanita de 1 kg 	4200.00	1	4200.00	2025-09-23 00:00:00	1899-12-30 09:36:15	Cajero 1	Almacen	mañanita 			705.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442241	708794	7791070005714	rollo coc x 200 paños 	1300.00	1	1300.00	2025-09-23 00:00:00	1899-12-30 09:36:22	Cajero 1	Limpieza	Sol Mayor			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442239	708794	7791070005714	rollo coc x 200 paÃ±os 	1300.00	1	1300.00	2025-09-23 00:00:00	1899-12-30 09:36:07	Cajero 1	Limpieza	Sol Mayor			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442240	708794	7790387015317	maÃ±anita de 1 kg 	4200.00	1	4200.00	2025-09-23 00:00:00	1899-12-30 09:36:15	Cajero 1	Almacen	maÃ±anita 			705.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442241	708794	7791070005714	rollo coc x 200 paÃ±os 	1300.00	1	1300.00	2025-09-23 00:00:00	1899-12-30 09:36:22	Cajero 1	Limpieza	Sol Mayor			1079.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442242	708794	1	articulos de almacen	1200.00	1	1200.00	2025-09-23 00:00:00	1899-12-30 09:36:31	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2442243	708794	7797453001564	pedigree raza pequeña 1.3	6500.00	1	6500.00	2025-09-23 00:00:00	1899-12-30 09:36:34	Cajero 1	mascota	pedigree			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2442243	708794	7797453001564	pedigree raza pequeÃ±a 1.3	6500.00	1	6500.00	2025-09-23 00:00:00	1899-12-30 09:36:34	Cajero 1	mascota	pedigree			581.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442244	708794	7791416960776	carne y pollo castrado 1 kg 	4000.00	1	4000.00	2025-09-23 00:00:00	1899-12-30 09:36:39	Cajero 1	Prod.Altos	raza			2790.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442245	708794	7798054520058	durazno en mitades x 820 g	1800.00	1	1800.00	2025-09-23 00:00:00	1899-12-30 09:36:48	Cajero 1	Almacen	sabio			315.40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2442246	708794	7798106150318	Pulpa de tomate 520g	750.00	1	750.00	2025-09-23 00:00:00	1899-12-30 09:36:51	Cajero 1	Pure	Mora	Nini	0	47.45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -29435,9 +29630,9 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447057	797	7793440700366	santa isabel malbec	13.95	1	13.95	2025-12-17 00:00:00	1900-01-01 21:01:52	\N	Vinos	santa isabel	\N	\N	12.87	0	\N	\N	2.42	21.00	4	Oferta Descuento	15.50	13.95	1.55	1
 2447058	797	7790040740006	recetas de la abuela membrillo	27.00	1	27.00	2025-12-17 00:00:00	1900-01-01 21:02:06	\N	Galletitas	arcor	\N	\N	21.90	0	\N	\N	4.69	21.00	4	Oferta Descuento	30.00	27.00	3.00	1
 2447059	797	7790520998262	glade ao lavanda	650.00	1	650.00	2025-12-17 00:00:00	1900-01-01 21:02:28	\N	Almacen	glade	\N	\N	539.50	0	\N	\N	112.81	21.00	\N	\N	\N	\N	\N	0
-2447062	799	1	articulos de almacen	1200.00	1	1200.00	2025-12-17 00:00:00	1900-01-01 21:10:47	\N	Almacen	almacen	1	\N	1000.00	1	Carlos López	\N	208.26	21.00	\N	\N	\N	\N	\N	0
-2447063	799	2	Panaderia y confiteria	3000.00	1	3000.00	2025-12-17 00:00:00	1900-01-01 21:10:48	\N	almacen	omar	\N	\N	2000.00	1	Carlos López	\N	520.66	21.00	\N	\N	\N	\N	\N	0
-2447064	799	3	fiambre :)	7150.00	1	7150.00	2025-12-17 00:00:00	1900-01-01 21:10:52	\N	almacen	fiambreria	\N	\N	1245.00	1	Carlos López	\N	1240.91	21.00	\N	\N	\N	\N	\N	0
+2447062	799	1	articulos de almacen	1200.00	1	1200.00	2025-12-17 00:00:00	1900-01-01 21:10:47	\N	Almacen	almacen	1	\N	1000.00	1	Carlos LÃ³pez	\N	208.26	21.00	\N	\N	\N	\N	\N	0
+2447063	799	2	Panaderia y confiteria	3000.00	1	3000.00	2025-12-17 00:00:00	1900-01-01 21:10:48	\N	almacen	omar	\N	\N	2000.00	1	Carlos LÃ³pez	\N	520.66	21.00	\N	\N	\N	\N	\N	0
+2447064	799	3	fiambre :)	7150.00	1	7150.00	2025-12-17 00:00:00	1900-01-01 21:10:52	\N	almacen	fiambreria	\N	\N	1245.00	1	Carlos LÃ³pez	\N	1240.91	21.00	\N	\N	\N	\N	\N	0
 2447065	800	1	articulos de almacen	1200.00	1	1200.00	2025-12-17 00:00:00	1900-01-01 21:12:58	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	208.26	21.00	\N	\N	\N	\N	\N	0
 2447066	800	2	Panaderia y confiteria	3000.00	1	3000.00	2025-12-17 00:00:00	1900-01-01 21:12:59	\N	almacen	omar	\N	\N	2000.00	0	\N	\N	520.66	21.00	\N	\N	\N	\N	\N	0
 2447067	800	3	fiambre :)	7150.00	1	7150.00	2025-12-17 00:00:00	1900-01-01 21:13:00	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	1240.91	21.00	\N	\N	\N	\N	\N	0
@@ -29470,7 +29665,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447049	796	5	Carniceria	6800.00	1	6800.00	2025-12-17 00:00:00	1900-01-01 20:51:59	\N	Carne	Carne	1	\N	60.00	0	\N	\N	646.15	10.50	\N	\N	\N	\N	\N	0
 2447050	796	6	facturas	5275.00	1	5275.00	2025-12-17 00:00:00	1900-01-01 20:52:01	\N	Almacen	facturas	\N	\N	6.64	0	\N	\N	915.50	21.00	\N	\N	\N	\N	\N	0
 2447051	797	7798031151862	Fideos Bavettines 500g	500.00	3	1500.00	2025-12-17 00:00:00	1900-01-01 20:57:35	\N	Fideos	Sol pampeano	Nini	\N	730.00	0	\N	\N	260.33	21.00	2	Oferta 1	1000.00	500.00	500.00	1
-2447052	797	7790236000334	Ravioles cuatro quesos	50.00	2	100.00	2025-12-17 00:00:00	1900-01-01 20:58:10	\N	Pasta	la salteña	Tetu	\N	50.37	0	\N	\N	17.36	21.00	2	Oferta 1	69.00	50.00	19.00	1
+2447052	797	7790236000334	Ravioles cuatro quesos	50.00	2	100.00	2025-12-17 00:00:00	1900-01-01 20:58:10	\N	Pasta	la salteÃ±a	Tetu	\N	50.37	0	\N	\N	17.36	21.00	2	Oferta 1	69.00	50.00	19.00	1
 2447053	797	1	articulos de almacen	1200.00	1	1200.00	2025-12-17 00:00:00	1900-01-01 20:58:48	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	208.26	21.00	\N	\N	\N	\N	\N	0
 2447054	797	2	Panaderia y confiteria	3000.00	1	3000.00	2025-12-17 00:00:00	1900-01-01 20:58:50	\N	almacen	omar	\N	\N	2000.00	0	\N	\N	520.66	21.00	\N	\N	\N	\N	\N	0
 2447055	797	7790064001701	algodon x 100	952.38	1	952.38	2025-12-17 00:00:00	1900-01-01 20:59:11	\N	almacen	estrella	\N	\N	47.45	0	\N	\N	225.62	21.00	3	Oferta combo	1300.00	952.38	347.62	1
@@ -29518,7 +29713,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447108	823	779139000066	Nikov vodka tradicional	7600.00	1	7600.00	2025-12-21 00:00:00	1900-01-01 18:44:49	\N	Licores	nikov	\N	\N	5548.00	0	\N	\N	1319.01	21.00	\N	\N	\N	\N	\N	0
 2447111	824	7798031151862	Fideos Bavettines 500g	500.00	4	2000.00	2025-12-21 00:00:00	1900-01-01 18:52:46	\N	Fideos	Sol pampeano	Nini	\N	730.00	0	\N	\N	347.11	21.00	2	Oferta 1	1000.00	500.00	500.00	1
 2447110	823	7790265620817	Vino blanco dulce 750 ml	3500.00	5	17500.00	2025-12-21 00:00:00	1900-01-01 18:45:19	\N	Vinos	Club de playa	\N	\N	2905.00	0	\N	\N	3037.19	21.00	\N	\N	\N	\N	\N	0
-2447112	824	7790236000334	Ravioles cuatro quesos	50.00	2	100.00	2025-12-21 00:00:00	1900-01-01 18:54:51	\N	Pasta	la salteña	Tetu	\N	50.37	0	\N	\N	17.36	21.00	2	Oferta 1	69.00	50.00	19.00	1
+2447112	824	7790236000334	Ravioles cuatro quesos	50.00	2	100.00	2025-12-21 00:00:00	1900-01-01 18:54:51	\N	Pasta	la salteÃ±a	Tetu	\N	50.37	0	\N	\N	17.36	21.00	2	Oferta 1	69.00	50.00	19.00	1
 2447118	826	7790040740006	recetas de la abuela membrillo	27.00	1	27.00	2025-12-21 00:00:00	1900-01-01 18:59:01	\N	Galletitas	arcor	\N	\N	21.90	0	\N	\N	4.69	21.00	4	Oferta Descuento	30.00	27.00	3.00	1
 2447119	826	7793440700366	santa isabel malbec	13.95	5	69.75	2025-12-21 00:00:00	1900-01-01 18:59:16	\N	Vinos	santa isabel	\N	\N	12.87	0	\N	\N	12.11	21.00	4	Oferta Descuento	15.50	13.95	1.55	1
 2447120	827	1	articulos de almacen	2500.00	1	2500.00	2025-12-21 00:00:00	1900-01-01 18:59:45	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	433.88	21.00	\N	\N	\N	\N	\N	0
@@ -29537,12 +29732,12 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447147	836	1	articulos de almacen	2300.00	1	2300.00	2026-01-02 00:00:00	1900-01-01 22:10:50	\N	Almacen	almacen	1	\N	876.00	0	\N	\N	399.17	21.00	\N	\N	\N	\N	\N	0
 2447148	836	2	Panaderia y confiteria	2500.00	1	2500.00	2026-01-02 00:00:00	1900-01-01 22:10:54	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	433.88	21.00	\N	\N	\N	\N	\N	0
 2447149	836	3	fiambre :)	3088.00	1	3088.00	2026-01-02 00:00:00	1900-01-01 22:10:56	\N	almacen	fiambreria	\N	\N	1245.00	0	\N	\N	535.93	21.00	\N	\N	\N	\N	\N	0
-2447622	973	2	Panaderia y confiteria	2800.00	1	2800.00	2026-02-18 00:00:00	1900-01-01 17:32:31	\N	Panaderia	omar		\N	4380.00	1	María García	\N	485.95	21.00	\N	\N	\N	\N	\N	0
-2447623	973	3	fiambre :)	3500.00	1	3500.00	2026-02-18 00:00:00	1900-01-01 17:32:33	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	1	María García	\N	607.44	21.00	\N	\N	\N	\N	\N	0
-2447625	973	600	efectivoooo	20000.00	1	20000.00	2026-02-18 00:00:00	1900-01-01 17:33:12	\N	Efectivo	Efectivo	1	\N	2100.00	1	María García	\N	3471.07	21.00	\N	\N	\N	\N	\N	0
-2447626	974	600	efectivoooo	-15000.00	1	-15000.00	2026-02-18 00:00:00	1900-01-01 17:36:04	\N	Efectivo	Efectivo	1	\N	2100.00	1	María García	\N	-2603.31	21.00	\N	\N	\N	\N	\N	0
+2447622	973	2	Panaderia y confiteria	2800.00	1	2800.00	2026-02-18 00:00:00	1900-01-01 17:32:31	\N	Panaderia	omar		\N	4380.00	1	MarÃ­a GarcÃ­a	\N	485.95	21.00	\N	\N	\N	\N	\N	0
+2447623	973	3	fiambre :)	3500.00	1	3500.00	2026-02-18 00:00:00	1900-01-01 17:32:33	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	1	MarÃ­a GarcÃ­a	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2447625	973	600	efectivoooo	20000.00	1	20000.00	2026-02-18 00:00:00	1900-01-01 17:33:12	\N	Efectivo	Efectivo	1	\N	2100.00	1	MarÃ­a GarcÃ­a	\N	3471.07	21.00	\N	\N	\N	\N	\N	0
+2447626	974	600	efectivoooo	-15000.00	1	-15000.00	2026-02-18 00:00:00	1900-01-01 17:36:04	\N	Efectivo	Efectivo	1	\N	2100.00	1	MarÃ­a GarcÃ­a	\N	-2603.31	21.00	\N	\N	\N	\N	\N	0
 2447627	975	600	efectivoooo	-10000.00	1	-10000.00	2026-02-18 00:00:00	1900-01-01 17:41:44	\N	Efectivo	Efectivo	1	\N	2100.00	0	\N	\N	-1735.54	21.00	\N	\N	\N	\N	\N	0
-2447628	976	FDIRECTA	Facturación de remito asociado	3500.00	1	3500.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	0
+2447628	976	FDIRECTA	FacturaciÃ³n de remito asociado	3500.00	1	3500.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	0
 2447629	978	1	articulos de almacen	5000.00	1	5000.00	2026-02-20 00:00:00	1900-01-01 18:24:08	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
 2447630	980	2	Panaderia y confiteria	3000.00	1	3000.00	2026-02-20 00:00:00	1900-01-01 18:38:16	\N	Panaderia	omar		\N	4380.00	0	\N	\N	520.66	21.00	\N	\N	\N	\N	\N	0
 2447631	980	4	verduleria	2800.00	1	2800.00	2026-02-20 00:00:00	1900-01-01 18:38:22	\N	verduleria	verduleria	\N	\N	87.60	0	\N	\N	266.06	10.50	\N	\N	\N	\N	\N	0
@@ -29577,8 +29772,8 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447619	971	7797453971751	alimentos gato	3500.00	3	10500.00	2026-02-13 00:00:00	1900-01-01 17:48:40	\N	Almacen	Whiskas		\N	2905.00	0	\N	\N	1822.31	21.00	\N	\N	\N	\N	\N	0
 2447726	1011	1	articulos de almacen	5000.00	1	5000.00	2026-03-11 00:00:00	1900-01-01 16:24:52	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
 2447727	1011	2	Panaderia y confiteria	1100.00	1	1100.00	2026-03-11 00:00:00	1900-01-01 16:24:54	\N	Panaderia	omar		\N	4380.00	0	\N	\N	190.91	21.00	\N	\N	\N	\N	\N	0
-2447728	1011	3	fiambre :)	3000.00	1	3000.00	2026-03-11 00:00:00	1900-01-01 16:25:10	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	1	Carlos López	\N	520.66	21.00	\N	\N	\N	\N	\N	0
-2447729	1012	1	articulos de almacen	5000.00	1	5000.00	2026-03-11 00:00:00	1900-01-01 16:29:18	\N	Almacen	almacen	1	\N	910.00	1	Juan Pérez	\N	867.77	21.00	\N	\N	\N	\N	\N	0
+2447728	1011	3	fiambre :)	3000.00	1	3000.00	2026-03-11 00:00:00	1900-01-01 16:25:10	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	1	Carlos LÃ³pez	\N	520.66	21.00	\N	\N	\N	\N	\N	0
+2447729	1012	1	articulos de almacen	5000.00	1	5000.00	2026-03-11 00:00:00	1900-01-01 16:29:18	\N	Almacen	almacen	1	\N	910.00	1	Juan PÃ©rez	\N	867.77	21.00	\N	\N	\N	\N	\N	0
 2447730	1013	1	articulos de almacen	5000.00	1	5000.00	2026-03-11 00:00:00	1900-01-01 16:29:30	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
 2447731	1014	1	articulos de almacen	5000.00	1	5000.00	2026-03-11 00:00:00	1900-01-01 22:20:33	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
 2447732	1015	1	articulos de almacen	5000.00	1	5000.00	2026-04-08 00:00:00	1900-01-01 20:23:29	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
@@ -29611,7 +29806,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444432	709480	8	golosinas	300.00	3	900.00	2025-09-26 00:00:00	1899-12-30 19:45:29	Cajero 5	golosinas	golosinas	1	1	74.70	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444433	709480	7790971000170	ravana bizcochuelo vainilla 	1900.00	1	1900.00	2025-09-26 00:00:00	1899-12-30 19:45:32	Cajero 5	Almacen	ravana			174.30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444434	709480	7792409008376	pap hig  hoj sim 4 x 80 m	2100.00	1	2100.00	2025-09-26 00:00:00	1899-12-30 19:45:40	Cajero 5	Limpieza	Nitidess			1743.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444435	709480	7790380004882	baño repos semi amargo 150g	3300.00	1	3300.00	2025-09-26 00:00:00	1899-12-30 19:45:42	Cajero 5	Dulce	Georgalos			2739.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444435	709480	7790380004882	baÃ±o repos semi amargo 150g	3300.00	1	3300.00	2025-09-26 00:00:00	1899-12-30 19:45:42	Cajero 5	Dulce	Georgalos			2739.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444436	709480	5099997	carniceria	12843.00	1	12843.00	2025-09-26 00:00:00	1899-12-30 19:45:49	Cajero 5	carniceria	carnes			9889.11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444437	709480	3	fiambre :)	2000.00	1	2000.00	2025-09-26 00:00:00	1899-12-30 19:46:14	Cajero 5	almacen	fiambreria		1151	1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444438	709480	7793253003807	ayudin gel lavanda  75	2500.00	1	2500.00	2025-09-26 00:00:00	1899-12-30 19:46:26	Cajero 5	Limpieza	ayudin			1909.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -29788,7 +29983,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444188	709421	20	huevos x 6 unid	1600.00	1	1600.00	2025-09-26 00:00:00	1899-12-30 15:18:39	Cajero 1	Almacen	clara			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444190	709422	1	articulos de almacen	3000.00	1	3000.00	2025-09-26 00:00:00	1899-12-30 15:26:56	Cajero 1	Almacen	almacen	1	11804240.1	876.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444191	709422	5099998	verduleria	5703.00	1	5703.00	2025-09-26 00:00:00	1899-12-30 15:27:07	Cajero 1	verduleria	verduleria	Mercado	0	4391.31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444192	709423	7791670027482	viñas de alvear tinto 1250ml	3100.00	1	3100.00	2025-09-26 00:00:00	1899-12-30 15:27:55	Cajero 1	vinos	Viñas de alveart	Nini	1	1971.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444192	709423	7791670027482	viÃ±as de alvear tinto 1250ml	3100.00	1	3100.00	2025-09-26 00:00:00	1899-12-30 15:27:55	Cajero 1	vinos	ViÃ±as de alveart	Nini	1	1971.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444638	28	7	bolsas	50.00	1	50.00	2025-09-27 00:00:00	1900-01-01 23:29:10	\N	Prod.Altos	bolsas	\N	\N	18.60	0	\N	\N	8.68	21.00	\N	\N	\N	\N	\N	0
 2444639	28	8	golosinas	900.00	1	900.00	2025-09-27 00:00:00	1900-01-01 23:29:11	\N	golosinas	golosinas	1	\N	24.90	0	\N	\N	156.20	21.00	\N	\N	\N	\N	\N	0
 2444193	709424	7793147001742	imperial negra lata 473	2300.00	1	2300.00	2025-09-26 00:00:00	1899-12-30 15:28:56	Cajero 1	Almacen	imperial			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -30179,7 +30374,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2444305	709447	77997142	legend comun 20 	2700.00	1	2700.00	2025-09-26 00:00:00	1899-12-30 17:31:20	Cajero 5	cigarrillos	Camel			2241.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444306	709447	77997142	legend comun 20 	2700.00	1	2700.00	2025-09-26 00:00:00	1899-12-30 17:31:20	Cajero 5	cigarrillos	Camel			2241.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444307	709447	77997142	legend comun 20 	2700.00	1	2700.00	2025-09-26 00:00:00	1899-12-30 17:31:21	Cajero 5	cigarrillos	Camel			2241.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444308	709447	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 17:31:42	Cajero 5	Azucar	La muñeca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444308	709447	736684266073	Azucar tipo " A "	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 17:31:42	Cajero 5	Azucar	La muÃ±eca			58.10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444309	709448	7793147573096	palermo 1 lts	2500.00	2	5000.00	2025-09-26 00:00:00	1899-12-30 17:33:13	Cajero 5	cerveza 	palermo 			3650.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444310	709448	3	fiambre :)	2000.00	1	2000.00	2025-09-26 00:00:00	1899-12-30 17:33:24	Cajero 5	almacen	fiambreria		1151	1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444311	709448	77941558	master cigarro  *20	1800.00	1	1800.00	2025-09-26 00:00:00	1899-12-30 17:33:26	Cajero 5	Almacen	master			1411.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -30197,7 +30392,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2445426	237	2	Panaderia y confiteria	2800.00	1	2800.00	2025-10-08 00:00:00	1900-01-01 18:24:36	\N	almacen	omar	\N	\N	4380.00	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
 2444323	709453	5000136	pehuamar palitos 	1300.00	1	1300.00	2025-09-26 00:00:00	1899-12-30 17:56:42	Cajero 5	fiambreria	fiambreria			1001.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444324	709454	2	Panaderia y confiteria	3500.00	1	3500.00	2025-09-26 00:00:00	1899-12-30 18:02:11	Cajero 5	almacen	omar		1015862	4380.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2444325	709455	7795733000184	Cañoncito kokis x500	2800.00	1	2800.00	2025-09-26 00:00:00	1899-12-30 18:04:49	Cajero 5	Galletitas	Kokis	Michael	0	262.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2444325	709455	7795733000184	CaÃ±oncito kokis x500	2800.00	1	2800.00	2025-09-26 00:00:00	1899-12-30 18:04:49	Cajero 5	Galletitas	Kokis	Michael	0	262.80	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444326	709456	7790036002583	Multifruta  1.5li	2000.00	1	2000.00	2025-09-26 00:00:00	1899-12-30 18:16:43	Cajero 5	Almacen	baggio			415.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444327	709456	7790950133332	Aper. cuyano 1.35lt	2000.00	1	2000.00	2025-09-26 00:00:00	1899-12-30 18:16:46	Cajero 5	Aperitivo	Terma	Nini	0	94.90	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2444328	709456	5000135	mortadela calchaqui	1000.00	1	1000.00	2025-09-26 00:00:00	1899-12-30 18:16:51	Cajero 5	Fiambreria	Fiambreria			770.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -30405,7 +30600,7 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2441552	708607	7500810034354	Takis original 140 g 	5000.00	1	5000.00	2025-09-21 00:00:00	1899-12-30 18:38:36	Cajero 3	Snacks	Takis			3650.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441553	708607	5099998	verduleria	12688.00	1	12688.00	2025-09-21 00:00:00	1899-12-30 18:38:52	Cajero 3	verduleria	verduleria	Mercado	0	9769.76	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441554	708607	7792900092713	Sal fina 1 kg 	1500.00	1	1500.00	2025-09-21 00:00:00	1899-12-30 18:38:56	Cajero 3	Sal	Dos estrellas			1245.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
-2441555	708607	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-21 00:00:00	1899-12-30 18:38:57	Cajero 3	Almacen	Doña pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
+2441555	708607	7798096031116	Choclo 340 g 	1800.00	1	1800.00	2025-09-21 00:00:00	1899-12-30 18:38:57	Cajero 3	Almacen	DoÃ±a pupa			1162.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441556	708607	7795184983708	Choclo cremoso 300 G	1400.00	1	1400.00	2025-09-21 00:00:00	1899-12-30 18:38:59	Cajero 3	Almacen	Noel			83.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441557	708607	7794000007451	maizena  200	2100.00	1	2100.00	2025-09-21 00:00:00	1899-12-30 18:39:01	Cajero 3	Almacen	maizena			290.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
 2441558	708607	7794000007451	maizena  200	2100.00	1	2100.00	2025-09-21 00:00:00	1899-12-30 18:39:31	Cajero 3	Almacen	maizena			290.50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	0
@@ -30465,8 +30660,8 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447763	1043	1	articulos de almacen	1500.00	1	1500.00	2026-05-22 00:00:00	2026-05-22 15:42:25.445669	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	260.33	21.00	\N	\N	\N	\N	\N	0
 2447765	1045	1	articulos de almacen	3500.00	1	3500.00	2026-05-23 00:00:00	2026-05-23 18:41:50.721445	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
 2447766	1045	1	articulos de almacen	5000.00	1	5000.00	2026-05-23 00:00:00	2026-05-23 18:41:57.142831	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
-2447767	1045	2	Panaderia y confiteria	1000.00	1	1000.00	2026-05-23 00:00:00	2026-05-23 18:42:08.05876	\N	Panaderia	omar		\N	4380.00	1	María García	\N	173.55	21.00	\N	\N	\N	\N	\N	0
-2447768	1045	2	Panaderia y confiteria	10050.00	1	10050.00	2026-05-23 00:00:00	2026-05-23 18:42:29.471628	\N	Panaderia	omar		\N	4380.00	1	María García	\N	1744.21	21.00	\N	\N	\N	\N	\N	0
+2447767	1045	2	Panaderia y confiteria	1000.00	1	1000.00	2026-05-23 00:00:00	2026-05-23 18:42:08.05876	\N	Panaderia	omar		\N	4380.00	1	MarÃ­a GarcÃ­a	\N	173.55	21.00	\N	\N	\N	\N	\N	0
+2447768	1045	2	Panaderia y confiteria	10050.00	1	10050.00	2026-05-23 00:00:00	2026-05-23 18:42:29.471628	\N	Panaderia	omar		\N	4380.00	1	MarÃ­a GarcÃ­a	\N	1744.21	21.00	\N	\N	\N	\N	\N	0
 2447769	1046	1	articulos de almacen	3500.00	1	3500.00	2026-05-23 00:00:00	2026-05-23 18:48:50.486263	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
 2447772	1046	2	Panaderia y confiteria	1200.00	1	1200.00	2026-05-23 00:00:00	2026-05-23 18:48:57.747192	\N	Panaderia	omar		\N	4380.00	0	\N	\N	208.26	21.00	\N	\N	\N	\N	\N	0
 2447770	1046	1	articulos de almacen	2000.00	3	6000.00	2026-05-23 00:00:00	2026-05-23 18:48:52.575063	\N	Almacen	almacen	1	\N	910.00	0	\N	\N	347.11	21.00	\N	\N	\N	\N	\N	0
@@ -30593,6 +30788,38 @@ COPY public.ventas (id, nrofactura, codigo, descripcion, precio, cantidad, total
 2447921	1119	1	articulos de almacen	2700.00	1	2700.00	2026-05-31 00:00:00	2026-05-31 22:08:50.271035	\N	Almacen	almacen		\N	1000.00	0	\N	\N	468.60	21.00	\N	\N	\N	\N	\N	0
 2447922	1118	1	articulos de almacen	2700.00	1	2700.00	2026-06-01 00:00:00	2026-06-01 09:02:05.117844	\N	Almacen	almacen		\N	1000.00	0	\N	\N	468.60	21.00	\N	\N	\N	\N	\N	0
 2447923	1118	2	Panaderia y confiteria	2100.00	1	2100.00	2026-06-01 00:00:00	2026-06-01 09:02:05.735814	\N	Panaderia	omar		\N	4380.00	0	\N	\N	364.46	21.00	\N	\N	\N	\N	\N	0
+2447924	1122	1	articulos de almacen	2700.00	1	2700.00	2026-06-03 00:00:00	2026-06-03 22:02:40.209999	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	468.60	21.00	\N	\N	\N	\N	\N	0
+2447925	1122	2	Panaderia y confiteria	2100.00	1	2100.00	2026-06-03 00:00:00	2026-06-03 22:02:41.229466	\N	Panaderia	omar		\N	4380.00	0	\N	\N	364.46	21.00	\N	\N	\N	\N	\N	0
+2447926	1122	3	fiambre :)	3500.00	1	3500.00	2026-06-03 00:00:00	2026-06-03 22:02:42.210998	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2447986	1124	3	fiambre :)	3100.00	1	3100.00	2026-06-03 00:00:00	2026-06-03 22:35:33.534185	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	538.02	21.00	\N	\N	\N	\N	\N	0
+2447987	1124	2	Panaderia y confiteria	1000.00	1	1000.00	2026-06-03 00:00:00	2026-06-03 22:35:38.451307	\N	Panaderia	omar		\N	4380.00	0	\N	\N	173.55	21.00	\N	\N	\N	\N	\N	0
+2447963	1124	7790070509079	cruz  manzanilla x 500 kg	2000.00	3	6000.00	2026-06-03 00:00:00	2026-06-03 22:32:41.499582	\N	yerbas	cruz malta	Otro	\N	290.50	0	\N	\N	1041.32	21.00	\N	\N	\N	\N	\N	0
+2447964	1124	1	articulos de almacen	1500.00	1	1500.00	2026-06-03 00:00:00	2026-06-03 22:32:46.808128	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	260.33	21.00	\N	\N	\N	\N	\N	0
+2447965	1124	1	articulos de almacen	2000.00	1	2000.00	2026-06-03 00:00:00	2026-06-03 22:32:50.55517	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	347.11	21.00	\N	\N	\N	\N	\N	0
+2447966	1124	2	Panaderia y confiteria	2100.00	1	2100.00	2026-06-03 00:00:00	2026-06-03 22:32:51.742903	\N	Panaderia	omar		\N	4380.00	0	\N	\N	364.46	21.00	\N	\N	\N	\N	\N	0
+2447967	1124	2	Panaderia y confiteria	2100.00	1	2100.00	2026-06-03 00:00:00	2026-06-03 22:32:53.278192	\N	Panaderia	omar		\N	4380.00	0	\N	\N	364.46	21.00	\N	\N	\N	\N	\N	0
+2447968	1124	2	Panaderia y confiteria	2100.00	1	2100.00	2026-06-03 00:00:00	2026-06-03 22:32:54.304064	\N	Panaderia	omar		\N	4380.00	0	\N	\N	364.46	21.00	\N	\N	\N	\N	\N	0
+2447988	1124	2	Panaderia y confiteria	1500.00	1	1500.00	2026-06-03 00:00:00	2026-06-03 22:35:40.951431	\N	Panaderia	omar		\N	4380.00	0	\N	\N	260.33	21.00	\N	\N	\N	\N	\N	0
+2447969	1124	3	fiambre :)	3500.00	1	3500.00	2026-06-03 00:00:00	2026-06-03 22:32:57.226292	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2447970	1124	4	verduleria	2800.00	1	2800.00	2026-06-03 00:00:00	2026-06-03 22:33:00.527283	\N	verduleria	verduleria		\N	87.60	0	\N	\N	485.95	21.00	\N	\N	\N	\N	\N	0
+2447971	1124	5	Carniceria	45000.00	1	45000.00	2026-06-03 00:00:00	2026-06-03 22:33:01.990536	\N	Carne	Carne	1	\N	60.00	0	\N	\N	7809.92	21.00	\N	\N	\N	\N	\N	0
+2447972	1124	2	Panaderia y confiteria	3500.00	1	3500.00	2026-06-03 00:00:00	2026-06-03 22:34:22.018269	\N	Panaderia	omar		\N	4380.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2447973	1124	3	fiambre :)	2000.00	1	2000.00	2026-06-03 00:00:00	2026-06-03 22:34:27.598477	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	347.11	21.00	\N	\N	\N	\N	\N	0
+2447974	1124	3	fiambre :)	3600.00	1	3600.00	2026-06-03 00:00:00	2026-06-03 22:34:30.604304	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	624.79	21.00	\N	\N	\N	\N	\N	0
+2447975	1124	2	Panaderia y confiteria	2100.00	1	2100.00	2026-06-03 00:00:00	2026-06-03 22:34:34.221792	\N	Panaderia	omar		\N	4380.00	0	\N	\N	364.46	21.00	\N	\N	\N	\N	\N	0
+2447976	1124	4	verduleria	5000.00	1	5000.00	2026-06-03 00:00:00	2026-06-03 22:34:39.488495	\N	verduleria	verduleria		\N	87.60	0	\N	\N	867.77	21.00	\N	\N	\N	\N	\N	0
+2447977	1124	4	verduleria	6000.00	1	6000.00	2026-06-03 00:00:00	2026-06-03 22:34:43.230189	\N	verduleria	verduleria		\N	87.60	0	\N	\N	1041.32	21.00	\N	\N	\N	\N	\N	0
+2447978	1124	4	verduleria	3200.00	1	3200.00	2026-06-03 00:00:00	2026-06-03 22:34:51.122525	\N	verduleria	verduleria		\N	87.60	0	\N	\N	555.37	21.00	\N	\N	\N	\N	\N	0
+2447979	1124	5	Carniceria	52000.00	1	52000.00	2026-06-03 00:00:00	2026-06-03 22:34:59.124126	\N	Carne	Carne	1	\N	60.00	0	\N	\N	9024.79	21.00	\N	\N	\N	\N	\N	0
+2447980	1124	5	Carniceria	41500.00	1	41500.00	2026-06-03 00:00:00	2026-06-03 22:35:05.326557	\N	Carne	Carne	1	\N	60.00	0	\N	\N	7202.48	21.00	\N	\N	\N	\N	\N	0
+2447981	1124	5	Carniceria	4.00	1	4.00	2026-06-03 00:00:00	2026-06-03 22:35:08.978454	\N	Carne	Carne	1	\N	60.00	0	\N	\N	0.69	21.00	\N	\N	\N	\N	\N	0
+2447982	1124	5	Carniceria	36500.00	1	36500.00	2026-06-03 00:00:00	2026-06-03 22:35:15.038244	\N	Carne	Carne	1	\N	60.00	0	\N	\N	6334.71	21.00	\N	\N	\N	\N	\N	0
+2447983	1124	4	verduleria	2500.00	1	2500.00	2026-06-03 00:00:00	2026-06-03 22:35:20.263633	\N	verduleria	verduleria		\N	87.60	0	\N	\N	433.88	21.00	\N	\N	\N	\N	\N	0
+2447984	1124	4	verduleria	3200.00	1	3200.00	2026-06-03 00:00:00	2026-06-03 22:35:22.629555	\N	verduleria	verduleria		\N	87.60	0	\N	\N	555.37	21.00	\N	\N	\N	\N	\N	0
+2447985	1124	3	fiambre :)	3500.00	1	3500.00	2026-06-03 00:00:00	2026-06-03 22:35:30.968351	\N	Fiambreria	fiambreria	Proveedor Principal	\N	1245.00	0	\N	\N	607.44	21.00	\N	\N	\N	\N	\N	0
+2447989	1124	1	articulos de almacen	3600.00	1	3600.00	2026-06-03 00:00:00	2026-06-03 22:35:46.668254	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	624.79	21.00	\N	\N	\N	\N	\N	0
+2447990	1124	1	articulos de almacen	2500.00	1	2500.00	2026-06-03 00:00:00	2026-06-03 22:35:48.710194	\N	Almacen	almacen	1	\N	1000.00	0	\N	\N	433.88	21.00	\N	\N	\N	\N	\N	0
+2447991	1124	4	verduleria	3900.00	1	3900.00	2026-06-03 00:00:00	2026-06-03 22:35:52.534907	\N	verduleria	verduleria		\N	87.60	0	\N	\N	676.86	21.00	\N	\N	\N	\N	\N	0
 \.
 
 
@@ -30621,7 +30848,7 @@ SELECT pg_catalog.setval('public.auditoriaproductos_id_seq', 2498, true);
 -- Name: auditoriaproductoseliminados_idauditoriaproductoseliminados_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.auditoriaproductoseliminados_idauditoriaproductoseliminados_seq', 283, true);
+SELECT pg_catalog.setval('public.auditoriaproductoseliminados_idauditoriaproductoseliminados_seq', 319, true);
 
 
 --
@@ -30653,6 +30880,13 @@ SELECT pg_catalog.setval('public.comprasproveedoresivadetalle_id_seq', 54, true)
 
 
 --
+-- Name: ctacte_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.ctacte_id_seq', 1, false);
+
+
+--
 -- Name: ctacteproveedores_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
@@ -30670,7 +30904,7 @@ SELECT pg_catalog.setval('public.detalleofertasproductos_id_seq', 74, true);
 -- Name: detallespagofactura_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.detallespagofactura_id_seq', 680, true);
+SELECT pg_catalog.setval('public.detallespagofactura_id_seq', 683, true);
 
 
 --
@@ -30698,7 +30932,7 @@ SELECT pg_catalog.setval('public.empleados_id_seq', 1, true);
 -- Name: facturas_idfactura_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.facturas_idfactura_seq', 743, true);
+SELECT pg_catalog.setval('public.facturas_idfactura_seq', 746, true);
 
 
 --
@@ -30744,6 +30978,13 @@ SELECT pg_catalog.setval('public.pagos_id_seq', 1, true);
 
 
 --
+-- Name: pagosctacte_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.pagosctacte_id_seq', 1, false);
+
+
+--
 -- Name: pagosproveedores_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
@@ -30761,7 +31002,7 @@ SELECT pg_catalog.setval('public.pedidos_id_seq', 1, true);
 -- Name: productos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.productos_id_seq', 18247, true);
+SELECT pg_catalog.setval('public.productos_id_seq', 18251, true);
 
 
 --
@@ -30817,7 +31058,7 @@ SELECT pg_catalog.setval('public.usuarios_idusuarios_seq', 4, true);
 -- Name: ventas_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.ventas_id_seq', 2447923, true);
+SELECT pg_catalog.setval('public.ventas_id_seq', 2447991, true);
 
 
 --
@@ -30882,6 +31123,14 @@ ALTER TABLE ONLY public.comprasproveedores
 
 ALTER TABLE ONLY public.comprasproveedoresivadetalle
     ADD CONSTRAINT comprasproveedoresivadetalle_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ctacte ctacte_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ctacte
+    ADD CONSTRAINT ctacte_pkey PRIMARY KEY (id);
 
 
 --
@@ -30989,6 +31238,14 @@ ALTER TABLE ONLY public.pagos
 
 
 --
+-- Name: pagosctacte pagosctacte_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagosctacte
+    ADD CONSTRAINT pagosctacte_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: pagosproveedores pagosproveedores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31074,6 +31331,34 @@ ALTER TABLE ONLY public.usuarios
 
 ALTER TABLE ONLY public.ventas
     ADD CONSTRAINT ventas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_ctacte_activo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ctacte_activo ON public.ctacte USING btree (activo);
+
+
+--
+-- Name: idx_ctacte_nombre; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ctacte_nombre ON public.ctacte USING btree (lower((nombre)::text));
+
+
+--
+-- Name: idx_pagosctacte_cliente; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pagosctacte_cliente ON public.pagosctacte USING btree (cliente_id);
+
+
+--
+-- Name: idx_pagosctacte_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pagosctacte_fecha ON public.pagosctacte USING btree (fecha);
 
 
 --
@@ -31210,8 +31495,15 @@ CREATE UNIQUE INDEX uq_usuarios_nombreusuario ON public.usuarios USING btree (no
 
 
 --
+-- Name: pagosctacte pagosctacte_cliente_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagosctacte
+    ADD CONSTRAINT pagosctacte_cliente_id_fkey FOREIGN KEY (cliente_id) REFERENCES public.ctacte(id) ON DELETE RESTRICT;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Eap1cVWCQJEcp3mDtNCNplmjfpIbajhHT1PssZg8LO57sRVwHUhwcaO7Xs0bM3R
 

@@ -278,7 +278,7 @@ namespace Comercio.NET.Formularios
                     SELECT COALESCE(nombre || ' ' || apellido, 'Cajero ' || numerocajero::TEXT) as nombrecajero
                     FROM usuarios
                     WHERE numerocajero = @numeroCajero
-                    AND activo = B'1'
+                    AND COALESCE(activo, FALSE) IS TRUE
                     LIMIT 1";
 
                 using var cmd = new NpgsqlCommand(query, connection);

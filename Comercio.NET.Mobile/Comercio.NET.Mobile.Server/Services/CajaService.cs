@@ -107,9 +107,11 @@ namespace Comercio.NET.Mobile.Server.Services
                 req.Precio * req.Cantidad * (req.PorcentajeIva / (100m + req.PorcentajeIva)), 2);
             decimal total = req.Precio * req.Cantidad;
 
-            if (existing.Count > 0 && !req.EditarPrecio)
+            // Acumular cantidad solo si PermiteAcumular=true
+            // Si PermiteAcumular=false ? siempre nueva línea (aunque el código exista)
+            if (existing.Count > 0 && req.PermiteAcumular)
             {
-                // Acumular cantidad en registro existente (solo si NO es precio editable)
+                // Acumular cantidad en registro existente
                 long   idExistente      = existing[0][0].GetInt64();
                 int    cantidadAnterior = existing[0][1].GetInt32();
                 int    nuevaCantidad    = cantidadAnterior + req.Cantidad;
@@ -143,9 +145,8 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             // Insertar nuevo ítem
-            // esctacte y esoferta son columnas tipo bit en PostgreSQL
-            var esCtaCteVal = _db.UsaPostgres ? "@esCtaCte::bit" : "@esCtaCte";
-            var esOfertaVal = _db.UsaPostgres ? "0::bit" : "0";
+            var esCtaCteVal = "@esCtaCte";
+            var esOfertaVal = _db.UsaPostgres ? "FALSE" : "0";
 
             var sqlInsert = $@"
                 INSERT INTO ventas
@@ -176,7 +177,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 { "@costo",        req.Costo },
                 { "@fecha",        DateTime.Now.Date },
                 { "@hora",         DateTime.Now },
-                { "@esCtaCte",     req.EsCtaCte ? 1 : 0 },
+                { "@esCtaCte",     req.EsCtaCte },
                 { "@nombreCtaCte", req.EsCtaCte ? req.NombreCtaCte : null }
             });
 
@@ -309,8 +310,8 @@ namespace Comercio.NET.Mobile.Server.Services
             int numeroFactura, string usuario, int numeroCajero, string motivo,
             bool esEliminacionCompleta, int cantidadOriginal)
         {
-            var esBitTrue = _db.UsaPostgres ? "1::bit" : "1";
-            var esBitFalse = _db.UsaPostgres ? "0::bit" : "0";
+            var esBitTrue = _db.UsaPostgres ? "TRUE" : "1";
+            var esBitFalse = _db.UsaPostgres ? "FALSE" : "0";
 
             var sql = $@"
                 INSERT INTO auditoriaproductoseliminados 
@@ -366,7 +367,7 @@ namespace Comercio.NET.Mobile.Server.Services
                          cuitcliente, iva, porcentajedescuento, importedescuento)
                     VALUES
                         (@nroRemito, @formaPago, @tipoFactura, @cajero, @usuario,
-                         @fecha, @hora, @total, @importeFinal, @esCtaCte::bit, @nombreCtaCte,
+                         @fecha, @hora, @total, @importeFinal, @esCtaCte, @nombreCtaCte,
                          @cuitCliente, @iva, @porcDesc, @impDesc)
                     RETURNING idfactura"
                 : @"INSERT INTO facturas
@@ -390,7 +391,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 { "@hora",         DateTime.Now },
                 { "@total",        importeTotal },
                 { "@importeFinal", req.PorcentajeDescuento > 0 ? importeTotal - req.ImporteDescuento : importeTotal },
-                { "@esCtaCte",     req.EsCtaCte ? 1 : 0 },
+                { "@esCtaCte",     req.EsCtaCte },
                 { "@nombreCtaCte", req.EsCtaCte ? req.NombreCtaCte : null },
                 { "@cuitCliente",  string.IsNullOrWhiteSpace(req.CuitCliente) ? (object?)null : req.CuitCliente },
                 { "@iva",          ivaTotal },
