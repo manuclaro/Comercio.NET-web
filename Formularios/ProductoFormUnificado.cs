@@ -1139,10 +1139,10 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@porcentaje", ParseDecimal(txtPorcentaje?.Text));
                 cmd.Parameters.AddWithValue("@cantidad", (int)(numStock?.Value ?? 0));
                 cmd.Parameters.AddWithValue("@iva", ParseDecimal(cmbIva?.Text, 21.00m));
-                cmd.Parameters.Add(new NpgsqlParameter("@permiteAcumular", NpgsqlTypes.NpgsqlDbType.Bit) { Value = (chkPermiteAcumular?.Checked ?? false) });
-                cmd.Parameters.Add(new NpgsqlParameter("@editarPrecio", NpgsqlTypes.NpgsqlDbType.Bit) { Value = (chkEditarPrecio?.Checked ?? false) });
+                cmd.Parameters.Add(new NpgsqlParameter("@permiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = (chkPermiteAcumular?.Checked ?? false) });
+                cmd.Parameters.Add(new NpgsqlParameter("@editarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = (chkEditarPrecio?.Checked ?? false) });
                 // ✅ NUEVO: Agregar parámetro Activo
-                cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = (chkActivo?.Checked ?? true) });
+                cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = (chkActivo?.Checked ?? true) });
             }
             else
             {
@@ -1157,10 +1157,10 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@porcentaje", 50.00m);
                 cmd.Parameters.AddWithValue("@cantidad", 10);
                 cmd.Parameters.AddWithValue("@iva", 21.00m);
-                cmd.Parameters.Add(new NpgsqlParameter("@permiteAcumular", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
-                cmd.Parameters.Add(new NpgsqlParameter("@editarPrecio", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                cmd.Parameters.Add(new NpgsqlParameter("@permiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
+                cmd.Parameters.Add(new NpgsqlParameter("@editarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                 // ✅ NUEVO: Productos desde ventas se crean activos
-                cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
             }
 
             cmd.Parameters.AddWithValue("@precio", ParseDecimal(txtPrecio?.Text));

@@ -327,12 +327,12 @@ namespace Comercio.NET.Formularios
                 {
                     await connection.OpenAsync();
 
-                    // ✅ NUEVO: Verificar columna Activo
+                    // ✅ NUEVO: Verificar columna activo (minúscula)
                     string checkActivoQuery = @"
                                             SELECT COUNT(*) 
                                             FROM INFORMATION_SCHEMA.COLUMNS 
                                             WHERE TABLE_NAME = 'productos' 
-                                            AND COLUMN_NAME = 'Activo'";
+                                            AND COLUMN_NAME = 'activo'";
 
                     using (var checkCmd = new NpgsqlCommand(checkActivoQuery, connection))
                     {
@@ -342,7 +342,7 @@ namespace Comercio.NET.Formularios
                         {
                             string addColumnQuery = @"
                                                 ALTER TABLE productos 
-                                                ADD ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE";
+                                                ADD activo BOOLEAN NOT NULL DEFAULT TRUE";
 
                             using (var addCmd = new NpgsqlCommand(addColumnQuery, connection))
                             {
@@ -351,12 +351,12 @@ namespace Comercio.NET.Formularios
                             }
                         }
                     }
-                    // Verificar si existe la columna EditarPrecio
+                    // Verificar si existe la columna editarprecio (minúscula)
                     string checkColumnQuery = @"
                         SELECT COUNT(*) 
                         FROM INFORMATION_SCHEMA.COLUMNS 
                         WHERE TABLE_NAME = 'productos' 
-                        AND COLUMN_NAME = 'EditarPrecio'";
+                        AND COLUMN_NAME = 'editarprecio'";
                     
                     using (var checkCmd = new NpgsqlCommand(checkColumnQuery, connection))
                     {
@@ -364,10 +364,10 @@ namespace Comercio.NET.Formularios
 
                         if (columnExists == 0)
                         {
-                            // Crear la columna EditarPrecio
+                            // Crear la columna editarprecio
                             string addColumnQuery = @"
                                 ALTER TABLE productos 
-                                ADD ""EditarPrecio"" BOOLEAN NOT NULL DEFAULT FALSE";
+                                ADD editarprecio BOOLEAN NOT NULL DEFAULT FALSE";
                             
                             using (var addCmd = new NpgsqlCommand(addColumnQuery, connection))
                             {
@@ -377,12 +377,12 @@ namespace Comercio.NET.Formularios
                         }
                     }
                     
-                    // Verificar si existe la columna PermiteAcumular (por si acaso)
+                    // Verificar si existe la columna permiteacumular (minúscula)
                     string checkPermiteAcumularQuery = @"
                         SELECT COUNT(*) 
                         FROM INFORMATION_SCHEMA.COLUMNS 
                         WHERE TABLE_NAME = 'productos' 
-                        AND COLUMN_NAME = 'PermiteAcumular'";
+                        AND COLUMN_NAME = 'permiteacumular'";
                     
                     using (var checkCmd2 = new NpgsqlCommand(checkPermiteAcumularQuery, connection))
                     {
@@ -390,10 +390,10 @@ namespace Comercio.NET.Formularios
                         
                         if (columnExists2 == 0)
                         {
-                            // Crear la columna PermiteAcumular
+                            // Crear la columna permiteacumular
                             string addColumnQuery2 = @"
                                 ALTER TABLE productos 
-                                ADD ""PermiteAcumular"" BOOLEAN NOT NULL DEFAULT FALSE";
+                                ADD permiteacumular BOOLEAN NOT NULL DEFAULT FALSE";
                             
                             using (var addCmd2 = new NpgsqlCommand(addColumnQuery2, connection))
                             {

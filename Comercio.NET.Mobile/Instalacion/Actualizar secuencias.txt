@@ -1,0 +1,91 @@
+-- Sincronizar la secuencia con el máximo id de la tabla ventas
+SELECT setval('ventas_id_seq', COALESCE((SELECT MAX(id) FROM ventas), 1), true);
+-- Sincronizar la secuencia con el máximo idfactura de la tabla facturas
+SELECT setval('facturas_idfactura_seq', COALESCE((SELECT MAX(idfactura) FROM facturas), 1), true);
+
+
+
+DO $$
+DECLARE
+    seq_record RECORD;
+    tabla_nombre TEXT;
+    columna_nombre TEXT;
+    max_valor BIGINT;
+    query_text TEXT;
+BEGIN
+    -- Recorrer todas las secuencias de la base de datos
+    FOR seq_record IN 
+        SELECT 
+            sequence_schema,
+            sequence_name,
+            -- Intentar extraer el nombre de la tabla y columna del nombre de la secuencia
+            -- Formato típico: tabla_columna_seq
+            CASE 
+                WHEN sequence_name LIKE '%_seq' THEN 
+                    regexp_replace(sequence_name, '_seq$', '')
+                ELSE sequence_name
+            END as base_name
+        FROM information_schema.sequences
+        WHERE sequence_schema NOT IN ('pg_catalog', 'information_schema')
+    LOOP
+        BEGIN
+            -- Intentar encontrar la tabla y columna correspondiente
+            -- PostgreSQL usa el formato: tabla_columna_seq
+
+            -- Extraer nombre de tabla (todo menos la última parte después del último _)
+            tabla_nombre := regexp_replace(seq_record.base_name, '_[^_]+$', '');
+
+            -- Extraer nombre de columna (la parte después del último _)
+            columna_nombre := regexp_replace(seq_record.base_name, '^.*_', '');
+
+            -- Verificar si la tabla y columna existen
+            EXECUTE format('SELECT MAX(%I) FROM %I', columna_nombre, tabla_nombre) INTO max_valor;
+
+            -- Si encontró un valor, sincronizar la secuencia
+            IF max_valor IS NOT NULL THEN
+                EXECUTE format('SELECT setval(%L, %s, true)', 
+                    seq_record.sequence_schema || '.' || seq_record.sequence_name, 
+                    COALESCE(max_valor, 1));
+
+                RAISE NOTICE '✅ Secuencia sincronizada: % → Valor: %', 
+                    seq_record.sequence_name, COALESCE(max_valor, 1);
+            ELSE
+                -- Si la tabla está vacía, resetear a 1
+                EXECUTE format('SELECT setval(%L, 1, false)', 
+                    seq_record.sequence_schema || '.' || seq_record.sequence_name);
+
+                RAISE NOTICE '✅ Secuencia reseteada (tabla vacía): % → Valor: 1', 
+                    seq_record.sequence_name;
+            END IF;
+
+        EXCEPTION 
+            WHEN OTHERS THEN
+                -- Si hay error (tabla/columna no existe), intentar con nombres alternativos comunes
+                BEGIN
+                    -- Caso especial: idfactura en lugar de id
+                    IF seq_record.base_name LIKE '%_idfactura' THEN
+                        tabla_nombre := regexp_replace(seq_record.base_name, '_idfactura$', '');
+                        EXECUTE format('SELECT MAX(idfactura) FROM %I', tabla_nombre) INTO max_valor;
+
+                        EXECUTE format('SELECT setval(%L, %s, true)', 
+                            seq_record.sequence_schema || '.' || seq_record.sequence_name, 
+                            COALESCE(max_valor, 1));
+
+                        RAISE NOTICE '✅ Secuencia sincronizada (idfactura): % → Valor: %', 
+                            seq_record.sequence_name, COALESCE(max_valor, 1);
+                    ELSE
+                        RAISE NOTICE '⚠️  No se pudo sincronizar: % (tabla/columna no encontrada)', 
+                            seq_record.sequence_name;
+                    END IF;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RAISE NOTICE '⚠️  Error al sincronizar: % - %', 
+                            seq_record.sequence_name, SQLERRM;
+                END;
+        END;
+    END LOOP;
+
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '✅ Sincronización completada';
+    RAISE NOTICE '========================================';
+END $$;

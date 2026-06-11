@@ -4066,6 +4066,29 @@ VALUES
 
             return total;
         }
+
+        // ✅ MÉTODO PARA SINCRONIZAR LA SECUENCIA DE LA TABLA VENTAS
+        private void SincronizarSecuenciaVentas(NpgsqlConnection connection)
+        {
+            try
+            {
+                // Sincronizar la secuencia con el máximo ID actual de la tabla
+                var querySincronizacion = @"
+                    SELECT setval('ventas_id_seq', COALESCE((SELECT MAX(id) FROM ventas), 1), true);";
+
+                using (var cmd = new NpgsqlCommand(querySincronizacion, connection))
+                {
+                    cmd.ExecuteNonQuery();
+                    System.Diagnostics.Debug.WriteLine("✅ Secuencia de tabla 'ventas' sincronizada correctamente");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Error al sincronizar secuencia de ventas: {ex.Message}");
+                // No lanzar excepción para no interrumpir la carga del formulario
+            }
+        }
+
         private void Ventas_Load(object sender, EventArgs e)
         {
             // ✅✅✅ MODIFICADO: Formulario más corto y ancho ajustado para MDI
@@ -4088,10 +4111,14 @@ VALUES
 
             using (var connection = new NpgsqlConnection(connectionString))
             {
+                connection.Open();
+
+                // ✅ SINCRONIZAR SECUENCIA DE VENTAS AL CARGAR EL FORMULARIO
+                SincronizarSecuenciaVentas(connection);
+
                 var query = "SELECT nroremito FROM numeroremito";
                 using (var cmd = new NpgsqlCommand(query, connection))
                 {
-                    connection.Open();
                     var result = cmd.ExecuteScalar();
                     if (result == null || !int.TryParse(result.ToString(), out nroRemitoActual))
                     {

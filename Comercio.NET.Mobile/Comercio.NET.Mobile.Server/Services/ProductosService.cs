@@ -12,17 +12,10 @@ namespace Comercio.NET.Mobile.Server.Services
         private readonly DbService _db;
         private readonly ILogger<ProductosService> _logger;
 
-        // Expresiones compatibles con esquemas legacy (bit) y nuevos (boolean)
-        private const string ACTIVO_EXPR =
-            "COALESCE((to_jsonb(productos)->>'Activo')::boolean, (to_jsonb(productos)->>'activo') IN ('1','true','t'), false)";
-        private const string EDITAR_PRECIO_EXPR =
-            "COALESCE((to_jsonb(productos)->>'EditarPrecio')::boolean, (to_jsonb(productos)->>'editarprecio') IN ('1','true','t'), false)";
-        private const string PERMITE_ACUMULAR_EXPR =
-            "COALESCE((to_jsonb(productos)->>'PermiteAcumular')::boolean, (to_jsonb(productos)->>'permiteacumular') IN ('1','true','t'), false)";
-
-        // Columnas SELECT en el orden que espera MapRow
-        private static readonly string COLS =
-            $"codigo, descripcion, costo, precio, cantidad, rubro, marca, {EDITAR_PRECIO_EXPR} AS \"EditarPrecio\", COALESCE(porcentaje,0), COALESCE(iva,21), {ACTIVO_EXPR} AS \"Activo\", COALESCE(proveedor,''), {PERMITE_ACUMULAR_EXPR} AS \"PermiteAcumular\"";
+        // ✅ SIMPLIFICADO: Solo usar columnas en minúsculas (activo, editarprecio, permiteacumular)
+        // Ya no hay columnas duplicadas con mayúsculas en la base de datos
+        private const string COLS =
+            "codigo, descripcion, costo, precio, cantidad, rubro, marca, COALESCE(editarprecio, false) AS editarprecio, COALESCE(porcentaje,0), COALESCE(iva,21), COALESCE(activo, false) AS activo, COALESCE(proveedor,''), COALESCE(permiteacumular, false) AS permiteacumular";
 
         public ProductosService(DbService db, ILogger<ProductosService> logger)
         {
@@ -40,7 +33,7 @@ namespace Comercio.NET.Mobile.Server.Services
             // Si el término es completamente numérico → búsqueda por código exacto (sin importar longitud)
             if (trimmed.All(char.IsDigit))
             {
-                var sql = $"""SELECT {COLS} FROM productos WHERE {ACTIVO_EXPR} = @activo AND codigo = @termino""";
+                var sql = $"""SELECT {COLS} FROM productos WHERE activo = @activo AND codigo = @termino""";
                 try
                 {
                     var rows = await _db.QueryAsync(sql, new() { { "@activo", true }, { "@termino", trimmed } });
@@ -71,7 +64,7 @@ namespace Comercio.NET.Mobile.Server.Services
             }
 
             var where = string.Join(" AND ", condiciones);
-            var sqlBusq = $"""SELECT {COLS} FROM productos WHERE {ACTIVO_EXPR} = @activo AND {where} ORDER BY descripcion LIMIT 50""";
+            var sqlBusq = $"""SELECT {COLS} FROM productos WHERE activo = @activo AND {where} ORDER BY descripcion LIMIT 50""";
             try
             {
                 var rows     = await _db.QueryAsync(sqlBusq, parametros);
@@ -113,7 +106,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 parms["@b"] = $"%{buscar.Trim()}%";
                 whereExtra  = " AND (descripcion ILIKE @b OR codigo ILIKE @b OR rubro ILIKE @b OR marca ILIKE @b)";
             }
-            var sql = $"""SELECT COUNT(*) FROM productos WHERE {ACTIVO_EXPR} = @activo{whereExtra}""";
+            var sql = $"""SELECT COUNT(*) FROM productos WHERE activo = @activo{whereExtra}""";
             var result = await _db.ScalarAsync<long>(sql, parms);
             return (int)result;
         }
@@ -128,7 +121,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 whereExtra  = " AND (descripcion ILIKE @b OR codigo ILIKE @b OR rubro ILIKE @b OR marca ILIKE @b)";
             }
             var offset = (pagina - 1) * tamano;
-            var sql = $"""SELECT {COLS} FROM productos WHERE {ACTIVO_EXPR} = @activo{whereExtra} ORDER BY descripcion LIMIT {tamano} OFFSET {offset}""";
+            var sql = $"""SELECT {COLS} FROM productos WHERE activo = @activo{whereExtra} ORDER BY descripcion LIMIT {tamano} OFFSET {offset}""";
             var rows = await _db.QueryAsync(sql, parms);
             return rows.Select(MapRow);
         }
@@ -142,17 +135,13 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task EditarCompletoAsync(string codigo, EditarProductoCompletoDto datos)
         {
-            var editarPrecioBit = datos.EditarPrecio    ? "TRUE" : "FALSE";
-            var permiteAcumBit  = datos.PermiteAcumular ? "TRUE" : "FALSE";
-            var activoBit       = datos.Activo          ? "TRUE" : "FALSE";
-            var sql = $"""
+            // ✅ SIMPLIFICADO: Solo actualizar columnas en minúsculas
+            const string sql = """
                 UPDATE productos
                 SET descripcion=@desc, rubro=@rubro, marca=@marca,
                     proveedor=@proveedor, costo=@costo, precio=@precio,
                     cantidad=@stock, porcentaje=@pct, iva=@iva,
-                    "EditarPrecio"=@editarPrecio, "Activo"=@activo,
-                    "PermiteAcumular"=@permiteAcumular,
-                    activo={activoBit}, editarprecio={editarPrecioBit}, permiteacumular={permiteAcumBit}
+                    activo=@activo, editarprecio=@editarPrecio, permiteacumular=@permiteAcumular
                 WHERE codigo=@codigo
                 """;
             await _db.ExecuteAsync(sql, new()
@@ -166,8 +155,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 { "@stock",           datos.Stock           },
                 { "@pct",             datos.Porcentaje      },
                 { "@iva",             datos.Iva             },
-                { "@editarPrecio",    datos.EditarPrecio    },
                 { "@activo",          datos.Activo          },
+                { "@editarPrecio",    datos.EditarPrecio    },
                 { "@permiteAcumular", datos.PermiteAcumular },
                 { "@codigo",          codigo                }
             });
@@ -175,17 +164,16 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<string> CrearAsync(NuevoProductoDto datos)
         {
-            var editarPrecioBit   = datos.EditarPrecio    ? "TRUE" : "FALSE";
-            var permiteAcumBit    = datos.PermiteAcumular ? "TRUE" : "FALSE";
-            var sql = $"""
+            // ✅ SIMPLIFICADO: Solo insertar en columnas en minúsculas
+            const string sql = """
                 INSERT INTO productos
                     (codigo, descripcion, rubro, marca, proveedor,
-                     costo, precio, cantidad, porcentaje, iva, "EditarPrecio", "Activo", "PermiteAcumular",
+                     costo, precio, cantidad, porcentaje, iva,
                      activo, editarprecio, permiteacumular)
                 VALUES
                     (@codigo, @desc, @rubro, @marca, @proveedor,
-                     @costo, @precio, @stock, @pct, @iva, @editarPrecio, true, @permiteAcumular,
-                     TRUE, {editarPrecioBit}, {permiteAcumBit})
+                     @costo, @precio, @stock, @pct, @iva,
+                     @activo, @editarPrecio, @permiteAcumular)
                 """;
             await _db.ExecuteAsync(sql, new()
             {
@@ -199,6 +187,7 @@ namespace Comercio.NET.Mobile.Server.Services
                 { "@stock",           datos.Stock           },
                 { "@pct",             datos.Porcentaje      },
                 { "@iva",             datos.Iva             },
+                { "@activo",          true                  },
                 { "@editarPrecio",    datos.EditarPrecio    },
                 { "@permiteAcumular", datos.PermiteAcumular }
             });
@@ -208,7 +197,7 @@ namespace Comercio.NET.Mobile.Server.Services
         public async Task EliminarAsync(string codigo)
         {
             // Baja lógica: desactiva el producto sin borrarlo físicamente
-            const string sql = """UPDATE productos SET "Activo" = false WHERE codigo = @codigo""";
+            const string sql = """UPDATE productos SET activo = false WHERE codigo = @codigo""";
             await _db.ExecuteAsync(sql, new() { { "@codigo", codigo } });
         }
 

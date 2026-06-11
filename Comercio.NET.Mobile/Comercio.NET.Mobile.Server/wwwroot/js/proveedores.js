@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch { localStorage.clear(); window.location.href = '/login.html'; return; }
 
     document.getElementById('nombreUsuario').textContent =
-        `?? ${localStorage.getItem('usuario_completo') || 'Usuario'}`;
+        `${localStorage.getItem('usuario_completo') || 'Usuario'}`;
     document.getElementById('btnCerrarSesion').addEventListener('click', () => { localStorage.clear(); window.location.href = '/login.html'; });
     document.getElementById('btnBuscar').addEventListener('click', cargar);
     document.getElementById('txtBuscar').addEventListener('keydown', e => { if (e.key === 'Enter') cargar(); });
@@ -57,8 +57,8 @@ function renderTabla(proveedores) {
             <td>${esc(p.contacto)}</td>
             <td class="text-center">
                 <div class="row-actions" style="justify-content:center;">
-                    <button class="btn-edit" onclick="abrirModal(${p.id})">?? Editar</button>
-                    <button class="btn-danger" onclick="eliminar(${p.id},'${esc(p.nombre)}')">???</button>
+                    <button class="btn-edit" onclick="abrirModal(${p.id})">Editar</button>
+                    <button class="btn-danger" onclick="eliminar(${p.id},'${esc(p.nombre)}')">Eliminar</button>
                 </div>
             </td>`;
         tbody.appendChild(tr);
@@ -69,7 +69,7 @@ async function abrirModal(id) {
     idEditando = id;
     limpiarMsgModal();
     if (id) {
-        document.getElementById('modalTitulo').textContent = '?? Editar Proveedor';
+        document.getElementById('modalTitulo').textContent = 'Editar Proveedor';
         try {
             const r = await fetch(`${API}/proveedores/${id}`, { headers: { Authorization: `Bearer ${token}` } });
             const p = await r.json();
@@ -81,7 +81,7 @@ async function abrirModal(id) {
             document.getElementById('fContacto').value = p.contacto;
         } catch (e) { mostrarMsgModal('error', e.message); }
     } else {
-        document.getElementById('modalTitulo').textContent = '? Nuevo Proveedor';
+        document.getElementById('modalTitulo').textContent = 'Nuevo Proveedor';
         ['fNombre','fCuit','fTelefono','fEmail','fDireccion','fContacto'].forEach(id => document.getElementById(id).value = '');
     }
     document.getElementById('modalProveedor').style.display = 'flex';
@@ -113,7 +113,7 @@ async function guardar() {
         mostrarMsgModal('ok', d.mensaje);
         setTimeout(() => { cerrarModal(); cargar(); }, 900);
     } catch (e) { mostrarMsgModal('error', e.message); }
-    finally { btn.disabled = false; btn.textContent = '?? Guardar'; }
+    finally { btn.disabled = false; btn.textContent = 'Guardar'; }
 }
 
 async function eliminar(id, nombre) {
