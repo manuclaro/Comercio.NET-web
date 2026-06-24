@@ -21,6 +21,11 @@ namespace Comercio.NET.Mobile.Server.Services
         private Task<T?> ScalarAsync<T>(string sql, Dictionary<string, object?> p) => _db.ScalarAsync<T>(sql, p);
         private Task<List<List<JsonElement>>> QueryAsync(string sql, Dictionary<string, object?> p) => _db.QueryAsync(sql, p);
 
+        // Zona horaria de Argentina para grabar fechas correctamente
+        private static readonly TimeZoneInfo _zonaArgentina =
+            TimeZoneInfo.FindSystemTimeZoneById("America/Argentina/Buenos_Aires");
+        private DateTime AhoraArgentina => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _zonaArgentina);
+
         // ?? Generar número de remito ????????????????????????????????????????????
 
         /// <summary>Convierte nroRemito string (ej: "R-111946" o "111946") a int para la BD.</summary>
@@ -175,8 +180,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 { "@marca",        req.Marca },
                 { "@proveedor",    req.Proveedor },
                 { "@costo",        req.Costo },
-                { "@fecha",        DateTime.Now.Date },
-                { "@hora",         DateTime.Now },
+                { "@fecha",        AhoraArgentina.Date },
+                { "@hora",         AhoraArgentina },
                 { "@esCtaCte",     req.EsCtaCte },
                 { "@nombreCtaCte", req.EsCtaCte ? req.NombreCtaCte : null }
             });
@@ -333,8 +338,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 { "@cantidad", cantidad },
                 { "@total", precio * cantidad },
                 { "@numFactura", numeroFactura },
-                { "@fechaHora", DateTime.Now },
-                { "@fechaElim", DateTime.Now },
+                { "@fechaHora", AhoraArgentina },
+                { "@fechaElim", AhoraArgentina },
                 { "@motivo", motivo },
                 { "@usuario", usuario },
                 { "@cajero", numeroCajero },
@@ -387,8 +392,8 @@ namespace Comercio.NET.Mobile.Server.Services
                 { "@tipoFactura",  req.TipoFactura },
                 { "@cajero",       req.NumeroCajero.ToString() },
                 { "@usuario",      req.UsuarioVenta },
-                { "@fecha",        DateTime.Now.Date },
-                { "@hora",         DateTime.Now },
+                { "@fecha",        AhoraArgentina.Date },
+                { "@hora",         AhoraArgentina },
                 { "@total",        importeTotal },
                 { "@importeFinal", req.PorcentajeDescuento > 0 ? importeTotal - req.ImporteDescuento : importeTotal },
                 { "@esCtaCte",     req.EsCtaCte },
@@ -418,7 +423,7 @@ namespace Comercio.NET.Mobile.Server.Services
                         { "@medioPago",  pago.MedioPago },
                         { "@importe",    pago.Importe },
                         { "@obs",        string.IsNullOrWhiteSpace(pago.Observaciones) ? null : pago.Observaciones },
-                        { "@fecha",      DateTime.Now },
+                        { "@fecha",      AhoraArgentina },
                         { "@usuario",    req.UsuarioVenta },
                         { "@nroRemito",  ParseNroRemito(req.NroRemito) }
                     });
@@ -432,7 +437,7 @@ namespace Comercio.NET.Mobile.Server.Services
                     { "@medioPago",  req.FormaPago },
                     { "@importe",    req.PorcentajeDescuento > 0 ? importeTotal - req.ImporteDescuento : importeTotal },
                     { "@obs",        null },
-                    { "@fecha",      DateTime.Now },
+                    { "@fecha",      AhoraArgentina },
                     { "@usuario",    req.UsuarioVenta },
                     { "@nroRemito",  ParseNroRemito(req.NroRemito) }
                 });
