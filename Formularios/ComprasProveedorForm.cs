@@ -590,7 +590,7 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@ImporteNeto", sumaBase);
                                 cmd.Parameters.AddWithValue("@ImporteIVA", sumaIva);
                                 cmd.Parameters.AddWithValue("@ImporteTotal", total);
-                                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false });
+                                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                                 cmd.Parameters.AddWithValue("@NombreCtaCte", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@Observaciones", DBNull.Value);
                                 cmd.Parameters.AddWithValue("@Usuario", Environment.UserName);

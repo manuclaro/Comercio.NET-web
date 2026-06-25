@@ -343,6 +343,7 @@ namespace Comercio.NET.Formularios
                 // Checkboxes existentes
                 yPos += 5;
                 chkPermiteAcumular = CrearCheckBox("Permite Acumular", xLabel, yPos, 180);
+                chkPermiteAcumular.Checked = true;
                 panelContenido.Controls.Add(chkPermiteAcumular);
                 yPos += 30;
 
