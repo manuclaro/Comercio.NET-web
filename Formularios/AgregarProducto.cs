@@ -746,8 +746,8 @@ namespace Comercio.NET.Formularios
     
                     cmd.Parameters.Add("@cantidad", NpgsqlTypes.NpgsqlDbType.Integer).Value = 10;
                     cmd.Parameters.Add("@proveedor", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = "Proveedor";
-                    cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Bit) { Value = PermiteAcumular == 1 });
-                    cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                    cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = PermiteAcumular == 1 });
+                    cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
 
                     // CORREGIDO: IVA con precisión y escala correctas
                     var ivaParam = cmd.Parameters.Add("@iva", NpgsqlTypes.NpgsqlDbType.Numeric);
@@ -831,8 +831,8 @@ namespace Comercio.NET.Formularios
     
                     cmd.Parameters.Add("@cantidad", NpgsqlTypes.NpgsqlDbType.Integer).Value = cantidad;
                     cmd.Parameters.Add("@proveedor", NpgsqlTypes.NpgsqlDbType.Varchar, 100).Value = txtProveedor?.Text?.Trim() ?? "";
-                    cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Bit) { Value = PermiteAcumular == 1 });
-                    cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                    cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = PermiteAcumular == 1 });
+                    cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
 
                     // CORREGIDO: IVA con precisión y escala correctas (5,2)
                     var ivaParam = cmd.Parameters.Add("@iva", NpgsqlTypes.NpgsqlDbType.Numeric);

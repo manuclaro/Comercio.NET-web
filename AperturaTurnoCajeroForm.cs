@@ -427,20 +427,19 @@ namespace Comercio.NET.Formularios
                 using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
-                // Ensure id column has a sequence/default in case table was created without SERIAL
+                // Sync the sequence to MAX(id) to avoid duplicate key errors after data migration
                 var queryRepair = @"
                     DO $$
+                    DECLARE
+                        seq_name text;
                     BEGIN
-                        IF NOT EXISTS (
-                            SELECT 1 FROM information_schema.columns
-                            WHERE table_name = 'turnoscajero'
-                              AND column_name = 'id'
-                              AND column_default IS NOT NULL
-                        ) THEN
-                            CREATE SEQUENCE IF NOT EXISTS turnoscajero_id_seq;
-                            ALTER TABLE turnoscajero ALTER COLUMN id SET DEFAULT nextval('turnoscajero_id_seq');
-                            PERFORM setval('turnoscajero_id_seq', COALESCE((SELECT MAX(id) FROM turnoscajero), 0) + 1, false);
+                        SELECT pg_get_serial_sequence('turnoscajero', 'id') INTO seq_name;
+                        IF seq_name IS NULL THEN
+                            seq_name := 'turnoscajero_id_seq';
+                            EXECUTE 'CREATE SEQUENCE IF NOT EXISTS ' || seq_name;
+                            EXECUTE 'ALTER TABLE turnoscajero ALTER COLUMN id SET DEFAULT nextval(' || quote_literal(seq_name) || ')';
                         END IF;
+                        EXECUTE 'SELECT setval(' || quote_literal(seq_name) || ', COALESCE((SELECT MAX(id) FROM turnoscajero), 0) + 1, false)';
                     END$$;";
 
                 using (var cmdRepair = new NpgsqlCommand(queryRepair, connection))

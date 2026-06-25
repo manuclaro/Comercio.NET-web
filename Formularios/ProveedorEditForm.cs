@@ -255,7 +255,7 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@Email", string.IsNullOrWhiteSpace(txtEmail.Text) ? (object)DBNull.Value : txtEmail.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Condicion", string.IsNullOrWhiteSpace(txtCondicion.Text) ? (object)DBNull.Value : txtCondicion.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Rubro", string.IsNullOrWhiteSpace(cboRubro.Text) ? (object)DBNull.Value : cboRubro.Text.Trim());
-                                cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkActivo.Checked });
+                                cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkActivo.Checked });
                                 cmd.Parameters.AddWithValue("@Id", proveedorId.Value);
                                 await cmd.ExecuteNonQueryAsync();
 
@@ -275,7 +275,7 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@Email", string.IsNullOrWhiteSpace(txtEmail.Text) ? (object)DBNull.Value : txtEmail.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Condicion", string.IsNullOrWhiteSpace(txtCondicion.Text) ? (object)DBNull.Value : txtCondicion.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Rubro", string.IsNullOrWhiteSpace(cboRubro.Text) ? (object)DBNull.Value : cboRubro.Text.Trim());
-                                cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Bit) { Value = chkActivo.Checked });
+                                cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkActivo.Checked });
                                 cmd.Parameters.AddWithValue("@Usuario", Environment.UserName ?? "Sistema");
 
                                 var res = await cmd.ExecuteScalarAsync();
