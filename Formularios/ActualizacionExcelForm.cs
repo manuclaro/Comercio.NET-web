@@ -971,8 +971,8 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@Proveedor", string.IsNullOrEmpty(proveedor) ? (object)DBNull.Value : proveedor);
 
                 // ✅ NUEVOS: Valores por defecto para productos nuevos
-                cmd.Parameters.AddWithValue("@PermiteAcumular", 1);  // Permite acumular = true
-                cmd.Parameters.AddWithValue("@EditarPrecio", 0);     // Editar precio = false
+                cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
+                cmd.Parameters.Add(new NpgsqlParameter("@EditarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                 cmd.Parameters.AddWithValue("@Cantidad", 0);         // Stock inicial = 0
 
                 await cmd.ExecuteNonQueryAsync();

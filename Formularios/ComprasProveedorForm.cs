@@ -740,7 +740,7 @@ VALUES
                             var updCompra = @"UPDATE ComprasProveedores SET EsCtaCte = @EsCtaCte, NombreCtaCte = @Nombre WHERE Id = @Id;";
                             using (var cmd = new NpgsqlCommand(updCompra, conn, tx))
                             {
-                                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = true });
+                                cmd.Parameters.Add(new NpgsqlParameter("@EsCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
                                 cmd.Parameters.AddWithValue("@Nombre", cmbProveedor.Text.Trim());
                                 cmd.Parameters.AddWithValue("@Id", compraId);
                                 await cmd.ExecuteNonQueryAsync();
