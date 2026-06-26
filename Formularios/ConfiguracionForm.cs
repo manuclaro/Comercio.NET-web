@@ -2879,16 +2879,35 @@ namespace Comercio.NET.Formularios
             catch (Exception ex)
             {
                 MostrarMensaje($"❌ Error en conexión {ambiente}: {ex.Message}", Color.Red);
-                
+
+                var detalleError = new System.Text.StringBuilder();
+                detalleError.AppendLine($"ERROR DE CONEXIÓN ({ambiente})");
+                detalleError.AppendLine();
+                detalleError.AppendLine($"Tipo: {ex.GetType().Name}");
+                detalleError.AppendLine($"Mensaje: {ex.Message}");
+
+                if (ex.InnerException != null)
+                {
+                    detalleError.AppendLine();
+                    detalleError.AppendLine($"Causa interna: {ex.InnerException.GetType().Name}");
+                    detalleError.AppendLine($"{ex.InnerException.Message}");
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        detalleError.AppendLine();
+                        detalleError.AppendLine($"Detalle: {ex.InnerException.InnerException.Message}");
+                    }
+                }
+
+                detalleError.AppendLine();
+                detalleError.AppendLine("Causas comunes:");
+                detalleError.AppendLine("• Puerto incorrecto (¿5432 o 5433?)");
+                detalleError.AppendLine("• postgresql.conf: listen_addresses != '*'");
+                detalleError.AppendLine("• pg_hba.conf sin regla para esa IP");
+                detalleError.AppendLine("• Firewall bloqueando el puerto");
+                detalleError.AppendLine("• Credenciales incorrectas");
+
                 MessageBox.Show(
-                    $"ERROR DE CONEXIÓN ({ambiente})\n\n" +
-                    $"Mensaje: {ex.Message}\n\n" +
-                    $"Tipo: {ex.GetType().Name}\n\n" +
-                    $"Verifique:\n" +
-                    $"• El servidor esté accesible\n" +
-                    $"• Las credenciales sean correctas\n" +
-                    $"• La base de datos exista\n" +
-                    $"• El firewall permita la conexión",
+                    detalleError.ToString(),
                     $"Error de Conexión - {ambiente}",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);

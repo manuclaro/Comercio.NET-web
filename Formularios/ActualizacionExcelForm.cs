@@ -946,17 +946,34 @@ namespace Comercio.NET.Formularios
                 ? rowExcel["proveedor"]?.ToString()?.Trim() ?? ""
                 : "";
 
-            // ✅ CORRECCIÓN: Agregar campos por defecto (PermiteAcumular, EditarPrecio, cantidad)
+            bool permiteAcumular = true;
+            if (rowExcel.Table.Columns.Contains("permiteacumular") && rowExcel["permiteacumular"] != DBNull.Value)
+                permiteAcumular = Convert.ToInt32(rowExcel["permiteacumular"]) != 0;
+            else if (rowExcel.Table.Columns.Contains("PermiteAcumular") && rowExcel["PermiteAcumular"] != DBNull.Value)
+                permiteAcumular = Convert.ToInt32(rowExcel["PermiteAcumular"]) != 0;
+
+            bool editarPrecio = false;
+            if (rowExcel.Table.Columns.Contains("editarprecio") && rowExcel["editarprecio"] != DBNull.Value)
+                editarPrecio = Convert.ToInt32(rowExcel["editarprecio"]) != 0;
+            else if (rowExcel.Table.Columns.Contains("EditarPrecio") && rowExcel["EditarPrecio"] != DBNull.Value)
+                editarPrecio = Convert.ToInt32(rowExcel["EditarPrecio"]) != 0;
+
+            bool activo = true;
+            if (rowExcel.Table.Columns.Contains("activo") && rowExcel["activo"] != DBNull.Value)
+                activo = Convert.ToInt32(rowExcel["activo"]) != 0;
+            else if (rowExcel.Table.Columns.Contains("Activo") && rowExcel["Activo"] != DBNull.Value)
+                activo = Convert.ToInt32(rowExcel["Activo"]) != 0;
+
             var queryInsert = @"
         INSERT INTO Productos (
             Codigo, Descripcion, Costo, Porcentaje, Precio, 
             Marca, Rubro, Proveedor, 
-            PermiteAcumular, EditarPrecio, cantidad
+            PermiteAcumular, EditarPrecio, cantidad, activo
         )
         VALUES (
             @Codigo, @Descripcion, @Costo, @Porcentaje, @Precio, 
             @Marca, @Rubro, @Proveedor, 
-            @PermiteAcumular, @EditarPrecio, @Cantidad
+            @PermiteAcumular, @EditarPrecio, @Cantidad, @Activo
         )";
 
             using (var cmd = new NpgsqlCommand(queryInsert, connection))
@@ -969,11 +986,10 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@Marca", string.IsNullOrEmpty(marca) ? (object)DBNull.Value : marca);
                 cmd.Parameters.AddWithValue("@Rubro", string.IsNullOrEmpty(rubro) ? (object)DBNull.Value : rubro);
                 cmd.Parameters.AddWithValue("@Proveedor", string.IsNullOrEmpty(proveedor) ? (object)DBNull.Value : proveedor);
-
-                // ✅ NUEVOS: Valores por defecto para productos nuevos
-                cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
-                cmd.Parameters.Add(new NpgsqlParameter("@EditarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
-                cmd.Parameters.AddWithValue("@Cantidad", 0);         // Stock inicial = 0
+                cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = permiteAcumular });
+                cmd.Parameters.Add(new NpgsqlParameter("@EditarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = editarPrecio });
+                cmd.Parameters.AddWithValue("@Cantidad", 0);
+                cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = activo });
 
                 await cmd.ExecuteNonQueryAsync();
             }
