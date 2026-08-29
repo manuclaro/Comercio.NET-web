@@ -8,7 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Data.SqlClient; // ✅ AGREGAR ESTA LÍNEA
+using Npgsql; // ✅ AGREGAR ESTA LÍNEA
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -1062,6 +1062,28 @@ namespace Comercio.NET
             }
         }
 
+        private void estadisticasRubrosToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                foreach (Form form in this.MdiChildren)
+                {
+                    if (form is Comercio.NET.Formularios.EstadisticasRubrosForm)
+                    {
+                        form.Activate();
+                        return;
+                    }
+                }
+
+                var f = new Comercio.NET.Formularios.EstadisticasRubrosForm();
+                f.MdiParent = this;
+                f.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error abriendo Estadísticas Compras vs Ventas: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
 
         // ✅ MODIFICAR el handler para abrir CtaCte con el Form contenedor correcto:
@@ -2802,11 +2824,11 @@ namespace Comercio.NET
                 string connectionString = config.GetConnectionString("DefaultConnection");
                 var permisos = new Dictionary<string, bool>();
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 var query = "SELECT CodigoFuncionalidad, Permitido FROM PermisosPerfiles WHERE NivelUsuario = @nivel";
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@nivel", (int)nivel);
 
                 using var reader = cmd.ExecuteReader();

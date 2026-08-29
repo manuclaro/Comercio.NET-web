@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -100,7 +100,7 @@ namespace Comercio.NET.Formularios
 
         private void Dgv_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
-            // Evitar headers o índices inválidos
+            // Evitar headers o ï¿½ndices invï¿½lidos
             if (e.RowIndex < 0 || e.RowIndex >= dgv.Rows.Count) return;
             BtnDetalle_Click(sender, EventArgs.Empty);
         }
@@ -112,7 +112,7 @@ namespace Comercio.NET.Formularios
             string cs = GetConnectionString();
             try
             {
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     var sql = @"
@@ -120,17 +120,17 @@ namespace Comercio.NET.Formularios
                     c.Id, c.ProveedorId, c.CompraId, c.Fecha, c.MontoTotal, c.MontoAdeudado, c.Saldo, c.Observaciones,
                     p.Nombre AS ProveedorNombre,
                     /* Total pagado: sumamos pagos asociados ya sea por CtaCteId o por CompraId cuando exista */
-                    ISNULL((
+                    COALESCE((
                         SELECT SUM(pago.Monto) FROM ComprasProveedoresPagos pago
                         WHERE (pago.CtaCteId = c.Id)
                            OR (c.CompraId IS NOT NULL AND pago.CompraId = c.CompraId)
                     ), 0) AS TotalPagado
                 FROM ProveedoresCtaCte c
                 LEFT JOIN Proveedores p ON c.ProveedorId = p.Id
-                WHERE (@filtro = '' OR p.Nombre LIKE '%' + @filtro + '%')
+                WHERE (@filtro = '' OR p.Nombre LIKE '%' || @filtro || '%')
                 ORDER BY c.Fecha DESC, p.Nombre;
             ";
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         var filtro = string.IsNullOrWhiteSpace(filtroProveedor) ? "" : filtroProveedor.Trim();
                         cmd.Parameters.AddWithValue("@filtro", filtro);
@@ -176,7 +176,7 @@ namespace Comercio.NET.Formularios
         {
             if (dgv.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Seleccione una fila.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Seleccione una fila.", "InformaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -201,7 +201,7 @@ namespace Comercio.NET.Formularios
         {
             if (dgv.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Seleccione una línea para registrar el pago.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Seleccione una lÃ­nea para registrar el pago.", "InformaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -211,7 +211,7 @@ namespace Comercio.NET.Formularios
             var fila = await ObtenerCtaCtePorIdAsync(ctaId);
             if (fila == null)
             {
-                MessageBox.Show("No se encontró la línea seleccionada.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("No se encontrÃ³ la lÃ­nea seleccionada.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -225,7 +225,7 @@ namespace Comercio.NET.Formularios
                 var pagos = frm.Pagos ?? new List<PagoInfo>();
                 if (pagos.Count == 0)
                 {
-                    MessageBox.Show("No se registraron pagos.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("No se registraron pagos.", "InformaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
@@ -239,7 +239,7 @@ namespace Comercio.NET.Formularios
             string cs = GetConnectionString();
             try
             {
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     var sql = @"
@@ -249,7 +249,7 @@ namespace Comercio.NET.Formularios
                         LEFT JOIN Proveedores p ON c.ProveedorId = p.Id
                         WHERE c.Id = @id;
                     ";
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@id", id);
                         using (var reader = await cmd.ExecuteReaderAsync())
@@ -285,7 +285,7 @@ namespace Comercio.NET.Formularios
             string cs = GetConnectionString();
             try
             {
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
@@ -301,7 +301,7 @@ namespace Comercio.NET.Formularios
 
                             foreach (var p in pagos)
                             {
-                                using (var cmd = new SqlCommand(insertPagoSql, conn, tx))
+                                using (var cmd = new NpgsqlCommand(insertPagoSql, conn, tx))
                                 {
                                     cmd.Parameters.AddWithValue("@CompraId", compraId.HasValue ? (object)compraId.Value : DBNull.Value);
                                     cmd.Parameters.AddWithValue("@CtaCteId", ctaId);
@@ -317,7 +317,7 @@ namespace Comercio.NET.Formularios
                             }
 
                             var updateSql = @"UPDATE ProveedoresCtaCte SET Saldo = Saldo - @Pagado WHERE Id = @Id;";
-                            using (var cmdUpd = new SqlCommand(updateSql, conn, tx))
+                            using (var cmdUpd = new NpgsqlCommand(updateSql, conn, tx))
                             {
                                 cmdUpd.Parameters.AddWithValue("@Pagado", totalPagado);
                                 cmdUpd.Parameters.AddWithValue("@Id", ctaId);
@@ -337,7 +337,7 @@ namespace Comercio.NET.Formularios
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error de conexión al guardar pagos: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error de conexiÃ³n al guardar pagos: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

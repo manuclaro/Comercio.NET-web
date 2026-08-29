@@ -32,5 +32,6 @@ namespace Comercio.NET.Mobile.Server.Models
         public decimal TotalDni { get; set; }
         public decimal TotalCtaCte { get; set; }
         public decimal TotalOtros { get; set; }
+        public decimal TotalFacturasElectronicas { get; set; }
     }
 }

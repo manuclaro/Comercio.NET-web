@@ -119,3 +119,15 @@ body {
 .badge-reduccion { background: #e8f5e9; color: #2e7d32; }
 
 .mensaje-vacio { text-align: center; color: #999; padding: 30px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+    body { padding: 10px; }
+
+    .page-header { flex-wrap: wrap; gap: 8px; }
+    .page-header h1 { font-size: 1.2rem; }
+
+    .filtros-card { flex-direction: column; gap: 10px; }
+
+    .totales-banner { flex-direction: column; gap: 0.5rem; font-size: 0.85rem; }
+}

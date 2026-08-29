@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;  // AGREGAR: Para List<string>
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;  // AGREGAR: Para NumberStyles y CultureInfo
 using System.Linq;
@@ -865,16 +865,19 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
-                    var query = "SELECT COUNT(*) FROM Ventas WHERE NroFactura = @nroFactura";
+                    var query = "SELECT COUNT(*) FROM ventas WHERE NroFactura = @nroFactura";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        if (int.TryParse(nroFactura, out int cntInt))
+                            cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = cntInt });
+                        else
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                         await connection.OpenAsync();
 
-                        int cantidad = (int)await cmd.ExecuteScalarAsync();
+                        int cantidad = Convert.ToInt32(await cmd.ExecuteScalarAsync());
                         return cantidad;
                     }
                 }
@@ -896,22 +899,12 @@ namespace Comercio.NET.Formularios
 
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
                 // ✅ CRÍTICO: Configurar SET options ANTES de iniciar la transacción
-                using (var setOptionsCmd = new SqlCommand(@"
-            SET ARITHABORT ON;
-            SET ANSI_NULLS ON;
-            SET ANSI_PADDING ON;
-            SET ANSI_WARNINGS ON;
-            SET CONCAT_NULL_YIELDS_NULL ON;
-            SET QUOTED_IDENTIFIER ON;
-            SET NUMERIC_ROUNDABORT OFF;", connection))
-                {
-                    await setOptionsCmd.ExecuteNonQueryAsync();
-                }
+
 
                 using (var transaction = connection.BeginTransaction())
                 {
@@ -920,14 +913,17 @@ namespace Comercio.NET.Formularios
                         // 1. Obtener todos los productos del remito
                         var productosQuery = @"
                     SELECT codigo, descripcion, cantidad, precio
-                    FROM Ventas
+                    FROM ventas
                     WHERE NroFactura = @nroFactura";
 
                         var productos = new List<(string codigo, string descripcion, int cantidad, decimal precio)>();
 
-                        using (var cmd = new SqlCommand(productosQuery, connection, transaction))
+                        using (var cmd = new NpgsqlCommand(productosQuery, connection, transaction))
                         {
-                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            if (int.TryParse(nroFactura, out int prodInt))
+                                cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = prodInt });
+                            else
+                                cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                             using (var reader = await cmd.ExecuteReaderAsync())
                             {
                                 while (await reader.ReadAsync())
@@ -946,11 +942,11 @@ namespace Comercio.NET.Formularios
                         foreach (var producto in productos)
                         {
                             var updateStockQuery = @"
-                        UPDATE Productos 
+                        UPDATE productos 
                         SET cantidad = cantidad + @cantidad 
                         WHERE codigo = @codigo";
 
-                            using (var cmd = new SqlCommand(updateStockQuery, connection, transaction))
+                            using (var cmd = new NpgsqlCommand(updateStockQuery, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@cantidad", producto.cantidad);
                                 cmd.Parameters.AddWithValue("@codigo", producto.codigo);
@@ -961,7 +957,7 @@ namespace Comercio.NET.Formularios
 
                             // 3. ✅ CORREGIDO: Registrar en auditoría con nombres de columnas correctos
                             var auditQuery = @"
-                        INSERT INTO AuditoriaProductosEliminados 
+                        INSERT INTO auditoriaproductoseliminados 
                             (CodigoProducto, DescripcionProducto, Cantidad, PrecioUnitario, 
                              TotalEliminado, MotivoEliminacion, FechaEliminacion, 
                              UsuarioEliminacion, NumeroFactura)
@@ -969,7 +965,7 @@ namespace Comercio.NET.Formularios
                             (@codigo, @descripcion, @cantidad, @precio, 
                              @totalEliminado, @motivo, @fecha, @usuario, @nroFactura)";
 
-                            using (var cmd = new SqlCommand(auditQuery, connection, transaction))
+                            using (var cmd = new NpgsqlCommand(auditQuery, connection, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@codigo", producto.codigo);
                                 cmd.Parameters.AddWithValue("@descripcion", producto.descripcion);
@@ -979,7 +975,11 @@ namespace Comercio.NET.Formularios
                                 cmd.Parameters.AddWithValue("@motivo", $"Eliminación remito completo: {motivo}");
                                 cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
                                 cmd.Parameters.AddWithValue("@usuario", ObtenerUsuarioActual());
-                                cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                                // numerofactura es integer en auditoriaproductoseliminados
+                                if (int.TryParse(nroFactura, out int nroFactAudit))
+                                    cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroFactAudit });
+                                else
+                                    cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                                 await cmd.ExecuteNonQueryAsync();
                             }
                         }
@@ -987,28 +987,37 @@ namespace Comercio.NET.Formularios
                         System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {productos.Count} productos procesados - Stock devuelto y auditoría registrada");
 
                         // 4. Eliminar de la tabla Ventas
-                        var deleteVentasQuery = "DELETE FROM Ventas WHERE NroFactura = @nroFactura";
-                        using (var cmd = new SqlCommand(deleteVentasQuery, connection, transaction))
+                        var deleteVentasQuery = "DELETE FROM ventas WHERE NroFactura = @nroFactura";
+                        using (var cmd = new NpgsqlCommand(deleteVentasQuery, connection, transaction))
                         {
-                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            if (int.TryParse(nroFactura, out int delVInt))
+                                cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = delVInt });
+                            else
+                                cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                             int ventasEliminadas = await cmd.ExecuteNonQueryAsync();
                             System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {ventasEliminadas} registros eliminados de Ventas");
                         }
 
                         // 5. Eliminar de la tabla Facturas
-                        var deleteFacturasQuery = "DELETE FROM Facturas WHERE NumeroRemito = @nroFactura";
-                        using (var cmd = new SqlCommand(deleteFacturasQuery, connection, transaction))
+                        var deleteFacturasQuery = "DELETE FROM facturas WHERE numeroremito = @nroFactura";
+                        using (var cmd = new NpgsqlCommand(deleteFacturasQuery, connection, transaction))
                         {
-                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            if (int.TryParse(nroFactura, out int delFInt))
+                                cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = delFInt });
+                            else
+                                cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                             int facturasEliminadas = await cmd.ExecuteNonQueryAsync();
                             System.Diagnostics.Debug.WriteLine($"[ELIMINAR] ✅ {facturasEliminadas} registros eliminados de Facturas");
                         }
 
                         // 6. Eliminar de DetallesPagoFactura si existen
-                        var deleteDetallesPagoQuery = "DELETE FROM DetallesPagoFactura WHERE NumeroRemito = @nroFactura";
-                        using (var cmd = new SqlCommand(deleteDetallesPagoQuery, connection, transaction))
+                        var deleteDetallesPagoQuery = "DELETE FROM detallespagofactura WHERE numeroremito = @nroFactura";
+                        using (var cmd = new NpgsqlCommand(deleteDetallesPagoQuery, connection, transaction))
                         {
-                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                            if (int.TryParse(nroFactura, out int delDInt))
+                                cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = delDInt });
+                            else
+                                cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                             int pagosEliminados = await cmd.ExecuteNonQueryAsync();
                             if (pagosEliminados > 0)
                             {
@@ -1087,37 +1096,37 @@ namespace Comercio.NET.Formularios
             string connectionString = config.GetConnectionString("DefaultConnection");
             var resultado = new List<ResumenRubroGroup>();
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 // ✅ MODIFICADO: Solo 4 rubros (Carniceria, Verduleria, Cigarrillos, Almacen)
                 var query = @"
-                            WITH VentasConTotal AS (
+                            WITH ventascontotal AS (
                                 SELECT 
-                                    v.NroFactura,
+                                    v.nrofactura,
                                     CASE 
-                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
-                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
-                                        WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(ISNULL(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
+                                        WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%CARNI%' THEN 'CARNICERIA'
+                                        WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%VERDULE%' THEN 'VERDULERIA'
+                                        WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%CIGARR%' OR UPPER(COALESCE(p.rubro, '')) LIKE '%TABAQU%' THEN 'CIGARRILLOS'
                                         ELSE 'ALMACEN'
                                     END AS Rubro,
                                     CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                                    CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                                FROM Ventas v
-                                INNER JOIN Productos p ON v.codigo = p.codigo
-                                INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                                WHERE f.Fecha >= @desde AND f.Fecha <= @hasta";
+                                    SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.nrofactura) AS TotalFacturaVentas,
+                                    CAST(f.importefinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                                FROM ventas v
+                                INNER JOIN productos p ON v.codigo = p.codigo
+                                INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+                                WHERE f.fecha >= @desde AND f.fecha <= @hasta";
 
                                     if (chkCtaCte.Checked)
                                     {
-                                        query += " AND f.TipoFactura = 'CtaCte'";
+                                        query += " AND f.tipofactura = 'CtaCte'";
                                     }
 
                                     query += @"
                             )
                             SELECT 
                                 Rubro,
-                                COUNT(DISTINCT NroFactura) AS CantidadFacturas,
+                                COUNT(DISTINCT nrofactura) AS CantidadFacturas,
                                 COUNT(*) AS CantidadProductos,
                                 CAST(SUM(
                                     CASE 
@@ -1126,11 +1135,11 @@ namespace Comercio.NET.Formularios
                                         ELSE 0
                                     END
                                 ) AS DECIMAL(18,2)) AS MontoTotal
-                            FROM VentasConTotal
+                            FROM ventascontotal
                             GROUP BY Rubro
                             ORDER BY MontoTotal DESC";
 
-                using (var cmd = new SqlCommand(query, connection))
+                using (var cmd = new NpgsqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@desde", desde);
                     cmd.Parameters.AddWithValue("@hasta", hasta);
@@ -1216,19 +1225,19 @@ namespace Comercio.NET.Formularios
         //            .Build();
         //        string connectionString = config.GetConnectionString("DefaultConnection");
 
-        //        using (var connection = new SqlConnection(connectionString))
+        //        using (var connection = new NpgsqlConnection(connectionString))
         //        {
         //            // Obtener proveedores únicos desde la tabla Productos
         //            // que tienen ventas registradas
         //            var query = @"
         //        SELECT DISTINCT p.proveedor 
-        //        FROM Productos p
-        //        INNER JOIN Ventas v ON p.codigo = v.codigo
+        //        FROM productos p
+        //        INNER JOIN ventas v ON p.codigo = v.codigo
         //        WHERE p.proveedor IS NOT NULL 
         //          AND RTRIM(LTRIM(p.proveedor)) <> '' 
         //        ORDER BY p.proveedor";
 
-        //            using (var cmd = new SqlCommand(query, connection))
+        //            using (var cmd = new NpgsqlCommand(query, connection))
         //            {
         //                connection.Open();
         //                using (var reader = cmd.ExecuteReader())
@@ -1278,16 +1287,16 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"SELECT DISTINCT TipoFactura 
-                  FROM Facturas
+                  FROM facturas
                   WHERE TipoFactura IS NOT NULL
                     AND RTRIM(LTRIM(TipoFactura)) <> ''
                     AND RTRIM(LTRIM(TipoFactura)) <> 'DNI'
                   ORDER BY TipoFactura";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         connection.Open();
                         using (var reader = cmd.ExecuteReader())
@@ -1378,16 +1387,16 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // CORREGIDO: Obtener TODAS las formas de pago disponibles en la base de datos
                     var query = @"SELECT DISTINCT FormadePago 
-                                 FROM Facturas 
+                                 FROM facturas 
                                  WHERE FormadePago IS NOT NULL 
                                  AND RTRIM(LTRIM(FormadePago)) <> '' 
                                  ORDER BY FormadePago";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         connection.Open();
                         using (var reader = cmd.ExecuteReader())
@@ -1440,19 +1449,19 @@ namespace Comercio.NET.Formularios
         //            .Build();
         //        string connectionString = config.GetConnectionString("DefaultConnection");
 
-        //        using (var connection = new SqlConnection(connectionString))
+        //        using (var connection = new NpgsqlConnection(connectionString))
         //        {
         //            // Obtener rubros únicos desde la tabla Productos
         //            // ya que los productos de las ventas están relacionados con sus rubros
         //            var query = @"
         //        SELECT DISTINCT p.rubro 
-        //        FROM Productos p
-        //        INNER JOIN Ventas v ON p.codigo = v.codigo
+        //        FROM productos p
+        //        INNER JOIN ventas v ON p.codigo = v.codigo
         //        WHERE p.rubro IS NOT NULL 
         //          AND RTRIM(LTRIM(p.rubro)) <> '' 
         //        ORDER BY p.rubro";
 
-        //            using (var cmd = new SqlCommand(query, connection))
+        //            using (var cmd = new NpgsqlCommand(query, connection))
         //            {
         //                connection.Open();
         //                using (var reader = cmd.ExecuteReader())
@@ -1697,60 +1706,60 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = chkCtaCte.Checked
-                       ? @"SELECT 
-                    f.NumeroRemito as 'Remito',
-                    f.NroFactura as 'N° Factura',
-                    CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
-                    CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
-                    CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
-                    CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
-                    CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
-                    ISNULL(f.Cajero, '') as 'Cajero',
-                    f.Fecha as 'Fecha',
-                    f.Hora as 'Hora',
-                    ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
-                    ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
-                    f.CAENumero as 'CAE',
-                    f.CtaCteNombre as 'Cta. Cte. Nombre',
-                    (SELECT TOP 1 p.proveedor 
-                     FROM Ventas v 
-                     INNER JOIN Productos p ON v.codigo = p.codigo 
-                     WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
-                FROM Facturas f
-                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                AND f.esCtaCte = @esCtaCte
-                ORDER BY f.NumeroRemito DESC"
-                            : @"SELECT 
-                    f.NumeroRemito as 'Remito',
-                    f.NroFactura as 'N° Factura',
-                    CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) as 'Importe Final',
-                    CAST(ISNULL(f.PorcentajeDescuento, 0) AS DECIMAL(5,2)) as '% Descuento',
-                    CAST(ISNULL(f.ImporteDescuento, 0) AS DECIMAL(18,2)) as 'Descuento',
-                    CAST(ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'IVA',
-                    CAST(ISNULL(f.ImporteFinal, 0) - ISNULL(f.IVA, 0) AS DECIMAL(18,2)) as 'Subtotal',
-                    ISNULL(f.Cajero, '') as 'Cajero',
-                    f.Fecha as 'Fecha',
-                    f.Hora as 'Hora',
-                    ISNULL(f.FormadePago, 'No especificado') as 'Forma de Pago',
-                    ISNULL(f.TipoFactura, 'No especificado') as 'Tipo',
-                    f.CAENumero as 'CAE',
-                    (SELECT TOP 1 p.proveedor 
-                     FROM Ventas v 
-                     INNER JOIN Productos p ON v.codigo = p.codigo 
-                     WHERE v.NroFactura = f.NumeroRemito) as 'Proveedor'
-                FROM Facturas f
-                WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                AND f.esCtaCte = @esCtaCte
-                ORDER BY f.NumeroRemito DESC";
+                          ? @"SELECT 
+                           f.numeroremito as ""Remito"",
+                           f.nrofactura as ""N° Factura"",
+                           CAST(COALESCE(f.importefinal, 0) AS DECIMAL(18,2)) as ""Importe Final"",
+                           CAST(COALESCE(f.porcentajedescuento, 0) AS DECIMAL(5,2)) as ""% Descuento"",
+                           CAST(COALESCE(f.importedescuento, 0) AS DECIMAL(18,2)) as ""Descuento"",
+                           CAST(COALESCE(f.iva, 0) AS DECIMAL(18,2)) as ""IVA"",
+                           CAST(COALESCE(f.importefinal, 0) - COALESCE(f.iva, 0) AS DECIMAL(18,2)) as ""Subtotal"",
+                           COALESCE(f.cajero, '') as ""Cajero"",
+                           f.fecha as ""Fecha"",
+                           f.hora as ""Hora"",
+                           COALESCE(f.formadepago, 'No especificado') as ""Forma de Pago"",
+                           COALESCE(f.tipofactura, 'No especificado') as ""Tipo"",
+                           f.caenumero as ""CAE"",
+                           f.ctactenombre as ""Cta. Cte. Nombre"",
+                           (SELECT p.proveedor 
+                            FROM ventas v 
+                            INNER JOIN productos p ON v.codigo = p.codigo 
+                            WHERE v.nrofactura = f.numeroremito LIMIT 1) as ""Proveedor""
+                       FROM facturas f
+                       WHERE f.fecha::DATE BETWEEN @desde AND @hasta
+                       AND f.esctacte = @esCtaCte
+                       ORDER BY f.numeroremito DESC"
+                                   : @"SELECT 
+                           f.numeroremito as ""Remito"",
+                           f.nrofactura as ""N° Factura"",
+                           CAST(COALESCE(f.importefinal, 0) AS DECIMAL(18,2)) as ""Importe Final"",
+                           CAST(COALESCE(f.porcentajedescuento, 0) AS DECIMAL(5,2)) as ""% Descuento"",
+                           CAST(COALESCE(f.importedescuento, 0) AS DECIMAL(18,2)) as ""Descuento"",
+                           CAST(COALESCE(f.iva, 0) AS DECIMAL(18,2)) as ""IVA"",
+                           CAST(COALESCE(f.importefinal, 0) - COALESCE(f.iva, 0) AS DECIMAL(18,2)) as ""Subtotal"",
+                           COALESCE(f.cajero, '') as ""Cajero"",
+                           f.fecha as ""Fecha"",
+                           f.hora as ""Hora"",
+                           COALESCE(f.formadepago, 'No especificado') as ""Forma de Pago"",
+                           COALESCE(f.tipofactura, 'No especificado') as ""Tipo"",
+                           f.caenumero as ""CAE"",
+                           (SELECT p.proveedor 
+                            FROM ventas v 
+                            INNER JOIN productos p ON v.codigo = p.codigo 
+                            WHERE v.nrofactura = f.numeroremito LIMIT 1) as ""Proveedor""
+                       FROM facturas f
+                       WHERE f.fecha::DATE BETWEEN @desde AND @hasta
+                       AND f.esctacte = @esCtaCte
+                       ORDER BY f.numeroremito DESC";
 
-                    using (var adapter = new SqlDataAdapter(query, connection))
+                    using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
                         adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
                         adapter.SelectCommand.Parameters.AddWithValue("@hasta", hasta.Date);
-                        adapter.SelectCommand.Parameters.AddWithValue("@esCtaCte", chkCtaCte.Checked);
+                        adapter.SelectCommand.Parameters.Add(new NpgsqlParameter("@esCtaCte", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = chkCtaCte.Checked });
 
                         DataTable dt = new DataTable();
 
@@ -2129,14 +2138,14 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // Obtener también los datos de descuento
                     var query = @"SELECT NroFactura, PorcentajeDescuento, ImporteDescuento, ImporteFinal 
-                     FROM Facturas 
-                     WHERE NumeroRemito = @numeroRemito";
+                     FROM facturas 
+                     WHERE numeroremito::text = @numeroRemito";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                         await connection.OpenAsync();
@@ -2239,7 +2248,7 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
                         SELECT 
@@ -2255,10 +2264,10 @@ namespace Comercio.NET.Formularios
                             IVA,
                             Fecha,
                             Hora
-                        FROM Facturas 
-                        WHERE NumeroRemito = @numeroRemito";
+                        FROM facturas 
+                        WHERE numeroremito::text = @numeroRemito";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                         await connection.OpenAsync();
@@ -2302,7 +2311,7 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
                         SELECT 
@@ -2311,13 +2320,16 @@ namespace Comercio.NET.Formularios
                             cantidad,
                             precio,
                             total
-                        FROM Ventas 
+                        FROM ventas 
                         WHERE NroFactura = @numeroRemito
                         ORDER BY descripcion";
 
-                    using (var adapter = new SqlDataAdapter(query, connection))
+                    using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
-                        adapter.SelectCommand.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                        if (int.TryParse(numeroRemito, out int nmrInt))
+                            adapter.SelectCommand.Parameters.Add(new NpgsqlParameter("@numeroRemito", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nmrInt });
+                        else
+                            adapter.SelectCommand.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                         DataTable dt = new DataTable();
                         await Task.Run(() => adapter.Fill(dt));
                         
@@ -2362,23 +2374,27 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // CORREGIDO: Usar el nombre correcto de la columna
                     var query = @"
                 SELECT 
-                    codigo as 'Código',
-                    descripcion as 'Producto',
-                    cantidad as 'Cantidad',
-                    precio as 'Precio Unit.',
-                    total as 'Total'
-                FROM Ventas 
+                    codigo as ""Código"",
+                    descripcion as ""Producto"",
+                    cantidad as ""Cantidad"",
+                    precio as ""Precio Unit."",
+                    total as ""Total""
+                FROM ventas 
                 WHERE NroFactura = @nroFactura
                 ORDER BY descripcion";
 
-                    using (var adapter = new SqlDataAdapter(query, connection))
+                    using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
-                        adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        // ventas.NroFactura es integer; pasar como int para evitar error de tipo
+                        if (int.TryParse(nroFactura, out int nroFactInt))
+                            adapter.SelectCommand.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroFactInt });
+                        else
+                            adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
                         DataTable dt = new DataTable();
                         adapter.Fill(dt);
 
@@ -2419,18 +2435,21 @@ namespace Comercio.NET.Formularios
 
                 var lista = new List<string>();
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
-                SELECT ISNULL(MedioPago, '(No especificado)') AS MedioPago, SUM(ISNULL(Importe,0)) AS Importe
-                FROM DetallesPagoFactura
-                WHERE NumeroRemito = @numeroRemito
-                GROUP BY MedioPago
-                ORDER BY MedioPago";
+                SELECT COALESCE(mediopago, '(No especificado)') AS MedioPago, SUM(COALESCE(importe,0)) AS Importe
+                FROM detallespagofactura
+                WHERE numeroremito = @numeroRemito
+                GROUP BY mediopago
+                ORDER BY mediopago";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@numeroRemito", nroFactura);
+                        if (int.TryParse(nroFactura, out int nroInt))
+                            cmd.Parameters.Add(new NpgsqlParameter("@numeroRemito", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroInt });
+                        else
+                            cmd.Parameters.AddWithValue("@numeroRemito", nroFactura);
                         connection.Open();
                         using (var reader = cmd.ExecuteReader())
                         {
@@ -2573,34 +2592,38 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // MODIFICADO: Obtener también el número de remito y número de factura
                     var query = @"
                         SELECT 
-                            NumeroRemito,
-                            NroFactura,
-                            TipoFactura,
-                            FormadePago,
-                            CAENumero,
-                            CUITCliente
-                        FROM Facturas 
-                        WHERE NumeroRemito = @nroFactura"; // Usar NumeroRemito ya que nroFactura contiene el número de remito
+                            numeroremito,
+                            nrofactura,
+                            tipofactura,
+                            formadepago,
+                            caenumero,
+                            cuitcliente
+                        FROM facturas 
+                        WHERE numeroremito = @nroFactura";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        // numeroremito es integer; pasar siempre como int
+                        if (int.TryParse(nroFactura, out int nroFacturaInt))
+                            cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroFacturaInt });
+                        else
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                         connection.Open();
                         using (var reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
-                                string numeroRemito = reader["NumeroRemito"]?.ToString() ?? "";
-                                string numeroFactura = reader["NroFactura"]?.ToString() ?? "";
-                                string tipoFactura = reader["TipoFactura"]?.ToString() ?? "";
-                                string formaPago = reader["FormadePago"]?.ToString() ?? "";
-                                string cae = reader["CAENumero"]?.ToString() ?? "";
-                                string cuit = reader["CUITCliente"]?.ToString() ?? "";
+                                string numeroRemito = reader["numeroremito"]?.ToString() ?? "";
+                                string numeroFactura = reader["nrofactura"]?.ToString() ?? "";
+                                string tipoFactura = reader["tipofactura"]?.ToString() ?? "";
+                                string formaPago = reader["formadepago"]?.ToString() ?? "";
+                                string cae = reader["caenumero"]?.ToString() ?? "";
+                                string cuit = reader["cuitcliente"]?.ToString() ?? "";
 
                                 // NUEVO: Construir título con número de remito y factura según corresponda
                                 string titulo = "";
@@ -2919,7 +2942,7 @@ namespace Comercio.NET.Formularios
                         .Build();
                     string connectionString = config.GetConnectionString("DefaultConnection");
 
-                    using (var connection = new SqlConnection(connectionString))
+                    using (var connection = new NpgsqlConnection(connectionString))
                     {
                         var remitos = new List<string>();
                         foreach (DataRow row in dt.Rows)
@@ -2955,13 +2978,13 @@ namespace Comercio.NET.Formularios
                             SUM(CAST(v.total AS DECIMAL(18,2))) as TotalVentasProductos,
                             SUM(CAST(v.total / (1 + (p.iva / 100.0)) AS DECIMAL(18,2))) as Subtotal,
                             SUM(CAST(v.total - (v.total / (1 + (p.iva / 100.0))) AS DECIMAL(18,2))) as TotalIVA
-                        FROM Ventas v
-                        INNER JOIN Productos p ON v.codigo = p.codigo
-                        INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                        WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
-                        AND f.TipoFactura IN ('FacturaA', 'FacturaB')";
+                        FROM ventas v
+                        INNER JOIN productos p ON v.codigo = p.codigo
+                        INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+                        WHERE v.nrofactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                        AND f.tipofactura IN ('FacturaA', 'FacturaB')";
 
-                            using (var cmd = new SqlCommand(queryIVA, connection))
+                            using (var cmd = new NpgsqlCommand(queryIVA, connection))
                             {
                                 connection.Open();
                                 using (var reader = cmd.ExecuteReader())
@@ -2977,23 +3000,23 @@ namespace Comercio.NET.Formularios
 
                             // Query para totales por rubro
                             var queryRubros = $@"
-                        WITH VentasConTotal AS (
+                        WITH ventascontotal AS (
                             SELECT 
-                                v.NroFactura,
+                                v.nrofactura,
                                 CASE 
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
-                                    WHEN UPPER(ISNULL(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
+                                    WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%CARNI%' THEN 'Carniceria'
+                                    WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%VERDULE%' THEN 'Verduleria'
+                                    WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%FIAMB%' THEN 'Fiambreria'
+                                    WHEN UPPER(COALESCE(p.rubro, '')) LIKE '%PANADE%' THEN 'Panaderia'
                                     ELSE 'Almacen'
                                 END as Rubro,
                                 CAST(v.total AS DECIMAL(18,2)) AS TotalProducto,
-                                SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.NroFactura) AS TotalFacturaVentas,
-                                CAST(f.ImporteFinal AS DECIMAL(18,2)) AS ImporteFinalFactura
-                            FROM Ventas v
-                            INNER JOIN Productos p ON v.codigo = p.codigo
-                            INNER JOIN Facturas f ON v.NroFactura = f.NumeroRemito
-                            WHERE v.NroFactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
+                                SUM(CAST(v.total AS DECIMAL(18,2))) OVER (PARTITION BY v.nrofactura) AS TotalFacturaVentas,
+                                CAST(f.importefinal AS DECIMAL(18,2)) AS ImporteFinalFactura
+                            FROM ventas v
+                            INNER JOIN productos p ON v.codigo = p.codigo
+                            INNER JOIN facturas f ON v.nrofactura = f.numeroremito
+                            WHERE v.nrofactura IN ({string.Join(",", remitos.Select(r => $"'{r}'"))})
                         )
                         SELECT 
                             Rubro,
@@ -3004,10 +3027,10 @@ namespace Comercio.NET.Formularios
                                     ELSE 0
                                 END
                             ) AS DECIMAL(18,2)) AS Total
-                        FROM VentasConTotal
+                        FROM ventascontotal
                         GROUP BY Rubro";
 
-                            using (var cmd = new SqlCommand(queryRubros, connection))
+                            using (var cmd = new NpgsqlCommand(queryRubros, connection))
                             {
                                 connection.Open();
                                 using (var reader = cmd.ExecuteReader())
@@ -3808,22 +3831,22 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
                     // Obtener datos de la factura
                     var queryFactura = @"
                 SELECT 
-                    NumeroRemito,
-                    NroFactura,
-                    TipoFactura,
-                    ImporteFinal,
-                    FormadePago
-                FROM Facturas 
-                WHERE NumeroRemito = @numeroRemito";
+                    numeroremito,
+                    nrofactura,
+                    tipofactura,
+                    importefinal,
+                    formadepago
+                FROM facturas 
+                WHERE numeroremito::text = @numeroRemito";
 
-                    using (var cmd = new SqlCommand(queryFactura, connection))
+                    using (var cmd = new NpgsqlCommand(queryFactura, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
 
@@ -3833,12 +3856,12 @@ namespace Comercio.NET.Formularios
                             {
                                 var datos = new DatosFacturaModificar
                                 {
-                                    NumeroRemito = reader["NumeroRemito"]?.ToString(),
-                                    NumeroFactura = reader["NroFactura"]?.ToString(),
-                                    TipoFactura = reader["TipoFactura"]?.ToString(),
-                                    ImporteTotal = reader["ImporteFinal"] != DBNull.Value
-                                        ? Convert.ToDecimal(reader["ImporteFinal"]) : 0m,
-                                    FormaPagoActual = reader["FormadePago"]?.ToString()
+                                    NumeroRemito = reader["numeroremito"]?.ToString(),
+                                    NumeroFactura = reader["nrofactura"]?.ToString(),
+                                    TipoFactura = reader["tipofactura"]?.ToString(),
+                                    ImporteTotal = reader["importefinal"] != DBNull.Value
+                                        ? Convert.ToDecimal(reader["importefinal"]) : 0m,
+                                    FormaPagoActual = reader["formadepago"]?.ToString()
                                 };
 
                                 // Cerrar el reader antes de la segunda consulta
@@ -3846,12 +3869,12 @@ namespace Comercio.NET.Formularios
 
                                 // ✅ CORREGIDO: Eliminar ORDER BY Id y ordenar por otro campo
                                 var queryDetalles = @"
-                            SELECT MedioPago, Importe, Observaciones
-                            FROM DetallesPagoFactura
-                            WHERE NumeroRemito = @numeroRemito
-                            ORDER BY FechaPago";
+                            SELECT mediopago, importe, observaciones
+                            FROM detallespagofactura
+                            WHERE numeroremito::text = @numeroRemito
+                            ORDER BY fechapago";
 
-                                using (var cmdDetalles = new SqlCommand(queryDetalles, connection))
+                                using (var cmdDetalles = new NpgsqlCommand(queryDetalles, connection))
                                 {
                                     cmdDetalles.Parameters.AddWithValue("@numeroRemito", numeroRemito);
 
@@ -3863,10 +3886,10 @@ namespace Comercio.NET.Formularios
                                         {
                                             detalles.Add(new DetallePagoModificar
                                             {
-                                                MedioPago = readerDetalles["MedioPago"]?.ToString(),
-                                                Importe = readerDetalles["Importe"] != DBNull.Value
-                                                    ? Convert.ToDecimal(readerDetalles["Importe"]) : 0m,
-                                                Observaciones = readerDetalles["Observaciones"]?.ToString()
+                                                MedioPago = readerDetalles["mediopago"]?.ToString(),
+                                                Importe = readerDetalles["importe"] != DBNull.Value
+                                                    ? Convert.ToDecimal(readerDetalles["importe"]) : 0m,
+                                                Observaciones = readerDetalles["observaciones"]?.ToString()
                                             });
                                         }
 
@@ -3897,7 +3920,7 @@ namespace Comercio.NET.Formularios
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
@@ -3907,11 +3930,14 @@ namespace Comercio.NET.Formularios
                     {
                         // ✅ PASO 0: Obtener el IdFactura del remito
                         int idFactura = 0;
-                        var queryGetId = "SELECT IdFactura FROM Facturas WHERE NumeroRemito = @numeroRemito";
+                        var queryGetId = "SELECT idfactura FROM facturas WHERE numeroremito = @numeroRemito";
 
-                        using (var cmdGetId = new SqlCommand(queryGetId, connection, transaction))
+                        using (var cmdGetId = new NpgsqlCommand(queryGetId, connection, transaction))
                         {
-                            cmdGetId.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                            if (int.TryParse(numeroRemito, out int nroInt0))
+                                cmdGetId.Parameters.Add(new NpgsqlParameter("@numeroRemito", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroInt0 });
+                            else
+                                cmdGetId.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                             var result = await cmdGetId.ExecuteScalarAsync();
 
                             if (result == null || result == DBNull.Value)
@@ -3929,41 +3955,50 @@ namespace Comercio.NET.Formularios
                             : "Múltiples medios";
 
                         var queryFactura = @"
-                    UPDATE Facturas 
-                    SET FormadePago = @formaPago 
-                    WHERE NumeroRemito = @numeroRemito";
+                    UPDATE facturas 
+                    SET formadepago = @formaPago 
+                    WHERE numeroremito = @numeroRemito";
 
-                        using (var cmd = new SqlCommand(queryFactura, connection, transaction))
+                        using (var cmd = new NpgsqlCommand(queryFactura, connection, transaction))
                         {
                             cmd.Parameters.AddWithValue("@formaPago", formaPagoPrincipal);
-                            cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                            if (int.TryParse(numeroRemito, out int nroInt1))
+                                cmd.Parameters.Add(new NpgsqlParameter("@numeroRemito", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroInt1 });
+                            else
+                                cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                             await cmd.ExecuteNonQueryAsync();
                         }
 
                         // ✅ PASO 2: Eliminar detalles de pago existentes
                         var queryDelete = @"
-                    DELETE FROM DetallesPagoFactura 
-                    WHERE NumeroRemito = @numeroRemito";
+                    DELETE FROM detallespagofactura 
+                    WHERE numeroremito = @numeroRemito";
 
-                        using (var cmd = new SqlCommand(queryDelete, connection, transaction))
+                        using (var cmd = new NpgsqlCommand(queryDelete, connection, transaction))
                         {
-                            cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                            if (int.TryParse(numeroRemito, out int nroInt2))
+                                cmd.Parameters.Add(new NpgsqlParameter("@numeroRemito", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroInt2 });
+                            else
+                                cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                             await cmd.ExecuteNonQueryAsync();
                         }
 
                         // ✅ PASO 3: Insertar nuevos detalles de pago con IdFactura
                         var queryInsert = @"
-                    INSERT INTO DetallesPagoFactura 
-                        (IdFactura, NumeroRemito, MedioPago, Importe, Observaciones, FechaPago, Usuario)
+                    INSERT INTO detallespagofactura 
+                        (idfactura, numeroremito, mediopago, importe, observaciones, fechapago, usuario)
                     VALUES 
                         (@idFactura, @numeroRemito, @medioPago, @importe, @observaciones, @fecha, @usuario)";
 
                         foreach (var pago in nuevosPagos)
                         {
-                            using (var cmd = new SqlCommand(queryInsert, connection, transaction))
+                            using (var cmd = new NpgsqlCommand(queryInsert, connection, transaction))
                             {
-                                cmd.Parameters.AddWithValue("@idFactura", idFactura); // ✅ AGREGAR IdFactura
-                                cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
+                                cmd.Parameters.AddWithValue("@idFactura", idFactura);
+                                if (int.TryParse(numeroRemito, out int nroInt3))
+                                    cmd.Parameters.Add(new NpgsqlParameter("@numeroRemito", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroInt3 });
+                                else
+                                    cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                                 cmd.Parameters.AddWithValue("@medioPago", pago.MedioPago);
                                 cmd.Parameters.AddWithValue("@importe", pago.Importe);
                                 cmd.Parameters.AddWithValue("@observaciones", (object)pago.Observaciones ?? DBNull.Value);
@@ -4056,63 +4091,64 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
                     // ✅ Obtener la última factura generada (la que acaba de crear FacturaDirectaAfipForm)
                     var queryUltimaFactura = @"
-                SELECT TOP 1 
-                    NroFactura, 
-                    TipoFactura, 
-                    CAENumero, 
-                    CAEVencimiento, 
-                    CUITCliente
-                FROM Facturas
-                WHERE TipoFactura IN ('FacturaA', 'FacturaB', 'FacturaC')
-                ORDER BY IdFactura DESC";
+                SELECT
+                    nrofactura, 
+                    tipofactura, 
+                    caenumero, 
+                    caevencimiento, 
+                    cuitcliente
+                FROM facturas
+                WHERE tipofactura IN ('FacturaA', 'FacturaB', 'FacturaC')
+                ORDER BY idfactura DESC
+                LIMIT 1";
 
-                    string nroFactura = "";
-                    string tipoFactura = "";
+                    string nrofactura = "";
+                    string tipofactura = "";
                     string cae = "";
                     DateTime? vencimiento = null;
                     string cuit = "";
 
-                    using (var cmd = new SqlCommand(queryUltimaFactura, connection))
+                    using (var cmd = new NpgsqlCommand(queryUltimaFactura, connection))
                     {
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             if (await reader.ReadAsync())
                             {
-                                nroFactura = reader["NroFactura"]?.ToString();
-                                tipoFactura = reader["TipoFactura"]?.ToString();
-                                cae = reader["CAENumero"]?.ToString();
-                                vencimiento = reader["CAEVencimiento"] as DateTime?;
-                                cuit = reader["CUITCliente"]?.ToString();
+                                nrofactura = reader["nrofactura"]?.ToString();
+                                tipofactura = reader["tipofactura"]?.ToString();
+                                cae = reader["caenumero"]?.ToString();
+                                vencimiento = reader["caevencimiento"] as DateTime?;
+                                cuit = reader["cuitcliente"]?.ToString();
                             }
                         }
                     }
 
-                    if (string.IsNullOrEmpty(nroFactura))
+                    if (string.IsNullOrEmpty(nrofactura))
                     {
                         throw new Exception("No se encontró la factura generada");
                     }
 
                     // ✅ Actualizar el remito con los datos de la factura AFIP
                     var queryUpdate = @"
-                UPDATE Facturas 
+                UPDATE facturas 
                 SET 
-                    NroFactura = @nroFactura,
-                    TipoFactura = @tipoFactura,
-                    CAENumero = @cae,
-                    CAEVencimiento = @vencimiento,
-                    CUITCliente = @cuit
-                WHERE NumeroRemito = @numeroRemito";
+                    nrofactura = @nroFactura,
+                    tipofactura = @tipoFactura,
+                    caenumero = @cae,
+                    caevencimiento = @vencimiento,
+                    cuitcliente = @cuit
+                WHERE numeroremito::text = @numeroRemito";
 
-                    using (var cmd = new SqlCommand(queryUpdate, connection))
+                    using (var cmd = new NpgsqlCommand(queryUpdate, connection))
                     {
-                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
-                        cmd.Parameters.AddWithValue("@tipoFactura", tipoFactura);
+                        cmd.Parameters.AddWithValue("@nroFactura", nrofactura);
+                        cmd.Parameters.AddWithValue("@tipoFactura", tipofactura);
                         cmd.Parameters.AddWithValue("@cae", cae);
                         cmd.Parameters.AddWithValue("@vencimiento", (object)vencimiento ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@cuit", (object)cuit ?? DBNull.Value);
@@ -4120,7 +4156,7 @@ namespace Comercio.NET.Formularios
 
                         await cmd.ExecuteNonQueryAsync();
 
-                        System.Diagnostics.Debug.WriteLine($"[VINCULAR] ✅ Remito {numeroRemito} actualizado con factura {nroFactura}");
+                        System.Diagnostics.Debug.WriteLine($"[VINCULAR] ✅ Remito {numeroRemito} actualizado con factura {nrofactura}");
                     }
                 }
             }
@@ -4141,11 +4177,11 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
-                    var query = "SELECT TipoFactura FROM Facturas WHERE NumeroRemito = @numeroRemito";
+                    var query = "SELECT tipofactura FROM facturas WHERE numeroremito::text = @numeroRemito";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                         await connection.OpenAsync();
@@ -4172,18 +4208,18 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
                 SELECT 
-                    NumeroRemito,
-                    ImporteFinal,
-                    FormadePago,
-                    Fecha
-                FROM Facturas 
-                WHERE NumeroRemito = @numeroRemito";
+                    numeroremito,
+                    importefinal,
+                    formadepago,
+                    fecha
+                FROM facturas 
+                WHERE numeroremito::text = @numeroRemito";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroRemito", numeroRemito);
                         await connection.OpenAsync();
@@ -4194,12 +4230,12 @@ namespace Comercio.NET.Formularios
                             {
                                 return new DatosRemitoParaFacturar
                                 {
-                                    NumeroRemito = reader["NumeroRemito"]?.ToString(),
-                                    ImporteTotal = reader["ImporteFinal"] != DBNull.Value
-                                        ? Convert.ToDecimal(reader["ImporteFinal"]) : 0m,
-                                    FormaPago = reader["FormadePago"]?.ToString(),
-                                    Fecha = reader["Fecha"] != DBNull.Value
-                                        ? Convert.ToDateTime(reader["Fecha"]) : DateTime.Now
+                                    NumeroRemito = reader["numeroremito"]?.ToString(),
+                                    ImporteTotal = reader["importefinal"] != DBNull.Value
+                                        ? Convert.ToDecimal(reader["importefinal"]) : 0m,
+                                    FormaPago = reader["formadepago"]?.ToString(),
+                                    Fecha = reader["fecha"] != DBNull.Value
+                                        ? Convert.ToDateTime(reader["fecha"]) : DateTime.Now
                                 };
                             }
                         }
@@ -4477,21 +4513,21 @@ namespace Comercio.NET.Formularios
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
                 var query = @"
-            UPDATE Facturas 
+            UPDATE facturas 
             SET 
-                TipoFactura = @tipoFactura,
-                NroFactura = @numeroFactura,
-                CAENumero = @cae,
-                CAEVencimiento = @vencimiento,
-                CUITCliente = @cuit
-            WHERE NumeroRemito = @numeroRemito";
+                tipofactura = @tipoFactura,
+                nrofactura = @numeroFactura,
+                caenumero = @cae,
+                caevencimiento = @vencimiento,
+                cuitcliente = @cuit
+            WHERE numeroremito::text = @numeroRemito";
 
-                using (var cmd = new SqlCommand(query, connection))
+                using (var cmd = new NpgsqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@tipoFactura", tipoFactura);
                     cmd.Parameters.AddWithValue("@numeroFactura", numeroFactura);
@@ -4521,3 +4557,4 @@ namespace Comercio.NET.Formularios
         }
     }
 }
+

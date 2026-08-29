@@ -16,16 +16,29 @@
 		<Compile Remove="Comercio.NET.Mobile\**" />
 		<EmbeddedResource Remove="Comercio.NET.Mobile\**" />
 		<None Remove="Comercio.NET.Mobile\**" />
+		<Compile Remove="Comercio.NET.Pizzeria\**" />
+		<EmbeddedResource Remove="Comercio.NET.Pizzeria\**" />
+		<None Remove="Comercio.NET.Pizzeria\**" />
 	</ItemGroup>
   <ItemGroup>
     <Content Include="Imagenes\Icon\ico\icons8-shop-40.ico" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".dockerignore Comercio.NET.Mobile\Comercio.NET.Mobile.Server\.dockerignore" />
+    <None Include="Comercio.NET.Mobile\Instalacion\crear-base-datos.sql" />
+    <None Include="Comercio.NET.Mobile\Instalacion\generar-backup.ps1" />
+    <None Include="Comercio.NET.Mobile\Instalacion\instalar-comercio-web.ps1" />
+    <None Include="Comercio.NET.Mobile\Instalacion\instalar-manual.ps1" />
+    <None Include="Comercio.NET.Mobile\Instalacion\instalar.ps1" />
+    <None Include="Comercio.NET.Mobile\Instalacion\LEEME.md" />
+    <None Include="Comercio.NET.Mobile\Instalacion\publicar-github.ps1" />
+    <None Include="Comercio.NET.Mobile\Instalacion\publicar.ps1" />
+    <None Include="Comercio.NET.Pizzeria\Comercio.NET.Pizzeria.Server\Comercio.NET.Pizzeria.Server.csproj" />
     <None Include="DebugAfip.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AF.DataAccessor" Version="2.0.2" />
+    <PackageReference Include="Npgsql" Version="8.0.5" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="Google.Protobuf" Version="3.21.5" />
     <PackageReference Include="Grpc.Net.ClientFactory" Version="2.49.0" />
@@ -81,12 +94,6 @@
     <Folder Include="Resources\" />
   </ItemGroup>
 </Project>
-
-
-
-
-
-
 
 
 

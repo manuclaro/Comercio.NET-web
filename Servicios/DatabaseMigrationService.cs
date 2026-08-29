@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Npgsql;
 using System.IO;
 using System.Linq;
 using System.Diagnostics;
@@ -10,25 +10,25 @@ using Microsoft.Extensions.Configuration;
 namespace Comercio.NET.Servicios
 {
     /// <summary>
-    /// Gestiona la ejecución automática de scripts de migración de base de datos
-    /// durante el proceso de actualización de la aplicación.
+    /// Gestiona la ejecuciï¿½n automï¿½tica de scripts de migraciï¿½n de base de datos
+    /// durante el proceso de actualizaciï¿½n de la aplicaciï¿½n.
     ///
-    /// Convención de nombres de scripts:
-    ///   migrate_1.4.0.sql  ?  se ejecuta al actualizar a la versión 1.4.0
-    ///   migrate_1.5.0.sql  ?  se ejecuta al actualizar a la versión 1.5.0
+    /// Convenciï¿½n de nombres de scripts:
+    ///   migrate_1.4.0.sql  ?  se ejecuta al actualizar a la versiï¿½n 1.4.0
+    ///   migrate_1.5.0.sql  ?  se ejecuta al actualizar a la versiï¿½n 1.5.0
     ///
     /// Los scripts SQL se incluyen en el .zip del GitHub Release dentro de la
-    /// carpeta "migrations\". El script .bat de actualización los ejecuta
-    /// automáticamente antes de reiniciar la aplicación.
+    /// carpeta "migrations\". El script .bat de actualizaciï¿½n los ejecuta
+    /// automï¿½ticamente antes de reiniciar la aplicaciï¿½n.
     ///
-    /// Cada script debe ser idempotente (puede ejecutarse más de una vez sin error).
+    /// Cada script debe ser idempotente (puede ejecutarse mï¿½s de una vez sin error).
     /// </summary>
     public class DatabaseMigrationService
     {
         private readonly string _connectionString;
         private readonly string _migrationsFolder;
 
-        // Nombre de la tabla que registra qué migraciones ya fueron aplicadas
+        // Nombre de la tabla que registra quï¿½ migraciones ya fueron aplicadas
         private const string MIGRATIONS_TABLE = "__MigracionesAplicadas";
 
         public DatabaseMigrationService(string migrationsFolder = null)
@@ -40,8 +40,8 @@ namespace Comercio.NET.Servicios
         }
 
         /// <summary>
-        /// Detecta y ejecuta todos los scripts de migración pendientes.
-        /// Retorna los resultados de cada migración aplicada.
+        /// Detecta y ejecuta todos los scripts de migraciï¿½n pendientes.
+        /// Retorna los resultados de cada migraciï¿½n aplicada.
         /// </summary>
         public async Task<List<MigrationResult>> AplicarMigracionesPendientesAsync()
         {
@@ -55,14 +55,14 @@ namespace Comercio.NET.Servicios
 
             if (string.IsNullOrWhiteSpace(_connectionString))
             {
-                Debug.WriteLine("[MIGRATION] No se pudo obtener la cadena de conexión");
+                Debug.WriteLine("[MIGRATION] No se pudo obtener la cadena de conexiÃ³n");
                 return resultados;
             }
 
             // Asegurar que la tabla de control exista
             await CrearTablaMigracionesSiNoExisteAsync();
 
-            // Obtener scripts pendientes ordenados por versión
+            // Obtener scripts pendientes ordenados por versiï¿½n
             var scriptsPendientes = await ObtenerScriptsPendientesAsync();
 
             if (scriptsPendientes.Count == 0)
@@ -71,7 +71,7 @@ namespace Comercio.NET.Servicios
                 return resultados;
             }
 
-            Debug.WriteLine($"[MIGRATION] {scriptsPendientes.Count} migración(es) pendiente(s)");
+            Debug.WriteLine($"[MIGRATION] {scriptsPendientes.Count} migracion(es) pendiente(s)");
 
             foreach (var script in scriptsPendientes)
             {
@@ -90,8 +90,8 @@ namespace Comercio.NET.Servicios
         }
 
         /// <summary>
-        /// Retorna los scripts .sql de la carpeta migrations que aún no fueron aplicados,
-        /// ordenados por versión ascendente.
+        /// Retorna los scripts .sql de la carpeta migrations que aï¿½n no fueron aplicados,
+        /// ordenados por versiï¿½n ascendente.
         /// </summary>
         private async Task<List<MigrationScript>> ObtenerScriptsPendientesAsync()
         {
@@ -100,11 +100,11 @@ namespace Comercio.NET.Servicios
 
             var todos = archivos.Select(ruta => new MigrationScript(ruta)).ToList();
 
-            // Log de diagnóstico: mostrar qué se descarta y por qué
+            // Log de diagnï¿½stico: mostrar quï¿½ se descarta y por quï¿½
             foreach (var s in todos)
             {
                 if (!s.EsValido)
-                    Debug.WriteLine($"[MIGRATION] IGNORADO (nombre inválido, no tiene versión X.Y.Z): {s.NombreArchivo}");
+                    Debug.WriteLine($"[MIGRATION] IGNORADO (nombre invÃ¡lido, no tiene versiÃ³n X.Y.Z): {s.NombreArchivo}");
                 else if (aplicadas.Contains(s.NombreArchivo))
                     Debug.WriteLine($"[MIGRATION] YA APLICADO: {s.NombreArchivo}");
                 else
@@ -135,7 +135,7 @@ namespace Comercio.NET.Servicios
             {
                 string sql = await File.ReadAllTextAsync(script.RutaCompleta);
 
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
 
                 // Dividir por GO para ejecutar en bloques (igual que SSMS)
@@ -150,12 +150,12 @@ namespace Comercio.NET.Servicios
                         var sentencia = bloque.Trim();
                         if (string.IsNullOrWhiteSpace(sentencia)) continue;
 
-                        using var command = new SqlCommand(sentencia, connection, transaction);
+                        using var command = new NpgsqlCommand(sentencia, connection, transaction);
                         command.CommandTimeout = 120;
                         await command.ExecuteNonQueryAsync();
                     }
 
-                    // Registrar como aplicada dentro de la misma transacción
+                    // Registrar como aplicada dentro de la misma transacciï¿½n
                     await RegistrarMigracionAplicadaAsync(connection, transaction, script.NombreArchivo);
 
                     transaction.Commit();
@@ -181,23 +181,17 @@ namespace Comercio.NET.Servicios
         private async Task CrearTablaMigracionesSiNoExisteAsync()
         {
             var sql = $@"
-IF NOT EXISTS (
-    SELECT 1 FROM INFORMATION_SCHEMA.TABLES
-    WHERE TABLE_NAME = '{MIGRATIONS_TABLE}'
-)
-BEGIN
-    CREATE TABLE [{MIGRATIONS_TABLE}] (
-        Id            INT IDENTITY(1,1) PRIMARY KEY,
-        NombreArchivo NVARCHAR(255) NOT NULL UNIQUE,
-        FechaAplicada DATETIME      NOT NULL DEFAULT GETDATE()
-    )
-END";
+CREATE TABLE IF NOT EXISTS {MIGRATIONS_TABLE} (
+    id            SERIAL PRIMARY KEY,
+    nombrearchivo VARCHAR(255) NOT NULL UNIQUE,
+    fechaaplicada TIMESTAMP    NOT NULL DEFAULT NOW()
+)";
 
             try
             {
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
-                using var command = new SqlCommand(sql, connection);
+                using var command = new NpgsqlCommand(sql, connection);
                 await command.ExecuteNonQueryAsync();
             }
             catch (Exception ex)
@@ -213,9 +207,9 @@ END";
             try
             {
                 var sql = $"SELECT NombreArchivo FROM [{MIGRATIONS_TABLE}]";
-                using var connection = new SqlConnection(_connectionString);
+                using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
-                using var command = new SqlCommand(sql, connection);
+                using var command = new NpgsqlCommand(sql, connection);
                 using var reader = await command.ExecuteReaderAsync();
 
                 while (await reader.ReadAsync())
@@ -230,13 +224,13 @@ END";
         }
 
         private async Task RegistrarMigracionAplicadaAsync(
-            SqlConnection connection, SqlTransaction transaction, string nombreArchivo)
+            NpgsqlConnection connection, NpgsqlTransaction transaction, string nombreArchivo)
         {
             var sql = $@"
 IF NOT EXISTS (SELECT 1 FROM [{MIGRATIONS_TABLE}] WHERE NombreArchivo = @nombre)
     INSERT INTO [{MIGRATIONS_TABLE}] (NombreArchivo) VALUES (@nombre)";
 
-            using var command = new SqlCommand(sql, connection, transaction);
+            using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("@nombre", nombreArchivo);
             await command.ExecuteNonQueryAsync();
         }
@@ -261,7 +255,7 @@ IF NOT EXISTS (SELECT 1 FROM [{MIGRATIONS_TABLE}] WHERE NombreArchivo = @nombre)
     }
 
     /// <summary>
-    /// Representa un script de migración con su versión parseada del nombre de archivo.
+    /// Representa un script de migraciï¿½n con su versiï¿½n parseada del nombre de archivo.
     /// Formato esperado: migrate_1.4.0.sql
     /// </summary>
     public class MigrationScript
@@ -276,7 +270,7 @@ IF NOT EXISTS (SELECT 1 FROM [{MIGRATIONS_TABLE}] WHERE NombreArchivo = @nombre)
             RutaCompleta = rutaCompleta;
             NombreArchivo = Path.GetFileName(rutaCompleta);
 
-            // Parsear versión desde "migrate_1.4.0.sql" ? "1.4.0"
+            // Parsear versiï¿½n desde "migrate_1.4.0.sql" ? "1.4.0"
             var sinPrefijo = NombreArchivo
                 .Replace("migrate_", "", StringComparison.OrdinalIgnoreCase)
                 .Replace(".sql", "", StringComparison.OrdinalIgnoreCase);
@@ -287,7 +281,7 @@ IF NOT EXISTS (SELECT 1 FROM [{MIGRATIONS_TABLE}] WHERE NombreArchivo = @nombre)
     }
 
     /// <summary>
-    /// Resultado de la ejecución de un script de migración.
+    /// Resultado de la ejecuciï¿½n de un script de migraciï¿½n.
     /// </summary>
     public class MigrationResult
     {
@@ -299,7 +293,7 @@ IF NOT EXISTS (SELECT 1 FROM [{MIGRATIONS_TABLE}] WHERE NombreArchivo = @nombre)
 
         public override string ToString() =>
             Exitoso
-                ? $"? {NombreArchivo} — OK"
-                : $"? {NombreArchivo} — Error: {Error}";
+                ? $"? {NombreArchivo}  OK"
+                : $"? {NombreArchivo}  Error: {Error}";
     }
 }

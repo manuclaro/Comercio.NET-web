@@ -1,21 +1,17 @@
-using System.Text.Json;
+ï»¿using System.Text.Json;
 using Comercio.NET.Mobile.Server.Models;
 
 namespace Comercio.NET.Mobile.Server.Services
 {
     public class ArqueoCajaService
     {
-        private readonly string _sqlBridgeUrl;
+        private readonly DbService _db;
         private readonly ILogger<ArqueoCajaService> _logger;
-        private readonly HttpClient _httpClient;
 
-        public ArqueoCajaService(IConfiguration configuration, ILogger<ArqueoCajaService> logger, IHttpClientFactory httpClientFactory)
+        public ArqueoCajaService(DbService db, ILogger<ArqueoCajaService> logger)
         {
-            _sqlBridgeUrl = Environment.GetEnvironmentVariable("SQL_BRIDGE_URL")
-                ?? configuration["SqlBridgeUrl"]
-                ?? throw new InvalidOperationException("SQL_BRIDGE_URL no está configurada");
+            _db = db;
             _logger = logger;
-            _httpClient = httpClientFactory.CreateClient();
         }
 
         public async Task<List<string>> ObtenerCajerosAsync()
@@ -25,32 +21,17 @@ namespace Comercio.NET.Mobile.Server.Services
                 var query = @"
                     SELECT DISTINCT Cajero
                     FROM Facturas
-                    WHERE ISNULL(Cajero, '') <> ''
+                    WHERE COALESCE(Cajero, '') <> ''
                     ORDER BY Cajero";
 
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query });
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("? SQL Bridge error en ObtenerCajerosAsync: {StatusCode} - {Content}",
-                        response.StatusCode, errorContent);
-                    return new List<string>();
-                }
-
-                using var stream1 = await response.Content.ReadAsStreamAsync();
-                var result = await JsonSerializer.DeserializeAsync<QueryResult>(stream1,
-                    JsonSerializerDefaults.CaseInsensitive);
+                var rows = await _db.QueryAsync(query, new Dictionary<string, object?>());
 
                 var cajeros = new List<string>();
-                if (result?.Data != null)
+                foreach (var row in rows)
                 {
-                    foreach (var row in result.Data)
+                    if (row.Count > 0 && row[0].ValueKind != JsonValueKind.Null)
                     {
-                        if (row.Count > 0 && row[0] != null)
-                        {
-                            cajeros.Add(ConvertToString(row[0]));
-                        }
+                        cajeros.Add(ConvertToString(row[0]));
                     }
                 }
 
@@ -69,64 +50,57 @@ namespace Comercio.NET.Mobile.Server.Services
 
             try
             {
-                var query = @"
+                var esCtaCteFilter = _db.UsaPostgres ? "COALESCE(esctacte, FALSE) IS FALSE" : "esctacte = 0";
+                var cajeroFilter = string.IsNullOrEmpty(cajero) ? "" : "AND Cajero = @cajero";
+                var cajeroFilterPP = string.IsNullOrEmpty(cajero) ? "" : "AND UsuarioRegistro = @cajero";
+                var castType = _db.UsaPostgres ? "NUMERIC(18,2)" : "DECIMAL(18,2)";
+                var query = $@"
                     SELECT 
                         COUNT(DISTINCT NumeroRemito) as TotalVentas,
-                        SUM(CAST(ISNULL(ImporteFinal, 0) AS DECIMAL(18,2))) as TotalIngresos,
+                        SUM(CAST(COALESCE(ImporteFinal, 0) AS {castType})) as TotalIngresos,
                         SUM(CASE WHEN FormadePago = 'DNI' 
-                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as DNI,
+                            THEN CAST(ImporteFinal AS {castType}) ELSE 0 END) as DNI,
                         SUM(CASE WHEN FormadePago = 'Efectivo' 
-                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Efectivo,
-                        SUM(CASE WHEN FormadePago LIKE '%Mercado%Pago%' OR FormadePago = 'MercadoPago'
-                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as MercadoPago,
+                            THEN CAST(ImporteFinal AS {castType}) ELSE 0 END) as Efectivo,
+                        SUM(CASE WHEN FormadePago LIKE '%Mercado%' OR FormadePago = 'MercadoPago'
+                            THEN CAST(ImporteFinal AS {castType}) ELSE 0 END) as MercadoPago,
                         SUM(CASE WHEN FormadePago = 'Otro' 
-                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as Otro,
+                            THEN CAST(ImporteFinal AS {castType}) ELSE 0 END) as Otro,
                         SUM(CASE WHEN TipoFactura = 'FacturaC' OR TipoFactura = 'Factura C' OR TipoFactura = 'C'
-                            THEN CAST(ImporteFinal AS DECIMAL(18,2)) ELSE 0 END) as FacturaC,
-                        ISNULL((
-                            SELECT SUM(CAST(Monto AS DECIMAL(18,2)))
+                            THEN CAST(ImporteFinal AS {castType}) ELSE 0 END) as FacturaC,
+                        COALESCE((
+                            SELECT SUM(CAST(Monto AS {castType}))
                             FROM PagosProveedores
                             WHERE CAST(FechaPago AS DATE) = @fecha
-                            AND (@cajero IS NULL OR UsuarioRegistro = @cajero)
+                            {cajeroFilterPP}
                         ), 0) as PagosProveedores
                     FROM Facturas
                     WHERE CAST(Fecha AS DATE) = @fecha
-                    AND esctacte = 0
-                    AND (@cajero IS NULL OR Cajero = @cajero)
-                    AND ISNULL(Cajero, '') <> ''";
+                    AND {esCtaCteFilter}
+                    {cajeroFilter}
+                    AND COALESCE(Cajero, '') <> ''";
 
                 var parameters = new Dictionary<string, object?>
                 {
-                    { "@fecha", fecha.ToString("yyyy-MM-dd") },
-                    { "@cajero", string.IsNullOrEmpty(cajero) ? null : cajero }
+                    { "@fecha", fecha.Date }
                 };
+                if (!string.IsNullOrEmpty(cajero))
+                    parameters["@cajero"] = cajero;
 
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
+                var rows = await _db.QueryAsync(query, parameters);
 
-                if (!response.IsSuccessStatusCode)
+                if (rows.Count > 0)
                 {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("? SQL Bridge error en ObtenerArqueoAsync: {StatusCode} - {Content}",
-                        response.StatusCode, errorContent);
-                    return resultado;
-                }
+                    var row = rows[0];
 
-                using var stream2 = await response.Content.ReadAsStreamAsync();
-                var result = await JsonSerializer.DeserializeAsync<QueryResult>(stream2,
-                    JsonSerializerDefaults.CaseInsensitive);
-
-                if (result?.Data != null && result.Data.Count > 0)
-                {
-                    var row = result.Data[0];
-
-                    resultado.CantidadVentas = ConvertToInt32(row[0]);
-                    resultado.TotalIngresos = ConvertToDecimal(row[1]);
-                    resultado.DNI = ConvertToDecimal(row[2]);
-                    resultado.Efectivo = ConvertToDecimal(row[3]);
-                    resultado.MercadoPago = ConvertToDecimal(row[4]);
-                    resultado.Otro = ConvertToDecimal(row[5]);
-                    resultado.FacturaC = ConvertToDecimal(row[6]);
-                    resultado.PagosProveedores = ConvertToDecimal(row[7]);
+                    resultado.CantidadVentas = ConvertToInt32(row.Count > 0 ? row[0] : default);
+                    resultado.TotalIngresos = ConvertToDecimal(row.Count > 1 ? row[1] : default);
+                    resultado.DNI = ConvertToDecimal(row.Count > 2 ? row[2] : default);
+                    resultado.Efectivo = ConvertToDecimal(row.Count > 3 ? row[3] : default);
+                    resultado.MercadoPago = ConvertToDecimal(row.Count > 4 ? row[4] : default);
+                    resultado.Otro = ConvertToDecimal(row.Count > 5 ? row[5] : default);
+                    resultado.FacturaC = ConvertToDecimal(row.Count > 6 ? row[6] : default);
+                    resultado.PagosProveedores = ConvertToDecimal(row.Count > 7 ? row[7] : default);
                 }
 
                 return resultado;
@@ -140,183 +114,123 @@ namespace Comercio.NET.Mobile.Server.Services
 
         public async Task<List<DetallePagoProveedorDto>> ObtenerDetallePagosProveedoresAsync(DateTime fecha, string? cajero = null)
         {
-            _logger.LogInformation("?? Iniciando consulta de pagos a proveedores - Fecha: {Fecha}, Cajero: {Cajero}", 
+            _logger.LogInformation("Iniciando consulta de pagos a proveedores - Fecha: {Fecha}, Cajero: {Cajero}", 
                 fecha.ToString("yyyy-MM-dd"), cajero ?? "NULL");
 
             try
             {
-                var query = @"
+                var cajeroFilterPP2 = string.IsNullOrEmpty(cajero) ? "" : "AND pp.UsuarioRegistro = @cajero";
+                var query = $@"
                     SELECT 
                         pp.Id,
                         pp.Proveedor,
                         pp.Monto,
                         pp.FechaPago,
-                        ISNULL(pp.Observaciones, '') as Observaciones,
-                        ISNULL(pp.UsuarioRegistro, '') as UsuarioRegistro,
+                        COALESCE(pp.Observaciones, '') as Observaciones,
+                        COALESCE(pp.UsuarioRegistro, '') as UsuarioRegistro,
                         pp.NumeroCajero,
                         pp.NumeroRemito,
-                        ISNULL(pp.NombreEquipo, '') as NombreEquipo,
+                        COALESCE(pp.NombreEquipo, '') as NombreEquipo,
                         pp.FechaRegistro,
                         pp.IdProveedor,
                         pp.CompraId,
                         pp.CtaCteId,
-                        ISNULL(pp.Origen, '') as Origen
+                        COALESCE(pp.Origen, '') as Origen
                     FROM PagosProveedores pp
                     WHERE CAST(pp.FechaPago AS DATE) = @fecha
-                    AND (@cajero IS NULL OR pp.UsuarioRegistro = @cajero)
+                    {cajeroFilterPP2}
                     ORDER BY pp.FechaPago DESC";
 
                 var parameters = new Dictionary<string, object?>
                 {
-                    { "@fecha", fecha.ToString("yyyy-MM-dd") },
-                    { "@cajero", string.IsNullOrEmpty(cajero) ? null : cajero }
+                    { "@fecha", fecha.Date }
                 };
+                if (!string.IsNullOrEmpty(cajero))
+                    parameters["@cajero"] = cajero;
 
-                _logger.LogInformation("?? Ejecutando query");
-
-                var response = await _httpClient.PostAsJsonAsync($"{_sqlBridgeUrl}/query", new { query, parameters });
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("? SQL Bridge error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                    return new List<DetallePagoProveedorDto>();
-                }
-
-                using var stream3 = await response.Content.ReadAsStreamAsync();
-                var result = await JsonSerializer.DeserializeAsync<QueryResult>(stream3,
-                    JsonSerializerDefaults.CaseInsensitive);
+                var rows = await _db.QueryAsync(query, parameters);
 
                 var pagos = new List<DetallePagoProveedorDto>();
 
-                if (result?.Data != null && result.Data.Count > 0)
+                if (rows.Count > 0)
                 {
-                    _logger.LogInformation("?? Procesando {Count} filas", result.Data.Count);
+                    _logger.LogInformation("Procesando {Count} filas", rows.Count);
 
-                    foreach (var row in result.Data)
+                    foreach (var row in rows)
                     {
                         try
                         {
                             pagos.Add(new DetallePagoProveedorDto
                             {
-                                Id = ConvertToInt32(row[0]),
-                                Proveedor = ConvertToString(row[1]),
-                                Monto = ConvertToDecimal(row[2]),
-                                FechaPago = ConvertToDateTime(row[3]),
-                                Observaciones = ConvertToString(row[4]),
-                                UsuarioRegistro = ConvertToString(row[5]),
-                                NumeroCajero = ConvertToInt32(row[6]),
-                                NumeroRemito = row[7] != null ? ConvertToInt32(row[7]) : null,
-                                NombreEquipo = ConvertToString(row[8]),
-                                FechaRegistro = ConvertToDateTime(row[9]),
-                                IdProveedor = row[10] != null ? ConvertToInt32(row[10]) : null,
-                                CompraId = row[11] != null ? ConvertToInt32(row[11]) : null,
-                                CtaCteId = row[12] != null ? ConvertToInt32(row[12]) : null,
-                                Origen = ConvertToString(row[13])
+                                Id = ConvertToInt32(row.Count > 0 ? row[0] : default),
+                                Proveedor = ConvertToString(row.Count > 1 ? row[1] : default),
+                                Monto = ConvertToDecimal(row.Count > 2 ? row[2] : default),
+                                FechaPago = ConvertToDateTime(row.Count > 3 ? row[3] : default),
+                                Observaciones = ConvertToString(row.Count > 4 ? row[4] : default),
+                                UsuarioRegistro = ConvertToString(row.Count > 5 ? row[5] : default),
+                                NumeroCajero = ConvertToInt32(row.Count > 6 ? row[6] : default),
+                                NumeroRemito = row.Count > 7 && row[7].ValueKind != JsonValueKind.Null ? ConvertToInt32(row[7]) : null,
+                                NombreEquipo = ConvertToString(row.Count > 8 ? row[8] : default),
+                                FechaRegistro = ConvertToDateTime(row.Count > 9 ? row[9] : default),
+                                IdProveedor = row.Count > 10 && row[10].ValueKind != JsonValueKind.Null ? ConvertToInt32(row[10]) : null,
+                                CompraId = row.Count > 11 && row[11].ValueKind != JsonValueKind.Null ? ConvertToInt32(row[11]) : null,
+                                CtaCteId = row.Count > 12 && row[12].ValueKind != JsonValueKind.Null ? ConvertToInt32(row[12]) : null,
+                                Origen = ConvertToString(row.Count > 13 ? row[13] : default)
                             });
-
-                            _logger.LogDebug("? Pago procesado: {Proveedor} - {Monto}",
-                                ConvertToString(row[1]), ConvertToDecimal(row[2]));
                         }
                         catch (Exception exRow)
                         {
-                            _logger.LogError(exRow, "? Error procesando fila: {Row}",
-                                JsonSerializer.Serialize(row));
+                            _logger.LogError(exRow, "Error procesando fila de pago a proveedor");
                         }
                     }
                 }
 
-                _logger.LogInformation("? Consulta finalizada - Total pagos: {Count}", pagos.Count);
+                _logger.LogInformation("Consulta finalizada - Total pagos: {Count}", pagos.Count);
                 return pagos;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "? Error obteniendo detalle de pagos a proveedores");
+                _logger.LogError(ex, "Error obteniendo detalle de pagos a proveedores");
                 return new List<DetallePagoProveedorDto>();
             }
         }
 
-        private static DateTime ConvertToDateTime(object? value)
+        private static DateTime ConvertToDateTime(JsonElement value)
         {
-            if (value == null) return DateTime.MinValue;
-
-            if (value is JsonElement jsonElement)
-            {
-                return jsonElement.ValueKind switch
-                {
-                    JsonValueKind.String => DateTime.TryParse(jsonElement.GetString(), out DateTime result)
-                        ? result
-                        : DateTime.MinValue,
-                    _ => DateTime.MinValue
-                };
-            }
-
-            if (value is DateTime dt)
-                return dt;
-
-            if (value is string str)
-                return DateTime.TryParse(str, out DateTime result) ? result : DateTime.MinValue;
-
+            if (value.ValueKind == JsonValueKind.String)
+                return DateTime.TryParse(value.GetString(), out var d) ? d : DateTime.MinValue;
             return DateTime.MinValue;
         }
 
-        private static int ConvertToInt32(object? value)
+        private static int ConvertToInt32(JsonElement value)
         {
-            if (value == null) return 0;
-
-            if (value is JsonElement jsonElement)
+            return value.ValueKind switch
             {
-                return jsonElement.ValueKind switch
-                {
-                    JsonValueKind.Number => jsonElement.GetInt32(),
-                    JsonValueKind.String => int.TryParse(jsonElement.GetString(), out int result) ? result : 0,
-                    JsonValueKind.Null => 0,
-                    _ => 0
-                };
-            }
-
-            return Convert.ToInt32(value);
+                JsonValueKind.Number => value.GetInt32(),
+                JsonValueKind.String => int.TryParse(value.GetString(), out var r) ? r : 0,
+                _ => 0
+            };
         }
 
-        private static decimal ConvertToDecimal(object? value)
+        private static decimal ConvertToDecimal(JsonElement value)
         {
-            if (value == null) return 0;
-
-            if (value is JsonElement jsonElement)
+            return value.ValueKind switch
             {
-                return jsonElement.ValueKind switch
-                {
-                    JsonValueKind.Number => jsonElement.GetDecimal(),
-                    JsonValueKind.String => decimal.TryParse(jsonElement.GetString(), out decimal result) ? result : 0,
-                    JsonValueKind.Null => 0,
-                    _ => 0
-                };
-            }
-
-            return Convert.ToDecimal(value);
+                JsonValueKind.Number => value.GetDecimal(),
+                JsonValueKind.String => decimal.TryParse(value.GetString(), out var r) ? r : 0,
+                _ => 0
+            };
         }
 
-        private static string ConvertToString(object? value)
+        private static string ConvertToString(JsonElement value)
         {
-            if (value == null) return string.Empty;
-
-            if (value is JsonElement jsonElement)
+            return value.ValueKind switch
             {
-                return jsonElement.ValueKind switch
-                {
-                    JsonValueKind.String => jsonElement.GetString() ?? string.Empty,
-                    JsonValueKind.Number => jsonElement.ToString(),
-                    JsonValueKind.Null => string.Empty,
-                    _ => jsonElement.ToString()
-                };
-            }
-
-            return value.ToString() ?? string.Empty;
+                JsonValueKind.String => value.GetString() ?? string.Empty,
+                JsonValueKind.Number => value.ToString(),
+                JsonValueKind.Null => string.Empty,
+                _ => value.ToString()
+            };
         }
-    }
-
-    public class QueryResult
-    {
-        public List<List<object?>> Data { get; set; } = new();
     }
 }

@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -326,6 +326,7 @@ namespace Comercio.NET.Formularios
                 int xIvaLabel = xControl + 80;
                 int xIvaControl = xIvaLabel + 50;
                 cmbIva = CrearComboBox(xIvaControl, yPos - 2, 80, new[] { "0.00", "10.50", "21.00", "27.00" });
+                cmbIva.Text = "21.00"; // Valor por defecto
                 CrearLabelSecundario("IVA %:", xIvaLabel, yPos, 45);
                 panelContenido.Controls.Add(cmbIva);
                 yPos += margenCampo;
@@ -342,6 +343,7 @@ namespace Comercio.NET.Formularios
                 // Checkboxes existentes
                 yPos += 5;
                 chkPermiteAcumular = CrearCheckBox("Permite Acumular", xLabel, yPos, 180);
+                chkPermiteAcumular.Checked = true;
                 panelContenido.Controls.Add(chkPermiteAcumular);
                 yPos += 30;
 
@@ -848,19 +850,19 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
                     // ✅ MODIFICADO: Incluir campo Activo en la consulta
                     string query = @"SELECT codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, precio, 
                                           cantidad, iva, 
-                                          CAST(ISNULL(PermiteAcumular, 0) AS BIT) as PermiteAcumular, 
-                                          CAST(ISNULL(EditarPrecio, 0) AS BIT) as EditarPrecio,
-                                          CAST(ISNULL(Activo, 1) AS BIT) as Activo
-                                   FROM Productos WHERE codigo = @codigo";
+                                          COALESCE(permiteacumular, FALSE) as permiteacumular, 
+                                          COALESCE(editarprecio, FALSE) as editarprecio,
+                                          COALESCE(activo, TRUE) as activo
+                                   FROM productos WHERE codigo = @codigo";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo);
 
@@ -880,9 +882,9 @@ namespace Comercio.NET.Formularios
                                     Precio = Convert.ToDecimal(reader["precio"]),
                                     Stock = Convert.ToInt32(reader["cantidad"]),
                                     Iva = Convert.ToDecimal(reader["iva"]),
-                                    PermiteAcumular = Convert.ToBoolean(reader["PermiteAcumular"]),
-                                    EditarPrecio = Convert.ToBoolean(reader["EditarPrecio"]),
-                                    Activo = Convert.ToBoolean(reader["Activo"]) // ✅ NUEVO
+                                    PermiteAcumular = Convert.ToBoolean(reader["permiteacumular"]),
+                                    EditarPrecio = Convert.ToBoolean(reader["editarprecio"]),
+                                    Activo = Convert.ToBoolean(reader["activo"]) // ✅ NUEVO
                                 };
 
                                 CargarDatosEnFormulario(_datosOriginales);
@@ -958,17 +960,17 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
                     string query = "SELECT COUNT(*) FROM Productos WHERE codigo = @codigo";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo);
 
-                        int count = (int)await cmd.ExecuteScalarAsync();
+                        int count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
                         return count > 0;
                     }
                 }
@@ -1014,7 +1016,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
@@ -1022,26 +1024,26 @@ namespace Comercio.NET.Formularios
                     {
                         try
                         {
-                            SqlCommand cmd;
+                            NpgsqlCommand cmd;
 
                             if (Modo == ModoOperacion.Agregar)
                             {
                                 // ✅ MODIFICADO: Incluir campo modificado en INSERT con fecha actual
-                                cmd = new SqlCommand(@"
-                            INSERT INTO Productos (codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, 
-                                                 precio, cantidad, iva, PermiteAcumular, EditarPrecio, Activo, modificado)
+                                cmd = new NpgsqlCommand(@"
+                            INSERT INTO productos (codigo, descripcion, marca, rubro, proveedor, costo, porcentaje, 
+                                                 precio, cantidad, iva, permiteacumular, editarprecio, activo, modificado)
                             VALUES (@codigo, @descripcion, @marca, @rubro, @proveedor, @costo, @porcentaje, 
                                    @precio, @cantidad, @iva, @permiteAcumular, @editarPrecio, @activo, @modificado)", connection, transaction);
                             }
                             else
                             {
                                 // ✅ MODIFICADO: Incluir campo modificado en UPDATE con fecha actual
-                                cmd = new SqlCommand(@"
-                            UPDATE Productos SET 
+                                cmd = new NpgsqlCommand(@"
+                            UPDATE productos SET 
                                 descripcion = @descripcion, marca = @marca, rubro = @rubro, proveedor = @proveedor,
                                 costo = @costo, porcentaje = @porcentaje, precio = @precio, cantidad = @cantidad,
-                                iva = @iva, PermiteAcumular = @permiteAcumular, EditarPrecio = @editarPrecio,
-                                Activo = @activo, modificado = @modificado
+                                iva = @iva, permiteacumular = @permiteAcumular, editarprecio = @editarPrecio,
+                                activo = @activo, modificado = @modificado
                             WHERE codigo = @codigo", connection, transaction);
                             }
 
@@ -1098,9 +1100,9 @@ namespace Comercio.NET.Formularios
                     }
                 }
             }
-            catch (SqlException ex)
+            catch (NpgsqlException ex)
             {
-                if (ex.Number == 2627)
+                if (ex.SqlState == "23505")
                 {
                     MessageBox.Show("Ya existe un producto con ese código.", "Código duplicado",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -1124,7 +1126,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private void AgregarParametros(SqlCommand cmd)
+        private void AgregarParametros(NpgsqlCommand cmd)
         {
             cmd.Parameters.AddWithValue("@codigo", txtCodigo.Text.Trim());
             cmd.Parameters.AddWithValue("@descripcion", txtDescripcion.Text.Trim());
@@ -1138,10 +1140,10 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@porcentaje", ParseDecimal(txtPorcentaje?.Text));
                 cmd.Parameters.AddWithValue("@cantidad", (int)(numStock?.Value ?? 0));
                 cmd.Parameters.AddWithValue("@iva", ParseDecimal(cmbIva?.Text, 21.00m));
-                cmd.Parameters.AddWithValue("@permiteAcumular", chkPermiteAcumular?.Checked ?? false);
-                cmd.Parameters.AddWithValue("@editarPrecio", chkEditarPrecio?.Checked ?? false);
+                cmd.Parameters.Add(new NpgsqlParameter("@permiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = (chkPermiteAcumular?.Checked ?? false) });
+                cmd.Parameters.Add(new NpgsqlParameter("@editarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = (chkEditarPrecio?.Checked ?? false) });
                 // ✅ NUEVO: Agregar parámetro Activo
-                cmd.Parameters.AddWithValue("@activo", chkActivo?.Checked ?? true);
+                cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = (chkActivo?.Checked ?? true) });
             }
             else
             {
@@ -1156,10 +1158,10 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@porcentaje", 50.00m);
                 cmd.Parameters.AddWithValue("@cantidad", 10);
                 cmd.Parameters.AddWithValue("@iva", 21.00m);
-                cmd.Parameters.AddWithValue("@permiteAcumular", false);
-                cmd.Parameters.AddWithValue("@editarPrecio", false);
+                cmd.Parameters.Add(new NpgsqlParameter("@permiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
+                cmd.Parameters.Add(new NpgsqlParameter("@editarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = false });
                 // ✅ NUEVO: Productos desde ventas se crean activos
-                cmd.Parameters.AddWithValue("@activo", true);
+                cmd.Parameters.Add(new NpgsqlParameter("@activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = true });
             }
 
             cmd.Parameters.AddWithValue("@precio", ParseDecimal(txtPrecio?.Text));
@@ -1201,13 +1203,13 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection") ?? "";
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
                     string query = "DELETE FROM Productos WHERE codigo = @codigo";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", CodigoProducto);
 
@@ -1230,10 +1232,10 @@ namespace Comercio.NET.Formularios
                     }
                 }
             }
-            catch (SqlException ex)
+            catch (NpgsqlException ex)
             {
                 // Error de clave foránea (producto usado en otras tablas)
-                if (ex.Number == 547)
+                if (ex.SqlState == "23503")
                 {
                     MessageBox.Show(
                         "No se puede eliminar el producto porque está siendo utilizado en otras operaciones (ventas, facturas, etc.).\n\n" +

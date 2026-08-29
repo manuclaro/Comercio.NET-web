@@ -1,0 +1,309 @@
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0078d7">
+    <title>Cierre de Turno - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/ventas.css" />
+    <style>
+        .info-card { background: white; border-radius: 12px; padding: 1.2rem 1.4rem; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+        .info-card-title { font-size: 0.85rem; font-weight: 700; color: #0078d7; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e8f0fe; }
+        .info-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #f5f5f5; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #555; font-size: 0.9rem; }
+        .info-value { font-weight: 600; color: #333; font-size: 0.9rem; }
+        .info-value.positivo { color: #2e7d32; }
+        .info-value.negativo { color: #c62828; }
+
+        .resumen-destacado { background: linear-gradient(135deg, #0078d7, #005fa3); border-radius: 10px; padding: 1.2rem; text-align: center; margin-top: 1rem; }
+        .resumen-destacado .label { font-size: 0.85rem; color: rgba(255,255,255,0.85); }
+        .resumen-destacado .monto { font-size: 2rem; font-weight: 800; color: white; }
+
+        .btn-cerrar { display: block; width: 100%; padding: 14px; font-size: 1.05rem; font-weight: 600; color: #fff; background: linear-gradient(135deg, #c62828, #b71c1c); border: none; border-radius: 8px; cursor: pointer; margin-top: 1.5rem; transition: opacity 0.2s; }
+        .btn-cerrar:hover { opacity: 0.9; }
+        .btn-cerrar:disabled { background: #ccc; cursor: not-allowed; opacity: 1; }
+
+        .estado-vacio { text-align: center; padding: 3rem; color: #666; }
+        .estado-vacio .icon { font-size: 3rem; margin-bottom: 12px; }
+
+        .selector-turno select { width: 100%; padding: 0.65rem 0.9rem; border: 2px solid #ddd; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        .selector-turno select:focus { border-color: #0078d7; box-shadow: 0 0 0 3px rgba(0,120,215,0.1); }
+
+        .decl-input { width: 100%; padding: 0.7rem 0.9rem; border: 2px solid #ddd; border-radius: 8px; font-size: 1.05rem; outline: none; margin-top: 0.5rem; transition: border-color 0.2s; }
+        .decl-input:focus { border-color: #0078d7; box-shadow: 0 0 0 3px rgba(0,120,215,0.1); }
+    </style>
+</head>
+<body>
+
+    <header class="page-header">
+        <a href="/dashboard.html" class="btn-back">&larr; Volver</a>
+        <div class="header-title">
+            <div>
+                <h1>Cierre de Turno</h1>
+                <p>Resumen y cierre de caja</p>
+            </div>
+        </div>
+        <div class="header-user">
+            <span id="nombreUsuario"></span>
+            <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesion</button>
+        </div>
+    </header>
+
+    <main class="page-main" style="max-width: 650px;">
+
+        <div id="loading" class="loading" style="padding:2rem;text-align:center;color:#999;">
+            <div class="spinner" style="margin:0 auto 1rem;"></div>
+            Cargando informacion del turno...
+        </div>
+
+        <div id="sin-turno" class="estado-vacio" style="display:none">
+            <div class="icon">&#x2705;</div>
+            <p>No hay turnos abiertos actualmente.</p>
+            <p style="margin-top:8px; font-size:0.9rem; color:#999;">El turno se abre desde el modulo de Ventas.</p>
+        </div>
+
+        <div id="selector-turno" class="info-card selector-turno" style="display:none;">
+            <div class="info-card-title">Seleccionar Turno</div>
+            <select id="select-turno"></select>
+        </div>
+
+        <div id="contenido" style="display:none">
+            <div class="info-card">
+                <div class="info-card-title">Informacion del Turno</div>
+                <div class="info-row">
+                    <span class="info-label">Apertura</span>
+                    <span class="info-value" id="fecha-apertura">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Monto inicial en caja</span>
+                    <span class="info-value" id="monto-inicial">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Cantidad de ventas</span>
+                    <span class="info-value" id="cant-ventas">-</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-card-title">Resumen por Forma de Pago</div>
+                <div class="info-row">
+                    <span class="info-label">Efectivo</span>
+                    <span class="info-value positivo" id="total-efectivo">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">DNI</span>
+                    <span class="info-value" id="total-dni">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Mercado Pago</span>
+                    <span class="info-value" id="total-mp">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Otro</span>
+                    <span class="info-value" id="total-otro">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Cta. Corriente</span>
+                    <span class="info-value" id="total-ctacte">-</span>
+                </div>
+                <div class="info-row" style="border-top:2px solid #e8f0fe; margin-top:8px; padding-top:10px;">
+                    <span class="info-label" style="font-weight:600;">Total Ventas</span>
+                    <span class="info-value positivo" id="total-ventas">-</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-card-title">Movimientos de Efectivo</div>
+                <div class="info-row">
+                    <span class="info-label">Monto inicial</span>
+                    <span class="info-value" id="mov-inicial">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">+ Ventas en efectivo</span>
+                    <span class="info-value positivo" id="mov-efectivo">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">- Pagos a proveedores</span>
+                    <span class="info-value negativo" id="mov-proveedores">-</span>
+                </div>
+                <div class="resumen-destacado">
+                    <div class="label">Efectivo esperado en caja</div>
+                    <div class="monto" id="efectivo-caja">$0,00</div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-card-title">Declaracion de Efectivo</div>
+                <p style="font-size:0.85rem;color:#666;margin-bottom:8px;">Ingrese el monto de efectivo que entrega el cajero.</p>
+                <div class="info-row">
+                    <span class="info-label">Efectivo esperado</span>
+                    <span class="info-value positivo" id="esp-efectivo">-</span>
+                </div>
+                <input type="number" id="decl-efectivo" class="decl-input" step="0.01" min="0" placeholder="Monto declarado" />
+                <div id="dif-efectivo-row" class="info-row" style="margin-top:10px;display:none;">
+                    <span class="info-label">Diferencia</span>
+                    <span class="info-value" id="dif-efectivo">-</span>
+                </div>
+            </div>
+
+            <button class="btn-cerrar" id="btn-cerrar-turno">Cerrar Turno</button>
+        </div>
+
+    </main>
+
+    <script>
+    (function() {
+        const token = localStorage.getItem('auth_token');
+        if (!token) { window.location.href = '/login.html'; return; }
+
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+        let turnoSeleccionado = null;
+        let resumenActual = null;
+
+        // Usuario en header
+        document.getElementById('nombreUsuario').textContent = localStorage.getItem('usuario_nombre') || '';
+        document.getElementById('btnCerrarSesion').addEventListener('click', () => {
+            localStorage.clear();
+            window.location.href = '/login.html';
+        });
+
+        function formatMoney(n) {
+            return '$ ' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+        }
+
+        function formatFecha(str) {
+            if (!str) return '-';
+            const d = new Date(str);
+            return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Diferencia de efectivo en tiempo real
+        document.getElementById('decl-efectivo').addEventListener('input', function() {
+            if (!resumenActual) return;
+            const esperado = Number(resumenActual.efectivoEnCaja || 0);
+            const declarado = parseFloat(this.value) || 0;
+            const dif = declarado - esperado;
+            const difRow = document.getElementById('dif-efectivo-row');
+            const difVal = document.getElementById('dif-efectivo');
+            difRow.style.display = 'flex';
+            difVal.textContent = formatMoney(dif);
+            difVal.className = 'info-value ' + (dif < 0 ? 'negativo' : dif > 0 ? 'positivo' : '');
+        });
+
+        async function cargar() {
+            try {
+                const resAbiertos = await fetch('/api/turno/abiertos', { headers });
+                const turnos = resAbiertos.ok ? await resAbiertos.json() : [];
+
+                document.getElementById('loading').style.display = 'none';
+
+                if (!turnos.length) {
+                    document.getElementById('sin-turno').style.display = 'block';
+                    return;
+                }
+
+                const selectorDiv = document.getElementById('selector-turno');
+                const select = document.getElementById('select-turno');
+                selectorDiv.style.display = 'block';
+
+                select.innerHTML = turnos.map(t => {
+                    const cajero = t.usuario || t.numeroCajero || '-';
+                    return `<option value="${t.id}">Turno #${t.id} - Cajero: ${cajero} - Apertura: ${formatFecha(t.fechaApertura)} - Monto inicial: ${formatMoney(t.montoInicial)}</option>`;
+                }).join('');
+
+                select.addEventListener('change', () => cargarResumen(parseInt(select.value)));
+                cargarResumen(turnos[0].id);
+
+            } catch (err) {
+                document.getElementById('loading').innerHTML = '<p style="color:#c62828;">Error al cargar turnos.</p>';
+            }
+        }
+
+        async function cargarResumen(turnoId) {
+            turnoSeleccionado = turnoId;
+            try {
+                const res = await fetch(`/api/turno/resumen?id=${turnoId}`, { headers });
+                if (!res.ok) throw new Error('Error');
+                const data = await res.json();
+
+                if (data.error) {
+                    document.getElementById('contenido').style.display = 'none';
+                    return;
+                }
+
+                resumenActual = data;
+                document.getElementById('contenido').style.display = 'block';
+                document.getElementById('fecha-apertura').textContent = formatFecha(data.fechaApertura);
+                document.getElementById('monto-inicial').textContent = formatMoney(data.montoInicial);
+                document.getElementById('cant-ventas').textContent = data.cantidadVentas;
+
+                document.getElementById('total-efectivo').textContent = formatMoney(data.totalEfectivo);
+                document.getElementById('total-dni').textContent = formatMoney(data.totalDNI);
+                document.getElementById('total-mp').textContent = formatMoney(data.totalMercadoPago);
+                document.getElementById('total-otro').textContent = formatMoney(data.totalOtro);
+                document.getElementById('total-ctacte').textContent = formatMoney(data.totalCtaCte);
+                document.getElementById('total-ventas').textContent = formatMoney(data.totalVentas);
+
+                document.getElementById('mov-inicial').textContent = formatMoney(data.montoInicial);
+                document.getElementById('mov-efectivo').textContent = formatMoney(data.totalEfectivo);
+                document.getElementById('mov-proveedores').textContent = formatMoney(data.pagosProveedores);
+                document.getElementById('efectivo-caja').textContent = formatMoney(data.efectivoEnCaja);
+
+                document.getElementById('esp-efectivo').textContent = formatMoney(data.efectivoEnCaja);
+                document.getElementById('decl-efectivo').value = '';
+                document.getElementById('dif-efectivo-row').style.display = 'none';
+
+            } catch (err) {
+                document.getElementById('contenido').style.display = 'none';
+            }
+        }
+
+        document.getElementById('btn-cerrar-turno').addEventListener('click', async () => {
+            if (!turnoSeleccionado || !resumenActual) return;
+
+            const efectivoEsperado = Number(resumenActual.efectivoEnCaja || 0);
+            const efectivoDeclarado = parseFloat(document.getElementById('decl-efectivo').value) || 0;
+            const difEfectivo = efectivoDeclarado - efectivoEsperado;
+
+            let msg = '¿Está seguro que desea cerrar este turno?';
+            msg += `\nEfectivo declarado: ${formatMoney(efectivoDeclarado)}`;
+            if (difEfectivo !== 0) msg += `\nDiferencia: ${formatMoney(difEfectivo)}`;
+            if (!confirm(msg)) return;
+
+            const btn = document.getElementById('btn-cerrar-turno');
+            btn.disabled = true;
+            btn.textContent = 'Cerrando...';
+
+            const declaraciones = [
+                { medioPago: 'Efectivo', totalEsperado: efectivoEsperado, totalDeclarado: efectivoDeclarado },
+                { medioPago: 'DNI', totalEsperado: Number(resumenActual.totalDNI || 0), totalDeclarado: Number(resumenActual.totalDNI || 0) },
+                { medioPago: 'MercadoPago', totalEsperado: Number(resumenActual.totalMercadoPago || 0), totalDeclarado: Number(resumenActual.totalMercadoPago || 0) },
+                { medioPago: 'Otro', totalEsperado: Number(resumenActual.totalOtro || 0), totalDeclarado: Number(resumenActual.totalOtro || 0) }
+            ];
+
+            try {
+                const body = { declaraciones, cantidadVentas: resumenActual.cantidadVentas };
+                const res = await fetch(`/api/turno/cerrar/${turnoSeleccionado}`, { method: 'POST', headers, body: JSON.stringify(body) });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'Error al cerrar turno');
+                    btn.disabled = false;
+                    btn.textContent = 'Cerrar Turno';
+                    return;
+                }
+
+                alert('Turno cerrado correctamente');
+                window.location.reload();
+            } catch (err) {
+                alert('Error al cerrar turno: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = 'Cerrar Turno';
+            }
+        });
+
+        cargar();
+    })();
+    </script>
+</body>
+</html>

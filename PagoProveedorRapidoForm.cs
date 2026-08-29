@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Linq;
@@ -271,7 +271,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
                 SELECT 
@@ -279,13 +279,13 @@ namespace Comercio.NET.Formularios
                     cp.NumeroFactura,
                     cp.Fecha,
                     cta.Saldo
-                FROM ProveedoresCtaCte cta
-                LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
+                FROM proveedoresctacte cta
+                LEFT JOIN comprasProveedores cp ON cta.CompraId = cp.Id
                 WHERE cta.ProveedorId = @idProveedor
                     AND cta.Saldo > 0
                 ORDER BY cp.Fecha DESC";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@idProveedor", idProveedor);
                         connection.Open();
@@ -371,7 +371,7 @@ namespace Comercio.NET.Formularios
                 string usuario = AuthenticationService.SesionActual?.Usuario?.NombreUsuario ?? "Sistema";
                 int numeroCajero = AuthenticationService.SesionActual?.Usuario?.NumeroCajero ?? 1;
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
@@ -387,14 +387,14 @@ namespace Comercio.NET.Formularios
                              * - FechaRegistro, IdProveedor, CompraId, CtaCteId
                              */
                             var queryInsertPago = @"
-                        INSERT INTO PagosProveedores 
+                        INSERT INTO pagosproveedores 
                         (IdProveedor, CompraId, CtaCteId, Proveedor, Monto, Observaciones, 
                          FechaPago, UsuarioRegistro, NumeroCajero, NombreEquipo, FechaRegistro)
                         VALUES 
                         (@idProveedor, @compraId, @ctaCteId, @proveedor, @monto, @observaciones,
                          @fechaPago, @usuarioRegistro, @numeroCajero, @nombreEquipo, @fechaRegistro)";
 
-                            using (var cmd = new SqlCommand(queryInsertPago, connection, transaction))
+                            using (var cmd = new NpgsqlCommand(queryInsertPago, connection, transaction))
                             {
                                 // IdProveedor
                                 cmd.Parameters.AddWithValue("@idProveedor", ProveedorIdSeleccionado);
@@ -445,10 +445,10 @@ namespace Comercio.NET.Formularios
                                 decimal saldoActual = 0m;
                                 var queryObtenerSaldo = @"
                             SELECT Saldo 
-                            FROM ProveedoresCtaCte 
+                            FROM proveedoresctacte 
                             WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
 
-                                using (var cmdSaldo = new SqlCommand(queryObtenerSaldo, connection, transaction))
+                                using (var cmdSaldo = new NpgsqlCommand(queryObtenerSaldo, connection, transaction))
                                 {
                                     cmdSaldo.Parameters.AddWithValue("@compraId", CompraIdSeleccionada.Value);
                                     cmdSaldo.Parameters.AddWithValue("@proveedorId", ProveedorIdSeleccionado);
@@ -464,12 +464,12 @@ namespace Comercio.NET.Formularios
                                 if (nuevoSaldo < 0) nuevoSaldo = 0;
 
                                 var queryUpdateSaldo = @"
-                            UPDATE ProveedoresCtaCte 
+                            UPDATE proveedoresctacte 
                             SET Saldo = @nuevoSaldo,
                                 MontoAdeudado = @nuevoSaldo
                             WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
 
-                                using (var cmdUpdate = new SqlCommand(queryUpdateSaldo, connection, transaction))
+                                using (var cmdUpdate = new NpgsqlCommand(queryUpdateSaldo, connection, transaction))
                                 {
                                     cmdUpdate.Parameters.AddWithValue("@nuevoSaldo", nuevoSaldo);
                                     cmdUpdate.Parameters.AddWithValue("@compraId", CompraIdSeleccionada.Value);
@@ -481,11 +481,11 @@ namespace Comercio.NET.Formularios
                                 if (nuevoSaldo == 0)
                                 {
                                     var queryUpdateCompra = @"
-                                UPDATE ComprasProveedores 
-                                SET EsCtaCte = 0 
-                                WHERE Id = @compraId";
+                                    UPDATE comprasProveedores 
+                                    SET EsCtaCte = FALSE 
+                                    WHERE Id = @compraId";
 
-                                    using (var cmdCompra = new SqlCommand(queryUpdateCompra, connection, transaction))
+                                        using (var cmdCompra = new NpgsqlCommand(queryUpdateCompra, connection, transaction))
                                     {
                                         cmdCompra.Parameters.AddWithValue("@compraId", CompraIdSeleccionada.Value);
                                         await cmdCompra.ExecuteNonQueryAsync();
@@ -505,15 +505,16 @@ namespace Comercio.NET.Formularios
                             {
                                 // FIFO: Aplicar a factura más antigua
                                 var queryFacturasMasAntiguas = @"
-                            SELECT TOP 1 CompraId, Saldo 
-                            FROM ProveedoresCtaCte 
+                            SELECT CompraId, Saldo 
+                            FROM proveedoresctacte 
                             WHERE ProveedorId = @proveedorId AND Saldo > 0
-                            ORDER BY Fecha ASC";
+                            ORDER BY Fecha ASC
+                            LIMIT 1";
 
                                 int? compraIdMasAntigua = null;
                                 decimal saldoMasAntiguo = 0m;
 
-                                using (var cmdAntigua = new SqlCommand(queryFacturasMasAntiguas, connection, transaction))
+                                using (var cmdAntigua = new NpgsqlCommand(queryFacturasMasAntiguas, connection, transaction))
                                 {
                                     cmdAntigua.Parameters.AddWithValue("@proveedorId", ProveedorIdSeleccionado);
 
@@ -533,12 +534,12 @@ namespace Comercio.NET.Formularios
                                     decimal nuevoSaldo = saldoMasAntiguo - montoADescontar;
 
                                     var queryUpdateSaldoFIFO = @"
-                                UPDATE ProveedoresCtaCte 
+                                UPDATE proveedoresctacte 
                                 SET Saldo = @nuevoSaldo,
                                     MontoAdeudado = @nuevoSaldo
                                 WHERE CompraId = @compraId AND ProveedorId = @proveedorId";
 
-                                    using (var cmdUpdate = new SqlCommand(queryUpdateSaldoFIFO, connection, transaction))
+                                    using (var cmdUpdate = new NpgsqlCommand(queryUpdateSaldoFIFO, connection, transaction))
                                     {
                                         cmdUpdate.Parameters.AddWithValue("@nuevoSaldo", nuevoSaldo);
                                         cmdUpdate.Parameters.AddWithValue("@compraId", compraIdMasAntigua.Value);
@@ -614,15 +615,15 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
-                        SELECT Id, Nombre 
-                        FROM Proveedores 
-                        WHERE Activo = 1
-                        ORDER BY Nombre";
+                        SELECT id, nombre 
+                        FROM proveedores 
+                        WHERE COALESCE(activo, FALSE) IS TRUE
+                        ORDER BY nombre";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         connection.Open();
 
@@ -696,14 +697,14 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
-                        SELECT ISNULL(SUM(Saldo), 0) as SaldoTotal
-                        FROM ProveedoresCtaCte
-                        WHERE ProveedorId = @idProveedor AND Saldo > 0";
+                        SELECT COALESCE(SUM(Saldo), 0) as SaldoTotal
+                        FROM proveedoresctacte
+                        WHERE proveedorid = @idProveedor AND Saldo > 0";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@idProveedor", idProveedor);
                         connection.Open();

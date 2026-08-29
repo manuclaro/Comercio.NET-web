@@ -37,6 +37,7 @@
                 localStorage.setItem('usuario_nombre',   data.usuario.nombreUsuario);
                 localStorage.setItem('usuario_completo', data.usuario.nombreCompleto || '');
                 localStorage.setItem('usuario_rol',      data.usuario.rol || '');
+                localStorage.setItem('numero_cajero',    data.usuario.numeroCajero ?? 1);
 
                 // Redirigir según rol
                 if ((data.usuario.rol || '').toLowerCase() === 'pizzeria') {

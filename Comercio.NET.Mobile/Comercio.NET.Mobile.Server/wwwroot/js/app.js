@@ -68,14 +68,19 @@ function inicializarApp() {
 
     establecerFechaHoy();
     cargarCajeros();
+    cargarTurnos();
 
     btnHoy.addEventListener('click', () => {
         establecerFechaHoy();
+        cargarTurnos();
         cargarArqueo();
     });
     btnActualizar.addEventListener('click', cargarArqueo);
-    fechaInput.addEventListener('change', cargarArqueo);
+    fechaInput.addEventListener('change', () => { cargarTurnos(); cargarArqueo(); });
     cajeroSelect.addEventListener('change', cargarArqueo);
+
+    const turnoSelect = document.getElementById('turno');
+    turnoSelect.addEventListener('change', cargarArqueo);
 
     cargarArqueo();
 }
@@ -101,6 +106,30 @@ async function cargarCajeros() {
     }
 }
 
+async function cargarTurnos() {
+    try {
+        const fecha = document.getElementById('fecha').value;
+        const response = await fetch(`${API_BASE}/turno/del-dia?fecha=${fecha}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const turnos = await response.json();
+        const select = document.getElementById('turno');
+        select.innerHTML = '<option value="">Todo el dia</option>';
+        turnos.forEach(t => {
+            const hora = new Date(t.fechaApertura).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+            const cajero = t.usuario || t.numeroCajero || '-';
+            const estado = t.estado === 'Abierto' ? ' (abierto)' : '';
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = `Turno #${t.id} - Cajero: ${cajero} - ${hora}${estado}`;
+            select.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Error cargando turnos:', err);
+    }
+}
+
 async function cargarArqueo() {
     const loadingEl  = document.getElementById('loading');
     const errorEl    = document.getElementById('error');
@@ -113,17 +142,42 @@ async function cargarArqueo() {
     try {
         const fecha  = document.getElementById('fecha').value;
         const cajero = document.getElementById('cajero').value;
-        const params = new URLSearchParams();
-        if (cajero) params.append('cajero', cajero);
+        const turnoId = document.getElementById('turno').value;
 
-        const response = await fetch(`${API_BASE}/arqueocaja/fecha/${fecha}?${params}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        let data;
+        if (turnoId) {
+            // Usar resumen de turno específico
+            const response = await fetch(`${API_BASE}/turno/resumen?id=${turnoId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.status === 401) { cerrarSesion(); return; }
+            if (!response.ok) throw new Error(`Error ${response.status}`);
+            const turnoData = await response.json();
+            // Mapear al formato del arqueo
+            data = {
+                fecha: turnoData.fechaApertura,
+                cajero: cajero || 'Turno #' + turnoId,
+                cantidadVentas: turnoData.cantidadVentas,
+                totalIngresos: turnoData.totalVentas,
+                efectivo: turnoData.totalEfectivo,
+                dni: turnoData.totalDNI,
+                mercadoPago: turnoData.totalMercadoPago,
+                otro: turnoData.totalOtro,
+                facturaC: 0,
+                pagosProveedores: turnoData.pagosProveedores,
+                efectivoNeto: turnoData.efectivoEnCaja
+            };
+        } else {
+            const params = new URLSearchParams();
+            if (cajero) params.append('cajero', cajero);
+            const response = await fetch(`${API_BASE}/arqueocaja/fecha/${fecha}?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.status === 401) { cerrarSesion(); return; }
+            if (!response.ok) throw new Error(`Error ${response.status}`);
+            data = await response.json();
+        }
 
-        if (response.status === 401) { cerrarSesion(); return; }
-        if (!response.ok) throw new Error(`Error ${response.status}`);
-
-        const data = await response.json();
         mostrarResultado(data);
     } catch (err) {
         errorEl.textContent    = `Error: ${err.message}`;

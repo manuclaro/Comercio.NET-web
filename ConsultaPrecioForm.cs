@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -375,11 +375,11 @@ namespace Comercio.NET
             
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using var connection = new SqlConnection(connectionString);
+            using var connection = new NpgsqlConnection(connectionString);
             var query = @"SELECT codigo, descripcion, precio, cantidad, marca, rubro, costo, proveedor 
                          FROM Productos WHERE codigo = @codigo";
 
-            using var adapter = new SqlDataAdapter(query, connection);
+            using var adapter = new NpgsqlDataAdapter(query, connection);
             adapter.SelectCommand.Parameters.AddWithValue("@codigo", codigo);
 
             var dt = new DataTable();

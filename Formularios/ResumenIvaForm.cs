@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Extensions.Configuration;
-using System.Data.SqlClient;
+using Npgsql;
 
 namespace Comercio.NET.Formularios
 {
@@ -646,7 +646,7 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
@@ -656,21 +656,21 @@ namespace Comercio.NET.Formularios
                             p.iva as PorcentajeIVA,
                             SUM(v.cantidad) as CantidadProductos,
                             SUM(v.total) as TotalVentas
-                        FROM Facturas f
-                        INNER JOIN Ventas v ON f.NumeroRemito = v.NroFactura
-                        INNER JOIN Productos p ON v.codigo = p.codigo
+                        FROM facturas f
+                        INNER JOIN ventas v ON f.numeroremito = v.NroFactura
+                        INNER JOIN productos p ON v.codigo = p.codigo
                         WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                        AND (@esCtaCte = 0 OR f.esCtaCte = 1)
+                        AND (@esCtaCte = FALSE OR COALESCE(f.esCtaCte, FALSE) IS TRUE)
                         AND f.TipoFactura IN ('FacturaA', 'FacturaB') -- <--- FILTRO SOLO FACTURAS A Y B
                         GROUP BY p.iva
                         HAVING SUM(v.total) > 0
                         ORDER BY p.iva DESC";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@desde", fechaDesde.Date);
                         cmd.Parameters.AddWithValue("@hasta", fechaHasta.Date);
-                        cmd.Parameters.AddWithValue("@esCtaCte", esCtaCte ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@esCtaCte", esCtaCte);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {

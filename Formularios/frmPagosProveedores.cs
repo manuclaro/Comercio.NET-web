@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -329,9 +329,9 @@ namespace Comercio.NET.Formularios
                 cboProveedor.Items.Clear();
                 cboProveedor.Items.Add("Todos los proveedores");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 var query = "SELECT DISTINCT Proveedor FROM PagosProveedores WHERE Proveedor IS NOT NULL ORDER BY Proveedor";
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
 
                 connection.Open();
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -365,7 +365,7 @@ namespace Comercio.NET.Formularios
         {
             try
             {
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
 
                 // ✅ SIMPLIFICADO: Query sin conversión de fechas compleja
                 var query = @"
@@ -384,7 +384,7 @@ namespace Comercio.NET.Formularios
             WHERE FechaPago >= @desde AND FechaPago < @hasta
             ORDER BY FechaPago DESC";
 
-                using var adapter = new SqlDataAdapter(query, connection);
+                using var adapter = new NpgsqlDataAdapter(query, connection);
 
                 // ✅ CORREGIDO: Simplificar parámetros de fecha
                 adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);

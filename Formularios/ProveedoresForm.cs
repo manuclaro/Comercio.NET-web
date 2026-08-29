@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,7 +19,7 @@ namespace Comercio.NET.Formularios
         private TextBox txtBuscar;
         private Label lblBuscar;
 
-        // Nuevo: Id del último proveedor creado/guardado desde este form
+        // Nuevo: Id del ï¿½ltimo proveedor creado/guardado desde este form
         public int? LastSavedProveedorId { get; private set; }
 
         // Elementos de estilo
@@ -74,7 +74,7 @@ namespace Comercio.NET.Formularios
 
             var lblSubtitle = new Label
             {
-                Text = "Alta, edición y listado de proveedores",
+                Text = "Alta, ediciÃ³n y listado de proveedores",
                 ForeColor = Color.FromArgb(230, 230, 255),
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular),
                 Left = lblIcon.Right + 8,
@@ -182,10 +182,10 @@ namespace Comercio.NET.Formularios
             btnEliminar.FlatAppearance.BorderSize = 0;
             btnEliminar.Click += BtnEliminar_Click;
 
-            // Añadir controles al panel de contenido
+            // Aï¿½adir controles al panel de contenido
             pnlContent.Controls.AddRange(new Control[] { lblBuscar, txtBuscar, btnRefrescar, dgv, btnAgregar, btnEditar, btnEliminar });
 
-            // Añadir panels al form
+            // Aï¿½adir panels al form
             this.Controls.Add(pnlHeader);
             this.Controls.Add(pnlContent);
 
@@ -210,7 +210,7 @@ namespace Comercio.NET.Formularios
                 btnEditar.Left = btnAgregar.Right + 8;
                 btnEliminar.Left = btnEditar.Right + 8;
 
-                // Alinear búsqueda/refresh
+                // Alinear bï¿½squeda/refresh
                 txtBuscar.Width = Math.Max(160, pnlContent.ClientSize.Width - 12 - 100 - 160);
                 btnRefrescar.Left = txtBuscar.Right + 12;
             };
@@ -237,26 +237,52 @@ namespace Comercio.NET.Formularios
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
-                    var sql = @"SELECT Id, Nombre, CUIT, Domicilio, Telefono, Email, CondicionIVA, Activo
-                                FROM Proveedores
-                                WHERE (@filtro = '' OR Nombre LIKE '%' + @filtro + '%' OR CUIT LIKE '%' + @filtro + '%')
-                                ORDER BY Nombre";
-                    using (var da = new SqlDataAdapter(sql, conn))
+                    // Intentar con la columna Rubro; si no existe en la BD caer al SELECT sin ella
+                    string sql;
+                    bool tieneRubro = false;
+                    try
+                    {
+                        await conn.OpenAsync();
+                        using (var chk = new NpgsqlCommand(
+                            "SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Proveedores') AND name = 'Rubro'", conn))
+                        {
+                            var res = await chk.ExecuteScalarAsync();
+                            tieneRubro = res != null;
+                        }
+                    }
+                    catch { /* si falla la comprobaciï¿½n, continuar sin Rubro */ }
+
+                    if (tieneRubro)
+                        sql = @"SELECT id, nombre, cuit, rubro, domicilio, telefono, email, condicioniva, activo
+                                FROM proveedores
+                                WHERE (@filtro = '' OR nombre ILIKE '%' || @filtro || '%' OR cuit ILIKE '%' || @filtro || '%')
+                                ORDER BY nombre";
+                    else
+                        sql = @"SELECT id, nombre, cuit, domicilio, telefono, email, condicioniva, activo
+                                FROM proveedores
+                                WHERE (@filtro = '' OR nombre ILIKE '%' || @filtro || '%' OR cuit ILIKE '%' || @filtro || '%')
+                                ORDER BY nombre";
+
+                    if (conn.State != System.Data.ConnectionState.Open)
+                        await conn.OpenAsync();
+
+                    using (var da = new NpgsqlDataAdapter(sql, conn))
                     {
                         da.SelectCommand.Parameters.AddWithValue("@filtro", filtro ?? "");
                         var dt = new DataTable();
                         await Task.Run(() => da.Fill(dt));
                         dgv.DataSource = dt;
-                        if (dgv.Columns["Id"] != null) dgv.Columns["Id"].Visible = false;
-                        if (dgv.Columns["Nombre"] != null) dgv.Columns["Nombre"].HeaderText = "Nombre";
-                        if (dgv.Columns["CUIT"] != null) dgv.Columns["CUIT"].HeaderText = "CUIT";
-                        if (dgv.Columns["Domicilio"] != null) dgv.Columns["Domicilio"].HeaderText = "Domicilio";
-                        if (dgv.Columns["Telefono"] != null) dgv.Columns["Telefono"].HeaderText = "Teléfono";
-                        if (dgv.Columns["Email"] != null) dgv.Columns["Email"].HeaderText = "Email";
-                        if (dgv.Columns["CondicionIVA"] != null) dgv.Columns["CondicionIVA"].HeaderText = "Condición IVA";
-                        if (dgv.Columns["Activo"] != null) dgv.Columns["Activo"].HeaderText = "Activo";
+                        if (dgv.Columns["id"] != null) dgv.Columns["id"].Visible = false;
+                        if (dgv.Columns["nombre"] != null) dgv.Columns["nombre"].HeaderText = "Nombre";
+                        if (dgv.Columns["cuit"] != null) dgv.Columns["cuit"].HeaderText = "CUIT";
+                        if (dgv.Columns["rubro"] != null) dgv.Columns["rubro"].HeaderText = "Rubro";
+                        if (dgv.Columns["domicilio"] != null) dgv.Columns["domicilio"].HeaderText = "Domicilio";
+                        if (dgv.Columns["telefono"] != null) dgv.Columns["telefono"].HeaderText = "TelÃ©fono";
+                        if (dgv.Columns["email"] != null) dgv.Columns["email"].HeaderText = "Email";
+                        if (dgv.Columns["condicioniva"] != null) dgv.Columns["condicioniva"].HeaderText = "CondiciÃ³n IVA";
+                        if (dgv.Columns["activo"] != null) dgv.Columns["activo"].HeaderText = "Activo";
                     }
                 }
             }
@@ -284,30 +310,37 @@ namespace Comercio.NET.Formularios
         {
             if (dgv.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Seleccione un proveedor para editar.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Seleccione un proveedor para editar.", "InformaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var row = dgv.SelectedRows[0];
-            int id = Convert.ToInt32(row.Cells["Id"].Value);
-            string nombre = row.Cells["Nombre"].Value?.ToString();
-            string cuit = row.Cells["CUIT"]?.Value?.ToString();
-            string domicilio = row.Cells["Domicilio"]?.Value?.ToString();
-            string telefono = row.Cells["Telefono"]?.Value?.ToString();
-            // Corregido: leer Value en lugar de ToString() de la celda
-            string email = row.Cells["Email"]?.Value?.ToString();
-            string condicion = row.Cells["CondicionIVA"]?.Value?.ToString();
-            bool activo = row.Cells["Activo"] != null && Convert.ToBoolean(row.Cells["Activo"].Value);
-
-            using (var dlg = new ProveedorEditForm(id, nombre, cuit, domicilio, telefono, email, condicion, activo))
+            try
             {
-                var res = dlg.ShowDialog(this);
-                if (res == DialogResult.OK)
+                var row = dgv.SelectedRows[0];
+                int id = Convert.ToInt32(row.Cells["Id"].Value);
+                string nombre    = row.Cells["Nombre"].Value?.ToString();
+                string cuit      = row.Cells["CUIT"]?.Value?.ToString();
+                string domicilio = row.Cells["Domicilio"]?.Value?.ToString();
+                string telefono  = row.Cells["Telefono"]?.Value?.ToString();
+                string email     = row.Cells["Email"]?.Value?.ToString();
+                string condicion = row.Cells["CondicionIVA"]?.Value?.ToString();
+                // Rubro puede no existir aï¿½n en la BD ï¿½ acceso seguro por nombre de columna
+                string rubro = dgv.Columns.Contains("Rubro") ? row.Cells["Rubro"]?.Value?.ToString() : "";
+                bool activo  = row.Cells["Activo"] != null && Convert.ToBoolean(row.Cells["Activo"].Value);
+
+                using (var dlg = new ProveedorEditForm(id, nombre, cuit, domicilio, telefono, email, condicion, activo, rubro))
                 {
-                    // Capturar Id editado y recargar
-                    LastSavedProveedorId = dlg.ProveedorIdResult ?? id;
-                    await CargarProveedoresAsync(txtBuscar.Text.Trim());
+                    var res = dlg.ShowDialog(this);
+                    if (res == DialogResult.OK)
+                    {
+                        LastSavedProveedorId = dlg.ProveedorIdResult ?? id;
+                        await CargarProveedoresAsync(txtBuscar.Text.Trim());
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al editar proveedor: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -315,7 +348,7 @@ namespace Comercio.NET.Formularios
         {
             if (dgv.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Seleccione un proveedor para eliminar.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Seleccione un proveedor para eliminar.", "InformaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -323,20 +356,20 @@ namespace Comercio.NET.Formularios
             int id = Convert.ToInt32(row.Cells["Id"].Value);
             string nombre = row.Cells["Nombre"].Value?.ToString();
 
-            var confirmar = MessageBox.Show($"¿Confirma eliminar al proveedor '{nombre}'? (Se marcará como inactivo)", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var confirmar = MessageBox.Show($"Â¿Confirma eliminar al proveedor '{nombre}'? (Se marcarÃ¡ como inactivo)", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirmar != DialogResult.Yes) return;
 
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
                     {
                         try
                         {
-                            var cmd = new SqlCommand("UPDATE Proveedores SET Activo = 0 WHERE Id = @id", conn, tx);
+                            var cmd = new NpgsqlCommand("UPDATE Proveedores SET Activo = 0 WHERE Id = @id", conn, tx);
                             cmd.Parameters.AddWithValue("@id", id);
                             await cmd.ExecuteNonQueryAsync();
                             tx.Commit();

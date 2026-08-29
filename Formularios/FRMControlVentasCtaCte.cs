@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -286,29 +286,29 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 string query = @"
                     SELECT
-                        f.NumeroRemito        AS 'Remito',
-                        f.NroFactura          AS 'N° Factura',
-                        ISNULL(f.CtaCteNombre, '') AS 'Cliente',
-                        CAST(ISNULL(f.ImporteFinal, 0) AS DECIMAL(18,2)) AS 'Importe Final',
-                        ISNULL(f.FormadePago, '') AS 'Forma de Pago',
-                        ISNULL(f.TipoFactura, '') AS 'Tipo',
-                        ISNULL(f.Cajero, '')  AS 'Cajero',
-                        CAST(f.Fecha AS DATE)  AS 'Fecha',
+                        f.numeroremito        AS ""Remito"",
+                        f.nrofactura          AS ""N° Factura"",
+                        COALESCE(f.ctactenombre, '') AS ""Cliente"",
+                        CAST(COALESCE(f.importefinal, 0) AS NUMERIC(18,2)) AS ""Importe Final"",
+                        COALESCE(f.formadepago, '') AS ""Forma de Pago"",
+                        COALESCE(f.tipofactura, '') AS ""Tipo"",
+                        COALESCE(f.cajero, '')  AS ""Cajero"",
+                        CAST(f.fecha AS DATE)  AS ""Fecha"",
                         CASE
-                            WHEN f.Hora IS NULL THEN ''
-                            ELSE CONVERT(VARCHAR(5), f.Hora, 108)
-                        END AS 'Hora'
-                    FROM Facturas f
-                    WHERE CAST(f.Fecha AS DATE) BETWEEN @desde AND @hasta
-                      AND f.esCtaCte = 1
-                    ORDER BY f.NumeroRemito DESC";
+                            WHEN f.hora IS NULL THEN ''
+                            ELSE TO_CHAR(f.hora, 'HH24:MI')
+                        END AS ""Hora""
+                    FROM facturas f
+                    WHERE CAST(f.fecha AS DATE) BETWEEN @desde AND @hasta
+                      AND f.esctacte = true
+                    ORDER BY f.numeroremito DESC";
 
-                using var adapter = new SqlDataAdapter(query, connection);
+                using var adapter = new NpgsqlDataAdapter(query, connection);
                 adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
                 adapter.SelectCommand.Parameters.AddWithValue("@hasta", hasta.Date);
 

@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -262,14 +262,14 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 var query = @"
-                    SELECT NombreUsuario, Nombre, Apellido, Email, Nivel, NumeroCajero, 
-                           Activo, UltimoAcceso
-                    FROM Usuarios 
-                    ORDER BY NombreUsuario";
+                    SELECT nombreusuario, nombre, apellido, email, nivel, numerocajero, 
+                           activo, ultimoacceso
+                    FROM usuarios 
+                    ORDER BY nombreusuario";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 connection.Open();
 
                 dgvUsuarios.Rows.Clear();
@@ -277,19 +277,20 @@ namespace Comercio.NET.Formularios
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
                 {
-                    var nombreCompleto = $"{reader["Nombre"]} {reader["Apellido"]}";
-                    var nivel = ObtenerNombreNivel((NivelUsuario)reader.GetInt32("Nivel"));
-                    var estado = reader.GetBoolean("Activo") ? "✅ Activo" : "❌ Inactivo";
-                    var ultimoAcceso = reader["UltimoAcceso"] != DBNull.Value 
-                        ? ((DateTime)reader["UltimoAcceso"]).ToString("dd/MM/yyyy HH:mm")
+                    var nombreCompleto = $"{reader["nombre"]} {reader["apellido"]}";
+                    var nivel = ObtenerNombreNivel((NivelUsuario)reader.GetInt32("nivel"));
+                    var activoVal = reader.GetValue(reader.GetOrdinal("activo")).ToString();
+                    var estado = (activoVal != "0" && activoVal != "") ? "✅ Activo" : "❌ Inactivo";
+                    var ultimoAcceso = reader["ultimoacceso"] != DBNull.Value 
+                        ? ((DateTime)reader["ultimoacceso"]).ToString("dd/MM/yyyy HH:mm")
                         : "Nunca";
 
                     dgvUsuarios.Rows.Add(
-                        reader["NombreUsuario"],
+                        reader["nombreusuario"],
                         nombreCompleto,
-                        reader["Email"],
+                        reader["email"],
                         nivel,
-                        reader["NumeroCajero"],
+                        reader["numerocajero"],
                         estado,
                         ultimoAcceso
                     );
@@ -425,9 +426,9 @@ namespace Comercio.NET.Formularios
 
                     string connectionString = config.GetConnectionString("DefaultConnection");
 
-                    using var connection = new SqlConnection(connectionString);
-                    var query = "DELETE FROM Usuarios WHERE NombreUsuario = @nombreUsuario";
-                    using var cmd = new SqlCommand(query, connection);
+                    using var connection = new NpgsqlConnection(connectionString);
+                    var query = "DELETE FROM usuarios WHERE nombreusuario = @nombreUsuario";
+                    using var cmd = new NpgsqlCommand(query, connection);
                     cmd.Parameters.AddWithValue("@nombreUsuario", nombreUsuario);
 
                     connection.Open();

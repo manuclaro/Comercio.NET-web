@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -485,17 +485,18 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 var query = @"
-                    SELECT TOP 1 FechaApertura, MontoInicial
-                    FROM TurnosCajero
-                    WHERE NumeroCajero = @numeroCajero
-                    AND Estado = 'Abierto'
-                    ORDER BY FechaApertura DESC";
+                    SELECT fechaapertura, montoinicial
+                    FROM turnoscajero
+                    WHERE numerocajero = @numeroCajero
+                    AND estado = 'Abierto'
+                    ORDER BY fechaapertura DESC
+                    LIMIT 1";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -535,21 +536,21 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
 
                 // ✅ MODIFICADO: Solo cargar cajeros con turnos abiertos
                 var query = @"
             SELECT DISTINCT 
-                t.NumeroCajero, 
-                COALESCE(MIN(u.Nombre + ' ' + u.Apellido), 'Cajero ' + CAST(t.NumeroCajero AS NVARCHAR)) as NombreCajero,
-                MIN(t.FechaApertura) as FechaApertura
-            FROM TurnosCajero t
-            LEFT JOIN Usuarios u ON t.NumeroCajero = u.NumeroCajero AND u.Activo = 1
-            WHERE t.Estado = 'Abierto'
-            GROUP BY t.NumeroCajero
-            ORDER BY t.NumeroCajero";
+                t.numerocajero, 
+                COALESCE(MIN(u.nombre || ' ' || u.apellido), 'Cajero ' || t.numerocajero::TEXT) as nombrecajero,
+                MIN(t.fechaapertura) as fechaapertura
+            FROM turnoscajero t
+            LEFT JOIN usuarios u ON t.numerocajero = u.numerocajero AND COALESCE(u.activo, FALSE) IS TRUE
+            WHERE t.estado = 'Abierto'
+            GROUP BY t.numerocajero
+            ORDER BY t.numerocajero";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 connection.Open();
 
                 cmbCajero.Items.Clear();
@@ -626,7 +627,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 // Obtener monto inicial del turno abierto
@@ -713,16 +714,17 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private async Task<decimal> ObtenerMontoInicial(SqlConnection connection, int numeroCajero)
+        private async Task<decimal> ObtenerMontoInicial(NpgsqlConnection connection, int numeroCajero)
         {
             var query = @"
-                SELECT TOP 1 MontoInicial
-                FROM TurnosCajero
-                WHERE NumeroCajero = @numeroCajero
-                AND Estado = 'Abierto'
-                ORDER BY FechaApertura DESC";
+            SELECT montoinicial
+            FROM turnoscajero
+            WHERE numerocajero = @numeroCajero
+            AND estado = 'Abierto'
+            ORDER BY fechaapertura DESC
+            LIMIT 1";
 
-            using var cmd = new SqlCommand(query, connection);
+            using var cmd = new NpgsqlCommand(query, connection);
             cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
 
             var result = await cmd.ExecuteScalarAsync();
@@ -730,7 +732,7 @@ namespace Comercio.NET.Formularios
         }
 
         private async Task<System.Collections.Generic.Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>>
-    CalcularResumenPorMedioPago(SqlConnection connection, int numeroCajero)
+    CalcularResumenPorMedioPago(NpgsqlConnection connection, int numeroCajero)
         {
             var resumen = new Dictionary<string, (decimal Ingresos, decimal Egresos, int CantIngresos, int CantEgresos)>();
 
@@ -741,19 +743,19 @@ namespace Comercio.NET.Formularios
                 // ========================================
                 var queryIngresos = @"
     SELECT 
-        dp.MedioPago,
-        SUM(dp.Importe) AS TotalIngresos,
-        COUNT(*) AS CantidadIngresos
-    FROM DetallesPagoFactura dp
-    INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-    INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-    WHERE u.NumeroCajero = @numeroCajero
-      AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-      AND COALESCE(f.esCtaCte, 0) = 0
-      AND dp.MedioPago NOT IN ('Multiple', 'Múltiples Medios')
-    GROUP BY dp.MedioPago";
+        dp.mediopago,
+        SUM(dp.importe) AS totalingresos,
+        COUNT(*) AS cantidadingresos
+    FROM detallespagofactura dp
+    INNER JOIN facturas f ON dp.idfactura = f.idfactura
+    INNER JOIN usuarios u ON f.usuarioventa = u.nombreusuario
+    WHERE u.numerocajero = @numeroCajero
+      AND f.hora BETWEEN @fechaInicio AND @fechaFin
+      AND COALESCE(f.esctacte, FALSE) IS FALSE
+      AND dp.mediopago NOT IN ('Multiple', 'Múltiples Medios')
+    GROUP BY dp.mediopago";
 
-                using (var cmd = new SqlCommand(queryIngresos, connection))
+                using (var cmd = new NpgsqlCommand(queryIngresos, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
@@ -764,7 +766,7 @@ namespace Comercio.NET.Formularios
                     {
                         string medioPago = reader.GetString(0);
                         decimal ingresos = reader.GetDecimal(1);
-                        int cantidad = reader.GetInt32(2);
+                        int cantidad = Convert.ToInt32(reader.GetValue(2));
 
                         if (!resumen.ContainsKey(medioPago))
                             resumen[medioPago] = (0m, 0m, 0, 0);
@@ -786,7 +788,7 @@ namespace Comercio.NET.Formularios
                     AND FechaPago BETWEEN @fechaInicio AND @fechaFin
                     AND (Origen IS NULL OR Origen <> 'PagoGeneral')";
 
-                using (var cmd = new SqlCommand(queryPagosProveedores, connection))
+                using (var cmd = new NpgsqlCommand(queryPagosProveedores, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
@@ -827,7 +829,7 @@ namespace Comercio.NET.Formularios
                     WHERE NumeroCajero = @numeroCajero
                     AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin";
 
-                using (var cmd = new SqlCommand(queryRetiros, connection))
+                using (var cmd = new NpgsqlCommand(queryRetiros, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                     cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
@@ -886,63 +888,63 @@ namespace Comercio.NET.Formularios
 
         private async Task CargarDetalleTransacciones(string connectionString, int numeroCajero)
         {
-            using var connection = new SqlConnection(connectionString);
+            using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
 
             var queryDetalle = @"
-        -- Ventas (✅ USANDO CAMPO HORA)
+        -- Ventas simples (un solo medio de pago)
         WITH TransaccionesVentasSimples AS (
             SELECT 
-                f.Hora as Fecha,
-                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                COALESCE(f.FormadePago, 'Efectivo') as MedioPago,
-                f.ImporteTotal as Importe,
+                f.hora as Fecha,
+                COALESCE(f.nrofactura, CAST(f.numeroremito AS VARCHAR)) as NumeroFactura,
+                COALESCE(f.formadepago, 'Efectivo') as mediopago,
+                CAST(f.importetotal AS NUMERIC) as importe,
                 'Ingreso (Venta)' as Tipo
-            FROM Facturas f
-            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            WHERE u.NumeroCajero = @numeroCajero
-            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-            AND COALESCE(f.FormadePago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
-            AND COALESCE(f.esCtaCte, 0) = 0
+            FROM facturas f
+            INNER JOIN usuarios u ON f.usuarioventa = u.nombreusuario
+            WHERE u.numerocajero = @numeroCajero
+            AND f.hora BETWEEN @fechaInicio AND @fechaFin
+            AND COALESCE(f.formadepago, 'Efectivo') NOT IN ('Múltiples Medios', 'Multiple')
+            AND COALESCE(f.esctacte, FALSE) IS FALSE
         ),
+        -- Ventas con múltiples medios de pago
         TransaccionesVentasMultiples AS (
             SELECT 
-                f.Hora as Fecha,
-                COALESCE(f.NroFactura, CAST(f.NumeroRemito AS NVARCHAR)) as NumeroFactura,
-                dp.MedioPago,
-                dp.Importe,
+                f.hora as Fecha,
+                COALESCE(f.nrofactura, CAST(f.numeroremito AS VARCHAR)) as NumeroFactura,
+                dp.mediopago,
+                CAST(dp.importe AS NUMERIC) as importe,
                 'Ingreso (Venta)' as Tipo
-            FROM DetallesPagoFactura dp
-            INNER JOIN Facturas f ON dp.IdFactura = f.idFactura
-            INNER JOIN Usuarios u ON f.UsuarioVenta = u.NombreUsuario
-            WHERE u.NumeroCajero = @numeroCajero
-            AND f.Hora BETWEEN @fechaInicio AND @fechaFin
-            AND COALESCE(f.FormadePago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
-            AND COALESCE(f.esCtaCte, 0) = 0
+            FROM detallespagofactura dp
+            INNER JOIN facturas f ON dp.idfactura = f.idfactura
+            INNER JOIN usuarios u ON f.usuarioventa = u.nombreusuario
+            WHERE u.numerocajero = @numeroCajero
+            AND f.hora BETWEEN @fechaInicio AND @fechaFin
+            AND COALESCE(f.formadepago, 'Efectivo') IN ('Múltiples Medios', 'Multiple')
+            AND COALESCE(f.esctacte, FALSE) IS FALSE
         ),
-        -- ✅ CORREGIDO: Pagos a Proveedores
         TransaccionesPagosProveedores AS (
             SELECT 
-                pp.FechaPago as Fecha,
-                'Pago #' + CAST(pp.Id AS NVARCHAR) + ' - ' + pp.Proveedor as NumeroFactura,
+                pp.fechapago as Fecha,
+                'Pago #' || CAST(pp.id AS VARCHAR) || ' - ' || pp.proveedor as NumeroFactura,
                 'Efectivo' AS MedioPago, 
-                pp.Monto as Importe,
+                CAST(pp.monto AS NUMERIC) as Importe,
                 'Egreso (Pago Prov.)' as Tipo
-            FROM PagosProveedores pp
-            WHERE pp.NumeroCajero = @numeroCajero
-            AND pp.FechaPago BETWEEN @fechaInicio AND @fechaFin
+            FROM pagosproveedores pp
+            WHERE pp.numerocajero = @numeroCajero
+            AND pp.fechapago BETWEEN @fechaInicio AND @fechaFin
         ),
         -- Retiros de Efectivo
         TransaccionesRetiros AS (
             SELECT 
-                FechaRetiro as Fecha,
-                'Retiro #' + CAST(Id AS NVARCHAR) + ' - ' + Responsable as NumeroFactura,
+                fecharetiro as Fecha,
+                'Retiro #' || CAST(id AS VARCHAR) || ' - ' || responsable as NumeroFactura,
                 'Efectivo' as MedioPago,
-                Monto as Importe,
+                CAST(monto AS NUMERIC) as Importe,
                 'Egreso (Retiro)' as Tipo
-            FROM RetirosEfectivo
-            WHERE NumeroCajero = @numeroCajero
-            AND FechaRetiro BETWEEN @fechaInicio AND @fechaFin
+            FROM retirosefectivo
+            WHERE numerocajero = @numeroCajero
+            AND fecharetiro BETWEEN @fechaInicio AND @fechaFin
         )
         SELECT Fecha, NumeroFactura, MedioPago, Importe, Tipo
         FROM (
@@ -956,7 +958,7 @@ namespace Comercio.NET.Formularios
         ) TodasTransacciones
         ORDER BY Fecha DESC";
 
-            using var cmd = new SqlCommand(queryDetalle, connection);
+            using var cmd = new NpgsqlCommand(queryDetalle, connection);
             cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
             cmd.Parameters.AddWithValue("@fechaInicio", dtpFechaDesde.Value);
             cmd.Parameters.AddWithValue("@fechaFin", dtpFechaHasta.Value);

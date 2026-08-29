@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestión de Mozos</title>
+    <link rel="stylesheet" href="/css/mesas.css" />
+</head>
+<body>
+    <header>
+        <button class="btn-back" onclick="location.href='/dashboard-pizzeria.html'">← Panel</button>
+        <h1>🧑‍🍳 Gestión de Mozos</h1>
+        <div class="header-user">
+            <span id="nombreUsuarioMozos"></span>
+            <button id="btnSalir" class="btn-back">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="acciones">
+            <button id="btnNuevoMozo" class="btn-primary">+ Nuevo mozo</button>
+        </div>
+        <div class="tabla-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th style="text-align:center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyMozos"></tbody>
+            </table>
+        </div>
+        <p id="mensajeVacioMozos" class="mensaje-vacio" style="display:none">No hay mozos cargados.</p>
+    </div>
+
+    <div id="modalMozo" class="modal-overlay">
+        <div class="modal">
+            <h3 id="tituloModalMozo">Agregar mozo</h3>
+            <form id="formMozo">
+                <input type="hidden" id="inputIdMozo" />
+                <div class="campo">
+                    <label>Nombre *</label>
+                    <input type="text" id="inputNombreMozo" placeholder="Nombre completo" required />
+                </div>
+                <div class="modal-acciones">
+                    <button type="button" id="btnCancelarMozo" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/mozos.js"></script>
+</body>
+</html>

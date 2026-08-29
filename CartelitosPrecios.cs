@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.Linq;
@@ -639,15 +639,15 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // Query para obtener productos modificados hoy
                     var query = @"SELECT codigo, descripcion, precio, marca, rubro 
-                          FROM Productos 
-                          WHERE CAST(modificado AS DATE) = CAST(GETDATE() AS DATE)
+                          FROM productos 
+                          WHERE CAST(modificado AS DATE) = CURRENT_DATE
                           ORDER BY descripcion";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         await connection.OpenAsync();
 
@@ -693,7 +693,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // Query para obtener productos modificados en una fecha específica
                     var query = @"SELECT codigo, descripcion, precio, marca, rubro 
@@ -701,7 +701,7 @@ namespace Comercio.NET.Formularios
                           WHERE CAST(modificado AS DATE) = @fecha
                           ORDER BY descripcion";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@fecha", fecha.Date);
                         await connection.OpenAsync();
@@ -747,7 +747,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // Query para obtener productos modificados en un rango de fechas
                     var query = @"SELECT codigo, descripcion, precio, marca, rubro, modificado
@@ -755,7 +755,7 @@ namespace Comercio.NET.Formularios
                           WHERE CAST(modificado AS DATE) BETWEEN @desde AND @hasta
                           ORDER BY modificado DESC, descripcion";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@desde", desde.Date);
                         cmd.Parameters.AddWithValue("@hasta", hasta.Date);
@@ -1186,13 +1186,13 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"SELECT codigo, descripcion, precio, marca, rubro 
                                   FROM Productos 
                                   WHERE codigo = @codigo";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo);
                         await connection.OpenAsync();

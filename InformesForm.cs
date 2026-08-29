@@ -1,5 +1,5 @@
-﻿using System.Data;
-using System.Data.SqlClient;
+using System.Data;
+using Npgsql;
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
 
@@ -86,18 +86,18 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
                 List<decimal> alicuotas = new List<decimal>();
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
                     var queryAlicuotas = @"
                         SELECT DISTINCT p.iva
-                        FROM Facturas f
-                        INNER JOIN Ventas v ON f.NumeroRemito = v.NroFactura
-                        INNER JOIN Productos p ON v.codigo = p.codigo
-                        WHERE YEAR(f.Fecha) = @anio AND MONTH(f.Fecha) = @mes
-                        AND f.TipoFactura IN ('FacturaA', 'FacturaB')
+                        FROM facturas f
+                        INNER JOIN ventas v ON f.numeroremito = v.nrofactura
+                        INNER JOIN productos p ON v.codigo = p.codigo
+                        WHERE EXTRACT(YEAR FROM f.fecha) = @anio AND EXTRACT(MONTH FROM f.fecha) = @mes
+                        AND f.tipofactura IN ('FacturaA', 'FacturaB')
                     ";
-                    using (var cmd = new SqlCommand(queryAlicuotas, connection))
+                    using (var cmd = new NpgsqlCommand(queryAlicuotas, connection))
                     {
                         cmd.Parameters.AddWithValue("@anio", hoy.Year);
                         cmd.Parameters.AddWithValue("@mes", hoy.Month);
@@ -118,7 +118,7 @@ namespace Comercio.NET.Formularios
                 dt.Columns.Add("Total", typeof(decimal)); // <-- Agrega la columna Total
 
                 // 4. Consultar totales por día y alícuota
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
                     foreach (var dia in dias)
@@ -130,14 +130,14 @@ namespace Comercio.NET.Formularios
                         {
                             var query = @"
                                 SELECT SUM(v.total) as TotalVentas
-                                FROM Facturas f
-                                INNER JOIN Ventas v ON f.NumeroRemito = v.NroFactura
-                                INNER JOIN Productos p ON v.codigo = p.codigo
-                                WHERE CAST(f.Fecha AS DATE) = @fecha
+                                FROM facturas f
+                                INNER JOIN ventas v ON f.numeroremito = v.nrofactura
+                                INNER JOIN productos p ON v.codigo = p.codigo
+                                WHERE f.fecha::date = @fecha
                                 AND p.iva = @iva
-                                AND f.TipoFactura IN ('FacturaA', 'FacturaB')
+                                AND f.tipofactura IN ('FacturaA', 'FacturaB')
                             ";
-                            using (var cmd = new SqlCommand(query, connection))
+                            using (var cmd = new NpgsqlCommand(query, connection))
                             {
                                 cmd.Parameters.AddWithValue("@fecha", dia.Date);
                                 cmd.Parameters.AddWithValue("@iva", alic);

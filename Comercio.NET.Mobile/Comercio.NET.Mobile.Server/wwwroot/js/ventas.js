@@ -13,6 +13,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const hoy = fechaHoyLocal();
     document.getElementById('fechaDesde').value = hoy;
     document.getElementById('fechaHasta').value = hoy;
+
+    const nombreEl = document.getElementById('nombreUsuario');
+    if (nombreEl) {
+        const nombre = localStorage.getItem('usuario_nombre') || 'Usuario';
+        nombreEl.textContent = '\u{1F464} ' + nombre;
+    }
+
+    const btnCerrar = document.getElementById('btnCerrarSesion');
+    if (btnCerrar) btnCerrar.addEventListener('click', () => {
+        localStorage.removeItem('auth_token');
+        window.location.href = '/login.html';
+    });
+
     cargarVentas();
 });
 
@@ -23,8 +36,10 @@ function formatCurrency(value) {
 function formatHora(valor) {
     if (!valor) return '-';
     const t = String(valor);
-    const match = t.match(/T(\d{2}:\d{2})/);
-    if (match) return match[1];
+    const matchISO = t.match(/T(\d{2}:\d{2})/);
+    if (matchISO) return matchISO[1];
+    const matchSpace = t.match(/\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2})/);
+    if (matchSpace) return matchSpace[1];
     if (t.includes(':')) return t.substring(0, 5);
     return t;
 }
@@ -136,6 +151,10 @@ function renderResumen(r) {
         <div class="resumen-card">
             <div class="valor">${formatCurrency(r.totalCtaCte ?? 0)}</div>
             <div class="etiqueta">📋 Cta. Cte.</div>
+        </div>
+        <div class="resumen-card">
+            <div class="valor">${formatCurrency(r.totalFacturasElectronicas ?? 0)}</div>
+            <div class="etiqueta">🧾 Fact. Electr.</div>
         </div>
     `;
 }

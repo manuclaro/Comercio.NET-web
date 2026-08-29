@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -724,7 +724,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 // Cargar rubros, marcas y proveedores para usar según el filtro seleccionado
@@ -757,10 +757,10 @@ namespace Comercio.NET.Formularios
                 string connectionString = config.GetConnectionString("DefaultConnection");
                 string columna = tipoFiltro.ToLower();
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 var query = $"SELECT DISTINCT {columna} FROM Productos WHERE {columna} IS NOT NULL AND {columna} <> '' ORDER BY {columna}";
                 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 await connection.OpenAsync();
 
                 cmbValorFiltro.Items.Clear();
@@ -844,8 +844,8 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                using var connection = new SqlConnection(connectionString);
-                using var cmd = new SqlCommand(query, connection);
+                using var connection = new NpgsqlConnection(connectionString);
+                using var cmd = new NpgsqlCommand(query, connection);
 
                 if (chkAplicarFiltro.Checked)
                 {
@@ -1064,7 +1064,7 @@ namespace Comercio.NET.Formularios
                 int actualizados = 0;
                 int errores = 0;
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 using var transaction = connection.BeginTransaction();
@@ -1090,7 +1090,7 @@ namespace Comercio.NET.Formularios
 
                         query += string.Join(", ", campos) + " WHERE codigo = @codigo";
 
-                        using var cmd = new SqlCommand(query, connection, transaction);
+                        using var cmd = new NpgsqlCommand(query, connection, transaction);
                         cmd.Parameters.AddWithValue("@codigo", codigo);
                         
                         if (chkActualizarCosto.Checked)
@@ -1246,7 +1246,7 @@ namespace Comercio.NET.Formularios
             this.ResumeLayout(false);
         }
 
-        private decimal ObtenerDecimalSeguro(SqlDataReader reader, string columnName)
+        private decimal ObtenerDecimalSeguro(NpgsqlDataReader reader, string columnName)
         {
             try
             {
@@ -1311,8 +1311,8 @@ namespace Comercio.NET.Formularios
                     }
                 }
 
-                using var connection = new SqlConnection(connectionString);
-                using var cmd = new SqlCommand(query, connection);
+                using var connection = new NpgsqlConnection(connectionString);
+                using var cmd = new NpgsqlCommand(query, connection);
 
                 if (chkAplicarFiltro.Checked)
                 {

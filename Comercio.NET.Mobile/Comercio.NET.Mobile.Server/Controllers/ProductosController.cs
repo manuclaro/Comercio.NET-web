@@ -80,5 +80,98 @@ namespace Comercio.NET.Mobile.Server.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
+
+        [HttpGet("admin")]
+        public async Task<IActionResult> ListarAdmin([FromQuery] string? buscar, [FromQuery] int pagina = 1, [FromQuery] int tamano = 50)
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            try
+            {
+                var productos = await _productosService.ListarTodosAsync(buscar, pagina, tamano);
+                var total     = await _productosService.ContarTodosAsync(buscar);
+                return Ok(new { productos, total });
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpGet("verificar/{codigo}")]
+        public async Task<IActionResult> VerificarCodigo(string codigo)
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            try
+            {
+                var existe = await _productosService.ExisteCodigoAsync(codigo);
+                return Ok(new { existe });
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpGet("{codigo}")]
+        public async Task<IActionResult> Obtener(string codigo)
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            try
+            {
+                var p = await _productosService.ObtenerAsync(codigo);
+                if (p == null) return NotFound(new { error = "Producto no encontrado" });
+                return Ok(p);
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPut("{codigo}/completo")]
+        public async Task<IActionResult> EditarCompleto(string codigo, [FromBody] EditarProductoCompletoDto datos)
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            if (string.IsNullOrWhiteSpace(codigo)) return BadRequest(new { error = "Código requerido" });
+            try
+            {
+                await _productosService.EditarCompletoAsync(codigo, datos);
+                return Ok(new { ok = true, mensaje = "Producto actualizado correctamente." });
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Crear([FromBody] NuevoProductoDto datos)
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            if (string.IsNullOrWhiteSpace(datos.Codigo)) return BadRequest(new { error = "El código es requerido" });
+            if (string.IsNullOrWhiteSpace(datos.Descripcion)) return BadRequest(new { error = "La descripción es requerida" });
+            try
+            {
+                var codigo = await _productosService.CrearAsync(datos);
+                return Ok(new { ok = true, codigo, mensaje = "Producto creado correctamente." });
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpDelete("{codigo}")]
+        public async Task<IActionResult> Eliminar(string codigo)
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            try
+            {
+                await _productosService.EliminarAsync(codigo);
+                return Ok(new { ok = true, mensaje = "Producto dado de baja correctamente." });
+            }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpGet("rubros")]
+        public async Task<IActionResult> ListarRubros()
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            try { return Ok(await _productosService.ListarRubrosAsync()); }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        [HttpGet("marcas")]
+        public async Task<IActionResult> ListarMarcas()
+        {
+            if (!ValidarAutorizacion()) return Unauthorized(new { error = "No autorizado" });
+            try { return Ok(await _productosService.ListarMarcasAsync()); }
+            catch (Exception ex) { return StatusCode(500, new { error = ex.Message }); }
+        }
     }
 }

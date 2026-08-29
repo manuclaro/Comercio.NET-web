@@ -1,6 +1,6 @@
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Extensions.Configuration;
@@ -18,7 +18,7 @@ namespace Comercio.NET.Formularios
             ConfigurarFormulario();
         }
 
-        // Nuevo constructor que recibe el código del producto
+        // Nuevo constructor que recibe el cï¿½digo del producto
         public frmActualizarProducto(string codigoProducto) : this()
         {
             _codigoProductoInicial = codigoProducto?.Trim() ?? "";
@@ -32,14 +32,14 @@ namespace Comercio.NET.Formularios
             // Asociar el evento KeyDown a los TextBox para tabular con ENTER.
             AsociarEventosEnter();
             
-            // Asociar los eventos KeyPress para validar la entrada numérica.
+            // Asociar los eventos KeyPress para validar la entrada numï¿½rica.
             txtStockActual.KeyPress += txtStockActual_KeyPress;
             txtNuevoCosto.KeyPress += txtNuevoCosto_KeyPress;
             txtNuevoPorcentaje.KeyPress += txtNuevoPorcentaje_KeyPress;
             txtIva.KeyPress += txtIva_KeyPress;
             txtValorVenta.KeyPress += txtNuevoCosto_KeyPress;
             
-            // Agregar eventos para detectar modificación manual del precio
+            // Agregar eventos para detectar modificaciï¿½n manual del precio
             txtValorVenta.TextChanged += TxtValorVenta_TextChanged;
             txtValorVenta.Enter += TxtValorVenta_Enter;
             txtValorVenta.KeyDown += TxtValorVenta_KeyDown;
@@ -51,11 +51,11 @@ namespace Comercio.NET.Formularios
         private void ConfigurarTooltips()
         {
             var tooltip = new ToolTip();
-            tooltip.SetToolTip(txtNombre, "Puede modificar la descripción del producto");
-            tooltip.SetToolTip(txtValorVenta, "Se calcula automáticamente. Puede modificarlo manualmente para ajustar el precio (ej: redondeo)");
+            tooltip.SetToolTip(txtNombre, "Puede modificar la descripciÃ³n del producto");
+            tooltip.SetToolTip(txtValorVenta, "Se calcula automÃ¡ticamente. Puede modificarlo manualmente para ajustar el precio (ej: redondeo)");
             tooltip.SetToolTip(txtNuevoCosto, "Costo del producto sin IVA");
             tooltip.SetToolTip(txtNuevoPorcentaje, "Porcentaje de ganancia a aplicar sobre el costo");
-            tooltip.SetToolTip(txtIva, "Alícuota de IVA (ej: 21.00). Máximo 2 dígitos enteros y 2 decimales");
+            tooltip.SetToolTip(txtIva, "AlÃ­cuota de IVA (ej: 21.00). MÃ¡ximo 2 dÃ­gitos enteros y 2 decimales");
         }
 
         private void TxtValorVenta_Enter(object sender, EventArgs e)
@@ -66,7 +66,7 @@ namespace Comercio.NET.Formularios
 
         private void TxtValorVenta_KeyDown(object sender, KeyEventArgs e)
         {
-            // Si el usuario presiona una tecla de edición, marcar como modificación manual
+            // Si el usuario presiona una tecla de ediciï¿½n, marcar como modificaciï¿½n manual
             if (e.KeyCode != Keys.Tab && e.KeyCode != Keys.Enter && e.KeyCode != Keys.Escape)
             {
                 _precioModificadoManualmente = true;
@@ -82,13 +82,13 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // Evento Load para cargar automáticamente el producto si se pasó un código
+        // Evento Load para cargar automï¿½ticamente el producto si se pasï¿½ un cï¿½digo
         private void frmActualizarProducto_Load(object sender, EventArgs e)
         {
             if (!string.IsNullOrEmpty(_codigoProductoInicial))
             {
                 txtCodigo.Text = _codigoProductoInicial;
-                // Cargar automáticamente los datos del producto
+                // Cargar automï¿½ticamente los datos del producto
                 btnBuscar_Click(this, EventArgs.Empty);
             }
             else
@@ -96,7 +96,7 @@ namespace Comercio.NET.Formularios
                 txtCodigo.Focus();
             }
             
-            // Agregar información útil para el usuario
+            // Agregar informaciï¿½n ï¿½til para el usuario
             this.Text = "Modificar Producto - F5: Recalcular precio";
         }
 
@@ -121,7 +121,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        // Validación para el TextBox de stock: solo dígitos y limitado a 4.
+        // Validaciï¿½n para el TextBox de stock: solo dï¿½gitos y limitado a 4.
         private void txtStockActual_KeyPress(object sender, KeyPressEventArgs e)
         {
             TextBox tb = sender as TextBox;
@@ -131,14 +131,14 @@ namespace Comercio.NET.Formularios
                 return;
             }
 
-            // Limitar a 4 dígitos.
+            // Limitar a 4 dï¿½gitos.
             if (!char.IsControl(e.KeyChar) && tb.Text.Length >= 4 && tb.SelectionLength == 0)
             {
                 e.Handled = true;
             }
         }
 
-        // Validación para el TextBox de costo: máximo 6 dígitos enteros y 2 decimales
+        // Validaciï¿½n para el TextBox de costo: mï¿½ximo 6 dï¿½gitos enteros y 2 decimales
         private void txtNuevoCosto_KeyPress(object sender, KeyPressEventArgs e)
         {
             // Reemplazar punto por coma.
@@ -152,20 +152,20 @@ namespace Comercio.NET.Formularios
             if (char.IsControl(e.KeyChar))
                 return;
 
-            // Permitir solo dígitos y una coma.
+            // Permitir solo dï¿½gitos y una coma.
             if (char.IsDigit(e.KeyChar))
             {
                 if (text.Contains(","))
                 {
                     int index = text.IndexOf(",");
-                    // Si el cursor está en la parte decimal, se permite máximo 2 decimales.
+                    // Si el cursor estï¿½ en la parte decimal, se permite mï¿½ximo 2 decimales.
                     if (tb.SelectionStart > index)
                     {
                         string decimalPart = text.Substring(index + 1);
                         if (decimalPart.Length >= 2 && tb.SelectionLength == 0)
                             e.Handled = true;
                     }
-                    // Si el cursor está en la parte entera, se permite máximo 6 dígitos.
+                    // Si el cursor estï¿½ en la parte entera, se permite mï¿½ximo 6 dï¿½gitos.
                     else
                     {
                         string integerPart = text.Substring(0, index);
@@ -175,7 +175,7 @@ namespace Comercio.NET.Formularios
                 }
                 else
                 {
-                    // Sin coma, se permite máximo 6 dígitos enteros.
+                    // Sin coma, se permite mï¿½ximo 6 dï¿½gitos enteros.
                     if (text.Length >= 6 && tb.SelectionLength == 0)
                         e.Handled = true;
                 }
@@ -183,7 +183,7 @@ namespace Comercio.NET.Formularios
             }
             if (e.KeyChar == ',')
             {
-                // Permitir coma si aún no existe.
+                // Permitir coma si aï¿½n no existe.
                 if (text.Contains(","))
                     e.Handled = true;
                 return;
@@ -192,7 +192,7 @@ namespace Comercio.NET.Formularios
             e.Handled = true;
         }
 
-        // Validación modificada para el TextBox de porcentaje: máximo 3 dígitos enteros y 2 decimales.
+        // Validaciï¿½n modificada para el TextBox de porcentaje: mï¿½ximo 3 dï¿½gitos enteros y 2 decimales.
         private void txtNuevoPorcentaje_KeyPress(object sender, KeyPressEventArgs e)
         {
             // Reemplazar punto por coma.
@@ -210,7 +210,7 @@ namespace Comercio.NET.Formularios
                 if (text.Contains(","))
                 {
                     int index = text.IndexOf(",");
-                    // Si el cursor está en la parte decimal, se permite máximo 2 decimales.
+                    // Si el cursor estï¿½ en la parte decimal, se permite mï¿½ximo 2 decimales.
                     if (tb.SelectionStart > index)
                     {
                         string decimalPart = text.Substring(index + 1);
@@ -219,7 +219,7 @@ namespace Comercio.NET.Formularios
                     }
                     else
                     {
-                        // Se permite hasta 3 dígitos en la parte entera.
+                        // Se permite hasta 3 dï¿½gitos en la parte entera.
                         string integerPart = text.Substring(0, index);
                         if (integerPart.Length >= 3 && tb.SelectionLength == 0)
                             e.Handled = true;
@@ -227,7 +227,7 @@ namespace Comercio.NET.Formularios
                 }
                 else
                 {
-                    // Sin coma, se permiten máximo 3 dígitos enteros.
+                    // Sin coma, se permiten mï¿½ximo 3 dï¿½gitos enteros.
                     if (text.Length >= 3 && tb.SelectionLength == 0)
                         e.Handled = true;
                 }
@@ -242,10 +242,10 @@ namespace Comercio.NET.Formularios
             e.Handled = true;
         }
 
-        // NUEVO: Validación para el TextBox de IVA: máximo 2 dígitos enteros y 2 decimales
+        // NUEVO: Validaciï¿½n para el TextBox de IVA: mï¿½ximo 2 dï¿½gitos enteros y 2 decimales
         private void txtIva_KeyPress(object sender, KeyPressEventArgs e)
         {
-            // Reemplazar punto del teclado numérico por coma
+            // Reemplazar punto del teclado numï¿½rico por coma
             if (e.KeyChar == '.')
                 e.KeyChar = ',';
 
@@ -256,20 +256,20 @@ namespace Comercio.NET.Formularios
             if (char.IsControl(e.KeyChar))
                 return;
 
-            // Permitir solo dígitos y una coma
+            // Permitir solo dï¿½gitos y una coma
             if (char.IsDigit(e.KeyChar))
             {
                 if (text.Contains(","))
                 {
                     int index = text.IndexOf(",");
-                    // Si el cursor está en la parte decimal, se permite máximo 2 decimales
+                    // Si el cursor estï¿½ en la parte decimal, se permite mï¿½ximo 2 decimales
                     if (tb.SelectionStart > index)
                     {
                         string decimalPart = text.Substring(index + 1);
                         if (decimalPart.Length >= 2 && tb.SelectionLength == 0)
                             e.Handled = true;
                     }
-                    // Si el cursor está en la parte entera, se permite máximo 2 dígitos
+                    // Si el cursor estï¿½ en la parte entera, se permite mï¿½ximo 2 dï¿½gitos
                     else
                     {
                         string integerPart = text.Substring(0, index);
@@ -279,7 +279,7 @@ namespace Comercio.NET.Formularios
                 }
                 else
                 {
-                    // Sin coma, se permite máximo 2 dígitos enteros
+                    // Sin coma, se permite mï¿½ximo 2 dï¿½gitos enteros
                     if (text.Length >= 2 && tb.SelectionLength == 0)
                         e.Handled = true;
                 }
@@ -287,7 +287,7 @@ namespace Comercio.NET.Formularios
             }
             if (e.KeyChar == ',')
             {
-                // Permitir coma si aún no existe
+                // Permitir coma si aï¿½n no existe
                 if (text.Contains(","))
                     e.Handled = true;
                 return;
@@ -296,13 +296,13 @@ namespace Comercio.NET.Formularios
             e.Handled = true;
         }
 
-        // En el botón Buscar, se formatean los valores para mostrar 2 decimales.
+        // En el botï¿½n Buscar, se formatean los valores para mostrar 2 decimales.
         private void btnBuscar_Click(object sender, EventArgs e)
         {
             string codigo = txtCodigo.Text.Trim();
             if (string.IsNullOrEmpty(codigo))
             {
-                MessageBox.Show("Ingrese un código de producto.", "Búsqueda", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Ingrese un cÃ³digo de producto.", "BÃºsqueda", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -314,16 +314,16 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     connection.Open();
                     string query = @"SELECT descripcion, marca, costo, porcentaje, precio, cantidad, iva 
                                      FROM Productos
                                      WHERE codigo = @codigo";
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@codigo", codigo);
-                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        using (NpgsqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
@@ -338,7 +338,7 @@ namespace Comercio.NET.Formularios
                                 // Cargar valor de IVA
                                 txtIva.Text = Convert.ToDecimal(reader["iva"]).ToString("F2");
 
-                                // Resetear el flag de modificación manual y recalcular
+                                // Resetear el flag de modificaciï¿½n manual y recalcular
                                 _precioModificadoManualmente = false;
                                 
                                 // Enfocar en el primer campo editable
@@ -347,7 +347,7 @@ namespace Comercio.NET.Formularios
                             }
                             else
                             {
-                                MessageBox.Show("Producto no encontrado.", "Búsqueda", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                MessageBox.Show("Producto no encontrado.", "BÃºsqueda", MessageBoxButtons.OK, MessageBoxIcon.Information);
                                 LimpiarControles();
                             }
                         }
@@ -362,7 +362,7 @@ namespace Comercio.NET.Formularios
 
         private void CalcularVenta(object sender, EventArgs e)
         {
-            // Solo calcular automáticamente si el usuario no ha modificado el precio manualmente
+            // Solo calcular automï¿½ticamente si el usuario no ha modificado el precio manualmente
             if (!_precioModificadoManualmente)
             {
                 if (decimal.TryParse(txtNuevoCosto.Text, out decimal costo) &&
@@ -380,12 +380,12 @@ namespace Comercio.NET.Formularios
 
         private void RecalcularPrecio()
         {
-            // Método para forzar el recálculo (usado cuando se carga un producto)
+            // Mï¿½todo para forzar el recï¿½lculo (usado cuando se carga un producto)
             _precioModificadoManualmente = false;
             CalcularVenta(null, null);
         }
 
-        // Botón Aplicar: Actualiza el producto en la base de datos y limpia los controles
+        // Botï¿½n Aplicar: Actualiza el producto en la base de datos y limpia los controles
         private void btnAplicar_Click(object sender, EventArgs e)
         {
             string codigo = txtCodigo.Text.Trim();
@@ -393,13 +393,13 @@ namespace Comercio.NET.Formularios
             
             if (string.IsNullOrEmpty(codigo))
             {
-                MessageBox.Show("Código de producto no válido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("CÃ³digo de producto no vÃ¡lido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             
             if (string.IsNullOrEmpty(nuevaDescripcion))
             {
-                MessageBox.Show("La descripción del producto no puede estar vacía.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("La descripciÃ³n del producto no puede estar vacÃ­a.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 txtNombre.Focus();
                 return;
             }
@@ -410,7 +410,7 @@ namespace Comercio.NET.Formularios
                 !int.TryParse(txtStockActual.Text, out int nuevoStock) ||
                 !decimal.TryParse(txtIva.Text, out decimal nuevoIva))
             {
-                MessageBox.Show("Revise los valores ingresados. Todos los campos numéricos deben tener valores válidos.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Revise los valores ingresados. Todos los campos numÃ©ricos deben tener valores vÃ¡lidos.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -424,7 +424,7 @@ namespace Comercio.NET.Formularios
             
             if (nuevoIva < 0 || nuevoIva > 99.99m)
             {
-                MessageBox.Show("La alícuota de IVA debe estar entre 0 y 99.99%.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("La alÃ­cuota de IVA debe estar entre 0 y 99.99%.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtIva.Focus();
                 return;
             }
@@ -432,7 +432,7 @@ namespace Comercio.NET.Formularios
             if (nuevoPrecio < nuevoCosto)
             {
                 DialogResult result = MessageBox.Show(
-                    "El precio de venta es menor que el costo. ¿Está seguro de que desea continuar?", 
+                    "El precio de venta es menor que el costo. Â¿EstÃ¡ seguro de que desea continuar?", 
                     "Advertencia", 
                     MessageBoxButtons.YesNo, 
                     MessageBoxIcon.Warning);
@@ -451,7 +451,7 @@ namespace Comercio.NET.Formularios
                                 .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     connection.Open();
                     string updateQuery = @"UPDATE Productos
@@ -462,7 +462,7 @@ namespace Comercio.NET.Formularios
                                                precio = @nuevoPrecio,
                                                iva = @nuevoIva
                                            WHERE codigo = @codigo";
-                    using (var cmd = new SqlCommand(updateQuery, connection))
+                    using (var cmd = new NpgsqlCommand(updateQuery, connection))
                     {
                         cmd.Parameters.AddWithValue("@nuevaDescripcion", nuevaDescripcion);
                         cmd.Parameters.AddWithValue("@nuevoStock", nuevoStock);
@@ -475,13 +475,13 @@ namespace Comercio.NET.Formularios
                         int affected = cmd.ExecuteNonQuery();
                         if (affected > 0)
                         {
-                            MessageBox.Show("Producto actualizado correctamente.", "Actualización", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("Producto actualizado correctamente.", "ActualizaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             LimpiarControles();
                             txtCodigo.Focus();
                         }
                         else
                         {
-                            MessageBox.Show("No se actualizó ningún registro.", "Actualización", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("No se actualizÃ³ ningÃºn registro.", "ActualizaciÃ³n", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                     }
                 }
@@ -502,20 +502,20 @@ namespace Comercio.NET.Formularios
             txtStockActual.Clear();
             txtIva.Clear();
             
-            // Resetear el flag de modificación manual
+            // Resetear el flag de modificaciï¿½n manual
             _precioModificadoManualmente = false;
         }
 
-        // Botón Cerrar: Antes de cerrar, se busca ejecutar el botón "Refrescar" del formulario Productos.
+        // Botï¿½n Cerrar: Antes de cerrar, se busca ejecutar el botï¿½n "Refrescar" del formulario Productos.
         private void btnCerrar_Click(object sender, EventArgs e)
         {
-            // Verificar si hay un producto cargado (por ejemplo, si txtCodigo no está vacío).
+            // Verificar si hay un producto cargado (por ejemplo, si txtCodigo no estï¿½ vacï¿½o).
             if (!string.IsNullOrEmpty(txtCodigo.Text.Trim()))
             {
-                DialogResult result = MessageBox.Show("¿Desea guardar los cambios?", "Confirmar", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                DialogResult result = MessageBox.Show("Â¿Desea guardar los cambios?", "Confirmar", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (result == DialogResult.Yes)
                 {
-                    // Ejecuta el botón Aplicar para guardar los cambios.
+                    // Ejecuta el botï¿½n Aplicar para guardar los cambios.
                     btnAplicar.PerformClick();
                 }
                 else if (result == DialogResult.Cancel)
@@ -523,14 +523,14 @@ namespace Comercio.NET.Formularios
                     // Si el usuario cancela, no se cierra el modal.
                     return;
                 }
-                // Si el usuario respondió No, continúa cerrando sin guardar.
+                // Si el usuario respondiï¿½ No, continï¿½a cerrando sin guardar.
             }
 
             // Actualizar la grilla en el formulario principal.
             var mainForm = Application.OpenForms.OfType<ProductosOptimizado>().FirstOrDefault();
             if (mainForm != null)
             {
-                // Como ProductosOptimizado maneja la actualización de manera diferente,
+                // Como ProductosOptimizado maneja la actualizaciï¿½n de manera diferente,
                 // podemos limpiar el cache para forzar una recarga
                 ProductosOptimizado.LimpiarCache();
             }
@@ -543,12 +543,12 @@ namespace Comercio.NET.Formularios
         {
             if (e.KeyCode == Keys.Escape)
             {
-                btnCerrar.PerformClick(); // Simula el clic en el botón Cerrar.
+                btnCerrar.PerformClick(); // Simula el clic en el botï¿½n Cerrar.
                 e.SuppressKeyPress = true; // Evita el sonido de beep.
             }
             else if (e.KeyCode == Keys.F5)
             {
-                // Permitir al usuario forzar el recálculo del precio con F5
+                // Permitir al usuario forzar el recï¿½lculo del precio con F5
                 RecalcularPrecio();
                 e.SuppressKeyPress = true;
             }

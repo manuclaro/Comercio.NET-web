@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -547,14 +547,14 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 var query = @"
             SELECT NombreUsuario, Nombre, Apellido 
             FROM Usuarios 
             WHERE NumeroCajero = @numeroCajero 
             AND NombreUsuario != @nombreUsuarioActual";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                 cmd.Parameters.AddWithValue("@nombreUsuarioActual", _nombreUsuarioOriginal ?? "");
 
@@ -674,9 +674,9 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
-                var query = "SELECT * FROM Usuarios WHERE NombreUsuario = @nombreUsuario";
-                using var cmd = new SqlCommand(query, connection);
+                using var connection = new NpgsqlConnection(connectionString);
+                var query = "SELECT * FROM usuarios WHERE nombreusuario = @nombreUsuario";
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@nombreUsuario", nombreUsuario);
 
                 connection.Open();
@@ -684,13 +684,13 @@ namespace Comercio.NET.Formularios
 
                 if (reader.Read())
                 {
-                    txtNombreUsuario.Text = reader["NombreUsuario"].ToString();
+                    txtNombreUsuario.Text = reader["nombreusuario"].ToString();
                     txtNombreUsuario.ReadOnly = true;
-                    txtNombre.Text = reader["Nombre"].ToString();
-                    txtApellido.Text = reader["Apellido"].ToString();
-                    txtEmail.Text = reader["Email"].ToString();
-                    
-                    var nivel = (NivelUsuario)reader.GetInt32("Nivel");
+                    txtNombre.Text = reader["nombre"].ToString();
+                    txtApellido.Text = reader["apellido"].ToString();
+                    txtEmail.Text = reader["email"].ToString();
+
+                    var nivel = (NivelUsuario)reader.GetInt32("nivel");
                     for (int i = 0; i < cmbNivel.Items.Count; i++)
                     {
                         var item = cmbNivel.Items[i];
@@ -701,13 +701,13 @@ namespace Comercio.NET.Formularios
                         }
                     }
                     
-                    nudNumeroCajero.Value = reader.GetInt32("NumeroCajero");
-                    chkActivo.Checked = reader.GetBoolean("Activo");
-                    chkPuedeEliminarProductos.Checked = reader.GetBoolean("PuedeEliminarProductos");
-                    chkPuedeEditarPrecios.Checked = reader.GetBoolean("PuedeEditarPrecios");
-                    chkPuedeVerReportes.Checked = reader.GetBoolean("PuedeVerReportes");
-                    chkPuedeGestionarUsuarios.Checked = reader.GetBoolean("PuedeGestionarUsuarios");
-                    chkPuedeAnularFacturas.Checked = reader.GetBoolean("PuedeAnularFacturas");
+                    nudNumeroCajero.Value = reader.GetInt32("numerocajero");
+                    chkActivo.Checked = reader.GetValue(reader.GetOrdinal("activo")).ToString() != "0";
+                    chkPuedeEliminarProductos.Checked = reader.GetValue(reader.GetOrdinal("puedeeliminarproductos")).ToString() != "0";
+                    chkPuedeEditarPrecios.Checked = reader.GetValue(reader.GetOrdinal("puedeeditarprecios")).ToString() != "0";
+                    chkPuedeVerReportes.Checked = reader.GetValue(reader.GetOrdinal("puedeverreportes")).ToString() != "0";
+                    chkPuedeGestionarUsuarios.Checked = reader.GetValue(reader.GetOrdinal("puedegestionarusuarios")).ToString() != "0";
+                    chkPuedeAnularFacturas.Checked = reader.GetValue(reader.GetOrdinal("puedeanularfacturas")).ToString() != "0";
                 }
             }
             catch (Exception ex)
@@ -797,23 +797,23 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 var query = @"
-                    UPDATE Usuarios SET 
-                        Nombre = @nombre,
-                        Apellido = @apellido,
-                        Email = @email,
-                        Nivel = @nivel,
-                        NumeroCajero = @numeroCajero,
-                        Activo = @activo,
-                        PuedeEliminarProductos = @puedeEliminarProductos,
-                        PuedeEditarPrecios = @puedeEditarPrecios,
-                        PuedeVerReportes = @puedeVerReportes,
-                        PuedeGestionarUsuarios = @puedeGestionarUsuarios,
-                        PuedeAnularFacturas = @puedeAnularFacturas
-                    WHERE NombreUsuario = @nombreUsuario";
+                    UPDATE usuarios SET 
+                        nombre = @nombre,
+                        apellido = @apellido,
+                        email = @email,
+                        nivel = @nivel,
+                        numerocajero = @numeroCajero,
+                        activo = @activo,
+                        puedeeliminarproductos = @puedeEliminarProductos,
+                        puedeeditarprecios = @puedeEditarPrecios,
+                        puedeverreportes = @puedeVerReportes,
+                        puedegestionarusuarios = @puedeGestionarUsuarios,
+                        puedeanularfacturas = @puedeAnularFacturas
+                    WHERE nombreusuario = @nombreUsuario";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@nombre", usuario.Nombre);
                 cmd.Parameters.AddWithValue("@apellido", usuario.Apellido);
                 cmd.Parameters.AddWithValue("@email", usuario.Email ?? "");
@@ -827,13 +827,13 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@puedeAnularFacturas", usuario.PuedeAnularFacturas);
                 cmd.Parameters.AddWithValue("@nombreUsuario", _nombreUsuarioOriginal);
 
-                connection.Open();
+                await connection.OpenAsync();
                 int filasAfectadas = await cmd.ExecuteNonQueryAsync();
                 return filasAfectadas > 0;
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                throw new Exception($"Error al actualizar usuario en la base de datos: {ex.Message}", ex);
             }
         }
 
@@ -911,9 +911,9 @@ namespace Comercio.NET.Formularios
 
                     string connectionString = config.GetConnectionString("DefaultConnection");
 
-                    using var connection = new SqlConnection(connectionString);
+                    using var connection = new NpgsqlConnection(connectionString);
                     var query = "SELECT NumeroCajero FROM Usuarios WHERE NombreUsuario = @nombreUsuario";
-                    using var cmd = new SqlCommand(query, connection);
+                    using var cmd = new NpgsqlCommand(query, connection);
                     cmd.Parameters.AddWithValue("@nombreUsuario", _nombreUsuarioOriginal);
 
                     connection.Open();
@@ -938,14 +938,14 @@ namespace Comercio.NET.Formularios
 
                 string connectionString2 = config2.GetConnectionString("DefaultConnection");
 
-                using var connection2 = new SqlConnection(connectionString2);
+                using var connection2 = new NpgsqlConnection(connectionString2);
                 var query2 = @"
             SELECT NombreUsuario, Nombre, Apellido 
             FROM Usuarios 
             WHERE NumeroCajero = @numeroCajero 
             AND NombreUsuario != @nombreUsuarioActual";
 
-                using var cmd2 = new SqlCommand(query2, connection2);
+                using var cmd2 = new NpgsqlCommand(query2, connection2);
                 cmd2.Parameters.AddWithValue("@numeroCajero", numeroCajero);
                 cmd2.Parameters.AddWithValue("@nombreUsuarioActual", _nombreUsuarioOriginal ?? "");
 

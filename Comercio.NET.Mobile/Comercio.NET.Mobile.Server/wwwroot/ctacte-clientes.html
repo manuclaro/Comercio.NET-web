@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuentas Corrientes - Comercio.NET</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .page-header { background:linear-gradient(135deg,#1565c0,#0d47a1); }
+        .admin-toolbar { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+        .btn-nuevo { background:#1565c0; color:#fff; border:none; padding:.55rem 1.2rem; border-radius:6px; cursor:pointer; font-size:.95rem; font-weight:600; }
+        .btn-nuevo:hover { background:#0d47a1; }
+        .table-wrapper { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:.88rem; }
+        th { background:#1565c0; color:#fff; padding:.6rem .8rem; text-align:left; white-space:nowrap; }
+        td { padding:.55rem .8rem; border-bottom:1px solid #e0e0e0; }
+        tr:hover td { background:#f5f5f5; cursor:pointer; }
+        .text-right { text-align:right; }
+        .text-center { text-align:center; }
+        .saldo-positivo { color:#c62828; font-weight:700; }
+        .saldo-cero     { color:#2e7d32; font-weight:700; }
+        .row-actions { display:flex; gap:.4rem; justify-content:center; }
+        .btn-detail { background:#1565c0; color:#fff; border:none; padding:.3rem .7rem; border-radius:5px; cursor:pointer; font-size:.78rem; }
+        .btn-pago   { background:#2e7d32; color:#fff; border:none; padding:.3rem .7rem; border-radius:5px; cursor:pointer; font-size:.78rem; }
+        .btn-edit   { background:#e65100; color:#fff; border:none; padding:.3rem .7rem; border-radius:5px; cursor:pointer; font-size:.78rem; }
+        /* Modal */
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:1000; padding:1rem; }
+        .modal-box { background:#fff; border-radius:10px; width:100%; max-width:620px; max-height:92vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+        .modal-box.modal-sm { max-width:420px; }
+        .modal-header { padding:1rem 1.2rem; border-radius:10px 10px 0 0; display:flex; justify-content:space-between; align-items:center; color:#fff; }
+        .modal-header.blue  { background:linear-gradient(135deg,#1565c0,#0d47a1); }
+        .modal-header.green { background:linear-gradient(135deg,#2e7d32,#1b5e20); }
+        .modal-header h3 { margin:0; font-size:1.1rem; }
+        .modal-body { padding:1.2rem; }
+        .modal-body.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+        .modal-body .full { grid-column:1/-1; }
+        .form-grupo label { display:block; font-size:.82rem; font-weight:600; color:#555; margin-bottom:.25rem; }
+        .form-grupo input, .form-grupo select { width:100%; padding:.5rem .7rem; border:1px solid #ccc; border-radius:6px; font-size:.92rem; }
+        .modal-footer { padding:1rem 1.2rem; display:flex; justify-content:flex-end; gap:.7rem; border-top:1px solid #eee; }
+        .btn-cancel { background:#fff; border:1px solid #ccc; padding:.5rem 1.1rem; border-radius:6px; cursor:pointer; }
+        .btn-save   { background:#1565c0; color:#fff; border:none; padding:.5rem 1.3rem; border-radius:6px; cursor:pointer; font-weight:600; }
+        .btn-save.green { background:#2e7d32; }
+        .btn-close-modal { background:transparent; border:none; color:#fff; font-size:1.3rem; cursor:pointer; }
+        .msg-ok  { background:#e8f5e9; color:#2e7d32; padding:.6rem 1rem; border-radius:6px; margin-bottom:.8rem; }
+        .msg-err { background:#ffebee; color:#c62828; padding:.6rem 1rem; border-radius:6px; margin-bottom:.8rem; }
+        .search-box { display:flex; gap:.5rem; flex:1; }
+        .search-box input { flex:1; padding:.5rem .8rem; border:1px solid #ccc; border-radius:6px; font-size:.95rem; }
+        .btn-search { background:#1565c0; color:#fff; border:none; padding:.5rem 1rem; border-radius:6px; cursor:pointer; }
+        /* Cuenta detalle */
+        .cuenta-resumen { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.2rem; }
+        .cuenta-card { background:#f8f9fa; border-radius:8px; padding:.9rem 1rem; text-align:center; }
+        .cuenta-card .label { font-size:.78rem; color:#666; margin-bottom:.3rem; }
+        .cuenta-card .valor { font-size:1.3rem; font-weight:700; }
+        .mov-tabla { width:100%; border-collapse:collapse; font-size:.85rem; }
+        .mov-tabla th { background:#e3f2fd; color:#1565c0; padding:.5rem .7rem; text-align:left; }
+        .mov-tabla td { padding:.5rem .7rem; border-bottom:1px solid #e0e0e0; }
+        .tipo-venta { color:#c62828; font-weight:600; }
+        .tipo-pago  { color:#2e7d32; font-weight:600; }
+        @media(max-width:600px) { .cuenta-resumen { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <header class="page-header">
+        <a href="/dashboard.html" class="btn-back">? Volver</a>
+        <div class="header-title">
+            <span>??</span>
+            <div><h1>Cuentas Corrientes</h1><p>Estado de cuenta y pagos</p></div>
+        </div>
+        <div class="header-user">
+            <span id="nombreUsuario"></span>
+            <button class="btn-logout" id="btnCerrarSesion">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <main class="page-main">
+        <div class="admin-toolbar">
+            <div class="search-box">
+                <input type="text" id="txtBuscar" placeholder="?? Buscar por nombre, DNI o teléfono..." />
+                <button id="btnBuscar" class="btn-search">Buscar</button>
+            </div>
+            <button id="btnNuevo" class="btn-nuevo">? Nuevo Cliente</button>
+        </div>
+
+        <div id="loading" style="display:none;text-align:center;padding:2rem;color:#666;">Cargando...</div>
+        <div id="msgGlobal" style="display:none;"></div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead><tr>
+                    <th>Nombre</th><th>DNI</th><th>Teléfono</th>
+                    <th class="text-right">Total Compras</th>
+                    <th class="text-right">Total Pagado</th>
+                    <th class="text-right">Saldo Deudor</th>
+                    <th>Última Compra</th>
+                    <th class="text-center">Acciones</th>
+                </tr></thead>
+                <tbody id="tbodyClientes"></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- MODAL DETALLE CUENTA -->
+<div id="modalDetalle" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div class="modal-header blue">
+            <h3 id="detalleTitulo">?? Cuenta Corriente</h3>
+            <button class="btn-close-modal" id="btnCerrarDetalle">?</button>
+        </div>
+        <div class="modal-body">
+            <div class="cuenta-resumen" id="cuentaResumen"></div>
+            <div id="movLoading" style="text-align:center;color:#666;padding:1rem;display:none;">Cargando movimientos...</div>
+            <div id="movVacio" style="text-align:center;color:#777;padding:1rem;display:none;">No hay movimientos registrados.</div>
+            <div class="table-wrapper">
+                <table class="mov-tabla">
+                    <thead><tr>
+                        <th>Fecha</th><th>Tipo</th><th class="text-right">Monto</th>
+                        <th>Medio Pago</th><th>Referencia</th><th>Usuario</th>
+                    </tr></thead>
+                    <tbody id="tbodyMovimientos"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btnCerrarDetalle2">Cerrar</button>
+            <button class="btn-save green" id="btnAbrirPago">?? Registrar Pago</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL REGISTRAR PAGO -->
+<div id="modalPago" class="modal-overlay" style="display:none;">
+    <div class="modal-box modal-sm">
+        <div class="modal-header green">
+            <h3>?? Registrar Pago</h3>
+            <button class="btn-close-modal" id="btnCerrarPago">?</button>
+        </div>
+        <div class="modal-body">
+            <div id="pagoMsg" style="display:none;"></div>
+            <p id="pagoClienteNombre" style="font-weight:600;margin-bottom:1rem;color:#1565c0;"></p>
+            <div class="form-grupo">
+                <label>Monto ($) *</label>
+                <input type="number" id="fPagoMonto" min="0.01" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="form-grupo" style="margin-top:.8rem;">
+                <label>Medio de Pago</label>
+                <select id="fPagoMedio">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Débito">Débito</option>
+                    <option value="Crédito">Crédito</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            <div class="form-grupo" style="margin-top:.8rem;">
+                <label>Referencia / Observación</label>
+                <input type="text" id="fPagoRef" placeholder="Número de transferencia, cheque, etc." maxlength="200" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btnCancelarPago">Cancelar</button>
+            <button class="btn-save green" id="btnConfirmarPago">?? Confirmar Pago</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ALTA/EDICIÓN CLIENTE -->
+<div id="modalCliente" class="modal-overlay" style="display:none;">
+    <div class="modal-box modal-sm">
+        <div class="modal-header blue">
+            <h3 id="clienteTitulo">Cliente</h3>
+            <button class="btn-close-modal" id="btnCerrarCliente">?</button>
+        </div>
+        <div class="modal-body">
+            <div id="clienteMsg" style="display:none;"></div>
+            <div class="form-grupo">
+                <label>Nombre *</label>
+                <input type="text" id="fClienteNombre" placeholder="Nombre completo..." maxlength="200" />
+            </div>
+            <div class="form-grupo" style="margin-top:.8rem;">
+                <label>DNI</label>
+                <input type="text" id="fClienteDni" placeholder="12345678" maxlength="20" />
+            </div>
+            <div class="form-grupo" style="margin-top:.8rem;">
+                <label>Teléfono</label>
+                <input type="text" id="fClienteTel" placeholder="(011) 1234-5678" maxlength="50" />
+            </div>
+            <div class="form-grupo" style="margin-top:.8rem;">
+                <label>Email</label>
+                <input type="email" id="fClienteEmail" placeholder="correo@ejemplo.com" maxlength="100" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btnCancelarCliente">Cancelar</button>
+            <button class="btn-save" id="btnGuardarCliente">?? Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/ctacte-clientes.js"></script>
+</body>
+</html>

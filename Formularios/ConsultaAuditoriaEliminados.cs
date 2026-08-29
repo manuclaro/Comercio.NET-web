@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -238,23 +238,27 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     // ✅ CAMBIO CRÍTICO: Consultar tabla Ventas en lugar de AuditoriaProductosEliminados
                     var query = @"
                 SELECT 
-                    codigo as 'Código',
-                    descripcion as 'Producto',
-                    cantidad as 'Cantidad',
-                    precio as 'Precio Unit.',
-                    total as 'Total'
-                FROM Ventas 
+                    codigo as ""Código"",
+                    descripcion as ""Producto"",
+                    cantidad as ""Cantidad"",
+                    precio as ""Precio Unit."",
+                    total as ""Total""
+                FROM ventas 
                 WHERE NroFactura = @nroFactura
                 ORDER BY descripcion";
 
-                    using (var adapter = new SqlDataAdapter(query, connection))
+                    using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
-                        adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        // ventas.NroFactura es integer; pasar como int para evitar error de tipo
+                        if (int.TryParse(nroFactura, out int nroFactInt))
+                            adapter.SelectCommand.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroFactInt });
+                        else
+                            adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
                         DataTable dt = new DataTable();
                         adapter.Fill(dt);
 
@@ -303,25 +307,29 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
                 SELECT 
-                    CodigoProducto as 'Código',
-                    DescripcionProducto as 'Producto',
-                    Cantidad as 'Cantidad',
-                    PrecioUnitario as 'Precio Unit.',
-                    TotalEliminado as 'Total',
-                    MotivoEliminacion as 'Motivo',
-                    FechaEliminacion as 'Fecha Eliminación',
-                    UsuarioEliminacion as 'Usuario'
-                FROM AuditoriaProductosEliminados 
+                    CodigoProducto as ""Código"",
+                    DescripcionProducto as ""Producto"",
+                    Cantidad as ""Cantidad"",
+                    PrecioUnitario as ""Precio Unit."",
+                    TotalEliminado as ""Total"",
+                    MotivoEliminacion as ""Motivo"",
+                    FechaEliminacion as ""Fecha Eliminación"",
+                    UsuarioEliminacion as ""Usuario""
+                FROM auditoriaproductoseliminados 
                 WHERE NumeroFactura = @nroFactura
                 ORDER BY DescripcionProducto";
 
-                    using (var adapter = new SqlDataAdapter(query, connection))
+                    using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
-                        adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        // auditoriaproductoseliminados.NumeroFactura es integer
+                        if (int.TryParse(nroFactura, out int nroFactInt))
+                            adapter.SelectCommand.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroFactInt });
+                        else
+                            adapter.SelectCommand.Parameters.AddWithValue("@nroFactura", nroFactura);
                         DataTable dt = new DataTable();
                         adapter.Fill(dt);
 
@@ -455,19 +463,23 @@ namespace Comercio.NET.Formularios
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
                 SELECT 
                     TipoFactura,
                     FormadePago,
                     Fecha
-                FROM Facturas 
+                FROM facturas 
                 WHERE NumeroRemito = @nroFactura";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
-                        cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
+                        // facturas.NumeroRemito es integer; pasar parámetro tipado
+                        if (int.TryParse(nroFactura, out int nroFacturaInt))
+                            cmd.Parameters.Add(new NpgsqlParameter("@nroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroFacturaInt });
+                        else
+                            cmd.Parameters.AddWithValue("@nroFactura", nroFactura);
                         connection.Open();
 
                         using (var reader = cmd.ExecuteReader())
@@ -858,46 +870,49 @@ namespace Comercio.NET.Formularios
                 string query = @"
                     SELECT 
                         IdAuditoriaProductosEliminados,
-                        CodigoProducto AS 'Código',
-                        DescripcionProducto AS 'Descripción Producto',
-                        PrecioUnitario AS 'Precio Unitario',
-                        Cantidad AS 'Cant.',
-                        TotalEliminado AS 'Total Eliminado',
-                        NumeroFactura AS 'Remito',
-                        FechaHoraVentaOriginal AS 'Fecha Factura',
-                        FechaEliminacion AS 'Fecha Eliminación',
-                        MotivoEliminacion AS 'Motivo de Eliminación',
-                        CASE WHEN EsCtaCte = 1 THEN 'Sí' ELSE 'No' END AS 'CtaCte',
-                        UsuarioEliminacion AS 'Usuario',
-                        NumeroCajero AS 'Cajero',
-                        NombreEquipo AS 'Equipo'
+                        CodigoProducto AS ""Código"",
+                        DescripcionProducto AS ""Descripción Producto"",
+                        PrecioUnitario AS ""Precio Unitario"",
+                        Cantidad AS ""Cant."",
+                        TotalEliminado AS ""Total Eliminado"",
+                        NumeroFactura AS ""Remito"",
+                        FechaHoraVentaOriginal AS ""Fecha Factura"",
+                        FechaEliminacion AS ""Fecha Eliminación"",
+                        MotivoEliminacion AS ""Motivo de Eliminación"",
+                        CASE WHEN COALESCE(EsCtaCte, FALSE) IS TRUE THEN 'Sí' ELSE 'No' END AS ""CtaCte"",
+                        UsuarioEliminacion AS ""Usuario"",
+                        NumeroCajero AS ""Cajero"",
+                        NombreEquipo AS ""Equipo""
                         -- REMOVIDO: IPUsuario AS 'IP' (columna eliminada)
-                    FROM AuditoriaProductosEliminados 
+                    FROM auditoriaproductoseliminados 
                     WHERE FechaEliminacion >= @fechaDesde 
                       AND FechaEliminacion <= @fechaHasta";
 
-                var parametros = new List<SqlParameter>
+                var parametros = new List<NpgsqlParameter>
                 {
-                    new SqlParameter("@fechaDesde", dtpDesde.Value.Date),
-                    new SqlParameter("@fechaHasta", dtpHasta.Value.Date.AddDays(1).AddSeconds(-1))
+                    new NpgsqlParameter("@fechaDesde", dtpDesde.Value.Date),
+                    new NpgsqlParameter("@fechaHasta", dtpHasta.Value.Date.AddDays(1).AddSeconds(-1))
                 };
 
                 if (!string.IsNullOrWhiteSpace(txtCodigoProducto.Text))
                 {
                     query += " AND CodigoProducto LIKE @codigo";
-                    parametros.Add(new SqlParameter("@codigo", $"%{txtCodigoProducto.Text.Trim()}%"));
+                    parametros.Add(new NpgsqlParameter("@codigo", $"%{txtCodigoProducto.Text.Trim()}%"));
                 }
 
                 if (!string.IsNullOrWhiteSpace(txtNumeroFactura.Text))
                 {
                     query += " AND NumeroFactura = @numeroFactura";
-                    parametros.Add(new SqlParameter("@numeroFactura", txtNumeroFactura.Text.Trim()));
+                    if (int.TryParse(txtNumeroFactura.Text.Trim(), out int nroFiltroInt))
+                        parametros.Add(new NpgsqlParameter("@numeroFactura", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroFiltroInt });
+                    else
+                        parametros.Add(new NpgsqlParameter("@numeroFactura", txtNumeroFactura.Text.Trim()));
                 }
 
                 if (!string.IsNullOrWhiteSpace(txtUsuario.Text))
                 {
                     query += " AND UsuarioEliminacion LIKE @usuario";
-                    parametros.Add(new SqlParameter("@usuario", $"%{txtUsuario.Text.Trim()}%"));
+                    parametros.Add(new NpgsqlParameter("@usuario", $"%{txtUsuario.Text.Trim()}%"));
                 }
 
                 // NUEVO: Filtro por número de cajero
@@ -906,7 +921,7 @@ namespace Comercio.NET.Formularios
                     if (int.TryParse(txtCajero.Text.Trim(), out int numeroCajero))
                     {
                         query += " AND NumeroCajero = @numeroCajero";
-                        parametros.Add(new SqlParameter("@numeroCajero", numeroCajero));
+                        parametros.Add(new NpgsqlParameter("@numeroCajero", numeroCajero));
                     }
                     else
                     {
@@ -918,9 +933,9 @@ namespace Comercio.NET.Formularios
 
                 query += " ORDER BY FechaEliminacion DESC";
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
-                    using (var adapter = new SqlDataAdapter(query, connection))
+                    using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
                         adapter.SelectCommand.Parameters.AddRange(parametros.ToArray());
                         var dt = new DataTable();

@@ -4,6 +4,8 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<ServerGarbageCollection>false</ServerGarbageCollection>
+		<GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
 		<SpaRoot>..\comercio.net.sqlbridge.client</SpaRoot>
 		<SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
 		<SpaProxyServerUrl>https://localhost:60450</SpaProxyServerUrl>
@@ -16,9 +18,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Data.SqlClient" Version="5.*" />
 		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.*" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.*" />
+		<PackageReference Include="Npgsql" Version="8.*" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.*" />
+		<PackageReference Include="System.ServiceModel.Http" Version="6.*" />
+		<PackageReference Include="System.ServiceModel.Primitives" Version="6.*" />
 	</ItemGroup>
 
 	<ItemGroup>

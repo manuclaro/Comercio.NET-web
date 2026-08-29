@@ -1,7 +1,7 @@
-﻿using Comercio.NET.Services;
+using Comercio.NET.Services;
 using Microsoft.Extensions.Configuration;
 using System;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -271,16 +271,17 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
                 
                 var query = @"
-                    SELECT TOP 1 COALESCE(Nombre + ' ' + Apellido, 'Cajero ' + CAST(NumeroCajero AS NVARCHAR)) as NombreCajero
-                    FROM Usuarios
-                    WHERE NumeroCajero = @numeroCajero
-                    AND Activo = 1";
+                    SELECT COALESCE(nombre || ' ' || apellido, 'Cajero ' || numerocajero::TEXT) as nombrecajero
+                    FROM usuarios
+                    WHERE numerocajero = @numeroCajero
+                    AND COALESCE(activo, FALSE) IS TRUE
+                    LIMIT 1";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajeroLogueado);
 
                 var nombreCajero = await cmd.ExecuteScalarAsync();
@@ -329,17 +330,18 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 var query = @"
-                    SELECT TOP 1 Id, FechaApertura, MontoInicial, Usuario
-                    FROM TurnosCajero 
-                    WHERE NumeroCajero = @numeroCajero 
-                    AND Estado = 'Abierto'
-                    ORDER BY FechaApertura DESC";
+                    SELECT id, fechaapertura, montoinicial, usuario
+                    FROM turnoscajero 
+                    WHERE numerocajero = @numeroCajero 
+                    AND estado = 'Abierto'
+                    ORDER BY fechaapertura DESC
+                    LIMIT 1";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@numeroCajero", numeroCajeroLogueado);
 
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -422,18 +424,36 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
+                // Sync the sequence to MAX(id) to avoid duplicate key errors after data migration
+                var queryRepair = @"
+                    DO $$
+                    DECLARE
+                        seq_name text;
+                    BEGIN
+                        SELECT pg_get_serial_sequence('turnoscajero', 'id') INTO seq_name;
+                        IF seq_name IS NULL THEN
+                            seq_name := 'turnoscajero_id_seq';
+                            EXECUTE 'CREATE SEQUENCE IF NOT EXISTS ' || seq_name;
+                            EXECUTE 'ALTER TABLE turnoscajero ALTER COLUMN id SET DEFAULT nextval(' || quote_literal(seq_name) || ')';
+                        END IF;
+                        EXECUTE 'SELECT setval(' || quote_literal(seq_name) || ', COALESCE((SELECT MAX(id) FROM turnoscajero), 0) + 1, false)';
+                    END$$;";
+
+                using (var cmdRepair = new NpgsqlCommand(queryRepair, connection))
+                    await cmdRepair.ExecuteNonQueryAsync();
+
                 var query = @"
-                    INSERT INTO TurnosCajero 
-                    (NumeroCajero, Usuario, FechaApertura, FechaCierre, MontoInicial, Estado, Observaciones)
-                    OUTPUT INSERTED.Id
+                    INSERT INTO turnoscajero 
+                    (numerocajero, usuario, fechaapertura, fechacierre, montoinicial, estado, observaciones)
                     VALUES 
-                    (@numeroCajero, @usuario, @fechaApertura, NULL, @montoInicial, 'Abierto', @observaciones)";
+                    (@numeroCajero, @usuario, @fechaApertura, NULL, @montoInicial, 'Abierto', @observaciones)
+                    RETURNING id";
 
                 int idTurno;
-                using (var cmd = new SqlCommand(query, connection))
+                using (var cmd = new NpgsqlCommand(query, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroCajero", numeroCajeroLogueado);
                     cmd.Parameters.AddWithValue("@usuario", usuario);
@@ -441,7 +461,7 @@ namespace Comercio.NET.Formularios
                     cmd.Parameters.AddWithValue("@montoInicial", montoInicial);
                     cmd.Parameters.AddWithValue("@observaciones", txtObservaciones.Text ?? "");
 
-                    idTurno = (int)await cmd.ExecuteScalarAsync();
+                    idTurno = Convert.ToInt32(await cmd.ExecuteScalarAsync());
                 }
 
                 MessageBox.Show(

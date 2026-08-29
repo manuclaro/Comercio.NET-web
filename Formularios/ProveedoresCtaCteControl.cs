@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -285,14 +285,14 @@ namespace Comercio.NET.Formularios
                 var dtResumen = new DataTable();
                 var dtProveedores = new DataTable();
 
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
 
                     // Cargar proveedores
                     var sqlProveedores = @"SELECT Id, Nombre FROM Proveedores WHERE Id IS NOT NULL ORDER BY Nombre;";
-                    using (var cmdProv = new SqlCommand(sqlProveedores, conn))
-                    using (var daProv = new SqlDataAdapter(cmdProv))
+                    using (var cmdProv = new NpgsqlCommand(sqlProveedores, conn))
+                    using (var daProv = new NpgsqlDataAdapter(cmdProv))
                         daProv.Fill(dtProveedores);
 
                     var rowTodos = dtProveedores.NewRow();
@@ -337,12 +337,12 @@ HAVING (COALESCE(SUM(cta.Debe - cta.Haber), 0) <> 0 OR COALESCE(SUM(cta.Haber), 
 ORDER BY SaldoPendiente DESC, Proveedor;
 ";
 
-                    using (var cmd = new SqlCommand(sqlResumen, conn))
+                    using (var cmd = new NpgsqlCommand(sqlResumen, conn))
                     {
                         if (proveedorIdFiltro > 0)
                             cmd.Parameters.AddWithValue("@proveedorId", proveedorIdFiltro);
 
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                             da.Fill(dtResumen);
                     }
                 }
@@ -748,7 +748,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
@@ -756,12 +756,12 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                         try
                         {
                             // Eliminar de CtaCteProveedores
-                            var deleteCtaCte = new SqlCommand("DELETE FROM CtaCteProveedores WHERE Id = @id", conn, tx);
+                            var deleteCtaCte = new NpgsqlCommand("DELETE FROM CtaCteProveedores WHERE Id = @id", conn, tx);
                             deleteCtaCte.Parameters.AddWithValue("@id", id);
                             await deleteCtaCte.ExecuteNonQueryAsync();
 
                             // Si es un pago, también eliminar de PagosProveedores (opcional, según tu modelo)
-                            // var deletePago = new SqlCommand("DELETE FROM PagosProveedores WHERE CtaCteId = @id", conn, tx);
+                            // var deletePago = new NpgsqlCommand("DELETE FROM PagosProveedores WHERE CtaCteId = @id", conn, tx);
                             // deletePago.Parameters.AddWithValue("@id", id);
                             // await deletePago.ExecuteNonQueryAsync();
 
@@ -802,7 +802,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                 string cs = GetConnectionString();
                 var dt = new DataTable();
 
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
 
@@ -823,7 +823,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                                 ORDER BY Fecha DESC, Id DESC
                                 ";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@proveedorId", proveedorId);
                         cmd.Parameters.AddWithValue("@proveedorNombre", proveedorNombre);
@@ -831,7 +831,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                         cmd.Parameters.AddWithValue("@hasta", dtpHasta.Value.Date.AddDays(1).AddTicks(-1));
                         cmd.Parameters.AddWithValue("@tipoFiltro", tipoFiltro);
 
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }
@@ -1125,7 +1125,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
             try
             {
                 string cs = GetConnectionString();
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
@@ -1139,14 +1139,14 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                             if (esPago)
                             {
                                 // Eliminar de PagosProveedores
-                                var deletePago = new SqlCommand("DELETE FROM PagosProveedores WHERE CtaCteId = @id", conn, tx);
+                                var deletePago = new NpgsqlCommand("DELETE FROM PagosProveedores WHERE CtaCteId = @id", conn, tx);
                                 deletePago.Parameters.AddWithValue("@id", ctaCteId);
                                 await deletePago.ExecuteNonQueryAsync();
                             }
                             if (esCompra)
                             {
                                 // Eliminar de ProveedoresCtaCte
-                                var deleteCompra = new SqlCommand("DELETE FROM ProveedoresCtaCte WHERE Id = @id", conn, tx);
+                                var deleteCompra = new NpgsqlCommand("DELETE FROM ProveedoresCtaCte WHERE Id = @id", conn, tx);
                                 deleteCompra.Parameters.AddWithValue("@id", ctaCteId);
                                 await deleteCompra.ExecuteNonQueryAsync();
                             }
@@ -1188,7 +1188,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                 string cs = GetConnectionString();
                 var dt = new DataTable();
 
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     // ✅ CORREGIDO: Query actualizada para coincidir con la estructura real de PagosProveedores
                     var sql = @"
@@ -1198,28 +1198,28 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                     COALESCE(cp.NumeroFactura, 'Sin Nro.') AS NumeroFactura,
                     cta.Fecha,
                     cta.MontoTotal,
-                    ISNULL((
-                        SELECT SUM(pp.Monto)
-                        FROM PagosProveedores pp
-                        WHERE pp.IdProveedor = @proveedorId
+                    COALESCE((
+                        SELECT SUM(pp.monto)
+                        FROM pagosproveedores pp
+                        WHERE pp.idproveedor = @proveedorId
                             AND (
-                                pp.CompraId = cta.CompraId 
-                                OR pp.Observaciones LIKE '%Compra #' + CAST(cta.CompraId AS VARCHAR) + '%'
+                                pp.compraid = cta.compraid 
+                                OR pp.observaciones LIKE '%Compra #' || CAST(cta.compraid AS VARCHAR) || '%'
                             )
                     ), 0) AS Pagado,
                     cta.Saldo,
                     cta.Observaciones
-                FROM ProveedoresCtaCte cta
-                LEFT JOIN ComprasProveedores cp ON cta.CompraId = cp.Id
-                WHERE cta.Saldo > 0
-                    AND (cta.ProveedorId = @proveedorId OR (@proveedorId = 0 AND cta.ProveedorId IS NULL))
-                ORDER BY cta.Fecha DESC";
+                FROM proveedoresctacte cta
+                LEFT JOIN comprasproveedores cp ON cta.compraid = cp.id
+                WHERE cta.saldo > 0
+                    AND (cta.proveedorid = @proveedorId OR (@proveedorId = 0 AND cta.proveedorid IS NULL))
+                ORDER BY cta.fecha DESC";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@proveedorId", proveedorId);
 
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }
@@ -1351,7 +1351,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
 
             try
             {
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
@@ -1369,7 +1369,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                                     VALUES (@CompraId, @CtaCteId, @MedioPago, @Monto, @Referencia, @FechaPago, @Usuario);
                                 ";
 
-                                using (var cmd = new SqlCommand(insertSql, conn, tx))
+                                using (var cmd = new NpgsqlCommand(insertSql, conn, tx))
                                 {
                                     cmd.Parameters.AddWithValue("@CompraId", compraId.HasValue ? (object)compraId.Value : DBNull.Value);
                                     cmd.Parameters.AddWithValue("@CtaCteId", ctaCteId);
@@ -1395,7 +1395,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                                 WHERE Id = @id;
                             ";
 
-                            using (var cmdUpdate = new SqlCommand(updateSql, conn, tx))
+                            using (var cmdUpdate = new NpgsqlCommand(updateSql, conn, tx))
                             {
                                 cmdUpdate.Parameters.AddWithValue("@nuevoSaldo", nuevoSaldo);
                                 cmdUpdate.Parameters.AddWithValue("@id", ctaCteId);
@@ -1404,8 +1404,8 @@ ORDER BY SaldoPendiente DESC, Proveedor;
 
                             if (nuevoSaldo == 0 && compraId.HasValue)
                             {
-                                var updateCompra = new SqlCommand(
-                                    "UPDATE ComprasProveedores SET EsCtaCte = 0 WHERE Id = @id;", conn, tx);
+                                var updateCompra = new NpgsqlCommand(
+                                    "UPDATE ComprasProveedores SET EsCtaCte = FALSE WHERE Id = @id;", conn, tx);
                                 updateCompra.Parameters.AddWithValue("@id", compraId.Value);
                                 await updateCompra.ExecuteNonQueryAsync();
                             }
@@ -1616,7 +1616,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                 string medioPago = cmbMetodo.SelectedItem?.ToString() ?? "Efectivo";
                 string referencia = txtReferencia.Text.Trim();
 
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     await conn.OpenAsync();
                     using (var tx = conn.BeginTransaction())
@@ -1635,7 +1635,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
 
                             var facturas = new List<(int Id, int? CompraId, decimal Saldo, DateTime Fecha, string NumeroFactura)>();
 
-                            using (var cmd = new SqlCommand(sql, conn, tx))
+                            using (var cmd = new NpgsqlCommand(sql, conn, tx))
                             {
                                 cmd.Parameters.AddWithValue("@proveedorId", proveedorId);
                                 using (var reader = await cmd.ExecuteReaderAsync())
@@ -1673,7 +1673,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                                     (@FechaPago, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @Usuario, @NombreEquipo, @FechaRegistro, @IdProveedor, @Origen);
 ";
 
-                                using (var cmdPago = new SqlCommand(insertPago, conn, tx))
+                                using (var cmdPago = new NpgsqlCommand(insertPago, conn, tx))
                                 {
                                     cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
                                     cmdPago.Parameters.AddWithValue("@Proveedor", proveedorNombre);
@@ -1696,7 +1696,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                             WHERE Id = @id;
                         ";
 
-                                using (var cmdUpdate = new SqlCommand(updateSaldo, conn, tx))
+                                using (var cmdUpdate = new NpgsqlCommand(updateSaldo, conn, tx))
                                 {
                                     cmdUpdate.Parameters.AddWithValue("@nuevoSaldo", nuevoSaldo);
                                     cmdUpdate.Parameters.AddWithValue("@id", factura.Id);
@@ -1705,24 +1705,25 @@ ORDER BY SaldoPendiente DESC, Proveedor;
 
                                 if (nuevoSaldo == 0 && factura.CompraId.HasValue)
                                 {
-                                    var updateCompra = new SqlCommand(
-                                        "UPDATE ComprasProveedores SET EsCtaCte = 0 WHERE Id = @id;", conn, tx);
+                                    var updateCompra = new NpgsqlCommand(
+                                        "UPDATE ComprasProveedores SET EsCtaCte = FALSE WHERE Id = @id;", conn, tx);
                                     updateCompra.Parameters.AddWithValue("@id", factura.CompraId.Value);
                                     await updateCompra.ExecuteNonQueryAsync();
                                 }
 
                                 // Insertar movimiento en la cuenta corriente (CtaCteProveedores)
                                 var insertCtaCte = @"
-                            INSERT INTO CtaCteProveedores (Proveedor, Fecha, Concepto, Debe, Haber)
-                            VALUES (@Proveedor, @Fecha, @Concepto, @Debe, @Haber);
+                            INSERT INTO ctacteproveedores (proveedor, fecha, concepto, debe, haber, fecharegistro)
+                            VALUES (@Proveedor, @Fecha, @Concepto, @Debe, @Haber, @FechaRegistro);
                         ";
-                                using (var cmdCtaCte = new SqlCommand(insertCtaCte, conn, tx))
+                                using (var cmdCtaCte = new NpgsqlCommand(insertCtaCte, conn, tx))
                                 {
                                     cmdCtaCte.Parameters.AddWithValue("@Proveedor", proveedorNombre);
                                     cmdCtaCte.Parameters.AddWithValue("@Fecha", DateTime.Now);
                                     cmdCtaCte.Parameters.AddWithValue("@Concepto", "Pago general");
                                     cmdCtaCte.Parameters.AddWithValue("@Debe", 0);
                                     cmdCtaCte.Parameters.AddWithValue("@Haber", montoPagar);
+                                    cmdCtaCte.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
                                     await cmdCtaCte.ExecuteNonQueryAsync();
                                 }
 
@@ -1739,7 +1740,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
             (@FechaPago, @Proveedor, @Monto, @Observaciones, @NumeroCajero, @Usuario, @NombreEquipo, @FechaRegistro, @IdProveedor, @Origen);
     ";
 
-                                using (var cmdPago = new SqlCommand(insertPago, conn, tx))
+                                using (var cmdPago = new NpgsqlCommand(insertPago, conn, tx))
                                 {
                                     cmdPago.Parameters.AddWithValue("@FechaPago", DateTime.Now);
                                     cmdPago.Parameters.AddWithValue("@Proveedor", proveedorNombre);
@@ -1756,16 +1757,17 @@ ORDER BY SaldoPendiente DESC, Proveedor;
 
                                 // Insertar movimiento en la cuenta corriente (CtaCteProveedores)
                                 var insertCtaCte = @"
-                                                INSERT INTO CtaCteProveedores (Proveedor, Fecha, Concepto, Debe, Haber)
-                                                VALUES (@Proveedor, @Fecha, @Concepto, @Debe, @Haber);
+                                                INSERT INTO ctacteproveedores (proveedor, fecha, concepto, debe, haber, fecharegistro)
+                                                VALUES (@Proveedor, @Fecha, @Concepto, @Debe, @Haber, @FechaRegistro);
                                             ";
-                                using (var cmdCtaCte = new SqlCommand(insertCtaCte, conn, tx))
+                                using (var cmdCtaCte = new NpgsqlCommand(insertCtaCte, conn, tx))
                                 {
                                     cmdCtaCte.Parameters.AddWithValue("@Proveedor", proveedorNombre);
                                     cmdCtaCte.Parameters.AddWithValue("@Fecha", DateTime.Now);
                                     cmdCtaCte.Parameters.AddWithValue("@Concepto", "Pago a cuenta");
                                     cmdCtaCte.Parameters.AddWithValue("@Debe", 0);
                                     cmdCtaCte.Parameters.AddWithValue("@Haber", montoRestante);
+                                    cmdCtaCte.Parameters.AddWithValue("@FechaRegistro", DateTime.Now);
                                     await cmdCtaCte.ExecuteNonQueryAsync();
                                 }
                             }
@@ -1934,7 +1936,7 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                 string cs = GetConnectionString();
                 var dt = new DataTable();
 
-                using (var conn = new SqlConnection(cs))
+                using (var conn = new NpgsqlConnection(cs))
                 {
                     var sql = @"
                 SELECT 
@@ -1961,13 +1963,13 @@ ORDER BY SaldoPendiente DESC, Proveedor;
                     AND p.FechaPago BETWEEN @desde AND @hasta
                 ORDER BY p.FechaPago DESC";
 
-                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var cmd = new NpgsqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@proveedorNombre", proveedorNombre);
                         cmd.Parameters.AddWithValue("@desde", dtpDesde.Value.Date);
                         cmd.Parameters.AddWithValue("@hasta", dtpHasta.Value.Date.AddDays(1).AddTicks(-1));
 
-                        using (var da = new SqlDataAdapter(cmd))
+                        using (var da = new NpgsqlDataAdapter(cmd))
                         {
                             await Task.Run(() => da.Fill(dt));
                         }

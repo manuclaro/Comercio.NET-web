@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
 using System.Data.OleDb;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -535,7 +535,7 @@ namespace Comercio.NET.Formularios
             var culture = System.Globalization.CultureInfo.InvariantCulture;
             var numberStyle = System.Globalization.NumberStyles.Any;
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
@@ -569,7 +569,7 @@ namespace Comercio.NET.Formularios
 
                     // Buscar producto en BD
                     var query = "SELECT Descripcion, Costo, Porcentaje, Precio FROM Productos WHERE Codigo = @Codigo";
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         cmd.Parameters.AddWithValue("@Codigo", codigo);
                         using (var reader = await cmd.ExecuteReaderAsync())
@@ -755,7 +755,7 @@ namespace Comercio.NET.Formularios
                 var erroresDetalle = new System.Text.StringBuilder();
                 int maxErroresAMostrar = 10; // Solo mostrar los primeros 10 errores
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
 
@@ -876,7 +876,7 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private async Task ActualizarProductoAsync(SqlConnection connection, DataRow row)
+        private async Task ActualizarProductoAsync(NpgsqlConnection connection, DataRow row)
         {
             string codigo = row["Codigo"].ToString();
             decimal costoNuevo = Convert.ToDecimal(row["Costo_Nuevo"]);
@@ -894,7 +894,7 @@ namespace Comercio.NET.Formularios
             Precio = @Precio
         WHERE Codigo = @Codigo";
 
-            using (var cmd = new SqlCommand(queryUpdate, connection))
+            using (var cmd = new NpgsqlCommand(queryUpdate, connection))
             {
                 cmd.Parameters.AddWithValue("@Codigo", codigo);
                 cmd.Parameters.AddWithValue("@Costo", costoNuevo);
@@ -915,7 +915,7 @@ namespace Comercio.NET.Formularios
                 precioAnterior, precioNuevo);
         }
 
-        private async Task InsertarProductoAsync(SqlConnection connection, DataRow row)
+        private async Task InsertarProductoAsync(NpgsqlConnection connection, DataRow row)
         {
             string codigo = row["Codigo"].ToString();
             decimal costoNuevo = Convert.ToDecimal(row["Costo_Nuevo"]);
@@ -946,20 +946,37 @@ namespace Comercio.NET.Formularios
                 ? rowExcel["proveedor"]?.ToString()?.Trim() ?? ""
                 : "";
 
-            // ✅ CORRECCIÓN: Agregar campos por defecto (PermiteAcumular, EditarPrecio, cantidad)
+            bool permiteAcumular = true;
+            if (rowExcel.Table.Columns.Contains("permiteacumular") && rowExcel["permiteacumular"] != DBNull.Value)
+                permiteAcumular = Convert.ToInt32(rowExcel["permiteacumular"]) != 0;
+            else if (rowExcel.Table.Columns.Contains("PermiteAcumular") && rowExcel["PermiteAcumular"] != DBNull.Value)
+                permiteAcumular = Convert.ToInt32(rowExcel["PermiteAcumular"]) != 0;
+
+            bool editarPrecio = false;
+            if (rowExcel.Table.Columns.Contains("editarprecio") && rowExcel["editarprecio"] != DBNull.Value)
+                editarPrecio = Convert.ToInt32(rowExcel["editarprecio"]) != 0;
+            else if (rowExcel.Table.Columns.Contains("EditarPrecio") && rowExcel["EditarPrecio"] != DBNull.Value)
+                editarPrecio = Convert.ToInt32(rowExcel["EditarPrecio"]) != 0;
+
+            bool activo = true;
+            if (rowExcel.Table.Columns.Contains("activo") && rowExcel["activo"] != DBNull.Value)
+                activo = Convert.ToInt32(rowExcel["activo"]) != 0;
+            else if (rowExcel.Table.Columns.Contains("Activo") && rowExcel["Activo"] != DBNull.Value)
+                activo = Convert.ToInt32(rowExcel["Activo"]) != 0;
+
             var queryInsert = @"
         INSERT INTO Productos (
             Codigo, Descripcion, Costo, Porcentaje, Precio, 
             Marca, Rubro, Proveedor, 
-            PermiteAcumular, EditarPrecio, cantidad
+            PermiteAcumular, EditarPrecio, cantidad, activo
         )
         VALUES (
             @Codigo, @Descripcion, @Costo, @Porcentaje, @Precio, 
             @Marca, @Rubro, @Proveedor, 
-            @PermiteAcumular, @EditarPrecio, @Cantidad
+            @PermiteAcumular, @EditarPrecio, @Cantidad, @Activo
         )";
 
-            using (var cmd = new SqlCommand(queryInsert, connection))
+            using (var cmd = new NpgsqlCommand(queryInsert, connection))
             {
                 cmd.Parameters.AddWithValue("@Codigo", codigo);
                 cmd.Parameters.AddWithValue("@Descripcion", descripcion);
@@ -969,11 +986,10 @@ namespace Comercio.NET.Formularios
                 cmd.Parameters.AddWithValue("@Marca", string.IsNullOrEmpty(marca) ? (object)DBNull.Value : marca);
                 cmd.Parameters.AddWithValue("@Rubro", string.IsNullOrEmpty(rubro) ? (object)DBNull.Value : rubro);
                 cmd.Parameters.AddWithValue("@Proveedor", string.IsNullOrEmpty(proveedor) ? (object)DBNull.Value : proveedor);
-
-                // ✅ NUEVOS: Valores por defecto para productos nuevos
-                cmd.Parameters.AddWithValue("@PermiteAcumular", 1);  // Permite acumular = true
-                cmd.Parameters.AddWithValue("@EditarPrecio", 0);     // Editar precio = false
-                cmd.Parameters.AddWithValue("@Cantidad", 0);         // Stock inicial = 0
+                cmd.Parameters.Add(new NpgsqlParameter("@PermiteAcumular", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = permiteAcumular });
+                cmd.Parameters.Add(new NpgsqlParameter("@EditarPrecio", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = editarPrecio });
+                cmd.Parameters.AddWithValue("@Cantidad", 0);
+                cmd.Parameters.Add(new NpgsqlParameter("@Activo", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = activo });
 
                 await cmd.ExecuteNonQueryAsync();
             }
@@ -984,7 +1000,7 @@ namespace Comercio.NET.Formularios
                 0, precioNuevo);
         }
 
-        private async Task RegistrarAuditoriaAsync(SqlConnection connection, string accion, string codigo,
+        private async Task RegistrarAuditoriaAsync(NpgsqlConnection connection, string accion, string codigo,
             decimal costoAnterior, decimal costoNuevo,
             decimal porcentajeAnterior, decimal porcentajeNuevo,
             decimal precioAnterior, decimal precioNuevo)
@@ -992,22 +1008,22 @@ namespace Comercio.NET.Formularios
             try
             {
                 var queryAuditoria = @"
-                    INSERT INTO AuditoriaProductos (
-                        Codigo, Accion, 
-                        CostoAnterior, CostoNuevo, 
-                        PorcentajeAnterior, PorcentajeNuevo, 
-                        PrecioAnterior, PrecioNuevo, 
-                        Usuario, Fecha, Origen
+                    INSERT INTO auditoriaproductos (
+                        codigo, accion, 
+                        costoanterior, costonuevo, 
+                        porcentajeanterior, porcentajenuevo, 
+                        precioanterior, precionuevo, 
+                        usuario, fecha, origen
                     )
                     VALUES (
                         @Codigo, @Accion, 
                         @CostoAnterior, @CostoNuevo, 
                         @PorcentajeAnterior, @PorcentajeNuevo, 
                         @PrecioAnterior, @PrecioNuevo, 
-                        @Usuario, GETDATE(), 'ActualizacionExcel'
+                        @Usuario, NOW(), 'ActualizacionExcel'
                     )";
 
-                using (var cmd = new SqlCommand(queryAuditoria, connection))
+                using (var cmd = new NpgsqlCommand(queryAuditoria, connection))
                 {
                     cmd.Parameters.AddWithValue("@Codigo", codigo);
                     cmd.Parameters.AddWithValue("@Accion", accion);

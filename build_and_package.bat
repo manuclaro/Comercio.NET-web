@@ -5,9 +5,20 @@ title Empaquetar Comercio .NET para Actualizacion
 echo ========================================================
 echo.
 echo     EMPAQUETADOR DE ACTUALIZACIONES
-echo     Comercio .NET
+echo     Comercio .NET  (PostgreSQL)
 echo.
 echo ========================================================
+echo.
+
+REM ---------------------------------------------------------------------------
+REM Configuracion de PostgreSQL (ajustar si es necesario)
+REM ---------------------------------------------------------------------------
+set PG_BIN=C:\Program Files\PostgreSQL\18\bin
+set PG_USER=postgres
+set PG_PORT=5433
+set PG_DB=comercio
+REM La password se lee de la variable de entorno PGPASSWORD para no exponerla
+REM Si PGPASSWORD no esta definida, pg_dump pedira la password interactivamente.
 echo.
 
 REM Solicitar version
@@ -54,7 +65,7 @@ if exist "%OUTPUT_DIR%" (
 mkdir "%OUTPUT_DIR%"
 
 echo.
-echo [1/4] Compilando proyecto en modo Release...
+echo [1/5] Compilando proyecto en modo Release...
 dotnet build "Comercio.NET.sln" -c Release
 if errorlevel 1 (
     echo X Error al compilar
@@ -64,18 +75,65 @@ if errorlevel 1 (
 echo       OK Compilacion exitosa
 echo.
 
-echo [2/4] Copiando archivos...
+echo [2/5] Copiando archivos...
 xcopy "bin\Release\net8.0-windows\*" "%OUTPUT_DIR%\app\" /E /I /Y /Q
 
-REM Excluir archivos que no deben actualizarse
+REM Excluir archivos que no deben distribuirse
 del /q "%OUTPUT_DIR%\app\appsettings.json" 2>nul
 del /q "%OUTPUT_DIR%\app\*.db" 2>nul
 del /q "%OUTPUT_DIR%\app\*.log" 2>nul
 
+REM Copiar scripts de base de datos PostgreSQL
+if not exist "%OUTPUT_DIR%\app\database" mkdir "%OUTPUT_DIR%\app\database"
+if exist "database\init_comercio_pg.sql" (
+    copy /Y "database\init_comercio_pg.sql" "%OUTPUT_DIR%\app\database\" >nul
+    echo       OK init_comercio_pg.sql incluido
+)
+
 echo       OK Archivos copiados
 echo.
 
-echo [3/4] Creando archivo ZIP...
+echo [3/5] Generando dump de PostgreSQL...
+if not exist "%PG_BIN%\pg_dump.exe" (
+    echo    !! pg_dump no encontrado en: %PG_BIN%
+    echo    !! Ajuste la variable PG_BIN al inicio del script.
+    echo    !! El dump NO sera incluido en el paquete.
+    echo    !! Los clientes usaran init_comercio_pg.sql como fallback.
+    goto SKIP_DUMP
+)
+
+REM Generar dump en formato SQL plano (mas portable entre versiones)
+echo    >> Generando comercio_inicial.sql (formato SQL plano compatible)...
+"%PG_BIN%\pg_dump.exe" -U %PG_USER% -p %PG_PORT% -d %PG_DB% ^
+    --format=plain --no-owner --no-acl --no-table-access-method ^
+    --no-tablespaces --no-comments ^
+    --file="%OUTPUT_DIR%\app\database\comercio_inicial.sql"
+
+if errorlevel 1 (
+    echo    !! Error generando el dump SQL plano.
+    echo    !! Verifique que PostgreSQL este corriendo y que "%PG_DB%" exista.
+    echo    !! Los clientes usaran init_comercio_pg.sql como fallback.
+    goto SKIP_DUMP
+)
+
+REM Limpiar comandos exclusivos de PG 17+ (incompatibles con PG 16)
+echo    >> Limpiando comandos incompatibles del dump...
+powershell -NoProfile -Command ^
+    "$f='%OUTPUT_DIR%\app\database\comercio_inicial.sql'; ^
+    $c=Get-Content $f; ^
+    $c=$c -notmatch '^\\s*\\(un)?restrict'; ^
+    [System.IO.File]::WriteAllLines($f,$c,(New-Object System.Text.UTF8Encoding($false)))"
+
+if errorlevel 1 (
+    echo    !! Advertencia: No se pudo limpiar el dump automaticamente.
+) else (
+    echo       OK Dump SQL generado y limpiado para compatibilidad PG 12-18+
+)
+
+:SKIP_DUMP
+echo.
+
+echo [4/5] Creando archivo ZIP...
 powershell -Command "Compress-Archive -Path '%OUTPUT_DIR%\app\*' -DestinationPath '%OUTPUT_DIR%\ComercioNET_v%VERSION%.zip' -Force"
 if errorlevel 1 (
     echo X Error al crear ZIP
@@ -85,7 +143,7 @@ if errorlevel 1 (
 echo       OK ZIP creado
 echo.
 
-echo [4/4] Generando version.json...
+echo [5/5] Generando version.json...
 (
 echo {
 echo   "Version": "%VERSION%",
@@ -116,5 +174,10 @@ echo PROXIMOS PASOS:
 echo 1. Editar %OUTPUT_DIR%\version.json con el changelog correcto
 echo 2. Subir ComercioNET_v%VERSION%.zip a GitHub Releases
 echo 3. Subir version.json a GitHub Releases
+echo.
+echo CONTENIDO DEL ZIP:
+echo   - Ejecutable y DLLs de la aplicacion
+echo   - database\comercio_inicial.sql   (SQL plano, compatible entre versiones PG)
+echo   - database\init_comercio_pg.sql   (DDL fallback)
 echo.
 pause

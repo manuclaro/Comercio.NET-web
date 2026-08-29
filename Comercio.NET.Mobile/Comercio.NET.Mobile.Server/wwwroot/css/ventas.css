@@ -134,3 +134,41 @@ body {
     font-size: 0.9rem;
     font-weight: 500;
 }
+
+/* ══ RESPONSIVE ══ */
+@media (max-width: 640px) {
+    body {
+        padding: 10px;
+    }
+
+    .resumen-cards {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+    }
+
+    .resumen-card {
+        padding: 0.8rem;
+    }
+
+    .resumen-card .valor {
+        font-size: 1.05rem;
+    }
+
+    .tabla-ventas-container {
+        padding: 0.5rem;
+        border-radius: 8px;
+    }
+
+    .tabla-ventas-container table {
+        font-size: 0.8rem;
+    }
+
+    .tabla-ventas-container thead th {
+        padding: 8px 6px;
+        font-size: 0.72rem;
+    }
+
+    .tabla-ventas-container tbody td {
+        padding: 7px 6px;
+    }
+}

@@ -2,10 +2,11 @@ namespace Comercio.NET.Mobile.Server.Models
 {
     public class Usuario
     {
-        public int Id { get; set; }
-        public string NombreUsuario { get; set; } = string.Empty;
+        public int    Id             { get; set; }
+        public string NombreUsuario  { get; set; } = string.Empty;
         public string? NombreCompleto { get; set; }
-        public string? Rol { get; set; } // "Admin", "Cajero", "Consulta"
+        public string? Rol            { get; set; } // "Admin", "Supervisor", "Cajero"
+        public int    NumeroCajero   { get; set; } = 1;
     }
 
     public class LoginRequest

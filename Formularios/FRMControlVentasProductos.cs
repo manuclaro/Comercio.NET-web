@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -355,37 +355,31 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 connection.Open();
 
                 // ✅ MODIFICADO: Ordenar por NroFactura y hora descendente
                 string query = @"
                     SELECT 
-                        v.NroFactura AS 'Nro. Remito',
-                        v.codigo AS Código,
-                        p.descripcion AS Descripción,
-                        p.marca AS Marca,
-                        p.rubro AS Rubro,
-                        p.proveedor AS Proveedor,
-                        v.cantidad AS Cantidad,
-                        v.precio AS 'Precio Unitario',
-                        v.total AS Total,
-                        CONVERT(VARCHAR(10), v.fecha, 103) AS Fecha,
-                        CASE 
-                            WHEN v.hora IS NULL THEN '00:00'
-                            ELSE CONVERT(VARCHAR(5), v.hora, 108)
-                        END AS Hora
-                    FROM Ventas v
-                    INNER JOIN Productos p ON v.codigo = p.codigo
+                        v.NroFactura AS ""Nro. Remito"",
+                        v.codigo AS ""Código"",
+                        p.descripcion AS ""Descripción"",
+                        p.marca AS ""Marca"",
+                        p.rubro AS ""Rubro"",
+                        p.proveedor AS ""Proveedor"",
+                        v.cantidad AS ""Cantidad"",
+                        v.precio AS ""Precio Unitario"",
+                        v.total AS ""Total"",
+                        TO_CHAR(v.fecha, 'DD/MM/YYYY') AS ""Fecha"",
+                        COALESCE(TO_CHAR(v.hora, 'HH24:MI'), '00:00') AS ""Hora""
+                    FROM ventas v
+                    INNER JOIN productos p ON v.codigo = p.codigo
                     WHERE v.fecha >= @desde 
                       AND v.fecha < @hastaExclusivo
                     ORDER BY v.NroFactura DESC, 
-                             CASE 
-                                 WHEN v.hora IS NULL THEN '00:00'
-                                 ELSE CONVERT(VARCHAR(5), v.hora, 108)
-                             END DESC";
+                             COALESCE(TO_CHAR(v.hora, 'HH24:MI'), '00:00') DESC";
 
-                using var adapter = new SqlDataAdapter(query, connection);
+                using var adapter = new NpgsqlDataAdapter(query, connection);
                 adapter.SelectCommand.Parameters.AddWithValue("@desde", desde.Date);
                 adapter.SelectCommand.Parameters.AddWithValue("@hastaExclusivo", hasta.Date.AddDays(1));
 

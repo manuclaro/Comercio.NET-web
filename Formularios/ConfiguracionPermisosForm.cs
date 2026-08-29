@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -316,18 +316,18 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 // Verificar si existe la tabla de permisos
                 var checkTableQuery = @"
                     SELECT COUNT(*) 
                     FROM INFORMATION_SCHEMA.TABLES 
-                    WHERE TABLE_NAME = 'PermisosPerfiles'";
+                    WHERE TABLE_NAME = 'permisosperfiles'";
 
-                using (var checkCmd = new SqlCommand(checkTableQuery, connection))
+                using (var checkCmd = new NpgsqlCommand(checkTableQuery, connection))
                 {
-                    int tableExists = (int)await checkCmd.ExecuteScalarAsync();
+                    int tableExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
                     
                     if (tableExists == 0)
                     {
@@ -341,7 +341,7 @@ namespace Comercio.NET.Formularios
 
                 // Cargar permisos existentes
                 var query = "SELECT NivelUsuario, CodigoFuncionalidad, Permitido FROM PermisosPerfiles";
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 using var reader = await cmd.ExecuteReaderAsync();
 
                 while (reader.Read())
@@ -369,18 +369,18 @@ namespace Comercio.NET.Formularios
             }
         }
 
-        private async Task CrearTablaPermisos(SqlConnection connection)
+        private async Task CrearTablaPermisos(NpgsqlConnection connection)
         {
             var createTableQuery = @"
-                CREATE TABLE PermisosPerfiles (
-                    IdPermiso INT IDENTITY(1,1) PRIMARY KEY,
-                    NivelUsuario INT NOT NULL,
-                    CodigoFuncionalidad NVARCHAR(50) NOT NULL,
-                    Permitido BIT NOT NULL DEFAULT 0,
-                    UNIQUE(NivelUsuario, CodigoFuncionalidad)
+                CREATE TABLE IF NOT EXISTS permisosperfiles (
+                    idpermiso SERIAL PRIMARY KEY,
+                    nivelUsuario INT NOT NULL,
+                    codigoFuncionalidad VARCHAR(50) NOT NULL,
+                    permitido BOOLEAN NOT NULL DEFAULT FALSE,
+                    UNIQUE(nivelUsuario, codigoFuncionalidad)
                 )";
 
-            using var cmd = new SqlCommand(createTableQuery, connection);
+            using var cmd = new NpgsqlCommand(createTableQuery, connection);
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -505,12 +505,12 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 // Eliminar permisos existentes
                 var deleteQuery = "DELETE FROM PermisosPerfiles";
-                using (var deleteCmd = new SqlCommand(deleteQuery, connection))
+                using (var deleteCmd = new NpgsqlCommand(deleteQuery, connection))
                 {
                     await deleteCmd.ExecuteNonQueryAsync();
                 }
@@ -526,7 +526,7 @@ namespace Comercio.NET.Formularios
                     {
                         if (!permiso.Key.StartsWith("sep")) // Ignorar separadores
                         {
-                            using var cmd = new SqlCommand(insertQuery, connection);
+                            using var cmd = new NpgsqlCommand(insertQuery, connection);
                             cmd.Parameters.AddWithValue("@nivel", (int)nivelPermisos.Key);
                             cmd.Parameters.AddWithValue("@codigo", permiso.Key);
                             cmd.Parameters.AddWithValue("@permitido", permiso.Value);

@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -768,13 +768,13 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 var query = @"SELECT codigo, descripcion, precio, cantidad, marca, rubro, costo, porcentaje 
                              FROM Productos WHERE codigo = @codigo";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@codigo", codigoBuscado);
 
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -820,7 +820,7 @@ namespace Comercio.NET.Formularios
             return codigoBuscado;
         }
 
-        private void MostrarInformacionProducto(SqlDataReader reader)
+        private void MostrarInformacionProducto(NpgsqlDataReader reader)
         {
             codigoActual = reader["codigo"].ToString();
             string descripcion = reader["descripcion"].ToString();
@@ -1042,7 +1042,7 @@ namespace Comercio.NET.Formularios
 
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using var connection = new SqlConnection(connectionString);
+                using var connection = new NpgsqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 var query = @"UPDATE Productos 
@@ -1052,7 +1052,7 @@ namespace Comercio.NET.Formularios
                          modificado = @modificado
                      WHERE codigo = @codigo";
 
-                using var cmd = new SqlCommand(query, connection);
+                using var cmd = new NpgsqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
                 cmd.Parameters.AddWithValue("@costo", nuevoCosto);
                 cmd.Parameters.AddWithValue("@cantidad", stockFinal);

@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -823,7 +823,7 @@ namespace Comercio.NET.Formularios
                 .Build();
             string connectionString = config.GetConnectionString("DefaultConnection");
 
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
@@ -835,23 +835,27 @@ namespace Comercio.NET.Formularios
                     System.Diagnostics.Debug.WriteLine($"[FACTURA AFIP] 📝 Modo UPDATE - Actualizando remito existente: {numeroRemitoExistente}");
 
                     var queryUpdate = @"
-                UPDATE Facturas 
+                UPDATE facturas 
                 SET 
-                    NroFactura = @numeroFactura,
-                    TipoFactura = @tipoFactura,
-                    CAENumero = @cae,
-                    CAEVencimiento = @vencimiento,
-                    CUITCliente = @cuit
-                WHERE NumeroRemito = @numeroRemito";
+                    nrofactura = @numeroFactura,
+                    tipofactura = @tipoFactura,
+                    caenumero = @cae,
+                    caevencimiento = @vencimiento,
+                    cuitcliente = @cuit
+                WHERE numeroremito = @numeroRemito";
 
-                    using (var cmd = new SqlCommand(queryUpdate, connection))
+                    using (var cmd = new NpgsqlCommand(queryUpdate, connection))
                     {
                         cmd.Parameters.AddWithValue("@numeroFactura", numeroFactura);
                         cmd.Parameters.AddWithValue("@tipoFactura", tipoFactura);
                         cmd.Parameters.AddWithValue("@cae", cae);
                         cmd.Parameters.AddWithValue("@vencimiento", vencimientoCae);
                         cmd.Parameters.AddWithValue("@cuit", (object)cuitCliente ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@numeroRemito", numeroRemitoExistente);
+                        // numeroremito es integer; convertir el string a int
+                        if (int.TryParse(numeroRemitoExistente, out int nroRemitoInt))
+                            cmd.Parameters.Add(new NpgsqlParameter("@numeroRemito", NpgsqlTypes.NpgsqlDbType.Integer) { Value = nroRemitoInt });
+                        else
+                            cmd.Parameters.AddWithValue("@numeroRemito", numeroRemitoExistente);
 
                         int filasAfectadas = await cmd.ExecuteNonQueryAsync();
 
@@ -880,12 +884,12 @@ namespace Comercio.NET.Formularios
 
                 // ✅ PASO 2: Insertar nueva factura
                 var queryInsert = @"
-            INSERT INTO Facturas 
-                (NumeroRemito, NroFactura, TipoFactura, ImporteFinal, CAENumero, CAEVencimiento, CUITCliente, Fecha, Hora, FormadePago, Cajero, esCtaCte)
+            INSERT INTO facturas 
+                (numeroremito, nrofactura, tipofactura, importefinal, caenumero, caevencimiento, cuitcliente, fecha, hora, formadepago, cajero, esctacte)
             VALUES 
                 (@numeroRemito, @numeroFactura, @tipoFactura, @montoTotal, @cae, @vencimiento, @cuit, @fecha, @hora, @formaPago, @cajero, @esCtaCte)";
 
-                using (var cmd = new SqlCommand(queryInsert, connection))
+                using (var cmd = new NpgsqlCommand(queryInsert, connection))
                 {
                     cmd.Parameters.AddWithValue("@numeroRemito", nuevoNumeroRemito); // ✅ INT
                     cmd.Parameters.AddWithValue("@numeroFactura", numeroFactura);    // ✅ STRING formateado
@@ -895,10 +899,10 @@ namespace Comercio.NET.Formularios
                     cmd.Parameters.AddWithValue("@vencimiento", vencimientoCae);
                     cmd.Parameters.AddWithValue("@cuit", (object)cuitCliente ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@fecha", DateTime.Now.Date);
-                    cmd.Parameters.AddWithValue("@hora", DateTime.Now.TimeOfDay);
+                    cmd.Parameters.AddWithValue("@hora", DateTime.Now);
                     cmd.Parameters.AddWithValue("@formaPago", "Efectivo"); // Valor por defecto
                     cmd.Parameters.AddWithValue("@cajero", ObtenerUsuarioActual());
-                    cmd.Parameters.AddWithValue("@esCtaCte", false); // No es cuenta corriente
+                    cmd.Parameters.Add(new NpgsqlParameter("@esCtaCte", NpgsqlTypes.NpgsqlDbType.Bit) { Value = false }); // No es cuenta corriente
 
                     await cmd.ExecuteNonQueryAsync();
 
@@ -923,15 +927,11 @@ namespace Comercio.NET.Formularios
         // ✅ MODIFICADO: Agregar SET ARITHABORT también aquí
         private async Task<int> ObtenerYReservarNumeroRemito(string connectionString)
         {
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
 
-                // ✅ Configurar opciones de conexión
-                using (var cmdConfig = new SqlCommand("SET ARITHABORT ON; SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON;", connection))
-                {
-                    await cmdConfig.ExecuteNonQueryAsync();
-                }
+
 
                 using (var transaction = connection.BeginTransaction())
                 {
@@ -939,7 +939,7 @@ namespace Comercio.NET.Formularios
                     {
                         // ✅ PASO 1: Incrementar el contador GLOBAL (IGUAL QUE Ventas.cs)
                         var queryIncrement = "UPDATE numeroremito SET nroremito = nroremito + 1";
-                        using (var cmdIncrement = new SqlCommand(queryIncrement, connection, transaction))
+                        using (var cmdIncrement = new NpgsqlCommand(queryIncrement, connection, transaction))
                         {
                             await cmdIncrement.ExecuteNonQueryAsync();
                             System.Diagnostics.Debug.WriteLine($"[REMITO] ✅ Contador global incrementado");
@@ -947,7 +947,7 @@ namespace Comercio.NET.Formularios
 
                         // ✅ PASO 2: Obtener el nuevo número
                         var queryObtener = "SELECT nroremito FROM numeroremito";
-                        using (var cmdObtener = new SqlCommand(queryObtener, connection, transaction))
+                        using (var cmdObtener = new NpgsqlCommand(queryObtener, connection, transaction))
                         {
                             var result = await cmdObtener.ExecuteScalarAsync();
                             int numeroRemito = Convert.ToInt32(result);

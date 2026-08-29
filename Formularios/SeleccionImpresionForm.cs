@@ -1,10 +1,10 @@
-﻿using Comercio.NET.Controles;
+using Comercio.NET.Controles;
 using Comercio.NET.Servicios;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Npgsql;
 using System.Drawing.Printing;
 using System.Globalization;
 using System.Linq;
@@ -167,7 +167,7 @@ namespace Comercio.NET
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Width = 700;
-            this.Height = 470;
+            this.Height = 530;
 
             CrearControles();
             ConfigurarEventos();
@@ -180,6 +180,7 @@ namespace Comercio.NET
 
             ActualizarOpcionesImpresion();
 
+            this.Shown += (s, e) => ActualizarOpcionesImpresion();
             this.Resize += (s, e) => PosicionarBotones();
 
             SettingsManager.SettingsReloaded += () =>
@@ -285,15 +286,15 @@ namespace Comercio.NET
                     .Build();
                 string connectionString = config.GetConnectionString("DefaultConnection");
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     var query = @"
-                SELECT ISNULL(SUM(ImporteTotal), 0) AS TotalFacturado
-                FROM Facturas
-                WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)
-                  AND TipoFactura IN ('FacturaA', 'FacturaB', 'FacturaC')";
+                SELECT COALESCE(SUM(importetotal), 0) AS TotalFacturado
+                FROM facturas
+                WHERE CAST(fecha AS DATE) = CURRENT_DATE
+                  AND tipofactura IN ('FacturaA', 'FacturaB', 'FacturaC')";
 
-                    using (var cmd = new SqlCommand(query, connection))
+                    using (var cmd = new NpgsqlCommand(query, connection))
                     {
                         connection.Open(); // ✅ Síncrono
                         var result = cmd.ExecuteScalar(); // ✅ Síncrono
@@ -962,7 +963,7 @@ namespace Comercio.NET
                 if (esPagoMultiple)
                 {
                     multiplePagosControl.EstablecerImporteTotal(importeTotalVenta);
-                    this.Height = 550;
+                    this.Height = 610;
 
                     // Posiciones para modo MÚLTIPLE
                     txtCuit.Top = 340;
@@ -988,7 +989,7 @@ namespace Comercio.NET
                 else
                 {
                     // ✅ MODO SIMPLE: Restaurar posiciones originales
-                    this.Height = 550;  // ✅ AUMENTADO de 500 a 550 para dar más espacio
+                    this.Height = 610;  // Aumentado para dar espacio al mensaje de límite AFIP
 
                     // Reposicionar label de importe total (visible en modo simple)
                     lblImporteTotal.Top = 120;
@@ -999,19 +1000,19 @@ namespace Comercio.NET
                     panelDescuento.Visible = true;
 
                     // Reposicionar CUIT
-                    txtCuit.Top = 320;
-                    lblRazonSocial.Top = 322;
-                    lblMensajeInformativo.Top = 345;
+                    txtCuit.Top = 340;
+                    lblRazonSocial.Top = 342;
+                    lblMensajeInformativo.Top = 365;
 
                     var lblCuit = this.Controls.Find("lblCuit", true).FirstOrDefault();
                     if (lblCuit != null)
                     {
-                        lblCuit.SetBounds(40, 322, 50, 20);
+                        lblCuit.SetBounds(40, 342, 50, 20);
                         lblCuit.Visible = true;
                     }
 
                     // ✅ CORREGIDO: Posición consistente de botones en modo simple
-                    int topBotones = 370;
+                    int topBotones = 395;
                     btnRemito.Top = topBotones;
                     btnFacturaB.Top = topBotones;
                     btnFacturaC.Top = topBotones;
@@ -1869,7 +1870,7 @@ namespace Comercio.NET
                     System.Diagnostics.Debug.WriteLine($"   - {col.ColumnName} ({col.DataType.Name})");
                 }
 
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new NpgsqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
                     System.Diagnostics.Debug.WriteLine("✅ Conexión a base de datos abierta");
@@ -1878,10 +1879,10 @@ namespace Comercio.NET
                     string checkTableQuery = @"
                 SELECT COLUMN_NAME, DATA_TYPE 
                 FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_NAME = 'Productos' 
+                WHERE TABLE_NAME = 'productos'
                 AND COLUMN_NAME IN ('cantidad', 'stock', 'Stock', 'Cantidad', 'existencia')";
 
-                    using (var checkCmd = new SqlCommand(checkTableQuery, connection))
+                    using (var checkCmd = new NpgsqlCommand(checkTableQuery, connection))
                     using (var reader = await checkCmd.ExecuteReaderAsync())
                     {
                         System.Diagnostics.Debug.WriteLine("📊 Columnas de stock encontradas en tabla Productos:");
@@ -1942,8 +1943,8 @@ namespace Comercio.NET
                         }
 
                         // ✅ PRIMERO: Verificar si el producto existe y obtener stock actual
-                        string checkQuery = "SELECT cantidad FROM Productos WHERE codigo = @codigo";
-                        using (var checkCmd = new SqlCommand(checkQuery, connection))
+                        string checkQuery = "SELECT cantidad FROM productos WHERE codigo = @codigo";
+                        using (var checkCmd = new NpgsqlCommand(checkQuery, connection))
                         {
                             checkCmd.Parameters.AddWithValue("@codigo", codigo);
                             var stockActual = await checkCmd.ExecuteScalarAsync();
@@ -1962,11 +1963,11 @@ namespace Comercio.NET
 
                         // ✅ SEGUNDO: Descontar stock en la base de datos
                         string updateQuery = @"
-                    UPDATE Productos 
+                    UPDATE productos
                     SET cantidad = cantidad - @cantidad 
                     WHERE codigo = @codigo";
 
-                        using (var cmd = new SqlCommand(updateQuery, connection))
+                        using (var cmd = new NpgsqlCommand(updateQuery, connection))
                         {
                             cmd.Parameters.AddWithValue("@cantidad", cantidad);
                             cmd.Parameters.AddWithValue("@codigo", codigo);
@@ -1979,7 +1980,7 @@ namespace Comercio.NET
                                 productosDescontados++;
 
                                 // ✅ VERIFICAR el stock después del update
-                                using (var verifyCmd = new SqlCommand("SELECT cantidad FROM Productos WHERE codigo = @codigo", connection))
+                                using (var verifyCmd = new NpgsqlCommand("SELECT cantidad FROM productos WHERE codigo = @codigo", connection))
                                 {
                                     verifyCmd.Parameters.AddWithValue("@codigo", codigo);
                                     var nuevoStock = await verifyCmd.ExecuteScalarAsync();
@@ -3098,6 +3099,8 @@ namespace Comercio.NET
                 btnFacturaC.BackColor = puedeFacturas ? Color.FromArgb(255, 87, 34) : Color.LightGray;  // ✅ NUEVO
                 btnFinalizarSinImpresion.BackColor = puedeFinalizarSinImpresion ? Color.FromArgb(255, 193, 7) : Color.LightGray;
 
+                PosicionarBotones();
+
                 // ✅ NUEVO: Mostrar mensaje de límite alcanzado
                 if (!string.IsNullOrEmpty(mensajeLimite))
                 {
@@ -3107,8 +3110,6 @@ namespace Comercio.NET
                 {
                     MostrarInformacionEstado(hayPagosDigitales, pagoCompleto);
                 }
-
-                PosicionarBotones();
             }
             catch (Exception ex)
             {
